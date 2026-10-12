@@ -1,0 +1,428 @@
+"""Database access over the shared schema (docs/architecture.md in the parent).
+
+Two interfaces with one PostgreSQL implementation each: ``Retriever`` for the
+pgvector similarity search, ``Store`` for everything else this service reads
+or writes: notebooks (read), messages, outputs, the generated sources and
+their chunks, usage and the credit balance. ``notebooks``, ``sources`` and
+``chunks`` are ingest's tables; ``usage`` and ``ledger`` belong to core and
+account; this module only reads and writes them.
+"""
+
+from __future__ import annotations
+
+import logging
+import uuid
+from collections.abc import Mapping
+from typing import Any, Protocol
+
+from psycopg import Connection
+from psycopg.rows import DictRow, dict_row
+from psycopg.types.json import Jsonb
+from psycopg_pool import ConnectionPool
+
+from .contracts import Message, ModelPrice, OutputKind, OutputStatus, cost_cents
+from .models import Chunk, OutputRow, RetrievedChunk, SourceState, SourceSummary, Usage
+
+log = logging.getLogger(__name__)
+
+Pool = ConnectionPool[Connection[DictRow]]
+
+SERVICE_NAME = "rag"
+
+
+class Retriever(Protocol):
+    def search(
+        self,
+        notebook_id: str,
+        embedding: list[float],
+        k: int,
+        floor: float,
+        source_id: str | None = None,
+    ) -> list[RetrievedChunk]: ...
+
+
+class Store(Protocol):
+    # notebooks (ingest's table, read only)
+    def get_notebook(self, notebook_id: str) -> dict[str, Any] | None: ...
+
+    # messages
+    def list_messages(self, notebook_id: str) -> list[Message]: ...
+
+    def insert_message(
+        self, notebook_id: str, role: str, content: str, citations: list[dict[str, Any]] | None
+    ) -> Message: ...
+
+    # outputs
+    def create_output(
+        self, notebook_id: str, kind: OutputKind, status: OutputStatus
+    ) -> OutputRow: ...
+
+    def get_output(self, output_id: str) -> OutputRow | None: ...
+
+    def get_shared_output(self, share_token: str) -> OutputRow | None: ...
+
+    def list_outputs(self, notebook_id: str) -> list[OutputRow]: ...
+
+    def update_output(self, output_id: str, **fields: Any) -> None: ...
+
+    def delete_output(self, output_id: str) -> None: ...
+
+    # the outputs table as a job queue (worker entrypoint)
+    def claim_output(self, worker_id: str, stale_after_s: int) -> OutputRow | None: ...
+
+    def release_output(self, output_id: str, error: str | None = None) -> None: ...
+
+    # sources and chunks (ingest's tables; rag writes only kind 'generated')
+    def source_states(self, notebook_id: str) -> list[SourceState]: ...
+
+    def source_summaries(self, notebook_id: str) -> list[SourceSummary]: ...
+
+    def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str: ...
+
+    def insert_chunks(
+        self, source_id: str, notebook_id: str, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> None: ...
+
+    def set_source_status(self, source_id: str, status: str, error: str | None = None) -> None: ...
+
+    def delete_source(self, source_id: str) -> None: ...
+
+    # credit
+    def balance_cents(self, user_id: str) -> int: ...
+
+    def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None: ...
+
+
+# Top-k by cosine distance inside one notebook, ready sources only, optionally
+# one source. The floor is applied in SQL so a notebook with no relevant chunk
+# costs one round trip.
+_SEARCH_SQL = """
+select c.id::text as chunk_id, s.id::text as source_id, s.name as source_name,
+       s.kind as source_kind, c.page, c.text,
+       1 - (c.embedding <=> %(embedding)s::vector) as similarity
+from chunks c
+join sources s on s.id = c.source_id
+where c.notebook_id = %(notebook_id)s
+  and s.status = 'ready'
+  and (%(source_id)s::uuid is null or s.id = %(source_id)s::uuid)
+  and 1 - (c.embedding <=> %(embedding)s::vector) >= %(floor)s
+order by c.embedding <=> %(embedding)s::vector
+limit %(k)s
+"""
+
+# Balance = credits in the ledger minus priced usage; usage rows are the debit,
+# there is no second ledger write. Mirrors lasteverlm_core.balance_cents.
+_BALANCE_SQL = """
+select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)s), 0)
+     - coalesce((select sum(cost_cents) from usage where user_id = %(user_id)s), 0) as balance
+"""
+
+_USAGE_SQL = """
+insert into usage (user_id, notebook_id, service, kind, model, tokens_in, tokens_out, cost_cents)
+values (%(user_id)s, %(notebook_id)s, %(service)s, %(kind)s, %(model)s,
+        %(tokens_in)s, %(tokens_out)s, %(cost_cents)s)
+"""
+
+_OUTPUT_COLUMNS = """
+o.id::text as id, o.notebook_id::text as notebook_id, n.owner::text as owner, o.kind, o.title,
+o.content, o.status, o.error, o.share_token, o.source_id::text as source_id, o.attempts,
+o.created_at
+"""
+_OUTPUT_FROM = "from outputs o join notebooks n on n.id = o.notebook_id"
+_OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_id"}
+
+# One job per call, oldest first; rows other workers hold are skipped, a claim
+# older than the stale limit (a worker that died mid-job) is taken over, and a
+# waiting row is claimable only once no uploaded source of its notebook is
+# still processing. The claim counts as an attempt.
+_CLAIM_SQL = f"""
+with job as (
+    select id from outputs x
+    where x.status in ('waiting', 'processing')
+      and (x.claimed_at is null or x.claimed_at < now() - make_interval(secs => %(stale)s))
+      and not exists (
+          select 1 from sources s
+          where s.notebook_id = x.notebook_id and s.status = 'processing' and s.kind <> 'generated'
+      )
+    order by x.created_at, x.id
+    for update skip locked
+    limit 1
+)
+update outputs o set claimed_at = now(), claimed_by = %(worker)s, attempts = o.attempts + 1
+from job, notebooks n
+where o.id = job.id and n.id = o.notebook_id
+returning {_OUTPUT_COLUMNS}
+"""
+
+
+class PgVectorRetriever:
+    def __init__(self, pool: Pool) -> None:
+        self._pool = pool
+
+    def search(
+        self,
+        notebook_id: str,
+        embedding: list[float],
+        k: int,
+        floor: float,
+        source_id: str | None = None,
+    ) -> list[RetrievedChunk]:
+        params = {
+            "notebook_id": notebook_id,
+            "embedding": _vector_literal(embedding),
+            "source_id": source_id,
+            "floor": floor,
+            "k": k,
+        }
+        with self._pool.connection() as conn:
+            rows = conn.execute(_SEARCH_SQL, params).fetchall()
+        return [
+            RetrievedChunk(
+                chunk_id=r["chunk_id"],
+                source_id=r["source_id"],
+                source_name=r["source_name"],
+                source_kind=r["source_kind"],
+                page=r["page"],
+                text=r["text"],
+                similarity=float(r["similarity"]),
+            )
+            for r in rows
+        ]
+
+
+class PostgresStore:
+    def __init__(self, pool: Pool, prices: Mapping[str, ModelPrice]) -> None:
+        self._pool = pool
+        self._prices = prices
+
+    # -- notebooks --------------------------------------------------------
+
+    def get_notebook(self, notebook_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select id::text as id, owner::text as owner, title from notebooks where id = %s",
+                (notebook_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    # -- messages ---------------------------------------------------------
+
+    def list_messages(self, notebook_id: str) -> list[Message]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select id::text as id, role, content, citations, created_at "
+                "from messages where notebook_id = %s order by created_at, id",
+                (notebook_id,),
+            ).fetchall()
+        return [_to_message(r) for r in rows]
+
+    def insert_message(
+        self, notebook_id: str, role: str, content: str, citations: list[dict[str, Any]] | None
+    ) -> Message:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "insert into messages (id, notebook_id, role, content, citations) "
+                "values (%s, %s, %s, %s, %s) "
+                "returning id::text as id, role, content, citations, created_at",
+                (_new_id(), notebook_id, role, content, _jsonb(citations)),
+            ).fetchone()
+        assert row is not None
+        return _to_message(row)
+
+    # -- outputs ----------------------------------------------------------
+
+    def create_output(self, notebook_id: str, kind: OutputKind, status: OutputStatus) -> OutputRow:
+        output_id = _new_id()
+        with self._pool.connection() as conn:
+            conn.execute(
+                "insert into outputs (id, notebook_id, kind, title, status) "
+                "values (%s, %s, %s, '', %s)",
+                (output_id, notebook_id, kind, status),
+            )
+        row = self.get_output(output_id)
+        assert row is not None
+        return row
+
+    def get_output(self, output_id: str) -> OutputRow | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where o.id = %s", (output_id,)
+            ).fetchone()
+        return _to_output(row) if row else None
+
+    def get_shared_output(self, share_token: str) -> OutputRow | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where o.share_token = %s", (share_token,)
+            ).fetchone()
+        return _to_output(row) if row else None
+
+    def list_outputs(self, notebook_id: str) -> list[OutputRow]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where o.notebook_id = %s "
+                "order by o.created_at, o.id",
+                (notebook_id,),
+            ).fetchall()
+        return [_to_output(r) for r in rows]
+
+    def update_output(self, output_id: str, **fields: Any) -> None:
+        unknown = set(fields) - _OUTPUT_FIELDS
+        if unknown:
+            raise ValueError(f"not an updatable outputs column: {sorted(unknown)}")
+        if "content" in fields:
+            fields["content"] = _jsonb(fields["content"])
+        assignments = ", ".join(f"{name} = %({name})s" for name in fields)
+        with self._pool.connection() as conn:
+            conn.execute(
+                f"update outputs set {assignments} where id = %(id)s", {**fields, "id": output_id}
+            )
+
+    def delete_output(self, output_id: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute("delete from outputs where id = %s", (output_id,))
+
+    def claim_output(self, worker_id: str, stale_after_s: int) -> OutputRow | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(_CLAIM_SQL, {"worker": worker_id, "stale": stale_after_s}).fetchone()
+        return _to_output(row) if row else None
+
+    def release_output(self, output_id: str, error: str | None = None) -> None:
+        """Give the job back to the queue, keeping the last error for the next attempt."""
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update outputs set claimed_at = null, claimed_by = null, error = %s where id = %s",
+                (error, output_id),
+            )
+
+    # -- sources and chunks ----------------------------------------------
+
+    def source_states(self, notebook_id: str) -> list[SourceState]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select id::text as id, kind, status from sources where notebook_id = %s",
+                (notebook_id,),
+            ).fetchall()
+        return [SourceState(r["id"], r["kind"], r["status"]) for r in rows]
+
+    def source_summaries(self, notebook_id: str) -> list[SourceSummary]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select id::text as id, name, kind, summary from sources "
+                "where notebook_id = %s and status = 'ready' and kind <> 'generated' "
+                "order by created_at, id",
+                (notebook_id,),
+            ).fetchall()
+        return [SourceSummary(r["id"], r["name"], r["kind"], r["summary"] or "") for r in rows]
+
+    def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str:
+        source_id = _new_id()
+        with self._pool.connection() as conn:
+            conn.execute(
+                "insert into sources (id, notebook_id, name, kind, status, summary) "
+                "values (%s, %s, %s, 'generated', 'processing', %s)",
+                (source_id, notebook_id, name, summary),
+            )
+        return source_id
+
+    def insert_chunks(
+        self, source_id: str, notebook_id: str, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> None:
+        if len(chunks) != len(embeddings):
+            raise ValueError("one embedding per chunk")
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.executemany(
+                "insert into chunks (id, source_id, notebook_id, idx, page, text, embedding) "
+                "values (%s, %s, %s, %s, null, %s, %s::vector)",
+                [
+                    (_new_id(), source_id, notebook_id, c.idx, c.text, _vector_literal(e))
+                    for c, e in zip(chunks, embeddings, strict=True)
+                ],
+            )
+
+    def set_source_status(self, source_id: str, status: str, error: str | None = None) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update sources set status = %s, error = %s where id = %s",
+                (status, error, source_id),
+            )
+
+    def delete_source(self, source_id: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute("delete from sources where id = %s", (source_id,))
+
+    # -- credit -----------------------------------------------------------
+
+    def balance_cents(self, user_id: str) -> int:
+        with self._pool.connection() as conn:
+            row = conn.execute(_BALANCE_SQL, {"user_id": user_id}).fetchone()
+        return int(row["balance"]) if row else 0
+
+    def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
+        cost = cost_cents(usage.model, usage.tokens_in, usage.tokens_out, self._prices)
+        with self._pool.connection() as conn:
+            conn.execute(
+                _USAGE_SQL,
+                {
+                    "user_id": user_id,
+                    "notebook_id": notebook_id,
+                    "service": SERVICE_NAME,
+                    "kind": usage.kind,
+                    "model": usage.model,
+                    "tokens_in": usage.tokens_in,
+                    "tokens_out": usage.tokens_out,
+                    "cost_cents": cost,
+                },
+            )
+
+
+def make_pool(database_url: str) -> Pool:
+    """Autocommit connections: every method above is one statement or one
+    executemany, so there is nothing to group into a transaction."""
+    return ConnectionPool(
+        database_url,
+        connection_class=Connection[DictRow],
+        min_size=1,
+        max_size=4,
+        kwargs={"row_factory": dict_row, "autocommit": True},
+        open=True,
+    )
+
+
+def _new_id() -> str:
+    return str(uuid.uuid4())
+
+
+def _vector_literal(embedding: list[float]) -> str:
+    return "[" + ",".join(repr(float(x)) for x in embedding) + "]"
+
+
+def _jsonb(value: Any) -> Any:
+    return Jsonb(value) if value is not None else None
+
+
+def _to_message(row: dict[str, Any]) -> Message:
+    return Message(
+        id=row["id"],
+        role=row["role"],
+        content=row["content"],
+        citations=row.get("citations"),
+        created_at=str(row["created_at"]),
+    )
+
+
+def _to_output(row: dict[str, Any]) -> OutputRow:
+    return OutputRow(
+        id=row["id"],
+        notebook_id=row["notebook_id"],
+        owner=row["owner"],
+        kind=row["kind"],
+        title=row["title"],
+        content=row["content"],
+        status=row["status"],
+        error=row["error"],
+        share_token=row["share_token"],
+        source_id=row["source_id"],
+        attempts=int(row.get("attempts", 0)),
+        created_at=str(row["created_at"]),
+    )
