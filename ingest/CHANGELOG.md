@@ -11,6 +11,8 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- `CHUNK_TOKENS` and `CHUNK_OVERLAP_TOKENS` are optional overrides; unset, the chunker runs with core's defaults, where the family tunes them.
+
 - The LLM is built with `LLM_MAX_TOKENS` from core's inference settings; thinking is off for the summary (core default), so a reasoning model returns content instead of spending the budget on reasoning. The embedder requests `EMBEDDING_DIMENSION` from the model on every call (core).
 - `USER 10001` in the Dockerfile, numeric so Kubernetes' `runAsNonRoot` can verify it.
 

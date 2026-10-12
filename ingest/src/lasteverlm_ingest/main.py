@@ -97,7 +97,7 @@ def build_worker_deps(
         repository=repository,
         storage=storage,
         loaders=loaders or default_registry(),
-        chunker=chunker or TokenWindowChunker(settings.chunk_tokens, settings.chunk_overlap_tokens),
+        chunker=chunker or TokenWindowChunker(**settings.chunker_kwargs()),
         embedder=embedder,
         summarizer=summarizer,
     )
