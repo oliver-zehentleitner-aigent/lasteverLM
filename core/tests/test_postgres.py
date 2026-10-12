@@ -1,0 +1,263 @@
+"""The SQL paths against a real PostgreSQL: usage accounting, the rate-limit
+stores, purge and lift_ban. Everything else in the suite runs against fakes;
+this file is what `make test-postgres` runs against a throwaway pgvector
+container and skips without `CORE_TEST_DATABASE_URL`.
+
+The database is empty: core's own migrations are applied here, and the
+`ledger` table that `BALANCE_SQL` reads is created as the two columns the
+account service's migration gives it, because core's tests cannot depend on
+another service's migration files.
+"""
+
+from __future__ import annotations
+
+import os
+import time
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
+
+import psycopg
+import pytest
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool, ConnectionPool
+
+from lasteverlm_core import (
+    AccessLogEntry,
+    AsyncPostgresRateLimitStore,
+    MemoryRateLimitStore,
+    PostgresRateLimitStore,
+    RateLimiter,
+    RateLimitMiddleware,
+    RateLimitSettings,
+    UnpricedModelError,
+    abalance_cents,
+    arecord_usage,
+    balance_cents,
+    lift_ban,
+    parse_model_prices,
+    purge,
+    record_usage,
+)
+
+from .test_ratelimit import ok_app, run_asgi
+
+pytestmark = pytest.mark.postgres
+
+MIGRATIONS = sorted((Path(__file__).parent.parent / "db" / "migrations").glob("*.sql"))
+LEDGER_MIRROR = (
+    "create table if not exists ledger (user_id uuid not null, amount_cents integer not null)"
+)
+TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger")
+PRICES = parse_model_prices('{"llm": {"in": 30, "out": 150}}')
+T0 = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
+SETTINGS = RateLimitSettings(per_minute=3, block_minutes=15, ban_after_strikes=3)
+
+
+@pytest.fixture(scope="session")
+def dsn() -> str:
+    value = os.environ.get("CORE_TEST_DATABASE_URL", "").strip()
+    if not value:
+        pytest.skip("CORE_TEST_DATABASE_URL not set; run `make test-postgres`")
+    deadline = time.monotonic() + 60
+    while True:
+        try:
+            with psycopg.connect(value, connect_timeout=2) as conn, conn.cursor() as cur:
+                cur.execute(LEDGER_MIRROR)
+                for path in MIGRATIONS:
+                    cur.execute(path.read_text())
+            return value
+        except psycopg.OperationalError:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(0.5)
+
+
+@pytest.fixture
+def conn(dsn: str) -> Iterator[psycopg.Connection[Any]]:
+    with psycopg.connect(dsn, autocommit=True) as c:
+        with c.cursor() as cur:
+            cur.execute(f"truncate {', '.join(TABLES)}")
+        yield c
+
+
+@pytest.fixture
+def pool(dsn: str, conn: psycopg.Connection[Any]) -> Iterator[ConnectionPool]:
+    with ConnectionPool(dsn, min_size=1, max_size=2, open=True) as p:
+        yield p
+
+
+def credit(conn: psycopg.Connection[Any], user: Any, cents: int) -> None:
+    conn.execute("insert into ledger (user_id, amount_cents) values (%s, %s)", (user, cents))
+
+
+# --- usage -------------------------------------------------------------------
+
+
+def test_record_usage_and_balance(conn: psycopg.Connection[Any]) -> None:
+    user, notebook = uuid4(), uuid4()
+    credit(conn, user, 1000)
+    assert balance_cents(conn, user) == 1000
+    usage = record_usage(conn, user, notebook, "rag", "llm", "llm", 1_000_000, 0, prices=PRICES)
+    assert usage.cost_cents == 30
+    assert balance_cents(conn, user) == 970
+    assert balance_cents(conn, uuid4()) == 0
+    row = conn.execute("select service, kind, model, cost_cents from usage").fetchone()
+    assert row == ("rag", "llm", "llm", 30)
+
+
+def test_unpriced_model_writes_nothing(conn: psycopg.Connection[Any]) -> None:
+    with pytest.raises(UnpricedModelError):
+        record_usage(conn, uuid4(), None, "ingest", "embedding", "none", 1, 0, prices=PRICES)
+    assert conn.execute("select count(*) from usage").fetchone() == (0,)
+
+
+def test_balance_on_a_dict_row_connection(dsn: str, conn: psycopg.Connection[Any]) -> None:
+    user = uuid4()
+    credit(conn, user, 500)
+    with psycopg.connect(dsn, row_factory=dict_row) as dconn:
+        record_usage(dconn, user, None, "ingest", "embedding", "llm", 100, 0, prices=PRICES)
+        dconn.commit()
+        assert balance_cents(dconn, user) == 499
+
+
+async def test_async_usage(dsn: str, conn: psycopg.Connection[Any]) -> None:
+    user = uuid4()
+    credit(conn, user, 100)
+    async with await psycopg.AsyncConnection.connect(dsn, row_factory=dict_row) as aconn:
+        usage = await arecord_usage(
+            aconn, user, None, "rag", "llm", "llm", 0, 100_000, prices=PRICES
+        )
+        await aconn.commit()
+        assert usage.cost_cents == 15
+        assert await abalance_cents(aconn, user) == 85
+
+
+# --- rate limiting -------------------------------------------------------------
+
+
+def entry(ip: str, at: datetime, status: int = 200) -> AccessLogEntry:
+    return AccessLogEntry(
+        at=at, ip=ip, path="/x", method="GET", status=status, user_id=None, service="t"
+    )
+
+
+async def test_store_block_strike_ban_lift(
+    pool: ConnectionPool, conn: psycopg.Connection[Any]
+) -> None:
+    store = PostgresRateLimitStore(pool.connection)
+    limiter = RateLimiter(store, SETTINGS)
+    ip = "203.0.113.7"
+    t = T0
+    for expected_strikes in (1, 2):
+        for _ in range(3):
+            await store.log(entry(ip, t))
+        decision = await limiter.check(ip, t)
+        assert decision.kind == "blocked" and decision.retry_after == 15 * 60
+        assert conn.execute("select strikes from ip_blocks where ip = %s", (ip,)).fetchone() == (
+            expected_strikes,
+        )
+        assert (await limiter.check(ip, t + timedelta(minutes=1))).kind == "blocked"
+        assert (await limiter.check(ip, t + timedelta(minutes=16))).kind == "allowed"
+        t += timedelta(hours=1)
+    for _ in range(3):
+        await store.log(entry(ip, t))
+    assert (await limiter.check(ip, t)).kind == "banned"
+    assert (await limiter.check(ip, t + timedelta(days=5))).kind == "banned"
+    assert (await limiter.check("203.0.113.8", t)).kind == "allowed"
+
+    lift_ban(conn, ip)
+    assert conn.execute(
+        "select lifted_at is not null from ip_bans where ip = %s", (ip,)
+    ).fetchone() == (True,)
+    assert (await limiter.check(ip, t + timedelta(days=5))).kind == "allowed"
+
+
+async def test_store_strikes_restart_after_quiet_window(pool: ConnectionPool) -> None:
+    store = PostgresRateLimitStore(pool.connection)
+    limiter = RateLimiter(store, SETTINGS)
+    ip = "198.51.100.1"
+    for _ in range(3):
+        await store.log(entry(ip, T0))
+    await limiter.check(ip, T0)
+    later = T0 + timedelta(hours=25)
+    for _ in range(3):
+        await store.log(entry(ip, later))
+    await limiter.check(ip, later)
+    assert await store.strike(ip, later, later, later - timedelta(hours=24)) == 2  # one more
+    assert await store.blocked_until(ip) == later
+
+
+async def test_store_ignores_its_own_429s(pool: ConnectionPool) -> None:
+    store = PostgresRateLimitStore(pool.connection)
+    ip = "198.51.100.2"
+    for status in (200, 429, 429, 200):
+        await store.log(entry(ip, T0, status))
+    assert await store.requests_since(ip, T0 - timedelta(minutes=1)) == 2
+
+
+async def test_dict_row_pool_and_async_pool(dsn: str, conn: psycopg.Connection[Any]) -> None:
+    ip = "198.51.100.3"
+    with ConnectionPool(
+        dsn, min_size=1, max_size=1, kwargs={"row_factory": dict_row}, open=True
+    ) as p:
+        store = PostgresRateLimitStore(p.connection)
+        await store.log(entry(ip, T0))
+        assert await store.requests_since(ip, T0 - timedelta(minutes=1)) == 1
+        assert await store.blocked_until(ip) is None
+        assert await store.is_banned(ip) is False
+        assert await store.strike(ip, T0, T0, T0 - timedelta(hours=24)) == 1
+    async with AsyncConnectionPool(
+        dsn, min_size=1, max_size=1, kwargs={"row_factory": dict_row}, open=False
+    ) as ap:
+        astore = AsyncPostgresRateLimitStore(ap.connection)
+        await astore.log(entry(ip, T0))
+        assert await astore.requests_since(ip, T0 - timedelta(minutes=1)) == 2
+        assert await astore.blocked_until(ip) == T0
+        await astore.ban(ip, "test")
+        assert await astore.is_banned(ip) is True
+
+
+def test_purge_keeps_active_bans(conn: psycopg.Connection[Any]) -> None:
+    old, fresh = T0 - timedelta(days=40), T0 - timedelta(days=1)
+    log = (
+        "insert into access_log (at, ip, path, method, status, service) "
+        "values (%s, %s, '/', 'GET', 200, 't')"
+    )
+    block = "insert into ip_blocks (ip, blocked_until, strikes, updated_at) values (%s, %s, 1, %s)"
+    ban = "insert into ip_bans (ip, reason, created_at, lifted_at) values (%s, %s, %s, %s)"
+    conn.execute(log, (old, "10.0.0.1"))
+    conn.execute(log, (fresh, "10.0.0.1"))
+    conn.execute(block, ("10.0.0.1", old, old))
+    conn.execute(block, ("10.0.0.2", fresh, fresh))
+    conn.execute(ban, ("10.0.0.3", "active", old, None))
+    conn.execute(ban, ("10.0.0.4", "lifted long ago", old, old))
+    conn.execute(ban, ("10.0.0.5", "lifted recently", old, fresh))
+    purge(conn, retention_days=30, now=T0)
+    assert conn.execute("select count(*) from access_log").fetchone() == (1,)
+    assert conn.execute("select host(ip) from ip_blocks").fetchall() == [("10.0.0.2",)]
+    bans = conn.execute("select host(ip) from ip_bans order by ip").fetchall()
+    assert bans == [("10.0.0.3",), ("10.0.0.5",)]
+
+
+async def test_middleware_end_to_end(pool: ConnectionPool, conn: psycopg.Connection[Any]) -> None:
+    app = RateLimitMiddleware(
+        ok_app,
+        RateLimiter(PostgresRateLimitStore(pool.connection), SETTINGS),
+        service="t",
+        clock=lambda: T0,
+    )
+    for _ in range(3):
+        assert (await run_asgi(app, []))[0] == 204
+    status, body = await run_asgi(app, [])
+    assert status == 429 and b"too many requests" in body
+    rows = conn.execute("select status, host(ip), service from access_log").fetchall()
+    assert sorted(r[0] for r in rows) == [204, 204, 204, 429]
+    assert {r[1:] for r in rows} == {("10.0.0.5", "t")}
+    # the memory store and the PostgreSQL store agree on the same sequence
+    mem = RateLimiter(MemoryRateLimitStore(), SETTINGS)
+    for _ in range(3):
+        await mem.record(entry("10.0.0.5", T0, 204))
+    assert (await mem.check("10.0.0.5", T0)).kind == "blocked"

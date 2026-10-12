@@ -24,7 +24,9 @@ make check
 It installs the environment first (`make install`, idempotent), then
 ruff (lint and format), mypy in strict mode and pytest must pass. New
 logic comes with tests; the tests run without a database, network or
-inference key (see `tests/conftest.py` for the fake connections).
+inference key (see `tests/conftest.py` for the fake connections). A
+change to a SQL statement or a migration also runs `make test-postgres`,
+which needs Docker.
 
 ## What goes where
 

@@ -48,3 +48,38 @@ migration runs before account creates `users` and before ingest creates
 `notebooks`, so a constraint could not be declared there; and a deleted
 notebook must keep what it cost, because the balance is computed from
 these rows. The admin panel joins by id and tolerates a missing notebook.
+
+## SQL is tested against a throwaway container, with a two-column ledger
+
+**Id:** 4c59c136-5bfc-4fcf-8109-754aa714c53d
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** family coordination, 2026-10-12 (maintainer: cover the SQL paths against a real PostgreSQL once Docker is on the machine); core design
+**Revisit when:** infra's local compose stack exists and the family's tests run against it, or account's ledger changes shape
+
+`make test-postgres` starts a `pgvector/pgvector` container, applies
+core's own migrations to the empty database and runs the SQL paths
+(usage accounting, the rate-limit stores, purge, lift) against it, with
+tuple-row and dict-row connections, sync and async. The `ledger` table
+that the balance query reads belongs to the account service; the test
+creates it as the two columns the query uses. The target is not part of
+`make check` and exits cleanly without Docker.
+
+**Reason:** the unit tests prove the helpers send the right statement
+to a fake; they cannot prove the statement is valid SQL, that `inet`
+and `uuid` parameters bind, or that a dict-row connection gets its
+value back. The first run of this suite found exactly such a defect
+that the fakes had passed. Keeping it out of `make check` keeps CI's
+Python job free of a Docker socket; keeping the ledger to two columns
+keeps core's tests from depending on another service's migration files,
+which would make account's schema a build input of core.
+
+**Rejected alternative:** apply account's migration in the test.
+Rejected because the dependency points the wrong way: account depends
+on core, and core's tests would break on account's unrelated changes.
+
+**Rejected alternative:** run the SQL tests in `make check` and skip
+them automatically without a database. Rejected because a silently
+skipped integration test looks green for the wrong reason; an explicit
+target says what it needs.

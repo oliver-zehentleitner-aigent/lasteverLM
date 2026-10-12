@@ -94,6 +94,7 @@ from .usage import (
     arecord_usage,
     balance_cents,
     record_usage,
+    scalar,
 )
 
 __version__ = "0.1.0"
@@ -175,5 +176,6 @@ __all__ = [
     "purge",
     "record_usage",
     "require_prices",
+    "scalar",
     "verify_jwt",
 ]

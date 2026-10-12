@@ -9,7 +9,7 @@ connections and owns no pool.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from typing import Any, Protocol
 from uuid import UUID
@@ -33,18 +33,18 @@ values (%(user_id)s, %(notebook_id)s, %(service)s, %(kind)s, %(model)s,
 
 class Cursor(Protocol):
     def execute(self, query: str, params: Mapping[str, Any] | None = ..., /) -> Any: ...
-    def fetchone(self) -> Sequence[Any] | None: ...
+    def fetchone(self) -> Any: ...
 
 
 class Connection(Protocol):
-    """The slice of `psycopg.Connection` this module uses."""
+    """The slice of `psycopg.Connection` this module uses, whatever its row factory."""
 
     def cursor(self) -> AbstractContextManager[Cursor]: ...
 
 
 class AsyncCursor(Protocol):
     async def execute(self, query: str, params: Mapping[str, Any] | None = ..., /) -> Any: ...
-    async def fetchone(self) -> Sequence[Any] | None: ...
+    async def fetchone(self) -> Any: ...
 
 
 class AsyncConnection(Protocol):
@@ -75,8 +75,23 @@ def _priced(
     )
 
 
-def _balance(row: Sequence[Any] | None) -> int:
-    return int(row[0]) if row and row[0] is not None else 0
+def scalar(row: Any, name: str) -> Any:
+    """The one value of a one-column row, whatever the connection's row factory.
+
+    psycopg returns tuples by default and mappings under `dict_row`; the
+    services use both, so every scalar query here aliases its column and
+    reads it by name when the row is a mapping.
+    """
+    if row is None:
+        return None
+    if isinstance(row, Mapping):
+        return row[name]
+    return row[0]
+
+
+def _balance(row: Any) -> int:
+    value = scalar(row, "balance_cents")
+    return int(value) if value is not None else 0
 
 
 def balance_cents(conn: Connection, user_id: UUID) -> int:

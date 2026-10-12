@@ -82,10 +82,10 @@ bypassed the ingress could send one.
 
 **Id:** 51544138-d1a5-41df-aaae-30101ed4315b
 **Type:** decision
-**Status:** active
+**Status:** pending-confirmation
 **Evidence:** inferred
 **Source:** parent docs/architecture.md, "Rate limiting" (two sentences that pull apart: a ban holds until an admin lifts it, and raw IPs are purged after thirty days); core design 2026-10-12
-**Revisit when:** the maintainer confirms or changes the retention rule for bans
+**Revisit when:** the maintainer confirms or changes the retention rule for bans (written while the maintainer was unavailable; the first attended session confirms it)
 
 `purge` deletes `access_log` and `ip_blocks` rows older than the
 retention period, but from `ip_bans` only rows whose ban was lifted

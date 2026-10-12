@@ -20,3 +20,8 @@ preserves why it changed, in `context/`.
 - `TokenWindowChunker` (800 tokens, 100 overlap) with `Passage` and `Chunk`, the one chunker for parsed sources and generated documents.
 - Rate limiting per client IP: `RateLimitMiddleware` (pure ASGI) over `RateLimiter` rules, stores for sync and async psycopg and in memory, `purge`, `lift_ban`, settings from the environment.
 - Usage accounting `record_usage` and `balance_cents`, sync and async, over the caller's psycopg connection; the SQL exported as constants.
+
+### Fixed
+
+- `make test-postgres`: the SQL paths against a throwaway pgvector container (`tests/test_postgres.py`), skipped without Docker.
+- Scalar reads (`balance_cents`, the rate-limit store queries) work on connections with a `dict_row` row factory; the connection protocols accept any psycopg row type.

@@ -23,6 +23,7 @@ dev = [
   "pytest-asyncio>=0.23",
   "ruff>=0.5",
   "mypy>=1.10",
+  "psycopg[binary,pool]>=3.2",
 ]
 
 [project.urls]
@@ -35,6 +36,7 @@ packages = ["src/lasteverlm_core"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["postgres: needs CORE_TEST_DATABASE_URL, run by `make test-postgres`"]
 asyncio_mode = "auto"
 filterwarnings = ["ignore::jwt.warnings.InsecureKeyLengthWarning"]
 
@@ -47,5 +49,5 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.mypy]
 python_version = "3.12"
-packages = ["lasteverlm_core"]
+files = ["src", "tests"]
 strict = true
