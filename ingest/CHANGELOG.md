@@ -11,6 +11,9 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- The LLM is built with `LLM_MAX_TOKENS` from core's inference settings; thinking is off for the summary (core default), so a reasoning model returns content instead of spending the budget on reasoning. The embedder requests `EMBEDDING_DIMENSION` from the model on every call (core).
+- `USER 10001` in the Dockerfile, numeric so Kubernetes' `runAsNonRoot` can verify it.
+
 - Imports models, token resolution, usage accounting, model prices and the provider implementations from `lasteverlm-core` (installed from `core/`); the local mirror `contracts.py` and the own embedder implementation are gone, the summarizer is a prompt on core's `LLM`.
 - Core's `RateLimitMiddleware` is mounted outermost on the API.
 - The chunker and the `Passage`/`Chunk` types come from core (`lasteverlm_core.chunking`); the service's own copy is gone.
