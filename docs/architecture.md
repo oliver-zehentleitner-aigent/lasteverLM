@@ -32,8 +32,8 @@ browser ── web (static SPA) ────────────┐
 |---|---|---|---|
 | core | `core/` | Agent G | Python library: models, settings, auth, rate-limit middleware, provider interfaces, usage accounting. Copied into the images of account, ingest, rag. Never published as a package. |
 | account | `account/` | Agent F | magic-link login, allowed domains, vouchers, credit balance, admin panel backend, visitor and access logs, blocks and bans |
-| ingest | `ingest/` | Agent C | notebooks and sources: upload endpoints; the ingest worker parses, chunks, embeds, summarizes |
-| rag | `rag/` | Agent D | retrieval, cited answers, message history; the rag worker generates outputs |
+| ingest | `ingest/` | Agent C | notebooks and sources: upload endpoints; the ingest worker (`lasteverlm-ingest-worker`) parses, chunks, embeds, summarizes |
+| rag | `rag/` | Agent D | retrieval, cited answers, message history; the rag worker (`lasteverlm-rag-worker`) generates outputs |
 | web | `web/` | Agent E | wizard, two-column notebook view, viewer, login, credits, admin panel |
 | infra | `infra/` | Agent B | cluster provisioning, Helm chart, ingress, migrations runner, deploy automation, smoke test |
 
@@ -199,7 +199,9 @@ Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "
 ```
 
 `scope.output_id` restricts retrieval to the chunks of one generated
-document ("ask about this"). `source_kind` lets the frontend render a
+document ("ask about this"); an output that is not `ready` answers 409
+`{"error": "output is not ready"}` so the frontend can tell "wait" from
+"gone". `source_kind` lets the frontend render a
 citation into a PDF differently from one into a generated report.
 
 Citations are built by rag, not by the provider: retrieved chunks go
