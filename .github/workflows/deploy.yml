@@ -35,11 +35,11 @@ jobs:
       TTS_MODEL: ${{ vars.TTS_MODEL }}
       S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
-      - uses: azure/setup-helm@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-helm@v5
+      - uses: azure/setup-kubectl@v5
       - name: kubeconfig
         working-directory: infra
         run: |
@@ -49,9 +49,11 @@ jobs:
       - name: helm upgrade --install at ${{ env.TAG }}
         working-directory: infra
         run: make deploy TAG="$TAG"
+      # The secrets context is not available in a step `if`; the env one is.
       - name: smoke test
-        if: ${{ secrets.DEMO_TOKEN != '' }}
         working-directory: infra
         env:
           DEMO_TOKEN: ${{ secrets.DEMO_TOKEN }}
-        run: make smoke URL="https://$DOMAIN"
+        run: |
+          if [ -z "$DEMO_TOKEN" ]; then echo "DEMO_TOKEN not configured, smoke test skipped"; exit 0; fi
+          make smoke URL="https://$DOMAIN"
