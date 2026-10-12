@@ -23,7 +23,7 @@ the bucket is created with curl; nothing else is needed.
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`) | make variables | `make deploy` |
 | `EMBEDDING_DIMENSION`, `SIMILARITY_FLOOR`, `TTS_MODEL`, `INFERENCE_BASE_URL` | environment, optional | `make values` |
 | `INFERENCE_API_KEY` | environment | `make secrets` |
-| `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `SMTP_*` | environment, optional | `make secrets` (account seeds) |
+| `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET`, `SMTP_*` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
 | `DEMO_TOKEN` | environment, for `make smoke` only; the cluster's value is generated, see below | `make smoke` |
 
 Generated, never typed: `APP_DB_PASSWORD`, `AUTH_JWT_SECRET` and
@@ -129,7 +129,7 @@ To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 | `lasteverlm-s3` | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest |
 | `lasteverlm-inference` | `INFERENCE_API_KEY` | ingest, rag |
 | `lasteverlm-auth` | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | account, ingest, rag |
-| `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS` | account |
+| `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | account |
 | `lasteverlm-smtp-seed` (optional) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | account |
 
 Re-running `make secrets` updates the objects in place; pods pick the
