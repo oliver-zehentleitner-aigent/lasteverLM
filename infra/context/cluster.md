@@ -190,3 +190,26 @@ what is deployed, inspectable in `build/`.
 **Rejected alternative:** `--set` and `--set-string` flags assembled in
 the Makefile — worked until the first JSON value and would have needed
 escaping rules nobody wants to maintain.
+
+## Application secrets are generated on the operator machine, never typed
+
+**Id:** ac3fbdfc-e603-488f-b8a2-0e1216cacdad
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12
+**Revisit when:** a secret has to be shared with a system outside the cluster (then it needs a store, not a file)
+
+`make env` generates `APP_DB_PASSWORD`, `AUTH_JWT_SECRET` and
+`DEMO_TOKEN` with `openssl rand` the first time, keeps them across
+re-runs in `build/cluster.env` (mode 600, ignored by Git), and no
+target prints them. `make secrets` is the only place they go from
+there: into the Kubernetes Secrets. Rotation is deleting the line and
+running `make secrets` again.
+
+**Reason:** a value nobody typed cannot be weak and cannot be in a
+shell history; keeping it in one ignored file makes rotation a
+one-liner and keeps the Makefile free of hardcoded values.
+
+**Rejected alternative:** a secrets manager (Vault, SOPS) — right for
+a team, more than one operator and one cluster need tonight.
