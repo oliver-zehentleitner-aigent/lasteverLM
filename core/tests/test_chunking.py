@@ -70,8 +70,9 @@ def test_chunk_text_matches_single_passage_without_page() -> None:
 
 
 def test_defaults_are_the_contract() -> None:
+    # 420 regex tokens are about 800 model tokens for German text (context/chunking.md)
     chunker = TokenWindowChunker()
-    assert (chunker.size, chunker.overlap) == (800, 100)
+    assert (chunker.size, chunker.overlap) == (420, 50)
 
 
 def test_invalid_parameters() -> None:

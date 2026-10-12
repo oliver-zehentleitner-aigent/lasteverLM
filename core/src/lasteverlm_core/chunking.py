@@ -3,10 +3,12 @@
 The one chunker of the family: ingest cuts parsed sources with it, rag
 cuts generated documents with it, so a question embedded against either
 meets chunks of the same shape. A token is a word or a single
-punctuation character, found with a regular expression. That is an
-approximation of a model tokenizer, good to within the "about 800
-tokens" the contract asks for, and it needs no vocabulary file at
-runtime and no dependency on one provider's tokenizer.
+punctuation character, found with a regular expression. That is a
+coarse approximation of a model tokenizer: measured on German text, the
+embedding model counts about 1.9 model tokens per regex token, so the
+default window of 420 regex tokens lands near the "about 800 tokens"
+the contract asks for (about 550 for English). It needs no vocabulary
+file at runtime and no dependency on one provider's tokenizer.
 """
 
 from __future__ import annotations
@@ -55,7 +57,7 @@ class TokenWindowChunker:
     token, so spacing inside a passage is preserved.
     """
 
-    def __init__(self, size: int = 800, overlap: int = 100) -> None:
+    def __init__(self, size: int = 420, overlap: int = 50) -> None:
         if size <= 0:
             raise ValueError("chunk size must be positive")
         if not 0 <= overlap < size:
