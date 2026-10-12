@@ -74,3 +74,30 @@ removes nothing an attacker could use.
 **Rejected alternative:** `EmailStr` with the `email-validator`
 dependency — the obvious choice, rejected for the reasons above after it
 broke the first test run.
+
+## The demo user is seeded by migration, never counts as the first user and can never be admin
+
+**Id:** 21f1e426-85c5-4569-b99e-1c73c84d7005
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** family architecture v1 (root `docs/architecture.md`) and implementation, 2026-10-12
+
+Migration `0001` inserts the demo user (`00000000-0000-4000-8000-000000000001`,
+`demo@localhost`) and `0002` credits it once. The rule "the first user
+ever created becomes admin" ignores that row, and `require_admin()`
+refuses the demo id even if `is_admin` were set in the database.
+
+**Reason:** the family contract has every service resolve `DEMO_TOKEN`
+to this id, so the row has to exist before anyone logs in — a migration
+is the one place that runs before every service. Because it exists
+first, a naive "no users yet → admin" check would never fire for the
+real first login; the subquery excludes the demo id. And the demo token
+is a shared secret meant for recordings and development, so whoever
+holds it must not be able to reach the admin panel, whatever the row
+says.
+
+**Rejected alternative:** creating the demo user lazily on first use of
+the demo token — rejected because ingest and rag resolve the token too
+and would write `usage` rows for a user that account has not created
+yet, breaking the balance join.
