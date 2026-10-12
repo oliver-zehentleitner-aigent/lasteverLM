@@ -32,3 +32,34 @@ as a value, which with raw manifests needed a patch after install.
 values, the worker Deployments and the migration hook would have made
 the `sed` layer grow into a template engine of its own.
 
+## Every API service runs at least two replicas with an autoscaler; ingest and rag get a worker Deployment
+
+**Id:** dfef9ab1-fb55-46e7-a159-36aa634a36ce
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the family coordinator, 2026-10-12
+**Revisit when:** the first load test shows where the pods actually saturate, or the queue moves out of Postgres
+
+Each API service and web is a Deployment with a
+`HorizontalPodAutoscaler` (CPU utilisation, minimum two, maximum four
+to six), so the replica count is owned by the autoscaler, not the
+chart. ingest and rag additionally run a second Deployment from the
+same image with the worker entrypoint, which claims jobs from Postgres,
+scaled by its own autoscaler. metrics-server is installed because the
+autoscalers need it and VKE does not ship one.
+
+**Reason:** two replicas remove the single pod as a point of failure
+during rollouts and node recycling; separating the request path from
+the processing path lets uploads and generation scale on their own
+load and keeps a long parse from starving the API. CPU is the one
+metric every pod exposes without instrumentation, which is why the
+autoscalers start there.
+
+**Rejected alternative:** one replica per service with the in-process
+background task of architecture v1 — enough for a demo, rejected by the
+maintainer because horizontal scaling is one of the things the project
+is meant to show. A queue outside Postgres (Redis, RabbitMQ) was not
+taken: the job table is already there and one fewer stateful component
+is one fewer thing to run.
+
