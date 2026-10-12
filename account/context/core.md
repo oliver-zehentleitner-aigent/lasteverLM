@@ -29,3 +29,30 @@ rejected family-wide because it adds a root build file every service
 would have to agree on; `uv pip install -e ../core` as a separate
 Makefile line (core's README pattern) — works, rejected here because it
 bypasses `uv sync` and leaves `uv.lock` unaware of core.
+
+## Core's rate-limit store gets tuple-row connections from the dict-row pool
+
+**Id:** dae69130-8e13-494d-af5d-fb265e1e749d
+**Type:** workaround
+**Status:** active
+**Evidence:** confirmed
+**Source:** fleet coordination, 2026-10-12
+**Revisit when:** core's scalar reads are row-factory independent (announced for the next core pull request)
+
+`PostgresRepository.tuple_connection` hands core's
+`AsyncPostgresRateLimitStore` a pooled connection with the default
+tuple row factory, switched for the duration of the call and switched
+back afterwards. The repository itself keeps `dict_row` for its own
+queries.
+
+**Reason:** this service's pool returns dict rows (every query here reads
+columns by name), while core's store reads scalars as `row[0]`, which
+raises `KeyError` on a dict row. Core is fixing the reads to be
+row-factory independent, but that fix is in a pull request that is not
+merged yet; waiting for it would block the swap to core. Switching the
+row factory on the borrowed connection is three lines, costs no second
+pool and disappears without trace once core's fix lands.
+
+**Rejected alternative:** a second, tuple-row connection pool only for
+the middleware — rejected because it doubles the connection footprint of
+every account pod for a temporary mismatch.
