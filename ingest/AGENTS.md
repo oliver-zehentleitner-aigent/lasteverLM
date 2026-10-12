@@ -17,17 +17,21 @@ service writes, because the rag service reads it.
 
 ```text
 src/lasteverlm_ingest/
-├── main.py          app factory; wires settings, repository, embedder
-├── config.py        Settings from the environment
-├── auth.py          one token check, demo token or Supabase JWT
-├── models.py        API schemas (Notebook, Source)
-├── repository.py    all Supabase access (tables and storage); chunking comes from core
-├── pipeline.py      store → parse → chunk → embed → insert → status
-├── parsing/         pdf, text, url → passages
-├── embeddings/      EmbeddingProvider interface and implementations
+├── main.py          app factory; wires settings, repository, storage, providers, rate limit
+├── config.py        Settings from the environment (shared parts via core)
+├── auth.py          bearer-token dependency on core's current_user (account JWT or demo token)
+├── repository.py    all PostgreSQL access (notebooks, sources, chunks, queue claim, usage via core)
+├── storage.py       object storage for uploads (S3-compatible, boto3)
+├── worker.py        claim loop and pipeline: load → parse → chunk → embed → summarize → ready
+├── summarizer.py    one-paragraph summary per source on core's LLM interface
+├── loaders/         pdf, text → passages; registry open for url and image
 └── api/             routers: notebooks, sources, health
-tests/               unit tests; no network, no Supabase
+db/migrations/       notebooks, sources, chunks (plain SQL for psql)
+tests/               unit tests against in-memory fakes; no network, no database, no bucket
 ```
+
+Models, token resolution, chunking, usage accounting, model prices, the
+provider implementations and the rate-limit middleware come from `core/`.
 
 ## Keep the Why
 
