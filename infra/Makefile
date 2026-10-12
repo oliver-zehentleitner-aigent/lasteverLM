@@ -74,11 +74,12 @@ kubeconfig: $(CLUSTER_ENV) ## fetch the kubeconfig into build/kubeconfig (needs 
 > @umask 077 && . $(CLUSTER_ENV) && vultr-cli kubernetes config "$$VKE_ID" | base64 -d > $(KUBECONFIG)
 > kubectl cluster-info
 
-bucket: $(CLUSTER_ENV) ## create the sources bucket (one signed S3 PUT; 200 or 409 both mean it exists)
-> @. $(CLUSTER_ENV) && code=$$(curl -sS -o /dev/null -w '%{http_code}' -X PUT \
->   --aws-sigv4 "aws:amz:$$S3_REGION:s3" --user "$$S3_ACCESS_KEY:$$S3_SECRET_KEY" \
->   "$$S3_ENDPOINT/$$S3_BUCKET") && case "$$code" in 200|409) echo "bucket $$S3_BUCKET ok ($$code)";; \
->   *) echo "bucket creation failed: HTTP $$code" >&2; exit 1;; esac
+# Note: make keeps the recipe prefix when a backslash-newline falls inside a
+# shell $(...) substitution, so every $$(...) below stays on one line.
+bucket: $(CLUSTER_ENV) ## create the sources bucket (one signed S3 PUT; 200 or 409 both mean it exists; private by default)
+> @. $(CLUSTER_ENV) && \
+>   code=$$(curl -sS -o /dev/null -w '%{http_code}' -X PUT --aws-sigv4 "aws:amz:$$S3_REGION:s3" --user "$$S3_ACCESS_KEY:$$S3_SECRET_KEY" "$$S3_ENDPOINT/$$S3_BUCKET") && \
+>   case "$$code" in 200|409) echo "bucket $$S3_BUCKET ok ($$code)";; *) echo "bucket creation failed: HTTP $$code" >&2; exit 1;; esac
 
 # Cluster --------------------------------------------------------------------------
 
@@ -114,10 +115,10 @@ secrets: env ## create the Secrets and the CA ConfigMap from cluster.env and the
 >     --from-literal=SMTP_FROM="$${SMTP_FROM:-}" --dry-run=client -o yaml | kubectl apply -f -; \
 > else echo "SMTP_HOST not set, no lasteverlm-smtp-seed secret (optional)"; fi
 
-db-trust: ## allow only the cluster nodes and this machine on the managed database (re-run after node changes)
+db-trust: ## allow only the cluster nodes (IPv4; the API accepts no IPv6 yet) and this machine on the managed database; re-run after node changes
 > $(call require,VULTR_API_KEY)
-> @nodes=$$(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr ' ' ','); \
->   me=$$(curl -fsS https://api.ipify.org); \
+> @nodes=$$(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr ' ' '\n' | grep -E '^[0-9.]+$$' | paste -sd,); \
+>   me=$$(curl -fsS https://api4.ipify.org); \
 >   id=$$(curl -fsS -H "Authorization: Bearer $$VULTR_API_KEY" https://api.vultr.com/v2/databases | python3 -c 'import sys,json; print(next(d["id"] for d in json.load(sys.stdin)["databases"] if d["database_engine"]=="pg"))'); \
 >   vultr-cli database update "$$id" --trusted-ips "$$nodes,$$me" >/dev/null && echo "trusted ips: $$nodes,$$me"
 
@@ -150,8 +151,8 @@ values: ## write build/values.yaml for the chart from the environment (plus buil
 >   REGISTRY=$(REGISTRY) TAG=$(TAG) DOMAIN=$(DOMAIN) ACME_EMAIL=$(ACME_EMAIL) \
 >   python3 scripts/values.py > $(BUILD)/values.yaml && echo "wrote $(BUILD)/values.yaml"
 
-deploy: values migrations ## helm upgrade --install of the chart: migrations hook, then every service at TAG
-> helm upgrade --install $(RELEASE) $(CHART) -n $(KUBE_NS) --create-namespace -f $(BUILD)/values.yaml --wait --timeout 10m
+deploy: values migrations ## helm upgrade --install of the chart: migrations hook, then every service at TAG (HELM_WAIT=0 returns without waiting)
+> helm upgrade --install $(RELEASE) $(CHART) -n $(KUBE_NS) --create-namespace -f $(BUILD)/values.yaml $(if $(filter 0,$(HELM_WAIT)),,--wait --timeout 10m)
 > kubectl -n $(KUBE_NS) get deployments,hpa
 
 package: migrations ## package the chart: make package VERSION=0.1.0 (from the tag v0.1.0)
@@ -182,7 +183,7 @@ check: test ## static checks and unit tests: tofu, helm lint + template, shell s
 test: ## unit tests (the smoke test against an in-process stub)
 > python3 -m unittest discover -s tests
 
-smoke: ## end-to-end smoke test against a deployment: make smoke URL=https://... (token from DEMO_TOKEN)
+smoke: ## end-to-end smoke test: make smoke URL=https://... (token from DEMO_TOKEN; SMOKE_ARGS="--host d --insecure" before DNS exists)
 > $(call require,URL)
 > $(call require,DEMO_TOKEN)
-> python3 tests/smoke.py $(URL)
+> python3 tests/smoke.py $(URL) $(SMOKE_ARGS)

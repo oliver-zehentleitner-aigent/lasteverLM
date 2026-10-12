@@ -11,6 +11,9 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- define "lasteverlm.securityContext" -}}
 allowPrivilegeEscalation: false
 runAsNonRoot: true
+{{- with .runAsUser }}
+runAsUser: {{ . }}
+{{- end }}
 capabilities:
   drop: ["ALL"]
 {{- end }}

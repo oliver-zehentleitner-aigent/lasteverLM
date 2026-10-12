@@ -40,7 +40,7 @@ spec:
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
           securityContext:
-            {{- include "lasteverlm.securityContext" $ | nindent 12 }}
+            {{- include "lasteverlm.securityContext" $svc | nindent 12 }}
           volumeMounts:
             {{- include "lasteverlm.pgCaVolumeMount" $ | nindent 12 }}
       volumes:
@@ -99,7 +99,7 @@ spec:
           resources:
             {{- toYaml $svc.worker.resources | nindent 12 }}
           securityContext:
-            {{- include "lasteverlm.securityContext" $ | nindent 12 }}
+            {{- include "lasteverlm.securityContext" $svc | nindent 12 }}
           volumeMounts:
             {{- include "lasteverlm.pgCaVolumeMount" $ | nindent 12 }}
       volumes:
