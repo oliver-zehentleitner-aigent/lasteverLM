@@ -43,15 +43,13 @@ pgCa:
 
 # API services: same shape, one image each. `secrets` are mounted with envFrom,
 # `optionalSecrets` likewise but may be absent. `worker` adds a second
-# Deployment from the same image with the worker entrypoint. `runAsUser` is the
-# numeric uid of the image's USER: the images name their user (app, nginx) and
-# runAsNonRoot cannot verify a name, so the chart states the uid until the
-# Dockerfiles switch to numeric USER lines.
+# Deployment from the same image with the worker entrypoint. Every image sets a
+# numeric USER, which runAsNonRoot verifies; `runAsUser` is only needed for an
+# image that names its user instead.
 apiPort: 8000
 services:
   account:
     replicas: 2
-    runAsUser: 10001
     secrets: [lasteverlm-db, lasteverlm-auth, lasteverlm-account]
     optionalSecrets: [lasteverlm-smtp-seed]
     resources:
@@ -60,7 +58,6 @@ services:
     hpa: {enabled: true, min: 2, max: 5, cpu: 70}
   ingest:
     replicas: 2
-    runAsUser: 10001
     secrets: [lasteverlm-db, lasteverlm-s3, lasteverlm-inference, lasteverlm-auth]
     optionalSecrets: []
     resources:
@@ -77,7 +74,6 @@ services:
       hpa: {enabled: true, min: 2, max: 6, cpu: 70}
   rag:
     replicas: 2
-    runAsUser: 10001
     secrets: [lasteverlm-db, lasteverlm-inference, lasteverlm-auth]
     optionalSecrets: []
     resources:
@@ -95,7 +91,6 @@ services:
 
 web:
   replicas: 2
-  runAsUser: 101
   port: 8080
   resources:
     requests: {cpu: 50m, memory: 64Mi}

@@ -88,9 +88,10 @@ reaches the deployment through the load balancer address:
 | Job `lasteverlm-migrate` + ConfigMap | pre-install/pre-upgrade hook, see Migrations |
 
 Values: `chart/values.yaml` holds the defaults (replicas, autoscaler
-bounds, resources, rate limits, which Secrets each service mounts, and
-`runAsUser`, the numeric uid of each image's user, because
-`runAsNonRoot` cannot verify a user given by name).
+bounds, resources, rate limits, which Secrets each service mounts).
+Every image sets a numeric `USER`; an image that names its user would
+need `runAsUser` in its values, because `runAsNonRoot` cannot verify a
+name.
 `make values` writes `build/values.yaml` with the deployment-specific
 part (domain, tag, registry, model names, prices, S3 endpoint) via
 `scripts/values.py`; `make deploy` passes it to Helm. The chart version

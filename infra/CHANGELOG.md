@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Chart no longer states `runAsUser` per service; the images set numeric `USER` lines.
+
 ### Added
 
 - End-to-end smoke test (`tests/smoke.py`): demo-token login, notebook, text upload, ready, ask with citation, cleanup; runs against any URL, with a unit test against an in-process stub.

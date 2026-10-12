@@ -218,7 +218,8 @@ a team, more than one operator and one cluster need tonight.
 
 **Id:** b9ed80e7-d333-4473-b617-85acc51a4af6
 **Type:** workaround
-**Status:** active
+**Status:** superseded
+**Superseded by:** none — every Dockerfile sets a numeric `USER` since main ab69bfb (2026-10-12), so the chart no longer states uids; the helper keeps honouring `runAsUser` for an image that names its user
 **Evidence:** confirmed
 **Source:** first deploy on 2026-10-12: every pod failed with "container has runAsNonRoot and image has non-numeric user (app)"; uids read from the images
 **Revisit when:** the Dockerfiles use numeric `USER` lines, then `runAsUser` leaves the values
