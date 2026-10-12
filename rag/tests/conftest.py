@@ -263,7 +263,15 @@ class FakeLLM:
         self.replies = list(replies) or [""]
         self.calls: list[tuple[str, str]] = []
 
-    def complete(self, system: str, user: str, max_tokens: int) -> CompletionResult:
+    def complete(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int | None = None,
+        *,
+        thinking: bool | None = None,
+    ) -> CompletionResult:
+        assert thinking is None  # answers and generators never ask for reasoning
         self.calls.append((system, user))
         reply = self.replies[min(len(self.calls) - 1, len(self.replies) - 1)]
         return CompletionResult(reply, Usage("llm", "test-llm", 50, 20))

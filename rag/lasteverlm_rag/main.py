@@ -89,7 +89,9 @@ def create_app(
         embedder = embedder or OpenAICompatibleEmbedder(
             client, settings.inference.embedding_model, settings.inference.embedding_dimension
         )
-        llm = llm or OpenAICompatibleLLM(client, settings.inference.llm_model)
+        llm = llm or OpenAICompatibleLLM(
+            client, settings.inference.llm_model, max_tokens=settings.inference.llm_max_tokens
+        )
     generators = generators or registry(tts_available=settings.tts_model is not None)
 
     rag = RagService(

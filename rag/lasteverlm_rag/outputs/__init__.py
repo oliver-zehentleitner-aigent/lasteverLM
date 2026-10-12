@@ -30,9 +30,17 @@ class OutputGenerator(Protocol):
 
 class CompleteFn(Protocol):
     """One accounted LLM call: the service wraps ``LLM.complete`` so every call
-    the generator makes writes its usage row."""
+    the generator makes writes its usage row. Same signature as ``LLM.complete``;
+    thinking stays off unless a generator asks for it."""
 
-    def __call__(self, system: str, user: str, max_tokens: int) -> CompletionResult: ...
+    def __call__(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int | None = None,
+        *,
+        thinking: bool | None = None,
+    ) -> CompletionResult: ...
 
 
 def registry(tts_available: bool) -> dict[OutputKind, OutputGenerator]:
