@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from lasteverlm_core import MemoryRateLimitStore, RateLimitSettings
 
 from lasteverlm_account.config import Settings
 from lasteverlm_account.mail import SmtpConfig
@@ -101,10 +102,31 @@ def service(
 
 
 @pytest.fixture
+def limiter_store() -> MemoryRateLimitStore:
+    return MemoryRateLimitStore()
+
+
+@pytest.fixture
+def rate_limit_settings() -> RateLimitSettings:
+    return RateLimitSettings()
+
+
+@pytest.fixture
 def client(
-    settings: Settings, repo: MemoryRepository, mailer: FakeMailer, clock: Clock
+    settings: Settings,
+    repo: MemoryRepository,
+    mailer: FakeMailer,
+    clock: Clock,
+    limiter_store: MemoryRateLimitStore,
+    rate_limit_settings: RateLimitSettings,
 ) -> Iterator[TestClient]:
-    app = create_app(settings=settings, repository=repo, mailer=mailer)
+    app = create_app(
+        settings=settings,
+        repository=repo,
+        mailer=mailer,
+        rate_limit_store=limiter_store,
+        rate_limit_settings=rate_limit_settings,
+    )
     # Seed SMTP so link mails can be "sent"; the service would otherwise log and skip.
     repo.settings[SETTING_SMTP] = SmtpConfig(
         "smtp.test", 587, "", "", "noreply@lasteverlm.test", True

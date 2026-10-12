@@ -11,6 +11,7 @@ license = "MIT"
 requires-python = ">=3.12"
 authors = [{ name = "Oliver Zehentleitner" }]
 dependencies = [
+  "lasteverlm-core",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "pydantic>=2.7",
@@ -30,6 +31,10 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/oliver-zehentleitner/lasteverLM/tree/main/account"
 Repository = "https://github.com/oliver-zehentleitner/lasteverLM"
+
+# core lives in ../core of the same repository; nothing is published to PyPI.
+[tool.uv.sources]
+lasteverlm-core = { path = "../core", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lasteverlm_account"]

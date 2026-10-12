@@ -10,8 +10,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from lasteverlm_core import DEMO_USER_ID, AuthSettings, User, issue_jwt
+
 from .config import Settings
-from .contracts import DEMO_USER_ID, User, issue_jwt
 from .mail import Mailer, MailError, SmtpConfig, magic_link_mail
 from .models import (
     AdminAccess,
@@ -80,6 +81,9 @@ class AccountService:
         self.settings = settings
         self.repo = repository
         self.mailer = mailer
+        self.auth = AuthSettings(
+            jwt_secret=settings.auth_jwt_secret, demo_token=settings.demo_token
+        )
         self._clock = clock or (lambda: datetime.now(UTC))
         self._salt = salt or DailySalt()
 

@@ -6,11 +6,10 @@ import uuid
 from datetime import date, datetime
 from typing import Annotated
 
+from lasteverlm_core import AdminUser, User
 from pydantic import BaseModel, Field, StringConstraints
 
-from .contracts import User
-
-__all__ = ["User"]
+__all__ = ["AdminUser", "User"]
 
 # Shape only: one @, no whitespace, something on both sides. Deliverability is the
 # mail server's call, and reserved names such as demo@localhost must stay valid here.
@@ -63,16 +62,6 @@ class SmtpUpdate(BaseModel):
 
 class DomainSettings(BaseModel):
     allowed_domains: list[str]
-
-
-class AdminUser(BaseModel):
-    id: uuid.UUID
-    email: str
-    is_admin: bool
-    created_at: datetime
-    last_login_at: datetime | None
-    balance_cents: int
-    usage_cents: int
 
 
 class AdminLogin(BaseModel):

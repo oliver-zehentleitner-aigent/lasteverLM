@@ -11,8 +11,9 @@ import logging
 import sys
 from datetime import UTC, datetime
 
+from lasteverlm_core import DEMO_USER_EMAIL, DEMO_USER_ID
+
 from .config import Settings
-from .contracts import DEMO_USER_EMAIL, DEMO_USER_ID
 from .mail import SmtpConfig
 from .main import create_app
 from .repository import UserRecord

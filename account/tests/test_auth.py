@@ -6,8 +6,8 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
+from lasteverlm_core import DEMO_USER_ID, verify_jwt
 
-from lasteverlm_account.contracts import DEMO_USER_ID, verify_jwt
 from lasteverlm_account.repository import UserRecord
 from lasteverlm_account.repository_memory import MemoryRepository
 

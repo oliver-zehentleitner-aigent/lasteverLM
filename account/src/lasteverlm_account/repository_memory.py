@@ -15,7 +15,8 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any
 
-from .contracts import DEMO_USER_ID
+from lasteverlm_core import DEMO_USER_ID
+
 from .repository import (
     AccessRecord,
     BanRecord,
