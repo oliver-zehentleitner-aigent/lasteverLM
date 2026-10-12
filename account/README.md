@@ -59,6 +59,7 @@ comment.
 | `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist, first start only (`lasteverlm-account`) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | seed for the SMTP settings, first start only (`lasteverlm-smtp-seed`) |
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
+| `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100 |
 
 Seeds are written to the `settings` table only when the key is missing;
@@ -125,12 +126,12 @@ named in the configuration table, and Kubernetes probes `GET /healthz`.
 The visitor log (`POST /visits`, read at `GET /admin/visits`) is built so
 that it cannot identify a person:
 
-- **No IP address is stored, ever.** A visit carries `sha256(salt || ip)`,
-  where the salt is random, lives only in process memory and is replaced
-  every UTC day. The same address gives the same hash within a day (so
-  unique visitors per day can be counted) and an unrelated hash the next
-  day. The salt is never written anywhere; a restart simply starts a new
-  one.
+- **No IP address is stored, ever.** A visit carries `sha256(salt || ip)`
+  with a salt that changes every UTC day: the same address gives the same
+  hash within a day (so unique visitors per day can be counted) and an
+  unrelated hash the next day. With `VISIT_HASH_SECRET` set the salt is
+  `HMAC(secret, date)`, so all replicas agree on it; without it each
+  process uses random bytes in memory. The salt is never written anywhere.
 - **No full user agent.** Only the browser family (`chrome`, `firefox`,
   `safari`, `edge`, `bot`, ...) is kept.
 - **30 days retention**, enforced by a cleanup at every service start
