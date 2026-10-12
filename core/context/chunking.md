@@ -4,7 +4,8 @@
 
 **Id:** 68bf3811-c6ef-4454-95d0-4b6f9200c961
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** dc660692-6bb2-4ecb-8472-f90b6297763c
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12 (agent A: the two copies in ingest and rag are identical, move them); ingest's original design of the chunker
 **Revisit when:** retrieval quality points at chunk boundaries, or the embedding provider publishes a tokenizer worth depending on
@@ -33,3 +34,34 @@ does not ask for.
 Rejected for the reason above; ingest's own entry on the chunker
 describes the original design and is superseded by this one once ingest
 imports core.
+
+## Windows of 420 regex tokens: the regex undercounts German by half
+
+**Id:** dc660692-6bb2-4ecb-8472-f90b6297763c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** ingest live run, 2026-10-12 (51-page German PDF: 66232 embedding tokens over 43 chunks of 800 regex tokens); family coordination the same day
+**Revisit when:** retrieval quality points at chunk boundaries, the embedding model changes, or sources are mostly in a language other than German or English
+
+`TokenWindowChunker` defaults to windows of 420 regex tokens with an
+overlap of 50; ingest and rag inherit the defaults and set nothing. The
+regex token (a word or a punctuation character) stays.
+
+**Reason:** the previous defaults, 800 and 100, assumed a regex token is
+about a model token. Measured on a real German document, the embedding
+model counted about 1540 tokens per 800-regex-token chunk, 1.9 to one,
+because German compounds and inflections split into several subword
+tokens. Rag's top-8 context was therefore about 12k model tokens where
+the contract intends about 6k. 420 regex tokens land near 800 model
+tokens for German and near 550 for English; the German case is the one
+the deployment serves, and a somewhat small English window costs
+retrieval little, while a window twice the intended size doubles the
+prompt and its price on every question.
+
+**Rejected alternative:** count with the model's own tokenizer. Exact,
+and still the right move if chunk boundaries ever show up in retrieval
+quality; rejected for now because it adds a vocabulary dependency per
+provider to two services, while a corrected constant removes the
+measured error for the languages in use. This supersedes the previous
+entry's defaults, not its choice of the regex token.
