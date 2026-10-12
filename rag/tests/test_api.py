@@ -163,13 +163,17 @@ def test_validation_errors_use_the_error_shape(settings):
     assert r.json()["error"].startswith("path.notebook_id:")
 
 
-def test_jwt_is_tried_before_demo_token():
-    token = jwt.encode({"sub": "user-42", "aud": "authenticated"}, "jwt-secret", algorithm="HS256")
+def test_jwt_as_issued_by_account_is_tried_before_demo_token():
+    token = jwt.encode({"sub": "user-42", "iss": "lasteverlm"}, "jwt-secret", algorithm="HS256")
     assert verify_token(token, "jwt-secret", "demo") == "user-42"
     assert verify_token("demo", "jwt-secret", "demo") == DEMO_USER_ID
-    bad = jwt.encode({"sub": "user-42", "aud": "authenticated"}, "other", algorithm="HS256")
-    with pytest.raises(AuthError):
-        verify_token(bad, "jwt-secret", "demo")
+    for bad in (
+        jwt.encode({"sub": "user-42", "iss": "lasteverlm"}, "other", algorithm="HS256"),
+        jwt.encode({"sub": "user-42", "iss": "someone-else"}, "jwt-secret", algorithm="HS256"),
+        jwt.encode({"sub": "user-42"}, "jwt-secret", algorithm="HS256"),
+    ):
+        with pytest.raises(AuthError):
+            verify_token(bad, "jwt-secret", "demo")
     with pytest.raises(AuthError):
         verify_token("demo", None, None)
 

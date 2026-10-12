@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 # Owner id of every notebook created under the shared demo token; pinned in lasteverlm_core.
 DEMO_USER_ID = "00000000-0000-4000-8000-000000000001"
+JWT_ISSUER = "lasteverlm"
 
 SourceKind = Literal["pdf", "text", "url", "image", "generated"]
 OutputKind = Literal["report", "quiz", "table", "mindmap", "infographic", "audio"]
@@ -40,14 +41,15 @@ class AuthError(Exception):
 def verify_token(token: str, jwt_secret: str | None, demo_token: str | None) -> str:
     """Return the user id for a bearer token, or raise AuthError.
 
-    A JWT (HS256, ``sub`` is the user id) is tried first when a secret is
+    A JWT (HS256, ``iss`` is ``lasteverlm``, no audience, ``sub`` is the user
+    id; what the account service issues) is tried first when a secret is
     configured, the shared demo token second when one is configured.
     """
     if not token:
         raise AuthError("missing bearer token")
     if jwt_secret:
         try:
-            claims = jwt.decode(token, jwt_secret, algorithms=["HS256"], audience="authenticated")
+            claims = jwt.decode(token, jwt_secret, algorithms=["HS256"], issuer=JWT_ISSUER)
         except jwt.PyJWTError:
             claims = None
         if claims is not None:
@@ -136,9 +138,21 @@ def parse_model_prices(raw: str) -> dict[str, ModelPrice]:
     return {model: ModelPrice.model_validate(price) for model, price in data.items()}
 
 
+class UnpricedModelError(LookupError):
+    """A model call cannot be accounted because ``MODEL_PRICES`` has no entry for it."""
+
+
+def require_prices(prices: Mapping[str, ModelPrice], models: list[str]) -> None:
+    missing = [m for m in models if m not in prices]
+    if missing:
+        raise UnpricedModelError(f"MODEL_PRICES has no price for configured model(s) {missing}")
+
+
 def cost_cents(
-    model: str, tokens_in: int, tokens_out: int, prices: Mapping[str, ModelPrice]
+    prices: Mapping[str, ModelPrice], model: str, tokens_in: int, tokens_out: int
 ) -> int:
     """Price a call at write time: ``ceil((tokens_in * in + tokens_out * out) / 1e6)``."""
-    price = prices[model]
+    price = prices.get(model)
+    if price is None:
+        raise UnpricedModelError(f"no price for model {model!r}")
     return math.ceil((tokens_in * price.cents_in + tokens_out * price.cents_out) / 1_000_000)

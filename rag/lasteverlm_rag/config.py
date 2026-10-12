@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
-from .contracts import ModelPrice, parse_model_prices
+from .contracts import ModelPrice, UnpricedModelError, parse_model_prices, require_prices
 
 
 class ConfigError(RuntimeError):
@@ -51,9 +51,12 @@ class Settings:
         embedding_model = required("EMBEDDING_MODEL")
         tts_model = env.get("TTS_MODEL", "").strip() or None
         prices = _model_prices(env.get("MODEL_PRICES", ""))
-        for model in (llm_model, embedding_model, *([tts_model] if tts_model else [])):
-            if model not in prices:
-                raise ConfigError(f"MODEL_PRICES has no price for configured model {model!r}")
+        try:
+            require_prices(
+                prices, [llm_model, embedding_model, *([tts_model] if tts_model else [])]
+            )
+        except UnpricedModelError as exc:
+            raise ConfigError(str(exc)) from exc
 
         return cls(
             database_url=required("DATABASE_URL"),

@@ -359,7 +359,7 @@ class PostgresStore:
         return int(row["balance"]) if row else 0
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
-        cost = cost_cents(usage.model, usage.tokens_in, usage.tokens_out, self._prices)
+        cost = cost_cents(self._prices, usage.model, usage.tokens_in, usage.tokens_out)
         with self._pool.connection() as conn:
             conn.execute(
                 _USAGE_SQL,
