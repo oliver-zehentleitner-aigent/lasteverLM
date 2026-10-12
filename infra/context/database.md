@@ -200,3 +200,32 @@ available and the cost is one ConfigMap mount.
 **Rejected alternative:** the CA inside each Secret next to the URL —
 the same file repeated per Secret, and a rotation would touch all of
 them instead of one ConfigMap.
+
+## Service migrations run as the application role, only the extension migration as the admin
+
+**Id:** fef72023-0a18-4686-a92f-ff9ea912a073
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** first deploy on 2026-10-12: account crashed with "permission denied for table settings" because the admin role had created the tables
+**Revisit when:** a service needs an object the application role may not create (another extension, a foreign server), or the admin stops being allowed to `SET ROLE`
+
+`db/bootstrap.sh` grants the admin membership in the application role
+(`GRANT lasteverlm TO CURRENT_USER`); `db/migrate.sh` keeps the admin
+connection but wraps every service file, and the creation of
+`schema_migrations`, in `SET ROLE lasteverlm`. Only `infra/` files run
+as the admin, because `CREATE EXTENSION` needs it. Objects are thus
+owned by the role that uses them, and a later `ALTER TABLE` in a
+migration still works because the admin is a member of the owner.
+
+**Reason:** ownership follows from who runs the DDL; with one
+connection string for all migrations, the role switch is the smallest
+change that gives each table the right owner. The empty database from
+the first attempt was dropped and recreated rather than reassigned,
+because `REASSIGN OWNED` would also have touched the extension.
+
+**Rejected alternatives:** `GRANT ALL` on every table after each run
+plus default privileges — leaves the admin as owner, so every future
+`ALTER` has to run as the admin and a service can never own its schema;
+a second connection string for the application role in the Job — one
+more secret for the same effect as `SET ROLE`.
