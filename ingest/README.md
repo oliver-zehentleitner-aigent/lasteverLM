@@ -48,7 +48,7 @@ Needs a reachable PostgreSQL with the migration applied, an S3 bucket and
 an inference endpoint; without them the start fails with a clear error.
 
 ```bash
-make venv                      # uv venv + editable install with dev extras
+make install                   # uv sync --all-extras: creates .venv, idempotent
 cp .env.example .env           # fill in the values
 set -a; source .env; set +a
 make run                       # API: uvicorn on :8000, reload on
@@ -62,8 +62,10 @@ stay in `processing`.
 ## Test
 
 ```bash
-make check                     # ruff, ruff format --check, mypy, pytest
+make check                     # make install, then ruff, ruff format --check, mypy, pytest
 ```
+
+`make check` installs first, so it works on a fresh checkout and is what CI runs.
 
 The tests use in-memory stand-ins for the database, the bucket and the
 inference API (`tests/fakes.py`); nothing touches the network.

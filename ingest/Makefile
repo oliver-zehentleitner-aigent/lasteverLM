@@ -4,11 +4,12 @@ PY := $(VENV)/bin/python
 IMAGE ?= lasteverlm-ingest
 TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-.PHONY: venv check lint types test run worker build
+.PHONY: install check lint types test run worker build
 
-venv:
-	uv venv $(VENV)
-	VIRTUAL_ENV=$(VENV) uv pip install -e '.[dev]'
+# Creates .venv and installs the service with its dev extras; idempotent,
+# so `check` can depend on it on a fresh checkout and in CI.
+install:
+	uv sync --all-extras
 
 lint:
 	$(VENV)/bin/ruff check .
@@ -20,7 +21,7 @@ types:
 test:
 	$(VENV)/bin/pytest
 
-check: lint types test
+check: install lint types test
 
 run:
 	$(VENV)/bin/uvicorn --factory lasteverlm_ingest.main:create_app --host 0.0.0.0 --port $${PORT:-8000} --reload
