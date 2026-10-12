@@ -1,0 +1,49 @@
+[project]
+name = "lasteverlm-rag"
+version = "0.1.0"
+description = "lasteverLM rag service: retrieval, cited answers, message history"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "psycopg[binary,pool]>=3.2",
+    "openai>=1.50",
+    "PyJWT>=2.9",
+]
+
+[project.scripts]
+lasteverlm-rag-worker = "lasteverlm_rag.worker:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["lasteverlm_rag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::jwt.warnings.InsecureKeyLengthWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["lasteverlm_rag"]
