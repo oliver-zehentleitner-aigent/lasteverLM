@@ -104,3 +104,19 @@ a managed database — not verified yet, which is why the evidence is
 inferred. Even if the application role turns out to have the privilege,
 keeping DDL on a role the services do not hold is the intended split.
 
+## The managed database is reachable from any IP
+
+**Id:** f8de01a5-e14a-4479-84cc-9cbc512333bd
+**Type:** workaround
+**Status:** active
+**Evidence:** confirmed
+**Source:** infra design session, 2026-10-12
+**Revisit when:** the cluster has stable egress addresses to allowlist, or the database is attached to the cluster's VPC
+
+`vultr_database` sets no `trusted_ips`, so the instance accepts TLS
+connections from anywhere with valid credentials. The worker nodes'
+public addresses are only known after the cluster exists and change
+when nodes are recycled, so an allowlist written at apply time would be
+wrong after the first node replacement. Known and accepted for the MVP;
+the fix is a VPC-attached database (`vpc_id` on both resources), which
+is a second apply step this skeleton does not take yet.
