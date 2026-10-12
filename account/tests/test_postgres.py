@@ -1,0 +1,113 @@
+"""PostgreSQL integration: migrations apply cleanly, voucher redeem is atomic in SQL.
+
+Runs only when ``TEST_DATABASE_URL`` points at an empty, disposable database; the
+unit tests cover the service logic against the in-memory repository.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+
+from lasteverlm_account.contracts import DEMO_USER_ID
+from lasteverlm_account.repository_postgres import PostgresRepository
+
+DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+MIGRATIONS = sorted((Path(__file__).parents[1] / "db" / "migrations").glob("*.sql"))
+
+pytestmark = [
+    pytest.mark.anyio,
+    pytest.mark.skipif(not DATABASE_URL, reason="TEST_DATABASE_URL not set"),
+]
+
+# Core's tables, applied before ours in the real migration order. Columns as
+# announced by core (core/db/migrations/0002_core_rate_limit.sql).
+CORE_TABLES = """
+create table if not exists usage (
+    id bigserial primary key, user_id uuid not null, notebook_id uuid, service text not null,
+    kind text not null, model text not null, tokens_in integer not null default 0,
+    tokens_out integer not null default 0, cost_cents integer not null default 0,
+    created_at timestamptz not null default now()
+);
+create table if not exists access_log (
+    id bigserial primary key, at timestamptz not null default now(), ip inet not null,
+    path text not null, method text not null, status integer not null, user_id uuid,
+    service text not null
+);
+create table if not exists ip_blocks (
+    ip inet primary key, blocked_until timestamptz not null, strikes integer not null default 1,
+    updated_at timestamptz not null default now()
+);
+create table if not exists ip_bans (
+    ip inet primary key, reason text not null,
+    created_at timestamptz not null default now(), lifted_at timestamptz
+)"""
+
+
+@pytest.fixture
+async def repo() -> PostgresRepository:
+    assert DATABASE_URL
+    repo = PostgresRepository.from_url(DATABASE_URL, max_size=12)
+    await repo.open()
+    async with repo._pool.connection() as conn:
+        await conn.execute(CORE_TABLES)
+        for path in MIGRATIONS:
+            await conn.execute(path.read_text())
+            await conn.execute(path.read_text())  # idempotent
+        await conn.execute("delete from ledger where reason <> 'seed'")
+        await conn.execute("delete from vouchers")
+        await conn.execute("delete from users where id <> %s", (DEMO_USER_ID,))
+        await conn.execute("delete from ip_bans")
+        await conn.execute("delete from ip_blocks")
+    yield repo
+    await repo.close()
+
+
+async def test_demo_user_seeded_with_credit(repo: PostgresRepository) -> None:
+    demo = await repo.get_user(DEMO_USER_ID)
+    assert demo is not None and demo.email == "demo@localhost" and not demo.is_admin
+    assert (await repo.credit_totals(DEMO_USER_ID)).balance_cents == 1000
+
+
+async def test_first_real_user_is_admin(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    first = await repo.create_user("a@example.org", admin=False, now=now)
+    second = await repo.create_user("b@example.org", admin=False, now=now)
+    # The demo user exists before anyone logs in and must not count as "first user".
+    assert first.is_admin is True
+    assert second.is_admin is False
+
+
+async def test_redeem_is_atomic_under_concurrency(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    admin = await repo.create_user("admin@example.org", admin=True, now=now)
+    users = [await repo.create_user(f"u{i}@example.org", admin=False, now=now) for i in range(10)]
+    code_hash = uuid.uuid4().hex
+    await repo.create_voucher(code_hash, 700, admin.id, now)
+
+    results = await asyncio.gather(*(repo.redeem_voucher(code_hash, u.id, now) for u in users))
+    assert sorted(r for r in results if r is not None) == [700]
+    totals = await repo.all_credit_totals()
+    assert sum(t.credited_cents for u, t in totals.items() if u != DEMO_USER_ID) == 700
+
+
+async def test_lift_ban_marks_only_the_active_one(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    async with repo._pool.connection() as conn:
+        await conn.execute(
+            "insert into ip_bans (ip, reason, lifted_at) values (%s, %s, %s)",
+            ("203.0.113.8", "old", now),
+        )
+        await conn.execute(
+            "insert into ip_bans (ip, reason) values (%s, %s)", ("203.0.113.9", "third block")
+        )
+    assert [b.ip for b in await repo.bans(include_lifted=False)] == ["203.0.113.9"]
+    assert await repo.lift_ban("203.0.113.9", now) is True
+    assert await repo.lift_ban("203.0.113.9", now) is False
+    assert await repo.bans(include_lifted=False) == []
+    assert len(await repo.bans(include_lifted=True)) == 2
