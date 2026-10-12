@@ -167,3 +167,26 @@ the migration Job. One Secret per concern makes that a matter of which
 everywhere — fewer kubectl calls, rejected because it gives each pod
 credentials it has no use for.
 
+## Deployment-specific values come from a generated values file, not from --set
+
+**Id:** 6d81fc15-6bae-4e67-960d-8f6a34a3f640
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** infra design session, 2026-10-12
+**See:** cluster.md#domain-acme-e-mail-and-registry-host-are-substituted-into-the-manifests-by-the-makefile — dec25659-4f61-4d6e-af03-af8d42ad992f — as of 2026-10-12
+**Revisit when:** the values stop being derivable from the environment plus the tofu outputs
+
+`make values` runs `scripts/values.py`, which reads the environment and
+the tofu outputs and prints the chart values as JSON (valid YAML) into
+`build/values.yaml`; `make deploy` passes that file to Helm. The chart
+itself holds only defaults.
+
+**Reason:** `MODEL_PRICES` is a JSON string with commas and braces,
+which `helm --set` parses as its own list and map syntax; a values
+file side-steps that, and a generated one keeps a single source for
+what is deployed, inspectable in `build/`.
+
+**Rejected alternative:** `--set` and `--set-string` flags assembled in
+the Makefile — worked until the first JSON value and would have needed
+escaping rules nobody wants to maintain.
