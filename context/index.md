@@ -26,7 +26,7 @@ service lives in that service's own `context/`.
 
 ## A
 
-- [architecture.md](architecture.md) — everything on Vultr (Kubernetes, Managed PostgreSQL with pgvector, Object Storage, Serverless Inference), microservices across repositories, the shared core library, self-built citations, usage rows as the debit, magic-link auth; the Supabase decision it superseded
+- [architecture.md](architecture.md) — one repository with isolated contexts, containers only, Helm with automatic deploy on a tag, PostgreSQL as the job queue, rate limiting with blocks and bans, everything on Vultr (Kubernetes, Managed PostgreSQL with pgvector, Object Storage, Serverless Inference), microservices across repositories, the shared core library, self-built citations, usage rows as the debit, magic-link auth; the Supabase decision it superseded
 
 ## B
 

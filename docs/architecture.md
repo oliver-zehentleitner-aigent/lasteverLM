@@ -1,15 +1,17 @@
 # Architecture
 
-Status: v1, the contract the services are built against. A change to a
+Status: v2, the contract the services are built against. A change to a
 contract below is a pull request here first, and the owner of every
 affected service is told.
 
 ## Overview
 
-Everything runs on one cloud account. Four application services and one
-static frontend on a managed Kubernetes cluster, one managed PostgreSQL
-with pgvector, one object storage bucket, one inference API for the
-language model and the embeddings.
+Everything runs on one cloud account and lives in one repository. Four
+application services, two workers and one static frontend on a managed
+Kubernetes cluster, one managed PostgreSQL with pgvector, one object
+storage bucket, one inference API for the language model and the
+embeddings. Every container is horizontally scalable; PostgreSQL is the
+only state.
 
 ```text
 browser ── web (static SPA) ────────────┐
@@ -26,14 +28,18 @@ browser ── web (static SPA) ────────────┐
                          (uploads, S3 API)      (OpenAI-compatible API)
 ```
 
-| Part | Repository | Owner | Role |
+| Part | Directory | Owner | Role |
 |---|---|---|---|
-| core | `lasteverLM-core` | Agent A | Python library: models, settings, auth, provider interfaces, usage accounting. Imported by account, ingest, rag. No service. |
-| account | `lasteverLM-account` | Agent F | magic-link login, allowed domains, vouchers, credit balance, admin panel backend, visitor log |
-| ingest | `lasteverLM-ingest` | Agent C | notebooks and sources: upload, parse, chunk, embed, store |
-| rag | `lasteverLM-rag` | Agent D | retrieval, answer generation, citations, message history |
-| web | `lasteverLM-web` | Agent E | three-pane frontend, login, credits, admin panel |
-| infra | `lasteverLM-infra` | Agent B | cluster, ingress, manifests, migrations runner, secrets handling |
+| core | `core/` | Agent G | Python library: models, settings, auth, rate-limit middleware, provider interfaces, usage accounting. Copied into the images of account, ingest, rag. Never published as a package. |
+| account | `account/` | Agent F | magic-link login, allowed domains, vouchers, credit balance, admin panel backend, visitor and access logs, blocks and bans |
+| ingest | `ingest/` | Agent C | notebooks and sources: upload endpoints; the ingest worker parses, chunks, embeds, summarizes |
+| rag | `rag/` | Agent D | retrieval, cited answers, message history; the rag worker generates outputs |
+| web | `web/` | Agent E | wizard, two-column notebook view, viewer, login, credits, admin panel |
+| infra | `infra/` | Agent B | cluster provisioning, Helm chart, ingress, migrations runner, deploy automation, smoke test |
+
+One repository, isolated contexts: every directory above is its own
+Keep the Why project with its own `context/`, `parent: ..`, and the
+root holds what is family-wide.
 
 Rules that hold everywhere:
 
@@ -41,6 +47,8 @@ Rules that hold everywhere:
 - **Every stage is an interface with one implementation.** New source kinds, chunkers, embedding or LLM providers, retrievers are added as modules, never by editing callers.
 - **Configuration from the environment only.** A service fails at startup when a required value is missing. Secrets never enter a repository.
 - **Every model call is accounted.** One `usage` row per LLM or embedding call, priced at write time. Zero balance means 402.
+- **Nothing is shipped but containers.** Python source goes into the image; no PyPI, no conda, no compiled artifacts. One image per service, tagged with the Git SHA and the release tag, in GitHub's container registry.
+- **Every process can run any number of times.** API pods hold no state; background work is claimed from PostgreSQL by worker pods; uploads live in object storage; sessions are JWTs.
 
 ## Platform (Vultr)
 
@@ -71,22 +79,28 @@ visit_log    (id, at, path, user_id null, ip_hash, ua_family)                 --
 
 -- ingest
 notebooks    (id, owner uuid, title, created_at)
-sources      (id, notebook_id, name, kind, storage_path, status, error, summary text null, created_at)
+sources      (id, notebook_id, name, kind, storage_path, status, error, summary text null,
+              claimed_at timestamptz null, claimed_by text null, attempts int default 0, created_at)
 chunks       (id, source_id, notebook_id, idx, page, text, embedding vector(1536))
 
 -- rag
 messages     (id, notebook_id, role, content, citations jsonb, created_at)
-outputs      (id, notebook_id, kind, title, content jsonb, status, error, share_token text null unique, source_id uuid null, created_at)
+outputs      (id, notebook_id, kind, title, content jsonb, status, error, share_token text null unique,
+              source_id uuid null, claimed_at timestamptz null, claimed_by text null, attempts int default 0, created_at)
 
--- shared (owned by core's migration, applied first)
+-- shared (owned by core's migration, applied after infra's)
 usage        (id, user_id, notebook_id null, service, kind, model,
               tokens_in, tokens_out, cost_cents, created_at)
+access_log   (id, at, ip inet, path, method, status, user_id null, service)    -- raw IP, security purpose, 30 days
+ip_blocks    (ip inet primary key, blocked_until, strikes int, updated_at)
+ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 ```
 
 - `sources.kind`: `pdf` | `text` | `url` | `image` | `generated` (`url` and `image` are later loaders, the column is ready; `generated` is a finished output indexed as a source by rag, see Outputs).
 - `sources.status`: `processing` | `ready` | `failed`.
 - `sources.summary`: one summary per source, written by ingest at the end of processing, used by the output generators.
 - `outputs.kind`: `report` | `quiz` | `table` | `mindmap` | `infographic` | `audio`. `outputs.status`: `waiting` (sources still processing) | `processing` | `ready` | `failed`.
+- `claimed_at`, `claimed_by`, `attempts` on `sources` and `outputs` make those tables the job queues of the two workers (see Workers).
 - `chunks.embedding` dimension follows `EMBEDDING_DIMENSION`; the migration takes it as a parameter, default 1536.
 - `usage.kind`: `llm` | `embedding`. `usage.service`: `ingest` | `rag`.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
@@ -197,6 +211,28 @@ config. If nothing passes the floor, the answer says that the sources do
 not cover the question and `citations` is empty. The service never
 answers from model knowledge alone.
 
+## Workers: PostgreSQL as the job queue
+
+Background work never runs inside an API process. ingest and rag each
+ship a second entrypoint, `worker`, deployed from the same image as a
+separate Deployment with its own replica count. A worker loop claims
+one job at a time:
+
+```sql
+update sources set claimed_at = now(), claimed_by = $worker, attempts = attempts + 1
+where id = (select id from sources
+            where status = 'processing' and (claimed_at is null or claimed_at < now() - interval '10 minutes')
+            order by created_at for update skip locked limit 1)
+returning *;
+```
+
+The same shape on `outputs` with status `waiting`/`processing`. A claim
+older than ten minutes is considered abandoned and may be re-claimed;
+after three attempts the row becomes `failed` with the last error. No
+broker, no extra component: PostgreSQL's row locks make any number of
+workers safe, and a dead pod costs at most one retry delay. The API
+only inserts rows and reads status; the frontend polls.
+
 ## Outputs (generated documents)
 
 An output is a document generated from a notebook's sources: a report,
@@ -220,8 +256,9 @@ notebooks inside the context window.
 
 Lifecycle: `POST /outputs` creates the row with status `waiting` when
 any source of the notebook is still processing, otherwise `processing`;
-a background task waits for the sources, generates, writes `ready` or
-`failed`. Every generation writes a `usage` row. When an output is
+the rag worker claims it (a `waiting` row is claimable once every
+source of its notebook is `ready` or `failed`), generates, writes
+`ready` or `failed`. Every generation writes a `usage` row. When an output is
 ready, rag chunks and embeds its text as a source of kind `generated`
 in the same notebook, so the chat can answer questions about generated
 documents and cite them. Deleting an output deletes that source.
@@ -232,6 +269,27 @@ login, read-only, and records a visit. `DELETE .../share` revokes it.
 Printing is a print stylesheet on the viewer; the browser produces the
 PDF. Audio, mind map and infographic are not printed as images; the
 report and the table are the printable kinds.
+
+## Rate limiting, blocking, banning, access log
+
+Two layers, both per client IP (`X-Forwarded-For` as set by the
+ingress, never trusted from anywhere else):
+
+1. **Ingress**, coarse: ingress-nginx rate-limit annotations (requests
+   per second with a burst) answer 503 before anything reaches a pod.
+   Access log as JSON on the ingress.
+2. **Core middleware**, fine, loaded by every API service: a sliding
+   window per IP in PostgreSQL (`ip_blocks`). Over the limit means 429
+   and `blocked_until = now() + 15 minutes`, `strikes + 1`. The third
+   strike within 24 hours writes an `ip_bans` row; a banned IP gets 403
+   on everything until an admin lifts it. Every request writes one
+   `access_log` row (sampled to 1 in N for `/healthz`).
+
+The limits are configuration (`RATE_LIMIT_PER_MINUTE`, default 120;
+`BLOCK_MINUTES`, 15; `BAN_AFTER_STRIKES`, 3). Blocks, bans and the
+access log are visible in the admin panel, bans can be lifted there.
+Raw IPs exist only in these three tables, for the security purpose, and
+are purged after 30 days; the visitor log keeps hashes.
 
 ## Model prices
 
@@ -259,22 +317,35 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 
 ## Runtime contract
 
-- Images `<registry>/lasteverlm-<service>:<git-sha>` for account, ingest, rag, web. The registry host is a variable in manifests and build workflows (decision pending: Vultr Container Registry or ghcr.io).
+- Images `ghcr.io/oliver-zehentleitner/lasteverlm-<service>:<git-sha>` and `:<tag>` for account, ingest, rag, web, built from `<service>/Dockerfile` with the repository root as build context so that `core/` can be copied in.
 - API services listen on 8000 and answer `GET /healthz` with `{"status": "ok"}` at the root (what Kubernetes probes) and under their prefix (what the ingress exposes); web serves on 8080, `GET /` is 200. Services receive the full request path including their prefix.
 - Containers run as non-root (`runAsNonRoot: true`); every Dockerfile sets a `USER`.
 - Configuration: ConfigMap `lasteverlm-config` (PUBLIC_BASE_URL, S3_ENDPOINT, S3_BUCKET, INFERENCE_BASE_URL, LLM_MODEL, EMBEDDING_MODEL, EMBEDDING_DIMENSION, SIMILARITY_FLOOR, MODEL_PRICES). Secrets per concern: `lasteverlm-db` (DATABASE_URL, app role, `sslmode=require`), `lasteverlm-s3` (ingest), `lasteverlm-inference` (ingest, rag), `lasteverlm-auth` (AUTH_JWT_SECRET, DEMO_TOKEN), `lasteverlm-account` (AUTH_ALLOWED_DOMAINS, ADMIN_EMAILS), optional `lasteverlm-smtp-seed`. Account gets neither S3 nor inference.
-- Migrations: each service keeps `db/migrations/NNNN_<topic>.sql`; `make migrate` applies infra, core, account, ingest, rag in that order, one transaction per file, version key `<service>/NNNN_<topic>` in `schema_migrations`, never edit an applied file. The psql variable `:EMBEDDING_DIMENSION` is passed on every run. `CREATE EXTENSION vector` is infra's own first migration; services never create extensions.
+- Migrations: each service keeps `<service>/db/migrations/NNNN_<topic>.sql`; `make migrate` applies infra, core, account, ingest, rag in that order, one transaction per file, version key `<service>/NNNN_<topic>` in `schema_migrations`, never edit an applied file. The psql variable `:EMBEDDING_DIMENSION` is passed on every run. `CREATE EXTENSION vector` is infra's own first migration; services never create extensions.
 
 ## Deployment
 
-One namespace `lasteverlm` on a Vultr Kubernetes cluster. One
-Deployment and one ClusterIP Service per application service plus web,
-ingress-nginx with TLS in front, path routing per the prefixes above
-and `/` to web. Images are built per repository and tagged with the Git
-SHA. Secrets are created from the environment by `make secrets` and
-never committed. `make migrate` applies every service's migrations in
-order: infra, core, account, ingest, rag. The cluster runs in Frankfurt;
-Object Storage has no Frankfurt location and lives in Amsterdam.
+One Helm chart at `infra/chart`, chart version equal to the repository
+tag, one release `lasteverlm` in namespace `lasteverlm` on a Vultr
+Kubernetes cluster. The chart holds a Deployment, a Service and a
+HorizontalPodAutoscaler per API service (minimum two replicas), a
+Deployment per worker (ingest, rag), the web Deployment, the Ingress
+with TLS from cert-manager and the rate-limit annotations, the
+ConfigMap, and a migration Job that runs before the rollout. Secrets
+are created from the environment by `make secrets` and never
+committed. The cluster runs in Frankfurt; Object Storage has no
+Frankfurt location and lives in Amsterdam.
+
+Automation in `.github/workflows/`:
+
+- `ci.yml`: per directory, path-filtered, `make check` (and `build` for web).
+- `docker.yml`: on push to `main` and on tags `v*`, build the changed images and push them to ghcr.io tagged with the SHA (and the tag).
+- `deploy.yml`: on tags `v*`, after the images exist, `helm upgrade --install` with that tag; also runnable by hand with a tag as input. A merge to `main` never deploys.
+- `ktw-lint.yml`, `pages.yml` (docs site and the Keep the Why dashboard of the whole family).
+
+Versioning: SemVer tags `v*` on the repository. One tag releases
+everything at once; services that did not change get the same image
+tag from an unchanged SHA layer.
 
 ## Extension points, by design
 
@@ -285,5 +356,5 @@ Object Storage has no Frankfurt location and lives in Amsterdam.
 | hybrid retrieval (full text + vector) | one more `Retriever` in rag | ingest, web |
 | another output kind | one more `OutputGenerator` in rag plus its renderer in web | ingest, account, the API |
 | audio outputs | the prepared `audio` generator once a text-to-speech endpoint exists | everything else |
-| separate ingest worker pod | a second Deployment of the same image with the `worker` entrypoint | ingest code |
+| more throughput | replicas on the HPA or the worker Deployments | code |
 | password or OAuth login | one more auth scheme in account and core's `current_user` | ingest, rag, web beyond the login page |

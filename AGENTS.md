@@ -1,19 +1,20 @@
 # AGENTS.md
 
 lasteverLM is a NotebookLM-style assistant: upload documents, ask
-questions, get cited answers. This repository is the parent of the
-lasteverLM family. It holds the architecture, the family-wide reasoning
-and the coordination files. The code lives in the service repositories:
+questions, get cited answers, turn sources into documents. This is one
+repository for the whole system. The root is the umbrella: architecture,
+family-wide reasoning, task board, workflows. Each directory below is a
+service with its own `context/`:
 
-| Repository | Owner | Scope |
+| Directory | Owner | Scope |
 |---|---|---|
-| `lasteverLM` (this one) | Agent A | architecture, API contract, family-wide `context/`, task board, review and merge until the prototype |
-| `lasteverLM-core` | Agent G | shared Python library: models, settings, auth resolution, usage accounting, provider interfaces |
-| `lasteverLM-account` | Agent F | magic-link login, allowed domains, vouchers, credit balance, admin panel backend, visitor log |
-| `lasteverLM-infra` | Agent B | Vultr Kubernetes cluster, manifests, ingress, migrations runner, secrets handling |
-| `lasteverLM-ingest` | Agent C | upload, parsing, chunking, embeddings, notebook and source endpoints |
-| `lasteverLM-rag` | Agent D | retrieval, cited answers, message history |
-| `lasteverLM-web` | Agent E | three-pane frontend, login, credits, admin panel |
+| `/` (root) | Agent A | architecture, API contract, family-wide `context/`, task board, review and merge until the prototype |
+| `core/` | Agent G | shared Python library: models, settings, auth resolution, rate-limit middleware, usage accounting, provider interfaces |
+| `account/` | Agent F | magic-link login, allowed domains, vouchers, credit balance, admin panel backend, visitor and access logs, blocks and bans |
+| `infra/` | Agent B | Vultr cluster, Helm chart, ingress, migrations runner, deploy automation, smoke test, the workflows in `.github/` |
+| `ingest/` | Agent C | upload, parsing, chunking, embeddings, source summaries, notebook and source endpoints, ingest worker |
+| `rag/` | Agent D | retrieval, cited answers, message history, generated outputs, sharing, rag worker |
+| `web/` | Agent E | wizard, two-column notebook view, viewer, login, credits, admin panel |
 
 - How the system fits together: `docs/architecture.md` (read it before writing code against another service)
 - How the interface works: `docs/ui.md`
@@ -25,13 +26,13 @@ and the coordination files. The code lives in the service repositories:
 ## How we work
 
 - Seven agent sessions run at the same time on one machine. Agent A manages, reviews and merges and writes no code. Agents B to G write code, one repository each.
-- Every agent works in its own checkout. Never edit another agent's working tree.
+- Every agent works in its own clone of the fork and touches only its own directory. Files outside it (root files, `.github/`) change through their owner: root files through Agent A, workflows through Agent B.
 - All agents push through one shared GitHub account that holds forks. Commits are authored per agent: `git config user.name "OZ-AGENT_<letter>"` and `git config user.email "agent-<letter>@aigent.zehentleitner.co"`, set per repository, never globally. Branches are named `agent-<letter>/<topic>`. Work lands as a pull request from the fork against the maintainer's repository, `main` as base. Until the first prototype is accepted, Agent A reviews every pull request and merges it; after that the maintainer merges.
 - Commit hygiene: a handful of meaningful commits per feature, one pull request per repository and milestone. Clean up before opening the PR.
-- Before starting work and before opening a pull request: fetch this repository and the repositories your service depends on, read their `context/index.md` and the topics you touch. Every repository keeps its own `context/` under Keep the Why from the first commit.
+- Before starting work and before opening a pull request: fetch `main`, read the root `context/index.md` and the `context/index.md` of every directory your service depends on and the topics you touch. Every repository keeps its own `context/` under Keep the Why from the first commit.
 - Direct messages between sessions are for interface changes and blockers only. Status goes through Git.
 - Whoever changes an interface another service depends on updates `docs/architecture.md` in a pull request here and tells the owner of the affected service.
-- Family-wide reasoning (anything that is not one service's own concern) is handed to Agent A and recorded in this repository's `context/`. Each service repository keeps its own `context/` for its own decisions.
+- Family-wide reasoning (anything that is not one service's own concern) is handed to Agent A and recorded in the root `context/`. Each service directory keeps its own `context/` for its own decisions; the skill routes by the `children` block in the root `.keep-the-why`.
 - Documentation is part of the change: README, CHANGELOG, `docs/` and `context/` are updated in the same pull request as the code they describe, and the run/test/build/deploy sections are verified by running them. See `docs/repository-standard.md`.
 - Language: code, comments, commits, docs and `context/` in English.
 - Secrets never enter a repository. Services read them from the environment; the cluster gets them as Kubernetes Secrets.
