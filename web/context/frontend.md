@@ -98,3 +98,30 @@ The outputs endpoints and the per-kind content shapes are the family
 lead's proposal and not confirmed in the contract yet; the client and the
 viewer are built to the proposal, the per-kind renderers wait for the
 confirmation (`src/components/outputs/OutputContent.tsx`).
+
+## Every failed request ends in a sentence, never the server's raw body
+
+**Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** implementation decision, 2026-10-12, preparing the first run against real services
+**Revisit when:** the ingress or the services start returning JSON errors for every status
+
+A failed response is shown as the service's `{"error"}` text when the
+body is one; otherwise as a fixed description of the status with its
+code ("The file is too large for the server (HTTP 413)"). The body of a
+non-JSON error is never displayed. A failed `fetch` becomes "Cannot
+reach the server".
+
+**Reason:** the deployment answers some failures without the contract's
+JSON shape: the ingress returns HTML pages for 502, 503, 504 while pods
+start and for 413 on an oversized upload, and a browser offline produces
+no response at all. Showing an HTML dump or a blank is what the first
+real run would otherwise have produced on exactly the paths a demo hits
+first (upload, first question).
+
+**Rejected alternative:** stripping the HTML to its title ("502 Bad
+Gateway"). Rejected because the nginx title tells the user nothing
+useful; a description written for the situation does, and the code stays
+visible for anyone debugging.
