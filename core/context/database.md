@@ -33,3 +33,18 @@ connection class.
 connections. Rejected because each service already has its pool and its
 transaction boundaries; a second pool would double connections on the
 managed database and blur who commits.
+
+## usage has no foreign keys
+
+**Id:** 405223bd-dc1e-4452-8791-0f9ee504da3b
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** parent docs/architecture.md, migration order infra, core, account, ingest, rag; core design 2026-10-12
+**Revisit when:** the migration order changes, or a deletion must cascade into usage
+
+`usage.user_id` and `usage.notebook_id` reference nothing. Core's
+migration runs before account creates `users` and before ingest creates
+`notebooks`, so a constraint could not be declared there; and a deleted
+notebook must keep what it cost, because the balance is computed from
+these rows. The admin panel joins by id and tolerates a missing notebook.
