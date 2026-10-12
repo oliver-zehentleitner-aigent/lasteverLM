@@ -35,6 +35,8 @@ repository root's `context/`.
 
 ## F
 
+- [frontend.md](frontend.md) — two-column layout with output tabs, no router or UI framework, 401/402 as app-level events, admin panel behind one interface with a build-time mock
+
 ## G
 
 ## H
@@ -51,7 +53,11 @@ repository root's `context/`.
 
 ## N
 
+- [notes.md](notes.md) — the superseded browser-local notes pane and why it went
+
 ## O
+
+- [outputs.md](outputs.md) — generated documents: sanitized Markdown, markmap on demand, citations into generated documents resolved through Output.source_id (title match superseded)
 
 ## P
 
