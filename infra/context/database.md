@@ -88,3 +88,19 @@ shipping them, as the Makefile does for the Ingress — would make the
 collected files differ from what the service directory committed,
 which defeats the audit trail.
 
+## Migrations run as the admin role, services as a restricted one
+
+**Id:** 7652a827-0b6a-4e1a-ad3b-fe108d3d4f4a
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** infra design session, 2026-10-12
+**Revisit when:** the first `make migrate` against a real Vultr database shows which privileges the application role actually has
+
+OpenTofu creates a logical database and a separate role for the
+services; the Job uses the primary admin user Vultr creates with the
+instance. `CREATE EXTENSION vector` is assumed to need the admin role on
+a managed database — not verified yet, which is why the evidence is
+inferred. Even if the application role turns out to have the privilege,
+keeping DDL on a role the services do not hold is the intended split.
+
