@@ -22,3 +22,30 @@ lets this service be tested end to end now. The cost is a second copy of
 the token logic that must match core's byte for byte; the token format
 (HS256, `sub` = user id, issuer `lasteverlm`, 7 days) is fixed in the
 family's `docs/architecture.md`, which is what both copies implement.
+
+## Addresses in `ADMIN_EMAILS` bypass the domain allowlist; an empty allowlist denies everyone else
+
+**Id:** 5bef96eb-4ba1-498e-b26f-ca77f8a56fff
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** implementation, 2026-10-12
+
+`is_allowed()` accepts an address when its domain is in the
+`allowed_domains` setting *or* when the address itself is listed in
+`ADMIN_EMAILS`. With no domains configured and no admin addresses,
+nobody can request a link.
+
+**Reason:** the allowlist lives in the database and is edited through the
+admin panel, so on a fresh deployment there is a bootstrapping gap: the
+first admin cannot log in to set the domains that would let them log in.
+`AUTH_ALLOWED_DOMAINS` seeds the list once, but an operator who forgot
+it would be locked out with no way in short of SQL. Letting the admin
+addresses through closes that gap with a value the operator already has
+to set. An empty list failing closed rather than open is the only safe
+default for a service whose whole purpose is to restrict who gets in.
+
+**Rejected alternative:** treating an empty allowlist as "allow all" so
+the first login always works — rejected because a configuration mistake
+would silently turn the deployment public, and the project's stance is
+to fail loudly rather than serve on.
