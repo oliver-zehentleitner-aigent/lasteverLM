@@ -9,8 +9,14 @@ def test_defaults_and_values():
     assert s.chunk_tokens == 800
     assert s.chunk_overlap_tokens == 100
     assert s.max_upload_bytes == 20 * 1024 * 1024
-    assert s.demo_token == "test-demo-token"
-    assert s.auth_jwt_secret is None
+    assert s.auth.demo_token == "test-demo-token"
+    assert s.auth.jwt_secret is None
+    assert s.inference.embedding_dimension == 8 and s.inference.llm_model == "fake-llm"
+    assert s.rate_limit.per_minute == 1000
+
+
+def test_inference_base_url_defaults_to_the_platform():
+    assert make_settings(INFERENCE_BASE_URL="").inference.base_url.startswith("https://api.vultr")
 
 
 def test_missing_required_variable_names_it():
@@ -20,8 +26,8 @@ def test_missing_required_variable_names_it():
 
 def test_at_least_one_auth_scheme():
     both = make_settings(AUTH_JWT_SECRET="x" * 32)
-    assert both.auth_jwt_secret and both.demo_token
-    with pytest.raises(ConfigError, match="AUTH_JWT_SECRET and/or DEMO_TOKEN"):
+    assert both.auth.jwt_secret and both.auth.demo_token
+    with pytest.raises(ConfigError, match="AUTH_JWT_SECRET or DEMO_TOKEN"):
         make_settings(DEMO_TOKEN="")
 
 
@@ -40,9 +46,9 @@ def test_model_prices_parsing():
     )
     with pytest.raises(ConfigError, match="no price"):
         make_settings(MODEL_PRICES="")
-    with pytest.raises(ConfigError, match="no price .* 'fake-embed', 'fake-llm'"):
+    with pytest.raises(ConfigError, match="no price configured for model 'fake-embed'"):
         make_settings(MODEL_PRICES='{"other": {"in": 1, "out": 0}}')
-    with pytest.raises(ConfigError, match="no price .* 'fake-llm'"):
+    with pytest.raises(ConfigError, match="no price configured for model 'fake-llm'"):
         make_settings(MODEL_PRICES='{"fake-embed": {"in": 1, "out": 0}}')
     with pytest.raises(ConfigError, match="MODEL_PRICES"):
         make_settings(MODEL_PRICES="[1]")

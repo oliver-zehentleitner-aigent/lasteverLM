@@ -3,10 +3,16 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response
+from lasteverlm_core import Notebook
+from pydantic import BaseModel, Field
 
 from lasteverlm_ingest.api.deps import owned_notebook, repository, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
-from lasteverlm_ingest.contracts import Notebook, NotebookCreate
+
+
+class NotebookCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+
 
 router = APIRouter()
 

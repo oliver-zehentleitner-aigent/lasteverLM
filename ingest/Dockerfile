@@ -1,10 +1,11 @@
 # Build context is the repository root: docker build -f ingest/Dockerfile .
-# (so that core/ can be copied in once ingest depends on it).
+# core/ is installed from the same checkout; it is not published.
 FROM python:3.13-slim AS build
 WORKDIR /build
+COPY core ./core
 COPY ingest/pyproject.toml ingest/README.md ./ingest/
 COPY ingest/src ./ingest/src
-RUN pip install --no-cache-dir --prefix=/install ./ingest
+RUN pip install --no-cache-dir --prefix=/install ./core ./ingest
 
 FROM python:3.13-slim
 ENV PYTHONUNBUFFERED=1 \

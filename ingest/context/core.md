@@ -4,10 +4,10 @@
 
 **Id:** e65144ba-247d-4201-9417-18cc84e97699
 **Type:** constraint
-**Status:** active
+**Status:** superseded
+**Superseded by:** none — the constraint ended: `lasteverlm-core` landed in `core/` of this repository on 2026-10-12 and the service imports it; `contracts.py` was deleted in the same change, nothing replaced the mirror
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12 (parent repository, architecture v1)
-**Revisit when:** `lasteverlm-core` is published — then `contracts.py` is replaced by imports and this entry is superseded
 
 `lasteverlm-core` will export the models (`Notebook`, `Source`,
 `UsageRecord`), the token verification, the demo user id, and the

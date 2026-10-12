@@ -7,14 +7,15 @@ other, so the tables below are the contract with rag and account.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
+from lasteverlm_core import ModelPrices, Notebook, Source, UsageRecord
+from lasteverlm_core import balance_cents as core_balance_cents
+from lasteverlm_core import record_usage as core_record_usage
 from pydantic import ConfigDict
 
-from lasteverlm_ingest import contracts
 from lasteverlm_ingest.chunking import Chunk
-from lasteverlm_ingest.contracts import Notebook, Source, UsageRecord
 
 
 class StoredSource(Source):
@@ -86,8 +87,8 @@ class PostgresRepository:
         self,
         database_url: str,
         *,
-        model_prices: contracts.ModelPrices,
-        service: str = "ingest",
+        model_prices: ModelPrices,
+        service: Literal["ingest", "rag"] = "ingest",
         min_size: int = 1,
         max_size: int = 8,
         connect_timeout: float = 15.0,
@@ -107,6 +108,8 @@ class PostgresRepository:
         # Fail at startup when the database is unreachable, instead of
         # serving 500s while the pool retries in the background.
         self._pool.wait(timeout=connect_timeout)
+        # A connection source for core's PostgresRateLimitStore.
+        self.connection = self._pool.connection
 
     def close(self) -> None:
         self._pool.close()
@@ -276,12 +279,12 @@ class PostgresRepository:
         tokens_out: int,
     ) -> UsageRecord:
         with self._pool.connection() as conn:
-            return contracts.record_usage(
+            return core_record_usage(
                 conn,
                 user_id,
                 notebook_id,
                 self._service,
-                kind,
+                kind,  # type: ignore[arg-type]
                 model,
                 tokens_in,
                 tokens_out,
@@ -290,4 +293,4 @@ class PostgresRepository:
 
     def balance_cents(self, user_id: UUID) -> int:
         with self._pool.connection() as conn:
-            return contracts.balance_cents(conn, user_id)
+            return core_balance_cents(conn, user_id)

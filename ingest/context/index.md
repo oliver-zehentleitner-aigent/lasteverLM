@@ -32,7 +32,7 @@ repository root's `context/`.
 ## C
 
 - [chunking.md](chunking.md) — why chunks are counted in regex tokens rather than a model tokenizer, and how windows cross pages
-- [core.md](core.md) — the shared library is not published yet; what is mirrored locally and how the swap happens
+- [core.md](core.md) — superseded: the shared library was mirrored locally until it landed in `core/`
 
 ## D
 

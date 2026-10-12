@@ -6,10 +6,12 @@ TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
 .PHONY: install check lint types test run worker build
 
-# Creates .venv and installs the service with its dev extras; idempotent,
-# so `check` can depend on it on a fresh checkout and in CI.
+# Creates .venv and installs core (by path, it is not on PyPI) and the
+# service with its dev extras; idempotent, so `check` can depend on it on
+# a fresh checkout and in CI.
 install:
-	uv sync --all-extras
+	uv venv --allow-existing $(VENV)
+	VIRTUAL_ENV=$(VENV) uv pip install -e ../core -e '.[dev]'
 
 lint:
 	$(VENV)/bin/ruff check .
