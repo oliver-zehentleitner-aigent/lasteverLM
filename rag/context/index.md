@@ -71,6 +71,8 @@ repository root's `context/`.
 
 ## R
 
+- [retrieval.md](retrieval.md) — why an unscoped question is answered from the uploads only and generated documents need a scope (pending the maintainer's confirmation)
+
 ## S
 
 ## T
