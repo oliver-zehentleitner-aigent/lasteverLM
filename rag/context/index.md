@@ -65,6 +65,8 @@ repository root's `context/`.
 
 - [persistence.md](persistence.md) — why a question and its answer are written together, after the answer exists
 
+- [providers.md](providers.md) — why a model reply without content is a provider failure (502 on ask, retry in the worker), never an empty answer
+
 ## Q
 
 ## R
