@@ -35,22 +35,41 @@ jobs:
       TTS_MODEL: ${{ vars.TTS_MODEL }}
       S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
     steps:
+      # The secrets context is not available in a step `if`; the gate reads it from env.
+      # Without the kubeconfig secret the job ends green with a message, so a tag
+      # before the repository secrets exist still produces images.
+      - name: gate on the kubeconfig secret
+        id: gate
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          if [ -z "$KUBECONFIG_B64" ]; then
+            echo "deploy skipped: no kubeconfig secret (KUBECONFIG_B64); images for $TAG exist, run make deploy TAG=$TAG from an operator machine"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == 'true'
         with:
           ref: ${{ env.TAG }}
       - uses: azure/setup-helm@v5
+        if: steps.gate.outputs.run == 'true'
       - uses: azure/setup-kubectl@v5
+        if: steps.gate.outputs.run == 'true'
       - name: kubeconfig
+        if: steps.gate.outputs.run == 'true'
         working-directory: infra
         run: |
           mkdir -p build
           echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > build/kubeconfig
           chmod 600 build/kubeconfig
       - name: helm upgrade --install at ${{ env.TAG }}
+        if: steps.gate.outputs.run == 'true'
         working-directory: infra
         run: make deploy TAG="$TAG"
-      # The secrets context is not available in a step `if`; the env one is.
       - name: smoke test
+        if: steps.gate.outputs.run == 'true'
         working-directory: infra
         env:
           DEMO_TOKEN: ${{ secrets.DEMO_TOKEN }}
