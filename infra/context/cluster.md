@@ -213,3 +213,23 @@ one-liner and keeps the Makefile free of hardcoded values.
 
 **Rejected alternative:** a secrets manager (Vault, SOPS) — right for
 a team, more than one operator and one cluster need tonight.
+
+## The chart states each image's numeric uid because the images name their user
+
+**Id:** b9ed80e7-d333-4473-b617-85acc51a4af6
+**Type:** workaround
+**Status:** active
+**Evidence:** confirmed
+**Source:** first deploy on 2026-10-12: every pod failed with "container has runAsNonRoot and image has non-numeric user (app)"; uids read from the images
+**Revisit when:** the Dockerfiles use numeric `USER` lines, then `runAsUser` leaves the values
+
+`runAsNonRoot: true` makes the kubelet verify the uid before start; an
+image whose `USER` is a name (`app`, `nginx`) cannot be verified and the
+container never starts. `chart/values.yaml` therefore carries
+`runAsUser: 10001` for the Python services and `101` for web, read from
+the images' `/etc/passwd`. The clean fix is `USER 10001:10001` in each
+Dockerfile, which belongs to the service owners; the runtime contract
+should say numeric.
+
+**Rejected alternative:** dropping `runAsNonRoot` — would start the
+pods tonight and silently allow a future image to run as root.
