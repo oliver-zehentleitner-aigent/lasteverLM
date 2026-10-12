@@ -224,3 +224,6 @@ __marimo__/
 /AGENTS.local.md
 .env
 .env.*
+vultr.txt
+*.secret
+*_env
