@@ -56,6 +56,10 @@ make check        # lint (oxlint), types (tsc), tests (vitest)
 Unit tests cover the pure logic in `src/lib/`: citation markers, table
 sorting and CSV, quiz answer keys, mind map outline.
 
+Against a deployment, `make e2e URL=https://host` checks that the
+frontend and the three API prefixes answer `/healthz` through the
+ingress; it opens no browser and writes nothing.
+
 ## Build and deploy
 
 ```sh

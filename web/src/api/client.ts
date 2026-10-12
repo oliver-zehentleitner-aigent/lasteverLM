@@ -20,13 +20,14 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'DELETE' | 'PUT'
   json?: unknown
   form?: FormData
-  /** Skip the Bearer header, for the login endpoints. */
+  /** Skip the Bearer header, for the login endpoints and the share page. */
   anonymous?: boolean
 }
 
 /** One place for auth, error shape and JSON handling. Errors are thrown,
- *  never swallowed: the contract returns {"error": "<message>"} with a
- *  4xx/5xx status and the UI shows that message as is. */
+ *  never swallowed, and always carry a sentence a user can read: the
+ *  service's {"error"} text when there is one, otherwise a description
+ *  of the status (an HTML page from the ingress is never shown as is). */
 export async function request<T>(url: string, opts: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {}
   const token = getToken()
@@ -40,7 +41,12 @@ export async function request<T>(url: string, opts: RequestOptions = {}): Promis
     body = JSON.stringify(opts.json)
   }
 
-  const res = await fetch(url, { method: opts.method ?? 'GET', headers, body })
+  let res: Response
+  try {
+    res = await fetch(url, { method: opts.method ?? 'GET', headers, body })
+  } catch {
+    throw new ApiError(0, NETWORK_MESSAGE)
+  }
 
   if (res.status === 401) apiEvents.dispatchEvent(new Event(UNAUTHORIZED))
   if (res.status === 402) apiEvents.dispatchEvent(new Event(PAYMENT_REQUIRED))
@@ -48,24 +54,59 @@ export async function request<T>(url: string, opts: RequestOptions = {}): Promis
   if (res.status === 204) return undefined as T
 
   const text = await res.text()
-  let data: unknown = null
-  if (text) {
-    try {
-      data = JSON.parse(text)
-    } catch {
-      if (!res.ok) throw new ApiError(res.status, text.slice(0, 200) || res.statusText)
-      throw new ApiError(res.status, 'Response was not JSON')
-    }
-  }
+  if (!res.ok) throw new ApiError(res.status, failureMessage(res.status, text))
 
-  if (!res.ok) throw new ApiError(res.status, errorMessage(data) ?? res.statusText ?? `HTTP ${res.status}`)
-  return data as T
+  if (!text) return undefined as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new ApiError(res.status, 'The server answered with something that is not JSON.')
+  }
 }
 
-function errorMessage(data: unknown): string | null {
-  if (data && typeof data === 'object' && 'error' in data) {
-    const e = (data as { error: unknown }).error
-    if (typeof e === 'string') return e
+export const NETWORK_MESSAGE = 'Cannot reach the server. Check your connection, or try again in a moment.'
+
+/** What the user reads for a failed response. Pure, so the mapping is
+ *  tested; the UI shows this string and nothing else. */
+export function failureMessage(status: number, bodyText: string): string {
+  const fromService = serviceError(bodyText)
+  if (fromService) return fromService
+  const described = STATUS_TEXT[status]
+  return described ? `${described} (HTTP ${status})` : `The server answered with HTTP ${status}.`
+}
+
+/** The service's own `{"error": "<message>"}`, if the body is one. */
+function serviceError(bodyText: string): string | null {
+  if (!bodyText) return null
+  try {
+    const data: unknown = JSON.parse(bodyText)
+    if (data && typeof data === 'object' && 'error' in data) {
+      const e = (data as { error: unknown }).error
+      if (typeof e === 'string' && e.trim()) return e
+    }
+  } catch {
+    // not JSON: an HTML error page from the ingress, or plain text
   }
   return null
+}
+
+/** Statuses the deployment produces without a JSON body, mostly from the
+ *  ingress in front of the services, plus the contract's codes as a
+ *  fallback when a service answers without a message. */
+const STATUS_TEXT: Record<number, string> = {
+  400: 'The request was not understood',
+  401: 'You are signed out',
+  402: 'Your credit is used up',
+  403: 'This needs admin rights',
+  404: 'Not found, or not yours',
+  409: 'Not ready yet',
+  413: 'The file is too large for the server',
+  415: 'This file type is not supported',
+  422: 'The request was rejected',
+  429: 'Too many requests, slow down',
+  500: 'The server hit an error',
+  501: 'This source type is not supported yet',
+  502: 'The service is not reachable, it may still be starting',
+  503: 'The service is unavailable, it may still be starting',
+  504: 'The service took too long to answer',
 }

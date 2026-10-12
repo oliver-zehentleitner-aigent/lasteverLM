@@ -47,6 +47,7 @@ the same proxy target.
 | `npm run typecheck` | `tsc -b` over app and config |
 | `npm test` | vitest, the pure functions in `src/lib/` |
 | `make build` | production build into `dist/` |
+| `make e2e URL=https://host` | reachability of a deployment: `/healthz` of web and of the three API prefixes through the ingress |
 
 ## Container
 
@@ -74,3 +75,15 @@ One renderer in `src/components/outputs/`, one case in
 `OutputContent.tsx`, one entry in `OUTPUT_FORMS` (`src/lib/outputs.ts`)
 with its label and whether it is printable. Pure logic the renderer
 needs (sorting, scoring, conversion) goes to `src/lib/` with a test.
+
+## Error states
+
+Every failed request ends in a sentence the user can read, never a blank
+and never a raw HTML page. `src/api/client.ts` maps a response to it: the
+service's `{"error"}` text when there is one; otherwise a description of
+the status with the code, covering what the deployment produces without a
+JSON body (502/503/504 from the ingress while pods start, 413 on a large
+upload) and the contract's codes as a fallback (401, 402, 403, 404, 409,
+415, 422, 429, 501). A network failure reads "Cannot reach the server".
+401 and 402 additionally raise the app-level events (sign-out, voucher
+dialog). The mapping is unit-tested in `src/api/client.test.ts`.
