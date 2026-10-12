@@ -1,10 +1,10 @@
 -- lasteverLM rag: messages and outputs.
--- Applied by infra's `make migrate` after core (usage), account (ledger) and
--- ingest (notebooks, sources, chunks). One transaction per file; an applied
--- file is never edited, a change is a new numbered file. No vector column
--- here (chunks belong to ingest), so EMBEDDING_DIMENSION is not used.
-
-begin;
+-- Applied by infra's migrations runner after core (usage), account (ledger)
+-- and ingest (notebooks, sources, chunks). The runner wraps each file in one
+-- transaction (psql --single-transaction), so this file carries no begin/commit
+-- of its own. An applied file is never edited, a change is a new numbered
+-- file. No vector column here (chunks belong to ingest), so EMBEDDING_DIMENSION
+-- is not used.
 
 create table if not exists messages (
     id           uuid primary key,
@@ -39,4 +39,3 @@ create table if not exists outputs (
 create index if not exists outputs_notebook_idx on outputs (notebook_id, created_at);
 create index if not exists outputs_queue_idx on outputs (created_at) where status in ('waiting', 'processing');
 
-commit;
