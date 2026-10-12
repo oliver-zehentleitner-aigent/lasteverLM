@@ -5,11 +5,10 @@ not ticked. Items that need the maintainer are marked **[maintainer]**.
 
 ## Maintainer
 
-- **[maintainer]** Branch protection on `main`: CI required, no review requirement.
-- **[maintainer]** Vultr API key, object storage tier id, deployment domain and ACME e-mail, as an env file on the machine, for the first `make up` in `infra/`.
-- **[maintainer]** Repository secrets and variables for `deploy.yml`: `KUBECONFIG_B64`, `DEMO_TOKEN`; variables `DOMAIN`, `ACME_EMAIL`, `LLM_MODEL`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `MODEL_PRICES`, `S3_ENDPOINT` (see `infra/docs/operations.md`).
-- **[maintainer]** Docker on the machine, agent user in the `docker` group, for local compose and image builds.
-- **[maintainer]** Decide on Supabase inside the cluster (recommendation: no, see `context/architecture.md`).
+- **[maintainer]** DNS: A record for the deployment domain pointing at the load balancer, once infra reports the address.
+- **[maintainer]** Repository secrets and variables for `deploy.yml` (needs admin): `KUBECONFIG_B64`, `DEMO_TOKEN`; variables `DOMAIN`, `ACME_EMAIL`, `LLM_MODEL`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `MODEL_PRICES`, `S3_ENDPOINT` (see `infra/docs/operations.md`). Until then infra deploys from the machine.
+- **[maintainer]** SMTP password in the admin panel; rotate the database admin password.
+- **[maintainer]** Confirm: a ban stays until an admin lifts it, also past the 30-day retention (`core/context/ratelimit.md`, pending-confirmation).
 
 ## Agent A (root)
 
