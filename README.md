@@ -20,6 +20,8 @@ service repositories. The code lives there:
 | [lasteverLM-web](https://github.com/oliver-zehentleitner/lasteverLM-web) | three-pane frontend, login, credits, admin panel |
 
 - [Architecture and API contract](docs/architecture.md)
+- [User interface](docs/ui.md)
+- [Repository standard](docs/repository-standard.md)
 - [Why it is built this way](context/index.md)
 - [Open work](TASKS.md)
 

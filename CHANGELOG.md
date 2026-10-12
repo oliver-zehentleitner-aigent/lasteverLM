@@ -8,6 +8,7 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Added
 
-- Architecture v1: all-Vultr platform, six repositories, data model, API contract for account, ingest and rag, configuration, deployment, extension points.
+- Architecture v1 and v1.1: generated outputs (report, quiz, table, mind map, infographic, audio), sharing, ask-about-this, runtime contract; all-Vultr platform, six repositories, data model, API contract for account, ingest and rag, configuration, deployment, extension points.
 - Agent working conventions in `AGENTS.md`, task board in `TASKS.md`.
+- `docs/ui.md` (wizard, two-column notebook view, viewer, print, share) and `docs/repository-standard.md` (files, tests, workflows, versioning, documentation rule).
 - Keep the Why setup with the family's `children` block and the first decisions in `context/`.

@@ -16,6 +16,8 @@ and the coordination files. The code lives in the service repositories:
 | `lasteverLM-web` | Agent E | three-pane frontend, login, credits, admin panel |
 
 - How the system fits together: `docs/architecture.md` (read it before writing code against another service)
+- How the interface works: `docs/ui.md`
+- What every repository must contain and keep current: `docs/repository-standard.md`
 - Why it is built this way: `context/index.md`
 - What is open and who does what: `TASKS.md`
 - If `AGENTS.local.md` exists in this checkout, read that too: personal notes, not committed
@@ -30,6 +32,7 @@ and the coordination files. The code lives in the service repositories:
 - Direct messages between sessions are for interface changes and blockers only. Status goes through Git.
 - Whoever changes an interface another service depends on updates `docs/architecture.md` in a pull request here and tells the owner of the affected service.
 - Family-wide reasoning (anything that is not one service's own concern) is handed to Agent A and recorded in this repository's `context/`. Each service repository keeps its own `context/` for its own decisions.
+- Documentation is part of the change: README, CHANGELOG, `docs/` and `context/` are updated in the same pull request as the code they describe, and the run/test/build/deploy sections are verified by running them. See `docs/repository-standard.md`.
 - Language: code, comments, commits, docs and `context/` in English.
 - Secrets never enter a repository. Services read them from the environment; the cluster gets them as Kubernetes Secrets.
 
