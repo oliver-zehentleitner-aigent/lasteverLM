@@ -4,10 +4,10 @@
 
 **Id:** 580d18e4-03db-4f20-9954-cb91b36ea6ca
 **Type:** workaround
-**Status:** active
+**Status:** superseded
+**Superseded by:** a4d20488-640c-433f-98d2-dabc49c45cfa
 **Evidence:** confirmed
 **Source:** fleet coordination, 2026-10-12
-**Revisit when:** `lasteverlm-core` is installable from the family's index or Git
 
 The shared pieces this service needs from `lasteverLM-core` — the `User`
 model, JWT issue and verify, the demo-token resolution and the demo user
@@ -15,6 +15,10 @@ id — are mirrored in `contracts.py`, because core is being written in
 parallel and did not exist when this service was started. The module is
 written so that it becomes a thin re-export once core lands; nothing
 else in the service imports `jwt` or knows the claim layout.
+
+Resolved the same day: core landed in `core/` of this repository and is
+installed by path (`core.md`); the mirror was deleted rather than kept
+as a re-export, because a module that only re-exports invites drift.
 
 **Reason:** the services are built at the same time by separate sessions
 and may not block on each other. The mirror is the smallest thing that
