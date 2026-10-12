@@ -10,6 +10,6 @@ FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY --from=build /install /usr/local
 RUN useradd --create-home --uid 10001 app
-USER app
+USER 10001
 EXPOSE 8000
 CMD ["uvicorn", "lasteverlm_rag.main:app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
