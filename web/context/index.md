@@ -53,6 +53,8 @@ repository root's `context/`.
 
 ## N
 
+- [notes.md](notes.md) — the superseded browser-local notes pane and why it went
+
 ## O
 
 ## P
