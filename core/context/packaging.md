@@ -2,7 +2,7 @@
 
 ## Services install core by path; no uv workspace, no lockfile
 
-**Id:** 
+**Id:** cee29f68-b57f-4ff4-983c-18c15d4805cf
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
