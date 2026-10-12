@@ -28,6 +28,10 @@ psql "$DATABASE_URL" -v EMBEDDING_DIMENSION="$EMBEDDING_DIMENSION" -f db/migrati
 
 Prefix `/api/ingest`, bearer token on everything except `/healthz`,
 which also answers at the root (`GET /healthz`) for the Kubernetes probes.
+The token is resolved by core's `current_user` (session JWT from the
+account service first, demo token second). Core's `RateLimitMiddleware`
+sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
+403 for a banned IP, one `access_log` row per request.
 
 | Method | Path | Status | Notes |
 |---|---|---|---|

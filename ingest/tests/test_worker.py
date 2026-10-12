@@ -51,9 +51,9 @@ def test_happy_path_writes_chunks_usage_and_ready():
 def test_summary_failure_fails_the_source_but_keeps_chunks_and_usage():
     class Broken(FakeSummarizer):
         def summarize(self, name, passages):
-            from lasteverlm_ingest.summarizer import SummaryError
+            from lasteverlm_core import ProviderError
 
-            raise SummaryError("summary request failed: 503")
+            raise ProviderError("summary request failed: 503")
 
     repo, storage = InMemoryRepository(), InMemoryStorage()
     sid = add_source(repo, storage, b"some text here")
@@ -118,9 +118,9 @@ def test_unexpected_exception_is_hidden_and_retried_until_the_third_attempt():
 def test_transient_provider_error_keeps_processing_for_a_retry():
     class Flaky(FakeEmbedder):
         def embed(self, texts):
-            from lasteverlm_ingest.embeddings import EmbeddingError
+            from lasteverlm_core import ProviderError
 
-            raise EmbeddingError("embedding request failed: 503")
+            raise ProviderError("embedding request failed: 503")
 
     repo, storage = InMemoryRepository(), InMemoryStorage()
     sid = add_source(repo, storage, b"some text")

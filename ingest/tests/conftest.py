@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from lasteverlm_core import MemoryRateLimitStore
 
 from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.main import create_app
@@ -13,6 +14,7 @@ DEMO_TOKEN = "test-demo-token"
 def make_settings(**overrides) -> Settings:
     env = {
         "DATABASE_URL": "postgresql://unused",
+        "RATE_LIMIT_PER_MINUTE": "1000",
         "S3_ENDPOINT": "https://s3.invalid",
         "S3_BUCKET": "bucket",
         "S3_ACCESS_KEY": "ak",
@@ -58,6 +60,7 @@ def summarizer() -> FakeSummarizer:
 def client(repo, storage, embedder, summarizer) -> TestClient:
     app = create_app(
         make_settings(),
+        rate_limit_store=MemoryRateLimitStore(),
         repository=repo,
         storage=storage,
         embedder=embedder,

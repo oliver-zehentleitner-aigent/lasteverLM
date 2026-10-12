@@ -15,17 +15,26 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from lasteverlm_core import (
+    Embedder,
+    OpenAICompatibleEmbedder,
+    OpenAICompatibleLLM,
+    PostgresRateLimitStore,
+    RateLimiter,
+    RateLimitMiddleware,
+    RateLimitStore,
+    make_client,
+)
 from pydantic import ValidationError
 
 from lasteverlm_ingest import __version__
 from lasteverlm_ingest.api import health, router
 from lasteverlm_ingest.chunking import Chunker, TokenWindowChunker
-from lasteverlm_ingest.config import Settings
-from lasteverlm_ingest.embeddings import Embedder, OpenAICompatibleEmbedder
+from lasteverlm_ingest.config import ConfigError, Settings
 from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
 from lasteverlm_ingest.repository import PostgresRepository, Repository
 from lasteverlm_ingest.storage import S3Storage, Storage
-from lasteverlm_ingest.summarizer import OpenAICompatibleSummarizer, Summarizer
+from lasteverlm_ingest.summarizer import LLMSummarizer, Summarizer
 from lasteverlm_ingest.worker import WorkerDeps
 
 log = logging.getLogger(__name__)
@@ -67,19 +76,16 @@ def build_worker_deps(
         secret_key=settings.s3_secret_key,
         region=settings.s3_region,
     )
-    embedder = embedder or OpenAICompatibleEmbedder(
-        base_url=settings.inference_base_url,
-        api_key=settings.inference_api_key,
-        model=settings.embedding_model,
-        dimension=settings.embedding_dimension,
-    )
-    summarizer = summarizer or OpenAICompatibleSummarizer(
-        base_url=settings.inference_base_url,
-        api_key=settings.inference_api_key,
-        model=settings.llm_model,
-        input_tokens=settings.summary_input_tokens,
-        max_output_tokens=settings.summary_max_tokens,
-    )
+    if embedder is None or summarizer is None:
+        client = make_client(settings.inference)
+        embedder = embedder or OpenAICompatibleEmbedder(
+            client, settings.inference.embedding_model, settings.inference.embedding_dimension
+        )
+        summarizer = summarizer or LLMSummarizer(
+            OpenAICompatibleLLM(client, settings.inference.llm_model, temperature=0.2),
+            input_tokens=settings.summary_input_tokens,
+            max_output_tokens=settings.summary_max_tokens,
+        )
     return WorkerDeps(
         settings=settings,
         repository=repository,
@@ -91,11 +97,22 @@ def build_worker_deps(
     )
 
 
-def create_app(settings: Settings | None = None, **injected: Any) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    rate_limit_store: RateLimitStore | None = None,
+    **injected: Any,
+) -> FastAPI:
     """`uvicorn --factory lasteverlm_ingest.main:create_app`. Keyword
     arguments are the injectable dependencies of `build_worker_deps`."""
     worker = build_worker_deps(settings, **injected)
     settings = worker.settings
+
+    if rate_limit_store is None:
+        connect = getattr(worker.repository, "connection", None)
+        if connect is None:
+            raise ConfigError("no rate-limit store: the repository offers no connections")
+        rate_limit_store = PostgresRateLimitStore(connect)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -111,6 +128,14 @@ def create_app(settings: Settings | None = None, **injected: Any) -> FastAPI:
     # The runtime contract probes `/healthz` at the root; the API contract
     # lists it under the prefix. Both answer.
     app.add_api_route("/healthz", health.healthz, methods=["GET"])
+    # Outermost, per the family's rate-limit design: 429/403 before the
+    # app, one access_log row after it.
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=RateLimiter(rate_limit_store, settings.rate_limit),
+        service=settings.service_name,
+        auth=settings.auth,
+    )
 
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:

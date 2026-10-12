@@ -16,6 +16,7 @@ family's [architecture](https://github.com/oliver-zehentleitner/lasteverLM/blob/
 a change to it is a pull request there first.
 
 - How to operate it in detail (endpoints, processing, migration): [`docs/README.md`](docs/README.md)
+- What comes from the shared library (models, token resolution, usage accounting, model prices, providers, rate limiting): [`core/`](../core/README.md)
 - Why it is built this way: [`context/index.md`](context/index.md)
 - Family rules and standards: the parent's [AGENTS.md](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/AGENTS.md) and [repository standard](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/docs/repository-standard.md)
 
@@ -28,7 +29,7 @@ naming the first missing or invalid value. `.env.example` is a template.
 |---|---|---|
 | `DATABASE_URL` | yes | PostgreSQL DSN, `vector` extension installed |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | yes | object storage for uploads; `S3_REGION` optional, default `us-east-1` |
-| `INFERENCE_BASE_URL`, `INFERENCE_API_KEY` | yes | OpenAI-compatible API for embeddings and summaries |
+| `INFERENCE_API_KEY` | yes | key for the OpenAI-compatible inference API; `INFERENCE_BASE_URL` optional, default Vultr Serverless Inference |
 | `EMBEDDING_MODEL` | yes | same model as the rag service uses for questions |
 | `EMBEDDING_DIMENSION` | no | default 1536; must match the `chunks.embedding` column |
 | `LLM_MODEL` | yes | writes the per-source summary |
@@ -40,6 +41,7 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `WORKER_POLL_SECONDS` | no | how often an idle worker looks for work, default 2 |
 | `CLAIM_TIMEOUT_SECONDS` | no | a claim older than this is taken over by another worker, default 600; after three attempts a source is `failed` |
 | `SUMMARY_INPUT_TOKENS`, `SUMMARY_MAX_TOKENS` | no | how much of a source the summary prompt sees (6000) and how long the answer may be (300) |
+| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware, defaults 120 / 15 / 3 / 24 / 100 |
 | `LOG_LEVEL` | no | default `INFO` |
 
 ## Run locally
@@ -48,7 +50,7 @@ Needs a reachable PostgreSQL with the migration applied, an S3 bucket and
 an inference endpoint; without them the start fails with a clear error.
 
 ```bash
-make install                   # uv sync --all-extras: creates .venv, idempotent
+make install                   # .venv with core (installed from ../core) and the dev extras, idempotent
 cp .env.example .env           # fill in the values
 set -a; source .env; set +a
 make run                       # API: uvicorn on :8000, reload on
@@ -76,8 +78,8 @@ inference API (`tests/fakes.py`); nothing touches the network.
 make build                     # docker build -f ingest/Dockerfile <repo root>
 ```
 
-The build context is the repository root, so that `core/` can be copied
-in once this service depends on it. Multi-stage image on
+The build context is the repository root, because `core/` is installed
+from the same checkout (it is not published). Multi-stage image on
 `python:3.13-slim`, runs as an unprivileged user.
 The default command is the API on `PORT` (default 8000); the worker is
 the same image with the command `lasteverlm-ingest-worker`. CI builds

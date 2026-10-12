@@ -3,8 +3,8 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import HTTPException, Request
+from lasteverlm_core import Notebook
 
-from lasteverlm_ingest.contracts import Notebook
 from lasteverlm_ingest.repository import Repository, StoredSource
 from lasteverlm_ingest.worker import WorkerDeps
 

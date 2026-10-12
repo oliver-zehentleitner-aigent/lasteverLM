@@ -8,18 +8,20 @@ import math
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from lasteverlm_ingest.chunking import Chunk
-from lasteverlm_ingest.contracts import (
+from lasteverlm_core import (
+    CompletionResult,
+    EmbeddingResult,
     ModelPrices,
     Notebook,
+    Usage,
     UsageRecord,
     cost_cents,
     parse_model_prices,
 )
-from lasteverlm_ingest.embeddings import EmbeddingResult
+
+from lasteverlm_ingest.chunking import Chunk
 from lasteverlm_ingest.loaders import Passage
 from lasteverlm_ingest.repository import StoredSource
-from lasteverlm_ingest.summarizer import SummaryResult
 
 
 class InMemoryRepository:
@@ -175,7 +177,7 @@ class FakeEmbedder:
             norm = math.sqrt(sum(x * x for x in raw)) or 1.0
             vectors.append([x / norm for x in raw])
         tokens = sum(math.ceil(len(t) / 4) for t in texts)
-        return EmbeddingResult(vectors=vectors, model=self._model, tokens=tokens)
+        return EmbeddingResult(vectors, Usage("embedding", self._model, tokens, 0))
 
 
 class FakeSummarizer:
@@ -187,12 +189,9 @@ class FakeSummarizer:
     def model(self) -> str:
         return self._model
 
-    def summarize(self, name: str, passages: list[Passage]) -> SummaryResult:
+    def summarize(self, name: str, passages: list[Passage]) -> CompletionResult:
         self.calls.append((name, passages))
         words = " ".join(p.text for p in passages).split()
-        return SummaryResult(
-            summary=f"{name}: {' '.join(words[:5])}",
-            model=self._model,
-            tokens_in=len(words),
-            tokens_out=5,
+        return CompletionResult(
+            f"{name}: {' '.join(words[:5])}", Usage("llm", self._model, len(words), 5)
         )

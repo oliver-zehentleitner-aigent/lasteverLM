@@ -11,6 +11,10 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- Imports models, token resolution, usage accounting, model prices and the provider implementations from `lasteverlm-core` (installed from `core/`); the local mirror `contracts.py` and the own embedder implementation are gone, the summarizer is a prompt on core's `LLM`.
+- Core's `RateLimitMiddleware` is mounted outermost on the API.
+- `INFERENCE_BASE_URL` is optional and defaults to the platform's inference endpoint.
+
 - `make check` installs first (`make install`, `uv sync --all-extras`), so it runs on a fresh checkout and in CI.
 - The migration no longer opens its own transaction; the migrations runner wraps each file in one.
 

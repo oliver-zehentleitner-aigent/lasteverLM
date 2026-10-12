@@ -2,17 +2,17 @@
 
 The output generators in the rag service take the summaries of all
 sources of a notebook as their input, so a summary is short — one
-paragraph — and in the language of the source. The one implementation
-calls an OpenAI-compatible chat completion through the OpenAI SDK.
+paragraph — and in the language of the source. The implementation is a
+prompt on top of core's `LLM` interface; the provider is whatever core's
+`make_client` points at.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from typing import Protocol
 
-from openai import APIError, OpenAI
+from lasteverlm_core import LLM, CompletionResult, ProviderError
 
 from lasteverlm_ingest.loaders import Passage
 
@@ -26,23 +26,11 @@ SYSTEM_PROMPT = (
 )
 
 
-class SummaryError(Exception):
-    pass
-
-
-@dataclass(frozen=True)
-class SummaryResult:
-    summary: str
-    model: str
-    tokens_in: int
-    tokens_out: int
-
-
 class Summarizer(Protocol):
     @property
     def model(self) -> str: ...
 
-    def summarize(self, name: str, passages: list[Passage]) -> SummaryResult: ...
+    def summarize(self, name: str, passages: list[Passage]) -> CompletionResult: ...
 
 
 def head_text(passages: list[Passage], max_tokens: int) -> str:
@@ -63,52 +51,24 @@ def head_text(passages: list[Passage], max_tokens: int) -> str:
     return "\n\n".join(part for part in parts if part)
 
 
-class OpenAICompatibleSummarizer:
-    def __init__(
-        self,
-        *,
-        base_url: str,
-        api_key: str,
-        model: str,
-        input_tokens: int = 6000,
-        max_output_tokens: int = 300,
-        timeout: float = 120.0,
-        client: OpenAI | None = None,
-    ) -> None:
-        self._model = model
+class LLMSummarizer:
+    def __init__(self, llm: LLM, *, input_tokens: int = 6000, max_output_tokens: int = 300) -> None:
+        self._llm = llm
         self._input_tokens = input_tokens
         self._max_output_tokens = max_output_tokens
-        self._client = client or OpenAI(
-            base_url=base_url, api_key=api_key, timeout=timeout, max_retries=2
-        )
 
     @property
     def model(self) -> str:
-        return self._model
+        return self._llm.model
 
-    def summarize(self, name: str, passages: list[Passage]) -> SummaryResult:
+    def summarize(self, name: str, passages: list[Passage]) -> CompletionResult:
         text = head_text(passages, self._input_tokens)
         if not text:
-            raise SummaryError("nothing to summarize")
-        try:
-            response = self._client.chat.completions.create(
-                model=self._model,
-                max_tokens=self._max_output_tokens,
-                temperature=0.2,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Document name: {name}\n\n{text}"},
-                ],
-            )
-        except APIError as exc:
-            raise SummaryError(f"summary request failed: {exc}") from exc
-        content = (response.choices[0].message.content or "").strip() if response.choices else ""
-        if not content:
-            raise SummaryError("model returned an empty summary")
-        usage = response.usage
-        return SummaryResult(
-            summary=content,
-            model=response.model or self._model,
-            tokens_in=usage.prompt_tokens if usage else 0,
-            tokens_out=usage.completion_tokens if usage else 0,
+            raise ProviderError("nothing to summarize")
+        result = self._llm.complete(
+            SYSTEM_PROMPT, f"Document name: {name}\n\n{text}", self._max_output_tokens
         )
+        summary = result.text.strip()
+        if not summary:
+            raise ProviderError("model returned an empty summary")
+        return CompletionResult(summary, result.usage)

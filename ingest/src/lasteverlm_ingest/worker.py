@@ -19,13 +19,14 @@ import threading
 from dataclasses import dataclass
 from uuid import UUID
 
+from lasteverlm_core import Embedder, ProviderError
+
 from lasteverlm_ingest.chunking import Chunker
 from lasteverlm_ingest.config import Settings
-from lasteverlm_ingest.embeddings import Embedder, EmbeddingError
 from lasteverlm_ingest.loaders import LoaderError, LoaderRegistry
 from lasteverlm_ingest.repository import Repository, StoredSource
 from lasteverlm_ingest.storage import Storage, StorageError
-from lasteverlm_ingest.summarizer import Summarizer, SummaryError
+from lasteverlm_ingest.summarizer import Summarizer
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def process_source(source_id: UUID, deps: WorkerDeps) -> None:
         # Will not change on a retry: the source is failed at once.
         log.warning("source %s failed: %s", source_id, exc)
         repo.set_source_status(source_id, "failed", str(exc)[:_ERROR_MAX])
-    except (StorageError, EmbeddingError, SummaryError) as exc:
+    except (StorageError, ProviderError) as exc:
         # May pass next time (a provider hiccup, the bucket).
         _retry_or_fail(source, str(exc)[:_ERROR_MAX], repo, exc)
     except Exception as exc:
@@ -107,7 +108,7 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     for start in range(0, len(chunks), batch_size):
         result = deps.embedder.embed([c.text for c in chunks[start : start + batch_size]])
         vectors.extend(result.vectors)
-        tokens += result.tokens
+        tokens += result.usage.tokens_in
 
     repo.replace_chunks(source_id, source.notebook_id, chunks, vectors)
     repo.record_usage(
@@ -128,20 +129,20 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     repo.record_usage(
         user_id=source.owner,
         notebook_id=source.notebook_id,
-        kind="llm",
-        model=summary.model,
-        tokens_in=summary.tokens_in,
-        tokens_out=summary.tokens_out,
+        kind=summary.usage.kind,
+        model=summary.usage.model,
+        tokens_in=summary.usage.tokens_in,
+        tokens_out=summary.usage.tokens_out,
     )
-    repo.set_source_summary(source_id, summary.summary)
+    repo.set_source_summary(source_id, summary.text)
     repo.set_source_status(source_id, "ready", None)
     log.info(
         "source %s ready: %d chunks, %d embedding tokens, %d+%d summary tokens",
         source_id,
         len(chunks),
         tokens,
-        summary.tokens_in,
-        summary.tokens_out,
+        summary.usage.tokens_in,
+        summary.usage.tokens_out,
     )
 
 

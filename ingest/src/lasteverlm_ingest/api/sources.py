@@ -5,11 +5,12 @@ from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from lasteverlm_core import Source
+from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
 from lasteverlm_ingest.api.deps import owned_notebook, owned_source, repository, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
-from lasteverlm_ingest.contracts import Source, SourceFromUrl
 from lasteverlm_ingest.storage import StorageError, object_key
 from lasteverlm_ingest.worker import CREDIT_EXHAUSTED
 
@@ -19,6 +20,10 @@ _KIND_BY_SUFFIX = {".pdf": "pdf", ".txt": "text", ".md": "text", ".markdown": "t
 _KIND_BY_MEDIA_TYPE = {"application/pdf": "pdf", "text/plain": "text", "text/markdown": "text"}
 _CONTENT_TYPE = {"pdf": "application/pdf", "text": "text/plain; charset=utf-8"}
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+class SourceFromUrl(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
 
 
 def detect_kind(filename: str, media_type: str | None) -> str | None:
