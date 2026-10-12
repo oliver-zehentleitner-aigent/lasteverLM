@@ -1,5 +1,7 @@
-"""App factory. ``create_app()`` with no arguments wires the real settings, PostgreSQL
-and SMTP at startup; tests pass their own repository and mailer."""
+"""App factory. ``create_app()`` with no arguments wires the real settings, PostgreSQL,
+SMTP and core's rate-limit middleware; tests pass their own repository, mailer and
+rate-limit store. Served with ``uvicorn --factory lasteverlm_account.main:create_app``.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +13,15 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from lasteverlm_core import (
+    AsyncPostgresRateLimitStore,
+    AuthSettings,
+    MemoryRateLimitStore,
+    RateLimiter,
+    RateLimitMiddleware,
+    RateLimitSettings,
+    RateLimitStore,
+)
 
 from .api import account, admin, auth
 from .config import Settings
@@ -29,16 +40,29 @@ def create_app(
     settings: Settings | None = None,
     repository: Repository | None = None,
     mailer: Mailer | None = None,
+    rate_limit_store: RateLimitStore | None = None,
+    rate_limit_settings: RateLimitSettings | None = None,
 ) -> FastAPI:
+    resolved = settings or Settings.from_env()
+    logging.basicConfig(level=resolved.log_level)
+    postgres: PostgresRepository | None = None
+    repo: Repository
+    if repository is None:
+        postgres = PostgresRepository.from_url(resolved.database_url)
+        repo = postgres
+    else:
+        repo = repository
+    if rate_limit_store is None:
+        rate_limit_store = (
+            AsyncPostgresRateLimitStore(postgres.tuple_connection)
+            if postgres is not None
+            else MemoryRateLimitStore()
+        )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        resolved = settings or Settings.from_env()
-        logging.basicConfig(level=resolved.log_level)
-        repo = repository
-        if repo is None:
-            pg = PostgresRepository.from_url(resolved.database_url)
-            await pg.open()
-            repo = pg
+        if postgres is not None:
+            await postgres.open()
         service = AccountService(resolved, repo, mailer or SmtpMailer())
         await service.startup()
         app.state.service = service
@@ -74,7 +98,13 @@ def create_app(
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(account.router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)
+
+    # Outermost: 429 / 403 before any route runs, one access_log row per request.
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=RateLimiter(rate_limit_store, rate_limit_settings or RateLimitSettings.from_env()),
+        service="account",
+        auth=AuthSettings(jwt_secret=resolved.auth_jwt_secret, demo_token=resolved.demo_token),
+        trust_forwarded=resolved.trust_proxy_headers,
+    )
     return app
-
-
-app = create_app()

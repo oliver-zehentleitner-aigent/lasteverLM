@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
+from lasteverlm_core import DEMO_USER_ID
 
-from lasteverlm_account.contracts import DEMO_USER_ID
 from lasteverlm_account.repository import UserRecord
 from lasteverlm_account.repository_memory import MemoryRepository
 from lasteverlm_account.service import SETTING_SMTP

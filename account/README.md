@@ -32,11 +32,12 @@ Errors are `{"error": "<message>"}`: 401 unauthenticated, 403 not
 admin, 404 unknown or used voucher or no active ban, 409 SMTP not
 configured, 422 bad request, 502 mail could not be sent.
 
-Rate limiting and blocking themselves happen in a middleware from
-`lasteverLM-core` that runs in every service: too many requests from one
-address give 429 and a 15-minute block, the third block within 24 hours a
-ban. This service only shows the result to admins (`/admin/blocks`,
-`/admin/bans`, `/admin/access`) and lets them lift a ban.
+Rate limiting and blocking happen in `RateLimitMiddleware` from
+[`core/`](../core/), mounted as the outermost layer of this service as of
+every API service: too many requests from one address give 429 and a
+15-minute block, the third block within 24 hours a ban (403 on
+everything). The admin endpoints `/admin/blocks`, `/admin/bans` and
+`/admin/access` show the result and let an admin lift a ban.
 
 The first user who ever logs in becomes admin, as does every address in
 `ADMIN_EMAILS`. A balance is `sum(ledger) - sum(usage)`; the `usage` rows
@@ -58,6 +59,7 @@ comment.
 | `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist, first start only (`lasteverlm-account`) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | seed for the SMTP settings, first start only (`lasteverlm-smtp-seed`) |
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
+| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100 |
 
 Seeds are written to the `settings` table only when the key is missing;
 afterwards the admin panel owns the value.
@@ -66,9 +68,13 @@ afterwards the admin panel owns the value.
 
 ```bash
 cd account
-make install        # uv sync --all-extras: creates .venv, idempotent
+make install        # uv sync --all-extras: creates .venv with ../core installed by path, idempotent
 make run-dev
 ```
+
+The service depends on `lasteverlm-core` from [`core/`](../core/) of this
+repository (API models, token resolution, the rate-limit middleware). It
+is a path source in `pyproject.toml`, nothing is published to PyPI.
 
 `make run-dev` serves the full API on <http://localhost:8000> with
 in-memory storage and no mail server: sign-in links are printed to the
@@ -84,9 +90,10 @@ curl -s 'localhost:8000/api/account/auth/callback?token=...'
 curl -s localhost:8000/api/account/me -H 'authorization: Bearer demo'
 ```
 
-`make run` is the production entrypoint against PostgreSQL. It needs the
-variables above (`set -a; source .env; set +a`) and a database with the
-migrations applied.
+`make run` is the production entrypoint against PostgreSQL
+(`uvicorn --factory lasteverlm_account.main:create_app`). It needs the
+variables above (`set -a; source .env; set +a`) and a database with core's
+and this service's migrations applied.
 
 ## Test
 
@@ -106,8 +113,8 @@ skipped otherwise.
 make build          # from account/: docker build -f Dockerfile -t lasteverlm-account:<git-sha> ..
 ```
 
-The build context is the repository root, so that `core/` can be copied
-into the image once the service depends on it. The image listens on
+The build context is the repository root, so that `core/` is copied into
+the image next to `account/`. The image listens on
 port 8000 as a non-root user. Deployment is owned by [`infra/`](../infra/):
 its `make migrate` applies `account/db/migrations/*.sql` after core's
 tables, its Helm chart mounts the ConfigMap and the per-concern secrets

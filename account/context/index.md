@@ -27,11 +27,13 @@ repository root's `context/`.
 
 - [admin-settings.md](admin-settings.md) — environment values seed the settings table once, and why the SMTP password is stored in plain text for now
 
-- [auth.md](auth.md) — the core mirror in `contracts.py`, admin addresses bypassing the allowlist, shape-only e-mail validation, the demo user's special status
+- [auth.md](auth.md) — the former core mirror in `contracts.py` (superseded), admin addresses bypassing the allowlist, shape-only e-mail validation, the demo user's special status
 
 ## B
 
 ## C
+
+- [core.md](core.md) — core installed from `../core` as a uv path source, and the tuple-row connections core's rate-limit store needs for now
 
 ## D
 

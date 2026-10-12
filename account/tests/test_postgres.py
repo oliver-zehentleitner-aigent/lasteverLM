@@ -13,8 +13,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from lasteverlm_core import DEMO_USER_ID
 
-from lasteverlm_account.contracts import DEMO_USER_ID
 from lasteverlm_account.repository_postgres import PostgresRepository
 
 DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
