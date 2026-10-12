@@ -44,3 +44,26 @@ branches in every pane and drift apart over time.
 **Rejected alternative:** checking the status in each pane's error
 handler. Rejected as duplication; the contract defines the two statuses
 globally, so one place in the client matches the contract's shape.
+
+## Admin panel behind one interface with an in-memory mock
+
+**Id:** e4c2c795-9b9b-488d-ae08-99b596434f74
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** implementation decision, 2026-10-12, on the family lead's request to build the admin pages before the account service exists
+**Revisit when:** the account service is deployed and the admin endpoints are verified against it
+
+`src/api/admin.ts` defines `AdminApi`, implemented twice: against
+`/api/account/admin/*` and as an in-memory mock selected at build time
+by `VITE_ADMIN_MOCK=true`. The pages import the interface only.
+
+**Reason:** the account service is built in parallel and its admin
+endpoints were still provisional when the pages were written. The
+interface lets the UI be finished and reviewed now; when the shapes
+move, one file changes.
+
+**Rejected alternative:** a request-interception mock (service worker) or
+waiting for the service. Interception adds a dev dependency and hides
+which calls are real; waiting would serialize two agents that are meant
+to work in parallel.
