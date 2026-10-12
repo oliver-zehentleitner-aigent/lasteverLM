@@ -100,7 +100,10 @@ def main() -> None:
     worker = Worker(store, outputs)
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: worker.stop())
-    worker.run_forever()
+    try:
+        worker.run_forever()
+    finally:
+        pool.close()  # otherwise the pool's threads hold the process for 20s on SIGTERM
 
 
 if __name__ == "__main__":

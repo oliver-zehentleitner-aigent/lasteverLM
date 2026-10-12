@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generators are told to title the document by its subject and form, never with the notebook's name (the first live run produced four documents named after the notebook).
+- The worker closes its connection pool on shutdown and logs every finished output.
 - A model reply without content (a reasoning model that spent its budget on thinking) is a provider failure: `/ask` answers 502 and stores no message, a generation is retried by the worker; never an empty answer.
 - The LLM is constructed with `LLM_MAX_TOKENS` as its default budget and called with thinking disabled (core's default) for answers and generators; the generator call-back carries core's `complete` signature.
 - Generated documents are chunked with `lasteverlm_core.chunking`, the family's one chunker; the local copy is gone.

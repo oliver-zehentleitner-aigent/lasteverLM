@@ -19,6 +19,7 @@ SYSTEM_RULES = """You create documents strictly from the material the user provi
 Rules:
 - Use only the provided material. Do not add facts from your own knowledge.
 - Write in the language the material is written in.
+- "title" names this document specifically (its subject and form); never reuse the notebook's name.
 - Answer with one JSON object only, no prose before or after it, no code fences.
 """
 

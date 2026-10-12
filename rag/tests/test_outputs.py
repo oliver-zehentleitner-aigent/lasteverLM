@@ -305,6 +305,12 @@ def test_registry_covers_every_kind():
     }
 
 
+def test_generators_are_told_not_to_reuse_the_notebook_name_as_title():
+    from lasteverlm_rag.outputs._base import SYSTEM_RULES
+
+    assert "never reuse the notebook's name" in SYSTEM_RULES
+
+
 def test_render_material_lists_summaries_and_numbered_passages():
     passage = Passage(1, "c", "s", "doc.pdf", "pdf", 4, "text")
     text = render_material("NB", [], [passage])
