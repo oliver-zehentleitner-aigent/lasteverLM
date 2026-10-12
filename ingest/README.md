@@ -16,7 +16,7 @@ family's [architecture](https://github.com/oliver-zehentleitner/lasteverLM/blob/
 a change to it is a pull request there first.
 
 - How to operate it in detail (endpoints, processing, migration): [`docs/README.md`](docs/README.md)
-- What comes from the shared library (models, token resolution, usage accounting, model prices, providers, rate limiting): [`core/`](../core/README.md)
+- What comes from the shared library (models, token resolution, usage accounting, model prices, providers, chunking, rate limiting): [`core/`](../core/README.md)
 - Why it is built this way: [`context/index.md`](context/index.md)
 - Family rules and standards: the parent's [AGENTS.md](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/AGENTS.md) and [repository standard](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/docs/repository-standard.md)
 

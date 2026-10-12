@@ -7,17 +7,17 @@ image): add a loader, register it under its kind, nothing else changes.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol
 
+from lasteverlm_core import Passage
 
-@dataclass(frozen=True)
-class Passage:
-    """A run of text from a source and, when the source has pages, its
-    1-based page number."""
-
-    text: str
-    page: int | None = None
+__all__ = [
+    "LoaderError",
+    "LoaderRegistry",
+    "Passage",
+    "SourceLoader",
+    "default_registry",
+]
 
 
 class LoaderError(Exception):

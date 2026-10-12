@@ -21,9 +21,8 @@ src/lasteverlm_ingest/
 ├── config.py        Settings from the environment
 ├── auth.py          one token check, demo token or Supabase JWT
 ├── models.py        API schemas (Notebook, Source)
-├── repository.py    all Supabase access (tables and storage)
+├── repository.py    all Supabase access (tables and storage); chunking comes from core
 ├── pipeline.py      store → parse → chunk → embed → insert → status
-├── chunking.py      token-window chunking with overlap
 ├── parsing/         pdf, text, url → passages
 ├── embeddings/      EmbeddingProvider interface and implementations
 └── api/             routers: notebooks, sources, health

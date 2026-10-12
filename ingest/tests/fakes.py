@@ -9,18 +9,18 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from lasteverlm_core import (
+    Chunk,
     CompletionResult,
     EmbeddingResult,
     ModelPrices,
     Notebook,
+    Passage,
     Usage,
     UsageRecord,
     cost_cents,
     parse_model_prices,
 )
 
-from lasteverlm_ingest.chunking import Chunk
-from lasteverlm_ingest.loaders import Passage
 from lasteverlm_ingest.repository import StoredSource
 
 

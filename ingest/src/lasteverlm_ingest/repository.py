@@ -10,12 +10,10 @@ from __future__ import annotations
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
-from lasteverlm_core import ModelPrices, Notebook, Source, UsageRecord
+from lasteverlm_core import Chunk, ModelPrices, Notebook, Source, UsageRecord
 from lasteverlm_core import balance_cents as core_balance_cents
 from lasteverlm_core import record_usage as core_record_usage
 from pydantic import ConfigDict
-
-from lasteverlm_ingest.chunking import Chunk
 
 
 class StoredSource(Source):

@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from lasteverlm_core import (
+    Chunker,
     Embedder,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
@@ -23,13 +24,13 @@ from lasteverlm_core import (
     RateLimiter,
     RateLimitMiddleware,
     RateLimitStore,
+    TokenWindowChunker,
     make_client,
 )
 from pydantic import ValidationError
 
 from lasteverlm_ingest import __version__
 from lasteverlm_ingest.api import health, router
-from lasteverlm_ingest.chunking import Chunker, TokenWindowChunker
 from lasteverlm_ingest.config import ConfigError, Settings
 from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
 from lasteverlm_ingest.repository import PostgresRepository, Repository
