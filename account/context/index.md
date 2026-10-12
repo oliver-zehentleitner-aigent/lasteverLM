@@ -25,6 +25,8 @@ repository root's `context/`.
 
 ## A
 
+- [auth.md](auth.md) — the core mirror in `contracts.py`, admin addresses bypassing the allowlist, shape-only e-mail validation, the demo user's special status
+
 ## B
 
 ## C
