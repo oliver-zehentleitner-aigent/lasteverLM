@@ -29,3 +29,25 @@ paraphrase when the upload does not rank; keeping the behaviour as first
 designed (every ready source retrievable, generated included), rejected
 for the circularity above, kept reachable by the configuration switch in
 case the maintainer prefers it.
+
+## A scoped question retrieves without a similarity floor and with a larger k
+
+**Id:** 0208ab91-804b-4d29-b35e-43bd89695b7c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** frontend click-through on the first deploy, 2026-10-12; coordinator decision the same evening
+
+With `scope.output_id`, retrieval runs over that one generated source
+with no similarity floor and k=12 (all of its chunks when it has fewer).
+Unscoped questions keep the configured floor and k.
+
+**Reason:** "Summarize this document in one sentence" on a report was
+answered with the refusal: a summary-type question matches no chunk
+strongly, so every chunk fell under the floor. The scope already bounds
+the context to one document, which is what the floor protects against
+elsewhere; without it the question is answered from the whole document.
+
+**Rejected alternative:** a lower floor for scoped questions, rejected
+because any floor can still drop every chunk of a short document for a
+question that resembles none of them.
