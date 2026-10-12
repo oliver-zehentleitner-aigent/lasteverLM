@@ -42,7 +42,7 @@ export function SharePage({ token }: { token: string }) {
                 </span>
               )}
             </header>
-            <OutputContent kind={doc.kind} title={doc.title} status={doc.status} error={doc.error} content={doc.content} />
+            <OutputContent kind={doc.kind} title={doc.title} status="ready" error={null} content={doc.content} />
           </>
         )}
       </div>

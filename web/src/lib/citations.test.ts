@@ -27,3 +27,26 @@ describe('splitCitations', () => {
     expect(splitCitations('No sources.', new Set())).toEqual([{ kind: 'text', text: 'No sources.' }])
   })
 })
+
+describe('splitCitations with grouped markers', () => {
+  it('splits [1, 2, 5] into one marker per known number', () => {
+    expect(splitCitations('Ten countries [1, 2, 5].', new Set([1, 2, 5]))).toEqual([
+      { kind: 'text', text: 'Ten countries ' },
+      { kind: 'cite', n: 1 },
+      { kind: 'cite', n: 2 },
+      { kind: 'cite', n: 5 },
+      { kind: 'text', text: '.' },
+    ])
+  })
+  it('keeps unknown numbers of a group as text and cites the rest', () => {
+    expect(splitCitations('A [1, 3].', new Set([1]))).toEqual([
+      { kind: 'text', text: 'A ' },
+      { kind: 'text', text: '[3]' },
+      { kind: 'cite', n: 1 },
+      { kind: 'text', text: '.' },
+    ])
+  })
+  it('leaves a group with no known number untouched', () => {
+    expect(splitCitations('A [7, 8].', new Set([1]))).toEqual([{ kind: 'text', text: 'A [7, 8].' }])
+  })
+})
