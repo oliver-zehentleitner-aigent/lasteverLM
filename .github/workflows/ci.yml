@@ -20,12 +20,13 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
+          # A workflow change runs every job: the filters are what the workflows test.
           filters: |
-            core: ['core/**']
-            account: ['account/**', 'core/**']
-            ingest: ['ingest/**', 'core/**']
-            rag: ['rag/**', 'core/**']
-            web: ['web/**']
+            core: ['core/**', '.github/workflows/**']
+            account: ['account/**', 'core/**', '.github/workflows/**']
+            ingest: ['ingest/**', 'core/**', '.github/workflows/**']
+            rag: ['rag/**', 'core/**', '.github/workflows/**']
+            web: ['web/**', '.github/workflows/**']
             infra: ['infra/**', '.github/workflows/**']
 
   python:
@@ -47,7 +48,7 @@ jobs:
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0   # no moving v10 tag exists
         if: steps.gate.outputs.run == 'true'
       - name: make check
         if: steps.gate.outputs.run == 'true'
