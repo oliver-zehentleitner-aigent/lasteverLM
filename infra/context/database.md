@@ -177,3 +177,26 @@ attribute and the next apply replaces a database; keeping the
 `vultr_database` resource and letting it create a second instance —
 two databases to pay for and confuse.
 
+## Every database connection verifies the server certificate against the project CA
+
+**Id:** 0a043f82-273b-45f8-b42f-b1f4a34a30cd
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12
+**Revisit when:** the CA rotates (the ConfigMap is rebuilt by `make secrets`), or the database moves into the VPC
+
+`scripts/dburls.py` writes every connection string with
+`sslmode=verify-full&sslrootcert=/etc/lasteverlm/pg-ca.crt`; the CA
+comes from `PGSSLROOTCERT` on the operator's machine, `make secrets`
+turns it into the ConfigMap `lasteverlm-pg-ca`, and the chart mounts it
+read-only into every API, worker, migration and bootstrap pod.
+`verify-full` also checks the host name, so the pods use the instance's
+public host name, not an address.
+
+**Reason:** `require` encrypts but accepts any certificate; the CA is
+available and the cost is one ConfigMap mount.
+
+**Rejected alternative:** the CA inside each Secret next to the URL —
+the same file repeated per Secret, and a rotation would touch all of
+them instead of one ConfigMap.
