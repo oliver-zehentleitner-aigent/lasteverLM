@@ -1,0 +1,40 @@
+name: pages
+
+# The Keep the Why dashboard of the whole family on GitHub Pages
+# (<site>/keep-the-why-dashboard/). The docs site joins this workflow once
+# a site generator is chosen; until then the export is the whole site.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the dashboard dates entries by Git history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --quiet keep-the-why-dashboard
+          ktw-dashboard --export site/keep-the-why-dashboard .
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

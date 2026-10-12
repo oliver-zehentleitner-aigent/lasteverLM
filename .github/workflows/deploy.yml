@@ -1,0 +1,57 @@
+name: deploy
+
+# Never on a merge. Runs after `docker` finished for a tag v*, or by hand
+# with a tag that already has images.
+on:
+  workflow_run:
+    workflows: [docker]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: image tag to roll out (a Git tag like v0.1.0, or a full SHA)
+        required: true
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
+      DOMAIN: ${{ vars.DOMAIN }}
+      ACME_EMAIL: ${{ vars.ACME_EMAIL }}
+      LLM_MODEL: ${{ vars.LLM_MODEL }}
+      EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
+      EMBEDDING_DIMENSION: ${{ vars.EMBEDDING_DIMENSION }}
+      MODEL_PRICES: ${{ vars.MODEL_PRICES }}
+      SIMILARITY_FLOOR: ${{ vars.SIMILARITY_FLOOR }}
+      TTS_MODEL: ${{ vars.TTS_MODEL }}
+      S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: azure/setup-helm@v4
+      - uses: azure/setup-kubectl@v4
+      - name: kubeconfig
+        working-directory: infra
+        run: |
+          mkdir -p build
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > build/kubeconfig
+          chmod 600 build/kubeconfig
+      - name: helm upgrade --install at ${{ env.TAG }}
+        working-directory: infra
+        run: make deploy TAG="$TAG"
+      - name: smoke test
+        if: ${{ secrets.DEMO_TOKEN != '' }}
+        working-directory: infra
+        env:
+          DEMO_TOKEN: ${{ secrets.DEMO_TOKEN }}
+        run: make smoke URL="https://$DOMAIN"

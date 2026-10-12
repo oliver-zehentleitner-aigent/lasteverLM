@@ -1,0 +1,99 @@
+# Defaults for every deployment. Deployment-specific values (domain, tag,
+# model names, prices) are passed with --set or a values file kept out of Git.
+
+registry: ghcr.io/oliver-zehentleitner
+imageTag: latest
+imagePullPolicy: IfNotPresent
+
+# Public host and the ACME contact for Let's Encrypt. Both required for deploy.
+domain: ""
+acmeEmail: ""
+
+# Non-secret configuration, rendered into the ConfigMap lasteverlm-config.
+# Secrets (database, S3, inference key, JWT secret, account seeds) are created
+# by `make secrets` outside the chart and referenced by name below.
+config:
+  inferenceBaseUrl: https://api.vultrinference.com/v1
+  llmModel: ""
+  embeddingModel: ""
+  embeddingDimension: 1536
+  modelPrices: ""       # JSON, required until core ships defaults
+  similarityFloor: ""   # empty = the service's default
+  ttsModel: ""          # optional, rag audio outputs
+  s3Endpoint: ""        # from `make secrets` / tofu outputs, or set here
+  s3Bucket: lasteverlm-sources
+
+ingress:
+  className: nginx
+  clusterIssuer: letsencrypt
+  bodySize: 64m
+  readTimeout: 120
+  # Coarse per-IP rate limiting at the edge (ingress-nginx annotations).
+  # The fine layer (blocks, bans) is a middleware in core.
+  rateLimit:
+    rps: 10
+    burstMultiplier: 5   # burst = rps * multiplier
+    connections: 20
+
+# API services: same shape, one image each. `secrets` are mounted with envFrom,
+# `optionalSecrets` likewise but may be absent. `worker` adds a second
+# Deployment from the same image with the worker entrypoint.
+apiPort: 8000
+services:
+  account:
+    replicas: 2
+    secrets: [lasteverlm-db, lasteverlm-auth, lasteverlm-account]
+    optionalSecrets: [lasteverlm-smtp-seed]
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
+    hpa: {enabled: true, min: 2, max: 5, cpu: 70}
+  ingest:
+    replicas: 2
+    secrets: [lasteverlm-db, lasteverlm-s3, lasteverlm-inference, lasteverlm-auth]
+    optionalSecrets: []
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
+    hpa: {enabled: true, min: 2, max: 5, cpu: 70}
+    worker:
+      enabled: true
+      replicas: 2
+      command: [lasteverlm-ingest-worker]   # same image as the API, claims jobs from Postgres
+      resources:
+        requests: {cpu: 200m, memory: 512Mi}
+        limits: {memory: 2Gi}
+      hpa: {enabled: true, min: 2, max: 6, cpu: 70}
+  rag:
+    replicas: 2
+    secrets: [lasteverlm-db, lasteverlm-inference, lasteverlm-auth]
+    optionalSecrets: []
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
+    hpa: {enabled: true, min: 2, max: 5, cpu: 70}
+    worker:
+      enabled: true
+      replicas: 2
+      command: [lasteverlm-rag-worker]
+      resources:
+        requests: {cpu: 200m, memory: 512Mi}
+        limits: {memory: 2Gi}
+      hpa: {enabled: true, min: 2, max: 6, cpu: 70}
+
+web:
+  replicas: 2
+  port: 8080
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 256Mi}
+  hpa: {enabled: true, min: 2, max: 4, cpu: 70}
+
+# Migrations run as a pre-install/pre-upgrade hook Job when
+# files/migrations.tgz exists in the chart (written by `make migrations`).
+migrations:
+  enabled: true
+  image: postgres:17-alpine
+  adminSecret: lasteverlm-db-admin
+  backoffLimit: 0
+  activeDeadlineSeconds: 600

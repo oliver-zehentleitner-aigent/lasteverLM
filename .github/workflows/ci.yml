@@ -1,0 +1,91 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+      account: ${{ steps.filter.outputs.account }}
+      ingest: ${{ steps.filter.outputs.ingest }}
+      rag: ${{ steps.filter.outputs.rag }}
+      web: ${{ steps.filter.outputs.web }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            core: ['core/**']
+            account: ['account/**', 'core/**']
+            ingest: ['ingest/**', 'core/**']
+            rag: ['rag/**', 'core/**']
+            web: ['web/**']
+            infra: ['infra/**', '.github/workflows/**']
+
+  python:
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [core, account, ingest, rag]
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.account == 'true' || needs.changes.outputs.ingest == 'true' || needs.changes.outputs.rag == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: skip when the directory did not change or has no Makefile yet
+        id: gate
+        run: |
+          changed='${{ toJSON(needs.changes.outputs) }}'
+          if echo "$changed" | grep -q "\"${{ matrix.service }}\": \"true\"" && [ -f "${{ matrix.service }}/Makefile" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: astral-sh/setup-uv@v6
+        if: steps.gate.outputs.run == 'true'
+      - name: make check
+        if: steps.gate.outputs.run == 'true'
+        working-directory: ${{ matrix.service }}
+        run: make check
+
+  web:
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: make check and build
+        working-directory: web
+        run: |
+          if [ -f Makefile ]; then make check && make build; else echo "web has no Makefile yet"; fi
+
+  infra:
+    needs: changes
+    if: ${{ needs.changes.outputs.infra == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.13.1"
+      - uses: azure/setup-helm@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet keep-the-why-lint
+      - name: make check
+        working-directory: infra
+        env:
+          VULTR_API_KEY: validate-only
+        run: make check

@@ -1,0 +1,22 @@
+# Rendered values, kubeconfig, env files and collected migrations produced by the Makefile
+build/
+
+# OpenTofu local state and inputs
+tofu/.terraform/
+tofu/.terraform.lock.hcl
+tofu/*.tfstate
+tofu/*.tfstate.*
+tofu/*.tfvars
+!tofu/terraform.tfvars.example
+tofu/crash.log
+
+# Chart inputs written by make migrations, and packaged charts
+chart/files/migrations.tgz
+chart/files/migrate.sh
+chart/charts/
+lasteverlm-*.tgz
+
+# Secrets never enter the repository
+*.env
+.env*
+kubeconfig*

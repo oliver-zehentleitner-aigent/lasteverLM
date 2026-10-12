@@ -1,0 +1,104 @@
+{{- range $name, $svc := .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/component: api
+    {{- include "lasteverlm.labels" $ | nindent 4 }}
+spec:
+  {{- if not $svc.hpa.enabled }}
+  replicas: {{ $svc.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/component: api
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: {{ include "lasteverlm.image" (dict "root" $ "name" $name) }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $.Values.apiPort }}
+          envFrom:
+            {{- include "lasteverlm.envFrom" $svc | nindent 12 }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          securityContext:
+            {{- include "lasteverlm.securityContext" $ | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    {{- include "lasteverlm.labels" $ | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- if $svc.hpa.enabled }}
+---
+{{ include "lasteverlm.hpa" (dict "root" $ "name" $name "hpa" $svc.hpa) }}
+{{- end }}
+{{- if and $svc.worker $svc.worker.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-worker
+  labels:
+    app.kubernetes.io/name: {{ $name }}-worker
+    app.kubernetes.io/component: worker
+    {{- include "lasteverlm.labels" $ | nindent 4 }}
+spec:
+  {{- if not $svc.worker.hpa.enabled }}
+  replicas: {{ $svc.worker.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}-worker
+        app.kubernetes.io/component: worker
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          image: {{ include "lasteverlm.image" (dict "root" $ "name" $name) }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command:
+            {{- toYaml $svc.worker.command | nindent 12 }}
+          envFrom:
+            {{- include "lasteverlm.envFrom" $svc | nindent 12 }}
+          resources:
+            {{- toYaml $svc.worker.resources | nindent 12 }}
+          securityContext:
+            {{- include "lasteverlm.securityContext" $ | nindent 12 }}
+{{- if $svc.worker.hpa.enabled }}
+---
+{{ include "lasteverlm.hpa" (dict "root" $ "name" (printf "%s-worker" $name) "hpa" $svc.worker.hpa) }}
+{{- end }}
+{{- end }}
+{{- end }}
