@@ -1,0 +1,20 @@
+name: ktw-lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ktw-lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        path: [".", "core", "account", "infra", "ingest", "rag", "web"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oliver-zehentleitner/keep-the-why@lint-latest   # rolling; @lint-v<version> pins action and linter together
+        with:
+          path: ${{ matrix.path }}
+          strict: "false"    # "true" turns warnings (e.g. missing Type on old entries) into failures
