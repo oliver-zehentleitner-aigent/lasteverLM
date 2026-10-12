@@ -66,8 +66,10 @@ export interface Output {
   created_at: string
 }
 
-/** `GET /shared/{token}`: the same document without ids, read-only. */
-export type SharedOutput = Pick<Output, 'kind' | 'title' | 'content' | 'status' | 'error' | 'created_at'>
+/** `GET /shared/{token}`: the document without ids, read-only. The service
+ *  returns kind, title, content and created_at only; a shared document is
+ *  always ready, so status and error are not part of the shape. */
+export type SharedOutput = Pick<Output, 'kind' | 'title' | 'content' | 'created_at'>
 
 export interface ReportContent {
   markdown: string
