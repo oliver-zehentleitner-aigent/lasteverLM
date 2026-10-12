@@ -35,6 +35,12 @@ ingress:
     burstMultiplier: 5   # burst = rps * multiplier
     connections: 20
 
+# CA of the managed PostgreSQL, created by `make secrets` from PGSSLROOTCERT;
+# mounted read-only, every DATABASE_URL uses sslmode=verify-full against it.
+pgCa:
+  configMap: lasteverlm-pg-ca
+  mountPath: /etc/lasteverlm
+
 # API services: same shape, one image each. `secrets` are mounted with envFrom,
 # `optionalSecrets` likewise but may be absent. `worker` adds a second
 # Deployment from the same image with the worker entrypoint.
@@ -93,7 +99,7 @@ web:
 # files/migrations.tgz exists in the chart (written by `make migrations`).
 migrations:
   enabled: true
-  image: postgres:17-alpine
+  image: postgres:18-alpine
   adminSecret: lasteverlm-db-admin
   backoffLimit: 0
   activeDeadlineSeconds: 600

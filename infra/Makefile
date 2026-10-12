@@ -32,27 +32,33 @@ export KUBECONFIG := $(BUILD)/kubeconfig
 # $(call require,VAR) fails loud when VAR is unset or empty.
 require = $(if $(strip $($(1))),,$(error $(1) is not set))
 
-.PHONY: help up vke-versions env kubeconfig bucket platform secrets migrations values deploy package status down check test smoke
+.PHONY: help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations values deploy package status down check test smoke
 
 help: ## list targets
 > @grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s $$'\t'
 
 # Vultr resources ----------------------------------------------------------------
 
-up: ## create or update cluster, database and object storage (needs VULTR_API_KEY)
+up: ## create or update cluster and object storage (needs VULTR_API_KEY; AUTO_APPROVE=1 skips the plan prompt)
 > $(call require,VULTR_API_KEY)
-> @test -f $(TOFU_DIR)/terraform.tfvars || { echo "copy tofu/terraform.tfvars.example to tofu/terraform.tfvars and fill it in" >&2; exit 1; }
-> cd $(TOFU_DIR) && tofu init -input=false && tofu apply -input=false
+> @test -f $(TOFU_DIR)/terraform.tfvars || test -n "$${TF_VAR_object_storage_tier_id:-}" || { echo "set TF_VAR_object_storage_tier_id or copy tofu/terraform.tfvars.example to tofu/terraform.tfvars" >&2; exit 1; }
+> cd $(TOFU_DIR) && tofu init -input=false && tofu apply -input=false $(if $(AUTO_APPROVE),-auto-approve)
 > $(MAKE) --no-print-directory env
 
 vke-versions: ## list VKE versions the API offers right now
 > @curl -fsS https://api.vultr.com/v2/kubernetes/versions
 
-env: ## write build/cluster.env from the tofu outputs (secrets inside, ignored by Git)
-> @mkdir -p $(BUILD) && umask 077 && cd $(TOFU_DIR) && { \
+# keep <VAR> from the previous cluster.env, or generate it once (never printed)
+keep_or_gen = $$( { grep -s '^$(1)=' $(CLUSTER_ENV) | cut -d= -f2-; } || true); [ -n "$$$(2)" ] || $(2)=$$(openssl rand -base64 48 | tr -d '/+=\n' | cut -c1-$(3))
+
+env: ## write build/cluster.env: tofu outputs, derived database URLs, generated secrets (ignored by Git, never printed)
+> $(call require,DATABASE_ADMIN_URL)
+> @mkdir -p $(BUILD) && umask 077 && \
+>   pw=$(call keep_or_gen,APP_DB_PASSWORD,pw,32); jwt=$(call keep_or_gen,AUTH_JWT_SECRET,jwt,64); demo=$(call keep_or_gen,DEMO_TOKEN,demo,48); \
+>   cd $(TOFU_DIR) && { \
 >   echo "VKE_ID=$$(tofu output -raw vke_id)"; \
->   echo "DATABASE_URL=$$(tofu output -raw database_url)"; \
->   echo "DATABASE_ADMIN_URL=$$(tofu output -raw database_admin_url)"; \
+>   echo "APP_DB_PASSWORD=$$pw"; echo "AUTH_JWT_SECRET=$$jwt"; echo "DEMO_TOKEN=$$demo"; \
+>   APP_DB_PASSWORD=$$pw python3 $(CURDIR)/scripts/dburls.py; \
 >   echo "S3_ENDPOINT=$$(tofu output -raw s3_endpoint)"; \
 >   echo "S3_BUCKET=$$(tofu output -raw s3_bucket)"; \
 >   echo "S3_REGION=$$(tofu output -raw s3_region)"; \
@@ -89,16 +95,17 @@ platform: ## ingress-nginx (JSON access log), cert-manager, metrics-server; pinn
 >   -n kube-system -f platform/metrics-server.values.yaml --wait --timeout 5m
 > @echo "ingress IP (point DOMAIN at it):" && kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}{"\n"}'
 
-secrets: $(CLUSTER_ENV) ## create the Secrets from tofu outputs and the environment (the ConfigMap is in the chart)
+secrets: env ## create the Secrets and the CA ConfigMap from cluster.env and the environment; re-run after a password rotation
 > $(call require,INFERENCE_API_KEY)
-> $(call require,AUTH_JWT_SECRET)
+> $(call require,PGSSLROOTCERT)
 > @kubectl get namespace $(KUBE_NS) >/dev/null 2>&1 || kubectl create namespace $(KUBE_NS)
+> @kubectl -n $(KUBE_NS) create configmap lasteverlm-pg-ca --from-file=pg-ca.crt=$(PGSSLROOTCERT) --dry-run=client -o yaml | kubectl apply -f -
 > @. $(CLUSTER_ENV) && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-db --from-literal=DATABASE_URL="$$DATABASE_URL" --dry-run=client -o yaml | kubectl apply -f - && \
->   kubectl -n $(KUBE_NS) create secret generic lasteverlm-db-admin --from-literal=DATABASE_URL="$$DATABASE_ADMIN_URL" --dry-run=client -o yaml | kubectl apply -f - && \
+>   kubectl -n $(KUBE_NS) create secret generic lasteverlm-db-admin --from-literal=DATABASE_URL="$$DATABASE_ADMIN_APP_URL" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-s3 --from-literal=S3_ACCESS_KEY="$$S3_ACCESS_KEY" --from-literal=S3_SECRET_KEY="$$S3_SECRET_KEY" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-inference --from-literal=INFERENCE_API_KEY="$$INFERENCE_API_KEY" --dry-run=client -o yaml | kubectl apply -f - && \
->   kubectl -n $(KUBE_NS) create secret generic lasteverlm-auth --from-literal=AUTH_JWT_SECRET="$$AUTH_JWT_SECRET" --from-literal=DEMO_TOKEN="$${DEMO_TOKEN:-}" --dry-run=client -o yaml | kubectl apply -f - && \
+>   kubectl -n $(KUBE_NS) create secret generic lasteverlm-auth --from-literal=AUTH_JWT_SECRET="$$AUTH_JWT_SECRET" --from-literal=DEMO_TOKEN="$$DEMO_TOKEN" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-account --from-literal=AUTH_ALLOWED_DOMAINS="$${AUTH_ALLOWED_DOMAINS:-}" --from-literal=ADMIN_EMAILS="$${ADMIN_EMAILS:-}" --dry-run=client -o yaml | kubectl apply -f -
 > @if [ -n "$${SMTP_HOST:-}" ]; then \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-smtp-seed \
@@ -106,6 +113,23 @@ secrets: $(CLUSTER_ENV) ## create the Secrets from tofu outputs and the environm
 >     --from-literal=SMTP_USER="$${SMTP_USER:-}" --from-literal=SMTP_PASSWORD="$${SMTP_PASSWORD:-}" \
 >     --from-literal=SMTP_FROM="$${SMTP_FROM:-}" --dry-run=client -o yaml | kubectl apply -f -; \
 > else echo "SMTP_HOST not set, no lasteverlm-smtp-seed secret (optional)"; fi
+
+db-trust: ## allow only the cluster nodes and this machine on the managed database (re-run after node changes)
+> $(call require,VULTR_API_KEY)
+> @nodes=$$(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr ' ' ','); \
+>   me=$$(curl -fsS https://api.ipify.org); \
+>   id=$$(curl -fsS -H "Authorization: Bearer $$VULTR_API_KEY" https://api.vultr.com/v2/databases | python3 -c 'import sys,json; print(next(d["id"] for d in json.load(sys.stdin)["databases"] if d["database_engine"]=="pg"))'); \
+>   vultr-cli database update "$$id" --trusted-ips "$$nodes,$$me" >/dev/null && echo "trusted ips: $$nodes,$$me"
+
+db-bootstrap: secrets ## one-time: application role, database and pgvector on the managed instance (Job, admin role)
+> @. $(CLUSTER_ENV) && kubectl -n $(KUBE_NS) create secret generic lasteverlm-db-bootstrap \
+>   --from-literal=DATABASE_ADMIN_URL="$$DATABASE_ADMIN_URL" --from-literal=APP_DB_PASSWORD="$$APP_DB_PASSWORD" \
+>   --dry-run=client -o yaml | kubectl apply -f -
+> kubectl -n $(KUBE_NS) create configmap lasteverlm-db-bootstrap --from-file=db/bootstrap.sh --dry-run=client -o yaml | kubectl apply -f -
+> @mkdir -p $(BUILD) && run=$$(date -u +%Y%m%d%H%M%S) && sed "s/__RUN_ID__/$$run/g" db/bootstrap-job.yaml > $(BUILD)/bootstrap-job.yaml && \
+>   kubectl apply -f $(BUILD)/bootstrap-job.yaml && \
+>   { kubectl -n $(KUBE_NS) wait --for=condition=complete --timeout=300s job/db-bootstrap-$$run || status=$$?; }; \
+>   kubectl -n $(KUBE_NS) logs job/db-bootstrap-$$run; exit $${status:-0}
 
 migrations: ## collect infra + every service's db/migrations/ into chart/files/migrations.tgz
 > @rm -rf $(BUILD)/migrations && mkdir -p $(BUILD)/migrations/infra && cp db/migrations/*.sql $(BUILD)/migrations/infra/
@@ -150,7 +174,8 @@ LINT_SET := --set domain=example.test --set acmeEmail=ops@example.test --set con
 check: test ## static checks and unit tests: tofu, helm lint + template, shell syntax, tests, ktw-lint
 > cd $(TOFU_DIR) && tofu fmt -check -recursive && tofu init -backend=false -input=false >/dev/null && VULTR_API_KEY=$${VULTR_API_KEY:-validate-only} tofu validate
 > helm lint $(CHART) $(LINT_SET) >/dev/null && helm template check $(CHART) $(LINT_SET) >/dev/null && echo "helm ok"
-> sh -n db/migrate.sh && echo "migrate.sh ok"
+> sh -n db/migrate.sh && sh -n db/bootstrap.sh && echo "migrate.sh + bootstrap.sh ok"
+> DATABASE_ADMIN_URL='postgresql://a:b@h:1/defaultdb?sslmode=require' APP_DB_PASSWORD=x python3 scripts/dburls.py >/dev/null && echo "dburls.py ok"
 > DOMAIN=d ACME_EMAIL=e LLM_MODEL=l EMBEDDING_MODEL=m MODEL_PRICES='{"m":{"in":1,"out":2}}' S3_ENDPOINT=https://s3 python3 scripts/values.py >/dev/null && echo "values.py ok"
 > @if command -v ktw-lint >/dev/null; then ktw-lint .; else echo "ktw-lint not installed, skipped (pipx install keep-the-why-lint)"; fi
 

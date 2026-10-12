@@ -53,8 +53,10 @@ spec:
             - name: migrations
               mountPath: /in
               readOnly: true
+            {{- include "lasteverlm.pgCaVolumeMount" . | nindent 12 }}
       volumes:
         - name: migrations
           configMap:
             name: lasteverlm-migrations
+        {{- include "lasteverlm.pgCaVolume" . | nindent 8 }}
 {{- end }}

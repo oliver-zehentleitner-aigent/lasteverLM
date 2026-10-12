@@ -4,8 +4,14 @@ controller:
   config:
     log-format-escape-json: "true"
     log-format-upstream: '{"time":"$time_iso8601","remote_addr":"$remote_addr","request_id":"$req_id","method":"$request_method","host":"$host","uri":"$uri","args":"$args","status":$status,"bytes_sent":$bytes_sent,"request_time":$request_time,"upstream":"$proxy_upstream_name","upstream_status":"$upstream_status","upstream_response_time":"$upstream_response_time","user_agent":"$http_user_agent","referer":"$http_referer","proto":"$server_protocol"}'
-    use-forwarded-headers: "false"
+    use-forwarded-headers: "false"   # the load balancer does not speak proxy protocol; first hop is the client
     enable-real-ip: "true"
+    ssl-redirect: "true"
+    force-ssl-redirect: "true"
+    hsts: "true"
+    hsts-max-age: "31536000"
+    hsts-include-subdomains: "false"
+    hsts-preload: "false"
   replicaCount: 2
   service:
     type: LoadBalancer

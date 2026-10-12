@@ -51,3 +51,15 @@ spec:
           type: Utilization
           averageUtilization: {{ .hpa.cpu }}
 {{- end }}
+
+{{- define "lasteverlm.pgCaVolumeMount" -}}
+- name: pg-ca
+  mountPath: {{ .Values.pgCa.mountPath }}
+  readOnly: true
+{{- end }}
+
+{{- define "lasteverlm.pgCaVolume" -}}
+- name: pg-ca
+  configMap:
+    name: {{ .Values.pgCa.configMap }}
+{{- end }}

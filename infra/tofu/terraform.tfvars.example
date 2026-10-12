@@ -1,4 +1,4 @@
-# Copy to terraform.tfvars (ignored by Git) and fill in.
+# Copy to terraform.tfvars (ignored by Git) and fill in, or export TF_VAR_object_storage_tier_id instead.
 
 # Required: `vultr-cli object-storage tier list` shows the ids visible to the account.
 object_storage_tier_id = 0
@@ -8,4 +8,3 @@ object_storage_tier_id = 0
 # kubernetes_version = "v1.37.1+2"   # `make vke-versions`
 # node_plan          = "vc2-2c-4gb"
 # node_count         = 2
-# pg_version         = "17"
