@@ -23,3 +23,25 @@ of a shared link is exactly what sanitizing closes.
 **Rejected alternative:** a Markdown-to-React renderer that never
 produces an HTML string. Rejected as a larger dependency for the same
 result; `marked` plus DOMPurify is small and well understood.
+
+## markmap is loaded on demand
+
+**Id:** c052fbee-b171-4ac1-9149-ed6afd66a5d4
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** implementation decision, 2026-10-12; build output of the same day
+
+The mind map renderer imports `markmap-lib` and `markmap-view` with a
+dynamic `import()`, so the chunk (it carries d3) is fetched only when a
+mind map is opened. The chunk is larger than Vite's default warning
+limit; the limit is raised in `vite.config.ts` with a comment saying why.
+
+**Reason:** the main bundle is what every visitor downloads, the mind map
+is one of six kinds. The family spec names markmap, so replacing it was
+not on the table; a lighter tree renderer would mean a second
+visualization to maintain.
+
+**Rejected alternative:** importing markmap statically. Rejected because
+it would more than double the initial download for a feature most page
+loads never use.
