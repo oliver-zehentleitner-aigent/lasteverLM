@@ -76,7 +76,7 @@ chunks       (id, source_id, notebook_id, idx, page, text, embedding vector(1536
 
 -- rag
 messages     (id, notebook_id, role, content, citations jsonb, created_at)
-outputs      (id, notebook_id, kind, title, content jsonb, status, error, share_token text null unique, created_at)
+outputs      (id, notebook_id, kind, title, content jsonb, status, error, share_token text null unique, source_id uuid null, created_at)
 
 -- shared (owned by core's migration, applied first)
 usage        (id, user_id, notebook_id null, service, kind, model,
@@ -181,7 +181,7 @@ v1; the frontend polls `GET /sources`.
 Answer:   {"message_id", "answer", "citations": [Citation]}
 Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote"}
 Message:  {"id", "role", "content", "citations", "created_at"}
-Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "share_token", "created_at"}
+Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "share_token", "source_id", "created_at"}
 ```
 
 `scope.output_id` restricts retrieval to the chunks of one generated
