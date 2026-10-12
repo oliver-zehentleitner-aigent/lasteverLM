@@ -61,14 +61,14 @@ function mockAdmin(): AdminApi {
     { day: '2026-10-12', path: '/admin', visits: 4, unique: 1 },
     { day: '2026-10-11', path: '/', visits: 9, unique: 3 },
   ]
-  const blocks: Block[] = [{ ip: '203.0.113.7', blocked_until: '2026-10-12T20:30:00Z', strikes: 3, created_at: '2026-10-12T20:15:00Z' }]
+  const blocks: Block[] = [{ ip: '203.0.113.7', blocked_until: '2026-10-12T20:30:00Z', strikes: 3, updated_at: '2026-10-12T20:15:00Z' }]
   let bans: Ban[] = [
     { ip: '198.51.100.23', reason: 'repeated blocks', created_at: '2026-10-11T22:00:00Z', lifted_at: null },
     { ip: '192.0.2.44', reason: 'abuse report', created_at: '2026-10-09T10:00:00Z', lifted_at: '2026-10-10T08:00:00Z' },
   ]
   const access: AccessEntry[] = [
-    { at: '2026-10-12T20:16:00Z', ip: '203.0.113.7', path: '/api/account/auth/request-link', status: 429, user_id: null },
-    { at: '2026-10-12T20:15:30Z', ip: '198.51.100.9', path: '/api/rag/notebooks/n1/ask', status: 200, user_id: 'u1' },
+    { at: '2026-10-12T20:16:00Z', ip: '203.0.113.7', method: 'POST', path: '/api/account/auth/request-link', status: 429, user_id: null, service: 'account' },
+    { at: '2026-10-12T20:15:30Z', ip: '198.51.100.9', method: 'POST', path: '/api/rag/notebooks/n1/ask', status: 200, user_id: 'u1', service: 'rag' },
   ]
   let smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
   let domains = ['example.org']

@@ -147,7 +147,7 @@ export interface Block {
   ip: string
   blocked_until: string
   strikes: number
-  created_at: string
+  updated_at: string
 }
 
 export interface Ban {
@@ -161,7 +161,9 @@ export interface Ban {
 export interface AccessEntry {
   at: string
   ip: string
+  method: string
   path: string
   status: number
   user_id: string | null
+  service: 'account' | 'ingest' | 'rag'
 }

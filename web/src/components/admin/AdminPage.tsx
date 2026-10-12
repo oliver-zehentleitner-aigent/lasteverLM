@@ -275,8 +275,8 @@ function Blocks() {
       <p className="muted small">Temporary blocks set by the rate limiter; they expire on their own.</p>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['Address', 'Strikes', 'Since', 'Until']}
-        rows={data.map((b) => [b.ip, b.strikes, formatTime(b.created_at), formatTime(b.blocked_until)])}
+        head={['Address', 'Strikes', 'Last strike', 'Until']}
+        rows={data.map((b) => [b.ip, b.strikes, formatTime(b.updated_at), formatTime(b.blocked_until)])}
       />
     </Section>
   )
@@ -328,8 +328,8 @@ function Access() {
       <p className="muted small">Raw requests from the rate-limiting middleware, with full addresses. Admin only; see the Privacy section of the account service.</p>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['When', 'Address', 'Path', 'Status', 'User']}
-        rows={data.map((a) => [formatTime(a.at), a.ip, a.path, a.status, a.user_id ?? ''])}
+        head={['When', 'Address', 'Service', 'Request', 'Status', 'User']}
+        rows={data.map((a) => [formatTime(a.at), a.ip, a.service, `${a.method} ${a.path}`, a.status, a.user_id ?? ''])}
       />
     </Section>
   )
