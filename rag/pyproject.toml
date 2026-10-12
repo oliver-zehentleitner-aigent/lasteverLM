@@ -33,6 +33,8 @@ include = ["lasteverlm_rag*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["postgres: needs RAG_TEST_DATABASE_URL (make test-postgres)"]
+addopts = "-m 'not postgres'"
 filterwarnings = ["ignore::jwt.warnings.InsecureKeyLengthWarning"]
 
 [tool.ruff]
