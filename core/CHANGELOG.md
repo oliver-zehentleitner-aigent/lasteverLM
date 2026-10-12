@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-12
+
 ### Added
 
 - API models of the contract v1 as Pydantic models with `UUID` ids and `datetime` timestamps; kind and status literals; `DEMO_USER_ID`.
