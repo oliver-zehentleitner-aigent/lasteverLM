@@ -30,13 +30,14 @@ Every other endpoint takes `Authorization: Bearer <token>`. Errors are
 `{"error": "<message>"}`: 401 unauthenticated, 402 credit exhausted,
 404 not yours or missing, 409 asking about an output that is not ready.
 
-**Ask.** `answer` cites inline as `[n]`; `n` maps to an entry in
-`citations` (`source_id`, `source_name`, `source_kind`, `chunk_id`,
+**Ask.** `answer` cites inline as single `[n]` markers, numbered 1..n in
+order of first appearance; `n` maps to an entry in `citations` (`source_id`, `source_name`, `source_kind`, `chunk_id`,
 `page`, `quote`). Retrieval is top-k by cosine similarity over the
 notebook's ready sources with a similarity floor; if nothing passes it,
 the answer is a fixed refusal with empty citations and the model is not
 called. An unscoped question retrieves from the uploaded sources only;
-`scope.output_id` restricts retrieval to one generated document.
+`scope.output_id` restricts retrieval to one generated document, without a
+similarity floor and with a larger k, since the scope bounds the context.
 
 **Outputs.** `POST /outputs` inserts the job and answers at once. The
 worker entrypoint (`lasteverlm-rag-worker`) claims jobs from the
