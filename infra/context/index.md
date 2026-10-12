@@ -29,11 +29,11 @@ repository root's `context/`.
 
 ## C
 
-- [cluster.md](cluster.md) — one Helm chart for application and platform, autoscaled replicas and worker Deployments, layered rate limiting, generated values file, one Secret per concern; two superseded manifest-era entries
+- [cluster.md](cluster.md) — one Helm chart for application and platform, autoscaled replicas and worker Deployments, layered rate limiting, generated values file, one Secret per concern, generated secrets; two superseded manifest-era entries
 
 ## D
 
-- [database.md](database.md) — service-owned SQL migrations run as a Helm hook, the embedding dimension as a psql variable, admin versus application role, the open trusted-IP list
+- [database.md](database.md) — service-owned SQL migrations run as a Helm hook, the embedding dimension as a psql variable, admin versus application role, the instance as an input with a bootstrap Job, verify-full against the project CA, trusted IPs instead of an open instance
 
 ## E
 
@@ -57,7 +57,7 @@ repository root's `context/`.
 
 ## O
 
-- [object-storage.md](object-storage.md) — why storage sits in `ams` while the cluster is in `fra`, and the bucket created by curl
+- [object-storage.md](object-storage.md) — why storage sits in `ams` while the cluster is in `fra`, the bucket created by curl, and the cluster chosen by id
 
 ## P
 
