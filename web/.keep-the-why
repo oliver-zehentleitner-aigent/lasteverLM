@@ -5,6 +5,7 @@ README, for what Keep the Why actually is.
 <!-- keep-the-why:config -->
 - id: oliver-zehentleitner---lasteverLM---web
 - canonical: https://github.com/oliver-zehentleitner/lasteverLM
+- dashboard-state: https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/web/state.json
 - root: web
 - parent: ..
 - context: `context/`

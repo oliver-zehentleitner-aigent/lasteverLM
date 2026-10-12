@@ -30,9 +30,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      # The root and every isolated sub-project get their own export; each
+      # .keep-the-why names its export in dashboard-state, which is how the
+      # family resolves in public mode.
       - run: |
           pip install --quiet keep-the-why-dashboard
           ktw-dashboard --export site/keep-the-why-dashboard .
+          for d in core account infra ingest rag web; do
+            ktw-dashboard "$d" --export "site/keep-the-why-dashboard/$d"
+          done
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
