@@ -1,0 +1,3 @@
+# Needed by the HorizontalPodAutoscalers; VKE does not ship one by default.
+args:
+  - --kubelet-insecure-tls

@@ -1,0 +1,7 @@
+lasteverLM {{ .Chart.AppVersion }} is being rolled out to https://{{ .Values.domain }}
+
+  kubectl -n {{ .Release.Namespace }} get deployments,hpa,ingress,certificate
+
+Smoke test (from the infra directory, demo token in DEMO_TOKEN):
+
+  make smoke URL=https://{{ .Values.domain }}

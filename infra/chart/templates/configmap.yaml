@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lasteverlm-config
+  labels:
+    {{- include "lasteverlm.labels" . | nindent 4 }}
+data:
+  PUBLIC_BASE_URL: {{ printf "https://%s" (required "domain is required" .Values.domain) | quote }}
+  INFERENCE_BASE_URL: {{ .Values.config.inferenceBaseUrl | quote }}
+  LLM_MODEL: {{ required "config.llmModel is required" .Values.config.llmModel | quote }}
+  EMBEDDING_MODEL: {{ required "config.embeddingModel is required" .Values.config.embeddingModel | quote }}
+  EMBEDDING_DIMENSION: {{ .Values.config.embeddingDimension | quote }}
+  MODEL_PRICES: {{ required "config.modelPrices is required until core ships defaults" .Values.config.modelPrices | quote }}
+  S3_ENDPOINT: {{ required "config.s3Endpoint is required" .Values.config.s3Endpoint | quote }}
+  S3_BUCKET: {{ .Values.config.s3Bucket | quote }}
+  {{- with .Values.config.similarityFloor }}
+  SIMILARITY_FLOOR: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.ttsModel }}
+  TTS_MODEL: {{ . | quote }}
+  {{- end }}

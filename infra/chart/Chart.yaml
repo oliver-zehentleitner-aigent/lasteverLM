@@ -1,0 +1,12 @@
+apiVersion: v2
+name: lasteverlm
+description: lasteverLM, a NotebookLM-style assistant - all application services, ingress and migrations in one chart
+type: application
+# The chart version is the repository tag (v0.1.0 -> 0.1.0); `make package` and the
+# release workflow set it with --version and --app-version. These values are placeholders.
+version: 0.0.0
+appVersion: "0.0.0"
+keywords: [rag, notebook, citations]
+home: https://github.com/oliver-zehentleitner/lasteverLM
+sources:
+  - https://github.com/oliver-zehentleitner/lasteverLM

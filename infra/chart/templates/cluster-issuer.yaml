@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.ingress.clusterIssuer }}
+  labels:
+    {{- include "lasteverlm.labels" . | nindent 4 }}
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: {{ required "acmeEmail is required" .Values.acmeEmail | quote }}
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: {{ .Values.ingress.className }}
