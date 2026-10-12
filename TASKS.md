@@ -8,13 +8,17 @@ not ticked. Items that need the maintainer are marked **[maintainer]**.
 - **[maintainer]** Create the six empty upstream repositories (MIT, Python gitignore): `lasteverLM-core`, `-account`, `-infra`, `-ingest`, `-rag`, `-web`. Until then every agent works in a local repository with remotes preset.
 - **[maintainer]** Give the agent token the `workflow` scope so CI files can land in pull requests.
 - **[maintainer]** Vultr API key and the deployment domain, as an env file on the machine.
-- **[maintainer]** Review and merge PR #1 (this skeleton and architecture v1).
+- **[maintainer]** Add the agent account as collaborator with write access to all seven repositories; branch protection on `main` with CI required and no review requirement.
 
-## Agent A (this repository, core)
+## Agent A (this repository)
 
-- `lasteverLM-core`: models, settings, `current_user`, `record_usage`, `balance_cents`, model prices, provider interfaces, the `usage` migration. Tag `v0.1.0` so services can pin it.
-- Pre-review every pull request in the family before the maintainer looks at it.
+- Review and merge every pull request in the family until the prototype is accepted; keep `docs/architecture.md` the truth.
 - Draft the walkthrough script (`docs/walkthrough.md`) once the services run end to end.
+
+## Agent G (`lasteverLM-core`)
+
+- Models, settings, `current_user` (JWT and demo token), `record_usage`, `balance_cents`, model prices with defaults, provider interfaces (`Embedder`, `LLM`), the `usage` migration. Tag `v0.1.0` so services can pin it.
+- Tests for price calculation, balance, token resolution.
 
 ## Agent B (`lasteverLM-infra`)
 

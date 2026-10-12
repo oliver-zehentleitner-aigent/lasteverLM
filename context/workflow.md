@@ -33,7 +33,8 @@ as long in wall-clock time.
 
 **Id:** ebff131a-7797-439e-9877-0903c2e3df51
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** b8d4c63e-d5c0-4eaa-8a55-e8788155ff53
 **Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
 
@@ -76,3 +77,31 @@ changes and blockers only. The maintainer set this as a hard rule.
 **Rejected alternative:** a shared chat or a status document. Rejected
 because it would be a second place for knowledge that already belongs
 in the repositories, and would not survive the project.
+
+## Until the prototype, agent A reviews and merges; the maintainer tests the result
+
+**Id:** b8d4c63e-d5c0-4eaa-8a55-e8788155ff53
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** planning conversation, 2026-10-12
+**Revisit when:** the first prototype is accepted by the maintainer
+
+All agents still push through one shared account with per-agent commit
+identity. Until the first prototype is accepted, agent A reviews every
+pull request and merges it, and writes no code itself; a session G
+takes over the core library. The maintainer tests the running
+prototype instead of reading pull requests. After acceptance, merging
+returns to the maintainer.
+
+**Reason:** the maintainer's time is better spent on the product than
+on reading six repositories' pull requests during the build, and one
+reviewing agent that writes no code has the whole picture and no
+conflict of interest. The shared account can neither approve its own
+pull requests nor merge without write access, so the maintainer grants
+write access and sets branch protection to require CI only.
+
+**Rejected alternative:** the maintainer merges everything (the rule
+in the superseded entry). Right for the long run, rejected for the
+build phase because it would make the maintainer the bottleneck for
+six parallel agents.
