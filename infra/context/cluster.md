@@ -141,3 +141,29 @@ overlay — correct, but an overlay per domain for two strings is more
 structure than the project has environments; Helm — see the entry
 above.
 
+## One Secret per concern, one ConfigMap for the rest
+
+**Id:** cab5ab11-63c0-47b1-8c19-78e7259ecd40
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** infra design session, 2026-10-12
+**Revisit when:** a service needs a secret none of the groups covers
+
+Secrets are split by what they unlock — `lasteverlm-db`,
+`lasteverlm-db-admin`, `lasteverlm-s3`, `lasteverlm-inference`,
+`lasteverlm-auth`, optional `lasteverlm-smtp-seed` — and each Deployment
+mounts only the ones its service uses; non-secret settings sit in the
+ConfigMap `lasteverlm-config` that every API service gets. `make secrets`
+builds all of them from the OpenTofu outputs and the environment with
+`--dry-run=client | kubectl apply`, so re-running it updates in place.
+
+**Reason:** the web pod should never see the database URL, the rag
+service never the S3 keys, and the admin database URL exists only for
+the migration Job. One Secret per concern makes that a matter of which
+`secretRef` lines a Deployment lists, visible in review.
+
+**Rejected alternative:** one Secret with every variable, mounted
+everywhere — fewer kubectl calls, rejected because it gives each pod
+credentials it has no use for.
+
