@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-12
+
 ### Changed
 
 - `CHUNK_TOKENS` and `CHUNK_OVERLAP_TOKENS` are optional overrides; unset, the chunker runs with core's defaults, where the family tunes them.

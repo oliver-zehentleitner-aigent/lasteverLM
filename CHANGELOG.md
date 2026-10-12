@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-12
+
 ### Added
 
 - Root `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.dockerignore`; live dashboard badge and `dashboard-state`.

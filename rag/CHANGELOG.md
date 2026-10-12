@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-12
+
 ### Added
 
 - Core's rate-limit middleware in front of every endpoint (`ip_blocks`, `ip_bans`, `access_log` per the architecture).
