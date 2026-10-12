@@ -25,6 +25,8 @@ repository root's `context/`.
 
 ## A
 
+- [admin-settings.md](admin-settings.md) — environment values seed the settings table once, and why the SMTP password is stored in plain text for now
+
 - [auth.md](auth.md) — the core mirror in `contracts.py`, admin addresses bypassing the allowlist, shape-only e-mail validation, the demo user's special status
 
 ## B
