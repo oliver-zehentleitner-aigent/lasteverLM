@@ -23,3 +23,24 @@ its conventions than it saves in a layout this small.
 Rejected as dependency and build weight for no visible gain at this
 size. Tailwind was explicitly left to this repository's call and declined
 for the same reason.
+
+## 401 and 402 are application events, raised once in the fetch wrapper
+
+**Id:** 627f9553-df43-476c-b8ad-337c13ccded8
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** implementation decision, 2026-10-12; API contract v1 (401 unauthenticated, 402 credit exhausted)
+
+`src/api/client.ts` dispatches an event on a 401 or 402 response before
+throwing the usual `ApiError`. The app shell listens once: 401 clears
+the token and shows the login page, 402 opens the voucher dialog. Panes
+only show the error text.
+
+**Reason:** both statuses change the state of the whole app, not of the
+request that hit them. Handling them per call would repeat the same two
+branches in every pane and drift apart over time.
+
+**Rejected alternative:** checking the status in each pane's error
+handler. Rejected as duplication; the contract defines the two statuses
+globally, so one place in the client matches the contract's shape.
