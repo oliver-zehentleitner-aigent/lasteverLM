@@ -24,6 +24,10 @@ preserves why it changed, in `context/`.
 - Unit tests against an in-memory repository (token flow, allowlist, voucher atomicity, balance, admin gate, privacy); optional PostgreSQL integration tests.
 - Visitor log without personal data: daily-rotating salted IP hash, browser family only, 30 days retention.
 
+### Fixed
+
+- Dockerfile sets `USER 10001` by uid, which Kubernetes' `runAsNonRoot` can verify; a user name cannot be checked at admission.
+
 ### Changed
 
 - `contracts.py` removed; `User`, `AdminUser`, token issue and resolution and the demo identity come from `lasteverlm-core`, installed by path from `../core`.

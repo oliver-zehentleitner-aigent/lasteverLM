@@ -11,6 +11,6 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8000
 RUN useradd --system --uid 10001 --no-create-home app
 COPY --from=build /install /usr/local
-USER app
+USER 10001
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn --factory lasteverlm_account.main:create_app --host 0.0.0.0 --port ${PORT}"]
