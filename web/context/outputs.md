@@ -59,3 +59,24 @@ Before the contract gave an output a reference to its generated source,
 the frontend found the tab for a citation with `source_kind: generated`
 by comparing the source name with the output title. Replaced the same
 day once `Output.source_id` was added to the contract; see below.
+
+## A citation into a generated document opens its tab through Output.source_id
+
+**Id:** 76c108f7-ef87-4bca-b779-83c9b0a56e4d
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** family contract change, 2026-10-12, on this repository's proposal
+
+When a document is ready, rag indexes its text as a source of kind
+`generated` and records that source's id on the output
+(`Output.source_id`). A citation whose `source_kind` is `generated`
+therefore names the output directly: the frontend selects the output
+whose `source_id` equals the citation's `source_id` and opens its tab.
+
+**Reason:** the id is exact where a title match was fragile (repeated or
+edited titles), and it is one field on a row rag already owns.
+
+**Rejected alternative:** an `output_id` on the citation. Rejected by
+the family lead as a change to a shape three services read, for the same
+information the output row can carry.
