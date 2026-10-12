@@ -40,6 +40,7 @@ class Settings:
     voucher_default_cents: int = 1000
     visit_retention_days: int = 30
     trust_proxy_headers: bool = True
+    visit_hash_secret: str | None = None
     log_level: str = "INFO"
 
     @classmethod
@@ -87,6 +88,7 @@ class Settings:
             trust_proxy_headers=_bool(
                 env.get("TRUST_PROXY_HEADERS", "true"), "TRUST_PROXY_HEADERS"
             ),
+            visit_hash_secret=env.get("VISIT_HASH_SECRET", "").strip() or None,
             log_level=env.get("LOG_LEVEL", "INFO").upper(),
         )
 
