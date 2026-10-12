@@ -17,5 +17,6 @@ preserves why it changed, in `context/`.
 - Migrations `0001_core_usage.sql` (`usage`) and `0002_core_rate_limit.sql` (`access_log`, `ip_blocks`, `ip_bans`).
 - Model prices: `parse_model_prices`, `cost_cents` with exact decimal arithmetic, `require_prices`; an unpriced model raises `UnpricedModelError`.
 - Provider interfaces `Embedder`, `LLM`, `TextToSpeech` reporting token usage, with OpenAI-compatible implementations and `make_client`.
+- `TokenWindowChunker` (800 tokens, 100 overlap) with `Passage` and `Chunk`, the one chunker for parsed sources and generated documents.
 - Rate limiting per client IP: `RateLimitMiddleware` (pure ASGI) over `RateLimiter` rules, stores for sync and async psycopg and in memory, `purge`, `lift_ban`, settings from the environment.
 - Usage accounting `record_usage` and `balance_cents`, sync and async, over the caller's psycopg connection; the SQL exported as constants.

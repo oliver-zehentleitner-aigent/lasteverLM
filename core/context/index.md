@@ -30,6 +30,8 @@ repository root's `context/`.
 
 ## C
 
+- [chunking.md](chunking.md) — why the 800/100 token-window chunker lives in core with regex tokens and serves both parsed sources and generated documents
+
 ## D
 - [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys
 

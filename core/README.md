@@ -16,6 +16,7 @@ the three services share:
 | `lasteverlm_core.pricing` | `MODEL_PRICES` parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
 | `lasteverlm_core.usage` | `record_usage`, `balance_cents` (sync psycopg) and `arecord_usage`, `abalance_cents` (async); the SQL as constants |
 | `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge`, `lift_ban` |
+| `lasteverlm_core.chunking` | `TokenWindowChunker` with `Passage` and `Chunk`: the 800/100 token windows both ingest (sources) and rag (generated documents) embed |
 | `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations |
 | `lasteverlm_core.settings` | `env_required`, `env_optional`, `env_int`, `InferenceSettings.from_env`, `load_model_prices`; every miss is a `ConfigError` at startup |
 | `db/migrations/` | `usage`, `access_log`, `ip_blocks`, `ip_bans`; applied by infra after its own migrations and before the services' |
