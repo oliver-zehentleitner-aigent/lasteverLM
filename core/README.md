@@ -130,9 +130,12 @@ Core is a library; there is nothing to run. `make run` says so.
 ## Test
 
 ```bash
-make venv    # uv venv + editable install with the dev extras
-make check   # ruff, ruff format --check, mypy --strict, pytest
+make install   # uv sync --all-extras: creates .venv with the dev extras; idempotent
+make check     # install, then ruff, ruff format --check, mypy --strict, pytest
 ```
+
+`make check` runs `install` first, so it works on a fresh checkout and
+is what CI runs.
 
 The tests need no database, network or inference key: the PostgreSQL
 helpers are tested against fake psycopg-shaped connections, the

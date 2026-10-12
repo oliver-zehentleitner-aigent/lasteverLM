@@ -2,11 +2,12 @@
 # has nothing to start and says so, `build` produces the wheel.
 VENV ?= .venv
 
-.PHONY: venv check lint types test run build
+.PHONY: install check lint types test run build
 
-venv:
-	uv venv $(VENV)
-	VIRTUAL_ENV=$(VENV) uv pip install -e '.[dev]'
+# Creates .venv and installs the library with its dev extras; idempotent,
+# so `check` can depend on it on a fresh checkout and in CI.
+install:
+	uv sync --all-extras
 
 lint:
 	$(VENV)/bin/ruff check .
@@ -18,7 +19,7 @@ types:
 test:
 	$(VENV)/bin/pytest
 
-check: lint types test
+check: install lint types test
 
 run:
 	@echo "lasteverlm-core is a library; nothing to run. Services import it."

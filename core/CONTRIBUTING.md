@@ -21,6 +21,7 @@ that has been applied is never edited; a change is a new numbered file.
 make check
 ```
 
+It installs the environment first (`make install`, idempotent), then
 ruff (lint and format), mypy in strict mode and pytest must pass. New
 logic comes with tests; the tests run without a database, network or
 inference key (see `tests/conftest.py` for the fake connections).
