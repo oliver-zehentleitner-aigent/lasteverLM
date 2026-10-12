@@ -37,3 +37,30 @@ and `CREATE EXTENSION` would need the admin role in every service;
 `psql` from the operator's machine — not installed where this is built,
 and it would need the database opened to that machine's IP.
 
+## Migrations run as a Helm hook before every upgrade, not as a separate make step
+
+**Id:** 035196f6-5949-4b55-bcc9-1beab2b7d73c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** infra design session, 2026-10-12, following the maintainer's move to Helm with automatic releases on tags
+**Revisit when:** a migration has to run while the old pods keep serving (expand/contract), or a rollback needs a down migration
+
+The migration Job carries `helm.sh/hook: pre-install,pre-upgrade` with
+`hook-delete-policy: before-hook-creation,hook-succeeded`; the
+ConfigMap with the tarball is a hook too, at a lower weight. A failed
+Job fails the release before any Deployment changes. The hook is
+rendered only when `chart/files/migrations.tgz` exists, which
+`make migrations` and `make package` guarantee.
+
+**Reason:** with releases triggered by a tag in CI, there is no
+operator to run `make migrate` first; the hook ties the schema change
+to the release that needs it, and a failed migration stops the rollout
+instead of leaving new pods against an old schema.
+
+**Rejected alternative:** a standalone `make migrate` Job before
+`helm upgrade` — the earlier design; works by hand, rejected because the
+release workflow would have to replicate it and the two could drift.
+Init containers running migrations in every pod — four Deployments
+racing for the same DDL, and the admin credentials in every pod.
+
