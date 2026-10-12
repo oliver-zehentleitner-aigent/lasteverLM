@@ -11,6 +11,7 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- `VISIT_HASH_SECRET`: optional shared secret so all replicas derive the same daily visitor salt (`HMAC(secret, date)`).
 - Core's `RateLimitMiddleware` as the outermost layer: 429 and blocks, 403 for banned addresses, one `access_log` row per request.
 - `make install` (`uv sync --all-extras`, idempotent); `make check` depends on it and works on a fresh checkout.
 - Access control for admins: current blocks, bans with lifting, the access log written by core's rate-limit middleware.
@@ -26,6 +27,8 @@ preserves why it changed, in `context/`.
 
 ### Fixed
 
+- An empty persisted allowlist is re-seeded from a non-empty `AUTH_ALLOWED_DOMAINS` at startup instead of locking the deployment for good.
+- Startup log always states the settings seed, retention counts and salt mode; a deployment nobody can log in to is warned about.
 - Dockerfile sets `USER 10001` by uid, which Kubernetes' `runAsNonRoot` can verify; a user name cannot be checked at admission.
 
 ### Changed

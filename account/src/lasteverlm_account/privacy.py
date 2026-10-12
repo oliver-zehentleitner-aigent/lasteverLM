@@ -1,30 +1,44 @@
 """Privacy by design for the visitor log: no raw IP is ever stored or logged.
 
-A visitor is identified by ``sha256(daily_salt || ip)``. The salt is random,
-lives only in process memory and is replaced when the UTC date changes, so the
-same address hashes to the same value within one day (unique visitors per day are
-countable) and to an unrelated value the next day (no cross-day tracking). The
-salt is never persisted; after a restart the current day's hashes change, which
-costs at most one day's unique-visitor count and is accepted on purpose.
+A visitor is identified by ``sha256(daily_salt || ip)``. The salt changes with the
+UTC date, so the same address hashes to the same value within one day (unique
+visitors per day are countable) and to an unrelated value the next day (no
+cross-day tracking).
+
+Where the salt comes from: with ``VISIT_HASH_SECRET`` set it is
+``HMAC(secret, date)``, so every replica of the service and every restart
+agree on it. Without the secret it is random bytes in process memory, which
+is the most private option but makes each replica hash the same visitor
+differently. Neither variant is ever persisted.
 """
 
 from __future__ import annotations
 
 import hashlib
+import hmac
 import re
 import secrets
 from datetime import UTC, date, datetime
 
 
 class DailySalt:
-    def __init__(self) -> None:
+    def __init__(self, secret: str | None = None) -> None:
+        self._secret = secret.encode() if secret else None
         self._day: date | None = None
         self._salt: bytes = b""
+
+    @property
+    def shared(self) -> bool:
+        """True when replicas agree on the salt (a secret is configured)."""
+        return self._secret is not None
 
     def for_day(self, day: date) -> bytes:
         if day != self._day:
             self._day = day
-            self._salt = secrets.token_bytes(32)
+            if self._secret is not None:
+                self._salt = hmac.new(self._secret, day.isoformat().encode(), "sha256").digest()
+            else:
+                self._salt = secrets.token_bytes(32)
         return self._salt
 
 

@@ -32,6 +32,15 @@ def test_daily_salt_rotates_per_day_and_is_random() -> None:
     assert DailySalt().for_day(date(2026, 10, 12)) != a  # another process, another salt
 
 
+def test_shared_secret_makes_replicas_agree_and_still_rotates_daily() -> None:
+    a, b = DailySalt("shared-secret"), DailySalt("shared-secret")
+    today, tomorrow = date(2026, 10, 12), date(2026, 10, 13)
+    assert a.shared and a.for_day(today) == b.for_day(today)
+    assert a.for_day(today) != a.for_day(tomorrow)
+    assert a.for_day(today) != DailySalt("other-secret").for_day(today)
+    assert not DailySalt().shared
+
+
 def test_visitor_hash_is_stable_within_a_day_only() -> None:
     salt = DailySalt()
     today, tomorrow = date(2026, 10, 12), date(2026, 10, 13)

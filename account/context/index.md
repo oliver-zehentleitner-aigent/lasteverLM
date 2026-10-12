@@ -25,7 +25,7 @@ repository root's `context/`.
 
 ## A
 
-- [admin-settings.md](admin-settings.md) — environment values seed the settings table once, and why the SMTP password is stored in plain text for now
+- [admin-settings.md](admin-settings.md) — environment values seed the settings table once (an empty allowlist is re-seeded), and why the SMTP password is stored in plain text for now
 
 - [auth.md](auth.md) — the former core mirror in `contracts.py` (superseded), admin addresses bypassing the allowlist, shape-only e-mail validation, the demo user's special status
 
@@ -61,7 +61,7 @@ repository root's `context/`.
 
 ## P
 
-- [privacy.md](privacy.md) — visitor hashing with an in-memory daily salt, browser family only, retention at service start
+- [privacy.md](privacy.md) — visitor hashing with a daily salt (shared via secret or per process), browser family only, retention at service start
 
 ## Q
 

@@ -15,16 +15,21 @@ when a required value is missing. `.env.example` lists every variable.
 | `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist in the settings table, first start only |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | seed for the SMTP settings, first start only |
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
+| `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware, see `../core/docs/README.md` |
 
 Seeds are written to the `settings` table only when the key does not
 exist yet. After that the admin panel is the source of truth; changing
-the environment variable has no effect.
+the environment variable has no effect. One exception: an *empty*
+persisted allowlist is re-seeded from a non-empty `AUTH_ALLOWED_DOMAINS`
+at startup, because an empty list means "never configured", not an
+admin's decision. The startup log states what was seeded, what was kept,
+how many rows retention removed and whether the visitor salt is shared.
 
 ## First start on a fresh database
 
 1. Apply `db/migrations/*.sql` in order (`make migrate` in `infra/` does this for every service; core's tables come first).
-2. Start the service with `AUTH_ALLOWED_DOMAINS` and `ADMIN_EMAILS` set, or with the SMTP seed, so the first admin can request a link. The first user who logs in becomes admin anyway; the demo user does not count.
+2. Start the service with `ADMIN_EMAILS` set to the first admin's address (read live, bypasses the allowlist) and `AUTH_ALLOWED_DOMAINS` as the seed. With both empty nobody can log in; the startup log warns about it. The first user who logs in becomes admin anyway; the demo user does not count.
 3. Log in, open the admin panel, check `PUT /admin/settings/smtp` and `POST /admin/settings/smtp/test`.
 
 ## Health

@@ -24,6 +24,14 @@ the rule that never silently reverts what an admin changed. The test
 because an admin's change would vanish at the next rollout with no
 visible cause.
 
+Refined after the first live deployment (2026-10-12): an *empty*
+persisted allowlist is re-seeded from a non-empty `AUTH_ALLOWED_DOMAINS`
+at startup. The first deploy ran with an empty seed, persisted `[]`, and
+from then on no environment value could ever let anyone in — a lockout
+by design, not a decision anyone made. An empty list is read as "never
+configured"; an admin who wants to deny everyone sets `ADMIN_EMAILS`
+empty as well, which the startup log warns about.
+
 ## The SMTP password is stored in plain text in the settings table
 
 **Id:** c132f8c9-0be7-4b06-a237-95c956521825

@@ -85,30 +85,53 @@ class AccountService:
             jwt_secret=settings.auth_jwt_secret, demo_token=settings.demo_token
         )
         self._clock = clock or (lambda: datetime.now(UTC))
-        self._salt = salt or DailySalt()
+        self._salt = salt or DailySalt(settings.visit_hash_secret)
 
     def now(self) -> datetime:
         return self._clock()
 
     # lifecycle --------------------------------------------------------------
     async def startup(self) -> None:
-        """Seed admin-editable settings from the environment once, then apply retention."""
-        await self.repo.set_setting_if_missing(
-            SETTING_DOMAINS, {"allowed_domains": list(self.settings.allowed_domains_seed)}
-        )
+        """Seed admin-editable settings from the environment, apply retention, say what happened."""
+        seed = list(self.settings.allowed_domains_seed)
+        if await self.repo.set_setting_if_missing(SETTING_DOMAINS, {"allowed_domains": seed}):
+            log.info("settings: allowed_domains seeded from AUTH_ALLOWED_DOMAINS (%d)", len(seed))
+        elif seed and not await self.allowed_domains():
+            # An empty persisted list is "never configured", not an admin's choice: a
+            # deployment whose seed was empty on first start would otherwise stay locked.
+            await self.repo.set_setting(SETTING_DOMAINS, {"allowed_domains": seed})
+            log.info(
+                "settings: empty allowed_domains re-seeded from AUTH_ALLOWED_DOMAINS (%d)",
+                len(seed),
+            )
+        else:
+            log.info("settings: allowed_domains present (%d)", len(await self.allowed_domains()))
         if self.settings.smtp_seed is not None:
             seeded = await self.repo.set_setting_if_missing(
                 SETTING_SMTP, SmtpConfig(**self.settings.smtp_seed.__dict__).to_setting()
             )
-            if seeded:
-                log.info("seeded SMTP settings from the environment")
+            log.info("settings: smtp %s", "seeded from SMTP_*" if seeded else "present")
+        else:
+            log.info(
+                "settings: smtp %s", "present" if await self.smtp_config() else "not configured"
+            )
+        if not self.settings.admin_emails and not await self.allowed_domains():
+            log.warning("nobody can log in: ADMIN_EMAILS is empty and allowed_domains is empty")
         now = self.now()
         removed = await self.repo.purge_visits(
             now - timedelta(days=self.settings.visit_retention_days)
         )
-        if removed:
-            log.info("visitor log retention: removed %d rows", removed)
-        await self.repo.purge_magic_links(now)
+        links = await self.repo.purge_magic_links(now)
+        log.info(
+            "retention: removed %d visit_log rows older than %d days, %d expired magic links",
+            removed,
+            self.settings.visit_retention_days,
+            links,
+        )
+        log.info(
+            "visitor hash salt: %s",
+            "shared across replicas (VISIT_HASH_SECRET)" if self._salt.shared else "per process",
+        )
 
     # auth -------------------------------------------------------------------
     async def allowed_domains(self) -> list[str]:
