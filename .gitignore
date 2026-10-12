@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# local, never committed
+/CLAUDE.md
+/AGENTS.local.md
+.env
+.env.*
