@@ -1,0 +1,158 @@
+# lasteverLM-core
+
+[![ci](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml)
+[![ktw-lint](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml)
+[![Keep the Why](https://keepthewhy.com/assets/badge.svg)](https://keepthewhy.com)
+
+The shared Python library of [lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM),
+a NotebookLM-style assistant. The account, ingest and rag services import
+it; it runs no service of its own. It holds the one definition of what
+the three services share:
+
+| Module | What |
+|---|---|
+| `lasteverlm_core.models` | the API models of the contract (`User`, `Notebook`, `Source`, `Citation`, `Message`, `Answer`, `Output`, `UsageRecord`, the kind and status literals, `DEMO_USER_ID`) |
+| `lasteverlm_core.auth` | `current_user(authorization, auth) -> Principal`: session JWT first, demo token second; `issue_jwt`, `verify_jwt`, `AuthSettings.from_env` |
+| `lasteverlm_core.pricing` | `MODEL_PRICES` parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
+| `lasteverlm_core.usage` | `record_usage`, `balance_cents` (sync psycopg) and `arecord_usage`, `abalance_cents` (async); the SQL as constants |
+| `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge`, `lift_ban` |
+| `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations |
+| `lasteverlm_core.settings` | `env_required`, `env_optional`, `env_int`, `InferenceSettings.from_env`, `load_model_prices`; every miss is a `ConfigError` at startup |
+| `db/migrations/` | `usage`, `access_log`, `ip_blocks`, `ip_bans`; applied by infra after its own migrations and before the services' |
+
+The contract these implement is the family's
+[architecture](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/docs/architecture.md);
+a change to it is a pull request there first.
+
+- How to use it from a service, in detail: [`docs/README.md`](docs/README.md)
+- Why it is built this way: [`context/index.md`](context/index.md)
+- Family rules and standards: the root [AGENTS.md](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/AGENTS.md) and [repository standard](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/docs/repository-standard.md)
+
+## Using it from a service
+
+Core lives in `core/` of the same repository. A service installs it by
+path, from its own directory, and builds its image with the repository
+root as context so that `core/` can be copied in.
+
+`<service>/Makefile`:
+
+```make
+venv:
+	uv venv $(VENV)
+	VIRTUAL_ENV=$(VENV) uv pip install -e ../core -e '.[dev]'
+```
+
+`<service>/pyproject.toml` lists `lasteverlm-core` like any other
+dependency (the name resolves to `../core` through the install line
+above; nothing is published to PyPI):
+
+```toml
+dependencies = ["lasteverlm-core", "fastapi>=0.115", ...]
+```
+
+`<service>/Dockerfile`, built as `docker build -f <service>/Dockerfile .`
+from the repository root:
+
+```dockerfile
+FROM python:3.13-slim AS build
+WORKDIR /app
+COPY core ./core
+COPY <service> ./<service>
+RUN pip install --no-cache-dir --prefix=/install ./core ./<service>
+```
+
+Then, in the service:
+
+```python
+from lasteverlm_core import (
+    AuthError,
+    AuthSettings,
+    InferenceSettings,
+    RateLimiter,
+    RateLimitMiddleware,
+    PostgresRateLimitStore,
+    RateLimitSettings,
+    current_user,
+    load_model_prices,
+    record_usage,
+    balance_cents,
+    require_prices,
+)
+
+auth = AuthSettings.from_env()  # AUTH_JWT_SECRET and/or DEMO_TOKEN
+inference = InferenceSettings.from_env()  # INFERENCE_*, LLM_MODEL, EMBEDDING_*
+prices = load_model_prices()  # MODEL_PRICES over the defaults
+require_prices(prices, [inference.llm_model, inference.embedding_model])  # fail loud
+
+app.add_middleware(
+    RateLimitMiddleware,
+    limiter=RateLimiter(PostgresRateLimitStore(pool.connection), RateLimitSettings.from_env()),
+    service="ingest",
+    auth=auth,
+)
+
+principal = current_user(request.headers.get("authorization"), auth)  # AuthError -> 401
+if balance_cents(conn, principal.user_id) <= 0:
+    ...  # 402 credit exhausted
+record_usage(
+    conn,
+    principal.user_id,
+    notebook_id,
+    "ingest",
+    "embedding",
+    result.usage.model,
+    result.usage.tokens_in,
+    result.usage.tokens_out,
+    prices=prices,
+)
+```
+
+## Configuration
+
+Core reads nothing on import. The loaders below are called by the
+services at startup and raise `ConfigError` naming the first missing or
+invalid value.
+
+| Variable | Loader | Meaning |
+|---|---|---|
+| `AUTH_JWT_SECRET` | `AuthSettings.from_env` | HS256 secret the account service signs session tokens with; verified by every service |
+| `DEMO_TOKEN` | `AuthSettings.from_env` | shared demo token resolving to the demo user; unset in production. At least one of the two is required |
+| `INFERENCE_BASE_URL`, `INFERENCE_API_KEY` | `InferenceSettings.from_env` | OpenAI-compatible API; the URL defaults to Vultr Serverless Inference |
+| `LLM_MODEL`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | `InferenceSettings.from_env` | the models; dimension defaults to 1536 and must match `chunks.embedding` |
+| `MODEL_PRICES` | `load_model_prices` | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`, merged over the defaults in `pricing.py` (empty until the platform's models are known, so every deployment sets it) |
+| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3 |
+| `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |
+
+## Run locally
+
+Core is a library; there is nothing to run. `make run` says so.
+
+## Test
+
+```bash
+make install   # uv sync --all-extras: creates .venv with the dev extras; idempotent
+make check     # install, then ruff, ruff format --check, mypy --strict, pytest
+```
+
+`make check` runs `install` first, so it works on a fresh checkout and
+is what CI runs.
+
+The tests need no database, network or inference key: the PostgreSQL
+helpers are tested against fake psycopg-shaped connections, the
+middleware against the in-memory store, the providers against a fake
+client.
+
+## Build and deploy
+
+Core ships inside the service images (see "Using it from a service");
+there is no core image. `make build` produces the wheel and sdist in
+`dist/` for anyone who wants the package on its own. Its migrations are
+applied by infra's `make migrate` in the order infra, core, account,
+ingest, rag.
+
+## Versioning
+
+Core has no tag of its own: one SemVer tag on the repository releases
+everything at once, and services inside one checkout always use the
+core next to them. `lasteverlm_core.__version__` follows the
+repository's version.

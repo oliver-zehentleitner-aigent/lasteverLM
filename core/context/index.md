@@ -24,12 +24,14 @@ repository root's `context/`.
 ## 9
 
 ## A
+- [auth.md](auth.md) — one resolver for session JWT and demo token, why both schemes may be active at once and why there is no audience claim
 
 ## B
 
 ## C
 
 ## D
+- [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys
 
 ## E
 
@@ -54,10 +56,13 @@ repository root's `context/`.
 ## O
 
 ## P
+- [packaging.md](packaging.md) — why services install core by path from the same checkout instead of a uv workspace, a lockfile or a published package
+- [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why the shipped default prices are empty
 
 ## Q
 
 ## R
+- [ratelimit.md](ratelimit.md) — why the window is counted over access_log excluding 429s, why the middleware is plain ASGI, which header is trusted, and why an active ban survives the purge
 
 ## S
 
