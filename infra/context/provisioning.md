@@ -25,3 +25,18 @@ re-runs and teardown would have to be written by hand and would drift;
 Terraform itself — same HCL, same provider, rejected only for the
 license, so switching back is a one-word change in the runbook.
 
+## Kubeconfig comes from vultr-cli, not from the OpenTofu state
+
+**Id:** a2760414-e8d9-4b37-ae4f-a62ffd57f658
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** provider source read on 2026-10-12 (`resource_vultr_kubernetes.go` exports no kubeconfig attribute)
+**Revisit when:** the provider exports the kubeconfig again
+
+`make kubeconfig` fetches the cluster credentials with
+`vultr-cli kubernetes config <id>` and writes them to `build/kubeconfig`.
+The provider version in use exports the cluster id and endpoint but not
+the kubeconfig, so it cannot be an OpenTofu output. The side effect is
+welcome: the state file holds the database password and the S3 keys but
+not the cluster admin credentials.
