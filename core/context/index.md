@@ -33,7 +33,7 @@ repository root's `context/`.
 - [chunking.md](chunking.md) — why the 800/100 token-window chunker lives in core with regex tokens and serves both parsed sources and generated documents
 
 ## D
-- [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys
+- [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys; why the SQL is tested against a throwaway container with a two-column ledger
 
 ## E
 
