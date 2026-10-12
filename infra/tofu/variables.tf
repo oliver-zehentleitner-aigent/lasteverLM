@@ -16,6 +16,12 @@ variable "object_storage_region" {
   default     = "ams"
 }
 
+variable "object_storage_cluster_id" {
+  description = "Object storage cluster (see `vultr-cli object-storage cluster list`). A region can have several, so the filter data source is ambiguous; 6 is ams1.vultrobjects.com."
+  type        = number
+  default     = 6
+}
+
 variable "object_storage_tier_id" {
   description = "Object storage tier (see `vultr-cli object-storage tier list`). No default: tiers are account-visible only and change over time."
   type        = number
@@ -37,30 +43,6 @@ variable "node_count" {
   description = "Number of worker nodes in the default pool."
   type        = number
   default     = 2
-}
-
-variable "pg_version" {
-  description = "Managed PostgreSQL engine version."
-  type        = string
-  default     = "17"
-}
-
-variable "pg_plan" {
-  description = "Managed database plan (see `vultr-cli database plans`)."
-  type        = string
-  default     = "vultr-dbaas-startup-cc-1-55-2"
-}
-
-variable "db_name" {
-  description = "Logical database the services connect to."
-  type        = string
-  default     = "lasteverlm"
-}
-
-variable "db_user" {
-  description = "Database role the services connect as."
-  type        = string
-  default     = "lasteverlm"
 }
 
 variable "bucket_name" {

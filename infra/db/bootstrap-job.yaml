@@ -1,0 +1,39 @@
+# One-time database bootstrap (role, database, pgvector) as the admin role.
+# Created by `make db-bootstrap`; __RUN_ID__ is replaced per run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-bootstrap-__RUN_ID__
+  namespace: lasteverlm
+  labels:
+    app.kubernetes.io/name: db-bootstrap
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: db-bootstrap
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bootstrap
+          image: postgres:18-alpine
+          command: ["sh", "/in/bootstrap.sh"]
+          envFrom:
+            - secretRef:
+                name: lasteverlm-db-bootstrap
+          volumeMounts:
+            - name: script
+              mountPath: /in
+              readOnly: true
+            - name: pg-ca
+              mountPath: /etc/lasteverlm
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: lasteverlm-db-bootstrap
+        - name: pg-ca
+          configMap:
+            name: lasteverlm-pg-ca

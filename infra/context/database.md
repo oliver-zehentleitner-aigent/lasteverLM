@@ -108,7 +108,8 @@ keeping DDL on a role the services do not hold is the intended split.
 
 **Id:** f8de01a5-e14a-4479-84cc-9cbc512333bd
 **Type:** workaround
-**Status:** active
+**Status:** superseded
+**Superseded by:** eafb2511-ce6a-4da4-a91b-18b1fcaca468
 **Evidence:** confirmed
 **Source:** infra design session, 2026-10-12
 **Revisit when:** the cluster has stable egress addresses to allowlist, or the database is attached to the cluster's VPC
@@ -120,3 +121,111 @@ when nodes are recycled, so an allowlist written at apply time would be
 wrong after the first node replacement. Known and accepted for the MVP;
 the fix is a VPC-attached database (`vpc_id` on both resources), which
 is a second apply step this skeleton does not take yet.
+
+## The managed database accepts only the cluster nodes and the operator machine
+
+**Id:** eafb2511-ce6a-4da4-a91b-18b1fcaca468
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12 ("security exemplary, no shortcuts")
+**See:** database.md#the-managed-database-is-reachable-from-any-ip — f8de01a5-e14a-4479-84cc-9cbc512333bd — as of 2026-10-12
+**Revisit when:** the database is attached to the cluster's VPC, or nodes are recycled (the list has to be refreshed)
+
+`make db-trust` writes the worker nodes' public addresses plus the
+address of the machine running it into the instance's trusted-IP list.
+It is re-run after any node change; the Makefile documents that. The
+proper fix is attaching the database to the cluster's VPC (`vpc_id` on
+the instance, private host for the pods), which removes the public
+path entirely; it is not done yet because the instance was created by
+hand outside OpenTofu and the VPC attachment is a second step with its
+own downtime window.
+
+**Reason:** an instance open to every address with only a password in
+front is the one shortcut the maintainer named explicitly; the node
+list is what can be enforced tonight without touching the instance's
+network.
+
+**Rejected alternative:** leave it open until the VPC move — rejected
+by the maintainer.
+
+## The managed PostgreSQL is an input, not an OpenTofu resource
+
+**Id:** 210e2af5-c0c6-4459-8aff-9e33a06c52b2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** family coordinator, 2026-10-12: the maintainer created the instance by hand in Frankfurt before the first run
+**Revisit when:** the instance is recreated, or the project wants the database under OpenTofu after all
+
+`tofu/` creates the cluster and the object storage only. The instance's
+admin URL is `DATABASE_ADMIN_URL` in the operator's environment;
+`make env` derives from it the application role's URL and the admin URL
+on the application database (`scripts/dburls.py`), and
+`make db-bootstrap` runs a Job as the admin role that creates the role
+(login only, no superuser, cannot create extensions), the database the
+role owns, and `CREATE EXTENSION vector`. A rotated admin password is
+one `make secrets` away because nothing but the environment holds it.
+
+**Reason:** importing a hand-made instance into state on the first
+night was more risk than value, and a database that outlives
+`make down` is what the maintainer wanted anyway; the bootstrap Job
+keeps the toolchain free of a local `psql`.
+
+**Rejected alternatives:** `tofu import` of the instance — one wrong
+attribute and the next apply replaces a database; keeping the
+`vultr_database` resource and letting it create a second instance —
+two databases to pay for and confuse.
+
+## Every database connection verifies the server certificate against the project CA
+
+**Id:** 0a043f82-273b-45f8-b42f-b1f4a34a30cd
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12
+**Revisit when:** the CA rotates (the ConfigMap is rebuilt by `make secrets`), or the database moves into the VPC
+
+`scripts/dburls.py` writes every connection string with
+`sslmode=verify-full&sslrootcert=/etc/lasteverlm/pg-ca.crt`; the CA
+comes from `PGSSLROOTCERT` on the operator's machine, `make secrets`
+turns it into the ConfigMap `lasteverlm-pg-ca`, and the chart mounts it
+read-only into every API, worker, migration and bootstrap pod.
+`verify-full` also checks the host name, so the pods use the instance's
+public host name, not an address.
+
+**Reason:** `require` encrypts but accepts any certificate; the CA is
+available and the cost is one ConfigMap mount.
+
+**Rejected alternative:** the CA inside each Secret next to the URL —
+the same file repeated per Secret, and a rotation would touch all of
+them instead of one ConfigMap.
+
+## Service migrations run as the application role, only the extension migration as the admin
+
+**Id:** fef72023-0a18-4686-a92f-ff9ea912a073
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** first deploy on 2026-10-12: account crashed with "permission denied for table settings" because the admin role had created the tables
+**Revisit when:** a service needs an object the application role may not create (another extension, a foreign server), or the admin stops being allowed to `SET ROLE`
+
+`db/bootstrap.sh` grants the admin membership in the application role
+(`GRANT lasteverlm TO CURRENT_USER`); `db/migrate.sh` keeps the admin
+connection but wraps every service file, and the creation of
+`schema_migrations`, in `SET ROLE lasteverlm`. Only `infra/` files run
+as the admin, because `CREATE EXTENSION` needs it. Objects are thus
+owned by the role that uses them, and a later `ALTER TABLE` in a
+migration still works because the admin is a member of the owner.
+
+**Reason:** ownership follows from who runs the DDL; with one
+connection string for all migrations, the role switch is the smallest
+change that gives each table the right owner. The empty database from
+the first attempt was dropped and recreated rather than reassigned,
+because `REASSIGN OWNED` would also have touched the extension.
+
+**Rejected alternatives:** `GRANT ALL` on every table after each run
+plus default privileges — leaves the admin as owner, so every future
+`ALTER` has to run as the admin and a service can never own its schema;
+a second connection string for the application role in the Job — one
+more secret for the same effect as `SET ROLE`.

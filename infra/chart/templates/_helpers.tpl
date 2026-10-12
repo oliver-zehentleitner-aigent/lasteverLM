@@ -11,6 +11,9 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- define "lasteverlm.securityContext" -}}
 allowPrivilegeEscalation: false
 runAsNonRoot: true
+{{- with .runAsUser }}
+runAsUser: {{ . }}
+{{- end }}
 capabilities:
   drop: ["ALL"]
 {{- end }}
@@ -50,4 +53,16 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .hpa.cpu }}
+{{- end }}
+
+{{- define "lasteverlm.pgCaVolumeMount" -}}
+- name: pg-ca
+  mountPath: {{ .Values.pgCa.mountPath }}
+  readOnly: true
+{{- end }}
+
+{{- define "lasteverlm.pgCaVolume" -}}
+- name: pg-ca
+  configMap:
+    name: {{ .Values.pgCa.configMap }}
 {{- end }}

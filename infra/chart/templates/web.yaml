@@ -36,7 +36,7 @@ spec:
           resources:
             {{- toYaml .Values.web.resources | nindent 12 }}
           securityContext:
-            {{- include "lasteverlm.securityContext" . | nindent 12 }}
+            {{- include "lasteverlm.securityContext" .Values.web | nindent 12 }}
 ---
 apiVersion: v1
 kind: Service

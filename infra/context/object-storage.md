@@ -39,3 +39,17 @@ startup — moves an infrastructure concern into application code and
 needs bucket-creation rights on the service's keys; installing `s3cmd`
 or the AWS CLI — one more tool on the operator's machine for one call
 curl already makes.
+
+## The object storage cluster is chosen by id, not by region filter
+
+**Id:** 948b72f6-5f66-4002-998e-8e251e03116a
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** first `tofu apply` on 2026-10-12: the region filter returned two Amsterdam clusters (ids 6 and 12) and the data source refused to pick
+**Revisit when:** the provider's data source learns to pick a cluster, or ams1 is retired
+
+`object_storage_cluster_id` defaults to 6 (`ams1.vultrobjects.com`)
+and the `vultr_object_storage_cluster` data source is not used. A
+region can host several object storage clusters, so the filter is not
+a selector. The id comes from `vultr-cli object-storage cluster list`.

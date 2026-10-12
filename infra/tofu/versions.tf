@@ -6,10 +6,6 @@ terraform {
       source  = "vultr/vultr"
       version = "~> 2.33"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.6"
-    }
   }
 }
 

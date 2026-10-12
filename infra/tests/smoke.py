@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import re
+import ssl
 import sys
 import time
 import urllib.error
@@ -40,20 +41,27 @@ class SmokeFailure(Exception):
 
 
 class Client:
-    def __init__(self, base_url: str, token: str, timeout: float) -> None:
+    def __init__(self, base_url: str, token: str, timeout: float,
+                 host: str | None = None, insecure: bool = False) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
+        self.host = host
+        # Before DNS and the certificate exist, the deployment is reachable through
+        # a port-forward or the raw load balancer address with the Host header set.
+        self.context = ssl._create_unverified_context() if insecure else None
 
     def request(self, method: str, path: str, *, body: bytes | None = None,
                 content_type: str | None = None, expect: tuple[int, ...] = (200,)):
         req = urllib.request.Request(self.base_url + path, data=body, method=method)
         req.add_header("Authorization", f"Bearer {self.token}")
         req.add_header("Accept", "application/json")
+        if self.host:
+            req.add_header("Host", self.host)
         if content_type:
             req.add_header("Content-Type", content_type)
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self.timeout, context=self.context) as resp:
                 status, raw = resp.status, resp.read()
         except urllib.error.HTTPError as err:
             status, raw = err.code, err.read()
@@ -167,11 +175,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=60.0,
                         help="per-request timeout in seconds (default 60)")
     parser.add_argument("--keep", action="store_true", help="do not delete the notebook afterwards")
+    parser.add_argument("--host", help="Host header to send, e.g. the public domain while reaching the ingress by IP")
+    parser.add_argument("--insecure", action="store_true", help="do not verify the TLS certificate (before DNS and ACME exist)")
     args = parser.parse_args(argv)
     if not args.token:
         parser.error("--token or DEMO_TOKEN is required")
 
-    client = Client(args.base_url, args.token, args.timeout)
+    client = Client(args.base_url, args.token, args.timeout, host=args.host, insecure=args.insecure)
     try:
         run(client, args.ready_timeout, args.keep)
     except SmokeFailure as exc:
