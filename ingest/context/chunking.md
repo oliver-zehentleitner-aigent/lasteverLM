@@ -4,14 +4,17 @@
 
 **Id:** 6f7a8fda-2a47-48a9-9d68-5534e25e099f
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** none — the chunker moved to `core/` with its reasoning; the successor entry lives in that project, see below
 **Evidence:** confirmed
 **Source:** service author's implementation decision, 2026-10-12; maintainer review pending in the first pull request
-**Revisit when:** retrieval quality suffers from chunks that are far from the embedding model's real token count, or the embedding provider is fixed for good
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 68bf3811-c6ef-4454-95d0-4b6f9200c961 — as of 2026-10-12
 
 A token for the purpose of the ~800/100 window is a word or a single
 punctuation character (`\w+|[^\w\s]`). The real tokenizer of the
-embedding model is not consulted.
+embedding model is not consulted. The chunker moved to `core/` on
+2026-10-12 with this reasoning intact (`core/context/chunking.md`); this
+service imports it and keeps no copy.
 
 **Reason:** the contract asks for "about 800 tokens"; a word-level count
 is within the tolerance that implies, and it works for every provider

@@ -31,7 +31,7 @@ repository root's `context/`.
 
 ## C
 
-- [chunking.md](chunking.md) — why chunks are counted in regex tokens rather than a model tokenizer, and how windows cross pages
+- [chunking.md](chunking.md) — superseded: the regex-token chunker now lives in core, reasoning kept there
 - [core.md](core.md) — superseded: the shared library was mirrored locally until it landed in `core/`
 
 ## D
