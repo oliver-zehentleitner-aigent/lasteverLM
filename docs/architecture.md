@@ -248,7 +248,8 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `DATABASE_URL` | account, ingest, rag |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest |
 | `INFERENCE_BASE_URL`, `INFERENCE_API_KEY` | ingest, rag |
-| `LLM_MODEL`, `SIMILARITY_FLOOR`, `TTS_MODEL` (optional) | rag |
+| `LLM_MODEL` | ingest (source summaries), rag |
+| `SIMILARITY_FLOOR`, `TTS_MODEL` (optional) | rag |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | ingest, rag (identical on both) |
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
@@ -259,7 +260,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 ## Runtime contract
 
 - Images `<registry>/lasteverlm-<service>:<git-sha>` for account, ingest, rag, web. The registry host is a variable in manifests and build workflows (decision pending: Vultr Container Registry or ghcr.io).
-- API services listen on 8000 and answer `GET /healthz` with `{"status": "ok"}`; web serves on 8080, `GET /` is 200. Services receive the full request path including their prefix.
+- API services listen on 8000 and answer `GET /healthz` with `{"status": "ok"}` at the root (what Kubernetes probes) and under their prefix (what the ingress exposes); web serves on 8080, `GET /` is 200. Services receive the full request path including their prefix.
 - Containers run as non-root (`runAsNonRoot: true`); every Dockerfile sets a `USER`.
 - Configuration: ConfigMap `lasteverlm-config` (PUBLIC_BASE_URL, S3_ENDPOINT, S3_BUCKET, INFERENCE_BASE_URL, LLM_MODEL, EMBEDDING_MODEL, EMBEDDING_DIMENSION, SIMILARITY_FLOOR, MODEL_PRICES). Secrets per concern: `lasteverlm-db` (DATABASE_URL, app role, `sslmode=require`), `lasteverlm-s3` (ingest), `lasteverlm-inference` (ingest, rag), `lasteverlm-auth` (AUTH_JWT_SECRET, DEMO_TOKEN), `lasteverlm-account` (AUTH_ALLOWED_DOMAINS, ADMIN_EMAILS), optional `lasteverlm-smtp-seed`. Account gets neither S3 nor inference.
 - Migrations: each service keeps `db/migrations/NNNN_<topic>.sql`; `make migrate` applies infra, core, account, ingest, rag in that order, one transaction per file, version key `<service>/NNNN_<topic>` in `schema_migrations`, never edit an applied file. The psql variable `:EMBEDDING_DIMENSION` is passed on every run. `CREATE EXTENSION vector` is infra's own first migration; services never create extensions.
