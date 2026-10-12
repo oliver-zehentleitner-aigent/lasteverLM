@@ -54,3 +54,26 @@ installs into a worker process that has no HTTP server at all.
 write, rejected because it buffers responses, has known interactions
 with streaming and background tasks, and would make FastAPI a
 dependency of a library two of whose users are workers.
+
+## X-Forwarded-For is trusted by default
+
+**Id:** 77cf17e5-23d0-4679-87dc-080107344514
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** parent docs/architecture.md ("as set by the ingress, never trusted from anywhere else"); core design 2026-10-12
+**Revisit when:** a service becomes reachable other than through the ingress, or the ingress is replaced
+
+`client_ip` takes the first `X-Forwarded-For` entry when
+`trust_forwarded` is true (the default) and the peer address otherwise.
+A value that is not an IP address becomes `0.0.0.0`.
+
+**Reason:** in the cluster the pods are reachable only through
+ingress-nginx, which sets the header from the real peer, so trusting it
+there is the only way to see the client at all; the peer address would be
+the ingress on every request. The default is the cluster case because
+that is production; a local run passes `trust_forwarded=False`. The
+fallback to a fixed unknown address keeps a malformed header from
+breaking the request or the `inet` column, at the cost of lumping all
+such clients together, which is acceptable because only a client that
+bypassed the ingress could send one.
