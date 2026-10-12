@@ -43,7 +43,8 @@ worker entrypoint (`lasteverlm-rag-worker`) claims jobs from the
 once no source is still processing; a claim counts as an attempt, three
 attempts fail the job, a claim older than ten minutes is abandoned), generates the document from the source
 summaries plus the chunks retrieved for the kind's focus query, and
-indexes the result as a source of kind `generated` in the same notebook,
+indexes the result as a source of kind `generated` in the same notebook
+(chunked with core's token-window chunker, the same one ingest uses),
 so the chat can cite it; `Output.source_id` names that source. Deleting
 the output deletes the source. `audio` is registered but fails with a
 clear error until the inference platform offers text-to-speech.
@@ -111,7 +112,6 @@ lasteverlm_rag/
 ├── worker.py       worker entrypoint: claim jobs, run them, release or finish
 ├── citations.py    pure marker-to-citation mapping
 ├── outputs/        OutputGenerator interface, one module per kind
-├── chunking.py     token windows for generated documents
 ├── store.py        Retriever and Store interfaces + PostgreSQL/pgvector adapters
 ├── models.py       request bodies and internal data shapes (shared models come from core)
 └── config.py       settings from the environment

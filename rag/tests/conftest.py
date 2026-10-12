@@ -16,11 +16,11 @@ from lasteverlm_core import (
     OutputStatus,
     Usage,
 )
+from lasteverlm_core.chunking import Chunk
 
 from lasteverlm_rag.config import Settings
 from lasteverlm_rag.main import create_app
 from lasteverlm_rag.models import (
-    Chunk,
     OutputRow,
     RetrievedChunk,
     SourceState,

@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any, Literal, Protocol, cast
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any, Literal, Protocol
 
 from lasteverlm_core import (
+    Chunk,
     Message,
     ModelPrices,
     OutputKind,
@@ -24,12 +27,12 @@ from lasteverlm_core import (
     record_usage,
 )
 from lasteverlm_core.usage import Connection as CoreConnection
-from psycopg import Connection
-from psycopg.rows import DictRow, dict_row
+from psycopg import Connection, Cursor
+from psycopg.rows import DictRow, TupleRow, dict_row, tuple_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from .models import Chunk, OutputRow, RetrievedChunk, SourceState, SourceSummary
+from .models import OutputRow, RetrievedChunk, SourceState, SourceSummary
 
 log = logging.getLogger(__name__)
 
@@ -328,9 +331,9 @@ class PostgresStore:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.executemany(
                 "insert into chunks (id, source_id, notebook_id, idx, page, text, embedding) "
-                "values (%s, %s, %s, %s, null, %s, %s::vector)",
+                "values (%s, %s, %s, %s, %s, %s, %s::vector)",
                 [
-                    (_new_id(), source_id, notebook_id, c.idx, c.text, _vector_literal(e))
+                    (_new_id(), source_id, notebook_id, c.idx, c.page, c.text, _vector_literal(e))
                     for c, e in zip(chunks, embeddings, strict=True)
                 ],
             )
@@ -350,12 +353,12 @@ class PostgresStore:
 
     def balance_cents(self, user_id: str) -> int:
         with self._pool.connection() as conn:
-            return balance_cents(_core_conn(conn), uuid.UUID(user_id))
+            return balance_cents(core_connection(conn), uuid.UUID(user_id))
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
         with self._pool.connection() as conn:
             record_usage(
-                _core_conn(conn),
+                core_connection(conn),
                 uuid.UUID(user_id),
                 uuid.UUID(notebook_id) if notebook_id else None,
                 SERVICE_NAME,
@@ -367,11 +370,26 @@ class PostgresStore:
             )
 
 
-def _core_conn(conn: Connection[DictRow]) -> CoreConnection:
-    """psycopg's ``cursor()`` is overloaded (named server-side cursors), which mypy
-    does not match against core's one-signature protocol; at runtime it is the
-    same no-argument call."""
-    return cast(CoreConnection, conn)
+class _TupleRows:
+    """Core's helpers read rows by position; this service's pool hands out dict
+    rows. Core only needs ``cursor()``, so hand it one that yields tuples."""
+
+    def __init__(self, conn: Connection[DictRow]) -> None:
+        self._conn = conn
+
+    def cursor(self) -> Cursor[TupleRow]:
+        return self._conn.cursor(row_factory=tuple_row)
+
+
+def core_connection(conn: Connection[DictRow]) -> CoreConnection:
+    return _TupleRows(conn)
+
+
+@contextmanager
+def core_connect(pool: Pool) -> Iterator[CoreConnection]:
+    """A zero-argument connection factory over core's protocol (rate-limit store)."""
+    with pool.connection() as conn:
+        yield core_connection(conn)
 
 
 def make_pool(database_url: str) -> Pool:

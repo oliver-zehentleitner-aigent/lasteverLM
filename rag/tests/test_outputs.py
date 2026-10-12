@@ -2,7 +2,6 @@ import json
 
 import pytest
 
-from lasteverlm_rag.chunking import TokenWindowChunker
 from lasteverlm_rag.models import Passage
 from lasteverlm_rag.outputs import registry
 from lasteverlm_rag.outputs._base import GenerationFailed, parse_json, render_material
@@ -308,11 +307,3 @@ def test_worker_pass_handles_all_runnable_jobs_and_stops(settings):
     assert client.worker.run_once() == 3
     assert client.worker.run_once() == 0
     assert all(o["status"] == "ready" for o in store.outputs.values())
-
-
-def test_chunker_windows_overlap():
-    c = TokenWindowChunker(size=4, overlap=1)
-    chunks = c.chunk("one two three four five six seven")
-    assert [ch.text for ch in chunks] == ["one two three four", "four five six seven"]
-    assert [ch.idx for ch in chunks] == [0, 1]
-    assert c.chunk("   ") == []

@@ -6,7 +6,7 @@ IMAGE ?= lasteverlm-rag
 TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
 $(VENV)/bin/activate: pyproject.toml ../core/pyproject.toml
-	uv venv $(VENV)
+	test -d $(VENV) || uv venv $(VENV)
 	VIRTUAL_ENV=$(VENV) uv pip install -e ../core -e '.[dev]'
 	touch $(VENV)/bin/activate
 
