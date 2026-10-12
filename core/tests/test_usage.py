@@ -60,3 +60,8 @@ async def test_async_variants(prices: Any) -> None:
     )
     assert usage.cost_cents == 1
     assert [sql for sql, _ in conn.executed] == [BALANCE_SQL, USAGE_SQL]
+
+
+def test_balance_reads_dict_rows_too() -> None:
+    assert balance_cents(FakeConnection(rows=[{"balance_cents": 42}]), uuid4()) == 42
+    assert balance_cents(FakeConnection(rows=[{"balance_cents": None}]), uuid4()) == 0

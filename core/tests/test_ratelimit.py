@@ -181,3 +181,25 @@ def test_purge_and_lift_ban_sql() -> None:
     assert conn.executed[0][1] == {"cutoff": T0 - timedelta(days=30)}
     lift_ban(conn, "10.0.0.1")
     assert conn.executed[-1][1] == {"ip": "10.0.0.1"}
+
+
+async def test_postgres_store_reads_tuple_and_dict_rows() -> None:
+    from contextlib import contextmanager
+
+    from lasteverlm_core import PostgresRateLimitStore
+
+    for rows in (
+        [(1,), (T0,), (5,), (2,)],
+        [{"banned": 1}, {"blocked_until": T0}, {"requests": 5}, {"strikes": 2}],
+    ):
+        conn = FakeConnection(rows=list(rows))
+
+        @contextmanager
+        def connect(conn: FakeConnection = conn) -> Any:
+            yield conn
+
+        store = PostgresRateLimitStore(connect)
+        assert await store.is_banned("ip") is True
+        assert await store.blocked_until("ip") == T0
+        assert await store.requests_since("ip", T0) == 5
+        assert await store.strike("ip", T0, T0, T0) == 2

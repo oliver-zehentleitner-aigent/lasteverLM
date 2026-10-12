@@ -27,14 +27,14 @@ from collections.abc import Awaitable, Callable, Mapping, MutableMapping
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, cast
 from uuid import UUID
 
 import anyio
 
 from .auth import AuthError, AuthSettings, current_user
 from .settings import env_int
-from .usage import AsyncConnection, Connection
+from .usage import AsyncConnection, Connection, scalar
 
 Scope = MutableMapping[str, Any]
 Message = MutableMapping[str, Any]
@@ -273,11 +273,11 @@ async def _send_json(send: Send, decision: Decision) -> None:
 
 # --- stores -----------------------------------------------------------------
 
-IS_BANNED_SQL = "select 1 from ip_bans where ip = %(ip)s and lifted_at is null"
+IS_BANNED_SQL = "select 1 as banned from ip_bans where ip = %(ip)s and lifted_at is null"
 BLOCKED_UNTIL_SQL = "select blocked_until from ip_blocks where ip = %(ip)s"
 # 429s are the limiter's own answers and must not keep a client over the limit.
 REQUESTS_SINCE_SQL = """
-select count(*) from access_log
+select count(*) as requests from access_log
 where ip = %(ip)s and at >= %(since)s and status <> 429
 """
 STRIKE_SQL = """
@@ -351,18 +351,18 @@ class PostgresRateLimitStore:
 
     async def blocked_until(self, ip: str) -> datetime | None:
         row = await self._query(BLOCKED_UNTIL_SQL, {"ip": ip}, True)
-        return row[0] if row else None
+        return cast(datetime | None, scalar(row, "blocked_until"))
 
     async def requests_since(self, ip: str, since: datetime) -> int:
         row = await self._query(REQUESTS_SINCE_SQL, {"ip": ip, "since": since}, True)
-        return int(row[0]) if row else 0
+        return int(scalar(row, "requests") or 0)
 
     async def strike(
         self, ip: str, blocked_until: datetime, now: datetime, window_start: datetime
     ) -> int:
         params = _strike_params(ip, blocked_until, now, window_start)
         row = await self._query(STRIKE_SQL, params, True)
-        return int(row[0]) if row else 1
+        return int(scalar(row, "strikes") or 1)
 
     async def ban(self, ip: str, reason: str) -> None:
         await self._query(BAN_SQL, {"ip": ip, "reason": reason}, False)
@@ -387,18 +387,18 @@ class AsyncPostgresRateLimitStore:
 
     async def blocked_until(self, ip: str) -> datetime | None:
         row = await self._query(BLOCKED_UNTIL_SQL, {"ip": ip}, True)
-        return row[0] if row else None
+        return cast(datetime | None, scalar(row, "blocked_until"))
 
     async def requests_since(self, ip: str, since: datetime) -> int:
         row = await self._query(REQUESTS_SINCE_SQL, {"ip": ip, "since": since}, True)
-        return int(row[0]) if row else 0
+        return int(scalar(row, "requests") or 0)
 
     async def strike(
         self, ip: str, blocked_until: datetime, now: datetime, window_start: datetime
     ) -> int:
         params = _strike_params(ip, blocked_until, now, window_start)
         row = await self._query(STRIKE_SQL, params, True)
-        return int(row[0]) if row else 1
+        return int(scalar(row, "strikes") or 1)
 
     async def ban(self, ip: str, reason: str) -> None:
         await self._query(BAN_SQL, {"ip": ip, "reason": reason}, False)
