@@ -1,6 +1,6 @@
 # lasteverLM
 
-[![Keep the Why](https://keepthewhy.com/assets/badge.svg)](https://keepthewhy.com)
+[![Keep the Why](https://keepthewhy.com/assets/badge.svg)](https://keepthewhy.com) [![Keep the Why · live](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/badge-entries.svg)](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/) [![ci](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml) [![ktw-lint](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml)
 
 A NotebookLM-style assistant: upload documents, ask questions, get cited answers.
 
@@ -24,6 +24,7 @@ workflows. Each service is a directory with its own `context/`:
 - [Repository standard](docs/repository-standard.md)
 - [Why it is built this way](context/index.md)
 - [Open work](TASKS.md)
+- [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), [Code of conduct](CODE_OF_CONDUCT.md)
 
 Everything runs on one Vultr account: a Kubernetes cluster, Managed
 PostgreSQL with pgvector, Object Storage and Serverless Inference for
@@ -42,7 +43,7 @@ and merging and a human testing the result. The reasoning behind each
 decision is recorded next to the code with
 [Keep the Why](https://keepthewhy.com).
 
-Status: skeleton. Nothing runs yet.
+Status: the services exist and pass their checks; the first deployment is pending the cluster. The reasoning behind every decision is browsable in the [live dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
 
 ## License
 

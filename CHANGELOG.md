@@ -8,6 +8,7 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Added
 
+- Root `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.dockerignore`; live dashboard badge and `dashboard-state`.
 - Architecture v2: one repository with isolated Keep the Why contexts per service, containers only, Helm chart with automatic deploy on a tag, PostgreSQL as the job queue for the workers, rate limiting with blocks and bans, access log.
 - Architecture v1 and v1.1: generated outputs (report, quiz, table, mind map, infographic, audio), sharing, ask-about-this, runtime contract; all-Vultr platform, six repositories, data model, API contract for account, ingest and rag, configuration, deployment, extension points.
 - Agent working conventions in `AGENTS.md`, task board in `TASKS.md`.
