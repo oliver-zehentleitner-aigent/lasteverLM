@@ -29,6 +29,12 @@ repository root's `context/`.
 
 ## C
 
+- [citations.md](citations.md) — citations are mapped by the service, not the model; what happens to markers that name no passage, and why the refusal skips the model
+
+- [contracts.md](contracts.md) — why the shared contract types are mirrored locally until the core library ships
+
+- [credit.md](credit.md) — the credit check before any provider call, and how usage is priced while the core library is pending
+
 ## D
 
 ## E
@@ -53,7 +59,11 @@ repository root's `context/`.
 
 ## O
 
+- [outputs.md](outputs.md) — generated documents: what a generator sees, why a ready output becomes a generated source, the outputs table as the worker's job queue, and why audio fails visibly
+
 ## P
+
+- [persistence.md](persistence.md) — why a question and its answer are written together, after the answer exists
 
 ## Q
 
