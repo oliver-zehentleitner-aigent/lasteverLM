@@ -66,7 +66,7 @@ afterwards the admin panel owns the value.
 
 ```bash
 cd account
-uv venv && uv pip install -e '.[dev]'
+make install        # uv sync --all-extras: creates .venv, idempotent
 make run-dev
 ```
 
@@ -91,7 +91,7 @@ migrations applied.
 ## Test
 
 ```bash
-make check          # ruff, mypy, pytest
+make check          # install, then ruff, mypy, pytest; works on a fresh checkout
 ```
 
 The unit tests run against the in-memory repository and need no

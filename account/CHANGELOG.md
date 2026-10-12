@@ -11,6 +11,7 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- `make install` (`uv sync --all-extras`, idempotent); `make check` depends on it and works on a fresh checkout.
 - Access control for admins: current blocks, bans with lifting, the access log written by core's rate-limit middleware.
 - Admin backend: SMTP and domain settings, users, logins, vouchers, visitor statistics per day and path.
 - Credits: single-use vouchers, ledger, balance as ledger minus usage.
