@@ -25,6 +25,10 @@ repository root's `context/`.
 
 ## A
 
+- [admin-settings.md](admin-settings.md) — environment values seed the settings table once, and why the SMTP password is stored in plain text for now
+
+- [auth.md](auth.md) — the core mirror in `contracts.py`, admin addresses bypassing the allowlist, shape-only e-mail validation, the demo user's special status
+
 ## B
 
 ## C
@@ -55,11 +59,15 @@ repository root's `context/`.
 
 ## P
 
+- [privacy.md](privacy.md) — visitor hashing with an in-memory daily salt, browser family only, retention at service start
+
 ## Q
 
 ## R
 
 ## S
+
+- [storage.md](storage.md) — one repository interface with PostgreSQL and in-memory implementations, atomic operations as single calls
 
 ## T
 

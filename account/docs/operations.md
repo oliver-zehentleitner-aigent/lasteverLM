@@ -1,0 +1,55 @@
+# Operations
+
+## Configuration
+
+All configuration comes from the environment; the service refuses to start
+when a required value is missing. `.env.example` lists every variable.
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `DATABASE_URL` | yes | PostgreSQL connection string, the shared database |
+| `AUTH_JWT_SECRET` | yes | HS256 secret for session tokens, shared with ingest and rag |
+| `PUBLIC_BASE_URL` | yes | base of the link in the sign-in mail |
+| `DEMO_TOKEN` | no | shared demo token; unset in production |
+| `ADMIN_EMAILS` | no | comma-separated admin addresses, may log in regardless of the allowlist |
+| `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist in the settings table, first start only |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | seed for the SMTP settings, first start only |
+| `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
+
+Seeds are written to the `settings` table only when the key does not
+exist yet. After that the admin panel is the source of truth; changing
+the environment variable has no effect.
+
+## First start on a fresh database
+
+1. Apply `db/migrations/*.sql` in order (`make migrate` in `infra/` does this for every service; core's tables come first).
+2. Start the service with `AUTH_ALLOWED_DOMAINS` and `ADMIN_EMAILS` set, or with the SMTP seed, so the first admin can request a link. The first user who logs in becomes admin anyway; the demo user does not count.
+3. Log in, open the admin panel, check `PUT /admin/settings/smtp` and `POST /admin/settings/smtp/test`.
+
+## Health
+
+`GET /healthz` (also under `/api/account/`) runs `select 1` against the database and
+answers `{"status": "ok"}`. The Kubernetes probe uses the root path.
+
+## Behind the ingress
+
+The service trusts the first entry of `X-Forwarded-For` for the visitor
+hash (`TRUST_PROXY_HEADERS=true`). Set it to `false` when the service is
+reachable without a trusted reverse proxy in front, otherwise a caller can
+choose the address that is hashed.
+
+## Retention and cleanup
+
+At every start the service deletes visitor-log rows older than
+`VISIT_RETENTION_DAYS` and expired magic links. There is no background
+scheduler; a deployment that runs for months without a restart keeps
+rows longer than the retention window. Restart the pod, or add a CronJob
+that restarts it, if that matters.
+
+## Local run without PostgreSQL
+
+The unit tests use the in-memory repository. To run the HTTP API against
+it for a manual look, write a small script that calls
+`create_app(settings=..., repository=MemoryRepository(), mailer=...)`;
+the production entrypoint `lasteverlm_account.main:app` always uses
+PostgreSQL.
