@@ -11,6 +11,8 @@ psql "$DATABASE_ADMIN_URL" -v ON_ERROR_STOP=1 -q -X -v user="$user" -v pw="$APP_
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'user', :'pw')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'user') \gexec
 SELECT format('ALTER ROLE %I WITH PASSWORD %L', :'user', :'pw') \gexec
+-- the admin runs migrations as the application role (SET ROLE) so that it owns its tables
+SELECT format('GRANT %I TO CURRENT_USER', :'user') \gexec
 SQL
 psql "$DATABASE_ADMIN_URL" -v ON_ERROR_STOP=1 -q -X -v user="$user" -v db="$db" <<'SQL'
 SELECT format('CREATE DATABASE %I OWNER %I', :'db', :'user')

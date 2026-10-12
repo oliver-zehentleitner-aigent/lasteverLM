@@ -5,7 +5,11 @@
 # A file is recorded in schema_migrations as "<service>/NNNN_<topic>" so the
 # per-repository numbering cannot collide. Files may use the psql variable
 # :EMBEDDING_DIMENSION (e.g. vector(:EMBEDDING_DIMENSION)).
-# Needs: psql on the path, DATABASE_URL; optional EMBEDDING_DIMENSION (1536).
+# The connection is the admin role (extensions need it); every service's
+# migration runs under SET ROLE $MIGRATE_APP_ROLE so that the application
+# role owns its tables. The admin must be a member of that role (bootstrap.sh).
+# Needs: psql on the path, DATABASE_URL; optional EMBEDDING_DIMENSION (1536),
+# MIGRATE_APP_ROLE (lasteverlm), MIGRATE_ORDER.
 # Usage: migrate.sh <root>
 set -eu
 
@@ -13,10 +17,12 @@ root=${1:?usage: migrate.sh <root>}
 : "${DATABASE_URL:?DATABASE_URL is not set}"
 order=${MIGRATE_ORDER:-"infra core account ingest rag"}
 dim=${EMBEDDING_DIMENSION:-1536}
+app_role=${MIGRATE_APP_ROLE:-lasteverlm}
 
 psql_q() { psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v EMBEDDING_DIMENSION="$dim" -q -X -t -A "$@"; }
+set_role="SET ROLE \"$app_role\""
 
-psql_q -c "CREATE TABLE IF NOT EXISTS schema_migrations (
+psql_q -c "$set_role" -c "CREATE TABLE IF NOT EXISTS schema_migrations (
     version    text PRIMARY KEY,
     applied_at timestamptz NOT NULL DEFAULT now()
 )"
@@ -36,7 +42,11 @@ for svc in $order; do
             continue
         fi
         echo "applying $v"
-        psql_q --single-transaction -f "$f" -c "INSERT INTO schema_migrations (version) VALUES ('$v')"
+        if [ "$svc" = infra ]; then
+            psql_q --single-transaction -f "$f" -c "INSERT INTO schema_migrations (version) VALUES ('$v')"
+        else
+            psql_q --single-transaction -c "$set_role" -f "$f" -c "INSERT INTO schema_migrations (version) VALUES ('$v')"
+        fi
         count=$((count + 1))
     done
 done
