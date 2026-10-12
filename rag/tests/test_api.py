@@ -68,6 +68,18 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
     assert all((user, nb) == (str(DEMO_USER_ID), NOTEBOOK) for user, nb, _ in store.usage)
 
 
+def test_ask_with_empty_model_content_is_a_502_and_stores_nothing(settings):
+    store = FakeStore()
+    client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), FakeLLM("  \n"))
+
+    r = client.post(ASK, json={"question": "q"}, headers=AUTH)
+
+    assert r.status_code == 502
+    assert r.json() == {"error": "the model did not answer; please try again"}
+    assert store.messages == []
+    assert [u.kind for _, _, u in store.usage] == ["embedding", "llm"]  # the tokens were spent
+
+
 def test_ask_refuses_when_nothing_passes_the_floor(settings):
     store = FakeStore()
     llm = FakeLLM("should never be called")
