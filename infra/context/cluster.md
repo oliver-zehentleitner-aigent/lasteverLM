@@ -114,3 +114,30 @@ one place keeps the versions reviewable in a diff.
 values need overriding, rejected because it would be the only reason to
 install Helm and would add release state to manage.
 
+## Domain, ACME e-mail and registry host are substituted into the manifests by the Makefile
+
+**Id:** dec25659-4f61-4d6e-af03-af8d42ad992f
+**Type:** decision
+**Status:** superseded
+**Superseded by:** 6d81fc15-6bae-4e67-960d-8f6a34a3f640
+**Evidence:** confirmed
+**Source:** infra design session, 2026-10-12
+**Revisit when:** more than these three values differ between deployments
+
+`k8s/ingress.yaml` and `k8s/cluster-issuer.yaml` carry the tokens
+`__DOMAIN__` and `__ACME_EMAIL__`, the Deployments carry `__REGISTRY__`
+in their image names; `make deploy` copies `k8s/` to `build/k8s/`,
+replaces them from the environment, and applies the rendered copy. The committed manifests stay valid YAML that
+`kubectl kustomize` builds in `make check`.
+
+**Reason:** exactly three values are deployment-specific, and all are
+public. The registry host is a token rather than a fixed string because
+the choice between ghcr.io and Vultr Container Registry is still open
+in the parent's `context/`; the manifests must not pre-empt it. A visible `sed` on a copy is easier to audit than a templating
+engine, and the rendered output is kept in `build/` for inspection.
+
+**Rejected alternatives:** Kustomize replacements or a per-environment
+overlay — correct, but an overlay per domain for two strings is more
+structure than the project has environments; Helm — see the entry
+above.
+
