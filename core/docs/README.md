@@ -106,16 +106,33 @@ client = make_client(inference)
 embedder = OpenAICompatibleEmbedder(
     client, inference.embedding_model, inference.embedding_dimension
 )
-llm = OpenAICompatibleLLM(client, inference.llm_model)
+llm = OpenAICompatibleLLM(client, inference.llm_model, max_tokens=inference.llm_max_tokens)
 
 result = embedder.embed(["text"])  # EmbeddingResult(vectors, usage)
-answer = llm.complete(system, user, 400)  # CompletionResult(text, usage)
+answer = llm.complete(system, user, 400)  # CompletionResult(text, usage, finish_reason)
+draft = llm.complete(system, user, 2000, thinking=True)
 ```
 
-Both raise `ProviderError` on a failed request, a vector of the wrong
-dimension or an empty answer. The `usage` of a result goes straight into
-`record_usage`. Another provider is another module implementing
-`Embedder` or `LLM`; callers are typed against the protocols.
+The embedder sends `dimensions=EMBEDDING_DIMENSION` on every call and
+raises `ProviderError` when a vector of another width comes back: the
+platform's embedding model is natively wider than pgvector can index,
+and the OpenAI `dimensions` parameter is how it is told the width.
+
+The language model on the platform is a reasoning model. Left alone it
+spends the completion budget on thinking and returns empty content when
+`max_tokens` is small, so `complete` sends the thinking switch off
+unless the instance or the call says `thinking=True`; `thinking_body`
+is the request fragment it adds. With thinking off, an empty answer is
+a `ProviderError` (its message carries the `finish_reason`); with
+thinking on, the result is returned as is and the caller reads
+`finish_reason` (`"length"` means the budget ran out). `max_tokens`
+falls back to the instance default, `LLM_MAX_TOKENS` (1024). Reasoning
+tokens are completion tokens and are billed as such through `usage`.
+
+Both raise `ProviderError` on a failed request. The `usage` of a result
+goes straight into `record_usage`. Another provider is another module
+implementing `Embedder` or `LLM`; callers are typed against the
+protocols.
 
 ## Migrations
 

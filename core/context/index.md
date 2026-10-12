@@ -60,6 +60,7 @@ repository root's `context/`.
 ## P
 - [packaging.md](packaging.md) — why services install core by path from the same checkout instead of a uv workspace, a lockfile or a published package
 - [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why the shipped default prices are empty
+- [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours
 
 ## Q
 

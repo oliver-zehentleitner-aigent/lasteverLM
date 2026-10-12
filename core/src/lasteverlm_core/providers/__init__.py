@@ -10,13 +10,16 @@ from .base import (
     Usage,
 )
 from .openai_compat import (
+    DEFAULT_MAX_TOKENS,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
     OpenAICompatibleTextToSpeech,
     make_client,
+    thinking_body,
 )
 
 __all__ = [
+    "DEFAULT_MAX_TOKENS",
     "LLM",
     "CompletionResult",
     "Embedder",
@@ -28,4 +31,5 @@ __all__ = [
     "TextToSpeech",
     "Usage",
     "make_client",
+    "thinking_body",
 ]

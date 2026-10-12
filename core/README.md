@@ -17,7 +17,7 @@ the three services share:
 | `lasteverlm_core.usage` | `record_usage`, `balance_cents` (sync psycopg) and `arecord_usage`, `abalance_cents` (async); the SQL as constants |
 | `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge`, `lift_ban` |
 | `lasteverlm_core.chunking` | `TokenWindowChunker` with `Passage` and `Chunk`: the 800/100 token windows both ingest (sources) and rag (generated documents) embed |
-| `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations |
+| `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations; embeddings request `EMBEDDING_DIMENSION`, completions run with reasoning off unless asked (`thinking=True`) |
 | `lasteverlm_core.settings` | `env_required`, `env_optional`, `env_int`, `InferenceSettings.from_env`, `load_model_prices`; every miss is a `ConfigError` at startup |
 | `db/migrations/` | `usage`, `access_log`, `ip_blocks`, `ip_bans`; applied by infra after its own migrations and before the services' |
 
@@ -119,7 +119,8 @@ invalid value.
 | `AUTH_JWT_SECRET` | `AuthSettings.from_env` | HS256 secret the account service signs session tokens with; verified by every service |
 | `DEMO_TOKEN` | `AuthSettings.from_env` | shared demo token resolving to the demo user; unset in production. At least one of the two is required |
 | `INFERENCE_BASE_URL`, `INFERENCE_API_KEY` | `InferenceSettings.from_env` | OpenAI-compatible API; the URL defaults to Vultr Serverless Inference |
-| `LLM_MODEL`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | `InferenceSettings.from_env` | the models; dimension defaults to 1536 and must match `chunks.embedding` |
+| `LLM_MODEL`, `LLM_MAX_TOKENS` | `InferenceSettings.from_env` | the language model and the default completion budget (1024) |
+| `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | `InferenceSettings.from_env` | the embedding model and the vector width requested from it on every call (default 1536; the deployment uses 1024, below pgvector's 2000-dimension index limit); must match `chunks.embedding` |
 | `MODEL_PRICES` | `load_model_prices` | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`, merged over the defaults in `pricing.py` (empty until the platform's models are known, so every deployment sets it) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3 |
 | `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |

@@ -39,6 +39,8 @@ class EmbeddingResult:
 class CompletionResult:
     text: str
     usage: Usage
+    # "stop" when the model finished, "length" when max_tokens cut it off.
+    finish_reason: str | None = None
 
 
 class Embedder(Protocol):
@@ -55,7 +57,14 @@ class LLM(Protocol):
     @property
     def model(self) -> str: ...
 
-    def complete(self, system: str, user: str, max_tokens: int) -> CompletionResult: ...
+    def complete(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int | None = None,
+        *,
+        thinking: bool | None = None,
+    ) -> CompletionResult: ...
 
 
 class TextToSpeech(Protocol):
