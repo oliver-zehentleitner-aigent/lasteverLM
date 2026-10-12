@@ -21,6 +21,7 @@ from .auth import (
     issue_jwt,
     verify_jwt,
 )
+from .chunking import TOKEN, Chunk, Chunker, Passage, TokenWindowChunker
 from .models import (
     DEMO_USER_EMAIL,
     DEMO_USER_ID,
@@ -106,6 +107,7 @@ __all__ = [
     "JWT_ISSUER",
     "JWT_TTL",
     "LLM",
+    "TOKEN",
     "USAGE_SQL",
     "AccessLogEntry",
     "AdminUser",
@@ -113,6 +115,8 @@ __all__ = [
     "AuthError",
     "AsyncPostgresRateLimitStore",
     "AuthSettings",
+    "Chunk",
+    "Chunker",
     "Citation",
     "CompletionResult",
     "ConfigError",
@@ -130,6 +134,7 @@ __all__ = [
     "OpenAICompatibleLLM",
     "OpenAICompatibleTextToSpeech",
     "Output",
+    "Passage",
     "OutputKind",
     "OutputStatus",
     "PostgresRateLimitStore",
@@ -145,6 +150,7 @@ __all__ = [
     "SourceStatus",
     "TextToSpeech",
     "TokenClaims",
+    "TokenWindowChunker",
     "UnpricedModelError",
     "Usage",
     "UsageKind",

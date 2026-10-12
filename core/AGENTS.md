@@ -23,6 +23,7 @@ src/lasteverlm_core/
 ├── auth.py          current_user, issue_jwt, verify_jwt, AuthSettings
 ├── pricing.py       ModelPrice, parse_model_prices, cost_cents, require_prices
 ├── usage.py         record_usage, balance_cents (+ async), SQL constants
+├── chunking.py      Passage, Chunk, TokenWindowChunker (800/100) shared by ingest and rag
 ├── ratelimit.py     rules, ASGI middleware, PostgreSQL and memory stores, purge, lift_ban
 └── providers/       Embedder, LLM, TextToSpeech interfaces; OpenAI-compatible implementations
 db/migrations/       usage; access_log, ip_blocks, ip_bans
