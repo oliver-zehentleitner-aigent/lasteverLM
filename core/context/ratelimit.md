@@ -30,3 +30,27 @@ counter must be reset by someone.
 **Rejected alternative:** in-memory counters per pod. Fastest, rejected
 because the API services run with at least two replicas behind one
 ingress and a limit per pod is a limit multiplied by the replica count.
+
+## Plain ASGI middleware, not a Starlette base class
+
+**Id:** b36407f7-b2e7-4f00-9209-0e7c49150934
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** core design, 2026-10-12
+**Revisit when:** the middleware needs to read or rewrite the request body
+
+`RateLimitMiddleware` implements the ASGI callable directly and wraps
+`send` to learn the response status. It depends on `anyio` for running
+the sync store in a worker thread, not on Starlette or FastAPI.
+
+**Reason:** the middleware has to run the blocking PostgreSQL driver
+without stalling the event loop and has to see the final status code of
+every response, including streamed ones; the plain protocol gives both
+with a few lines. Keeping web frameworks out of core means the library
+installs into a worker process that has no HTTP server at all.
+
+**Rejected alternative:** Starlette's `BaseHTTPMiddleware`. Shorter to
+write, rejected because it buffers responses, has known interactions
+with streaming and background tasks, and would make FastAPI a
+dependency of a library two of whose users are workers.
