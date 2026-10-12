@@ -9,6 +9,11 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- `make check` installs first (`make install`, `uv sync --all-extras`), so it runs on a fresh checkout and in CI.
+- The migration no longer opens its own transaction; the migrations runner wraps each file in one.
+
 ### Added
 
 - Credit check before storing, embedding and summarizing; 402 `credit exhausted` when the balance is zero.

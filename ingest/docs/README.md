@@ -14,9 +14,10 @@ by the rag service when it indexes a finished output, and this service
 lists and deletes them like any other source but never loads them. The
 migration is
 [`db/migrations/0001_ingest.sql`](../db/migrations/0001_ingest.sql), plain
-SQL for psql, one transaction per file, applied by infra's `make migrate`
-after infra's extensions migration and core's migration. An applied file
-is never edited; a change is a new numbered file. The embedding dimension
+SQL for psql, applied by infra's `make migrate` after infra's extensions
+migration and core's migration; the runner wraps each file in one
+transaction, so the file has no `begin`/`commit` of its own. An applied
+file is never edited; a change is a new numbered file. The embedding dimension
 is a psql variable:
 
 ```bash

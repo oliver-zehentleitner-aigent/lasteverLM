@@ -2,9 +2,10 @@
 -- Applied by infra's `make migrate` after infra's extensions migration
 -- (which creates the `vector` extension; services never create extensions,
 -- the application role has no right to) and core's migration (`usage`).
--- One transaction per file; an applied file is never edited, a change is
--- a new numbered file. The embedding dimension is a psql variable so it
--- follows EMBEDDING_DIMENSION:
+-- The runner applies each file in one transaction (psql
+-- --single-transaction), so the file carries no begin/commit of its own.
+-- An applied file is never edited, a change is a new numbered file. The
+-- embedding dimension is a psql variable so it follows EMBEDDING_DIMENSION:
 --   psql "$DATABASE_URL" -v EMBEDDING_DIMENSION="$EMBEDDING_DIMENSION" -f 0001_ingest.sql
 -- Without the variable it defaults to 1536.
 
@@ -12,8 +13,6 @@
 \else
 \set EMBEDDING_DIMENSION 1536
 \endif
-
-begin;
 
 create table if not exists notebooks (
     id          uuid primary key,
@@ -54,5 +53,3 @@ create table if not exists chunks (
 -- service's needs and is added by a later migration once data volume asks for it.
 create index if not exists chunks_notebook_idx on chunks (notebook_id);
 create index if not exists chunks_source_idx on chunks (source_id, idx);
-
-commit;
