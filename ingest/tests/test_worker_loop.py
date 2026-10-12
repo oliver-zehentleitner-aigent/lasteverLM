@@ -1,6 +1,7 @@
 import threading
 
-from lasteverlm_ingest.chunking import TokenWindowChunker
+from lasteverlm_core import TokenWindowChunker
+
 from lasteverlm_ingest.loaders import default_registry
 from lasteverlm_ingest.worker import WorkerDeps, run_worker
 from tests.conftest import make_settings

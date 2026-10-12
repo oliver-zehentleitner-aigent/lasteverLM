@@ -19,9 +19,8 @@ import threading
 from dataclasses import dataclass
 from uuid import UUID
 
-from lasteverlm_core import Embedder, ProviderError
+from lasteverlm_core import Chunker, Embedder, ProviderError
 
-from lasteverlm_ingest.chunking import Chunker
 from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.loaders import LoaderError, LoaderRegistry
 from lasteverlm_ingest.repository import Repository, StoredSource

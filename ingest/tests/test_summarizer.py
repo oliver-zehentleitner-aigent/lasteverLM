@@ -1,4 +1,5 @@
-from lasteverlm_ingest.loaders import Passage
+from lasteverlm_core import Passage
+
 from lasteverlm_ingest.summarizer import head_text
 
 

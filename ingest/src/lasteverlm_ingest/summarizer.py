@@ -9,14 +9,9 @@ prompt on top of core's `LLM` interface; the provider is whatever core's
 
 from __future__ import annotations
 
-import re
 from typing import Protocol
 
-from lasteverlm_core import LLM, CompletionResult, ProviderError
-
-from lasteverlm_ingest.loaders import Passage
-
-_TOKEN = re.compile(r"\w+|[^\w\s]", re.UNICODE)
+from lasteverlm_core import LLM, TOKEN, CompletionResult, Passage, ProviderError
 
 SYSTEM_PROMPT = (
     "You summarize documents for a research notebook. Write one paragraph, "
@@ -41,7 +36,7 @@ def head_text(passages: list[Passage], max_tokens: int) -> str:
     for passage in passages:
         if remaining <= 0:
             break
-        tokens = list(_TOKEN.finditer(passage.text))
+        tokens = list(TOKEN.finditer(passage.text))
         if len(tokens) <= remaining:
             parts.append(passage.text.strip())
             remaining -= len(tokens)
