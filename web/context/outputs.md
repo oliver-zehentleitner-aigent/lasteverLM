@@ -45,3 +45,17 @@ visualization to maintain.
 **Rejected alternative:** importing markmap statically. Rejected because
 it would more than double the initial download for a feature most page
 loads never use.
+
+## A citation into a generated document is matched to its tab by title
+
+**Id:** cc84ab20-2a74-4b74-8eb8-81114446b0d2
+**Type:** workaround
+**Status:** superseded
+**Superseded by:** 76c108f7-ef87-4bca-b779-83c9b0a56e4d
+**Evidence:** confirmed
+**Source:** implementation decision, 2026-10-12, against API contract v1.1
+
+Before the contract gave an output a reference to its generated source,
+the frontend found the tab for a citation with `source_kind: generated`
+by comparing the source name with the output title. Replaced the same
+day once `Output.source_id` was added to the contract; see below.
