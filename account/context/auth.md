@@ -49,3 +49,28 @@ default for a service whose whole purpose is to restrict who gets in.
 the first login always works — rejected because a configuration mistake
 would silently turn the deployment public, and the project's stance is
 to fail loudly rather than serve on.
+
+## E-mail addresses are validated for shape only, not deliverability
+
+**Id:** 29549d0f-a478-4bfe-b909-6270ee999e00
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** implementation, 2026-10-12
+
+Request bodies accept any string of the form `local@domain` without
+whitespace (`models.Email`); pydantic's `EmailStr` with the
+`email-validator` package is not used.
+
+**Reason:** `email-validator` rejects reserved and special-use names
+such as `.test`, `.invalid` and `localhost`. The family contract seeds
+the demo user as `demo@localhost`, and the test suite uses reserved
+domains on purpose so no real address can ever receive a test mail; both
+would be refused. Whether an address can receive mail is decided by the
+SMTP server when the link is sent, and the allowlist decides whether it
+may log in — a stricter syntax check in between adds a dependency and
+removes nothing an attacker could use.
+
+**Rejected alternative:** `EmailStr` with the `email-validator`
+dependency — the obvious choice, rejected for the reasons above after it
+broke the first test run.
