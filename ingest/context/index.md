@@ -25,9 +25,14 @@ repository root's `context/`.
 
 ## A
 
+- [accounting.md](accounting.md) — why an embedding model without a price fails the start instead of being billed at zero
+
 ## B
 
 ## C
+
+- [chunking.md](chunking.md) — why chunks are counted in regex tokens rather than a model tokenizer, and how windows cross pages
+- [core.md](core.md) — the shared library is not published yet; what is mirrored locally and how the swap happens
 
 ## D
 
@@ -68,6 +73,8 @@ repository root's `context/`.
 ## V
 
 ## W
+
+- [worker.md](worker.md) — polling and stale-claim takeover on the database queue, why the request handler stores the file, and why a failed summary fails the source
 
 ## X
 
