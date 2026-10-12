@@ -63,3 +63,31 @@ is meant to show. A queue outside Postgres (Redis, RabbitMQ) was not
 taken: the job table is already there and one fewer stateful component
 is one fewer thing to run.
 
+## Rate limiting is layered: per-IP at the ingress, blocks and bans in the services
+
+**Id:** ebb35afa-f816-4977-b79a-bb81094e297e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the family coordinator, 2026-10-12
+**Revisit when:** the edge limits fire on legitimate traffic (uploads from one office), or the controller is replaced
+
+The Ingress carries ingress-nginx's `limit-rps`,
+`limit-burst-multiplier` and `limit-connections` annotations
+(values in the chart) as the coarse layer: it caps what any one address
+can send before a request reaches a pod. The fine layer — per-user
+limits, temporary blocks, bans — is a middleware in the core library,
+where the user is known. The controller writes its access log as JSON
+(`platform/ingress-nginx.values.yaml`) so both layers can be read with
+the same tools.
+
+**Reason:** the edge layer needs no code and protects the services
+from a flood they would otherwise have to absorb; the application layer
+knows identities, credits and history, which the edge never will. Each
+layer does what only it can.
+
+**Rejected alternative:** all limiting in the application — simpler to
+reason about in one place, rejected because by then every request has
+already cost a pod and a database connection.
+
+
