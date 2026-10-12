@@ -23,3 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Two-column workspace per notebook: sources and output tiles left, viewer and chat right.
 - Unit tests for citation markers, table sorting and CSV export, quiz answer keys and the mind map outline.
 - Wizard for adding sources in three steps (what goes in, how it gets in, what should come out), opened for a new notebook and from the sources list.
+
+### Changed
+
+- `make check`, `make run` and `make build` install dependencies first through `make install`, so they work on a fresh checkout.

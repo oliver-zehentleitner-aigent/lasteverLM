@@ -1,8 +1,9 @@
 const KEY = 'lasteverlm.token'
 
-/** The bearer token sent with every request. What it is (Supabase JWT or
- *  demo token) is an open family decision; the frontend only stores and
- *  forwards it. Kept in localStorage so a reload does not log the user out. */
+/** The bearer token sent with every request: the JWT the account service
+ *  issues after a magic link, or the demo token in development. The
+ *  frontend only stores and forwards it. Kept in localStorage so a reload
+ *  does not log the user out. */
 export function getToken(): string {
   try {
     return localStorage.getItem(KEY) ?? ''

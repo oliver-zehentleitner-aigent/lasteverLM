@@ -1,7 +1,14 @@
-# Same targets in every repository of the family: check, run, build.
-.PHONY: check lint typecheck test run build image
+# Same targets in every directory of the repository: check, run, build.
+# Every target works on a fresh checkout: check and build install first.
+.PHONY: install check lint typecheck test run build image
 
-check: lint typecheck test
+install: node_modules/.package-lock.json
+
+node_modules/.package-lock.json: package.json package-lock.json
+	npm ci
+	@touch $@
+
+check: install lint typecheck test
 
 lint:
 	npm run lint
@@ -12,10 +19,10 @@ typecheck:
 test:
 	npm test
 
-run:
+run: install
 	npm run dev
 
-build:
+build: install
 	npm run build
 
 image:

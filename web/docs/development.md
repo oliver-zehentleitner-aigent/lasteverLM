@@ -9,9 +9,8 @@ shows the API's error messages when the prefixes are not reachable.
 ## Local run
 
 ```sh
-npm ci
 cp .env.example .env.local
-make run          # vite dev server on http://localhost:5173
+make run          # npm ci if needed, then the vite dev server on http://localhost:5173
 ```
 
 `.env.local` sets `VITE_DEV_PROXY`; the dev server then forwards `/api/*`
@@ -42,7 +41,8 @@ the same proxy target.
 
 | Command | What |
 |---|---|
-| `make check` | all three below, what CI runs |
+| `make install` | `npm ci`, skipped when `node_modules` is current |
+| `make check` | install, then the three below; what CI runs |
 | `npm run lint` | oxlint, warnings are errors |
 | `npm run typecheck` | `tsc -b` over app and config |
 | `npm test` | vitest, the pure functions in `src/lib/` |

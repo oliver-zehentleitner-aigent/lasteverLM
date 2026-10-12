@@ -35,10 +35,12 @@ Build-time only; the app holds no secrets.
 ## Run locally
 
 ```sh
-npm ci
 cp .env.example .env.local            # VITE_DEV_PROXY=http://localhost:8000
-make run                              # http://localhost:5173
+make run                              # installs with npm ci, then http://localhost:5173
 ```
+
+`make install` runs `npm ci` on its own; `check`, `run` and `build`
+depend on it, so every target works on a fresh checkout.
 
 With the account service's dev server on `:8000` (`make run-dev` in
 `../account`), the login page works end to end: the sign-in link
@@ -85,4 +87,4 @@ src/
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see the repository's [LICENSE](../LICENSE).
