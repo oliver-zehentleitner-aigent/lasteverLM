@@ -142,6 +142,20 @@ def test_output_fails_cleanly_and_leaves_no_half_indexed_source(settings):
     assert not [s for s in store.sources.values() if s["kind"] == "generated"]
 
 
+def test_empty_model_content_is_retried_as_a_provider_failure(settings):
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "a.txt", summary="s")
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM("", "", REPORT))
+
+    output_id = client.post(OUTPUTS, json={"kind": "report"}, headers=AUTH).json()["id"]
+    assert client.worker.run_once() == 0  # two attempts this pass, both empty, released
+    row = store.outputs[output_id]
+    assert (row["status"], row["attempts"]) == ("processing", 2)
+    assert row["error"] == "report: the model returned no content"
+    assert client.worker.run_once() == 1  # third attempt gets content
+    assert client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()["status"] == "ready"
+
+
 def test_output_without_ready_sources_fails(settings):
     store = FakeStore()
     store.add_source(NOTEBOOK, "broken.pdf", status="failed")

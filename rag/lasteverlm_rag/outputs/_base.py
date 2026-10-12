@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from lasteverlm_core import OutputKind
+from lasteverlm_core import OutputKind, ProviderError
 from pydantic import BaseModel, ValidationError
 
 from ..models import GeneratedOutput, Passage, SourceSummary
@@ -54,6 +54,10 @@ class JsonGenerator:
                 else f"{user}\n\nYour previous answer was invalid: {last_error}"
             )
             text = complete(system, prompt, self.max_tokens).text
+            if not text.strip():
+                # no content at all is a provider failure (e.g. a reasoning model that spent
+                # its budget on thinking), not a schema miss: the worker retries it
+                raise ProviderError(f"{self.kind}: the model returned no content")
             try:
                 document = self.schema.model_validate(parse_json(text))
             except (ValueError, ValidationError) as exc:

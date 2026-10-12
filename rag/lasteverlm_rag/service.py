@@ -20,6 +20,7 @@ from lasteverlm_core import (
     Message,
     Output,
     OutputKind,
+    ProviderError,
     SharedOutput,
     TokenWindowChunker,
 )
@@ -110,6 +111,10 @@ class RagService:
                 ANSWER_SYSTEM_PROMPT, render_answer_prompt(question, passages), ANSWER_MAX_TOKENS
             )
             self._store.record_usage(user_id, notebook_id, completion.usage)
+            if not completion.text.strip():
+                # A reasoning model can spend the whole budget on thinking and return no
+                # content; that is a provider failure, never a stored (empty) answer.
+                raise ProviderError("the model returned no answer")
             answer, citations = map_citations(completion.text, passages)
         else:
             # Nothing relevant: say so without asking the model, so the answer can
