@@ -2,7 +2,7 @@
 
 ## No database driver in core: structural connection types, sync and async
 
-**Id:** 
+**Id:** fbe7da09-b351-4102-981f-ee4d2f5593c4
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
@@ -33,18 +33,3 @@ connection class.
 connections. Rejected because each service already has its pool and its
 transaction boundaries; a second pool would double connections on the
 managed database and blur who commits.
-
-## usage has no foreign keys
-
-**Id:** 
-**Type:** constraint
-**Status:** active
-**Evidence:** confirmed
-**Source:** parent docs/architecture.md, migration order infra, core, account, ingest, rag; core design 2026-10-12
-**Revisit when:** the migration order changes, or a deletion must cascade into usage
-
-`usage.user_id` and `usage.notebook_id` reference nothing. Core's
-migration runs before account creates `users` and before ingest creates
-`notebooks`, so a constraint could not be declared there; and a deleted
-notebook must keep what it cost, because the balance is computed from
-these rows. The admin panel joins by id and tolerates a missing notebook.

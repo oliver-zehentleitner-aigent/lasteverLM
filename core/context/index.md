@@ -31,6 +31,7 @@ repository root's `context/`.
 ## C
 
 ## D
+- [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys
 
 ## E
 
