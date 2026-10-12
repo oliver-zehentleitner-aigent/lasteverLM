@@ -65,6 +65,8 @@ repository root's `context/`.
 
 ## S
 
+- [storage.md](storage.md) — one repository interface with PostgreSQL and in-memory implementations, atomic operations as single calls
+
 ## T
 
 ## U
