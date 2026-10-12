@@ -18,12 +18,12 @@ machine.
 
 | Path | Purpose |
 |---|---|
-| `tofu/` | OpenTofu configuration: VKE cluster, Managed PostgreSQL, Object Storage |
+| `tofu/` | OpenTofu configuration: VKE cluster and Object Storage (the managed PostgreSQL is created by the maintainer and taken as an input) |
 | `chart/` | The Helm chart: ConfigMap, API and worker Deployments with autoscalers, Services, Ingress with rate limiting, ClusterIssuer, migration hook |
 | `platform/` | Values for the platform charts: ingress-nginx (JSON access log), cert-manager, metrics-server |
 | `db/migrations/` | Infra-owned SQL (extensions); the services' own migrations are collected at deploy time |
-| `db/migrate.sh` | The migration runner that the chart's hook Job executes |
-| `scripts/` | `values.py`, which turns the environment into the chart's values file |
+| `db/migrate.sh`, `db/bootstrap.sh` | The migration runner the chart's hook Job executes, and the one-time database bootstrap |
+| `scripts/` | `values.py` (environment to chart values), `dburls.py` (admin URL to the derived connection strings) |
 | `tests/` | The family's end-to-end smoke test (`smoke.py`) and its unit test against a stub |
 | `docs/` | Operations runbook |
 | `context/` | Why the infrastructure is built this way ([Keep the Why](https://keepthewhy.com)) |
@@ -42,12 +42,13 @@ inside the cluster. All commands run in this directory.
 set -a; . ~/lasteverlm.env; set +a       # VULTR_API_KEY, DOMAIN, ACME_EMAIL, model names, prices, secrets
 cp tofu/terraform.tfvars.example tofu/terraform.tfvars   # object storage tier id, region
 
-make up          # VKE cluster, Managed PostgreSQL, Object Storage; writes build/cluster.env
-make kubeconfig  # build/kubeconfig; every later target uses it
-make bucket      # sources bucket
-make platform    # ingress-nginx, cert-manager, metrics-server; prints the load balancer IP
-make secrets     # Kubernetes Secrets from tofu outputs and the environment
-make deploy      # helm upgrade --install: migrations hook, then every service at TAG
+make up            # VKE cluster and Object Storage; writes build/cluster.env
+make kubeconfig    # build/kubeconfig; every later target uses it
+make bucket        # sources bucket
+make db-trust      # managed database: only the node addresses and this machine
+make platform      # ingress-nginx, cert-manager, metrics-server; prints the load balancer IP
+make db-bootstrap  # once: application role, database, pgvector (creates the Secrets first)
+make deploy        # helm upgrade --install: migrations hook, then every service at TAG
 make status
 ```
 

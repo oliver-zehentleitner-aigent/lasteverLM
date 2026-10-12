@@ -14,14 +14,24 @@ the bucket is created with curl; nothing else is needed.
 
 | Input | Where | Used by |
 |---|---|---|
-| `VULTR_API_KEY` | environment | `make up`, `make kubeconfig`, `make down` |
-| `tofu/terraform.tfvars` | file, ignored by Git; start from the `.example` | `make up` (the object storage tier id is the only required value) |
+| `VULTR_API_KEY` | environment | `make up`, `make kubeconfig`, `make db-trust`, `make down` |
+| `TF_VAR_object_storage_tier_id` (or `tofu/terraform.tfvars`) | environment | `make up`; `vultr-cli object-storage tier list` shows the ids |
+| `DATABASE_ADMIN_URL` | environment; the managed instance's admin role, created by the maintainer | `make env` (derived URLs), `make db-bootstrap` |
+| `PGSSLROOTCERT` | environment, path to the instance's CA file | `make secrets` (ConfigMap `lasteverlm-pg-ca`) |
 | `DOMAIN`, `ACME_EMAIL` | environment | `make values` / `make deploy` |
 | `LLM_MODEL`, `EMBEDDING_MODEL`, `MODEL_PRICES` (JSON) | environment | `make values` / `make deploy` |
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`) | make variables | `make deploy` |
 | `EMBEDDING_DIMENSION`, `SIMILARITY_FLOOR`, `TTS_MODEL`, `INFERENCE_BASE_URL` | environment, optional | `make values` |
-| `INFERENCE_API_KEY`, `AUTH_JWT_SECRET` | environment | `make secrets` |
-| `DEMO_TOKEN`, `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `SMTP_*` | environment, optional | `make secrets` (account seeds; `DEMO_TOKEN` also `make smoke`) |
+| `INFERENCE_API_KEY` | environment | `make secrets` |
+| `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `SMTP_*` | environment, optional | `make secrets` (account seeds) |
+| `DEMO_TOKEN` | environment, for `make smoke` only; the cluster's value is generated, see below | `make smoke` |
+
+Generated, never typed: `APP_DB_PASSWORD`, `AUTH_JWT_SECRET` and
+`DEMO_TOKEN` are created by `make env` with `openssl rand`, kept in
+`build/cluster.env` (mode 600, ignored by Git) and go only into the
+Kubernetes Secrets. No target prints them. To use the demo token from
+the operator machine, copy it from `build/cluster.env` into the env
+file by hand.
 
 Keep the secrets in an env file outside the repository and load it with
 `set -a; . ~/lasteverlm.env; set +a`.
@@ -29,19 +39,29 @@ Keep the secrets in an env file outside the repository and load it with
 ## First deployment
 
 ```sh
-make up          # VKE cluster, Managed PostgreSQL, Object Storage; writes build/cluster.env
+make up          # VKE cluster and Object Storage (AUTO_APPROVE=1 skips the plan prompt); writes build/cluster.env
 make kubeconfig  # build/kubeconfig; the Makefile exports KUBECONFIG for every target
-make bucket      # sources bucket
+make bucket      # sources bucket (private; the keys live only in the lasteverlm-s3 Secret)
+make db-trust    # the managed database accepts only the node addresses and this machine
 make platform    # ingress-nginx + cert-manager + metrics-server; prints the load balancer IP
 ```
 
 Point `DOMAIN` at the printed IP (an A record), then:
 
 ```sh
-make secrets     # Secrets in namespace lasteverlm
-make deploy      # make values + make migrations + helm upgrade --install
+make db-bootstrap  # once: application role, database, pgvector (runs make secrets first)
+make deploy        # make values + make migrations + helm upgrade --install
 make status
 ```
+
+The managed PostgreSQL is not created here: the maintainer created it
+by hand, `DATABASE_ADMIN_URL` is its admin connection string.
+Everything derives from that one value, so a rotated admin password is
+`make secrets` (which re-runs `make env`) and a restart of the pods.
+Every connection uses `sslmode=verify-full` against the CA mounted
+from the ConfigMap `lasteverlm-pg-ca`. `make db-trust` has to be
+re-run after nodes are recycled; the proper fix is the VPC attachment
+(`context/database.md`).
 
 `make deploy` runs the migration hook first (see below) and then rolls
 every service to `TAG`. A later `make deploy TAG=<git-sha>` is the
@@ -95,7 +115,9 @@ To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 | Secret | Keys | Mounted by |
 |---|---|---|
 | `lasteverlm-db` | `DATABASE_URL` (application role) | account, ingest, rag and their workers |
-| `lasteverlm-db-admin` | `DATABASE_URL` (admin role) | migration Job only |
+| `lasteverlm-db-admin` | `DATABASE_URL` (admin role, application database) | migration Job only |
+| `lasteverlm-db-bootstrap` | `DATABASE_ADMIN_URL`, `APP_DB_PASSWORD` | bootstrap Job only |
+| ConfigMap `lasteverlm-pg-ca` | `pg-ca.crt` | every pod that opens a database connection, at `/etc/lasteverlm/pg-ca.crt` |
 | `lasteverlm-s3` | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest |
 | `lasteverlm-inference` | `INFERENCE_API_KEY` | ingest, rag |
 | `lasteverlm-auth` | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | account, ingest, rag |
@@ -104,6 +126,10 @@ To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 
 Re-running `make secrets` updates the objects in place; pods pick the
 new values up on their next restart (`kubectl -n lasteverlm rollout restart deployment`).
+
+Edge: ingress-nginx redirects HTTP to HTTPS and sends HSTS
+(`platform/ingress-nginx.values.yaml`); the Ingress additionally
+carries `force-ssl-redirect`.
 
 ## Platform versions
 
