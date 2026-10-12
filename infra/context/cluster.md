@@ -91,3 +91,26 @@ reason about in one place, rejected because by then every request has
 already cost a pod and a database connection.
 
 
+## Platform components are applied as pinned upstream manifests, not Helm charts
+
+**Id:** 14fcc33f-ab6c-4af2-9b0d-d7d611a9d09c
+**Type:** decision
+**Status:** superseded
+**Superseded by:** 658c9993-d0a0-40a2-abf6-7a02a4c330c2
+**Evidence:** confirmed
+**Source:** infra design session, 2026-10-12
+**Revisit when:** a component needs values the upstream manifest does not expose, or a third component joins
+
+ingress-nginx and cert-manager are installed with `kubectl apply` of the
+release manifests their projects publish, at versions pinned in the
+`Makefile`.
+
+**Reason:** the operator toolchain stays at `tofu`, `kubectl`,
+`vultr-cli` and `make`; both components run with their defaults, so a
+chart would add a templating layer with nothing to template. Pinning in
+one place keeps the versions reviewable in a diff.
+
+**Rejected alternative:** Helm — the usual path and the right one once
+values need overriding, rejected because it would be the only reason to
+install Helm and would add release state to manage.
+
