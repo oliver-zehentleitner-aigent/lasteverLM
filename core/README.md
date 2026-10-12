@@ -138,10 +138,21 @@ make check     # install, then ruff, ruff format --check, mypy --strict, pytest
 `make check` runs `install` first, so it works on a fresh checkout and
 is what CI runs.
 
-The tests need no database, network or inference key: the PostgreSQL
-helpers are tested against fake psycopg-shaped connections, the
-middleware against the in-memory store, the providers against a fake
-client.
+```bash
+make test-postgres   # the SQL paths against a throwaway pgvector container
+```
+
+`make test-postgres` starts `pgvector/pgvector:pg17` on port 5433 (via
+`sg docker -c`), runs `tests/test_postgres.py` against it (usage
+accounting, the rate-limit stores, purge, lift_ban, with tuple and
+dict-row connections, sync and async) and stops the container. It is
+skipped when Docker is not available and is not part of `make check`.
+Variables: `PG_IMAGE`, `PG_PORT`, `DOCKER` (the command prefix).
+
+`make check` needs no database, network or inference key: the
+PostgreSQL helpers are tested against fake psycopg-shaped connections,
+the middleware against the in-memory store, the providers against a fake
+client. The real SQL is covered by `make test-postgres`.
 
 ## Build and deploy
 

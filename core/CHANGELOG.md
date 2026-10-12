@@ -23,4 +23,5 @@ preserves why it changed, in `context/`.
 
 ### Fixed
 
+- `make test-postgres`: the SQL paths against a throwaway pgvector container (`tests/test_postgres.py`), skipped without Docker.
 - Scalar reads (`balance_cents`, the rate-limit store queries) work on connections with a `dict_row` row factory; the connection protocols accept any psycopg row type.
