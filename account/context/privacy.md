@@ -36,3 +36,29 @@ The full user agent string is not kept for the same reason: together
 with a hash it is a fingerprint. Only a coarse family (`chrome`,
 `firefox`, `safari`, `edge`, `opera`, `samsung`, `bot`, `other`,
 `unknown`) is stored.
+
+## Retention runs at service start, not on a schedule
+
+**Id:** 42e9906d-a613-4f17-896e-40484c1f125d
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** implementation, 2026-10-12
+**Revisit when:** the service runs for weeks without a restart, or a scheduler exists in the cluster
+
+Rows of `visit_log` older than `VISIT_RETENTION_DAYS` (default 30) and
+expired magic links are deleted in `AccountService.startup()`, once per
+process start. There is no in-process timer and no CronJob.
+
+**Reason:** a cleanup that runs at every start is one function with no
+concurrency, no scheduler state and nothing to monitor, and deployments
+of this service restart often enough (every image rollout) that the
+window is honoured in practice. The retention promise is documented in
+the README with this mechanism named, so it is not oversold.
+
+**Rejected alternative:** a background task with `asyncio.sleep` in the
+service process — rejected because with more than one replica it runs
+several times, needs its own error handling and gives nothing a restart
+does not. A Kubernetes CronJob was left to the infra repository to add
+if the restart frequency turns out too low; `docs/operations.md` names
+the condition.
