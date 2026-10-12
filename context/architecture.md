@@ -358,21 +358,25 @@ privileged cluster access for a simple rule; keeping the counters in
 Redis, rejected because it adds a stateful component the project does
 not otherwise need.
 
-## Supabase self-hosted inside the cluster
+## Supabase self-hosted inside the cluster: not used
 
 **Id:** 93a2b954-818b-4202-b961-3c2ea10fd236
 **Type:** decision
-**Status:** open
-**Evidence:** unknown
+**Status:** active
+**Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
 
-The maintainer raised running Supabase as containers in the cluster.
-The recommendation on the table is not to: it is about ten containers
-(gateway, auth, REST, realtime, storage, studio, Postgres) plus a
-stateful database with a backup story, on a community Helm chart, and
-everything it offers already has a place here (auth in the account
-service, files in object storage, vectors in pgvector, Managed
-PostgreSQL with backups included). If a database inside the cluster is
-wanted regardless, CloudNativePG with a pgvector image is the lighter
-path. Awaiting the maintainer's decision; until then Managed
-PostgreSQL stands.
+The maintainer raised running Supabase as containers in the cluster and
+settled it the same evening: no. The database is Vultr Managed
+PostgreSQL in Frankfurt, created by the maintainer by hand and handed
+to infra as an input, not provisioned by the infrastructure code.
+
+**Reason:** everything Supabase would have added already has a place
+here (auth in the account service, files in object storage, vectors in
+pgvector), and self-hosting it means about ten containers plus a
+stateful database with a backup story on a community chart, for a
+three-day build.
+
+**Rejected alternatives:** Supabase self-hosted (above); CloudNativePG
+with a pgvector image as the lighter in-cluster path, not needed once
+the managed instance existed.
