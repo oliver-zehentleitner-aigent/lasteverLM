@@ -21,6 +21,12 @@ preserves why it changed, in `context/`.
 - Rate limiting per client IP: `RateLimitMiddleware` (pure ASGI) over `RateLimiter` rules, stores for sync and async psycopg and in memory, `purge`, `lift_ban`, settings from the environment.
 - Usage accounting `record_usage` and `balance_cents`, sync and async, over the caller's psycopg connection; the SQL exported as constants.
 
+### Changed
+
+- `LLM.complete` takes `max_tokens` optionally (default `LLM_MAX_TOKENS`, 1024) and a `thinking` switch; reasoning is off by default and an empty answer without thinking is a `ProviderError`. `CompletionResult` carries `finish_reason`.
+- The embedder requests `EMBEDDING_DIMENSION` from the provider on every call through the `dimensions` parameter.
+- The OpenAI SDK dependency is `openai>=3`; provider tests run the SDK against a fake httpx2 transport.
+
 ### Fixed
 
 - `make test-postgres`: the SQL paths against a throwaway pgvector container (`tests/test_postgres.py`), skipped without Docker.

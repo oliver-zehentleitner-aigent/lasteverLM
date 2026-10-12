@@ -34,6 +34,8 @@ def test_inference_settings_from_env() -> None:
     settings = InferenceSettings.from_env(env)
     assert settings.base_url == "https://api.vultrinference.com/v1"
     assert settings.embedding_dimension == 1536
+    assert settings.llm_max_tokens == 1024
+    assert InferenceSettings.from_env({**env, "LLM_MAX_TOKENS": "400"}).llm_max_tokens == 400
     with pytest.raises(ConfigError, match="INFERENCE_API_KEY"):
         InferenceSettings.from_env({})
 

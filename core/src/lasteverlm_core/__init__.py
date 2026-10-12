@@ -53,6 +53,7 @@ from .pricing import (
     require_prices,
 )
 from .providers import (
+    DEFAULT_MAX_TOKENS,
     LLM,
     CompletionResult,
     Embedder,
@@ -64,6 +65,7 @@ from .providers import (
     TextToSpeech,
     Usage,
     make_client,
+    thinking_body,
 )
 from .ratelimit import (
     AccessLogEntry,
@@ -101,6 +103,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     "BALANCE_SQL",
+    "DEFAULT_MAX_TOKENS",
     "DEFAULT_MODEL_PRICES",
     "DEMO_USER_EMAIL",
     "DEMO_USER_ID",
@@ -177,5 +180,6 @@ __all__ = [
     "record_usage",
     "require_prices",
     "scalar",
+    "thinking_body",
     "verify_jwt",
 ]

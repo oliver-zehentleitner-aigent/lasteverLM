@@ -54,12 +54,15 @@ class InferenceSettings:
     """The OpenAI-compatible inference endpoint ingest and rag talk to.
 
     `embedding_model` and `embedding_dimension` must be identical in both
-    services, which is why they are loaded by one function.
+    services, which is why they are loaded by one function. `embedding_dimension`
+    is requested from the provider on every call, so it is the width of the
+    vectors, not a description of the model's native width.
     """
 
     base_url: str
     api_key: str
     llm_model: str
+    llm_max_tokens: int
     embedding_model: str
     embedding_dimension: int
 
@@ -69,6 +72,7 @@ class InferenceSettings:
             base_url=env_optional("INFERENCE_BASE_URL", env) or VULTR_INFERENCE_BASE_URL,
             api_key=env_required("INFERENCE_API_KEY", env),
             llm_model=env_required("LLM_MODEL", env),
+            llm_max_tokens=env_int("LLM_MAX_TOKENS", 1024, env),
             embedding_model=env_required("EMBEDDING_MODEL", env),
             embedding_dimension=env_int("EMBEDDING_DIMENSION", 1536, env),
         )
