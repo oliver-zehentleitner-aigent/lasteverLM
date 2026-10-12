@@ -55,6 +55,7 @@ repository root's `context/`.
 ## O
 
 ## P
+- [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why the shipped default prices are empty
 
 ## Q
 

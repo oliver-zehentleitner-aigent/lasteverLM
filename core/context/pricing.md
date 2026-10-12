@@ -2,7 +2,7 @@
 
 ## An unpriced model is a configuration error, not a free call
 
-**Id:** 
+**Id:** 42268e89-b005-4607-bc32-76e6f4a1ff01
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
@@ -31,22 +31,3 @@ the same mistake behind plausible numbers.
 Arithmetic is `Decimal`, not `float`: a price of 0.1 cents per million
 tokens at exactly one million tokens must be one cent, not 1.0000000001
 rounded up to two.
-
-## Shipped default prices are empty until the platform's models are known
-
-**Id:** 
-**Type:** constraint
-**Status:** active
-**Evidence:** confirmed
-**Source:** family coordination, 2026-10-12 (agent A: no inference key yet, so no model list)
-**Revisit when:** an inference key exists and the platform's model names and prices have been read
-
-`DEFAULT_MODEL_PRICES` is an empty table. The architecture says core
-ships defaults for the platform's models; at the time of writing nobody
-had an inference key, so the model names and their prices were not
-known, and every deployment sets `MODEL_PRICES` for the models it uses.
-
-**Reason:** a default table written from memory would carry invented
-model names and prices, and a wrong default is worse than a missing one
-because the start-up check would pass on it. The empty table plus the
-startup check fails loud instead.
