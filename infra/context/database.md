@@ -108,7 +108,8 @@ keeping DDL on a role the services do not hold is the intended split.
 
 **Id:** f8de01a5-e14a-4479-84cc-9cbc512333bd
 **Type:** workaround
-**Status:** active
+**Status:** superseded
+**Superseded by:** eafb2511-ce6a-4da4-a91b-18b1fcaca468
 **Evidence:** confirmed
 **Source:** infra design session, 2026-10-12
 **Revisit when:** the cluster has stable egress addresses to allowlist, or the database is attached to the cluster's VPC
@@ -120,3 +121,31 @@ when nodes are recycled, so an allowlist written at apply time would be
 wrong after the first node replacement. Known and accepted for the MVP;
 the fix is a VPC-attached database (`vpc_id` on both resources), which
 is a second apply step this skeleton does not take yet.
+
+## The managed database accepts only the cluster nodes and the operator machine
+
+**Id:** eafb2511-ce6a-4da4-a91b-18b1fcaca468
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12 ("security exemplary, no shortcuts")
+**See:** database.md#the-managed-database-is-reachable-from-any-ip — f8de01a5-e14a-4479-84cc-9cbc512333bd — as of 2026-10-12
+**Revisit when:** the database is attached to the cluster's VPC, or nodes are recycled (the list has to be refreshed)
+
+`make db-trust` writes the worker nodes' public addresses plus the
+address of the machine running it into the instance's trusted-IP list.
+It is re-run after any node change; the Makefile documents that. The
+proper fix is attaching the database to the cluster's VPC (`vpc_id` on
+the instance, private host for the pods), which removes the public
+path entirely; it is not done yet because the instance was created by
+hand outside OpenTofu and the VPC attachment is a second step with its
+own downtime window.
+
+**Reason:** an instance open to every address with only a password in
+front is the one shortcut the maintainer named explicitly; the node
+list is what can be enforced tonight without touching the instance's
+network.
+
+**Rejected alternative:** leave it open until the VPC move — rejected
+by the maintainer.
+
