@@ -55,7 +55,13 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
     assert llm.calls[0][1].endswith("Question: colors?")
     assert "[1] (doc1.pdf, page 2)" in llm.calls[0][1]
     # retrieval is scoped to the notebook with the configured parameters, unscoped by source
-    assert retriever.calls[0] == {"notebook_id": NOTEBOOK, "k": 3, "floor": 0.5, "source_id": None}
+    assert retriever.calls[0] == {
+        "notebook_id": NOTEBOOK,
+        "k": 3,
+        "floor": 0.5,
+        "source_id": None,
+        "include_generated": False,
+    }
     # both messages stored, the assistant one carries the citations
     assert [m["role"] for m in store.messages] == ["user", "assistant"]
     assert store.messages[1]["id"] == body["message_id"]
@@ -121,6 +127,29 @@ def test_ask_scoped_to_an_output_restricts_retrieval_to_its_generated_source(set
     assert r.status_code == 200, r.text
     assert retriever.calls[0]["source_id"] == generated
     assert r.json()["citations"] == [] or r.json()["citations"][0]["source_kind"] == "generated"
+
+
+def test_unscoped_ask_leaves_generated_documents_out_unless_configured(settings):
+    hits = [
+        chunk(1, "from the pdf", similarity=0.8),
+        chunk(2, "from a report", source_kind="generated"),
+    ]
+    retriever = FakeRetriever(hits)
+    client = make_client(settings, FakeStore(), retriever, FakeLLM("Only the upload [1]."))
+    body = client.post(ASK, json={"question": "q"}, headers=AUTH).json()
+    assert [c["source_kind"] for c in body["citations"]] == ["pdf"]
+    assert retriever.calls[0]["include_generated"] is False
+
+    on = Settings.from_env(
+        {**BASE_ENV, "DEMO_TOKEN": "demo-secret", "RETRIEVAL_INCLUDE_GENERATED": "true"}
+    )
+    retriever = FakeRetriever(hits)
+    client = make_client(on, FakeStore(), retriever, FakeLLM("Both [1] [2]."))
+    body = client.post(ASK, json={"question": "q"}, headers=AUTH).json()
+    assert [c["source_kind"] for c in body["citations"]] == ["pdf", "generated"]
+    assert retriever.calls[0]["include_generated"] is True
+    with pytest.raises(ConfigError, match="RETRIEVAL_INCLUDE_GENERATED"):
+        Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "RETRIEVAL_INCLUDE_GENERATED": "maybe"})
 
 
 def test_ask_scope_errors(settings):

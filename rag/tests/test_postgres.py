@@ -262,16 +262,18 @@ def test_generated_source_chunks_and_scoped_search(store, pool, notebook):
     assert [h.text for h in before] == ["upload chunk"]
     store.set_source_status(generated, "ready")
 
-    hits = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0)
+    # unscoped: uploads only by default; generated documents on request
+    assert [h.text for h in retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0)] == [
+        "upload chunk"
+    ]
+    hits = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, include_generated=True)
     assert [(h.text, h.source_kind, h.page) for h in hits][:2] == [
         ("upload chunk", "pdf", 3),
         ("generated near", "generated", None),
     ]
     assert hits[0].similarity == pytest.approx(1.0) and hits[-1].similarity == pytest.approx(0.0)
-    assert [h.text for h in retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.5)] == [
-        "upload chunk",
-        "generated near",
-    ]
+    floored = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.5, include_generated=True)
+    assert [h.text for h in floored] == ["upload chunk", "generated near"]
     scoped = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, source_id=generated)
     assert [h.text for h in scoped] == ["generated near", "generated far"]
     assert retriever.search(str(uuid4()), [1.0, 0.0, 0.0], k=8, floor=0.0) == []

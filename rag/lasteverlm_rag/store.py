@@ -49,6 +49,7 @@ class Retriever(Protocol):
         k: int,
         floor: float,
         source_id: str | None = None,
+        include_generated: bool = False,
     ) -> list[RetrievedChunk]: ...
 
 
@@ -105,8 +106,9 @@ class Store(Protocol):
 
 
 # Top-k by cosine distance inside one notebook, ready sources only, optionally
-# one source. The floor is applied in SQL so a notebook with no relevant chunk
-# costs one round trip.
+# one source. Generated documents are left out unless asked for or scoped to:
+# they restate the uploads. The floor is applied in SQL so a notebook with no
+# relevant chunk costs one round trip.
 _SEARCH_SQL = """
 select c.id::text as chunk_id, s.id::text as source_id, s.name as source_name,
        s.kind as source_kind, c.page, c.text,
@@ -116,6 +118,7 @@ join sources s on s.id = c.source_id
 where c.notebook_id = %(notebook_id)s
   and s.status = 'ready'
   and (%(source_id)s::uuid is null or s.id = %(source_id)s::uuid)
+  and (%(source_id)s::uuid is not null or %(include_generated)s or s.kind <> 'generated')
   and 1 - (c.embedding <=> %(embedding)s::vector) >= %(floor)s
 order by c.embedding <=> %(embedding)s::vector
 limit %(k)s
@@ -164,11 +167,13 @@ class PgVectorRetriever:
         k: int,
         floor: float,
         source_id: str | None = None,
+        include_generated: bool = False,
     ) -> list[RetrievedChunk]:
         params = {
             "notebook_id": notebook_id,
             "embedding": _vector_literal(embedding),
             "source_id": source_id,
+            "include_generated": include_generated,
             "floor": floor,
             "k": k,
         }

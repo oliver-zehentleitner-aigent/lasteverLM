@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- An unscoped `/ask` retrieves from the uploaded sources only; generated documents restate them and are reached through `scope.output_id`. `RETRIEVAL_INCLUDE_GENERATED=true` restores the previous behaviour.
 - Generators are told to title the document by its subject and form, never with the notebook's name (the first live run produced four documents named after the notebook).
 - The worker closes its connection pool on shutdown and logs every finished output.
 - A model reply without content (a reasoning model that spent its budget on thinking) is a provider failure: `/ask` answers 502 and stores no message, a generation is retried by the worker; never an empty answer.

@@ -31,6 +31,7 @@ class Settings:
     model_prices: ModelPrices
     tts_model: str | None
     retrieval_k: int
+    retrieval_include_generated: bool
     similarity_floor: float
     log_level: str
 
@@ -55,6 +56,9 @@ class Settings:
             model_prices=prices,
             tts_model=tts_model,
             retrieval_k=retrieval_k,
+            retrieval_include_generated=_flag(
+                env.get("RETRIEVAL_INCLUDE_GENERATED", "false"), "RETRIEVAL_INCLUDE_GENERATED"
+            ),
             similarity_floor=_unit_float(env.get("SIMILARITY_FLOOR", "0.3"), "SIMILARITY_FLOOR"),
             log_level=(env_optional("LOG_LEVEL", env) or "INFO").upper(),
         )
@@ -68,3 +72,12 @@ def _unit_float(raw: str, name: str) -> float:
     if not 0.0 <= value <= 1.0:
         raise ConfigError(f"{name} must be between 0 and 1, got {value}")
     return value
+
+
+def _flag(raw: str, name: str) -> bool:
+    value = raw.strip().lower()
+    if value in ("true", "1", "yes"):
+        return True
+    if value in ("false", "0", "no", ""):
+        return False
+    raise ConfigError(f"{name} must be true or false, got {raw!r}")

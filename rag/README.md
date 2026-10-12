@@ -35,7 +35,8 @@ Every other endpoint takes `Authorization: Bearer <token>`. Errors are
 `page`, `quote`). Retrieval is top-k by cosine similarity over the
 notebook's ready sources with a similarity floor; if nothing passes it,
 the answer is a fixed refusal with empty citations and the model is not
-called. `scope.output_id` restricts retrieval to one generated document.
+called. An unscoped question retrieves from the uploaded sources only;
+`scope.output_id` restricts retrieval to one generated document.
 
 **Outputs.** `POST /outputs` inserts the job and answers at once. The
 worker entrypoint (`lasteverlm-rag-worker`) claims jobs from the
@@ -64,6 +65,7 @@ missing or a configured model has no price.
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
 | `TTS_MODEL` | no | enables the audio kind once the platform offers speech synthesis |
 | `RETRIEVAL_K` | no | chunks per question, default 8 |
+| `RETRIEVAL_INCLUDE_GENERATED` | no | default `false`: an unscoped question is answered from the uploads only; generated documents are reached through `scope.output_id` |
 | `SIMILARITY_FLOOR` | no | minimum cosine similarity, default 0.3 |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, ... | no | core's rate-limit middleware, defaults 120 / 15 / 3; see `core/README.md` |
 | `LOG_LEVEL` | no | default `INFO` |
