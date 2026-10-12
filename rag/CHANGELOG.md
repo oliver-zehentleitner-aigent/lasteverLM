@@ -26,4 +26,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generated documents are chunked with `lasteverlm_core.chunking`, the family's one chunker; the local copy is gone.
 - Shared API models, bearer-token resolution, pricing, usage accounting and the provider adapters come from `lasteverlm_core` (installed by path from `../core`); the local mirror is gone.

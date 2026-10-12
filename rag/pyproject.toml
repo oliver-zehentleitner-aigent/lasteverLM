@@ -28,8 +28,8 @@ dev = [
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["lasteverlm_rag"]
+[tool.setuptools.packages.find]
+include = ["lasteverlm_rag*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

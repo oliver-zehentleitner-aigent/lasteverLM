@@ -2,9 +2,8 @@
 
 import logging
 import uuid
-from collections.abc import Callable, Iterator
-from contextlib import AbstractContextManager, contextmanager
-from typing import Annotated, cast
+from functools import partial
+from typing import Annotated
 
 from fastapi import (
     Depends,
@@ -35,7 +34,6 @@ from lasteverlm_core import (
     current_user,
     make_client,
 )
-from lasteverlm_core.usage import Connection as CoreConnection
 
 from . import __version__
 from .config import Settings
@@ -49,7 +47,14 @@ from .service import (
     OutputService,
     RagService,
 )
-from .store import PgVectorRetriever, Pool, PostgresStore, Retriever, Store, make_pool
+from .store import (
+    PgVectorRetriever,
+    PostgresStore,
+    Retriever,
+    Store,
+    core_connect,
+    make_pool,
+)
 
 PREFIX = "/api/rag"
 
@@ -77,7 +82,7 @@ def create_app(
         pool = make_pool(settings.database_url)
         store = store or PostgresStore(pool, settings.model_prices)
         retriever = retriever or PgVectorRetriever(pool)
-        rate_limit_store = rate_limit_store or PostgresRateLimitStore(_connect(pool))
+        rate_limit_store = rate_limit_store or PostgresRateLimitStore(partial(core_connect, pool))
     if embedder is None or llm is None:
         client = make_client(settings.inference)
         embedder = embedder or OpenAICompatibleEmbedder(
@@ -158,18 +163,6 @@ def create_app(
         return outputs.shared(token)
 
     return app
-
-
-def _connect(pool: Pool) -> Callable[[], AbstractContextManager[CoreConnection]]:
-    """The rate-limit store wants a zero-argument connection factory over core's
-    connection protocol; see ``store._core_conn`` for the cast."""
-
-    @contextmanager
-    def connect() -> Iterator[CoreConnection]:
-        with pool.connection() as conn:
-            yield cast(CoreConnection, conn)
-
-    return connect
 
 
 def _install_error_handlers(app: FastAPI) -> None:

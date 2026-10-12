@@ -21,9 +21,9 @@ from lasteverlm_core import (
     Output,
     OutputKind,
     SharedOutput,
+    TokenWindowChunker,
 )
 
-from .chunking import TokenWindowChunker
 from .citations import map_citations, number_passages
 from .models import GeneratedOutput, OutputRow, Passage
 from .outputs import OutputGenerator
@@ -280,7 +280,7 @@ class OutputService:
         embedded, so the chat can retrieve and cite it like any upload."""
         summary = " ".join(generated.index_text.split())[:SUMMARY_MAX_CHARS]
         source_id = self._store.create_generated_source(notebook_id, generated.title, summary)
-        chunks = self._chunker.chunk(generated.index_text)
+        chunks = self._chunker.chunk_text(generated.index_text)
         if chunks:
             embedded = self._embedder.embed([c.text for c in chunks])
             self._store.record_usage(user_id, notebook_id, embedded.usage)

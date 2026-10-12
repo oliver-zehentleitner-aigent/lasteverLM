@@ -77,12 +77,6 @@ class GeneratedOutput:
 
 
 @dataclass(frozen=True)
-class Chunk:
-    idx: int
-    text: str
-
-
-@dataclass(frozen=True)
 class OutputRow:
     """The ``outputs`` row plus the notebook owner, for the ownership check."""
 
