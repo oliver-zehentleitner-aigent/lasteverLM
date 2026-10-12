@@ -1,47 +1,48 @@
 # Tasks
 
 Open work across the family. One block per agent. Done items are deleted,
-not ticked. Decisions that need the maintainer are marked **[maintainer]**.
+not ticked. Items that need the maintainer are marked **[maintainer]**.
 
-## Open decisions
+## Maintainer
 
-- **[maintainer]** Hosted Supabase (free tier) or self-hosted on the cluster. See `context/architecture.md`.
-- **[maintainer]** LLM and embedding providers. Decides the embedding dimension in the schema.
-- **[maintainer]** Supabase Auth login or shared demo token.
-- **[maintainer]** Time budget for the MVP.
+- **[maintainer]** Create the six empty upstream repositories (MIT, Python gitignore): `lasteverLM-core`, `-account`, `-infra`, `-ingest`, `-rag`, `-web`. Until then every agent works in a local repository with remotes preset.
+- **[maintainer]** Give the agent token the `workflow` scope so CI files can land in pull requests.
+- **[maintainer]** Vultr API key and the deployment domain, as an env file on the machine.
+- **[maintainer]** Review and merge PR #1 (this skeleton and architecture v1).
 
-## Agent A (this repository)
+## Agent A (this repository, core)
 
-- Review `docs/architecture.md` with the maintainer, then freeze the v0 API contract.
-- Add each service repository to the `children` block in `.keep-the-why` once it is initialized.
+- `lasteverLM-core`: models, settings, `current_user`, `record_usage`, `balance_cents`, model prices, provider interfaces, the `usage` migration. Tag `v0.1.0` so services can pin it.
 - Pre-review every pull request in the family before the maintainer looks at it.
 - Draft the walkthrough script (`docs/walkthrough.md`) once the services run end to end.
 
 ## Agent B (`lasteverLM-infra`)
 
-- Create the repository, initialize Keep the Why with `parent: https://github.com/oliver-zehentleitner/lasteverLM`.
-- Vultr Kubernetes cluster, ingress-nginx, TLS, one namespace `lasteverlm`.
-- Deployment and Service manifests for ingest, rag and web; Secrets from environment, never committed.
-- Database schema as Supabase migrations (`db/migrations/`), following the data model in `docs/architecture.md`.
-- A `make deploy` or equivalent that takes a clean checkout to a running cluster.
+- Cluster, ingress-nginx, cert-manager, namespace `lasteverlm`; Managed PostgreSQL with `vector`, Object Storage bucket; all reproducible from a clean checkout once `VULTR_API_KEY` exists.
+- Deployment and Service manifests for account, ingest, rag, web; Ingress with the three API prefixes and `/` to web.
+- `make secrets` from environment, `make migrate` applying core, account, ingest, rag migrations in that order.
 
 ## Agent C (`lasteverLM-ingest`)
 
-- Create the repository, initialize Keep the Why with the parent above.
-- FastAPI service implementing the ingest endpoints from `docs/architecture.md`.
-- Parsers for PDF, plain text and URL; chunking with overlap; embeddings behind one interface so the provider can change.
-- Dockerfile, `/healthz`, unit tests for chunking and parsing.
+- FastAPI service for the ingest contract v1; `SourceLoader` (pdf, text), `Chunker`, `Embedder`, `Storage` interfaces with one implementation each; `worker` entrypoint running in-process for now.
+- Usage accounting through core on every embedding call; 402 on zero balance.
+- Tests for chunking and parsing, Dockerfile, `/healthz`, migrations for notebooks, sources, chunks.
 
 ## Agent D (`lasteverLM-rag`)
 
-- Create the repository, initialize Keep the Why with the parent above.
-- FastAPI service implementing the rag endpoints from `docs/architecture.md`.
-- Retrieval over `chunks` restricted to one notebook; answer generation with citations mapped back to source and passage; refusal when nothing relevant is found.
-- Dockerfile, `/healthz`, unit tests for citation mapping with a mocked LLM.
+- FastAPI service for the rag contract v1; `Retriever`, `LLM`, `CitationMapper` with one implementation each; refusal below the similarity floor.
+- Usage accounting through core on every call; 402 on zero balance.
+- Tests for citation mapping and the refusal path with a mocked LLM, Dockerfile, `/healthz`, migration for messages.
 
 ## Agent E (`lasteverLM-web`)
 
-- Create the repository, initialize Keep the Why with the parent above.
-- Three-pane layout: sources (upload, status, delete), chat (question, answer, clickable citations), notes.
-- Talks only to the two API prefixes in `docs/architecture.md`; no direct Supabase access except auth, if enabled.
-- Dockerfile serving the built app, efficient layout, no polishing pass.
+- Three-pane layout, login with magic link and callback route, balance in the header, voucher redeem dialog.
+- Admin panel pages: users, login log, visitor log, SMTP settings, allowed domains, voucher creation.
+- Build-time `API_BASE_URL`, multi-stage Dockerfile with nginx, lint and typecheck in CI.
+
+## Agent F (`lasteverLM-account`)
+
+- FastAPI service for the account contract v1: magic link, JWT, `/me`, vouchers, visits, admin endpoints, SMTP settings with test mail.
+- Migrations for users, magic_links, vouchers, ledger, settings, login_log, visit_log; demo user seed.
+- Tests for the token flow, the allowlist, voucher atomicity and the balance; Dockerfile, `/healthz`.
+- Send Agent E the exact admin response shapes.

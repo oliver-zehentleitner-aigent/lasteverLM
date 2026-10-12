@@ -26,7 +26,7 @@ service lives in that service's own `context/`.
 
 ## A
 
-- [architecture.md](architecture.md) — microservices on Kubernetes across several repositories, Supabase as the data layer, and the open choices (hosting mode, model providers, auth)
+- [architecture.md](architecture.md) — everything on Vultr (Kubernetes, Managed PostgreSQL with pgvector, Object Storage, Serverless Inference), microservices across repositories, the shared core library, self-built citations, usage rows as the debit, magic-link auth; the Supabase decision it superseded
 
 ## B
 
@@ -66,7 +66,7 @@ service lives in that service's own `context/`.
 
 ## S
 
-- [scope.md](scope.md) — what the MVP includes, what is deliberately left out, and the open time budget
+- [scope.md](scope.md) — what the MVP includes and leaves out, the three-day time budget, the account service with sponsored credit and admin panel
 
 ## T
 
@@ -76,7 +76,7 @@ service lives in that service's own `context/`.
 
 ## W
 
-- [workflow.md](workflow.md) — five parallel coding-agent sessions with one human reviewer, one shared agent account, fork-and-PR integration
+- [workflow.md](workflow.md) — six parallel coding-agent sessions with one human reviewer, one shared agent account with per-agent commit identity, fork-and-PR integration, reading the family's context/ before building
 
 ## X
 

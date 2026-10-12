@@ -28,14 +28,47 @@ expect; none of them is a precondition for the core loop, and the audio
 overview in particular is expensive in both effort and API cost. They
 are candidates for later, not forgotten.
 
-## Time budget
+## Time budget: three days, shared token budget
 
 **Id:** a835376b-16d6-4c47-8f78-f5090170f032
 **Type:** constraint
-**Status:** open
-**Evidence:** unknown
+**Status:** active
+**Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
 
-No deadline is fixed yet. The working assumption is a short, self-set
-window, because a tight time box matches the MVP message and keeps the
-scope above honest. Once set, the date goes here.
+The build has three days from 2026-10-12, with the first prototype
+reviewed by the maintainer on the morning of 2026-10-13. All agent
+sessions draw on one shared model subscription, so token spend is a
+constraint of its own: long focused stretches, no polling, no status
+chatter, no exploratory rewrites. The MVP is solid, not comfortable:
+every repository follows the full repository standard and every agent
+reads the other services' `context/` before building against them.
+
+## The account service: magic-link login, sponsored credit, admin panel
+
+**Id:** c6e89eca-8f4f-4345-bfe6-7191e96b461e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** planning conversation, 2026-10-12
+
+Beyond the NotebookLM core loop, the MVP has a sixth service that owns
+accounts: magic-link login limited to allowed e-mail domains, one-time
+voucher codes that credit a balance (default 10 EUR), a per-user
+balance that every model call draws on, and a compact admin panel with
+users, login log, an aggregated visitor log, SMTP settings and the
+domain allowlist.
+
+**Reason:** the maintainer wants to sponsor use of the deployment for a
+known group: anyone under an allowed domain can create an account and
+redeem a voucher, and the sponsor sees who uses what. That is a product
+decision, not a clone feature, and it is what makes the deployment
+usable by others than the maintainer.
+
+**Privacy:** the visitor log stores a daily-rotating salted hash of the
+address, never the raw IP, the user-agent family only, and is purged
+after 30 days. The allowed domains are configuration, not code.
+
+**Rejected alternative:** a single shared demo token and no accounts.
+Enough for a recorded walkthrough, rejected because it shows no
+multi-user separation and cannot sponsor anyone.

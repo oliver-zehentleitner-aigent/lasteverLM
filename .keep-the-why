@@ -20,3 +20,12 @@ README, for what Keep the Why actually is.
 - pending-confirmation-check: no
 - local-lint: auto
 <!-- /keep-the-why:personal-defaults -->
+
+<!-- keep-the-why:children -->
+- lasteverLM-core: https://github.com/oliver-zehentleitner/lasteverLM-core — shared Python library: models, settings, auth resolution, usage accounting, provider interfaces
+- lasteverLM-account: https://github.com/oliver-zehentleitner/lasteverLM-account — magic-link login, allowed domains, vouchers, credit balance, admin panel backend, visitor log
+- lasteverLM-infra: https://github.com/oliver-zehentleitner/lasteverLM-infra — Vultr cluster, ingress, manifests, migrations runner, secrets handling, deployment
+- lasteverLM-ingest: https://github.com/oliver-zehentleitner/lasteverLM-ingest — upload, parsing, chunking, embeddings, notebook and source endpoints
+- lasteverLM-rag: https://github.com/oliver-zehentleitner/lasteverLM-rag — retrieval, cited answers, message history
+- lasteverLM-web: https://github.com/oliver-zehentleitner/lasteverLM-web — three-pane frontend, login, credits, admin panel
+<!-- /keep-the-why:children -->

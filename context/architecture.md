@@ -34,10 +34,10 @@ cross-repository coordination eat time that is not spent on features.
 
 **Id:** 95c444f7-45b9-4ef0-a5be-cc2b47e73d9d
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 1551d8e8-e2b1-41ef-839d-2ef681d6d595
 **Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
-**Revisit when:** retrieval quality or Supabase limits become a problem
 
 Notebooks, sources, chunks with their embeddings (pgvector), chat
 messages and uploaded files all live in one Supabase project. Services
@@ -59,7 +59,8 @@ data volume and avoids a second store to keep consistent.
 
 **Id:** b376e44e-18b5-4857-af4b-5f3fcb7ecb4d
 **Type:** decision
-**Status:** open
+**Status:** superseded
+**Superseded by:** 1551d8e8-e2b1-41ef-839d-2ef681d6d595
 **Evidence:** unknown
 **Source:** planning conversation, 2026-10-12
 
@@ -73,30 +74,155 @@ services must not assume anything beyond the public Supabase API.
 
 **Id:** b059feca-be73-4d1f-8af6-e5d3fd46b228
 **Type:** decision
-**Status:** open
-**Evidence:** unknown
+**Status:** active
+**Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
+**Revisit when:** answer or citation quality of the open-weight models is not good enough for the demo
 
-Two provider choices are open: which LLM answers questions, and where
-the embeddings come from (an API such as OpenAI, or a model running in
-the cluster). The proposal on the table is Claude for answers, because
-its citations feature maps directly onto the "answer with sources"
-requirement, with the embedding path still undecided. The embedding
-dimension in the `chunks` table depends on this choice, so the schema
-carries a placeholder until it is settled. Alternatives considered:
-unknown beyond the two embedding paths named above.
+Both the language model and the embeddings come from Vultr Serverless
+Inference, used through the OpenAI SDK with a configurable base URL.
+The embedding dimension is a configuration value with a default of
+1536, identical in ingest and rag.
 
-## Authentication: real login or demo token
+**Reason:** it keeps the whole stack on the one cloud account whose
+credit pays for the project, needs no second API key, and the
+OpenAI-compatible interface means any other compatible provider is a
+config change. Citations are built by the rag service itself, so no
+provider-specific citation feature is needed (see the entry below).
+
+**Rejected alternatives:** Claude through the Anthropic API with its
+citations feature, which maps well onto cited answers but ties the
+citation path to one provider and needs a separate key and budget;
+OpenAI or OpenRouter for either side, rejected for the same reason.
+Embeddings from a model running inside the cluster were briefly
+considered and rejected: CPU cost on the cluster for something the
+inference API already offers. Claude stays the fallback if the
+open-weight models cite poorly, through the same interface.
+
+## Authentication: magic link restricted to allowed e-mail domains, plus a demo token
 
 **Id:** 38a1cd64-0e61-4e5f-9ce6-058d3ad01659
 **Type:** decision
-**Status:** open
-**Evidence:** unknown
+**Status:** active
+**Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
 
-Whether users log in through Supabase Auth or the deployment is reached
-with a single shared demo token is not decided. Supabase Auth is small
-effort and shows multi-user data separation; the demo token is less
-effort and enough for a recorded walkthrough. The API contract in
-`docs/architecture.md` takes a bearer token either way, so the services
-can be built before this is settled.
+Users log in with a magic link: enter an e-mail address, receive a
+link, click, done. Only addresses under domains on an allowlist get a
+link; the allowlist lives in the database, is edited in the admin
+panel, and is seeded once from an environment variable, so it never
+appears in a repository. A demo token from config resolves to a seeded
+demo user for development and recorded walkthroughs and is unset in
+production.
+
+**Reason:** the deployment is meant for a known group of people who
+should be able to create an account without anyone handing out
+credentials, and without a password to manage. The allowlist does that.
+Keeping the list out of the repositories is a privacy requirement of
+the maintainer.
+
+**Rejected alternatives:** Supabase Auth, gone with Supabase (see the
+platform entry); e-mail plus password, rejected because it adds reset
+flows and password storage for no gain with this user group; a demo
+token only, rejected because the project should show real multi-user
+separation and the sponsored credit model needs accounts.
+
+## Everything on Vultr: Kubernetes, Managed PostgreSQL with pgvector, Object Storage, Serverless Inference
+
+**Id:** 1551d8e8-e2b1-41ef-839d-2ef681d6d595
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** planning conversation, 2026-10-12
+**Revisit when:** the hosting credit runs out or a Vultr service is missing something the MVP needs
+
+The cluster, the database with its vector index, the upload storage and
+the model inference all come from Vultr. Supabase is out. Mail is the
+one external piece, over SMTP configured in the admin panel.
+
+**Reason:** the maintainer holds a hosting credit on this account that
+cannot be paid out, so everything that runs there is effectively free,
+and one account with one API key is a cleaner story than a cluster on
+one provider and data on another. Managed PostgreSQL means no stateful
+workload to back up inside the cluster. The pgvector extension is
+available there under the name `vector`.
+
+**Rejected alternatives:** Supabase hosted (free tier limits, a second
+provider, and nothing it offered that the project needs beyond
+Postgres, storage and auth, each of which has a Vultr or an own
+replacement); Postgres inside the cluster through an operator
+(CloudNativePG), rejected because it adds a stateful workload with a
+backup story to operate during a three-day build for a showcase gain
+nobody asked for.
+
+## Citations are built by the rag service, not taken from a provider feature
+
+**Id:** 8457792a-46f9-4029-8d9c-cd8089d7e266
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** planning conversation, 2026-10-12
+
+Retrieved chunks go numbered into the prompt, the model answers with
+`[n]` markers, and rag maps each marker back to the chunk, its source
+and page, dropping markers that point at nothing. The citation model
+is defined once, in core, and the frontend knows only that model.
+
+**Reason:** this works with every OpenAI-compatible provider and keeps
+the provider choice a configuration matter. A provider-side citation
+feature would tie the core requirement of the product to one vendor.
+
+**Rejected alternative:** the Anthropic citations API. Better citation
+quality out of the box, rejected because it would make the one feature
+the product is about provider-specific.
+
+## Shared core library instead of duplicated contracts
+
+**Id:** 97441817-e59f-45c1-aba4-5d585ecd6940
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** planning conversation, 2026-10-12
+**Revisit when:** a service needs a model or helper the others must not see
+
+The Pydantic models, settings loading, bearer-token resolution, usage
+accounting (`record_usage`, `balance_cents`, model prices) and the
+provider interfaces live in one Python package, `lasteverLM-core`,
+which account, ingest and rag depend on. Installed from Git by tag
+first, from PyPI once stable.
+
+**Reason:** three services sharing one database need one definition of
+the rows and one way to price a model call; duplicating a hundred lines
+three times is where the first drift between services starts. A library
+is also where the "one interface, one implementation" rule is enforced
+rather than only described.
+
+**Rejected alternative:** copy the shared code into each service.
+Faster tonight, rejected because every later change to a contract
+would have to land in three repositories in lockstep. Known cost of the
+chosen path: a version pin to keep current in three places.
+
+## Usage rows are the debit; no second ledger write
+
+**Id:** 454bd7eb-b5a2-4c63-9544-6425f342a5a6
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** planning conversation, 2026-10-12
+
+Every model call writes one `usage` row with its token counts and a
+`cost_cents` priced at write time by the service that made the call,
+through a core helper and a price table from config. The balance is
+the sum of ledger credits minus the sum of usage costs. The account
+service only reads usage.
+
+**Reason:** one write per call, done by the service that has the
+numbers, cannot drift from a separate debit written later by another
+service; and pricing at write time means a price change never rewrites
+history. Services share the database, so no service call is needed for
+accounting.
+
+**Rejected alternative:** services write raw token counts and the
+account service turns them into ledger debits afterwards. Rejected
+because it needs a second writer and a reconciliation that can lag or
+fail, for the same result.

@@ -52,3 +52,27 @@ no merge rights by design.
 per-agent history. Rejected by the maintainer as setup overhead with no
 benefit: branch names carry the agent, and the review gate is the same
 either way.
+
+## Every agent reads the family's reasoning before building against another service
+
+**Id:** f2344982-34af-4679-a133-9eb5e8f126e4
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** planning conversation, 2026-10-12
+
+Before starting work and before opening a pull request, an agent
+fetches the parent repository and the repositories its service depends
+on and reads their `context/index.md` and the topics it touches. Every
+repository in the family keeps its own `context/` under Keep the Why
+from the first commit, and family-wide reasoning is routed to the
+parent through agent A.
+
+**Reason:** six sessions in parallel only work when a decision made in
+one repository is known in the others before code is written against
+it. Git is the channel for that; direct messages are for interface
+changes and blockers only. The maintainer set this as a hard rule.
+
+**Rejected alternative:** a shared chat or a status document. Rejected
+because it would be a second place for knowledge that already belongs
+in the repositories, and would not survive the project.
