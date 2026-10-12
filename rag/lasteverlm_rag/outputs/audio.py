@@ -9,7 +9,8 @@ synthesize it with ``TextToSpeech``, store the file, return ``{"url"}``.
 
 from __future__ import annotations
 
-from ..contracts import OutputKind
+from lasteverlm_core import OutputKind
+
 from ..models import GeneratedOutput, Passage, SourceSummary
 from . import CompleteFn
 from ._base import GenerationFailed

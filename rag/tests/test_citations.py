@@ -5,7 +5,7 @@ from lasteverlm_rag.citations import (
     number_passages,
 )
 
-from .conftest import chunk
+from .conftest import CHUNK_1, SOURCE_1, chunk
 
 PASSAGES = number_passages(
     [
@@ -18,7 +18,7 @@ PASSAGES = number_passages(
 
 def test_number_passages_is_one_based_in_retrieval_order():
     assert [p.n for p in PASSAGES] == [1, 2, 3]
-    assert PASSAGES[0].chunk_id == "chunk-1"
+    assert PASSAGES[0].chunk_id == CHUNK_1
 
 
 def test_extract_markers_handles_groups_and_duplicates():
@@ -30,10 +30,10 @@ def test_map_citations_keeps_model_numbers_and_resolves_sources():
     answer, citations = map_citations("Alpha is first [1]. Beta is second [2].", PASSAGES)
     assert answer == "Alpha is first [1]. Beta is second [2]."
     assert [c.n for c in citations] == [1, 2]
-    assert citations[0].source_id == "source-1"
+    assert str(citations[0].source_id) == SOURCE_1
     assert citations[0].source_name == "doc1.pdf"
     assert citations[0].source_kind == "pdf"
-    assert citations[0].chunk_id == "chunk-1"
+    assert str(citations[0].chunk_id) == CHUNK_1
     assert citations[0].page == 3
     assert citations[0].quote == "Alpha text."
     assert citations[1].source_kind == "generated"

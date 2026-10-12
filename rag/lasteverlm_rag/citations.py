@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import re
 
-from .contracts import Citation
+from lasteverlm_core import Citation
+
 from .models import Passage, RetrievedChunk
 
 QUOTE_MAX_CHARS = 300
@@ -65,14 +66,17 @@ def _rewrite_group(inner: str, by_n: dict[int, Passage]) -> str:
 
 
 def _to_citation(p: Passage) -> Citation:
-    return Citation(
-        n=p.n,
-        source_id=p.source_id,
-        source_name=p.source_name,
-        source_kind=p.source_kind,
-        chunk_id=p.chunk_id,
-        page=p.page,
-        quote=_quote(p.text),
+    # ids are strings inside this service; the contract model parses them into UUIDs
+    return Citation.model_validate(
+        {
+            "n": p.n,
+            "source_id": p.source_id,
+            "source_name": p.source_name,
+            "source_kind": p.source_kind,
+            "chunk_id": p.chunk_id,
+            "page": p.page,
+            "quote": _quote(p.text),
+        }
     )
 
 

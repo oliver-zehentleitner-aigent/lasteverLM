@@ -1,11 +1,26 @@
-"""Internal data shapes. API shapes live in contracts.py."""
+"""Internal data shapes and the request bodies only rag accepts. The shared
+API models (Answer, Citation, Message, Output, SharedOutput) come from core."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
-from .contracts import OutputKind, OutputStatus, SourceKind
+from lasteverlm_core import OutputKind, OutputStatus, SourceKind
+from pydantic import BaseModel, Field
+
+
+class AskScope(BaseModel):
+    output_id: str
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=4000)
+    scope: AskScope | None = None
+
+
+class OutputCreate(BaseModel):
+    kind: OutputKind
 
 
 @dataclass(frozen=True)
@@ -32,28 +47,6 @@ class Passage:
     source_kind: SourceKind
     page: int | None
     text: str
-
-
-@dataclass(frozen=True)
-class Usage:
-    """Token usage of one provider call, written to the ``usage`` table."""
-
-    kind: str  # 'llm' | 'embedding'
-    model: str
-    tokens_in: int
-    tokens_out: int
-
-
-@dataclass(frozen=True)
-class EmbeddingResult:
-    vectors: list[list[float]]
-    usage: Usage
-
-
-@dataclass(frozen=True)
-class CompletionResult:
-    text: str
-    usage: Usage
 
 
 @dataclass(frozen=True)

@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ..contracts import OutputKind
-from ..models import CompletionResult, GeneratedOutput, Passage, SourceSummary
+from lasteverlm_core import CompletionResult, OutputKind
+
+from ..models import GeneratedOutput, Passage, SourceSummary
 
 
 class OutputGenerator(Protocol):

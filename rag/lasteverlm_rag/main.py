@@ -2,7 +2,9 @@
 
 import logging
 import uuid
-from typing import Annotated
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
+from typing import Annotated, cast
 
 from fastapi import (
     Depends,
@@ -15,22 +17,30 @@ from fastapi import (
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from lasteverlm_core import (
+    LLM,
+    Answer,
+    AuthError,
+    Embedder,
+    Message,
+    OpenAICompatibleEmbedder,
+    OpenAICompatibleLLM,
+    Output,
+    OutputKind,
+    PostgresRateLimitStore,
+    RateLimiter,
+    RateLimitMiddleware,
+    RateLimitStore,
+    SharedOutput,
+    current_user,
+    make_client,
+)
+from lasteverlm_core.usage import Connection as CoreConnection
 
 from . import __version__
 from .config import Settings
-from .contracts import (
-    Answer,
-    AskRequest,
-    AuthError,
-    Message,
-    Output,
-    OutputCreate,
-    OutputKind,
-    SharedOutput,
-    verify_token,
-)
+from .models import AskRequest, OutputCreate
 from .outputs import OutputGenerator, registry
-from .providers import LLM, Embedder, OpenAICompatibleEmbedder, OpenAICompatibleLLM, make_client
 from .service import (
     InsufficientCredit,
     NotebookNotFound,
@@ -39,7 +49,7 @@ from .service import (
     OutputService,
     RagService,
 )
-from .store import PgVectorRetriever, PostgresStore, Retriever, Store, make_pool
+from .store import PgVectorRetriever, Pool, PostgresStore, Retriever, Store, make_pool
 
 PREFIX = "/api/rag"
 
@@ -57,21 +67,23 @@ def create_app(
     llm: LLM | None = None,
     generators: dict[OutputKind, OutputGenerator] | None = None,
     output_service: OutputService | None = None,
+    rate_limit_store: RateLimitStore | None = None,
 ) -> FastAPI:
     """Build the app. Dependencies can be injected for tests; otherwise they come from settings."""
     settings = settings or Settings.from_env()
     logging.basicConfig(level=settings.log_level)
 
-    if store is None or retriever is None:
+    if store is None or retriever is None or rate_limit_store is None:
         pool = make_pool(settings.database_url)
         store = store or PostgresStore(pool, settings.model_prices)
         retriever = retriever or PgVectorRetriever(pool)
+        rate_limit_store = rate_limit_store or PostgresRateLimitStore(_connect(pool))
     if embedder is None or llm is None:
-        client = make_client(settings.inference_base_url, settings.inference_api_key)
+        client = make_client(settings.inference)
         embedder = embedder or OpenAICompatibleEmbedder(
-            client, settings.embedding_model, settings.embedding_dimension
+            client, settings.inference.embedding_model, settings.inference.embedding_dimension
         )
-        llm = llm or OpenAICompatibleLLM(client, settings.llm_model)
+        llm = llm or OpenAICompatibleLLM(client, settings.inference.llm_model)
     generators = generators or registry(tts_available=settings.tts_model is not None)
 
     rag = RagService(
@@ -83,17 +95,22 @@ def create_app(
 
     app = FastAPI(title="lasteverLM rag", version=__version__, docs_url=None, redoc_url=None)
     _install_error_handlers(app)
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=RateLimiter(rate_limit_store, settings.rate_limit),
+        service="rag",
+        auth=settings.auth,
+    )
 
-    def current_user(authorization: Annotated[str | None, Header()] = None) -> str:
-        scheme, _, token = (authorization or "").partition(" ")
-        if scheme.lower() != "bearer" or not token.strip():
-            raise HTTPException(401, "missing bearer token")
+    def user_id(authorization: Annotated[str | None, Header()] = None) -> str:
+        """The caller's user id as a string; ids stay strings inside this service
+        and are cast to UUID at the store boundary."""
         try:
-            return verify_token(token.strip(), settings.auth_jwt_secret, settings.demo_token)
+            return str(current_user(authorization, settings.auth).user_id)
         except AuthError as exc:
             raise HTTPException(401, str(exc)) from exc
 
-    User = Annotated[str, Depends(current_user)]  # noqa: N806
+    User = Annotated[str, Depends(user_id)]  # noqa: N806
 
     @app.get("/healthz")
     @app.get(f"{PREFIX}/healthz")
@@ -141,6 +158,18 @@ def create_app(
         return outputs.shared(token)
 
     return app
+
+
+def _connect(pool: Pool) -> Callable[[], AbstractContextManager[CoreConnection]]:
+    """The rate-limit store wants a zero-argument connection factory over core's
+    connection protocol; see ``store._core_conn`` for the cast."""
+
+    @contextmanager
+    def connect() -> Iterator[CoreConnection]:
+        with pool.connection() as conn:
+            yield cast(CoreConnection, conn)
+
+    return connect
 
 
 def _install_error_handlers(app: FastAPI) -> None:

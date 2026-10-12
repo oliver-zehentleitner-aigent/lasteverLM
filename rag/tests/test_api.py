@@ -1,15 +1,18 @@
-import jwt
-import pytest
+import uuid
 
-from lasteverlm_rag.config import ConfigError, Settings
-from lasteverlm_rag.contracts import DEMO_USER_ID, AuthError, verify_token
+import pytest
+from lasteverlm_core import DEMO_USER_ID, ConfigError, issue_jwt
+
+from lasteverlm_rag.config import Settings
 from lasteverlm_rag.service import REFUSAL
 
 from .conftest import (
     AUTH,
     BASE_ENV,
+    CHUNK_1,
     NOTEBOOK,
     OTHER_NOTEBOOK,
+    SOURCE_1,
     FakeLLM,
     FakeRetriever,
     FakeStore,
@@ -41,10 +44,10 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
     assert [c["n"] for c in body["citations"]] == [1, 2]
     assert body["citations"][0] == {
         "n": 1,
-        "source_id": "source-1",
+        "source_id": SOURCE_1,
         "source_name": "doc1.pdf",
         "source_kind": "pdf",
-        "chunk_id": "chunk-1",
+        "chunk_id": CHUNK_1,
         "page": 2,
         "quote": "The sky is blue.",
     }
@@ -56,13 +59,13 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
     # both messages stored, the assistant one carries the citations
     assert [m["role"] for m in store.messages] == ["user", "assistant"]
     assert store.messages[1]["id"] == body["message_id"]
-    assert store.messages[1]["citations"][0]["chunk_id"] == "chunk-1"
+    assert store.messages[1]["citations"][0]["chunk_id"] == CHUNK_1
     # one usage row per provider call, attributed to the user and notebook
     assert [(u.kind, u.tokens_in, u.tokens_out) for _, _, u in store.usage] == [
         ("embedding", 7, 0),
         ("llm", 50, 20),
     ]
-    assert all((user, nb) == (DEMO_USER_ID, NOTEBOOK) for user, nb, _ in store.usage)
+    assert all((user, nb) == (str(DEMO_USER_ID), NOTEBOOK) for user, nb, _ in store.usage)
 
 
 def test_ask_refuses_when_nothing_passes_the_floor(settings):
@@ -163,23 +166,33 @@ def test_validation_errors_use_the_error_shape(settings):
     assert r.json()["error"].startswith("path.notebook_id:")
 
 
-def test_jwt_as_issued_by_account_is_tried_before_demo_token():
-    token = jwt.encode({"sub": "user-42", "iss": "lasteverlm"}, "jwt-secret", algorithm="HS256")
-    assert verify_token(token, "jwt-secret", "demo") == "user-42"
-    assert verify_token("demo", "jwt-secret", "demo") == DEMO_USER_ID
-    for bad in (
-        jwt.encode({"sub": "user-42", "iss": "lasteverlm"}, "other", algorithm="HS256"),
-        jwt.encode({"sub": "user-42", "iss": "someone-else"}, "jwt-secret", algorithm="HS256"),
-        jwt.encode({"sub": "user-42"}, "jwt-secret", algorithm="HS256"),
-    ):
-        with pytest.raises(AuthError):
-            verify_token(bad, "jwt-secret", "demo")
-    with pytest.raises(AuthError):
-        verify_token("demo", None, None)
+def test_session_jwt_from_the_account_service_is_accepted(settings):
+    """Auth itself is core's; this checks the wiring: a JWT resolves to its user."""
+    store = FakeStore()
+    user = uuid.uuid4()
+    store.notebooks[NOTEBOOK]["owner"] = str(user)
+    s = Settings.from_env({**BASE_ENV, "AUTH_JWT_SECRET": "jwt-secret", "DEMO_TOKEN": "demo"})
+    client = make_client(s, store, FakeRetriever([]), FakeLLM())
+    token = issue_jwt(user, "jwt-secret")
+
+    assert client.get(MESSAGES, headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    # the demo user does not own this notebook any more
+    assert client.get(MESSAGES, headers={"Authorization": "Bearer demo"}).status_code == 404
+    wrong = issue_jwt(user, "other-secret")
+    assert client.get(MESSAGES, headers={"Authorization": f"Bearer {wrong}"}).status_code == 401
+
+
+def test_rate_limit_middleware_is_wired(settings):
+    s = Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "demo", "RATE_LIMIT_PER_MINUTE": "2"})
+    client = make_client(s, FakeStore(), FakeRetriever([]), FakeLLM())
+    codes = [
+        client.get(MESSAGES, headers={"Authorization": "Bearer demo"}).status_code for _ in range(3)
+    ]
+    assert codes == [200, 200, 429]
 
 
 @pytest.mark.parametrize(
-    "missing", ["DATABASE_URL", "INFERENCE_BASE_URL", "LLM_MODEL", "EMBEDDING_MODEL"]
+    "missing", ["DATABASE_URL", "INFERENCE_API_KEY", "LLM_MODEL", "EMBEDDING_MODEL"]
 )
 def test_settings_fail_loud_on_missing_values(missing):
     env = {**BASE_ENV, "DEMO_TOKEN": "d"}
@@ -193,9 +206,9 @@ def test_settings_require_one_auth_scheme_and_sane_numbers():
         Settings.from_env(BASE_ENV)
     with pytest.raises(ConfigError, match="SIMILARITY_FLOOR"):
         Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "SIMILARITY_FLOOR": "1.5"})
-    with pytest.raises(ConfigError, match="EMBEDDING_DIMENSION"):
-        Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "EMBEDDING_DIMENSION": "0"})
-    s = Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "INFERENCE_BASE_URL": "https://x/v1/"})
-    assert s.inference_base_url == "https://x/v1"
-    assert s.embedding_dimension == 1536
+    with pytest.raises(ConfigError, match="RETRIEVAL_K"):
+        Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "RETRIEVAL_K": "0"})
+    s = Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d"})
+    assert s.inference.embedding_dimension == 1536
     assert s.tts_model is None
+    assert s.auth.demo_token == "d" and s.auth.jwt_secret is None

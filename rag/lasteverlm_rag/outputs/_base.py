@@ -6,9 +6,9 @@ import json
 import re
 from typing import Any
 
+from lasteverlm_core import OutputKind
 from pydantic import BaseModel, ValidationError
 
-from ..contracts import OutputKind
 from ..models import GeneratedOutput, Passage, SourceSummary
 from . import CompleteFn
 

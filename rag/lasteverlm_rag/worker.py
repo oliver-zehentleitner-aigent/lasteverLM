@@ -21,9 +21,10 @@ import time
 import uuid
 from collections.abc import Callable
 
+from lasteverlm_core import OpenAICompatibleEmbedder, OpenAICompatibleLLM, make_client
+
 from .config import Settings
 from .outputs import registry
-from .providers import OpenAICompatibleEmbedder, OpenAICompatibleLLM, make_client
 from .service import OutputService
 from .store import PgVectorRetriever, PostgresStore, Store, make_pool
 
@@ -82,12 +83,14 @@ def main() -> None:
     logging.basicConfig(level=settings.log_level)
     pool = make_pool(settings.database_url)
     store = PostgresStore(pool, settings.model_prices)
-    client = make_client(settings.inference_base_url, settings.inference_api_key)
+    client = make_client(settings.inference)
     outputs = OutputService(
         store,
         PgVectorRetriever(pool),
-        OpenAICompatibleEmbedder(client, settings.embedding_model, settings.embedding_dimension),
-        OpenAICompatibleLLM(client, settings.llm_model),
+        OpenAICompatibleEmbedder(
+            client, settings.inference.embedding_model, settings.inference.embedding_dimension
+        ),
+        OpenAICompatibleLLM(client, settings.inference.llm_model),
         registry(tts_available=settings.tts_model is not None),
         settings.retrieval_k,
         settings.similarity_floor,

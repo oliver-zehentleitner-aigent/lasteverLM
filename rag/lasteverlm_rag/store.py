@@ -12,22 +12,30 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Mapping
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol, cast
 
+from lasteverlm_core import (
+    Message,
+    ModelPrices,
+    OutputKind,
+    OutputStatus,
+    Usage,
+    balance_cents,
+    record_usage,
+)
+from lasteverlm_core.usage import Connection as CoreConnection
 from psycopg import Connection
 from psycopg.rows import DictRow, dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from .contracts import Message, ModelPrice, OutputKind, OutputStatus, cost_cents
-from .models import Chunk, OutputRow, RetrievedChunk, SourceState, SourceSummary, Usage
+from .models import Chunk, OutputRow, RetrievedChunk, SourceState, SourceSummary
 
 log = logging.getLogger(__name__)
 
 Pool = ConnectionPool[Connection[DictRow]]
 
-SERVICE_NAME = "rag"
+SERVICE_NAME: Literal["rag"] = "rag"
 
 
 class Retriever(Protocol):
@@ -110,19 +118,6 @@ order by c.embedding <=> %(embedding)s::vector
 limit %(k)s
 """
 
-# Balance = credits in the ledger minus priced usage; usage rows are the debit,
-# there is no second ledger write. Mirrors lasteverlm_core.balance_cents.
-_BALANCE_SQL = """
-select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)s), 0)
-     - coalesce((select sum(cost_cents) from usage where user_id = %(user_id)s), 0) as balance
-"""
-
-_USAGE_SQL = """
-insert into usage (user_id, notebook_id, service, kind, model, tokens_in, tokens_out, cost_cents)
-values (%(user_id)s, %(notebook_id)s, %(service)s, %(kind)s, %(model)s,
-        %(tokens_in)s, %(tokens_out)s, %(cost_cents)s)
-"""
-
 _OUTPUT_COLUMNS = """
 o.id::text as id, o.notebook_id::text as notebook_id, n.owner::text as owner, o.kind, o.title,
 o.content, o.status, o.error, o.share_token, o.source_id::text as source_id, o.attempts,
@@ -191,7 +186,7 @@ class PgVectorRetriever:
 
 
 class PostgresStore:
-    def __init__(self, pool: Pool, prices: Mapping[str, ModelPrice]) -> None:
+    def __init__(self, pool: Pool, prices: ModelPrices) -> None:
         self._pool = pool
         self._prices = prices
 
@@ -351,29 +346,32 @@ class PostgresStore:
         with self._pool.connection() as conn:
             conn.execute("delete from sources where id = %s", (source_id,))
 
-    # -- credit -----------------------------------------------------------
+    # -- credit (core's helpers; usage rows are the only debit) -------------
 
     def balance_cents(self, user_id: str) -> int:
         with self._pool.connection() as conn:
-            row = conn.execute(_BALANCE_SQL, {"user_id": user_id}).fetchone()
-        return int(row["balance"]) if row else 0
+            return balance_cents(_core_conn(conn), uuid.UUID(user_id))
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
-        cost = cost_cents(self._prices, usage.model, usage.tokens_in, usage.tokens_out)
         with self._pool.connection() as conn:
-            conn.execute(
-                _USAGE_SQL,
-                {
-                    "user_id": user_id,
-                    "notebook_id": notebook_id,
-                    "service": SERVICE_NAME,
-                    "kind": usage.kind,
-                    "model": usage.model,
-                    "tokens_in": usage.tokens_in,
-                    "tokens_out": usage.tokens_out,
-                    "cost_cents": cost,
-                },
+            record_usage(
+                _core_conn(conn),
+                uuid.UUID(user_id),
+                uuid.UUID(notebook_id) if notebook_id else None,
+                SERVICE_NAME,
+                usage.kind,
+                usage.model,
+                usage.tokens_in,
+                usage.tokens_out,
+                prices=self._prices,
             )
+
+
+def _core_conn(conn: Connection[DictRow]) -> CoreConnection:
+    """psycopg's ``cursor()`` is overloaded (named server-side cursors), which mypy
+    does not match against core's one-signature protocol; at runtime it is the
+    same no-argument call."""
+    return cast(CoreConnection, conn)
 
 
 def make_pool(database_url: str) -> Pool:
@@ -402,13 +400,7 @@ def _jsonb(value: Any) -> Any:
 
 
 def _to_message(row: dict[str, Any]) -> Message:
-    return Message(
-        id=row["id"],
-        role=row["role"],
-        content=row["content"],
-        citations=row.get("citations"),
-        created_at=str(row["created_at"]),
-    )
+    return Message.model_validate({**row, "citations": row.get("citations") or []})
 
 
 def _to_output(row: dict[str, Any]) -> OutputRow:

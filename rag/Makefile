@@ -1,13 +1,16 @@
-.PHONY: check lint types test run worker build
+.PHONY: venv check lint types test run worker build
 
 VENV ?= .venv
 PY := $(VENV)/bin/python
 IMAGE ?= lasteverlm-rag
 TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-$(VENV)/bin/activate: pyproject.toml
+$(VENV)/bin/activate: pyproject.toml ../core/pyproject.toml
 	uv venv $(VENV)
-	. $(VENV)/bin/activate && uv pip install -e ".[dev]"
+	VIRTUAL_ENV=$(VENV) uv pip install -e ../core -e '.[dev]'
+	touch $(VENV)/bin/activate
+
+venv: $(VENV)/bin/activate
 
 check: lint types test
 
