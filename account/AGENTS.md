@@ -31,7 +31,7 @@ src/lasteverlm_account/
 ├── privacy.py             visitor hashing, daily salt, user-agent family, client IP
 └── api/                   routers: auth, account (me, redeem, visits), admin, deps
 db/migrations/             numbered SQL, applied by infra's make migrate after core's
-Makefile                   check (ruff, mypy, pytest), run, run-dev, build (context: repository root)
+Makefile                   install (uv sync), check, run, run-dev, build (context: repository root)
 tests/                     unit tests on the memory repository; test_postgres.py needs TEST_DATABASE_URL
 ```
 

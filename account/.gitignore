@@ -231,3 +231,6 @@ AGENTS.local.md
 
 # Committed on purpose: documents every variable, holds no values
 !.env.example
+
+# uv lockfile: created by make install, not pinned yet (same in every service)
+uv.lock

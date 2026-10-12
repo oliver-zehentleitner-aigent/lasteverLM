@@ -1,29 +1,35 @@
-.PHONY: check lint types test run run-dev build
+# Same targets in every lasteverLM repository.
+VENV ?= .venv
+IMAGE ?= lasteverlm-account
+TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-PYTHON ?= .venv/bin/python
-IMAGE  ?= lasteverlm-account
-TAG    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
+.PHONY: install check lint types test run run-dev build
 
-check: lint types test
+# Creates .venv and installs the service with its dev extras; idempotent,
+# so `check` can depend on it on a fresh checkout and in CI.
+install:
+	uv sync --all-extras
 
 lint:
-	$(PYTHON) -m ruff check .
-	$(PYTHON) -m ruff format --check .
+	$(VENV)/bin/ruff check .
+	$(VENV)/bin/ruff format --check .
 
 types:
-	$(PYTHON) -m mypy
+	$(VENV)/bin/mypy
 
 test:
-	$(PYTHON) -m pytest
+	$(VENV)/bin/pytest
+
+check: install lint types test
 
 # Production entrypoint: PostgreSQL from DATABASE_URL, SMTP from the settings table.
 run:
-	$(PYTHON) -m uvicorn lasteverlm_account.main:app --host 0.0.0.0 --port 8000
+	$(VENV)/bin/uvicorn lasteverlm_account.main:app --host 0.0.0.0 --port $${PORT:-8000}
 
 # Development entrypoint: in-memory storage, sign-in links printed to the console,
 # a seeded admin and the demo user. No database, no mail server.
 run-dev:
-	$(PYTHON) -m uvicorn lasteverlm_account.dev:app --host 0.0.0.0 --port 8000
+	$(VENV)/bin/uvicorn lasteverlm_account.dev:app --host 0.0.0.0 --port $${PORT:-8000} --reload
 
 # The repository root is the build context so core/ can be copied into the image.
 build:
