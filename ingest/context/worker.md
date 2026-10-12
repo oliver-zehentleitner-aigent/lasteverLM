@@ -33,3 +33,29 @@ worker to the API process and makes a crashed upload leave a
 The credit check runs in the handler, so the user gets a 402 before
 anything is stored, and again in the worker before each model call,
 because the balance can change in between.
+
+## A failed summary fails the source, even though its chunks are written
+
+**Id:** f11ae1b9-3c5a-4eb7-bc8d-52c1344805ef
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** service author's implementation decision, 2026-10-12; maintainer review pending in the first pull request
+**Revisit when:** a retry endpoint for a single source exists, or the output generators learn to work without a summary
+
+The summary is the last step of processing. When the model call for it
+fails, the source ends as `failed` with the error, although its chunks
+are in the database and the embedding has been paid for.
+
+**Reason:** the output generators in the rag service take the summaries
+of a notebook's sources as their input. A source that is `ready` without
+a summary would make them work on incomplete input without anyone
+noticing; a `failed` source is visible to the user and to the generator's
+"wait for processing" logic alike. Failing visibly beats degrading
+silently, and the embedding cost of a re-upload is small at the upload
+cap in force.
+
+**Rejected alternative:** set `ready` and leave `summary` null, logging
+the failure. Keeps the chat usable for that source immediately, rejected
+because the gap would surface only as weaker generated outputs, with no
+trace of why.
