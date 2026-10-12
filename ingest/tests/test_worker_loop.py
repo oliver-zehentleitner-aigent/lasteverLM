@@ -16,7 +16,7 @@ def make_deps(repo, storage, **settings) -> WorkerDeps:
         repository=repo,
         storage=storage,
         loaders=default_registry(),
-        chunker=TokenWindowChunker(s.chunk_tokens, s.chunk_overlap_tokens),
+        chunker=TokenWindowChunker(**s.chunker_kwargs()),
         embedder=FakeEmbedder(),
         summarizer=FakeSummarizer(),
     )

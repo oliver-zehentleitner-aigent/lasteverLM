@@ -6,8 +6,11 @@ from tests.conftest import make_settings
 
 def test_defaults_and_values():
     s = make_settings(CHUNK_TOKENS="", CHUNK_OVERLAP_TOKENS="", MAX_UPLOAD_BYTES="")
-    assert s.chunk_tokens == 800
-    assert s.chunk_overlap_tokens == 100
+    assert s.chunk_tokens is None and s.chunk_overlap_tokens is None  # core decides
+    assert s.chunker_kwargs() == {}
+    assert make_settings(CHUNK_TOKENS="300", CHUNK_OVERLAP_TOKENS="").chunker_kwargs() == {
+        "size": 300
+    }
     assert s.max_upload_bytes == 20 * 1024 * 1024
     assert s.auth.demo_token == "test-demo-token"
     assert s.auth.jwt_secret is None

@@ -38,8 +38,8 @@ class Settings:
     auth: AuthSettings
     rate_limit: RateLimitSettings
     max_upload_bytes: int
-    chunk_tokens: int
-    chunk_overlap_tokens: int
+    chunk_tokens: int | None  # None: core's default
+    chunk_overlap_tokens: int | None  # None: core's default
     embed_batch_size: int
     summary_input_tokens: int
     summary_max_tokens: int
@@ -49,13 +49,25 @@ class Settings:
     model_prices: ModelPrices = field(default_factory=dict)
     service_name: Literal["ingest", "rag"] = "ingest"
 
+    def chunker_kwargs(self) -> dict[str, int]:
+        """Only what was set explicitly; the rest stays core's default."""
+        kwargs = {}
+        if self.chunk_tokens is not None:
+            kwargs["size"] = self.chunk_tokens
+        if self.chunk_overlap_tokens is not None:
+            kwargs["overlap"] = self.chunk_overlap_tokens
+        return kwargs
+
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
         env = os.environ if env is None else env
-        chunk_tokens = env_int("CHUNK_TOKENS", 800, env)
-        overlap = env_int("CHUNK_OVERLAP_TOKENS", 100, env)
-        if not 0 <= overlap < chunk_tokens:
-            raise ConfigError("CHUNK_OVERLAP_TOKENS must be >= 0 and smaller than CHUNK_TOKENS")
+        # Chunk size and overlap default to core's chunker, which is where
+        # the family tunes them; set here only to override a deployment.
+        chunk_tokens: int | None = env_int("CHUNK_TOKENS", 0, env) or None
+        raw_overlap = env_int("CHUNK_OVERLAP_TOKENS", -1, env)
+        overlap: int | None = None if raw_overlap < 0 else raw_overlap
+        if chunk_tokens is not None and overlap is not None and not overlap < chunk_tokens:
+            raise ConfigError("CHUNK_OVERLAP_TOKENS must be smaller than CHUNK_TOKENS")
         poll_seconds = env_int("WORKER_POLL_SECONDS", 2, env)
         claim_timeout = env_int("CLAIM_TIMEOUT_SECONDS", 600, env)
         if poll_seconds <= 0 or claim_timeout <= 0:

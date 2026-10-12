@@ -36,7 +36,7 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `MODEL_PRICES` | until core ships defaults | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`; the service refuses to start when `EMBEDDING_MODEL` or `LLM_MODEL` has no price |
 | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | at least one | the HS256 secret the account service signs JWTs with (issuer `lasteverlm`), and/or the shared demo token; a JWT is checked first |
 | `MAX_UPLOAD_BYTES` | no | default 20 MiB; larger uploads get 413 |
-| `CHUNK_TOKENS`, `CHUNK_OVERLAP_TOKENS` | no | defaults 800 and 100 |
+| `CHUNK_TOKENS`, `CHUNK_OVERLAP_TOKENS` | no | override core's chunker defaults for one deployment; unset means core decides |
 | `EMBED_BATCH_SIZE` | no | texts per embedding request, default 64 |
 | `WORKER_POLL_SECONDS` | no | how often an idle worker looks for work, default 2 |
 | `CLAIM_TIMEOUT_SECONDS` | no | a claim older than this is taken over by another worker, default 600; after three attempts a source is `failed` |
