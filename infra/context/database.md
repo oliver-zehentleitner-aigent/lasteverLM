@@ -149,3 +149,31 @@ network.
 **Rejected alternative:** leave it open until the VPC move — rejected
 by the maintainer.
 
+## The managed PostgreSQL is an input, not an OpenTofu resource
+
+**Id:** 210e2af5-c0c6-4459-8aff-9e33a06c52b2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** family coordinator, 2026-10-12: the maintainer created the instance by hand in Frankfurt before the first run
+**Revisit when:** the instance is recreated, or the project wants the database under OpenTofu after all
+
+`tofu/` creates the cluster and the object storage only. The instance's
+admin URL is `DATABASE_ADMIN_URL` in the operator's environment;
+`make env` derives from it the application role's URL and the admin URL
+on the application database (`scripts/dburls.py`), and
+`make db-bootstrap` runs a Job as the admin role that creates the role
+(login only, no superuser, cannot create extensions), the database the
+role owns, and `CREATE EXTENSION vector`. A rotated admin password is
+one `make secrets` away because nothing but the environment holds it.
+
+**Reason:** importing a hand-made instance into state on the first
+night was more risk than value, and a database that outlives
+`make down` is what the maintainer wanted anyway; the bootstrap Job
+keeps the toolchain free of a local `psql`.
+
+**Rejected alternatives:** `tofu import` of the instance — one wrong
+attribute and the next apply replaces a database; keeping the
+`vultr_database` resource and letting it create a second instance —
+two databases to pay for and confuse.
+
