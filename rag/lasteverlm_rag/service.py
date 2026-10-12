@@ -240,6 +240,9 @@ class OutputService:
                 source_id=source_id,
                 error=None,
             )
+            log.info(
+                "output %s (%s) ready: %r, source %s", job.id, job.kind, generated.title, source_id
+            )
             return True
         except Exception as exc:
             if source_id is not None:
