@@ -31,8 +31,8 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | yes | object storage for uploads; `S3_REGION` optional, default `us-east-1` |
 | `INFERENCE_API_KEY` | yes | key for the OpenAI-compatible inference API; `INFERENCE_BASE_URL` optional, default Vultr Serverless Inference |
 | `EMBEDDING_MODEL` | yes | same model as the rag service uses for questions |
-| `EMBEDDING_DIMENSION` | no | default 1536; must match the `chunks.embedding` column |
-| `LLM_MODEL` | yes | writes the per-source summary |
+| `EMBEDDING_DIMENSION` | no | default 1536; requested from the embedding model on every call (`dimensions`) and must match the `chunks.embedding` column |
+| `LLM_MODEL` | yes | writes the per-source summary; `LLM_MAX_TOKENS` optional, default 1024, the ceiling for one completion (the summary asks for 300) |
 | `MODEL_PRICES` | until core ships defaults | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`; the service refuses to start when `EMBEDDING_MODEL` or `LLM_MODEL` has no price |
 | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | at least one | the HS256 secret the account service signs JWTs with (issuer `lasteverlm`), and/or the shared demo token; a JWT is checked first |
 | `MAX_UPLOAD_BYTES` | no | default 20 MiB; larger uploads get 413 |

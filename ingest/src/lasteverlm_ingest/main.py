@@ -83,7 +83,12 @@ def build_worker_deps(
             client, settings.inference.embedding_model, settings.inference.embedding_dimension
         )
         summarizer = summarizer or LLMSummarizer(
-            OpenAICompatibleLLM(client, settings.inference.llm_model, temperature=0.2),
+            OpenAICompatibleLLM(
+                client,
+                settings.inference.llm_model,
+                temperature=0.2,
+                max_tokens=settings.inference.llm_max_tokens,
+            ),
             input_tokens=settings.summary_input_tokens,
             max_output_tokens=settings.summary_max_tokens,
         )

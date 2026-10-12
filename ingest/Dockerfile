@@ -13,7 +13,8 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8000
 RUN useradd --system --uid 10001 --no-create-home app
 COPY --from=build /install /usr/local
-USER app
+# Numeric, so that runAsNonRoot can verify it.
+USER 10001
 EXPOSE 8000
 # API by default; the worker Deployment overrides the command with
 # ["lasteverlm-ingest-worker"].
