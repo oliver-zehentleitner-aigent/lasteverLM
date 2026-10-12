@@ -67,3 +67,34 @@ move, one file changes.
 waiting for the service. Interception adds a dev dependency and hides
 which calls are real; waiting would serialize two agents that are meant
 to work in parallel.
+
+## Two columns: sources and output forms left, viewer and chat right
+
+**Id:** f81a9fe1-d433-4e32-b143-ed29542a8722
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the family lead, 2026-10-12
+**Revisit when:** the outputs API lands in the family contract, or a generated form needs more room than a tab
+
+The workspace has two columns. Left: the sources of the notebook on top
+(upload, status, delete), the output forms below as tiles (Report, Quiz,
+Data table, Mindmap, Infographic, Audio). Right: an output viewer on top
+with one tab per generated document, the chat with citations below.
+There is no notes pane.
+
+**Reason:** generated documents are what the product is about once the
+sources are in; a tab per document keeps them side by side with the chat
+that produced the questions, and the tiles make the available forms
+visible without a menu. Saved answers, the one thing a notes pane would
+have held, become a Report.
+
+**Rejected alternative:** the three-pane NotebookLM shape with a notes
+pane, which the first skeleton had. Rejected by the maintainer: notes
+without a server side were a browser-local stopgap, and the outputs make
+the pane redundant. See the superseded entry in `notes.md`.
+
+The outputs endpoints and the per-kind content shapes are the family
+lead's proposal and not confirmed in the contract yet; the client and the
+viewer are built to the proposal, the per-kind renderers wait for the
+confirmation (`src/components/outputs/OutputContent.tsx`).
