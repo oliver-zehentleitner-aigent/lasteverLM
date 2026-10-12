@@ -1,0 +1,26 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Keep a Changelog records what changed; [Keep the Why](https://keepthewhy.com)
+preserves why it changed, in `context/`.
+
+## [Unreleased]
+
+### Added
+
+- Credit check before storing, embedding and summarizing; 402 `credit exhausted` when the balance is zero.
+- Dockerfile, Makefile (`check`, `run`, `build`), health endpoint on `/healthz` and `/api/ingest/healthz`.
+- Embedding provider interface with an OpenAI-compatible implementation through the OpenAI SDK.
+- FastAPI service implementing the ingest endpoints of the lasteverLM API contract v1.1, scoped to the bearer-token user.
+- Loaders for PDF and plain text sources behind a registry open for url and image.
+- Migration `db/migrations/0001_ingest.sql` for `notebooks`, `sources` and `chunks`.
+- Mirror of the not yet published core library in `contracts.py` (models, token verification, accounting helpers, price parsing).
+- Per-source summary written by the language model at the end of processing, accounted as a `usage` row of kind `llm`.
+- S3-compatible object storage for uploads at `<notebook_id>/<source_id>/<name>`.
+- Token-window chunking with overlap.
+- Unit tests for chunking, loaders, pricing, token verification, the worker and the API against in-memory fakes.
+- Usage accounting: one `usage` row per model call, priced from `MODEL_PRICES`; refusal to start when a configured model has no price.
+- Worker entrypoint `lasteverlm-ingest-worker` that claims queued sources from PostgreSQL with `FOR UPDATE SKIP LOCKED`, counts attempts, retries transient failures by stale-claim takeover and fails a source for good on the third attempt, and stops after the current source on SIGTERM.
