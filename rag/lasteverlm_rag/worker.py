@@ -90,7 +90,9 @@ def main() -> None:
         OpenAICompatibleEmbedder(
             client, settings.inference.embedding_model, settings.inference.embedding_dimension
         ),
-        OpenAICompatibleLLM(client, settings.inference.llm_model),
+        OpenAICompatibleLLM(
+            client, settings.inference.llm_model, max_tokens=settings.inference.llm_max_tokens
+        ),
         registry(tts_available=settings.tts_model is not None),
         settings.retrieval_k,
         settings.similarity_floor,

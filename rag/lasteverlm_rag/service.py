@@ -271,8 +271,14 @@ class OutputService:
         self._store.record_usage(user_id, row.notebook_id, embedded.usage)
         chunks = self._retriever.search(row.notebook_id, embedded.vectors[0], self._k, self._floor)
 
-        def complete(system: str, user: str, max_tokens: int) -> CompletionResult:
-            result = self._llm.complete(system, user, max_tokens)
+        def complete(
+            system: str,
+            user: str,
+            max_tokens: int | None = None,
+            *,
+            thinking: bool | None = None,
+        ) -> CompletionResult:
+            result = self._llm.complete(system, user, max_tokens, thinking=thinking)
             self._store.record_usage(user_id, row.notebook_id, result.usage)
             return result
 

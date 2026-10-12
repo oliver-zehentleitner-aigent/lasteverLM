@@ -108,7 +108,7 @@ def test_transient_failure_is_retried_and_the_third_attempt_fails_the_job(settin
     store.add_source(NOTEBOOK, "a.txt", summary="s")
 
     class FlakyLLM(FakeLLM):
-        def complete(self, system, user, max_tokens):
+        def complete(self, system, user, max_tokens=None, *, thinking=None):
             raise ConnectionError("inference endpoint unreachable")
 
     client = make_client(settings, store, FakeRetriever([]), FlakyLLM())
@@ -244,7 +244,7 @@ def test_outputs_of_other_users_are_404(settings):
 
 def complete_with(*replies: str):
     llm = FakeLLM(*replies)
-    return llm, lambda system, user, max_tokens: llm.complete(system, user, max_tokens)
+    return llm, llm.complete
 
 
 def test_json_parsing_tolerates_fences_and_surrounding_text():
