@@ -29,7 +29,7 @@ repository root's `context/`.
 
 ## C
 
-- [citations.md](citations.md) — citations are mapped by the service, not the model; what happens to markers that name no passage, and why the refusal skips the model
+- [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why the refusal skips the model
 
 - [contracts.md](contracts.md) — why the shared contract types are mirrored locally until the core library ships
 
@@ -70,6 +70,8 @@ repository root's `context/`.
 ## Q
 
 ## R
+
+- [retrieval.md](retrieval.md) — why an unscoped question is answered from the uploads only (pending the maintainer's confirmation), and why a scoped one runs without a similarity floor
 
 ## S
 

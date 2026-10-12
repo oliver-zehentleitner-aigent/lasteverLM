@@ -5,7 +5,7 @@ from lasteverlm_rag.citations import (
     number_passages,
 )
 
-from .conftest import CHUNK_1, SOURCE_1, chunk
+from .conftest import CHUNK_1, SOURCE_1, chunk, chunk_uuid
 
 PASSAGES = number_passages(
     [
@@ -26,7 +26,7 @@ def test_extract_markers_handles_groups_and_duplicates():
     assert extract_markers("no markers") == []
 
 
-def test_map_citations_keeps_model_numbers_and_resolves_sources():
+def test_map_citations_resolves_sources_in_order_of_first_appearance():
     answer, citations = map_citations("Alpha is first [1]. Beta is second [2].", PASSAGES)
     assert answer == "Alpha is first [1]. Beta is second [2]."
     assert [c.n for c in citations] == [1, 2]
@@ -40,10 +40,20 @@ def test_map_citations_keeps_model_numbers_and_resolves_sources():
     assert citations[1].page is None
 
 
-def test_map_citations_strips_markers_that_name_no_passage():
-    answer, citations = map_citations("Made up [7]. Real [2]. Mixed [2, 9].", PASSAGES)
-    assert answer == "Made up. Real [2]. Mixed [2]."
-    assert [c.n for c in citations] == [2]
+def test_map_citations_strips_made_up_markers_and_renumbers_densely():
+    answer, citations = map_citations("Made up [7]. Real [3]. Mixed [3, 9].", PASSAGES)
+    assert answer == "Made up. Real [1]. Mixed [1]."
+    assert [(c.n, str(c.chunk_id)) for c in citations] == [(1, chunk_uuid(3))]
+
+
+def test_map_citations_splits_grouped_markers_and_numbers_by_first_appearance():
+    answer, citations = map_citations("Claim [3, 1]. More [2] and [3].", PASSAGES)
+    assert answer == "Claim [1][2]. More [3] and [1]."
+    assert [(c.n, str(c.chunk_id)) for c in citations] == [
+        (1, chunk_uuid(3)),
+        (2, chunk_uuid(1)),
+        (3, chunk_uuid(2)),
+    ]
 
 
 def test_map_citations_without_markers_yields_no_citations():
@@ -56,6 +66,7 @@ def test_quote_is_whitespace_normalized_and_truncated_at_word_boundary():
     long_text = "word " * 100
     passages = number_passages([chunk(1, "  line one\n\nline   two  "), chunk(2, long_text)])
     _, citations = map_citations("[1] [2]", passages)
+    assert [c.n for c in citations] == [1, 2]
     assert citations[0].quote == "line one line two"
     assert citations[1].quote.endswith("…")
     assert len(citations[1].quote) <= QUOTE_MAX_CHARS + 1

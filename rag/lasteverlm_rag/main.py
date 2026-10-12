@@ -95,7 +95,13 @@ def create_app(
     generators = generators or registry(tts_available=settings.tts_model is not None)
 
     rag = RagService(
-        store, retriever, embedder, llm, settings.retrieval_k, settings.similarity_floor
+        store,
+        retriever,
+        embedder,
+        llm,
+        settings.retrieval_k,
+        settings.similarity_floor,
+        include_generated=settings.retrieval_include_generated,
     )
     outputs = output_service or OutputService(
         store, retriever, embedder, llm, generators, settings.retrieval_k, settings.similarity_floor

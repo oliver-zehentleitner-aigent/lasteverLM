@@ -235,13 +235,23 @@ class FakeRetriever:
         self.chunks = chunks
         self.calls: list[dict[str, Any]] = []
 
-    def search(self, notebook_id, embedding, k, floor, source_id=None) -> list[RetrievedChunk]:
+    def search(
+        self, notebook_id, embedding, k, floor, source_id=None, include_generated=False
+    ) -> list[RetrievedChunk]:
         self.calls.append(
-            {"notebook_id": notebook_id, "k": k, "floor": floor, "source_id": source_id}
+            {
+                "notebook_id": notebook_id,
+                "k": k,
+                "floor": floor,
+                "source_id": source_id,
+                "include_generated": include_generated,
+            }
         )
         hits = [c for c in self.chunks if c.similarity >= floor]
         if source_id is not None:
             hits = [c for c in hits if c.source_id == source_id]
+        elif not include_generated:
+            hits = [c for c in hits if c.source_kind != "generated"]
         return hits[:k]
 
 

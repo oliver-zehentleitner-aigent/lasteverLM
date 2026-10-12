@@ -45,31 +45,37 @@ def extract_markers(answer: str) -> list[int]:
 
 
 def map_citations(answer: str, passages: list[Passage]) -> tuple[str, list[Citation]]:
-    """Resolve the markers in ``answer`` against ``passages``.
+    """Resolve the markers in ``answer`` against ``passages`` and normalize them
+    to the contract: one ``[n]`` per citation and ``n`` dense from 1 in order of
+    first appearance.
 
-    Markers that name a passage become citations, in order of first appearance,
-    keeping the number the model used so ``n`` and the inline marker agree.
-    Markers that name no passage are removed from the text: a number the model
-    made up must not reach the reader as if it were a source.
+    A grouped marker like ``[1, 3]`` becomes ``[1][2]``; a marker that names no
+    passage is removed (a number the model made up must not reach the reader as
+    if it were a source) and the remaining ones are renumbered so the text and
+    ``citations`` agree without gaps.
     """
     by_n = {p.n: p for p in passages}
-    cleaned = _MARKER_GROUP.sub(lambda m: _rewrite_group(m.group(1), by_n), answer)
+    renumber: dict[int, int] = {}
+    for old in extract_markers(answer):
+        if old in by_n:
+            renumber[old] = len(renumber) + 1
+
+    def rewrite(match: re.Match[str]) -> str:
+        kept = [renumber[int(raw)] for raw in match.group(1).split(",") if int(raw) in renumber]
+        return "".join(f"[{n}]" for n in kept)
+
+    cleaned = _MARKER_GROUP.sub(rewrite, answer)
     cleaned = re.sub(r"[ \t]+([.,;:!?])", r"\1", cleaned)
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned).strip()
-    citations = [_to_citation(by_n[n]) for n in extract_markers(cleaned)]
+    citations = [_to_citation(by_n[old], new) for old, new in renumber.items()]
     return cleaned, citations
 
 
-def _rewrite_group(inner: str, by_n: dict[int, Passage]) -> str:
-    kept = [raw.strip() for raw in inner.split(",") if int(raw) in by_n]
-    return f"[{', '.join(kept)}]" if kept else ""
-
-
-def _to_citation(p: Passage) -> Citation:
+def _to_citation(p: Passage, n: int) -> Citation:
     # ids are strings inside this service; the contract model parses them into UUIDs
     return Citation.model_validate(
         {
-            "n": p.n,
+            "n": n,
             "source_id": p.source_id,
             "source_name": p.source_name,
             "source_kind": p.source_kind,

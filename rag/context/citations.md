@@ -4,7 +4,8 @@
 
 **Id:** 8265b935-ce7a-48c6-9bee-1fb5acc9b41b
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 45660a5e-56a2-454e-932c-9553ca04898a
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12; implementation session, 2026-10-12
 **Revisit when:** the LLM provider offers citations the service can verify against its own chunks
@@ -27,6 +28,30 @@ rejected because one hallucinated number would throw away an otherwise
 grounded answer; renumbering citations 1..n in order of appearance,
 rejected because it rewrites the model's text and gains nothing the
 mapping does not already provide.
+
+## Citations are normalized: single markers, dense numbering by first appearance
+
+**Id:** 45660a5e-56a2-454e-932c-9553ca04898a
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** frontend click-through on the first deploy, 2026-10-12; coordinator decision the same evening
+
+The mapping still resolves every marker to the chunk it names and drops
+made-up ones, but the answer text is rewritten to the contract's shape:
+a grouped marker such as `[1, 3]` becomes `[1][2]`, and the surviving
+markers are renumbered 1..n in order of first appearance, so `Citation.n`
+is dense and matches the text exactly.
+
+**Reason:** the model groups markers and, after a dropped marker, the
+numbering had gaps; the contract says single `[n]` markers, and a dense
+sequence is what a reader and the viewer expect. The earlier choice to
+keep the model's numbers avoided rewriting the text, but the text has to
+be rewritten anyway to drop made-up markers, so the saving was none.
+
+**Rejected alternative:** keep the model's numbers and leave groups as
+they are (the previous entry), rejected because the frontend had to cope
+with both shapes and the gaps were visible to the reader.
 
 ## No relevant chunk: refuse without calling the model
 

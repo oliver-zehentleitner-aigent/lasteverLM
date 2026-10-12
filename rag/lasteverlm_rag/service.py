@@ -46,6 +46,9 @@ Rules:
 - Be concise. Plain text, no headings."""
 
 ANSWER_MAX_TOKENS = 1024
+# A scoped question is bounded by its one document already: no similarity floor
+# (a summary-type question matches no chunk strongly) and a larger k.
+SCOPED_RETRIEVAL_K = 12
 MAX_ATTEMPTS = 3
 SUMMARY_MAX_CHARS = 500
 
@@ -83,6 +86,7 @@ class RagService:
         llm: LLM,
         retrieval_k: int,
         similarity_floor: float,
+        include_generated: bool = False,
     ) -> None:
         self._store = store
         self._retriever = retriever
@@ -90,6 +94,7 @@ class RagService:
         self._llm = llm
         self._k = retrieval_k
         self._floor = similarity_floor
+        self._include_generated = include_generated
 
     def ask(
         self, user_id: str, notebook_id: str, question: str, output_id: str | None = None
@@ -101,8 +106,15 @@ class RagService:
 
         embedded = self._embedder.embed([question])
         self._store.record_usage(user_id, notebook_id, embedded.usage)
+        # Unscoped questions are answered from the uploads; generated documents
+        # restate them and are reached through scope.output_id instead.
         chunks = self._retriever.search(
-            notebook_id, embedded.vectors[0], self._k, self._floor, source_id
+            notebook_id,
+            embedded.vectors[0],
+            SCOPED_RETRIEVAL_K if source_id else self._k,
+            0.0 if source_id else self._floor,
+            source_id,
+            include_generated=self._include_generated,
         )
 
         if chunks:
