@@ -12,13 +12,22 @@ import logging
 import secrets
 from typing import Any
 
+from lasteverlm_core import (
+    LLM,
+    Answer,
+    CompletionResult,
+    Embedder,
+    Message,
+    Output,
+    OutputKind,
+    SharedOutput,
+)
+
 from .chunking import TokenWindowChunker
 from .citations import map_citations, number_passages
-from .contracts import Answer, Message, Output, OutputKind, SharedOutput
-from .models import CompletionResult, GeneratedOutput, OutputRow, Passage
+from .models import GeneratedOutput, OutputRow, Passage
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
-from .providers import LLM, Embedder
 from .store import Retriever, Store
 
 log = logging.getLogger(__name__)
@@ -111,7 +120,7 @@ class RagService:
         # never holds a question without its answer.
         self._store.insert_message(notebook_id, "user", question, None)
         stored = self._store.insert_message(
-            notebook_id, "assistant", answer, [c.model_dump() for c in citations]
+            notebook_id, "assistant", answer, [c.model_dump(mode="json") for c in citations]
         )
         return Answer(message_id=stored.id, answer=answer, citations=citations)
 
@@ -190,8 +199,13 @@ class OutputService:
         row = self._store.get_shared_output(token) if token else None
         if row is None or row.status != "ready":
             raise OutputNotFound(token)
-        return SharedOutput(
-            kind=row.kind, title=row.title, content=row.content, created_at=row.created_at
+        return SharedOutput.model_validate(
+            {
+                "kind": row.kind,
+                "title": row.title,
+                "content": row.content,
+                "created_at": row.created_at,
+            }
         )
 
     # -- worker side ---------------------------------------------------------
@@ -294,17 +308,20 @@ def require_credit(store: Store, user_id: str) -> None:
 
 
 def to_output(row: OutputRow) -> Output:
-    return Output(
-        id=row.id,
-        notebook_id=row.notebook_id,
-        kind=row.kind,
-        title=row.title,
-        content=row.content,
-        status=row.status,
-        error=row.error,
-        share_token=row.share_token,
-        source_id=row.source_id,
-        created_at=row.created_at,
+    """Ids and timestamps are strings inside this service; the contract model parses them."""
+    return Output.model_validate(
+        {
+            "id": row.id,
+            "notebook_id": row.notebook_id,
+            "kind": row.kind,
+            "title": row.title,
+            "content": row.content,
+            "status": row.status,
+            "error": row.error,
+            "share_token": row.share_token,
+            "source_id": row.source_id,
+            "created_at": row.created_at,
+        }
     )
 
 

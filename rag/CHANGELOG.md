@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Core's rate-limit middleware in front of every endpoint (`ip_blocks`, `ip_bans`, `access_log` per the architecture).
 - Answer generation over an OpenAI-compatible inference API with citations mapped back to source, chunk and page; markers naming no passage are stripped.
 - Bearer token verification (JWT or shared demo token), notebook ownership check, 402 before any model call when the caller has no credit.
 - Database migration `db/migrations/0001_rag.sql` for `messages` and `outputs`.
@@ -22,3 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sharing of a ready output through a revocable token and a read-only endpoint without authentication.
 - Worker entrypoint `lasteverlm-rag-worker` that claims output jobs from the `outputs` table with `FOR UPDATE SKIP LOCKED`, so API pods stay stateless and workers scale on their own.
 - Unit tests with mocked store, retriever and providers for citation mapping, the refusal path, credit, pricing, the output lifecycle, sharing and the generators' schemas.
+
+### Changed
+
+- Shared API models, bearer-token resolution, pricing, usage accounting and the provider adapters come from `lasteverlm_core` (installed by path from `../core`); the local mirror is gone.

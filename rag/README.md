@@ -56,7 +56,7 @@ missing or a configured model has no price.
 | Variable | Required | Purpose |
 |---|---|---|
 | `DATABASE_URL` | yes | PostgreSQL with the `vector` extension, shared with the other services |
-| `INFERENCE_BASE_URL`, `INFERENCE_API_KEY` | yes | OpenAI-compatible inference API (Vultr Serverless Inference in production) |
+| `INFERENCE_API_KEY`, `INFERENCE_BASE_URL` | key yes, URL defaults to Vultr Serverless Inference | OpenAI-compatible inference API |
 | `LLM_MODEL` | yes | chat model for answers and documents |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | yes / default 1536 | query and chunk embedding; identical to the ingest service |
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
@@ -64,15 +64,18 @@ missing or a configured model has no price.
 | `TTS_MODEL` | no | enables the audio kind once the platform offers speech synthesis |
 | `RETRIEVAL_K` | no | chunks per question, default 8 |
 | `SIMILARITY_FLOOR` | no | minimum cosine similarity, default 0.3 |
+| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, ... | no | core's rate-limit middleware, defaults 120 / 15 / 3; see `core/README.md` |
 | `LOG_LEVEL` | no | default `INFO` |
 
-Before any model call the service checks the caller's balance (ledger
+Auth, inference, prices and rate limiting are loaded by `lasteverlm_core`;
+only the rest is rag's own. Before any model call the service checks the caller's balance (ledger
 credits minus priced usage) and answers 402 when it is zero. Every
 embedding and LLM call writes one priced row to the `usage` table.
 
 ## Run locally
 
 ```bash
+make venv           # uv venv + editable install of ../core and this package with dev extras
 make check          # ruff, mypy --strict, pytest; creates .venv on first run
 make run            # API: uvicorn on :8000 with reload; needs the variables above
 make worker         # worker: claims and runs output jobs; same variables
@@ -80,7 +83,8 @@ make build          # docker image lasteverlm-rag:<git sha>, built with the repo
 ```
 
 The tests need no database and no inference provider: the store, the
-retriever, the embedder and the LLM are faked through `create_app`.
+retriever, the embedder, the LLM and the rate-limit store are faked
+through `create_app`.
 
 ## Database
 
@@ -91,7 +95,8 @@ service reads ingest's `notebooks`, `sources` and `chunks` and writes
 
 ## Deployment
 
-One image per Git SHA, built by `docker.yml`, run as a non-root user in
+One image per Git SHA, built by `docker.yml` with the repository root as
+context so `core/` is installed next to `rag/`, run as a non-root user in
 the `lasteverlm` namespace. Two Deployments of the same image: the API
 (default command, port 8000, behind ingress-nginx at `/api/rag`) and the
 worker (`lasteverlm-rag-worker`), which scale independently; the API
@@ -107,10 +112,8 @@ lasteverlm_rag/
 ├── citations.py    pure marker-to-citation mapping
 ├── outputs/        OutputGenerator interface, one module per kind
 ├── chunking.py     token windows for generated documents
-├── providers.py    LLM, embedder and TTS interfaces + OpenAI-compatible adapters
 ├── store.py        Retriever and Store interfaces + PostgreSQL/pgvector adapters
-├── contracts.py    shared models, token verification, pricing (mirror of lasteverlm-core)
-├── models.py       internal data shapes
+├── models.py       request bodies and internal data shapes (shared models come from core)
 └── config.py       settings from the environment
 db/migrations/      the service's own tables
 ```

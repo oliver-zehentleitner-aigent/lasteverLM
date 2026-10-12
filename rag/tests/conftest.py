@@ -6,26 +6,32 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from lasteverlm_core import (
+    DEMO_USER_ID,
+    CompletionResult,
+    EmbeddingResult,
+    MemoryRateLimitStore,
+    Message,
+    OutputKind,
+    OutputStatus,
+    Usage,
+)
 
 from lasteverlm_rag.config import Settings
-from lasteverlm_rag.contracts import DEMO_USER_ID, Message, OutputKind, OutputStatus
 from lasteverlm_rag.main import create_app
 from lasteverlm_rag.models import (
     Chunk,
-    CompletionResult,
-    EmbeddingResult,
     OutputRow,
     RetrievedChunk,
     SourceState,
     SourceSummary,
-    Usage,
 )
 from lasteverlm_rag.outputs import registry
 from lasteverlm_rag.service import OutputService
 from lasteverlm_rag.worker import Worker
 
 DEMO_TOKEN = "demo-secret"
-OWNER = DEMO_USER_ID
+OWNER = str(DEMO_USER_ID)
 NOTEBOOK = str(uuid.uuid4())
 OTHER_NOTEBOOK = str(uuid.uuid4())
 AUTH = {"Authorization": f"Bearer {DEMO_TOKEN}"}
@@ -41,12 +47,26 @@ BASE_ENV = {
 }
 
 
+_NS = uuid.UUID("12345678-1234-5678-1234-567812345678")
+
+
+def source_uuid(i: int) -> str:
+    return str(uuid.uuid5(_NS, f"source-{i}"))
+
+
+def chunk_uuid(i: int) -> str:
+    return str(uuid.uuid5(_NS, f"chunk-{i}"))
+
+
+SOURCE_1, CHUNK_1 = source_uuid(1), chunk_uuid(1)
+
+
 def chunk(
     i: int, text: str, page: int | None = None, similarity: float = 0.9, source_kind: str = "pdf"
 ) -> RetrievedChunk:
     return RetrievedChunk(
-        chunk_id=f"chunk-{i}",
-        source_id=f"source-{i}",
+        chunk_id=chunk_uuid(i),
+        source_id=source_uuid(i),
         source_name=f"doc{i}.pdf",
         source_kind=source_kind,  # type: ignore[arg-type]
         page=page,
@@ -76,11 +96,7 @@ class FakeStore:
 
     # messages
     def list_messages(self, notebook_id: str) -> list[Message]:
-        return [
-            Message(**{k: v for k, v in m.items() if k != "notebook_id"})
-            for m in self.messages
-            if m["notebook_id"] == notebook_id
-        ]
+        return [self._message(m) for m in self.messages if m["notebook_id"] == notebook_id]
 
     def insert_message(self, notebook_id, role, content, citations) -> Message:
         row = {
@@ -89,10 +105,14 @@ class FakeStore:
             "role": role,
             "content": content,
             "citations": citations,
-            "created_at": f"2026-01-01T00:00:{len(self.messages):02d}Z",
+            "created_at": f"2026-01-01T00:00:{len(self.messages) % 60:02d}Z",
         }
         self.messages.append(row)
-        return Message(**{k: v for k, v in row.items() if k != "notebook_id"})
+        return self._message(row)
+
+    @staticmethod
+    def _message(row: dict[str, Any]) -> Message:
+        return Message.model_validate({**row, "citations": row["citations"] or []})
 
     # outputs
     def create_output(self, notebook_id: str, kind: OutputKind, status: OutputStatus) -> OutputRow:
@@ -226,6 +246,9 @@ class FakeRetriever:
 
 
 class FakeEmbedder:
+    model = "test-embedding"
+    dimension = 3
+
     def embed(self, texts: list[str]) -> EmbeddingResult:
         vectors = [[0.1, 0.2, float(len(t))] for t in texts]
         return EmbeddingResult(vectors, Usage("embedding", "test-embedding", 7 * len(texts), 0))
@@ -233,6 +256,8 @@ class FakeEmbedder:
 
 class FakeLLM:
     """Replies with the scripted texts in order; the last one repeats."""
+
+    model = "test-llm"
 
     def __init__(self, *replies: str) -> None:
         self.replies = list(replies) or [""]
@@ -272,6 +297,7 @@ def make_client(
         llm=llm,
         generators=generators,
         output_service=outputs,
+        rate_limit_store=MemoryRateLimitStore(),
     )
     client = TestClient(app, raise_server_exceptions=False)
     client.worker = Worker(store, outputs, worker_id="test-worker")  # type: ignore[attr-defined]

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from lasteverlm_core import OutputKind
 from pydantic import BaseModel, Field
 
-from ..contracts import OutputKind
 from ..models import GeneratedOutput
 from ._base import JsonGenerator
 
