@@ -17,3 +17,25 @@ MVP's file sizes is irrelevant. Moving the cluster to `ams` as well was
 not chosen only because the regions may diverge again later; nothing
 else depends on it.
 
+## The bucket is created with one signed curl request, not by the provider
+
+**Id:** 7c84c107-07b8-4200-93ab-c8407f97ac37
+**Type:** workaround
+**Status:** active
+**Evidence:** confirmed
+**Source:** `tofu validate` against provider 2.33.1 on 2026-10-12: "Blocks of type bucket are not expected here"
+**Revisit when:** the `vultr_object_storage` resource gains the `bucket` block that the provider's unreleased docs already describe
+
+`make bucket` issues a single `PUT /<bucket>` with curl's built-in
+SigV4 signing against the S3 endpoint and accepts 200 or 409 as "exists".
+
+**Reason:** the released provider manages the storage subscription but
+not buckets inside it, so the bucket has to come from somewhere else.
+
+**Rejected alternatives:** a second OpenTofu root with the AWS provider
+pointed at the Vultr endpoint — a whole provider and an extra apply
+step for one bucket; letting the ingest service create the bucket on
+startup — moves an infrastructure concern into application code and
+needs bucket-creation rights on the service's keys; installing `s3cmd`
+or the AWS CLI — one more tool on the operator's machine for one call
+curl already makes.
