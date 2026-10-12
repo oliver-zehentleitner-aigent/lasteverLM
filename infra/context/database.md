@@ -64,3 +64,27 @@ release workflow would have to replicate it and the two could drift.
 Init containers running migrations in every pod — four Deployments
 racing for the same DDL, and the admin credentials in every pod.
 
+## The embedding dimension is a psql variable, not a number in a migration
+
+**Id:** 726208e7-a8c2-4f34-af1d-eb09a943b9cd
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** parent architecture v1 ("the migration takes it as a parameter, default 1536"); the mechanism was chosen here on 2026-10-12
+**Revisit when:** a second parameter needs to reach migrations, or the dimension has to change on a populated table
+
+`db/migrate.sh` passes `-v EMBEDDING_DIMENSION=<n>` to every `psql`
+call, taken from the Job's environment, which the chart sets from the
+same value the `lasteverlm-config` ConfigMap carries, default 1536. A migration writes
+`vector(:EMBEDDING_DIMENSION)`.
+
+**Reason:** the dimension follows the embedding provider, which is
+configuration, and the one copy of that value is the ConfigMap the
+services read too. A psql variable is the plainest way to get it into
+SQL without a templating step.
+
+**Rejected alternative:** rendering the SQL files with `sed` before
+shipping them, as the Makefile does for the Ingress — would make the
+collected files differ from what the service directory committed,
+which defeats the audit trail.
+
