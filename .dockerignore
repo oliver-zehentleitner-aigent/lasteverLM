@@ -1,0 +1,11 @@
+.git
+**/.venv
+**/node_modules
+**/dist
+**/tests
+**/__pycache__
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/build
+infra/tofu/.terraform

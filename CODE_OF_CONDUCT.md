@@ -1,0 +1,9 @@
+# Code of Conduct
+
+This project follows the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/),
+version 2.1.
+
+In short: be respectful, assume good faith, keep disagreements about the
+work and not about people, and accept that the maintainer decides.
+Report unacceptable behaviour to the maintainer through the channels in
+`SECURITY.md`; reports are handled confidentially.
