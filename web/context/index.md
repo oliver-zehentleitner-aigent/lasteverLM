@@ -57,6 +57,8 @@ repository root's `context/`.
 
 ## O
 
+- [outputs.md](outputs.md) — generated documents: sanitized Markdown, markmap on demand, citations into generated documents resolved through Output.source_id (title match superseded)
+
 ## P
 
 ## Q
