@@ -315,6 +315,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
 | `DEMO_TOKEN` | all services; unset in production |
 | `PUBLIC_BASE_URL`, `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `SMTP_*` (seed only) | account |
+| `VISIT_HASH_SECRET` | account (shared by its replicas: daily visitor-hash salt = HMAC(secret, date); without it each process salts on its own) |
 | `API_BASE_URL` | web (build time) |
 
 ## Runtime contract
