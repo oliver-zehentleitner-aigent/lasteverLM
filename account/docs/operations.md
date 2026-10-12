@@ -15,6 +15,7 @@ when a required value is missing. `.env.example` lists every variable.
 | `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist in the settings table, first start only |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | seed for the SMTP settings, first start only |
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
+| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware, see `../core/docs/README.md` |
 
 Seeds are written to the `settings` table only when the key does not
 exist yet. After that the admin panel is the source of truth; changing
@@ -34,14 +35,16 @@ answers `{"status": "ok"}`. The Kubernetes probe uses the root path.
 ## Behind the ingress
 
 The service trusts the first entry of `X-Forwarded-For` for the visitor
-hash (`TRUST_PROXY_HEADERS=true`). Set it to `false` when the service is
+hash and for core's rate limiter (`TRUST_PROXY_HEADERS=true`). Set it to `false` when the service is
 reachable without a trusted reverse proxy in front, otherwise a caller can
 choose the address that is hashed.
 
 ## Retention and cleanup
 
 At every start the service deletes visitor-log rows older than
-`VISIT_RETENTION_DAYS` and expired magic links. There is no background
+`VISIT_RETENTION_DAYS` and expired magic links. Core's tables
+(`access_log`, `ip_blocks`, `ip_bans`) are purged by core's `purge`
+helper, which is not run by this service. There is no background
 scheduler; a deployment that runs for months without a restart keeps
 rows longer than the retention window. Restart the pod, or add a CronJob
 that restarts it, if that matters.

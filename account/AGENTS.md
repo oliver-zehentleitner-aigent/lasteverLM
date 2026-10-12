@@ -8,6 +8,7 @@ the web frontend calls this API and ingest and rag read `users` and write
 `usage`.
 
 - Why this service is built the way it is: `context/index.md`
+- Shared code (models, auth, rate limiting, accounting) is `../core`, installed by path; never copy it here.
 - How to run, configure and deploy it: `docs/`
 - Family-wide reasoning (anything not only this service's concern) is handed to Agent A for the root `context/`, not recorded here.
 - Language: code, comments, commits, docs and `context/` in English.
@@ -18,14 +19,14 @@ the web frontend calls this API and ingest and rag read `users` and write
 ```text
 account/
 src/lasteverlm_account/
-├── main.py                app factory; wires settings, repository, mailer; error format
+├── main.py                app factory (uvicorn --factory); wires settings, repository, mailer,
+│                          core's RateLimitMiddleware; error format
 ├── dev.py                 `make run-dev`: the API on in-memory storage, links on the console
 ├── config.py              Settings from the environment (SMTP_* and AUTH_ALLOWED_DOMAINS are seeds only)
-├── contracts.py           local mirror of lasteverLM-core: User, JWT issue/verify, demo token
-├── models.py              API schemas
+├── models.py              API schemas; User and AdminUser come from lasteverlm_core
 ├── service.py             business rules: login, allowlist, credits, admin, visits
 ├── repository.py          storage interface and records
-├── repository_postgres.py PostgreSQL (psycopg 3, plain SQL)
+├── repository_postgres.py PostgreSQL (psycopg 3, plain SQL); tuple-row connections for core's store
 ├── repository_memory.py   in-memory, for tests and local runs
 ├── mail.py                SMTP mailer, config from the settings table
 ├── privacy.py             visitor hashing, daily salt, user-agent family, client IP

@@ -11,6 +11,7 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Core's `RateLimitMiddleware` as the outermost layer: 429 and blocks, 403 for banned addresses, one `access_log` row per request.
 - `make install` (`uv sync --all-extras`, idempotent); `make check` depends on it and works on a fresh checkout.
 - Access control for admins: current blocks, bans with lifting, the access log written by core's rate-limit middleware.
 - Admin backend: SMTP and domain settings, users, logins, vouchers, visitor statistics per day and path.
@@ -22,3 +23,9 @@ preserves why it changed, in `context/`.
 - PostgreSQL migrations for the account tables and the seeded demo user with its initial credit.
 - Unit tests against an in-memory repository (token flow, allowlist, voucher atomicity, balance, admin gate, privacy); optional PostgreSQL integration tests.
 - Visitor log without personal data: daily-rotating salted IP hash, browser family only, 30 days retention.
+
+### Changed
+
+- `contracts.py` removed; `User`, `AdminUser`, token issue and resolution and the demo identity come from `lasteverlm-core`, installed by path from `../core`.
+- `make run` and the image start the app through `uvicorn --factory lasteverlm_account.main:create_app`.
+- Lifting a ban uses core's statement, so the admin action and the middleware agree.
