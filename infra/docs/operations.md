@@ -66,6 +66,10 @@ re-run after nodes are recycled; the proper fix is the VPC attachment
 `make deploy` runs the migration hook first (see below) and then rolls
 every service to `TAG`. A later `make deploy TAG=<git-sha>` is the
 manual equivalent of what the release workflow does on a tag.
+`HELM_WAIT=0` returns right after the install instead of waiting for
+the rollout. Before DNS and the certificate exist, the smoke test
+reaches the deployment through the load balancer address:
+`make smoke URL=https://<lb-ip> SMOKE_ARGS="--host $DOMAIN --insecure"`.
 
 ## The chart
 
@@ -84,7 +88,9 @@ manual equivalent of what the release workflow does on a tag.
 | Job `lasteverlm-migrate` + ConfigMap | pre-install/pre-upgrade hook, see Migrations |
 
 Values: `chart/values.yaml` holds the defaults (replicas, autoscaler
-bounds, resources, rate limits, which Secrets each service mounts).
+bounds, resources, rate limits, which Secrets each service mounts, and
+`runAsUser`, the numeric uid of each image's user, because
+`runAsNonRoot` cannot verify a user given by name).
 `make values` writes `build/values.yaml` with the deployment-specific
 part (domain, tag, registry, model names, prices, S3 endpoint) via
 `scripts/values.py`; `make deploy` passes it to Helm. The chart version
@@ -106,6 +112,7 @@ Contract for the service directories:
 - Each file runs in its own transaction and is recorded as `<service>/NNNN_<topic>` in `schema_migrations`; never edit an applied file, add a new one.
 - The psql variable `:EMBEDDING_DIMENSION` is available (default 1536), so `vector(:EMBEDDING_DIMENSION)` follows the configured provider.
 - `CREATE EXTENSION` belongs in `infra/db/migrations`, not in a service's migration.
+- Service files run under `SET ROLE lasteverlm` (the application role owns its tables; the admin is a member of that role, granted by `make db-bootstrap`). A migration must not assume superuser rights or ownership of anything the application role does not own.
 
 To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 (the Job is deleted on success and before the next run).
