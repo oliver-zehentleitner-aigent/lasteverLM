@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Security
+
+- `ci.yml` and `ktw-lint.yml` limit the `GITHUB_TOKEN` to read access (CodeQL `actions/missing-workflow-permissions`).
+
 ### Changed
 
 - README: the docs-site badge replaces the static Keep the Why badge; the live dashboard badge stays.
