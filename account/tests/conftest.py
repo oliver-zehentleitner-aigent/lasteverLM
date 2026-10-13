@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from lasteverlm_core import MemoryRateLimitStore, RateLimitSettings
@@ -17,6 +18,7 @@ from lasteverlm_account.mail import SmtpConfig
 from lasteverlm_account.main import create_app
 from lasteverlm_account.repository_memory import MemoryRepository
 from lasteverlm_account.service import AccountService
+from lasteverlm_account.system import SystemProbe
 
 ADMIN_EMAIL = "root@example.org"
 ALLOWED_DOMAIN = "example.org"
@@ -127,6 +129,12 @@ def client(
         mailer=mailer,
         rate_limit_store=limiter_store,
         rate_limit_settings=rate_limit_settings,
+        system=SystemProbe(
+            settings.system_services,
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, json={"status": "ok"})
+            ),
+        ),
     )
     with TestClient(app) as c:
         c.app.state.service._clock = clock  # type: ignore[attr-defined]

@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /admin/system` for the admin System page: `APP_VERSION`/`APP_COMMIT`, every service's health with version and commit (probed over the cluster DNS, `SYSTEM_SERVICES`), and the namespace's pods and deployments read from the Kubernetes API with the pod's ServiceAccount; outside a cluster `cluster: false` with empty lists. `/healthz` reports version and commit too.
+
 ## [0.6.0] - 2026-10-13
 
 ### Added

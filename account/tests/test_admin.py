@@ -35,6 +35,7 @@ ADMIN_ROUTES = [
     ("GET", "/api/account/admin/vouchers", None),
     ("DELETE", "/api/account/admin/vouchers/00000000-0000-4000-8000-000000000099", None),
     ("GET", "/api/account/admin/stats", None),
+    ("GET", "/api/account/admin/system", None),
     ("GET", "/api/account/admin/stats/daily", None),
     ("GET", "/api/account/admin/stats/usage", None),
     ("GET", "/api/account/admin/blocks", None),

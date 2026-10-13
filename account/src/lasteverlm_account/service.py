@@ -44,6 +44,10 @@ from .models import (
     RateLimitRulesUpdate,
     RateLimitRulesView,
     Smtp,
+    SystemDeployment,
+    SystemInfo,
+    SystemPod,
+    SystemService,
     UsageCost,
     UsageStats,
     User,
@@ -52,6 +56,7 @@ from .models import (
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
 from .repository import LoginAttemptRecord, Repository, UserRecord, VisitRecord
+from .system import ServiceStatus, SystemProbe
 
 log = logging.getLogger("lasteverlm_account")
 
@@ -133,10 +138,12 @@ class AccountService:
         clock: Callable[[], datetime] | None = None,
         salt: DailySalt | None = None,
         rate_limit: RateLimitSettings | None = None,
+        system: SystemProbe | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
         self.mailer = mailer
+        self.system = system or SystemProbe(settings.system_services)
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
         self.rate_limit = rate_limit or RateLimitSettings()
@@ -495,6 +502,25 @@ class AccountService:
                 UserUsage(email=r.email, usage_cents=r.usage_cents, balance_cents=r.balance_cents)
                 for r in await self.repo.top_users_by_usage(10)
             ],
+        )
+
+    async def admin_system(self) -> SystemInfo:
+        """Versions, the other services' health, and the pods and deployments of this namespace."""
+        try:
+            await self.repo.ping()
+            healthy = True
+        except Exception as exc:  # the page must render even when the database is away
+            log.warning("own health check failed: %s", exc)
+            healthy = False
+        own = ServiceStatus("account", self.settings.app_version, self.settings.app_commit, healthy)
+        snap = await self.system.snapshot(own)
+        return SystemInfo(
+            version=self.settings.app_version,
+            commit=self.settings.app_commit,
+            cluster=snap.cluster,
+            services=[SystemService(**s.__dict__) for s in snap.services],
+            pods=[SystemPod(**p.__dict__) for p in snap.pods],
+            deployments=[SystemDeployment(**d.__dict__) for d in snap.deployments],
         )
 
     async def admin_stats(self) -> AdminStats:
