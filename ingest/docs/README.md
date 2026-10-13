@@ -75,11 +75,14 @@ library entry is
 
 `size_bytes` is null for URLs, `url` is set only for them; an entry in
 no notebook has `"notebooks": []`. `capture` is set for PDFs only (see
-PDF capture modes), `demo` marks the demo library. `preview_url` is set
-for images only: a presigned GET of the stored original, valid for one
-hour and signed anew on every listing, so the frontend shows it in an
-`<img>` without the bearer token; sources, library and trash entries all
-carry it. The object key itself is never returned.
+PDF capture modes), `demo` marks the demo library. `preview_url` is where
+the frontend opens the source without the bearer token: for an image, a
+PDF or a text a presigned GET of the stored original, valid for one hour
+and signed anew on every listing (the object carries its type, so an
+image shows in an `<img>`, a PDF in the browser's viewer, a text as
+`text/plain; charset=utf-8`); for a URL source the URL itself; `null`
+for generated rows. Sources, library and trash entries all carry it. The
+object key itself is never returned.
 
 A trash entry is the same without `notebooks`, plus `deleted_at` and
 `purge_at`:
