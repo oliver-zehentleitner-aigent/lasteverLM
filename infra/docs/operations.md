@@ -233,6 +233,19 @@ Owned here, stored at the repository root in `.github/workflows/`:
 | `deploy.yml` | tags `v*` (after `docker.yml`), and manual with a tag input | `make deploy TAG=<tag>` in `infra/` with the kubeconfig from a repository secret, then the smoke test where a demo token is configured |
 | `ktw-lint.yml` | push to `main`, pull request | the Keep the Why structure check for the root and every sub-project |
 | `pages.yml` | push to `main` | the Keep the Why dashboard export |
+| `black.yml` | push to `main`, pull request | `black --check` in every Python directory |
+
+Every workflow has a `permissions` block; only `docker.yml`
+(`packages: write`) and `pages.yml` (Pages deploy) get more than
+`contents: read`. Every action is pinned to a commit SHA with the
+release as a comment (`@<sha> # v7.0.1`), so a moved tag cannot change
+what runs next to the secrets; a bump replaces both. The one exception
+is `ktw-lint.yml`'s `keep-the-why@lint-latest`, rolling on purpose
+(the comment there names the pinned form). Secrets reach a `run`
+step only through `env`, never as `${{ secrets.* }}` inside the
+script. `docker.yml` attaches the OCI labels and annotations from
+`docker/metadata-action`, a provenance attestation (`mode=max`) and an
+SBOM to every image.
 
 `deploy.yml` serializes rollouts with the concurrency group `deploy` on
 its job, not on the workflow: docker runs on `main` start the workflow

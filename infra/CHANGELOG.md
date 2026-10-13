@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `docker.yml` attaches a provenance attestation (`mode=max`), an SBOM and the OCI annotations from `docker/metadata-action` to every image.
+
 ### Changed
 
 - web's probes use `/healthz` instead of `/`.
@@ -16,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The client address no longer comes from a request header: ingress-nginx took `$remote_addr` from the client's own `X-Forwarded-For` (`enable-real-ip` with the default trusted range `0.0.0.0/0`), so core's rate limiter, blocks, bans and the login log trusted an address any client could set; without the header every request carried a node address. The load balancer now sends the PROXY protocol header and nginx reads the address from it (`use-proxy-protocol`); `make platform` sets the load balancer hostname annotation so in-cluster requests keep going through the load balancer. Rolled out with `make platform`, not with a tag.
 - Every container (API services, workers, web, the migration Job) runs with a read-only root filesystem and the `RuntimeDefault` seccomp profile; `/tmp` is an `emptyDir` limited to `tmpSizeLimit` (256 MiB). Every pod except `account` sets `automountServiceAccountToken: false`. The migration and bootstrap Jobs run as the image's `postgres` user (uid 70) with dropped capabilities instead of root, and their `postgres` image is pinned by digest (18.6, Alpine 3.24); the migration Job has resource requests and limits.
 - NetworkPolicies: no pod in the namespace accepts a connection except from the ingress controller's namespace and, on the API port, from `account` (System page health probes). A pod elsewhere in the cluster, or a compromised pod in the namespace, can no longer reach the services directly, past the edge rate limits and the client address nginx sets. `networkPolicy.enabled` in the values.
+- Every action in the workflows is pinned to a commit SHA with its release as a comment, so a moved tag cannot change what runs; `ktw-lint.yml`'s rolling `keep-the-why@lint-latest` stays as it was. `deploy.yml` passes `KUBECONFIG_B64` to the kubeconfig step through `env` instead of expanding the secret inside the script.
 
 ## [0.8.2] - 2026-10-13
 
