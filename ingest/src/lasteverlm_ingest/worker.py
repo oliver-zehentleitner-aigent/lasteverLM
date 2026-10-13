@@ -134,6 +134,9 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
 
         def bill(usage: Usage) -> None:
             _record(repo, source, notebook_id, usage)
+            # A vision PDF can take longer than the claim timeout; each
+            # answered call shows the job is alive (see refresh_claim).
+            repo.refresh_claim(source_id)
             if not _has_credit(repo, source):
                 raise ProcessingError(CREDIT_EXHAUSTED)
 
@@ -153,6 +156,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         result = deps.embedder.embed([c.text for c in chunks[start : start + batch_size]])
         vectors.extend(result.vectors)
         tokens += result.usage.tokens_in
+        repo.refresh_claim(source_id)
 
     repo.replace_chunks(source_id, chunks, vectors)
     repo.record_usage(

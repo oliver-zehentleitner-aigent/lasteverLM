@@ -144,3 +144,14 @@ def test_blank_image_fails_at_once_and_its_call_is_billed():
     assert [(u.kind, u.model, u.tokens_in, u.tokens_out) for u in repo.usage] == [
         ("llm", "fake-llm", 202, 40)
     ]
+
+
+def test_each_answered_call_and_embedding_batch_refreshes_the_claim():
+    """A long job (a vision PDF) must not look stale while it makes progress."""
+    from tests.fakes import FakeEmbedder, InMemoryRepository, InMemoryStorage
+
+    repo, storage = InMemoryRepository(), InMemoryStorage()
+    sid = _add_image(repo, storage)
+    process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), FakeChat()))
+    assert repo.library[sid].status == "ready"
+    assert repo.refreshed == [sid, sid]  # the image call, one embedding batch
