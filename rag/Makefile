@@ -15,7 +15,7 @@ venv: $(VENV)/bin/activate
 check: lint types test
 
 lint: $(VENV)/bin/activate
-	$(VENV)/bin/ruff format --check .
+	$(VENV)/bin/black --check .
 	$(VENV)/bin/ruff check .
 
 types: $(VENV)/bin/activate
