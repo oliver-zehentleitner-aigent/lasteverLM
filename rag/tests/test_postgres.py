@@ -159,7 +159,7 @@ def test_credit_admin_and_usage_over_dict_row_pool(store, pool, user, notebook):
     assert not store.has_credit(user)
     with pool.connection() as conn:
         conn.execute("update users set is_admin = true where id = %s", (user,))
-    assert store.is_admin(user) and store.has_credit(user)  # admins have unlimited credit
+    assert store.is_admin(user) and not store.has_credit(user)  # admins need credit too
     assert not store.is_admin(str(uuid4()))  # no users row: not an admin
     assert store.get_notebook(notebook) == {"id": notebook, "owner": user, "title": "nb"}
 

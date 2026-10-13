@@ -98,8 +98,8 @@ missing or a configured model has no price.
 
 Auth, inference, prices and rate limiting are loaded by `lasteverlm_core`;
 only the rest is rag's own. Before any model call the service runs core's credit
-check (`has_credit`: an admin always, anyone else with a positive balance of ledger
-credits minus priced usage) and answers 402 otherwise. Every
+check (`has_credit`: a positive balance of ledger credits minus priced usage, for
+admins as for everyone else) and answers 402 otherwise. Every
 embedding and LLM call writes one priced row to the `usage` table.
 
 ## Run locally

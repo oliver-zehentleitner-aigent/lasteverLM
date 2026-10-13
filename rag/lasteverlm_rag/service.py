@@ -456,7 +456,7 @@ def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, 
 
 
 def require_credit(store: Store, user_id: str) -> None:
-    """Core's rule: an admin always has credit, anyone else needs a positive balance."""
+    """Core's rule: a positive balance, for admins as for everyone else."""
     if not store.has_credit(user_id):
         raise InsufficientCredit(user_id)
 

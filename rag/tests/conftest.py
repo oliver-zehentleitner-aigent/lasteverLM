@@ -265,7 +265,7 @@ class FakeStore:
 
     # credit
     def has_credit(self, user_id: str) -> bool:
-        return user_id in self.admins or self.balance > 0
+        return self.balance > 0
 
     def is_admin(self, user_id: str) -> bool:
         return user_id in self.admins

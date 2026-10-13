@@ -62,13 +62,8 @@ def test_stats_endpoint_is_admin_only(settings):
     assert set(r.json()) == {"notebooks", "messages", "outputs", "jobs", "shared"}
 
 
-def test_an_admin_without_balance_still_has_credit(settings):
+def test_an_admin_without_balance_gets_402_like_everyone(settings):
     store = FakeStore(balance=0, admins={OWNER})
-    store.add_source(NOTEBOOK, "a.txt", summary="s")
     client = make_client(settings, store, FakeRetriever([]), FakeLLM())
-    assert (
-        client.post(
-            f"/api/rag/notebooks/{NOTEBOOK}/outputs", json={"kind": "report"}, headers=AUTH
-        ).status_code
-        == 202
-    )
+    r = client.post(f"/api/rag/notebooks/{NOTEBOOK}/outputs", json={"kind": "report"}, headers=AUTH)
+    assert (r.status_code, r.json()) == (402, {"error": "credit exhausted"})
