@@ -8,6 +8,7 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Added
 
+- Docs site: `mkdocs.yml` and `docs/index.md`, built by `pages.yml` next to the Keep the Why dashboard exports; the README links the site and the live system.
 - `docs/walkthrough.md`: the script of the ten-minute recorded tour — live demo first, then architecture, then how the fleet built it — with the preparation list and what to do when something fails on camera.
 
 ### Changed

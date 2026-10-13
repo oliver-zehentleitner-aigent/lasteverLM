@@ -19,6 +19,7 @@ workflows. Each service is a directory with its own `context/`:
 | [rag/](rag/) | retrieval, cited answers, generated documents, sharing, rag worker |
 | [web/](web/) | wizard, two-column notebook view, viewer, login, credits, admin panel |
 
+- [Docs site](https://oliver-zehentleitner.github.io/lasteverLM/) and [live system](https://lasteverlm.zehentleitner.co)
 - [Architecture and API contract](docs/architecture.md)
 - [User interface](docs/ui.md)
 - [Repository standard](docs/repository-standard.md)
