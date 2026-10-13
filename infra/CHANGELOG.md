@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-13
+
 ### Fixed
 
 - Smoke test follows rag's mandatory conversations: it opens a conversation after the notebook, asks with its `conversation_id` and reads the history from `/api/rag/conversations/{id}/messages`; the v0.4.0 deploy's smoke step failed with 422 without it.
