@@ -135,7 +135,7 @@ Core is a library; there is nothing to run. `make run` says so.
 
 ```bash
 make install   # uv sync --all-extras: creates .venv with the dev extras; idempotent
-make check     # install, then ruff, ruff format --check, mypy --strict, pytest
+make check     # install, then ruff, black --check, mypy --strict, pytest
 ```
 
 `make check` runs `install` first, so it works on a fresh checkout and
