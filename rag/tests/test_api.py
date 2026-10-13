@@ -10,6 +10,7 @@ from .conftest import (
     AUTH,
     BASE_ENV,
     CHUNK_1,
+    CONVERSATION,
     NOTEBOOK,
     OTHER_NOTEBOOK,
     SOURCE_1,
@@ -21,7 +22,7 @@ from .conftest import (
 )
 
 ASK = f"/api/rag/notebooks/{NOTEBOOK}/ask"
-MESSAGES = f"/api/rag/notebooks/{NOTEBOOK}/messages"
+MESSAGES = f"/api/rag/conversations/{CONVERSATION}/messages"
 
 
 def test_healthz_needs_no_auth_at_root_and_under_prefix(settings):
@@ -36,7 +37,9 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
     llm = FakeLLM("The sky is blue [1]. Grass is green [2].")
     client = make_client(settings, store, retriever, llm)
 
-    r = client.post(ASK, json={"question": " colors? "}, headers=AUTH)
+    r = client.post(
+        ASK, json={"conversation_id": CONVERSATION, "question": " colors? "}, headers=AUTH
+    )
 
     assert r.status_code == 200, r.text
     body = r.json()
@@ -78,7 +81,7 @@ def test_ask_with_empty_model_content_is_a_502_and_stores_nothing(settings):
     store = FakeStore()
     client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), FakeLLM("  \n"))
 
-    r = client.post(ASK, json={"question": "q"}, headers=AUTH)
+    r = client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
 
     assert r.status_code == 502
     assert r.json() == {"error": "the model did not answer; please try again"}
@@ -91,7 +94,9 @@ def test_ask_refuses_when_nothing_passes_the_floor(settings):
     llm = FakeLLM("should never be called")
     client = make_client(settings, store, FakeRetriever([chunk(1, "x", similarity=0.2)]), llm)
 
-    body = client.post(ASK, json={"question": "x"}, headers=AUTH).json()
+    body = client.post(
+        ASK, json={"conversation_id": CONVERSATION, "question": "x"}, headers=AUTH
+    ).json()
 
     assert body["answer"] == REFUSAL
     assert body["citations"] == []
@@ -105,7 +110,7 @@ def test_ask_is_402_without_credit_and_calls_no_provider(settings):
     llm = FakeLLM("never")
     client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), llm)
 
-    r = client.post(ASK, json={"question": "q"}, headers=AUTH)
+    r = client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
 
     assert r.status_code == 402
     assert r.json() == {"error": "credit exhausted"}
@@ -122,7 +127,11 @@ def test_ask_scoped_to_an_output_restricts_retrieval_to_its_generated_source(set
     retriever = FakeRetriever(hits)
     client = make_client(settings, store, retriever, FakeLLM("Says so [1]."))
 
-    r = client.post(ASK, json={"question": "q", "scope": {"output_id": row.id}}, headers=AUTH)
+    r = client.post(
+        ASK,
+        json={"conversation_id": CONVERSATION, "question": "q", "scope": {"output_id": row.id}},
+        headers=AUTH,
+    )
 
     assert r.status_code == 200, r.text
     # scoped: that one source, no similarity floor, a larger k
@@ -142,12 +151,21 @@ def test_scoped_summary_question_is_answered_even_when_nothing_matches_strongly(
 
     scoped = client.post(
         ASK,
-        json={"question": "Summarize this document.", "scope": {"output_id": row.id}},
+        json={
+            "conversation_id": CONVERSATION,
+            "question": "Summarize this document.",
+            "scope": {"output_id": row.id},
+        },
         headers=AUTH,
     ).json()
     assert scoped["answer"] == "One sentence [1]." and len(scoped["citations"]) == 1
     # the same chunk is below the floor for an unscoped question
-    assert client.post(ASK, json={"question": "Summarize."}, headers=AUTH).json()["citations"] == []
+    assert (
+        client.post(
+            ASK, json={"conversation_id": CONVERSATION, "question": "Summarize."}, headers=AUTH
+        ).json()["citations"]
+        == []
+    )
 
 
 def test_unscoped_ask_leaves_generated_documents_out_unless_configured(settings):
@@ -157,7 +175,9 @@ def test_unscoped_ask_leaves_generated_documents_out_unless_configured(settings)
     ]
     retriever = FakeRetriever(hits)
     client = make_client(settings, FakeStore(), retriever, FakeLLM("Only the upload [1]."))
-    body = client.post(ASK, json={"question": "q"}, headers=AUTH).json()
+    body = client.post(
+        ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH
+    ).json()
     assert [c["source_kind"] for c in body["citations"]] == ["pdf"]
     assert retriever.calls[0]["include_generated"] is False
 
@@ -166,7 +186,9 @@ def test_unscoped_ask_leaves_generated_documents_out_unless_configured(settings)
     )
     retriever = FakeRetriever(hits)
     client = make_client(on, FakeStore(), retriever, FakeLLM("Both [1] [2]."))
-    body = client.post(ASK, json={"question": "q"}, headers=AUTH).json()
+    body = client.post(
+        ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH
+    ).json()
     assert [c["source_kind"] for c in body["citations"]] == ["pdf", "generated"]
     assert retriever.calls[0]["include_generated"] is True
     with pytest.raises(ConfigError, match="RETRIEVAL_INCLUDE_GENERATED"):
@@ -178,17 +200,25 @@ def test_ask_scope_errors(settings):
     pending = store.create_output(NOTEBOOK, "quiz", "processing")
     client = make_client(settings, store, FakeRetriever([]), FakeLLM())
 
-    r = client.post(ASK, json={"question": "q", "scope": {"output_id": pending.id}}, headers=AUTH)
+    r = client.post(
+        ASK,
+        json={"conversation_id": CONVERSATION, "question": "q", "scope": {"output_id": pending.id}},
+        headers=AUTH,
+    )
     assert (r.status_code, r.json()) == (409, {"error": "output is not ready"})
 
-    r = client.post(ASK, json={"question": "q", "scope": {"output_id": "nope"}}, headers=AUTH)
+    r = client.post(
+        ASK,
+        json={"conversation_id": CONVERSATION, "question": "q", "scope": {"output_id": "nope"}},
+        headers=AUTH,
+    )
     assert (r.status_code, r.json()) == (404, {"error": "output not found"})
 
 
 def test_messages_lists_history_in_order(settings):
     store = FakeStore()
     client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), FakeLLM("fact [1]"))
-    client.post(ASK, json={"question": "q"}, headers=AUTH)
+    client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
 
     r = client.get(MESSAGES, headers=AUTH)
 
@@ -211,7 +241,7 @@ def test_foreign_or_unknown_notebook_is_404(settings):
     assert foreign.status_code == 404
     r = client.post(
         "/api/rag/notebooks/00000000-0000-4000-8000-00000000dead/ask",
-        json={"question": "q"},
+        json={"conversation_id": CONVERSATION, "question": "q"},
         headers=AUTH,
     )
     assert r.status_code == 404
@@ -220,10 +250,14 @@ def test_foreign_or_unknown_notebook_is_404(settings):
 
 def test_validation_errors_use_the_error_shape(settings):
     client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
-    r = client.post(ASK, json={"question": ""}, headers=AUTH)
+    r = client.post(ASK, json={"conversation_id": CONVERSATION, "question": ""}, headers=AUTH)
     assert r.status_code == 422
     assert r.json()["error"].startswith("question:")
-    r = client.post("/api/rag/notebooks/not-a-uuid/ask", json={"question": "q"}, headers=AUTH)
+    r = client.post(
+        "/api/rag/notebooks/not-a-uuid/ask",
+        json={"conversation_id": CONVERSATION, "question": "q"},
+        headers=AUTH,
+    )
     assert r.status_code == 422
     assert r.json()["error"].startswith("path.notebook_id:")
 

@@ -2,6 +2,7 @@ from lasteverlm_rag.admin import admin_stats
 
 from .conftest import (
     AUTH,
+    CONVERSATION,
     NOTEBOOK,
     OWNER,
     FakeLLM,
@@ -31,7 +32,7 @@ def test_stats_have_every_key_and_count_jobs_by_claim():
     store.create_output(NOTEBOOK, "audio", "failed")
     ready = store.create_output(NOTEBOOK, "report", "ready")
     store.update_output(ready.id, share_token="t")
-    store.insert_message(NOTEBOOK, "user", "hi", [])
+    store.insert_message(NOTEBOOK, CONVERSATION, "user", "hi", [])
 
     stats = admin_stats(store).model_dump()
     assert stats["notebooks"]["total"] == len(store.notebooks)

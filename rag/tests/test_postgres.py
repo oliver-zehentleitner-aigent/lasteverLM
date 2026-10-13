@@ -55,6 +55,17 @@ PRICES = parse_model_prices(
 
 MIGRATION_DIRS = ["infra", "core", "account", "ingest", "rag"]
 
+# History written before conversations existed, inserted right after rag's
+# 0001 so that 0002's backfill runs over it.
+LEGACY_USER, LEGACY_NOTEBOOK = str(uuid4()), str(uuid4())
+LEGACY_SEED = f"""
+insert into users (id, email) values ('{LEGACY_USER}', 'legacy@test.local');
+insert into notebooks (id, owner, title) values ('{LEGACY_NOTEBOOK}', '{LEGACY_USER}', 'old');
+insert into messages (id, notebook_id, role, content, created_at) values
+    ('{uuid4()}', '{LEGACY_NOTEBOOK}', 'user', 'old question', now() - interval '2 days'),
+    ('{uuid4()}', '{LEGACY_NOTEBOOK}', 'assistant', 'old answer', now() - interval '1 day');
+"""
+
 
 def _sql(path: Path) -> str:
     """A migration as psycopg can run it: psql meta-commands dropped, the
@@ -73,6 +84,8 @@ def database_url() -> str:
                 for service in MIGRATION_DIRS:
                     for path in sorted((REPO / service / "db" / "migrations").glob("*.sql")):
                         conn.execute(_sql(path))
+                        if (service, path.name) == ("rag", "0001_rag.sql"):
+                            conn.execute(LEGACY_SEED)
                 conn.commit()
             return DATABASE_URL
         except psycopg.OperationalError:
@@ -188,9 +201,10 @@ def test_messages_round_trip_with_citations(store, notebook):
         "page": 2,
         "quote": "q",
     }
-    store.insert_message(notebook, "user", "question", None)
-    stored = store.insert_message(notebook, "assistant", "answer [1]", [citation])
-    messages = store.list_messages(notebook)
+    chat = store.create_conversation(notebook, "Chat 1")
+    store.insert_message(notebook, chat.id, "user", "question", None)
+    stored = store.insert_message(notebook, chat.id, "assistant", "answer [1]", [citation])
+    messages = store.list_messages(chat.id)
     assert [m.role for m in messages] == ["user", "assistant"]
     assert messages[0].citations == []
     assert (
@@ -312,7 +326,8 @@ def test_admin_stats_counts_across_users(store, pool, notebook):
     store.create_output(notebook, "report", "waiting")
     shared = store.create_output(notebook, "table", "failed")
     store.update_output(shared.id, share_token=f"t-{shared.id}")
-    store.insert_message(notebook, "user", "hi", [])
+    chat = store.create_conversation(notebook, "Chat 1")
+    store.insert_message(notebook, chat.id, "user", "hi", [])
     with pool.connection() as conn:
         conn.execute(
             "update outputs set claimed_at = now(), claimed_by = 'w' where id = %s", (running.id,)
@@ -341,3 +356,35 @@ def test_admin_stats_counts_across_users(store, pool, notebook):
 
     assert count(after, "audio", "processing") - count(before, "audio", "processing") == 1
     assert count(after, "table", "failed") - count(before, "table", "failed") == 1
+
+
+def test_migration_moves_existing_history_into_chat_1(store, pool):
+    (chat,) = store.list_conversations(LEGACY_NOTEBOOK)
+    assert (chat.title, chat.owner) == ("Chat 1", LEGACY_USER)
+    assert [m.content for m in store.list_messages(chat.id)] == ["old question", "old answer"]
+    with pool.connection() as conn:
+        first = conn.execute(
+            "select min(created_at) as t from messages where notebook_id = %s", (LEGACY_NOTEBOOK,)
+        ).fetchone()["t"]
+    assert chat.created_at == first
+
+
+def test_conversations_history_window_and_cascade(store, pool, notebook):
+    chat = store.create_conversation(notebook, "Chat 2")
+    other = store.create_conversation(notebook, "Notes")
+    for i in range(5):
+        store.insert_message(notebook, chat.id, "user", f"m{i}", None)
+    store.insert_message(notebook, other.id, "user", "elsewhere", None)
+    assert [c.title for c in store.list_conversations(notebook)] == ["Chat 2", "Notes"]
+    assert (store.get_conversation(chat.id) or chat).notebook_id == notebook
+    assert [m.content for m in store.list_messages(chat.id, last=2)] == ["m3", "m4"]
+    assert len(store.list_messages(chat.id)) == 5
+
+    store.delete_conversation(chat.id)
+    assert store.get_conversation(chat.id) is None
+    with pool.connection() as conn:
+        left = conn.execute(
+            "select count(*) as n from messages where conversation_id = %s", (chat.id,)
+        ).fetchone()["n"]
+    assert left == 0
+    assert [m.content for m in store.list_messages(other.id)] == ["elsewhere"]
