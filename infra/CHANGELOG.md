@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `deploy.yml`: the concurrency group `deploy` moved from the workflow to the job, so the skipped runs that every `main` push triggers no longer cancel a pending tag deploy (v0.6.0's run ended `cancelled`).
+
 ## [0.6.0] - 2026-10-13
 
 ### Fixed
