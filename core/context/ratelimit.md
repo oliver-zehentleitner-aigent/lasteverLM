@@ -142,3 +142,42 @@ tables. Rejected: thirty days ends a ban too soon for a security measure.
 **Rejected alternative:** the purge alone ends a ban. Rejected because
 the purge runs when the account service starts, so a ban would outlive
 its ninety days by however long the service had been running.
+
+## The four thresholds are runtime settings, re-read every thirty seconds
+
+**Id:** 39da528f-5128-45cb-9393-41240be9cac4
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's request to see and edit the ban and block rules in the admin panel, 2026-10-13; design relayed by the coordinating agent
+**Revisit when:** a threshold must apply faster than thirty seconds, or the settings read shows up in request latency
+
+`per_minute`, `block_minutes`, `ban_after_strikes` and
+`strike_window_hours` come from account's `settings` table, key
+`ratelimit`, a jsonb object with exactly those four integer fields within
+`RATE_LIMIT_RULE_BOUNDS`. The env values stay the defaults. Each limiter
+re-reads the row through the store it already has at most every thirty
+seconds. A missing row means the defaults; an unusable row or an
+unreadable table means the defaults plus one warning per distinct
+problem. `RateLimitRules.parse` is the one validation, used by the
+limiter on read and by account's PUT on write. `BAN_MAX_DAYS` and
+`RETENTION_DAYS` stay env only: they govern the purge, not the rule.
+
+**Reason:** an operator has to be able to tighten or loosen a threshold
+during an incident without a deploy. One row in the database is seen by
+every replica of every service, the same place the blocks and bans
+already live, so the rule and its state cannot drift apart between
+pods. Thirty seconds bounds the extra read to two per minute per process
+and still applies a change within the minute an admin expects.
+
+**Rejected alternative:** env only, a redeploy to change a threshold.
+Rejected by the maintainer: too slow and too heavy for an incident.
+
+**Rejected alternative:** a per-service cache longer than thirty
+seconds. Rejected because an admin who saves a threshold expects it in
+force within a minute everywhere.
+
+**Rejected alternative:** a missing row also warns. Not done: no row is
+the normal state until an admin first saves the rules, and a warning
+every process start would teach operators to ignore the warning that
+matters, the malformed row.
