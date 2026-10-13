@@ -76,7 +76,7 @@ service lives in that service's own `context/`.
 
 ## W
 
-- [workflow.md](workflow.md) — seven parallel coding-agent sessions, agent A reviewing and merging until the prototype, one shared agent account with per-agent commit identity, fork-and-PR integration, reading the family's context/ before building
+- [workflow.md](workflow.md) — seven parallel coding-agent sessions, agent A reviewing and merging until the prototype, one shared agent account with per-agent commit identity, fork-and-PR integration, reading the family's context/ before building, black as the Python formatter
 
 ## X
 
