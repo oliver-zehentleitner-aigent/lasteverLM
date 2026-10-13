@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wizard, adding from the library: a proper list instead of rows that laid out like a table: a fixed checkbox column, the name on one line with an ellipsis (full name or URL as the tooltip, URLs shortened to host and path), the kind and demo badges right-aligned in a fixed slot, an even row height, a hover highlight, the whole row toggles; "n selected" next to the add button.
 - Theme: the header toggle and the Settings page share one theme store; saving a theme in Settings now changes what the toggle shows and offers next (it kept its own state before), and saving "like the system" switches back to the system's setting at once (it stayed on the previous theme).
 - Admin System: instead of "nothing yet" under Pods and Deployments, the page says why: not running in a cluster, or (in a cluster with both lists empty) no read role for pods and deployments.
 

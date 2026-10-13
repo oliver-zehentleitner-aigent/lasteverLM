@@ -39,3 +39,16 @@ export function purgeIn(purgeAt: string, now: Date = new Date()): string {
   const days = Math.ceil(ms / 86_400_000)
   return days <= 0 ? t('lib.purgedToday') : tn('lib.purgedIn', days)
 }
+
+/** An address as a list shows it: host and path without the scheme, a
+ *  leading "www." or a trailing slash; the full URL goes in the title. */
+export function shortUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    const host = u.host.replace(/^www\./, '')
+    const path = (u.pathname + u.search).replace(/\/$/, '')
+    return host + path
+  } catch {
+    return url
+  }
+}

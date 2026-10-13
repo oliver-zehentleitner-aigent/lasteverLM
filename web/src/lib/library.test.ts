@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibraryEntry } from '../api/types'
-import { deleteConfirmText, filterLibrary, notInNotebook, purgeIn } from './library'
+import { deleteConfirmText, filterLibrary, notInNotebook, purgeIn, shortUrl } from './library'
 
 const entry = (id: string, kind: LibraryEntry['kind'], name: string, notebooks: LibraryEntry['notebooks'] = [], url: string | null = null): LibraryEntry => ({
   id,
@@ -56,5 +56,14 @@ describe('purgeIn', () => {
     expect(purgeIn('2026-10-27T12:00:00Z', now)).toBe('purged in 14 days')
     expect(purgeIn('2026-10-14T06:00:00Z', now)).toBe('purged in 1 day')
     expect(purgeIn('2026-10-13T11:00:00Z', now)).toBe('purged today')
+  })
+})
+
+describe('shortUrl', () => {
+  it('keeps host and path', () => {
+    expect(shortUrl('https://en.wikipedia.org/wiki/Dead_reckoning')).toBe('en.wikipedia.org/wiki/Dead_reckoning')
+    expect(shortUrl('http://www.example.org/')).toBe('example.org')
+    expect(shortUrl('https://example.org/a?b=1')).toBe('example.org/a?b=1')
+    expect(shortUrl('not a url')).toBe('not a url')
   })
 })

@@ -153,7 +153,6 @@ export const en = {
   'wiz.filterLibraryLabel': 'Filter the library',
   'wiz.allInNotebook': 'Everything in your library is in this notebook already.',
   'wiz.adding': 'Adding… {n}',
-  'wiz.addN': 'Add {n}',
   'wiz.howIn': 'How does it get in?',
   'wiz.dropFiles': 'Drop {kind} files here, or',
   'wiz.capture': 'Capture',
@@ -427,6 +426,7 @@ export const en = {
   'set.theme': 'Theme',
   'set.themeSystem': 'Like the system',
   'sys.noRole': 'Pod list not available: the account service has no read role for pods and deployments in the cluster; the operator adds one to the deployment.',
+  'wiz.selected': '{n} selected',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -19,7 +19,11 @@ Three steps, one question each, large tiles instead of a form.
    kind that is not available yet is shown greyed with "Soon.", so the
    extension points stay visible.
 2. **How does it get in?** Only the ways that fit the type: drop or
-   pick files (several at once), enter a URL, paste text. For PDFs a
+   pick files (several at once), enter a URL, paste text; from the
+   library, a list with one row per entry (checkbox, the name on one
+   line with an ellipsis, a URL shortened to host and path, the kind and
+   demo badges in a fixed slot on the right; the whole row toggles) and
+   "n selected" next to the add button. For PDFs a
    **Capture** choice: Auto (text layer where present, the vision model
    for scanned pages), Text (text layer only, scanned pages fail) or
    Vision (every page through the vision model, one model call per
