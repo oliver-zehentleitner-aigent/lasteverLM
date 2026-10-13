@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { toMarkdown } from './mindmap'
+import { Transformer } from 'markmap-lib'
+import { cleanTree, toMarkdown } from './mindmap'
 
 describe('toMarkdown', () => {
   it('writes the root as heading and children as a nested list', () => {
@@ -8,5 +9,19 @@ describe('toMarkdown', () => {
   })
   it('handles a root without children', () => {
     expect(toMarkdown({ label: 'Only' })).toBe('# Only')
+  })
+})
+
+describe('labels', () => {
+  it('keeps a label with a line break on one node', () => {
+    expect(toMarkdown({ label: 'Root', children: [{ label: 'A\n# not a heading' }] })).toBe('# Root\n- A # not a heading')
+  })
+
+  it('reach markmap as raw HTML, so the tree has to be cleaned', () => {
+    const { root } = new Transformer().transform(toMarkdown({ label: 'R <img src=x onerror=alert(1)>', children: [{ label: '<b>A</b>' }] }))
+    expect(root.content).toContain('onerror')
+    const cleaned = cleanTree(root, (html) => html.replace(/<[^>]*>/g, ''))
+    expect(cleaned.content).toBe('R ')
+    expect(cleaned.children?.[0].content).toBe('A')
   })
 })

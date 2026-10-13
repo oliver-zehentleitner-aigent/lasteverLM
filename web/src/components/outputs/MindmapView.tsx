@@ -1,10 +1,11 @@
+import DOMPurify from 'dompurify'
 import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { Markmap } from 'markmap-view'
 import type { MindmapContent } from '../../api/types'
 import { t } from '../../i18n'
 import { bestMatchIndex, firstLine, type LocateRequest } from '../../lib/locate'
 import { mapAction } from '../../lib/mapKeys'
-import { toMarkdown } from '../../lib/mindmap'
+import { cleanTree, toMarkdown } from '../../lib/mindmap'
 
 /** Renders the tree with markmap, loaded on demand so the main bundle stays
  *  small; nothing else in the app needs d3. The content is converted to the
@@ -28,7 +29,9 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
       .then(([{ Transformer }, { Markmap }]) => {
         if (cancelled || !svg.current) return
         const { root } = new Transformer().transform(toMarkdown(content.root))
-        const mm = Markmap.create(svg.current, { autoFit: true }, root)
+        // the labels are the model's text and markmap renders them as HTML
+        const clean = cleanTree(root, (html) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }))
+        const mm = Markmap.create(svg.current, { autoFit: true }, clean)
         map.current = mm
         let frame = 0
         const observer = new ResizeObserver(() => {

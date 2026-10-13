@@ -11,9 +11,12 @@
 
 Reports arrive as Markdown written by a language model from user-uploaded
 sources. They are rendered with `marked` and passed through DOMPurify
-before `dangerouslySetInnerHTML`; every other document kind (quiz,
-table, infographic, mind map outline) is rendered through React, which
-escapes text. The shared page `/s/<token>` uses the same renderers.
+before `dangerouslySetInnerHTML`. The mind map's labels go through
+markmap, which renders each node as HTML, so every node is passed
+through DOMPurify too (this was missed at first and fixed on
+2026-10-14). The other kinds (quiz, table, infographic) are rendered
+through React, which escapes text. The shared page `/s/<token>` uses the
+same renderers.
 
 **Reason:** the content is only as trustworthy as the sources it was
 generated from, and the share page shows it to people who never logged
