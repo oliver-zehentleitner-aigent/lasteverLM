@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-14
+
 ### Changed
 
 - `docs/architecture.md`, `docs/rag-pipeline.md`: the audit night: roles (user, viewer, admin) with read-only admin access for viewers, sign-in mail quota, one-day tokens, the client-address trust boundary (PROXY protocol, NetworkPolicies, IPv6 /64, fail-closed limiter), previews for every library kind, the 2000-page cap, `LLM_TIMEOUT_SECONDS`.

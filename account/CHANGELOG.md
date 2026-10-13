@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-14
+
 ### Changed
 
 - Dockerfile pins `python:3.13-slim` by digest (the multi-arch index) in both stages; the refresh command is in the file.

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-14
+
 ### Added
 
 - Source selection: `source_ids` on `/ask` and on `POST .../outputs` (link ids of the notebook's uploads; absent or empty means all, any other id is a 422). Chat retrieves only from the selected uploads and its document list marks the others `not in scope`; an output is generated from the selected sources only and records them as `options.sources`.
