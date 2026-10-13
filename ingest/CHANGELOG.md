@@ -18,6 +18,10 @@ preserves why it changed, in `context/`.
 - URL sources: `POST /notebooks/{id}/sources` with `{"url"}` stores the URL, the worker fetches it and loads web pages (HTML text extraction), PDFs and plain text behind it. Every connection and redirect hop is checked against public addresses only.
 - Image sources (PNG, JPEG, WebP, GIF, checked by their first bytes): the worker has `LLM_MODEL` transcribe the text and describe the image, bills that call as its own `usage` row, then indexes the text like any other source. `IMAGE_MAX_TOKENS` caps the answer.
 
+### Fixed
+
+- A blank image fails its source at once with "the image holds no readable content" instead of being retried three times, and the model call that found it empty is recorded as usage.
+
 ## [0.1.0] - 2026-10-12
 
 ### Changed

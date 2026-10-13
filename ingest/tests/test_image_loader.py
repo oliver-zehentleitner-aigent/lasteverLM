@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from lasteverlm_core import MemoryRateLimitStore, ProviderError
 from openai import APIConnectionError, BadRequestError
 
-from lasteverlm_ingest.loaders import LoaderError, default_registry
+from lasteverlm_ingest.loaders import BilledLoaderError, LoaderError, default_registry
 from lasteverlm_ingest.loaders.image import ImageLoader, sniff_image_type
 from lasteverlm_ingest.main import create_app
 from lasteverlm_ingest.worker import process_source
@@ -74,8 +74,9 @@ def test_image_failures_are_classified():
         ImageLoader(FakeChat(error=refused), "m").load_with_usage(PNG)
     with pytest.raises(ProviderError):
         ImageLoader(FakeChat(error=APIConnectionError(request=REQUEST)), "m").load_with_usage(PNG)
-    with pytest.raises(ProviderError, match="empty"):
+    with pytest.raises(BilledLoaderError, match="no readable content") as caught:
         ImageLoader(FakeChat(answer=" "), "m").load_with_usage(PNG)
+    assert (caught.value.usage.tokens_in, caught.value.usage.tokens_out) == (202, 40)
 
 
 def _image_deps(repo, storage, embedder, fake):
@@ -142,3 +143,17 @@ def test_image_upload(repo, storage, embedder, summarizer):
         assert storage.types[f"{nb}/{r.json()['id']}/Chart_1.PNG"] == "image/png"
         r = client.post(url, files={"file": ("fake.png", b"<svg/>", "image/png")})
         assert r.status_code == 415
+
+
+def test_blank_image_fails_at_once_and_its_call_is_billed():
+    from tests.fakes import FakeEmbedder, InMemoryRepository, InMemoryStorage
+
+    repo, storage, fake = InMemoryRepository(), InMemoryStorage(), FakeChat(answer="")
+    sid = _add_image(repo, storage)
+    process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), fake))
+    source = repo.get_source(sid)
+    assert source.status == "failed" and source.error == "the image holds no readable content"
+    assert len(fake.calls) == 1
+    assert [(u.kind, u.model, u.tokens_in, u.tokens_out) for u in repo.usage] == [
+        ("llm", "fake-llm", 202, 40)
+    ]

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from lasteverlm_ingest.loaders.image import ImageLoader
 
 __all__ = [
+    "BilledLoaderError",
     "LoaderError",
     "LoaderRegistry",
     "ModelLoader",
@@ -27,6 +28,16 @@ __all__ = [
 
 class LoaderError(Exception):
     """The source could not be read; the message is shown to the user."""
+
+
+class BilledLoaderError(LoaderError):
+    """A `ModelLoader` call that was answered (and is billed) but whose
+    answer is no usable source; the worker records `usage`, then fails
+    the source like any `LoaderError`."""
+
+    def __init__(self, message: str, usage: Usage) -> None:
+        super().__init__(message)
+        self.usage = usage
 
 
 class TransientLoaderError(Exception):
