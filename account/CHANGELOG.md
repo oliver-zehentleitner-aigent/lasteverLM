@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Preference `theme` (system|light|dark, null = system); the web applies it.
+
 ## [0.7.0] - 2026-10-13
 
 ### Added
