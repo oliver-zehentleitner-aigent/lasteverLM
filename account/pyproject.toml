@@ -25,6 +25,7 @@ dev = [
   "anyio>=4",
   "httpx>=0.27",
   "ruff>=0.5",
+  "black>=24",
   "mypy>=1.10",
 ]
 
@@ -42,6 +43,10 @@ packages = ["src/lasteverlm_account"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
 
 [tool.ruff]
 line-length = 100

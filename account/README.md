@@ -100,7 +100,7 @@ and this service's migrations applied.
 ## Test
 
 ```bash
-make check          # install, then ruff, mypy, pytest; works on a fresh checkout
+make check          # install, then ruff check, black --check, mypy, pytest; works on a fresh checkout
 ```
 
 The unit tests run against the in-memory repository and need no

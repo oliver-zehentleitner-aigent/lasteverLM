@@ -12,7 +12,7 @@ install:
 
 lint:
 	$(VENV)/bin/ruff check .
-	$(VENV)/bin/ruff format --check .
+	$(VENV)/bin/black --check .
 
 types:
 	$(VENV)/bin/mypy
