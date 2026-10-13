@@ -18,6 +18,12 @@ REPO_ROOT   := $(abspath $(CURDIR)/..)
 REGISTRY ?= ghcr.io/oliver-zehentleitner
 TAG      ?= latest
 
+# The deployment's non-secret configuration (domain, models, prices, S3
+# endpoint), committed. Another deployment passes its own file.
+VALUES ?= $(CHART)/values-prod.yaml
+DOMAIN_FROM_VALUES = $(shell sed -n 's/^domain: *//p' $(VALUES))
+URL ?= $(if $(DOMAIN_FROM_VALUES),https://$(DOMAIN_FROM_VALUES))
+
 # Services whose db/migrations/ are applied after this directory's own, in
 # this order (see db/migrate.sh). Sibling directories in the mono repo.
 MIGRATION_SERVICES := core account ingest rag
@@ -32,7 +38,7 @@ export KUBECONFIG := $(BUILD)/kubeconfig
 # $(call require,VAR) fails loud when VAR is unset or empty.
 require = $(if $(strip $($(1))),,$(error $(1) is not set))
 
-.PHONY: tag-check help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations values deploy package status down check test smoke local-up local-down local-reset local-smoke
+.PHONY: tag-check help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations deploy package status down check test smoke local-up local-down local-reset local-smoke
 
 help: ## list targets
 > @grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s $$'\t'
@@ -141,21 +147,12 @@ migrations: ## collect infra + every service's db/migrations/ into chart/files/m
 > done
 > @tar czf $(CHART)/files/migrations.tgz -C $(BUILD)/migrations . && cp db/migrate.sh $(CHART)/files/migrate.sh && echo "wrote chart/files/migrations.tgz"
 
-values: ## write build/values.yaml for the chart from the environment (plus build/cluster.env when present)
-> $(call require,DOMAIN)
-> $(call require,ACME_EMAIL)
-> $(call require,LLM_MODEL)
-> $(call require,EMBEDDING_MODEL)
-> $(call require,MODEL_PRICES)
-> @mkdir -p $(BUILD); if [ -f $(CLUSTER_ENV) ]; then set -a; . $(CLUSTER_ENV); set +a; fi; \
->   REGISTRY=$(REGISTRY) TAG=$(TAG) DOMAIN=$(DOMAIN) ACME_EMAIL=$(ACME_EMAIL) \
->   python3 scripts/values.py > $(BUILD)/values.yaml && echo "wrote $(BUILD)/values.yaml"
-
 tag-check: ## refuse a short commit SHA as TAG (images carry the full SHA)
 > @if [[ "$(TAG)" =~ ^[0-9a-f]{7,39}$$ ]]; then echo "TAG=$(TAG) looks like a short commit SHA; docker.yml tags images with the full 40-character SHA" >&2; exit 1; fi
 
-deploy: tag-check values migrations ## helm upgrade --install of the chart: migrations hook, then every service at TAG (HELM_WAIT=0 returns without waiting)
-> helm upgrade --install $(RELEASE) $(CHART) -n $(KUBE_NS) --create-namespace -f $(BUILD)/values.yaml $(if $(filter 0,$(HELM_WAIT)),,--wait --timeout 10m)
+deploy: tag-check migrations ## helm upgrade --install of the chart with VALUES: migrations hook, then every service at TAG (HELM_WAIT=0 returns without waiting)
+> helm upgrade --install $(RELEASE) $(CHART) -n $(KUBE_NS) --create-namespace -f $(VALUES) \
+>   --set registry=$(REGISTRY) --set-string imageTag=$(TAG) $(if $(filter 0,$(HELM_WAIT)),,--wait --timeout 10m)
 > kubectl -n $(KUBE_NS) get deployments,hpa
 
 package: migrations ## package the chart: make package VERSION=0.1.0 (from the tag v0.1.0)
@@ -172,22 +169,18 @@ down: ## destroy every Vultr resource (asks first)
 
 # Checks ---------------------------------------------------------------------------
 
-LINT_SET := --set domain=example.test --set acmeEmail=ops@example.test --set config.llmModel=m \
-  --set config.embeddingModel=e --set-string config.modelPrices='{}' --set config.s3Endpoint=https://s3.example.test
-
-check: test ## static checks and unit tests: tofu, helm lint + template, shell syntax, black, tests, ktw-lint
+check: test ## static checks and unit tests: tofu, helm lint + template with VALUES, shell syntax, black, tests, ktw-lint
 > cd $(TOFU_DIR) && tofu fmt -check -recursive && tofu init -backend=false -input=false >/dev/null && VULTR_API_KEY=$${VULTR_API_KEY:-validate-only} tofu validate
-> helm lint $(CHART) $(LINT_SET) >/dev/null && helm template check $(CHART) $(LINT_SET) >/dev/null && echo "helm ok"
+> helm lint $(CHART) -f $(VALUES) >/dev/null && helm template check $(CHART) -f $(VALUES) >/dev/null && echo "helm ok"
 > sh -n db/migrate.sh && sh -n db/bootstrap.sh && echo "migrate.sh + bootstrap.sh ok"
 > black --check --quiet scripts tests && echo "black ok"
 > DATABASE_ADMIN_URL='postgresql://a:b@h:1/defaultdb?sslmode=require' APP_DB_PASSWORD=x python3 scripts/dburls.py >/dev/null && echo "dburls.py ok"
-> DOMAIN=d ACME_EMAIL=e LLM_MODEL=l EMBEDDING_MODEL=m MODEL_PRICES='{"m":{"in":1,"out":2}}' S3_ENDPOINT=https://s3 python3 scripts/values.py >/dev/null && echo "values.py ok"
 > @if command -v ktw-lint >/dev/null; then ktw-lint .; else echo "ktw-lint not installed, skipped (pipx install keep-the-why-lint)"; fi
 
 test: ## unit tests (the smoke test against an in-process stub)
 > python3 -m unittest discover -s tests
 
-smoke: ## end-to-end smoke test: make smoke URL=https://... (token from DEMO_TOKEN; SMOKE_ARGS="--host d --insecure" before DNS exists)
+smoke: ## end-to-end smoke test against URL (default https://<domain in VALUES>; token from DEMO_TOKEN; SMOKE_ARGS="--host d --insecure" before DNS exists)
 > $(call require,URL)
 > $(call require,DEMO_TOKEN)
 > python3 tests/smoke.py $(URL) $(SMOKE_ARGS)

@@ -1,5 +1,6 @@
-# Defaults for every deployment. Deployment-specific values (domain, tag,
-# model names, prices) are passed with --set or a values file kept out of Git.
+# Defaults for every deployment. Deployment-specific values (domain, model
+# names, prices, S3 endpoint) are in values-prod.yaml; `make deploy` sets the
+# image tag and registry.
 
 registry: ghcr.io/oliver-zehentleitner
 imageTag: latest

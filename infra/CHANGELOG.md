@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CPU requests lowered to measured use (APIs 50m, workers 100m, web 25m); autoscaler target 80 % instead of 70 %.
 - Python in `scripts/` and `tests/` formatted with black (line length 100, `pyproject.toml`); `make check` and CI run `black --check`.
+- Production configuration (domain, ACME e-mail, models, prices, embedding dimension, TTS, S3 endpoint) committed in `chart/values-prod.yaml`; `make deploy` and `deploy.yml` read it, `deploy.yml` needs only the `KUBECONFIG_B64` secret (plus optional `DEMO_TOKEN`) and no repository variables; `make smoke` defaults to its domain; the chart fails the render on invalid `modelPrices` JSON.
+
+### Removed
+
+- `make values` and `scripts/values.py`; deploy configuration no longer comes from the environment.
 
 ## [0.2.0] - 2026-10-13
 

@@ -10,7 +10,11 @@ data:
   LLM_MODEL: {{ required "config.llmModel is required" .Values.config.llmModel | quote }}
   EMBEDDING_MODEL: {{ required "config.embeddingModel is required" .Values.config.embeddingModel | quote }}
   EMBEDDING_DIMENSION: {{ .Values.config.embeddingDimension | quote }}
-  MODEL_PRICES: {{ required "config.modelPrices is required until core ships defaults" .Values.config.modelPrices | quote }}
+  {{- $prices := required "config.modelPrices is required until core ships defaults" .Values.config.modelPrices }}
+  {{- with (fromJson $prices).Error }}
+  {{- fail (printf "config.modelPrices is not valid JSON: %s" .) }}
+  {{- end }}
+  MODEL_PRICES: {{ $prices | quote }}
   S3_ENDPOINT: {{ required "config.s3Endpoint is required" .Values.config.s3Endpoint | quote }}
   S3_BUCKET: {{ .Values.config.s3Bucket | quote }}
   {{- with .Values.config.similarityFloor }}

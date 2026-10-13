@@ -18,10 +18,8 @@ the bucket is created with curl; nothing else is needed.
 | `TF_VAR_object_storage_tier_id` (or `tofu/terraform.tfvars`) | environment | `make up`; `vultr-cli object-storage tier list` shows the ids |
 | `DATABASE_ADMIN_URL` | environment; the managed instance's admin role, created by the maintainer | `make env` (derived URLs), `make db-bootstrap` |
 | `PGSSLROOTCERT` | environment, path to the instance's CA file | `make secrets` (ConfigMap `lasteverlm-pg-ca`) |
-| `DOMAIN`, `ACME_EMAIL` | environment | `make values` / `make deploy` |
-| `LLM_MODEL`, `EMBEDDING_MODEL`, `MODEL_PRICES` (JSON) | environment | `make values` / `make deploy` |
+| Domain, ACME e-mail, model names, `modelPrices` (JSON), embedding dimension, similarity floor, TTS model and voice, S3 endpoint | `chart/values-prod.yaml`, committed (`VALUES=<file>` for another deployment) | `make deploy`, `make check`, `make smoke` (default URL) |
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`) | make variables | `make deploy` |
-| `EMBEDDING_DIMENSION`, `SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE` (default `ryan`), `INFERENCE_BASE_URL` | environment, optional | `make values` |
 | `INFERENCE_API_KEY` | environment | `make secrets` |
 | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET`, `SMTP_*` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
 | `DEMO_TOKEN` | environment, for `make smoke` only; the cluster's value is generated, see below | `make smoke` |
@@ -46,11 +44,12 @@ make db-trust    # the managed database accepts only the node addresses and this
 make platform    # ingress-nginx + cert-manager + metrics-server; prints the load balancer IP
 ```
 
-Point `DOMAIN` at the printed IP (an A record), then:
+Point the domain in `chart/values-prod.yaml` at the printed IP (an A
+record), then:
 
 ```sh
 make db-bootstrap  # once: application role, database, pgvector (runs make secrets first)
-make deploy        # make values + make migrations + helm upgrade --install
+make deploy        # make migrations + helm upgrade --install with chart/values-prod.yaml
 make status
 ```
 
@@ -94,9 +93,13 @@ bounds, resources, rate limits, which Secrets each service mounts).
 Every image sets a numeric `USER`; an image that names its user would
 need `runAsUser` in its values, because `runAsNonRoot` cannot verify a
 name.
-`make values` writes `build/values.yaml` with the deployment-specific
-part (domain, tag, registry, model names, prices, S3 endpoint) via
-`scripts/values.py`; `make deploy` passes it to Helm. The chart version
+`chart/values-prod.yaml` holds the deployment-specific part (domain,
+ACME e-mail, model names, prices, embedding dimension, TTS voice, S3
+endpoint), committed and changed by pull request; `make deploy` passes
+it to Helm with the image tag and registry from `TAG` and `REGISTRY`.
+The chart fails the render when `modelPrices` is not valid JSON. After
+`make up` in a new region, put the `s3_endpoint` tofu output into the
+file. The chart version
 is the repository tag: `make package VERSION=0.1.0`.
 
 ## Migrations
@@ -186,12 +189,11 @@ Owned here, stored at the repository root in `.github/workflows/`:
 | `pages.yml` | push to `main` | the Keep the Why dashboard export |
 
 Repository secrets for `deploy.yml`: `KUBECONFIG_B64` (the file
-`make kubeconfig` writes, base64), `DEMO_TOKEN` (optional). Repository
-variables: `DOMAIN`, `ACME_EMAIL`, `LLM_MODEL`, `EMBEDDING_MODEL`,
-`MODEL_PRICES`, `S3_ENDPOINT`, optional `EMBEDDING_DIMENSION`,
-`SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE`. The workflow runs `make values` and
-`make deploy` without a tofu state, which is why `S3_ENDPOINT` is a
-variable there.
+`make kubeconfig` writes, base64), the only one required, and
+`DEMO_TOKEN` (optional; without it the smoke step is skipped). No
+repository variables: the configuration comes from the committed
+`chart/values-prod.yaml`, the same file `make deploy` uses on an
+operator machine, and the smoke test targets the domain in it.
 
 ## Teardown
 
@@ -204,4 +206,5 @@ account key and certificates go with the cluster.
 `make check` runs what CI runs for this directory: `tofu fmt` and
 `validate`, `helm lint` and `helm template`, `sh -n` on the runner, `black --check`
 on `scripts/` and `tests/` (line length 100 from `pyproject.toml`, as in
-the services), `scripts/values.py`, the unit tests, `ktw-lint`.
+the services), `scripts/dburls.py`, the unit tests, `ktw-lint`. Helm
+lints and renders with `chart/values-prod.yaml`.
