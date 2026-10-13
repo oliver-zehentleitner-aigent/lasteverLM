@@ -53,6 +53,9 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
         "chunk_id": CHUNK_1,
         "page": 2,
         "quote": "The sky is blue.",
+        "similarity": None,
+        "chunk_index": None,
+        "chunk_count": None,
     }
     # the question was stripped and the LLM saw the numbered passages
     assert llm.calls[0][1].endswith("Question: colors?")

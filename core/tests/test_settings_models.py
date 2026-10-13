@@ -5,8 +5,10 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from lasteverlm_core import (
+    ChunkView,
     Citation,
     ConfigError,
     InferenceSettings,
@@ -63,3 +65,37 @@ def test_models_serialize_ids_and_times_as_strings() -> None:
     assert wire["created_at"].startswith("2026-10-12")
     assert wire["citations"][0]["source_kind"] == "pdf"
     assert Message.model_validate(wire) == message
+
+
+def test_citation_provenance_fields_are_optional() -> None:
+    stored = {
+        "n": 1,
+        "source_id": str(uuid4()),
+        "source_name": "a.pdf",
+        "source_kind": "pdf",
+        "chunk_id": str(uuid4()),
+        "page": None,
+        "quote": "old",
+    }
+    old = Citation.model_validate(stored)
+    assert (old.similarity, old.chunk_index, old.chunk_count) == (None, None, None)
+    new = Citation.model_validate(
+        {**stored, "similarity": 0.812, "chunk_index": 0, "chunk_count": 7}
+    )
+    assert json.loads(new.model_dump_json())["chunk_index"] == 0
+    with pytest.raises(ValidationError):
+        Citation.model_validate({**stored, "chunk_index": -1})
+
+
+def test_chunk_view_round_trips() -> None:
+    view = ChunkView(
+        chunk_id=uuid4(),
+        source_id=uuid4(),
+        source_name="a.pdf",
+        source_kind="pdf",
+        page=2,
+        chunk_index=3,
+        chunk_count=9,
+        text="full chunk",
+    )
+    assert ChunkView.model_validate(json.loads(view.model_dump_json())) == view
