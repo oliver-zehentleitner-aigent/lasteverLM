@@ -1,12 +1,13 @@
-"""FastAPI glue for the admin-only endpoints of ingest and rag.
+"""FastAPI glue for the admin endpoints of the services.
 
 Needs FastAPI, which every service has and core does not depend on, so
 this module is not re-exported from the package root:
-`from lasteverlm_core.web import admin_only`.
+`from lasteverlm_core.web import admin_only, admin_read`.
 
-The JWT carries no admin claim; whether a caller is an admin is read
-from `users.is_admin` on every request, so revoking it takes effect at
-once. The service supplies the lookup because only it knows its pool.
+`admin_only` gates what changes something (admins), `admin_read` what
+only reads (viewers and admins). The JWT carries no role claim; the role
+is read from `users` on every request, so a change takes effect at once.
+The service supplies the lookup because only it knows its pool.
 """
 
 # No `from __future__ import annotations`: FastAPI reads the dependency's
@@ -20,19 +21,24 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 
+from .models import Role
+
 AdminLookup = Callable[[Request, UUID], bool | Awaitable[bool]]
+RoleLookup = Callable[[Request, UUID], Role | Awaitable[Role]]
 
 ADMIN_ONLY = "admin only"
+# Who may read the admin area; writing stays with "admin" (`admin_only`).
+READ_ROLES: frozenset[Role] = frozenset({"viewer", "admin"})
 
 
-def admin_only(
-    current_user: Callable[..., Any], lookup: AdminLookup
+def _gate(
+    current_user: Callable[..., Any],
+    lookup: Callable[[Request, UUID], Any],
+    admits: Callable[[Any], bool],
 ) -> Callable[..., Awaitable[UUID]]:
-    """A dependency that resolves the caller with the service's own
-    `current_user` dependency (401 stays its job) and answers 403 unless
-    `lookup(request, user_id)` says admin. A sync lookup (a psycopg pool
-    call) runs in a worker thread; an async one is awaited.
-    """
+    """The dependency both gates share: resolve the caller with the service's
+    own `current_user` (401 stays its job), ask `lookup` (a sync one runs in
+    a worker thread, an async one is awaited) and answer 403 unless `admits`."""
 
     is_async = inspect.iscoroutinefunction(lookup)
 
@@ -42,9 +48,26 @@ def admin_only(
         else:
             result = await run_in_threadpool(lookup, request, user_id)
         # a plain lambda around an async call hands back its coroutine
-        admin = await result if inspect.isawaitable(result) else result
-        if not admin:
+        value = await result if inspect.isawaitable(result) else result
+        if not admits(value):
             raise HTTPException(status_code=403, detail=ADMIN_ONLY)
         return user_id
 
     return dependency
+
+
+def admin_only(
+    current_user: Callable[..., Any], lookup: AdminLookup
+) -> Callable[..., Awaitable[UUID]]:
+    """Admins only: the dependency for every endpoint that changes something.
+    403 unless `lookup(request, user_id)` says admin."""
+    return _gate(current_user, lookup, bool)
+
+
+def admin_read(
+    current_user: Callable[..., Any], role_lookup: RoleLookup
+) -> Callable[..., Awaitable[UUID]]:
+    """Viewers and admins: the dependency for admin endpoints that only read.
+    `role_lookup(request, user_id)` returns the caller's `Role`
+    (`admin_role` / `aadmin_role`); 403 for "user"."""
+    return _gate(current_user, role_lookup, lambda role: role in READ_ROLES)

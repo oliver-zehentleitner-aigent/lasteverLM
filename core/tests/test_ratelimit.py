@@ -133,11 +133,15 @@ def test_client_ip_prefers_forwarded_header_when_trusted() -> None:
 
 
 async def run_asgi(
-    app: Any, headers: list[tuple[bytes, bytes]], path: str = "/x", client: str = "10.0.0.5"
+    app: Any,
+    headers: list[tuple[bytes, bytes]],
+    path: str = "/x",
+    client: str = "10.0.0.5",
+    method: str = "GET",
 ) -> tuple[int, bytes]:
     scope = {
         "type": "http",
-        "method": "GET",
+        "method": method,
         "path": path,
         "query_string": b"",
         "headers": headers,

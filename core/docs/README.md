@@ -97,6 +97,27 @@ def admin_lookup(request: Request, user_id: UUID) -> bool:
 AdminUser = Annotated[UUID, Depends(admin_only(current_user, admin_lookup))]
 ```
 
+Reviewers get read-only access: `users.role` is `"user"`, `"viewer"` or
+`"admin"` (`is_admin` is `role = 'admin'`). `admin_role(conn, user_id)`
+and the async `aadmin_role` read it, a user without a row is `"user"`.
+`admin_read(current_user, role_lookup)` admits viewers and admins and
+goes on every admin endpoint that only reads; `admin_only` stays on
+everything that changes something. A viewer has no other privilege:
+credit and the services treat it like a user.
+
+```python
+from lasteverlm_core import Role, admin_role
+from lasteverlm_core.web import admin_read
+
+
+def role_lookup(request: Request, user_id: UUID) -> Role:
+    with request.app.state.pool.connection() as conn:
+        return admin_role(conn, user_id)
+
+
+AdminReader = Annotated[UUID, Depends(admin_read(current_user, role_lookup))]
+```
+
 The module imports FastAPI, which core does not depend on (every service
 does; the `web` extra names it), so it is not re-exported from the
 package root.

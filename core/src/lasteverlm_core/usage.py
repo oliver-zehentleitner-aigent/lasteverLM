@@ -14,7 +14,7 @@ from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from typing import Any, Protocol
 from uuid import UUID
 
-from .models import UsageKind, UsageRecord, UsageService
+from .models import ROLES, Role, UsageKind, UsageRecord, UsageService
 from .pricing import ModelPrices, cost_cents
 
 # Credits minus priced usage. Usage rows are the only debit.
@@ -29,6 +29,11 @@ select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)
 # account has written it) is no admin.
 IS_ADMIN_SQL = """
 select coalesce((select is_admin from users where id = %(user_id)s), false) as is_admin
+"""
+# The role decides read access to the admin area (viewer, admin); a user
+# without a row is a plain user.
+ROLE_SQL = """
+select coalesce((select role from users where id = %(user_id)s), 'user') as role
 """
 # The same rule for every user, admins included: a positive balance.
 HAS_CREDIT_SQL = """
@@ -121,6 +126,22 @@ def is_admin(conn: Connection, user_id: UUID) -> bool:
         return bool(scalar(cur.fetchone(), "is_admin"))
 
 
+def _role(row: Any) -> Role:
+    value = scalar(row, "role")
+    for role in ROLES:
+        if value == role:
+            return role
+    # the column's check constraint makes this unreachable; fail loud anyway
+    raise ValueError(f"unknown role {value!r} in users.role")
+
+
+def admin_role(conn: Connection, user_id: UUID) -> Role:
+    """`users.role` for one user: "user", "viewer" or "admin"; "user" without a row."""
+    with conn.cursor() as cur:
+        cur.execute(ROLE_SQL, {"user_id": user_id})
+        return _role(cur.fetchone())
+
+
 def has_credit(conn: Connection, user_id: UUID) -> bool:
     """May this user start a model call: `balance_cents > 0`, for every user
     alike. The check every service runs before a model call."""
@@ -164,6 +185,13 @@ async def ais_admin(conn: AsyncConnection, user_id: UUID) -> bool:
     async with conn.cursor() as cur:
         await cur.execute(IS_ADMIN_SQL, {"user_id": user_id})
         return bool(scalar(await cur.fetchone(), "is_admin"))
+
+
+async def aadmin_role(conn: AsyncConnection, user_id: UUID) -> Role:
+    """`admin_role` for an async psycopg connection."""
+    async with conn.cursor() as cur:
+        await cur.execute(ROLE_SQL, {"user_id": user_id})
+        return _role(await cur.fetchone())
 
 
 async def ahas_credit(conn: AsyncConnection, user_id: UUID) -> bool:

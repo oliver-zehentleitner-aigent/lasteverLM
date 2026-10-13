@@ -37,7 +37,9 @@ from lasteverlm_core import (
     RateLimitMiddleware,
     RateLimitSettings,
     UnpricedModelError,
+    aadmin_role,
     abalance_cents,
+    admin_role,
     ahas_credit,
     ais_admin,
     arecord_usage,
@@ -59,9 +61,11 @@ MIGRATIONS = sorted((Path(__file__).parent.parent / "db" / "migrations").glob("*
 LEDGER_MIRROR = (
     "create table if not exists ledger (user_id uuid not null, amount_cents integer not null)"
 )
+# account's shape: the role, and is_admin a plain column account writes with it
 USERS_MIRROR = (
-    "create table if not exists users"
-    " (id uuid primary key, is_admin boolean not null default false)"
+    "create table if not exists users (id uuid primary key,"
+    " role text not null default 'user' check (role in ('user', 'viewer', 'admin')),"
+    " is_admin boolean not null default false)"
 )
 SETTINGS_MIRROR = "create table if not exists settings (key text primary key, value jsonb not null)"
 TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger", "users", "settings")
@@ -145,7 +149,10 @@ def test_tts_usage_is_priced_per_character(conn: psycopg.Connection[Any]) -> Non
 
 def test_admins_need_credit_like_everyone(dsn: str, conn: psycopg.Connection[Any]) -> None:
     admin, user, stranger = uuid4(), uuid4(), uuid4()
-    conn.execute("insert into users (id, is_admin) values (%s, true), (%s, false)", (admin, user))
+    conn.execute(
+        "insert into users (id, role, is_admin) values (%s, 'admin', true), (%s, 'user', false)",
+        (admin, user),
+    )
     assert is_admin(conn, admin) is True
     assert is_admin(conn, user) is False
     assert is_admin(conn, stranger) is False  # no users row
@@ -164,9 +171,27 @@ def test_admins_need_credit_like_everyone(dsn: str, conn: psycopg.Connection[Any
         assert has_credit(dconn, admin) is False and is_admin(dconn, admin) is True
 
 
+async def test_roles_from_the_users_table(dsn: str, conn: psycopg.Connection[Any]) -> None:
+    admin, viewer, user = uuid4(), uuid4(), uuid4()
+    conn.execute(
+        "insert into users (id, role, is_admin)"
+        " values (%s, 'admin', true), (%s, 'viewer', false), (%s, 'user', false)",
+        (admin, viewer, user),
+    )
+    assert [admin_role(conn, u) for u in (admin, viewer, user, uuid4())] == [
+        "admin",
+        "viewer",
+        "user",
+        "user",  # no row
+    ]
+    assert is_admin(conn, admin) is True and is_admin(conn, viewer) is False
+    async with await psycopg.AsyncConnection.connect(dsn, row_factory=dict_row) as aconn:
+        assert await aadmin_role(aconn, viewer) == "viewer"
+
+
 async def test_async_admin_and_credit(dsn: str, conn: psycopg.Connection[Any]) -> None:
     admin = uuid4()
-    conn.execute("insert into users (id, is_admin) values (%s, true)", (admin,))
+    conn.execute("insert into users (id, role, is_admin) values (%s, 'admin', true)", (admin,))
     async with await psycopg.AsyncConnection.connect(dsn) as aconn:
         assert await ais_admin(aconn, admin) is True
         assert await ahas_credit(aconn, admin) is False  # admins need credit too
