@@ -9,6 +9,19 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Per-user source library: `GET /library`, `GET /library/{id}` (with the notebooks each source is in) and `DELETE /library/{id}` (removes it from every notebook, chunks and stored object included). Generated outputs are never part of it.
+- `POST /notebooks/{id}/sources` with `{"library_id"}` adds a library source to another notebook without uploading or processing it again.
+- Uploading the same bytes (sha256) or entering the same normalised URL again links the user's existing library source: 202 with a new link, 200 with the existing one when it is already in this notebook. A failed one is queued again.
+- Migration `0003_source_library.sql` (expand step): `library_sources`, `sources.library_source_id`, `chunks.library_source_id`; every existing source gets a library source with the same id.
+
+### Changed
+
+- `DELETE /sources/{id}` detaches the source from its notebook; it stays in the library with its chunks and stored object. Deleting a notebook detaches its sources instead of deleting their files.
+- Source responses carry `library_id`. Objects of new library sources are stored at `<owner>/<library_id>/<name>`.
+- The worker processes library sources once, whatever number of notebooks link them; it never claims rag's generated rows (before, it could claim one between rag creating and finishing it).
+
 ## [0.3.0] - 2026-10-13
 
 ### Added

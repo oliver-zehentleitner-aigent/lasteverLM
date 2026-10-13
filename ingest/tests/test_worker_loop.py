@@ -30,7 +30,7 @@ def test_worker_drains_the_queue_oldest_first_and_records_the_claimer():
     assert done == 2
     assert list(repo.claimed) == [first, second]
     assert set(repo.claimed.values()) == {"w1"}
-    assert {s.status for s in repo.sources.values()} == {"ready"}
+    assert {s.status for s in repo.library.values()} == {"ready"}
 
 
 def test_worker_stops_when_asked_while_idle():
@@ -59,4 +59,4 @@ def test_two_workers_never_take_the_same_source():
         t.join(timeout=10)
     assert sum(results.values()) == 6
     assert sorted(repo.claimed) == sorted(ids)
-    assert all(s.status == "ready" for s in repo.sources.values())
+    assert all(s.status == "ready" for s in repo.library.values())

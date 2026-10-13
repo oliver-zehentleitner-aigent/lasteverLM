@@ -3,10 +3,17 @@
 The schema is owned by the infra repository (migrations); this module only
 reads and writes it. Services share the database and never call each
 other, so the tables below are the contract with rag and account.
+
+A library source (`library_sources`) is what a user uploaded or entered
+once, processed once, owning the chunks. A source (`sources`) is its link
+into a notebook; the link id is the public source id. Library sources of
+kind `generated` belong to rag's outputs and are never listed: every
+library read goes through `_LISTED`.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
@@ -18,15 +25,68 @@ from pydantic import BaseModel, ConfigDict
 
 
 class StoredSource(Source):
-    """A source row with the fields the API does not expose."""
+    """A source as a notebook shows it: the link row joined with its
+    library source, plus the fields the API does not expose."""
 
     model_config = ConfigDict(from_attributes=True)
 
+    library_id: UUID
     owner: UUID
     storage_path: str | None
     summary: str | None = None
     attempts: int = 0
     size_bytes: int | None = None
+
+
+class LibrarySource(BaseModel):
+    """One row of `library_sources`."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    owner: UUID
+    name: str
+    kind: str
+    dedupe_key: str | None = None
+    url: str | None = None
+    size_bytes: int | None = None
+    storage_path: str | None = None
+    status: str
+    error: str | None = None
+    summary: str | None = None
+    attempts: int = 0
+    created_at: datetime
+
+
+class NotebookUse(BaseModel):
+    id: UUID
+    title: str
+    source_id: UUID
+
+
+class LibraryEntry(BaseModel):
+    """`GET /library`: a library source with the notebooks it is in."""
+
+    id: UUID
+    name: str
+    kind: str
+    status: str
+    error: str | None
+    size_bytes: int | None
+    url: str | None
+    created_at: datetime
+    notebooks: list[NotebookUse]
+
+
+class NewLibrarySource(BaseModel):
+    id: UUID
+    owner: UUID
+    name: str
+    kind: str
+    dedupe_key: str
+    url: str | None
+    size_bytes: int | None
+    storage_path: str
 
 
 class Repository(Protocol):
@@ -36,39 +96,71 @@ class Repository(Protocol):
 
     def get_notebook(self, owner: UUID, notebook_id: UUID) -> Notebook | None: ...
 
-    def delete_notebook(self, owner: UUID, notebook_id: UUID) -> list[str]:
-        """Delete the notebook (sources and chunks cascade) and return the
-        storage keys of its sources so the caller can remove the objects."""
+    def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
+        """Delete the notebook: its links go, its library sources stay in
+        the library, its generated library sources (rag's outputs) go."""
         ...
+
+    # -- sources: library sources as linked into a notebook ---------------
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]: ...
 
-    def create_source(
-        self,
-        notebook_id: UUID,
-        source_id: UUID,
-        name: str,
-        kind: str,
-        storage_path: str | None,
-        size_bytes: int | None = None,
-    ) -> StoredSource: ...
-
     def get_source(self, source_id: UUID) -> StoredSource | None: ...
 
-    def delete_source(self, source_id: UUID) -> None: ...
-
-    def set_source_status(self, source_id: UUID, status: str, error: str | None = None) -> None: ...
-
-    def claim_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
-        """Claim one unprocessed source for this worker and return its id,
-        or None when the queue is empty. A source whose claim is older than
-        `stale_after_seconds` counts as unprocessed again (its worker died)."""
+    def link_source(self, notebook_id: UUID, library_id: UUID) -> tuple[StoredSource, bool]:
+        """Link a library source into a notebook; returns the link and
+        whether it is new (False: it was already in this notebook)."""
         ...
 
-    def set_source_summary(self, source_id: UUID, summary: str) -> None: ...
+    def detach_source(self, source_id: UUID) -> None:
+        """Remove the link; a generated library source goes with it."""
+        ...
+
+    # -- the library ---------------------------------------------------------
+
+    def find_library_source(self, owner: UUID, dedupe_key: str) -> LibrarySource | None: ...
+
+    def create_library_source(self, new: NewLibrarySource) -> LibrarySource:
+        """Insert a library source in `processing`; when the owner already
+        has one with this dedupe key (a concurrent upload), return that one."""
+        ...
+
+    def retry_library_source(self, library_id: UUID) -> None:
+        """A failed library source uploaded again: back to `processing`."""
+        ...
+
+    def list_library(self, owner: UUID) -> list[LibraryEntry]: ...
+
+    def get_library_entry(self, owner: UUID, library_id: UUID) -> LibraryEntry | None: ...
+
+    def delete_library_source(self, owner: UUID, library_id: UUID) -> str | None:
+        """Delete from the library and every notebook (links and chunks
+        cascade); returns the storage key so the caller removes the object."""
+        ...
+
+    # -- the worker ---------------------------------------------------------
+
+    def get_library_source(self, library_id: UUID) -> LibrarySource | None: ...
+
+    def first_notebook(self, library_id: UUID) -> UUID | None:
+        """The notebook it was first added to, for the usage rows."""
+        ...
+
+    def set_library_status(
+        self, library_id: UUID, status: str, error: str | None = None
+    ) -> None: ...
+
+    def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
+        """Claim one unprocessed library source for this worker and return
+        its id, or None when the queue is empty. A claim older than
+        `stale_after_seconds` counts as unprocessed again (its worker died).
+        Generated rows are rag's and never claimed."""
+        ...
+
+    def set_library_summary(self, library_id: UUID, summary: str) -> None: ...
 
     def replace_chunks(
-        self, source_id: UUID, notebook_id: UUID, chunks: list[Chunk], vectors: list[list[float]]
+        self, library_id: UUID, chunks: list[Chunk], vectors: list[list[float]]
     ) -> None: ...
 
     def record_usage(
@@ -98,9 +190,10 @@ class Repository(Protocol):
 
 
 class AdminStats(BaseModel):
-    """`GET /admin/stats`. A `processing` source is a pending job until a
-    worker claims it (or its claim is stale) and a running job while
-    claimed; `source_bytes` counts rows that stored their size."""
+    """`GET /admin/stats` over library sources (generated ones excluded). A
+    `processing` one is a pending job until a worker claims it (or its claim
+    is stale) and a running job while claimed; `source_bytes` counts rows
+    that stored their size."""
 
     sources: dict[str, int]
     jobs: dict[str, int]
@@ -178,87 +271,180 @@ class PostgresRepository:
         )
         return Notebook(**row) if row else None
 
-    def delete_notebook(self, owner: UUID, notebook_id: UUID) -> list[str]:
+    def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
+            # Generated library sources only live through their link; the
+            # notebook cascade would leave them behind.
             cur.execute(
-                "select storage_path from sources where notebook_id = %(id)s "
-                "and storage_path is not null",
-                {"id": notebook_id},
+                "delete from library_sources l using sources s, notebooks n "
+                "where s.library_source_id = l.id and s.notebook_id = n.id "
+                "and n.id = %(id)s and n.owner = %(owner)s and l.kind = 'generated'",
+                {"id": notebook_id, "owner": owner},
             )
-            keys = [row[0] for row in cur.fetchall()]
             cur.execute(
                 "delete from notebooks where id = %(id)s and owner = %(owner)s",
                 {"id": notebook_id, "owner": owner},
             )
-            return keys
+
+    # -- sources ---------------------------------------------------------------
 
     _SELECT_SOURCES = (
-        "select s.id, s.notebook_id, s.name, s.kind, s.status, s.error, s.created_at, "
-        "s.storage_path, s.summary, s.attempts, n.owner "
-        "from sources s join notebooks n on n.id = s.notebook_id"
+        "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
+        "l.id as library_id, l.owner, l.storage_path, l.summary, l.attempts, l.size_bytes "
+        "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
         rows = self._all(
-            f"{self._SELECT_SOURCES} where s.notebook_id = %(id)s order by s.created_at",
+            f"{self._SELECT_SOURCES} where s.notebook_id = %(id)s order by s.created_at, s.id",
             {"id": notebook_id},
         )
         return [StoredSource(**row) for row in rows]
 
-    def create_source(
-        self,
-        notebook_id: UUID,
-        source_id: UUID,
-        name: str,
-        kind: str,
-        storage_path: str | None,
-        size_bytes: int | None = None,
-    ) -> StoredSource:
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(
-                "insert into sources"
-                " (id, notebook_id, name, kind, storage_path, size_bytes, status)"
-                " values (%(id)s, %(nb)s, %(name)s, %(kind)s, %(path)s, %(size)s, 'processing')",
-                {
-                    "id": source_id,
-                    "nb": notebook_id,
-                    "name": name,
-                    "kind": kind,
-                    "path": storage_path,
-                    "size": size_bytes,
-                },
-            )
-        source = self.get_source(source_id)
-        assert source is not None
-        return source
-
     def get_source(self, source_id: UUID) -> StoredSource | None:
-        row = self._one(
-            f"{self._SELECT_SOURCES} where s.id = %(id)s",
-            {"id": source_id},
-        )
+        row = self._one(f"{self._SELECT_SOURCES} where s.id = %(id)s", {"id": source_id})
         return StoredSource(**row) if row else None
 
-    def delete_source(self, source_id: UUID) -> None:
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute("delete from sources where id = %(id)s", {"id": source_id})
+    def link_source(self, notebook_id: UUID, library_id: UUID) -> tuple[StoredSource, bool]:
+        row = self._one(
+            "insert into sources (id, notebook_id, library_source_id) "
+            "values (%(id)s, %(nb)s, %(lib)s) "
+            "on conflict (notebook_id, library_source_id) do nothing returning id",
+            {"id": uuid4(), "nb": notebook_id, "lib": library_id},
+        )
+        created = row is not None
+        if row is None:
+            row = self._one(
+                "select id from sources where notebook_id = %(nb)s and library_source_id = %(lib)s",
+                {"nb": notebook_id, "lib": library_id},
+            )
+        assert row is not None
+        source = self.get_source(row["id"])
+        assert source is not None
+        return source, created
 
-    def set_source_status(self, source_id: UUID, status: str, error: str | None = None) -> None:
+    def detach_source(self, source_id: UUID) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
-                "update sources set status = %(status)s, error = %(error)s where id = %(id)s",
-                {"status": status, "error": error, "id": source_id},
+                "delete from library_sources l using sources s "
+                "where s.id = %(id)s and l.id = s.library_source_id and l.kind = 'generated'",
+                {"id": source_id},
+            )
+            cur.execute("delete from sources where id = %(id)s", {"id": source_id})
+
+    # -- the library -----------------------------------------------------------
+
+    # Every library read filters with this: generated rows are rag's.
+    _LISTED = "l.kind <> 'generated'"
+    _LIBRARY_COLUMNS = (
+        "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
+        "l.status, l.error, l.summary, l.attempts, l.created_at"
+    )
+
+    def find_library_source(self, owner: UUID, dedupe_key: str) -> LibrarySource | None:
+        row = self._one(
+            f"select {self._LIBRARY_COLUMNS} from library_sources l "
+            f"where l.owner = %(owner)s and l.dedupe_key = %(key)s and {self._LISTED}",
+            {"owner": owner, "key": dedupe_key},
+        )
+        return LibrarySource(**row) if row else None
+
+    def create_library_source(self, new: NewLibrarySource) -> LibrarySource:
+        self._one(
+            "insert into library_sources (id, owner, name, kind, dedupe_key, url, size_bytes, "
+            "storage_path, status) values (%(id)s, %(owner)s, %(name)s, %(kind)s, %(key)s, "
+            "%(url)s, %(size)s, %(path)s, 'processing') "
+            "on conflict (owner, dedupe_key) where dedupe_key is not null do nothing returning id",
+            {
+                "id": new.id,
+                "owner": new.owner,
+                "name": new.name,
+                "kind": new.kind,
+                "key": new.dedupe_key,
+                "url": new.url,
+                "size": new.size_bytes,
+                "path": new.storage_path,
+            },
+        )
+        found = self.find_library_source(new.owner, new.dedupe_key)
+        assert found is not None
+        return found
+
+    def retry_library_source(self, library_id: UUID) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set status = 'processing', error = null, attempts = 0, "
+                "claimed_at = null, claimed_by = null where id = %(id)s and status = 'failed'",
+                {"id": library_id},
+            )
+
+    _LIBRARY_ENTRIES = f"""
+    select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
+           coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
+                             order by s.created_at) filter (where s.id is not null),
+                    '[]') as notebooks
+      from library_sources l
+      left join sources s on s.library_source_id = l.id
+      left join notebooks n on n.id = s.notebook_id
+     where l.owner = %(owner)s and {_LISTED} {{where}}
+     group by l.id
+     order by l.created_at desc, l.id
+    """
+
+    def list_library(self, owner: UUID) -> list[LibraryEntry]:
+        rows = self._all(self._LIBRARY_ENTRIES.format(where=""), {"owner": owner})
+        return [LibraryEntry(**row) for row in rows]
+
+    def get_library_entry(self, owner: UUID, library_id: UUID) -> LibraryEntry | None:
+        row = self._one(
+            self._LIBRARY_ENTRIES.format(where="and l.id = %(id)s"),
+            {"owner": owner, "id": library_id},
+        )
+        return LibraryEntry(**row) if row else None
+
+    def delete_library_source(self, owner: UUID, library_id: UUID) -> str | None:
+        row = self._one(
+            f"delete from library_sources l where l.id = %(id)s and l.owner = %(owner)s "
+            f"and {self._LISTED} returning l.storage_path",
+            {"id": library_id, "owner": owner},
+        )
+        return row["storage_path"] if row else None
+
+    # -- the worker ------------------------------------------------------------
+
+    def get_library_source(self, library_id: UUID) -> LibrarySource | None:
+        row = self._one(
+            f"select {self._LIBRARY_COLUMNS} from library_sources l where l.id = %(id)s",
+            {"id": library_id},
+        )
+        return LibrarySource(**row) if row else None
+
+    def first_notebook(self, library_id: UUID) -> UUID | None:
+        row = self._one(
+            "select notebook_id from sources where library_source_id = %(id)s "
+            "order by created_at, id limit 1",
+            {"id": library_id},
+        )
+        return row["notebook_id"] if row else None
+
+    def set_library_status(self, library_id: UUID, status: str, error: str | None = None) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set status = %(status)s, error = %(error)s "
+                "where id = %(id)s",
+                {"status": status, "error": error, "id": library_id},
             )
 
     # The queue: `processing` rows that nobody holds. FOR UPDATE SKIP LOCKED
     # lets any number of workers claim concurrently without a broker; the
-    # claim itself is the row update, in the same statement.
+    # claim itself is the row update, in the same statement. Generated rows
+    # are written and finished by rag, never by this worker.
     _CLAIM_SQL = """
-    update sources
+    update library_sources
        set claimed_at = now(), claimed_by = %(worker)s, attempts = attempts + 1
      where id = (
-        select id from sources
-         where status = 'processing'
+        select id from library_sources
+         where status = 'processing' and kind <> 'generated'
            and (claimed_at is null or claimed_at < now() - make_interval(secs => %(stale)s))
          order by created_at
          for update skip locked
@@ -266,34 +452,33 @@ class PostgresRepository:
     returning id
     """
 
-    def claim_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
+    def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(self._CLAIM_SQL, {"worker": worker_id, "stale": stale_after_seconds})
             row = cur.fetchone()
             return row[0] if row else None
 
-    def set_source_summary(self, source_id: UUID, summary: str) -> None:
+    def set_library_summary(self, library_id: UUID, summary: str) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
-                "update sources set summary = %(summary)s where id = %(id)s",
-                {"summary": summary, "id": source_id},
+                "update library_sources set summary = %(summary)s where id = %(id)s",
+                {"summary": summary, "id": library_id},
             )
 
     def replace_chunks(
-        self, source_id: UUID, notebook_id: UUID, chunks: list[Chunk], vectors: list[list[float]]
+        self, library_id: UUID, chunks: list[Chunk], vectors: list[list[float]]
     ) -> None:
         import numpy as np
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute("delete from chunks where source_id = %(id)s", {"id": source_id})
+            cur.execute("delete from chunks where library_source_id = %(id)s", {"id": library_id})
             cur.executemany(
-                "insert into chunks (id, source_id, notebook_id, idx, page, text, embedding) "
-                "values (%(id)s, %(source)s, %(nb)s, %(idx)s, %(page)s, %(text)s, %(embedding)s)",
+                "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                "values (%(id)s, %(lib)s, %(idx)s, %(page)s, %(text)s, %(embedding)s)",
                 [
                     {
                         "id": uuid4(),
-                        "source": source_id,
-                        "nb": notebook_id,
+                        "lib": library_id,
                         "idx": chunk.idx,
                         "page": chunk.page,
                         "text": chunk.text,
@@ -333,7 +518,7 @@ class PostgresRepository:
         with self._pool.connection() as conn:
             return core_is_admin(conn, user_id)
 
-    _STATS_SQL = """
+    _STATS_SQL = f"""
     select count(*) filter (where status = 'processing'),
            count(*) filter (where status = 'ready'),
            count(*) filter (where status = 'failed'),
@@ -341,8 +526,10 @@ class PostgresRepository:
                               and (claimed_at is null
                                    or claimed_at < now() - make_interval(secs => %(stale)s))),
            coalesce(sum(size_bytes), 0),
-           (select count(*) from chunks)
-      from sources
+           (select count(*) from chunks c join library_sources l on l.id = c.library_source_id
+             where {_LISTED})
+      from library_sources l
+     where {_LISTED}
     """
 
     def admin_stats(self, stale_after_seconds: int) -> AdminStats:

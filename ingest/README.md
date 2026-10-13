@@ -5,10 +5,11 @@
 [![Keep the Why](https://keepthewhy.com/assets/badge.svg)](https://keepthewhy.com)
 
 The ingest service of [lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM),
-a NotebookLM-style assistant. It owns notebooks and sources: a source is
-uploaded (PDF, plain text, image) or given as a URL (web page, PDF or text
-behind a link) and stored by the API; worker pods claim it from the
-database, fetch and parse it, cut it into overlapping chunks, embed and
+a NotebookLM-style assistant. It owns notebooks and each user's source
+library: a source is uploaded (PDF, plain text, image) or given as a URL
+(web page, PDF or text behind a link) once, stored in the user's library
+and linked into any number of notebooks; worker pods claim it from the
+database once, fetch and parse it, cut it into overlapping chunks, embed and
 write them, and ask the language model for a one-paragraph summary. The
 rag service retrieves the chunks and reads the summaries.
 

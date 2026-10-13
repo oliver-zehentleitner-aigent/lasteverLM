@@ -1,9 +1,10 @@
-"""The worker: claims sources from the database and runs the pipeline
-for each — load from storage, parse, chunk, embed, write chunks,
-summarize, record usage, set the status.
+"""The worker: claims library sources from the database and runs the
+pipeline for each — load from storage, parse, chunk, embed, write chunks,
+summarize, record usage, set the status. A library source is processed
+once, whatever number of notebooks it is linked into.
 
-The queue is the `sources` table itself: a `processing` row that no
-worker holds. `run_worker` claims one at a time with
+The queue is the `library_sources` table itself: a `processing` row that
+no worker holds. `run_worker` claims one at a time with
 `FOR UPDATE SKIP LOCKED`, so any number of worker pods share the work
 without a broker, and the API pods never process anything. Entrypoint:
 `lasteverlm-ingest-worker` (same image as the API).
@@ -29,7 +30,7 @@ from lasteverlm_ingest.loaders import (
     ModelLoader,
     TransientLoaderError,
 )
-from lasteverlm_ingest.repository import Repository, StoredSource
+from lasteverlm_ingest.repository import LibrarySource, Repository
 from lasteverlm_ingest.summarizer import Summarizer
 
 log = logging.getLogger(__name__)
@@ -55,18 +56,18 @@ class ProcessingError(Exception):
     """A failure whose message is safe to show to the user."""
 
 
-def process_source(source_id: UUID, deps: WorkerDeps) -> None:
+def process_source(library_id: UUID, deps: WorkerDeps) -> None:
     repo = deps.repository
-    source = repo.get_source(source_id)
+    source = repo.get_library_source(library_id)
     if source is None:
-        log.info("source %s vanished before processing", source_id)
+        log.info("library source %s vanished before processing", library_id)
         return
     try:
-        _run(source_id, deps)
+        _run(source, deps)
     except (LoaderError, ProcessingError) as exc:
         # Will not change on a retry: the source is failed at once.
-        log.warning("source %s failed: %s", source_id, exc)
-        repo.set_source_status(source_id, "failed", str(exc)[:_ERROR_MAX])
+        log.warning("library source %s failed: %s", library_id, exc)
+        repo.set_library_status(library_id, "failed", str(exc)[:_ERROR_MAX])
     except (StorageError, ProviderError, TransientLoaderError) as exc:
         # May pass next time (a provider hiccup, the bucket, a web server).
         _retry_or_fail(source, str(exc)[:_ERROR_MAX], repo, exc)
@@ -74,13 +75,13 @@ def process_source(source_id: UUID, deps: WorkerDeps) -> None:
         _retry_or_fail(source, "internal error while processing the source", repo, exc)
 
 
-def _retry_or_fail(source: StoredSource, message: str, repo: Repository, exc: Exception) -> None:
+def _retry_or_fail(source: LibrarySource, message: str, repo: Repository, exc: Exception) -> None:
     """A transient failure keeps the row `processing` with the error, so
     the stale-claim timeout hands it to the next worker; the third failed
     attempt fails it for good."""
     if source.attempts >= MAX_ATTEMPTS:
         log.warning("source %s failed after %d attempts: %s", source.id, source.attempts, exc)
-        repo.set_source_status(source.id, "failed", message)
+        repo.set_library_status(source.id, "failed", message)
     else:
         log.warning(
             "source %s attempt %d/%d failed, will be retried: %s",
@@ -89,13 +90,14 @@ def _retry_or_fail(source: StoredSource, message: str, repo: Repository, exc: Ex
             MAX_ATTEMPTS,
             exc,
         )
-        repo.set_source_status(source.id, "processing", message)
+        repo.set_library_status(source.id, "processing", message)
 
 
-def _run(source_id: UUID, deps: WorkerDeps) -> None:
+def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     repo = deps.repository
-    source = repo.get_source(source_id)
-    assert source is not None
+    source_id = source.id
+    # Usage rows name the notebook the source was first added to.
+    notebook_id = repo.first_notebook(source_id)
     if source.storage_path is None:
         raise ProcessingError(f"source kind {source.kind!r} has nothing to load yet")
     data = deps.storage.get(source.storage_path)
@@ -107,9 +109,9 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
         try:
             passages, usage = loader.load_with_usage(data)
         except BilledLoaderError as exc:
-            _record(repo, source, exc.usage)
+            _record(repo, source, notebook_id, exc.usage)
             raise
-        _record(repo, source, usage)
+        _record(repo, source, notebook_id, usage)
     else:
         passages = loader.load(data)
     chunks = deps.chunker.chunk(passages)
@@ -126,10 +128,10 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
         vectors.extend(result.vectors)
         tokens += result.usage.tokens_in
 
-    repo.replace_chunks(source_id, source.notebook_id, chunks, vectors)
+    repo.replace_chunks(source_id, chunks, vectors)
     repo.record_usage(
         user_id=source.owner,
-        notebook_id=source.notebook_id,
+        notebook_id=notebook_id,
         kind="embedding",
         model=deps.embedder.model,
         tokens_in=tokens,
@@ -144,16 +146,16 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     summary = deps.summarizer.summarize(source.name, passages)
     repo.record_usage(
         user_id=source.owner,
-        notebook_id=source.notebook_id,
+        notebook_id=notebook_id,
         kind=summary.usage.kind,
         model=summary.usage.model,
         tokens_in=summary.usage.tokens_in,
         tokens_out=summary.usage.tokens_out,
     )
-    repo.set_source_summary(source_id, summary.text)
-    repo.set_source_status(source_id, "ready", None)
+    repo.set_library_summary(source_id, summary.text)
+    repo.set_library_status(source_id, "ready", None)
     log.info(
-        "source %s ready: %d chunks, %d embedding tokens, %d+%d summary tokens",
+        "library source %s ready: %d chunks, %d embedding tokens, %d+%d summary tokens",
         source_id,
         len(chunks),
         tokens,
@@ -162,10 +164,12 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     )
 
 
-def _record(repo: Repository, source: StoredSource, usage: Usage) -> None:
+def _record(
+    repo: Repository, source: LibrarySource, notebook_id: UUID | None, usage: Usage
+) -> None:
     repo.record_usage(
         user_id=source.owner,
-        notebook_id=source.notebook_id,
+        notebook_id=notebook_id,
         kind=usage.kind,
         model=usage.model,
         tokens_in=usage.tokens_in,
@@ -192,7 +196,7 @@ def run_worker(
     done = 0
     log.info("worker %s started", worker_id)
     while not stop.is_set() and (max_jobs is None or done < max_jobs):
-        source_id = deps.repository.claim_source(worker_id, settings.claim_timeout_seconds)
+        source_id = deps.repository.claim_library_source(worker_id, settings.claim_timeout_seconds)
         if source_id is None:
             stop.wait(settings.worker_poll_seconds)
             continue

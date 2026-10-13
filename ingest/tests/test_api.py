@@ -1,4 +1,6 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
+
+from lasteverlm_core import DEMO_USER_ID
 
 from tests.test_loaders import minimal_pdf
 
@@ -55,9 +57,18 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
     body = r.json()
     assert body["kind"] == "text" and body["name"] == "notes.txt" and body["notebook_id"] == nb
     assert body["status"] == "processing"
-    assert set(body) == {"id", "notebook_id", "name", "kind", "status", "error", "created_at"}
-    # The API only stored the file and queued the row.
-    assert list(storage.objects) == [f"{nb}/{body['id']}/notes.txt"]
+    assert set(body) == {
+        "id",
+        "notebook_id",
+        "name",
+        "kind",
+        "status",
+        "error",
+        "created_at",
+        "library_id",
+    }
+    # The API only stored the file and queued the library source.
+    assert list(storage.objects) == [f"{DEMO_USER_ID}/{body['library_id']}/notes.txt"]
     assert embedder.calls == [] and repo.usage == []
     listed = client.get(f"/api/ingest/notebooks/{nb}/sources").json()
     assert listed[0]["status"] == "processing"
@@ -66,7 +77,7 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
     listed = client.get(f"/api/ingest/notebooks/{nb}/sources").json()
     assert len(listed) == 1 and listed[0]["status"] == "ready"
     assert embedder.calls and [u.kind for u in repo.usage] == ["embedding", "llm"]
-    assert repo.claimed[__import__("uuid").UUID(body["id"])] == "test"
+    assert repo.claimed[UUID(body["library_id"])] == "test"
 
 
 def test_upload_pdf_source(client, repo, run_queue):
@@ -77,9 +88,8 @@ def test_upload_pdf_source(client, repo, run_queue):
     )
     assert r.status_code == 202
     assert r.json()["kind"] == "pdf"
-    sid = r.json()["id"]
     run_queue()
-    assert repo.chunks[__import__("uuid").UUID(sid)][0][0].page == 1
+    assert repo.chunks[UUID(r.json()["library_id"])][0][0].page == 1
 
 
 def test_unsupported_kind_and_size_limits(client):
@@ -107,7 +117,7 @@ def test_url_source_stores_the_url_for_the_worker(client, storage):
     assert r.status_code == 202
     body = r.json()
     assert body["kind"] == "url" and body["name"] == url and body["status"] == "processing"
-    assert storage.objects == {f"{nb}/{body['id']}/url": url.encode()}
+    assert storage.objects == {f"{DEMO_USER_ID}/{body['library_id']}/url": url.encode()}
 
 
 def test_url_source_validation(client, storage):
@@ -116,6 +126,8 @@ def test_url_source_validation(client, storage):
         r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"url": bad})
         assert r.status_code == 400, bad
     r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"nope": 1})
+    assert r.status_code == 400
+    r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"library_id": "nope"})
     assert r.status_code == 422
     assert storage.objects == {}
 
@@ -137,41 +149,48 @@ def test_no_credit_is_402_before_anything_is_stored(client, repo, storage):
         f"/api/ingest/notebooks/{nb}/sources", files={"file": ("a.txt", b"text", "text/plain")}
     )
     assert r.status_code == 402 and r.json() == {"error": "credit exhausted"}
-    assert storage.objects == {} and repo.sources == {}
+    assert storage.objects == {} and repo.library == {}
 
 
-def test_delete_source_removes_object_and_other_users_cannot(client, repo, storage):
+def test_delete_source_detaches_and_other_users_cannot(client, repo, storage):
     nb = _notebook(client)
     sid = client.post(
         f"/api/ingest/notebooks/{nb}/sources", files={"file": ("a.txt", b"text", "text/plain")}
     ).json()["id"]
+    other = repo.create_notebook(uuid4(), "theirs")
+    theirs = repo.add_source(other.id, "b.txt", "text", "k")
     assert client.delete(f"/api/ingest/sources/{uuid4()}").status_code == 404
+    assert client.delete(f"/api/ingest/sources/{theirs.id}").status_code == 404
     assert client.delete(f"/api/ingest/sources/{sid}").status_code == 204
-    assert storage.objects == {}
     assert client.get(f"/api/ingest/notebooks/{nb}/sources").json() == []
+    # Detached, not deleted: the library source and its object stay.
+    assert len(storage.objects) == 1
+    assert [e["notebooks"] for e in client.get("/api/ingest/library").json()] == [[]]
 
 
 def test_generated_source_is_listed_and_deleted_without_storage(client, repo, storage):
     nb = _notebook(client)
-    generated = repo.create_source(
-        __import__("uuid").UUID(nb), uuid4(), "report.md", "generated", None
-    )
-    repo.set_source_status(generated.id, "ready")
+    generated = repo.add_source(UUID(nb), "report.md", "generated", None)
+    repo.set_library_status(generated.library_id, "ready")
     listed = client.get(f"/api/ingest/notebooks/{nb}/sources").json()
     assert [s["kind"] for s in listed] == ["generated"]
     assert "summary" not in listed[0]
     assert client.delete(f"/api/ingest/sources/{generated.id}").status_code == 204
-    assert storage.objects == {} and repo.sources == {}
+    # A generated source has no life outside its notebook: detaching deletes it.
+    assert storage.objects == {} and repo.library == {} and repo.links == {}
 
 
-def test_delete_notebook_removes_its_objects(client, storage):
+def test_delete_notebook_keeps_its_sources_in_the_library(client, repo, storage):
     nb = _notebook(client)
     client.post(
         f"/api/ingest/notebooks/{nb}/sources", files={"file": ("a.txt", b"text", "text/plain")}
     )
-    assert len(storage.objects) == 1
+    generated = repo.add_source(UUID(nb), "report.md", "generated", None)
     assert client.delete(f"/api/ingest/notebooks/{nb}").status_code == 204
-    assert storage.objects == {}
+    assert len(storage.objects) == 1
+    [entry] = client.get("/api/ingest/library").json()
+    assert entry["name"] == "a.txt" and entry["notebooks"] == []
+    assert generated.library_id not in repo.library
 
 
 def test_filename_is_sanitized_for_the_object_key(client, storage):

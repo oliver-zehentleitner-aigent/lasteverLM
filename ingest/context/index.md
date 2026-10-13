@@ -55,6 +55,8 @@ repository root's `context/`.
 
 ## L
 
+- [library.md](library.md) — why sources live in a per-user library that notebooks link, with chunks per library source and URL dedupe by URL
+
 ## M
 
 ## N

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from lasteverlm_core import MemoryRateLimitStore, ProviderError
+from lasteverlm_core import DEMO_USER_ID, MemoryRateLimitStore, ProviderError
 from openai import APIConnectionError, BadRequestError
 
 from lasteverlm_ingest.loaders import BilledLoaderError, LoaderError, default_registry
@@ -86,11 +86,9 @@ def _image_deps(repo, storage, embedder, fake):
 
 
 def _add_image(repo, storage):
-    from uuid import uuid4
 
     nb = repo.create_notebook(USER, "nb")
-    sid = uuid4()
-    repo.create_source(nb.id, sid, "chart.png", "image", "img")
+    sid = repo.add_source(nb.id, "chart.png", "image", "img").library_id
     storage.put("img", PNG, "image/png")
     return sid
 
@@ -106,7 +104,7 @@ def test_worker_bills_the_image_call_then_embeds_and_summarizes():
     )
     sid = _add_image(repo, storage)
     process_source(sid, _image_deps(repo, storage, embedder, fake))
-    assert repo.get_source(sid).status == "ready"
+    assert repo.library[sid].status == "ready"
     assert [(u.kind, u.model, u.tokens_in) for u in repo.usage][0] == ("llm", "fake-llm", 202)
     assert [u.kind for u in repo.usage] == ["llm", "embedding", "llm"]
 
@@ -118,7 +116,7 @@ def test_no_credit_means_no_image_call():
     repo.default_balance = 0
     sid = _add_image(repo, storage)
     process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), fake))
-    source = repo.get_source(sid)
+    source = repo.library[sid]
     assert source.status == "failed" and source.error == "credit exhausted"
     assert fake.calls == [] and repo.usage == []
 
@@ -139,8 +137,8 @@ def test_image_upload(repo, storage, embedder, summarizer):
         url = f"/api/ingest/notebooks/{nb}/sources"
         r = client.post(url, files={"file": ("Chart 1.PNG", PNG, "application/octet-stream")})
         assert r.status_code == 202 and r.json()["kind"] == "image"
-        assert storage.objects[f"{nb}/{r.json()['id']}/Chart_1.PNG"] == PNG
-        assert storage.types[f"{nb}/{r.json()['id']}/Chart_1.PNG"] == "image/png"
+        key = f"{DEMO_USER_ID}/{r.json()['library_id']}/Chart_1.PNG"
+        assert storage.objects[key] == PNG and storage.types[key] == "image/png"
         r = client.post(url, files={"file": ("fake.png", b"<svg/>", "image/png")})
         assert r.status_code == 415
 
@@ -151,7 +149,7 @@ def test_blank_image_fails_at_once_and_its_call_is_billed():
     repo, storage, fake = InMemoryRepository(), InMemoryStorage(), FakeChat(answer="")
     sid = _add_image(repo, storage)
     process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), fake))
-    source = repo.get_source(sid)
+    source = repo.library[sid]
     assert source.status == "failed" and source.error == "the image holds no readable content"
     assert len(fake.calls) == 1
     assert [(u.kind, u.model, u.tokens_in, u.tokens_out) for u in repo.usage] == [

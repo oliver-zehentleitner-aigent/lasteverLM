@@ -8,15 +8,23 @@ implements is the ingest section of the family's
 
 ## Database
 
-The service owns `notebooks`, `sources` and `chunks`. Two values in
-`sources` are written by others: `kind = 'generated'` rows are created
-by the rag service when it indexes a finished output, and this service
-lists and deletes them like any other source but never loads them. The
-migrations are
-[`db/migrations/0001_ingest.sql`](../db/migrations/0001_ingest.sql) and
+The service owns `notebooks`, `library_sources`, `sources` and `chunks`.
+A library source is what a user uploaded or entered once (a file, an
+image, a URL), owned by that user, processed once; its chunks hang on it
+(`chunks.library_source_id`). A source is the link of a library source
+into a notebook (`sources.library_source_id`, unique per notebook); its
+id is the public source id. Library sources of kind `generated` are
+written by the rag service when it indexes a finished output: they live
+only through their one link, this service lists and detaches them like
+any other source, never loads them, and never shows them in the library.
+The migrations are
+[`db/migrations/0001_ingest.sql`](../db/migrations/0001_ingest.sql),
 [`0002_source_size.sql`](../db/migrations/0002_source_size.sql)
-(`sources.size_bytes`, the stored object's size, for the admin
-statistics), plain SQL for psql, applied by infra's `make migrate` after infra's extensions
+(the stored object's size) and
+[`0003_source_library.sql`](../db/migrations/0003_source_library.sql)
+(the library; the expand step: every existing source got a library
+source with the same id, the old columns on `sources` and `chunks` stay
+nullable until 0004 drops them one release later), plain SQL for psql, applied by infra's `make migrate` after infra's extensions
 migration and core's migration; the runner wraps each file in one
 transaction, so the file has no `begin`/`commit` of its own. An applied
 file is never edited; a change is a new numbered file. The embedding dimension
@@ -39,12 +47,28 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 |---|---|---|---|
 | GET | `/notebooks` | 200 | the caller's notebooks |
 | POST | `/notebooks` | 201 | `{"title"}` |
-| DELETE | `/notebooks/{id}` | 204 | removes sources, chunks and stored files |
+| DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library) and deletes its generated sources |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
-| POST | `/notebooks/{id}/sources` | 202 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF), or JSON `{"url"}` (`http`/`https`, no credentials in the URL) |
-| DELETE | `/sources/{id}` | 204 | |
+| POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library); 200 with the existing source when it is already in this notebook |
+| DELETE | `/sources/{id}` | 204 | detach: removes the source from this notebook, it stays in the library |
+| GET | `/library` | 200 | the caller's library, newest first, with where-used |
+| GET | `/library/{id}` | 200 | one library source |
+| DELETE | `/library/{id}` | 204 | removes it from every notebook, its chunks and its stored object |
 | GET | `/healthz` | 200 | liveness and readiness probe |
 | GET | `/admin/stats` | 200 | admins only (403 otherwise): counts over all users, see below |
+
+A source is `{"id", "notebook_id", "name", "kind", "status", "error",
+"created_at", "library_id"}`; name, kind, status and error are the
+library source's. A library entry is
+
+```json
+{"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
+ "size_bytes": 2048, "url": null, "created_at": "…",
+ "notebooks": [{"id": "…", "title": "Thesis", "source_id": "…"}]}
+```
+
+`size_bytes` is null for URLs, `url` is set only for them; an entry in
+no notebook has `"notebooks": []`.
 
 `GET /admin/stats` answers
 
@@ -55,11 +79,11 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
  "source_bytes": 73400320}
 ```
 
-`sources` counts rows by status. `jobs` splits the `processing` rows:
+`sources` counts library sources (not generated ones) by status. `jobs` splits the `processing` rows:
 `pending` waits for a worker (unclaimed, or its claim is older than
 `CLAIM_TIMEOUT_SECONDS`), `running` is claimed by a worker; `failed` is
-the failed sources. `source_bytes` sums `sources.size_bytes`; rows created
-before migration 0002 have no size and count 0. One read-only query.
+the failed ones. `source_bytes` sums `library_sources.size_bytes`; rows
+created before migration 0002 have no size and count 0. One read-only query.
 
 Errors are `{"error": "<message>"}`: 400 bad upload, 401 token, 402
 credit exhausted, 403 admin only, 404 not yours or missing, 413 too large, 415
@@ -67,13 +91,20 @@ unsupported type, 422 invalid body.
 
 ## Processing
 
-`POST /sources` checks the caller's credit, writes the source row with
-`status: processing`, uploads the file to the bucket at
-`<notebook_id>/<source_id>/<name>` and returns. For a URL source the
-stored object is the URL itself (`<notebook_id>/<source_id>/url`) and the
-source's `name` is the URL; the API opens no connection to it. That row is now in the
-queue: the queue is the `sources` table, a `processing` row that no
-worker holds. Worker processes (`lasteverlm-ingest-worker`, any number
+`POST /sources` first looks for the same library source of the caller:
+`sha256:<hex>` of the uploaded bytes, or `url:<normalised URL>` (scheme
+and host lowercased, default port and fragment dropped, path and query
+kept). Found, it only links it into the notebook — nothing is stored or
+processed again, and a failed one is put back into the queue, since
+uploading again is how a user retries. Not found, it checks the caller's
+credit, writes the library source with `status: processing`, uploads the
+file to the bucket at `<owner>/<library_id>/<name>` (objects from before
+migration 0003 keep their `<notebook_id>/<source_id>/<name>` keys), links
+it and returns. For a URL the stored object is the URL itself
+(`<owner>/<library_id>/url`) and the name is the URL; the API opens no
+connection to it. The library source is now in the queue: the queue is
+the `library_sources` table, a `processing` row that no worker holds;
+generated rows are rag's and never claimed. Worker processes (`lasteverlm-ingest-worker`, any number
 of them) claim one row at a time with `UPDATE ... WHERE id = (SELECT ...
 FOR UPDATE SKIP LOCKED)`, oldest first, writing `claimed_at` and
 `claimed_by`; a claim older than `CLAIM_TIMEOUT_SECONDS` is treated as
@@ -85,7 +116,8 @@ and records one `usage` row of kind `embedding`. It then asks the
 language model for a one-paragraph summary in the language of the
 source (the first `SUMMARY_INPUT_TOKENS` tokens go into the prompt),
 records a second `usage` row of kind `llm`, stores the summary in
-`sources.summary` for the output generators, and sets `ready`. A failure
+`library_sources.summary` for the output generators, and sets `ready`.
+Usage rows name the notebook the library source was first added to. A failure
 that a retry cannot change (unreadable file, no text, credit exhausted)
 sets `failed` at once. A failure that may pass next time (object
 storage, the embedding or summary request, an unexpected error) leaves
