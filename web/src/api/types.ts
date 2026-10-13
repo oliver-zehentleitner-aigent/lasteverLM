@@ -133,12 +133,12 @@ export interface VisitBucket {
   unique: number
 }
 
+/** SMTP as configured in the deployment's environment, read-only; the
+ *  password is never returned. An empty `host` means not configured. */
 export interface Smtp {
   host: string
   port: number
   username: string
-  /** write-only: sent on PUT, never returned */
-  password?: string
   from_address: string
   starttls: boolean
 }
