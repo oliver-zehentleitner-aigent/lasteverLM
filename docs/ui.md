@@ -92,6 +92,8 @@ is closed. After the wizard the notebook view opens.
   (domains and single addresses, one entry at a time), voucher creation
   (5 EUR by default) that shows the codes once, with the list of issued
   vouchers below it (open ones can be deleted).
+  Above the blocks and bans, the rate-limit rule as a sentence with
+  its four editable numbers and a reset to the deployment defaults.
 
 ## Language
 

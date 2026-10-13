@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
-import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, Smtp, VisitBucket, Voucher } from '../../api/types'
+import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, RateLimitRules, RateLimitUpdate, Smtp, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
 import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
+import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
 import { accountTiles, ingestTiles, ragTiles, type StatTile } from '../../lib/stats'
 
 const LOGIN_LIMIT = 50
@@ -27,6 +28,7 @@ export function AdminPage() {
       <Vouchers />
       <AllowedSignIn />
       <SmtpSettings />
+      <RateLimit />
       <Blocks />
       <Bans />
       <Access />
@@ -404,6 +406,111 @@ function SmtpSettings() {
       </div>
     </Section>
   )
+}
+
+const RULE_FIELDS: { key: keyof RateLimitUpdate; label: string }[] = [
+  { key: 'per_minute', label: 'Requests per minute' },
+  { key: 'block_minutes', label: 'Block, minutes' },
+  { key: 'ban_after_strikes', label: 'Strikes to a ban' },
+  { key: 'strike_window_hours', label: 'Strike window, hours' },
+]
+
+/** The rule behind the blocks and bans below, as a sentence and as the
+ *  four numbers an admin may change; every service picks a change up
+ *  within 30 seconds. The ban cap and the retention are environment only. */
+function RateLimit() {
+  const { data, setData, error: loadError } = useLoad<RateLimitRules | null>(admin.getRateLimit, null)
+  const [form, setForm] = useState<Record<keyof RateLimitUpdate, string> | null>(null)
+  const { busy, error, run } = useAsync()
+  const [invalid, setInvalid] = useState<string | null>(null)
+
+  const values = form ?? (data ? toForm(data) : null)
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    if (!values) return
+    const update: RateLimitUpdate = {
+      per_minute: Number(values.per_minute),
+      block_minutes: Number(values.block_minutes),
+      ban_after_strikes: Number(values.ban_after_strikes),
+      strike_window_hours: Number(values.strike_window_hours),
+    }
+    const problem = rateLimitError(update)
+    setInvalid(problem)
+    if (problem) return
+    const saved = await run(() => admin.saveRateLimit(update))
+    if (saved) {
+      setData(saved)
+      setForm(null)
+    }
+  }
+
+  async function reset() {
+    if (!confirm('Reset the rate limit to the deployment defaults?')) return
+    const fresh = await run(async () => {
+      await admin.resetRateLimit()
+      return admin.getRateLimit()
+    })
+    if (fresh) {
+      setData(fresh)
+      setForm(null)
+      setInvalid(null)
+    }
+  }
+
+  return (
+    <Section title="Rate limit and bans">
+      <p className="muted small">
+        A coarse per-IP limit at the ingress (requests per second, open connections) sits in front of this rule.
+      </p>
+      {loadError && <p className="error">{loadError}</p>}
+      {data && (
+        <>
+          <p>{describeRateLimit(data)}</p>
+          <p className="muted small">
+            From the deployment, not editable here: a ban holds at most {data.ban_max_days} days; the access log, stale
+            blocks and lifted bans are kept {data.retention_days} days.
+          </p>
+        </>
+      )}
+      {values && (
+        <form className="grid2" onSubmit={save}>
+          {RULE_FIELDS.map((f) => (
+            <label key={f.key}>
+              {f.label}
+              <input
+                type="number"
+                min={RATE_LIMIT_BOUNDS[f.key][0]}
+                max={RATE_LIMIT_BOUNDS[f.key][1]}
+                step={1}
+                value={values[f.key]}
+                onChange={(e) => setForm({ ...values, [f.key]: e.target.value })}
+              />
+            </label>
+          ))}
+          {(invalid ?? error) && <p className="error">{invalid ?? error}</p>}
+          <div className="row">
+            <button type="button" className="secondary" disabled={busy} onClick={() => void reset()}>
+              Reset to defaults
+            </button>
+            <button type="submit" disabled={busy || form === null}>
+              Save rule
+            </button>
+          </div>
+          <p className="muted small">Every service applies a change within 30 seconds.</p>
+        </form>
+      )}
+    </Section>
+  )
+}
+
+function toForm(r: RateLimitRules): Record<keyof RateLimitUpdate, string> {
+  return {
+    per_minute: String(r.per_minute),
+    block_minutes: String(r.block_minutes),
+    ban_after_strikes: String(r.ban_after_strikes),
+    strike_window_hours: String(r.strike_window_hours),
+  }
 }
 
 function Blocks() {

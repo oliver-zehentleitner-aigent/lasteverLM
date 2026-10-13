@@ -233,3 +233,17 @@ export interface Voucher {
   redeemed_at: string | null
   status: 'open' | 'redeemed'
 }
+
+/** The rate-limit rule in force for every service. The first four are
+ *  editable at run time; `ban_max_days` and `retention_days` come from the
+ *  environment only. */
+export interface RateLimitRules {
+  per_minute: number
+  block_minutes: number
+  ban_after_strikes: number
+  strike_window_hours: number
+  ban_max_days: number
+  retention_days: number
+}
+
+export type RateLimitUpdate = Pick<RateLimitRules, 'per_minute' | 'block_minutes' | 'ban_after_strikes' | 'strike_window_hours'>
