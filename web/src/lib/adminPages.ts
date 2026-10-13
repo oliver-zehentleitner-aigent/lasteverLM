@@ -10,6 +10,7 @@ export const ADMIN_PAGES = [
   { id: 'security', get label() { return t('admin.page.security') } },
   { id: 'visits', get label() { return t('admin.page.visits') } },
   { id: 'mail', get label() { return t('admin.page.mail') } },
+  { id: 'system', get label() { return t('admin.page.system') } },
 ] as const
 
 export type AdminPageId = (typeof ADMIN_PAGES)[number]['id']

@@ -19,6 +19,7 @@ import type {
   RateLimitRules,
   RateLimitUpdate,
   Smtp,
+  SystemInfo,
   VisitBucket,
   Voucher,
 } from './types'
@@ -42,6 +43,8 @@ export interface AdminApi {
   listLoginAttempts(limit: number): Promise<LoginAttempt[]>
   listVisits(days: number): Promise<VisitBucket[]>
   getSmtp(): Promise<Smtp>
+  /** versions, health, pods and deployments of the running system */
+  system(): Promise<SystemInfo>
   testSmtp(): Promise<{ sent_to: string }>
   getAllowlist(): Promise<Allowlist>
   /** one entry at a time; the server normalizes it and returns both lists */
@@ -80,6 +83,7 @@ const httpAdmin: AdminApi = {
   listLoginAttempts: (limit) => request<LoginAttempt[]>(`${A}/login-attempts?limit=${limit}`),
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
   getSmtp: () => request<Smtp>(`${A}/settings/smtp`),
+  system: () => request<SystemInfo>(`${A}/system`),
   testSmtp: () => request<{ sent_to: string }>(`${A}/settings/smtp/test`, { method: 'POST' }),
   getAllowlist: () => request<Allowlist>(`${A}/settings/allowlist`),
   addAllowed: (kind, value) =>
@@ -217,6 +221,25 @@ function mockAdmin(): AdminApi {
     listLoginAttempts: (limit) => delay(attempts.slice(0, limit)),
     listVisits: () => delay([...visits]),
     getSmtp: () => delay({ ...smtp }),
+    system: () =>
+      delay({
+        version: '0.6.1',
+        commit: '5e320ae9f0c1',
+        cluster: true,
+        services: [
+          { name: 'account' as const, version: '0.6.1', commit: '5e320ae', healthy: true },
+          { name: 'ingest' as const, version: '0.6.1', commit: '5e320ae', healthy: true },
+          { name: 'rag' as const, version: null, commit: null, healthy: false },
+        ],
+        pods: [
+          { name: 'lasteverlm-account-7d9f-x2k4p', service: 'account', image_tag: '0.6.1', ready: true, restarts: 0, node: 'pool-a-1', started_at: '2026-10-13T18:02:00Z' },
+          { name: 'lasteverlm-rag-worker-5c8b-q8n2m', service: 'rag', image_tag: '0.6.1', ready: false, restarts: 3, node: 'pool-a-2', started_at: '2026-10-13T18:05:00Z' },
+        ],
+        deployments: [
+          { name: 'lasteverlm-account', replicas: 1, ready: 1, updated: 1 },
+          { name: 'lasteverlm-rag-worker', replicas: 2, ready: 1, updated: 2 },
+        ],
+      }),
     testSmtp: () => delay({ sent_to: 'admin@example.org' }),
     getAllowlist: () => delay({ ...allow }),
     addAllowed: (kind, value) => {

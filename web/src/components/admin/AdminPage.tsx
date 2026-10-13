@@ -1,11 +1,12 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
-import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, RateLimitRules, RateLimitUpdate, Smtp, VisitBucket, Voucher } from '../../api/types'
+import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, RateLimitRules, RateLimitUpdate, Smtp, SystemInfo, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
 import { CopyButton } from '../CopyButton'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { ADMIN_PAGES, adminPath, type AdminPageId } from '../../lib/adminPages'
 import { useAsync } from '../../hooks/useAsync'
+import { known, shortCommit, versionLine } from '../../lib/build'
 import { formatCents, formatTime } from '../../lib/format'
 import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
 import { accountTiles, ingestTiles, ragTiles, type StatTile } from '../../lib/stats'
@@ -42,6 +43,7 @@ const PAGE_SECTIONS: Record<AdminPageId, (navigate: (path: string) => void) => R
   ),
   visits: () => <Visits />,
   mail: () => <SmtpSettings />,
+  system: () => <SystemView />,
 }
 
 interface Props {
@@ -204,8 +206,23 @@ function Visits() {
 /** Numbers from the three services side by side. Each group loads on its
  *  own, so one service that is down shows its error and the rest stays. */
 function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const { data: system } = useLoad<SystemInfo | null>(admin.system, null)
+  const build = system ? versionLine(system.version, system.commit) : null
   return (
     <Section title={t('adm.overview')}>
+      {build && (
+        <p className="muted small build-line">
+          <a
+            href={adminPath('system')}
+            onClick={(e) => {
+              e.preventDefault()
+              onNavigate(adminPath('system'))
+            }}
+          >
+            {build}
+          </a>
+        </p>
+      )}
       <StatGroup title={t('adm.group.accounts')} load={admin.accountStats} tiles={accountTiles} onNavigate={onNavigate} />
       <StatGroup title={t('adm.group.sources')} load={admin.ingestStats} tiles={ingestTiles} onNavigate={onNavigate} />
       <StatGroup title={t('adm.group.notebooks')} load={admin.ragStats} tiles={ragTiles} onNavigate={onNavigate} />
@@ -689,5 +706,68 @@ function Access() {
         rows={data.map((a) => [formatTime(a.at), a.ip, a.service, `${a.method} ${a.path}`, a.status, a.user_id ?? ''])}
       />
     </Section>
+  )
+}
+
+/** What runs where: per service its build and health, then the cluster's
+ *  pods and deployments, or a note for a local run without a cluster. */
+function SystemView() {
+  const { data, error } = useLoad<SystemInfo | null>(admin.system, null)
+  return (
+    <>
+      <Section title={t('sys.services')}>
+        {error && <p className="error">{error}</p>}
+        {data && (
+          <>
+            {versionLine(data.version, data.commit) && <p className="muted small">{versionLine(data.version, data.commit)}</p>}
+            <div className="stat-grid">
+              {data.services.map((s) => (
+                <div key={s.name} className={s.healthy ? 'stat' : 'stat alert'}>
+                  <span className="stat-value">{s.name}</span>
+                  <span className={`badge ${s.healthy ? 'ready' : 'failed'}`}>{s.healthy ? t('sys.healthy') : t('sys.unhealthy')}</span>
+                  <span className="muted small">
+                    {t('sys.version')} {known(s.version) ?? t('sys.unknown')} · {t('sys.commit')} {shortCommit(s.commit) ?? t('sys.unknown')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </Section>
+      {data && !data.cluster && <p className="notice">{t('sys.noCluster')}</p>}
+      {data?.cluster && (
+        <>
+          <Section title={t('sys.pods')}>
+            <Table
+              head={[t('sys.col.name'), t('sys.col.service'), t('sys.col.image'), t('sys.col.ready'), t('sys.col.restarts'), t('sys.col.node'), t('sys.col.started')]}
+              rows={data.pods.map((p) => [
+                p.name,
+                p.service,
+                p.image_tag ?? '—',
+                <span key="ready" className={`badge ${p.ready ? 'ready' : 'failed'}`}>
+                  {p.ready ? t('adm.yes') : t('adm.no')}
+                </span>,
+                p.restarts,
+                p.node ?? '—',
+                formatTime(p.started_at),
+              ])}
+            />
+          </Section>
+          <Section title={t('sys.deployments')}>
+            <Table
+              head={[t('sys.col.name'), t('sys.col.replicas'), t('sys.col.ready'), t('sys.col.updated')]}
+              rows={data.deployments.map((d) => [
+                d.name,
+                d.replicas,
+                <span key="ready" className={`badge ${d.ready === d.replicas ? 'ready' : 'failed'}`}>
+                  {d.ready} / {d.replicas}
+                </span>,
+                d.updated,
+              ])}
+            />
+          </Section>
+        </>
+      )}
+    </>
   )
 }
