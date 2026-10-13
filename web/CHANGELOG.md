@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+### Changed
+
+- Admin System: the "no read role" notice points to "The chart" in `infra/docs/operations.md`, where `kubernetesRead` and the check of the grant are described.
+
 ## [0.8.1] - 2026-10-13
 
 ### Fixed

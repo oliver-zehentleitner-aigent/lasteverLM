@@ -428,6 +428,6 @@ export const de: Record<MessageKey, string> = {
   'theme.toggle': 'Theme: {theme} (klicken zum Wechseln)',
   'set.theme': 'Theme',
   'set.themeSystem': 'Wie das System',
-  'sys.noRole': 'Pod-Liste nicht verfügbar: der Account-Dienst hat im Cluster keine Leserolle für Pods und Deployments; der Betreiber ergänzt sie im Deployment.',
+  'sys.noRole': 'Pod-Liste nicht verfügbar: der Account-Dienst hat im Cluster keine Leserolle für Pods und Deployments (siehe „The chart“ in infra/docs/operations.md, kubernetesRead).',
   'wiz.selected': '{n} ausgewählt',
 }

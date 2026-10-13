@@ -258,7 +258,8 @@ deleted from the library) stays readable with its quote and is marked
     ready, updated); a local run without a cluster says so instead, and
     in a cluster where both lists come back empty (the account service
     is a pod itself, so the Kubernetes API was not readable) the page
-    says that the read role for pods and deployments is missing. The
+    says that the read role for pods and deployments is missing and
+    points to "The chart" in `infra/docs/operations.md` (`kubernetesRead`). The
     overview shows the build ("lasteverLM 0.6.1 · 5e320ae") under its
     heading, linked to this page.
 
