@@ -414,3 +414,23 @@ def test_public_error_shows_only_rags_own_texts():
         "storing the audio"
     )
     assert public_error(KeyError("secret")).startswith("internal error")
+
+
+def test_a_failed_cleanup_does_not_mask_the_jobs_error(settings):
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "a.txt", summary="s")
+
+    class StuckObjects(FakeObjects):
+        def delete(self, *keys: str) -> None:
+            raise StorageError("bucket unreachable")
+
+    def no_index(notebook_id, name, summary):
+        raise RuntimeError("database gone mid-job")
+
+    store.create_generated_source = no_index
+    objects = StuckObjects()
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM(AUDIO), FakeTTS(), objects)
+    output_id = client.post(OUTPUTS, json={"kind": "audio"}, headers=AUTH).json()["id"]
+    client.worker.run_once()
+    # the indexing error is what the row says, not the storage error of the cleanup
+    assert store.outputs[output_id]["error"].startswith("internal error")

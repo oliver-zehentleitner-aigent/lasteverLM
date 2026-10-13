@@ -222,10 +222,12 @@ class FakeStore:
         for row in sorted(self.outputs.values(), key=lambda r: r["created_at"]):
             if row["status"] not in ("waiting", "processing") or row["claimed_by"] is not None:
                 continue
+            selected = row["options"].get("sources")
             if any(
                 s["status"] == "processing" and s["kind"] != "generated"
                 for s in self.sources.values()
                 if s["notebook_id"] == row["notebook_id"]
+                and (selected is None or s["id"] in selected)
             ):
                 continue
             row["claimed_by"] = worker_id

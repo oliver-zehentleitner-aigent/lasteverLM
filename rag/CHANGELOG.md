@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An output with a source selection waits only for the selected sources to finish processing, not for every upload of the notebook.
+- A failure while cleaning up after a failed generation attempt (removing the generated source or the audio file) is logged on its own and no longer replaces the attempt's error.
 - A text-to-speech answer without audio (output or voice preview) is a provider failure instead of an empty MP3; its usage row is written before the check.
 
 ## [0.9.0] - 2026-10-13

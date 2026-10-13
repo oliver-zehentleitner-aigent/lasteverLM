@@ -136,3 +136,18 @@ def test_the_shared_view_does_not_reveal_the_selected_source_ids(settings):
     shared = client.get(f"/api/rag/shared/{token}").json()
     assert shared["options"] == {"language": "de"}
     assert vnc not in str(shared)
+
+
+def test_an_output_waits_only_for_its_selected_sources(settings):
+    store, _, vnc, retriever = notebook_with_two_pdfs()
+    slow = store.add_source(NOTEBOOK, "slow.pdf", status="processing")
+    client = make_client(settings, store, retriever, FakeLLM(REPORT, REPORT))
+
+    # an unselected source still processing does not hold the job back
+    picked = client.post(OUTPUTS, json={"kind": "report", "source_ids": [vnc]}, headers=AUTH)
+    assert picked.json()["status"] == "processing"
+    waiting = client.post(OUTPUTS, json={"kind": "report", "source_ids": [slow]}, headers=AUTH)
+    assert waiting.json()["status"] == "waiting"
+    assert client.worker.run_once() == 1
+    assert store.outputs[picked.json()["id"]]["status"] == "ready"
+    assert store.outputs[waiting.json()["id"]]["attempts"] == 0

@@ -186,7 +186,8 @@ _OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_
 # One job per call, oldest first; rows other workers hold are skipped, a claim
 # older than the stale limit (a worker that died mid-job) is taken over, and a
 # waiting row is claimable only once no uploaded source of its notebook is
-# still processing. The claim counts as an attempt.
+# still processing (of its selection, when it has one: ``options.sources``).
+# The claim counts as an attempt.
 _CLAIM_SQL = f"""
 with job as (
     select id from outputs x
@@ -195,6 +196,7 @@ with job as (
       and not exists (
           select 1 from sources s join library_sources l on l.id = s.library_source_id
           where s.notebook_id = x.notebook_id and l.status = 'processing' and l.kind <> 'generated'
+            and (not (x.options ? 'sources') or (x.options -> 'sources') ? s.id::text)
       )
     order by x.created_at, x.id
     for update skip locked
