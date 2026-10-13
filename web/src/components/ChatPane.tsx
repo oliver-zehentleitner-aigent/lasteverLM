@@ -2,13 +2,15 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { rag } from '../api/rag'
 import type { Citation, Conversation, Message, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
-import { splitCitations } from '../lib/citations'
+import { isRemoved, splitCitations } from '../lib/citations'
 import { activeAfterClose } from '../lib/conversations'
 
 interface Props {
   notebookId: string
   /** "ask about this": the document the next questions are scoped to */
   scope: Output | null
+  /** sources a citation can still point to; others show as removed */
+  presentSources: ReadonlySet<string> | null
   onClearScope: () => void
   onCitationSelected: (c: Citation | null) => void
 }
@@ -30,7 +32,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, onClearScope, onCitationSelected }: Props) {
+export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const { busy, error, run } = useAsync()
@@ -103,6 +105,7 @@ export function ChatPane({ notebookId, scope, onClearScope, onCitationSelected }
           notebookId={notebookId}
           conversationId={active.id}
           scope={scope}
+          presentSources={presentSources}
           onClearScope={onClearScope}
           onCitationSelected={onCitationSelected}
         />
@@ -119,7 +122,7 @@ interface ConversationProps extends Props {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-function ConversationView({ notebookId, conversationId, scope, onClearScope, onCitationSelected }: ConversationProps) {
+function ConversationView({ notebookId, conversationId, scope, presentSources, onClearScope, onCitationSelected }: ConversationProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
@@ -181,13 +184,16 @@ function ConversationView({ notebookId, conversationId, scope, onClearScope, onC
                   <button
                     key={c.n}
                     type="button"
-                    className={open?.messageId === m.id && open.n === c.n ? 'cite open' : 'cite'}
+                    className={[open?.messageId === m.id && open.n === c.n ? 'cite open' : 'cite', isRemoved(c.source_id, presentSources) ? 'removed' : '']
+                      .join(' ')
+                      .trim()}
                     onClick={() => toggle(m, c)}
-                    title={c.source_name}
+                    title={isRemoved(c.source_id, presentSources) ? `${c.source_name} (removed from this notebook)` : c.source_name}
                   >
                     [{c.n}] {c.source_name}
                     {c.page != null && <span className="muted"> p. {c.page}</span>}
                     {c.source_kind === 'generated' && <span className="muted"> · generated</span>}
+                    {isRemoved(c.source_id, presentSources) && <span className="muted"> · source removed</span>}
                   </button>
                 ))}
               </footer>

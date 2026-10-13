@@ -1,8 +1,9 @@
 import { useState, type DragEvent } from 'react'
 import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
-import type { OutputKind, SourceKind } from '../api/types'
+import type { LibraryEntry, OutputKind, SourceKind } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
+import { filterLibrary, notInNotebook } from '../lib/library'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
 
 interface Props {
@@ -20,6 +21,12 @@ type Step = 1 | 2 | 3
 export function Wizard({ notebookId, onDone, onClose }: Props) {
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<SourceForm | null>(null)
+  // "from library": entries of the user's library not yet in this notebook
+  const [fromLibrary, setFromLibrary] = useState(false)
+  const [library, setLibrary] = useState<LibraryEntry[] | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [libraryQuery, setLibraryQuery] = useState('')
+  const [existing, setExisting] = useState(0)
   const [files, setFiles] = useState<File[]>([])
   const [pasted, setPasted] = useState('')
   const [url, setUrl] = useState('')
@@ -27,26 +34,43 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
   const [uploaded, setUploaded] = useState(0)
   const { busy, error, run } = useAsync()
 
-  const canUpload = form?.input === 'url' ? url.trim() !== '' : files.length > 0 || pasted.trim() !== ''
+  const canUpload = fromLibrary
+    ? picked.size > 0
+    : form?.input === 'url'
+      ? url.trim() !== ''
+      : files.length > 0 || pasted.trim() !== ''
+
+  async function openLibrary() {
+    setFromLibrary(true)
+    setForm(null)
+    setStep(2)
+    const list = await run(() => ingest.listLibrary())
+    if (list) setLibrary(notInNotebook(list, notebookId))
+  }
 
   async function upload() {
-    if (!form) return
+    if (!form && !fromLibrary) return
     const ok = await run(async () => {
-      if (form.input === 'url') {
-        await ingest.addUrl(notebookId, url.trim())
-        setUploaded(1)
+      let n = 0
+      let already = 0
+      const count = (r: { existing: boolean }) => {
+        n += 1
+        if (r.existing) already += 1
+        setUploaded(n)
+        setExisting(already)
+      }
+      if (fromLibrary) {
+        for (const id of picked) count(await ingest.addFromLibrary(notebookId, id))
         return true
       }
-      let n = 0
-      for (const f of files) {
-        await ingest.uploadFile(notebookId, f)
-        n += 1
-        setUploaded(n)
+      if (form?.input === 'url') {
+        count(await ingest.addUrl(notebookId, url.trim()))
+        return true
       }
+      for (const f of files) count(await ingest.uploadFile(notebookId, f))
       if (pasted.trim()) {
         const name = `${pasted.trim().split('\n')[0].slice(0, 40) || 'pasted'}.txt`
-        await ingest.uploadFile(notebookId, new File([pasted], name, { type: 'text/plain' }))
-        setUploaded(n + 1)
+        count(await ingest.uploadFile(notebookId, new File([pasted], name, { type: 'text/plain' })))
       }
       return true
     })
@@ -91,6 +115,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                   className="tile"
                   disabled={!f.available}
                   onClick={() => {
+                    setFromLibrary(false)
                     setForm(f)
                     setStep(2)
                   }}
@@ -99,11 +124,72 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                   <span className="muted small">{tileNote(f)}</span>
                 </button>
               ))}
+              <button type="button" className="tile" onClick={() => void openLibrary()}>
+                <strong>From library</strong>
+                <span className="muted small">Something you added before, to another notebook.</span>
+              </button>
             </div>
           </>
         )}
 
-        {step === 2 && form && (
+        {step === 2 && fromLibrary && (
+          <>
+            <h2>Which ones from your library?</h2>
+            <input
+              type="search"
+              placeholder="Filter by name or address"
+              value={libraryQuery}
+              onChange={(e) => setLibraryQuery(e.target.value)}
+              aria-label="Filter the library"
+            />
+            {library === null && !error && <p className="muted">Loading…</p>}
+            {library && library.length === 0 && <p className="muted">Everything in your library is in this notebook already.</p>}
+            {library && library.length > 0 && (
+              <ul className="list library-pick">
+                {filterLibrary(library, { kind: 'all', query: libraryQuery }).map((e) => (
+                  <li key={e.id}>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={picked.has(e.id)}
+                        onChange={() =>
+                          setPicked((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(e.id)) next.delete(e.id)
+                            else next.add(e.id)
+                            return next
+                          })
+                        }
+                      />
+                      <span className="item">{e.name}</span>
+                      <span className="badge">{SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {busy && uploaded > 0 && <p className="muted">Adding… {uploaded}</p>}
+            {error && <p className="error">{error}</p>}
+            <div className="row">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setFromLibrary(false)
+                  setStep(1)
+                }}
+                disabled={busy}
+              >
+                Back
+              </button>
+              <button type="button" onClick={() => void upload()} disabled={busy || !canUpload}>
+                Add {picked.size > 0 ? picked.size : ''}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 2 && form && !fromLibrary && (
           <>
             <h2>How does it get in?</h2>
             {form.input === 'files' && (
@@ -157,6 +243,11 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
           <>
             <h2>What should come out of it?</h2>
             <p className="muted small">Pick any number, or none to just chat.</p>
+            {existing > 0 && (
+              <p className="muted small">
+                {existing === 1 ? 'One of them was' : `${existing} of them were`} already in this notebook; nothing was added twice.
+              </p>
+            )}
             <div className="tile-grid">
               {OUTPUT_FORMS.map((f) => (
                 <button

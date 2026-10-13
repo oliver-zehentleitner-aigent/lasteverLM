@@ -27,3 +27,11 @@ export function splitCitations(answer: string, known: ReadonlySet<number>): Answ
   if (last < answer.length) parts.push({ kind: 'text', text: answer.slice(last) })
   return parts
 }
+
+/** A citation whose source is no longer in the notebook: detached from it,
+ *  deleted from the library, or a generated document that was deleted.
+ *  `present` is null while the notebook's lists are still loading, and
+ *  then nothing counts as removed. */
+export function isRemoved(sourceId: string, present: ReadonlySet<string> | null): boolean {
+  return present !== null && !present.has(sourceId)
+}

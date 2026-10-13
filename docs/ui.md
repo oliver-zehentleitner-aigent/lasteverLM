@@ -14,16 +14,22 @@ space.
 
 Three steps, one question each, large tiles instead of a form.
 
-1. **What goes in?** Tiles: PDF, Text, Web page, Image, all active. A
+1. **What goes in?** Tiles: PDF, Text, Web page, Image, all active, and
+   **From library** for something added before to another notebook. A
    kind that is not available yet is shown greyed with "Soon.", so the
    extension points stay visible.
 2. **How does it get in?** Only the ways that fit the type: drop or
-   pick files (several at once), enter a URL, paste text.
+   pick files (several at once), enter a URL, paste text; for the
+   library, a filterable list of the entries not yet in this notebook to
+   tick.
 3. **What should come out of it?** Tiles of the output kinds, multiple
    selection, "just chat" is allowed. Done.
 
-Step 2 calls `POST /api/ingest/notebooks/{id}/sources` per file, or once
-with `{"url"}` for a web page. Step 3
+Step 2 calls `POST /api/ingest/notebooks/{id}/sources` per file, once
+with `{"url"}` for a web page, or with `{"library_id"}` per picked
+library entry. The same file or URL again links the existing library
+entry (nothing is processed twice); when it was in this notebook
+already (200), step 3 says so. Step 3
 calls `POST /api/rag/notebooks/{id}/outputs` per selected kind; rag
 waits for the sources itself, so the wizard works even when the browser
 is closed. After the wizard the notebook view opens.
@@ -50,7 +56,9 @@ is closed. After the wizard the notebook view opens.
 ```
 
 - **Sources** (left, top): the uploads (PDF, text, web page, image)
-  with status and delete; the add button opens the wizard at step 1.
+  with status and remove; the add button opens the wizard at step 1.
+  Removing only detaches the source from this notebook, it stays in the
+  library. Deleting a notebook detaches its sources the same way.
   Generated documents are not listed here, although the backend keeps
   each one as a source of kind `generated` so the chat can cite it.
 - **Output format** (left, middle): the output kinds as tiles. A click
@@ -99,6 +107,20 @@ is closed. After the wizard the notebook view opens.
 - **Ask about this**: switches the chat scope to the open document
   (`scope.output_id` on `/ask`); a chip above the input shows the scope
   and clears it.
+
+## Library
+
+`/library` (in the header next to Admin): every upload and URL of the
+user, once, newest first, with kind, status, size, date and the
+notebooks it is in as links (or "not in any notebook"). Filters by kind
+and by part of the name or address. Delete removes the entry from every
+notebook, with its chunks and the stored file, after a confirmation
+that names those notebooks. Generated documents are not in the library;
+they live in their notebook.
+
+A citation whose source is no longer in the notebook (detached, or
+deleted from the library) stays readable with its quote and is marked
+"source removed".
 
 ## Login, credit, admin
 

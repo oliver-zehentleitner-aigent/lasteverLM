@@ -11,6 +11,8 @@ export interface Notebook {
   created_at: string
 }
 
+/** A source in one notebook: a link to an entry of the user's library
+ *  (`library_id`); name, kind, status and error are the entry's. */
 export interface Source {
   id: string
   notebook_id: string
@@ -19,6 +21,22 @@ export interface Source {
   status: SourceStatus
   error: string | null
   created_at: string
+  library_id?: string | null
+}
+
+/** One upload or URL of the user, with the notebooks it is in. */
+export interface LibraryEntry {
+  id: string
+  name: string
+  kind: Exclude<SourceKind, 'generated'>
+  status: SourceStatus
+  error: string | null
+  /** null for URLs */
+  size_bytes: number | null
+  /** set only for URLs */
+  url: string | null
+  created_at: string
+  notebooks: { id: string; title: string; source_id: string }[]
 }
 
 export interface Citation {

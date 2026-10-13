@@ -3,7 +3,7 @@ import { formatCents } from '../lib/format'
 
 interface Props {
   me: User | null
-  route: 'home' | 'admin'
+  route: 'home' | 'library' | 'admin'
   onNavigate: (path: string) => void
   onVoucher: () => void
   onLogout: () => void
@@ -23,6 +23,16 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         lasteverLM
       </a>
       <nav>
+        <a
+          href="/library"
+          className={route === 'library' ? 'active' : undefined}
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate('/library')
+          }}
+        >
+          Library
+        </a>
         {me?.is_admin && (
           <a
             href="/admin"

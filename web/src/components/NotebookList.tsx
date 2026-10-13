@@ -39,7 +39,7 @@ export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDele
               className="icon"
               title="Delete notebook"
               onClick={() => {
-                if (confirm(`Delete notebook "${nb.title}" with all its sources and messages?`)) void onDelete(nb.id)
+                if (confirm(`Delete notebook "${nb.title}"? Its chats and generated documents are deleted; its sources stay in your library.`)) void onDelete(nb.id)
               }}
             >
               ×

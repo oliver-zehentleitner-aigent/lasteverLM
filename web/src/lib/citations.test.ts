@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { splitCitations } from './citations'
+import { isRemoved, splitCitations } from './citations'
 
 describe('splitCitations', () => {
   it('turns known markers into cite parts and keeps the text around them', () => {
@@ -48,5 +48,16 @@ describe('splitCitations with grouped markers', () => {
   })
   it('leaves a group with no known number untouched', () => {
     expect(splitCitations('A [7, 8].', new Set([1]))).toEqual([{ kind: 'text', text: 'A [7, 8].' }])
+  })
+})
+
+describe('isRemoved', () => {
+  it('flags a source that is no longer in the notebook', () => {
+    expect(isRemoved('gone', new Set(['a', 'b']))).toBe(true)
+    expect(isRemoved('a', new Set(['a', 'b']))).toBe(false)
+  })
+
+  it('flags nothing while the lists are still loading', () => {
+    expect(isRemoved('gone', null)).toBe(false)
   })
 })
