@@ -64,9 +64,11 @@ re-run after nodes are recycled; the proper fix is the VPC attachment
 (`context/database.md`).
 
 `make deploy` runs the migration hook first (see below) and then rolls
-every service to `TAG`. A later `make deploy TAG=<git-sha>` is the
+every service to `TAG`. A later `make deploy TAG=<full git sha>` is the
 manual equivalent of what the release workflow does on a tag.
-`HELM_WAIT=0` returns right after the install instead of waiting for
+`docker.yml` tags every image with the full 40-character commit SHA
+(and with the Git tag on a release); `make deploy` refuses a short SHA,
+which would only end in `ImagePullBackOff`. `HELM_WAIT=0` returns right after the install instead of waiting for
 the rollout. Before DNS and the certificate exist, the smoke test
 reaches the deployment through the load balancer address:
 `make smoke URL=https://<lb-ip> SMOKE_ARGS="--host $DOMAIN --insecure"`.

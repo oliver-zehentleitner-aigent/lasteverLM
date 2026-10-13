@@ -32,7 +32,7 @@ export KUBECONFIG := $(BUILD)/kubeconfig
 # $(call require,VAR) fails loud when VAR is unset or empty.
 require = $(if $(strip $($(1))),,$(error $(1) is not set))
 
-.PHONY: help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations values deploy package status down check test smoke local-up local-down local-reset local-smoke
+.PHONY: tag-check help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations values deploy package status down check test smoke local-up local-down local-reset local-smoke
 
 help: ## list targets
 > @grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s $$'\t'
@@ -151,7 +151,10 @@ values: ## write build/values.yaml for the chart from the environment (plus buil
 >   REGISTRY=$(REGISTRY) TAG=$(TAG) DOMAIN=$(DOMAIN) ACME_EMAIL=$(ACME_EMAIL) \
 >   python3 scripts/values.py > $(BUILD)/values.yaml && echo "wrote $(BUILD)/values.yaml"
 
-deploy: values migrations ## helm upgrade --install of the chart: migrations hook, then every service at TAG (HELM_WAIT=0 returns without waiting)
+tag-check: ## refuse a short commit SHA as TAG (images carry the full SHA)
+> @if [[ "$(TAG)" =~ ^[0-9a-f]{7,39}$$ ]]; then echo "TAG=$(TAG) looks like a short commit SHA; docker.yml tags images with the full 40-character SHA" >&2; exit 1; fi
+
+deploy: tag-check values migrations ## helm upgrade --install of the chart: migrations hook, then every service at TAG (HELM_WAIT=0 returns without waiting)
 > helm upgrade --install $(RELEASE) $(CHART) -n $(KUBE_NS) --create-namespace -f $(BUILD)/values.yaml $(if $(filter 0,$(HELM_WAIT)),,--wait --timeout 10m)
 > kubectl -n $(KUBE_NS) get deployments,hpa
 

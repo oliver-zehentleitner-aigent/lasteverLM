@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `compose.yaml`: local development stack (PostgreSQL 18 with pgvector, RustFS as S3 storage, Mailpit, every service, an nginx gateway routing like the ingress), set up by the same bootstrap and migration scripts as the cluster; `make local-up`, `local-down`, `local-reset`, `local-smoke`.
 - `docs/operations.md`: what cert-manager did for the domain and how to check the certificate.
 
+### Changed
+
+- `make deploy` fails loud on a short commit SHA as `TAG`; images carry the full SHA.
+
 ### Removed
 
 - An empty file `--aws-sigv4` that an earlier `make bucket` bug had left in the directory.
