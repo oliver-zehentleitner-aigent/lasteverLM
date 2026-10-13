@@ -72,8 +72,8 @@ class Stub(BaseHTTPRequestHandler):
                 if s["polls"] >= 2:
                     s["status"] = "failed" if self.server.mode == "fail-source" else "ready"
             return self._send(200, [{k: v for k, v in s.items() if k != "polls"} for s in sources])
-        m = re.fullmatch(r"/api/rag/notebooks/([^/]+)/messages", self.path)
-        if m:
+        m = re.fullmatch(r"/api/rag/conversations/([^/]+)/messages", self.path)
+        if m and m.group(1) in store["conversations"]:
             return self._send(200, store["messages"].get(m.group(1), []))
         self._send(404, {"error": "not found"})
 
@@ -104,9 +104,25 @@ class Stub(BaseHTTPRequestHandler):
             }
             store["sources"].setdefault(m.group(1), []).append(src)
             return self._send(202, {k: v for k, v in src.items() if k != "polls"})
+        m = re.fullmatch(r"/api/rag/notebooks/([^/]+)/conversations", self.path)
+        if m:
+            assert not body, "the smoke test opens a conversation with an empty body"
+            conv = {
+                "id": str(uuid.uuid4()),
+                "notebook_id": m.group(1),
+                "title": "New conversation",
+                "created_at": "now",
+            }
+            store["conversations"][conv["id"]] = conv
+            return self._send(201, conv)
         m = re.fullmatch(r"/api/rag/notebooks/([^/]+)/ask", self.path)
         if m:
             nb_id = m.group(1)
+            conv_id = json.loads(body).get("conversation_id")
+            if store["conversations"].get(conv_id, {}).get("notebook_id") != nb_id:
+                return self._send(
+                    422, {"detail": [{"loc": ["body", "conversation_id"], "msg": "Field required"}]}
+                )
             src = store["sources"][nb_id][0]
             if self.server.mode == "no-citation":
                 answer = {
@@ -130,7 +146,7 @@ class Stub(BaseHTTPRequestHandler):
                         }
                     ],
                 }
-            store["messages"].setdefault(nb_id, []).extend(
+            store["messages"].setdefault(conv_id, []).extend(
                 [
                     {
                         "id": "u1",
@@ -164,7 +180,13 @@ class Stub(BaseHTTPRequestHandler):
 class SmokeTest(unittest.TestCase):
     def setUp(self):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Stub)
-        self.server.store = {"notebooks": {}, "sources": {}, "messages": {}, "deleted": []}
+        self.server.store = {
+            "notebooks": {},
+            "sources": {},
+            "conversations": {},
+            "messages": {},
+            "deleted": [],
+        }
         self.server.mode = "ok"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.url = f"http://127.0.0.1:{self.server.server_port}"

@@ -58,7 +58,8 @@ specific image tag out; the release workflow does the same on a tag
 `v*`. `make check` runs the static checks and the unit tests;
 `make smoke` (or `URL=https://...`) runs the end-to-end smoke test against a
 deployment (demo token from `DEMO_TOKEN`): login, create a notebook,
-upload a text source, wait for ready, ask, assert a citation, delete
+upload a text source, wait for ready, open a conversation, ask in it,
+assert a citation, read its history, delete
 the notebook. Details: [docs/operations.md](docs/operations.md).
 
 ## Local development

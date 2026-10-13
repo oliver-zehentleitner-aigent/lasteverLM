@@ -2,8 +2,8 @@
 """End-to-end smoke test for a running lasteverLM deployment.
 
 Logs in with the demo token, creates a notebook, uploads a text source,
-waits until it is ready, asks a question and asserts that the answer
-cites the source. Works against a local stack or the live cluster;
+waits until it is ready, opens a conversation, asks a question in it and
+asserts that the answer cites the source. Works against a local stack or the live cluster;
 needs only the Python standard library.
 
     python3 tests/smoke.py https://lasteverlm.example.com --token "$DEMO_TOKEN"
@@ -164,9 +164,19 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
                 raise SmokeFailure(f"source still {current['status']!r} after {ready_timeout:.0f}s")
             time.sleep(2)
 
+        step("open a conversation")
+        conversation = client.request(
+            "POST", f"/api/rag/notebooks/{notebook_id}/conversations", expect=(201,)
+        )
+        conversation_id = conversation["id"]
+        if conversation.get("notebook_id") != notebook_id:
+            raise SmokeFailure(f"conversation belongs to another notebook: {conversation}")
+
         step("ask a question")
         answer = client.json(
-            "POST", f"/api/rag/notebooks/{notebook_id}/ask", {"question": QUESTION}
+            "POST",
+            f"/api/rag/notebooks/{notebook_id}/ask",
+            {"question": QUESTION, "conversation_id": conversation_id},
         )
         text = answer.get("answer") or ""
         citations = answer.get("citations") or []
@@ -191,8 +201,8 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
         print(f"  answer: {text[:160]!r}")
         print(f"  citations: {len(citations)}")
 
-        step("read the message history")
-        messages = client.request("GET", f"/api/rag/notebooks/{notebook_id}/messages")
+        step("read the conversation's history")
+        messages = client.request("GET", f"/api/rag/conversations/{conversation_id}/messages")
         roles = [m.get("role") for m in messages]
         if roles[-2:] != ["user", "assistant"]:
             raise SmokeFailure(f"message history does not end with user, assistant: {roles}")
@@ -200,7 +210,7 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
         if keep:
             print(f"  keeping notebook {notebook_id}")
         else:
-            step("delete the notebook")
+            step("delete the notebook (its conversations go with it)")
             client.request("DELETE", f"/api/ingest/notebooks/{notebook_id}", expect=(204,))
 
 
@@ -244,7 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
         print(f"ERROR: cannot reach {args.base_url}: {exc}", file=sys.stderr)
         return 2
-    print("OK: login, notebook, upload, ready, ask with citation, history, cleanup")
+    print("OK: login, notebook, upload, ready, conversation, ask with citation, history, cleanup")
     return 0
 
 
