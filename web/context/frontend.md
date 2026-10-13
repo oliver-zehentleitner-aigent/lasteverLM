@@ -238,6 +238,45 @@ statement comes from, which is what the panel is for.
 it is a change in rag and costs tokens per answer; the revisit condition
 covers it.
 
+## German and English through a small t(), no i18n library
+
+**Id:** 06b5b5ef-402b-4171-920c-a2d82823e139
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request for a German and English interface ("a small translation layer, one map per language, a t() helper, no heavy i18n library"), relayed by the family lead, 2026-10-13; the module-level language and the form of address were this directory's call
+**Revisit when:** a third language, plural rules beyond one/other, or right-to-left text is needed
+
+Every visible string goes through `t(key, vars)` from `src/i18n/`:
+`en.ts` is the reference, `de.ts` is typed `Record<MessageKey, string>`
+against it, so a missing or extra German key fails the typecheck, and a
+test checks that both use the same `{placeholders}`. `tn(key, n)` picks
+`.one` or `.other`. The current language is a module-level value that
+`App` sets on every render from the user's `ui_language`, else the
+browser's language, else English; lib helpers call `t()` directly, and
+the labels of the kind, source and capture lists are getters, so their
+callers did not change. German says "du".
+
+**Reason:** two languages and a few hundred strings do not need a
+library's message formats and loaders. One language is active at a time,
+and it only changes through the user object `App` holds, which renders
+the whole tree again, so a module-level value is enough and keeps
+`t()` usable in pure helpers without threading it through every call.
+"du" matches how current German web apps address their users and the
+informal tone of the English copy.
+
+**Rejected alternative:** react-i18next or a similar library. Rejected
+by the request, and for the weight and the indirection it adds for two
+languages.
+
+**Rejected alternative:** a React context with a `useT()` hook only.
+Rejected because the pure helpers (confirmation texts, the rate-limit
+sentence, tile labels) are called outside components and would all have
+needed `t` as a parameter.
+
+**Rejected alternative:** "Sie" in German. Rejected for the tone; a
+switch touches only `de.ts`.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4
