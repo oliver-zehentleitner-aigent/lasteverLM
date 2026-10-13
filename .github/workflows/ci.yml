@@ -41,6 +41,19 @@ jobs:
       matrix:
         service: [core, account, ingest, rag]
     if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.account == 'true' || needs.changes.outputs.ingest == 'true' || needs.changes.outputs.rag == 'true' }}
+    # A disposable PostgreSQL with pgvector per matrix entry, the same major
+    # version as the managed instance (18), for each directory's Postgres suite.
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg18-trixie
+        env:
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: skip when the directory did not change or has no Makefile yet
@@ -58,6 +71,22 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         working-directory: ${{ matrix.service }}
         run: make check
+      # The suites the directories' `make test-postgres` targets run against a
+      # container they start themselves; here the service container replaces
+      # it. Each suite reads its own variable; account's is not marked.
+      - name: Postgres suite
+        if: steps.gate.outputs.run == 'true' && hashFiles(format('{0}/tests/test_postgres.py', matrix.service)) != ''
+        working-directory: ${{ matrix.service }}
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:ci@127.0.0.1:5432/postgres
+          CORE_TEST_DATABASE_URL: postgresql://postgres:ci@127.0.0.1:5432/postgres
+          INGEST_TEST_DATABASE_URL: postgresql://postgres:ci@127.0.0.1:5432/postgres
+          RAG_TEST_DATABASE_URL: postgresql://postgres:ci@127.0.0.1:5432/postgres
+        run: |
+          if [ "${{ matrix.service }}" = account ]; then marker=(); else marker=(-m postgres); fi
+          # -rs lists skips; a skipped suite fails the step, so a missing variable cannot pass silently.
+          .venv/bin/pytest "${marker[@]}" -rs tests/test_postgres.py | tee pytest.log
+          if grep -q "skipped" pytest.log; then echo "Postgres suite skipped tests" >&2; exit 1; fi
 
   web:
     needs: changes

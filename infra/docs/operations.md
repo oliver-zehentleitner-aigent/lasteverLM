@@ -228,7 +228,7 @@ Owned here, stored at the repository root in `.github/workflows/`:
 
 | File | Trigger | What |
 |---|---|---|
-| `ci.yml` | push, pull request, path-filtered per directory | `make check` in the directories that changed |
+| `ci.yml` | push, pull request, path-filtered per directory | `make check` in the directories that changed; for core, account, ingest and rag also the Postgres suite (`tests/test_postgres.py`) against a `pgvector/pgvector` PostgreSQL 18 service container, failing on any skipped test |
 | `docker.yml` | push to `main`, tags `v*` | builds every service image with the repository root as context (`-f <service>/Dockerfile .`), pushes to ghcr.io tagged with the Git SHA and the tag |
 | `deploy.yml` | tags `v*` (after `docker.yml`), and manual with a tag input | `make deploy TAG=<tag>` in `infra/` with the kubeconfig from a repository secret, then the smoke test where a demo token is configured |
 | `ktw-lint.yml` | push to `main`, pull request | the Keep the Why structure check for the root and every sub-project |
