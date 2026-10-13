@@ -29,7 +29,7 @@ repository root's `context/`.
 
 ## C
 
-- [cluster.md](cluster.md) — one Helm chart for application and platform, autoscaled replicas and worker Deployments, layered rate limiting, committed production values file, one Secret per concern, generated secrets, numeric uids as a workaround, CPU requests from measured use, account's own ServiceAccount with a read-only Role, the client address from the load balancer's PROXY protocol header, read-only root filesystems with a /tmp emptyDir and digest-pinned Job images; superseded: two manifest-era entries and the generated values file
+- [cluster.md](cluster.md) — one Helm chart for application and platform, autoscaled replicas and worker Deployments, layered rate limiting, committed production values file, one Secret per concern, generated secrets, numeric uids as a workaround, CPU requests from measured use, account's own ServiceAccount with a read-only Role, the client address from the load balancer's PROXY protocol header, read-only root filesystems with a /tmp emptyDir and digest-pinned Job images, ingress-only NetworkPolicies; superseded: two manifest-era entries and the generated values file
 
 ## D
 
