@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-13
+
 ### Fixed
 
 - Mind map: the SVG fills its container instead of a fixed 60vh, and markmap re-fits on every size change of it (full view, divider, window resize) on the next frame; labels use the theme's text colour at normal weight instead of markmap's dark grey, which was unreadable on the dark theme.
