@@ -29,7 +29,7 @@ repository root's `context/`.
 
 ## C
 
-- [cluster.md](cluster.md) — one Helm chart for application and platform, autoscaled replicas and worker Deployments, layered rate limiting, generated values file, one Secret per concern, generated secrets, numeric uids as a workaround, CPU requests from measured use; two superseded manifest-era entries
+- [cluster.md](cluster.md) — one Helm chart for application and platform, autoscaled replicas and worker Deployments, layered rate limiting, committed production values file, one Secret per concern, generated secrets, numeric uids as a workaround, CPU requests from measured use; superseded: two manifest-era entries and the generated values file
 
 ## D
 

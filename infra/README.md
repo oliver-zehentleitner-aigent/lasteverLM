@@ -20,11 +20,11 @@ Let's Encrypt certificate; `compose.yaml` runs the same stack locally.
 |---|---|
 | `compose.yaml`, `compose/` | Local development stack and its gateway configuration |
 | `tofu/` | OpenTofu configuration: VKE cluster and Object Storage (the managed PostgreSQL is created by the maintainer and taken as an input) |
-| `chart/` | The Helm chart: ConfigMap, API and worker Deployments with autoscalers, Services, Ingress with rate limiting, ClusterIssuer, migration hook |
+| `chart/` | The Helm chart (`values-prod.yaml`: the production configuration, committed): ConfigMap, API and worker Deployments with autoscalers, Services, Ingress with rate limiting, ClusterIssuer, migration hook |
 | `platform/` | Values for the platform charts: ingress-nginx (JSON access log), cert-manager, metrics-server |
 | `db/migrations/` | Infra-owned SQL (extensions); the services' own migrations are collected at deploy time |
 | `db/migrate.sh`, `db/bootstrap.sh` | The migration runner the chart's hook Job executes, and the one-time database bootstrap |
-| `scripts/` | `values.py` (environment to chart values), `dburls.py` (admin URL to the derived connection strings) |
+| `scripts/` | `dburls.py` (admin URL to the derived connection strings) |
 | `tests/` | The family's end-to-end smoke test (`smoke.py`) and its unit test against a stub |
 | `docs/` | Operations runbook |
 | `context/` | Why the infrastructure is built this way ([Keep the Why](https://keepthewhy.com)) |
@@ -40,7 +40,7 @@ Tools on the operator's machine: `tofu`, `helm`, `kubectl`,
 inside the cluster. All commands run in this directory.
 
 ```sh
-set -a; . ~/lasteverlm.env; set +a       # VULTR_API_KEY, DOMAIN, ACME_EMAIL, model names, prices, secrets
+set -a; . ~/lasteverlm.env; set +a       # VULTR_API_KEY, DATABASE_ADMIN_URL, INFERENCE_API_KEY, other secrets
 cp tofu/terraform.tfvars.example tofu/terraform.tfvars   # object storage tier id, region
 
 make up            # VKE cluster and Object Storage; writes build/cluster.env
@@ -56,7 +56,7 @@ make status
 `make` alone lists every target. `make deploy TAG=<full git sha>` rolls a
 specific image tag out; the release workflow does the same on a tag
 `v*`. `make check` runs the static checks and the unit tests;
-`make smoke URL=https://...` runs the end-to-end smoke test against a
+`make smoke` (or `URL=https://...`) runs the end-to-end smoke test against a
 deployment (demo token from `DEMO_TOKEN`): login, create a notebook,
 upload a text source, wait for ready, ask, assert a citation, delete
 the notebook. Details: [docs/operations.md](docs/operations.md).

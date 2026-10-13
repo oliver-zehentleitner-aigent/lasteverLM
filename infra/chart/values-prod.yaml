@@ -1,0 +1,22 @@
+# Production configuration of lasteverlm.zehentleitner.co: what `make deploy`
+# and deploy.yml pass to Helm on top of values.yaml. Nothing in here is
+# secret; secrets are Kubernetes Secrets created by `make secrets`. The image
+# tag and registry are not here: `make deploy` sets them from TAG and REGISTRY.
+# Change a value with a pull request, it takes effect on the next deploy.
+
+domain: lasteverlm.zehentleitner.co
+acmeEmail: lasteverlm@aigent.zehentleitner.co
+
+config:
+  llmModel: qwen3.8-27b
+  embeddingModel: qwen3-embedding-4b
+  # The migrations created vector(1024) columns with it; changing it needs
+  # a new migration and every stored embedding computed again.
+  embeddingDimension: 1024
+  # Cents per million tokens (core/README.md, MODEL_PRICES).
+  modelPrices: '{"qwen3.8-27b":{"in":100,"out":100},"qwen3-embedding-4b":{"in":5,"out":5},"qwen3-tts-12hz-1.7b":{"in":28000,"out":28000}}'
+  similarityFloor: ""
+  ttsModel: qwen3-tts-12hz-1.7b
+  ttsVoice: ryan
+  # Vultr Object Storage, region ams1 (tofu output s3_endpoint).
+  s3Endpoint: https://ams1.vultrobjects.com

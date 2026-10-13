@@ -25,16 +25,8 @@ jobs:
     environment: production
     env:
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
-      DOMAIN: ${{ vars.DOMAIN }}
-      ACME_EMAIL: ${{ vars.ACME_EMAIL }}
-      LLM_MODEL: ${{ vars.LLM_MODEL }}
-      EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
-      EMBEDDING_DIMENSION: ${{ vars.EMBEDDING_DIMENSION }}
-      MODEL_PRICES: ${{ vars.MODEL_PRICES }}
-      SIMILARITY_FLOOR: ${{ vars.SIMILARITY_FLOOR }}
-      TTS_MODEL: ${{ vars.TTS_MODEL }}
-      TTS_VOICE: ${{ vars.TTS_VOICE }}
-      S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+    # The configuration (domain, models, prices, S3 endpoint) is committed in
+    # infra/chart/values-prod.yaml; the only required secret is KUBECONFIG_B64.
     steps:
       # The secrets context is not available in a step `if`; the gate reads it from env.
       # Without the kubeconfig secret the job ends green with a message, so a tag
@@ -76,4 +68,4 @@ jobs:
           DEMO_TOKEN: ${{ secrets.DEMO_TOKEN }}
         run: |
           if [ -z "$DEMO_TOKEN" ]; then echo "DEMO_TOKEN not configured, smoke test skipped"; exit 0; fi
-          make smoke URL="https://$DOMAIN"
+          make smoke

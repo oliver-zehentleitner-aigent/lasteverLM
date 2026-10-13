@@ -171,7 +171,8 @@ credentials it has no use for.
 
 **Id:** 6d81fc15-6bae-4e67-960d-8f6a34a3f640
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 7a8504fa-fe57-4ad7-8faf-fb722e01eedb
 **Evidence:** confirmed
 **Source:** infra design session, 2026-10-12
 **See:** cluster.md#domain-acme-e-mail-and-registry-host-are-substituted-into-the-manifests-by-the-makefile — dec25659-4f61-4d6e-af03-af8d42ad992f — as of 2026-10-12
@@ -190,6 +191,36 @@ what is deployed, inspectable in `build/`.
 **Rejected alternative:** `--set` and `--set-string` flags assembled in
 the Makefile — worked until the first JSON value and would have needed
 escaping rules nobody wants to maintain.
+
+## The production configuration is a committed values file, not repository variables
+
+**Id:** 7a8504fa-fe57-4ad7-8faf-fb722e01eedb
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the family coordinator, 2026-10-13
+**Revisit when:** a value in it becomes secret, or one checkout has to deploy to several environments with different values
+
+`chart/values-prod.yaml` holds the non-secret configuration of the
+production deployment: domain, ACME e-mail, model names, prices,
+embedding dimension, similarity floor, TTS model and voice, S3
+endpoint. `make deploy` on an operator machine and `deploy.yml` pass
+the same file to Helm; only the image tag and registry come from make
+variables. `deploy.yml` needs one secret, `KUBECONFIG_B64`, and
+`DEMO_TOKEN` stays optional for the smoke step. The chart checks that
+`modelPrices` is valid JSON, which `scripts/values.py` did before.
+
+**Reason:** none of these values is secret and they rarely change, so
+they belong versioned and reviewable in a pull request, not hidden in
+repository settings; the list a maintainer has to type into GitHub
+shrinks to one entry. A YAML file also keeps the JSON in
+`modelPrices` away from `--set`, the reason the generated file
+existed.
+
+**Rejected alternative:** the same values as GitHub repository
+variables, read by `deploy.yml` (and from the environment by
+`make values` on the operator machine) — invisible in review,
+typed by hand per repository, and kept in two places.
 
 ## Application secrets are generated on the operator machine, never typed
 
