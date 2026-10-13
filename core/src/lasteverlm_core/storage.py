@@ -2,7 +2,8 @@
 
 The implementation is an S3 client (boto3) pointed at Vultr Object
 Storage, one bucket for the whole family. Object keys follow the family
-contract: `<notebook_id>/<source_id>/<name>` for an upload,
+contract: `<user_id>/<library_source_id>/<name>` for an upload (sources
+live in the user's library, not in one notebook),
 `<notebook_id>/<output_id>/<name>` for a file an output produces.
 
 A presigned GET is how a browser fetches a private object without a
@@ -15,12 +16,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
+from uuid import UUID
 
 from botocore.exceptions import ClientError
 
 from .settings import env_optional, env_required
 
 PRESIGN_SECONDS = 3600
+# SigV4 caps a presigned URL at seven days; a longer one is refused by S3.
+PRESIGN_MAX_SECONDS = 7 * 24 * 3600
 DEFAULT_S3_REGION = "us-east-1"
 # What S3 implementations answer a HEAD on a missing key with.
 MISSING_KEY_CODES = frozenset({"404", "NoSuchKey", "NotFound"})
@@ -127,8 +131,8 @@ class S3Storage:
 
     def presigned_get(self, key: str, expires_s: int = PRESIGN_SECONDS) -> str:
         """A URL that fetches `key` without credentials until `expires_s` seconds pass."""
-        if expires_s <= 0:
-            raise ValueError("expires_s must be positive")
+        if not 0 < expires_s <= PRESIGN_MAX_SECONDS:
+            raise ValueError(f"expires_s must be between 1 and {PRESIGN_MAX_SECONDS}")
         try:
             url: str = self._client.generate_presigned_url(
                 "get_object",
@@ -141,5 +145,26 @@ class S3Storage:
 
 
 def object_key(notebook_id: Any, owner_id: Any, name: str) -> str:
-    """`<notebook_id>/<source_id or output_id>/<name>`."""
-    return f"{notebook_id}/{owner_id}/{name}"
+    """`<notebook_id>/<output_id>/<name>`, or `<user_id>/<library_source_id>/<name>`
+    for an upload (the first argument is then the user).
+
+    Both ids must be UUIDs and `name` one plain path segment (no `/` or
+    `\\`, not `.` or `..`, no control characters, at most 255 characters),
+    so a key can never reach outside its owner's prefix, whatever the
+    caller passed; `ValueError` otherwise.
+    """
+    ids = []
+    for value in (notebook_id, owner_id):
+        try:
+            ids.append(str(UUID(str(value))))
+        except ValueError as exc:
+            raise ValueError(f"object key ids must be UUIDs, got {value!r}") from exc
+    if (
+        not name
+        or len(name) > 255
+        or name in {".", ".."}
+        or any(ch in name for ch in "/\\")
+        or any(ord(ch) < 32 or ord(ch) == 127 for ch in name)
+    ):
+        raise ValueError(f"object name must be one plain path segment, got {name!r}")
+    return f"{ids[0]}/{ids[1]}/{name}"

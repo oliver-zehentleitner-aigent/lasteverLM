@@ -4,6 +4,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from lasteverlm_core import (
     BALANCE_SQL,
@@ -65,3 +66,10 @@ async def test_async_variants(prices: Any) -> None:
 def test_balance_reads_dict_rows_too() -> None:
     assert balance_cents(FakeConnection(rows=[{"balance_cents": 42}]), uuid4()) == 42
     assert balance_cents(FakeConnection(rows=[{"balance_cents": None}]), uuid4()) == 0
+
+
+def test_record_usage_past_the_integer_columns_fails_before_the_insert(prices: Any) -> None:
+    conn = FakeConnection()
+    with pytest.raises(ValidationError, match="less than or equal to 2147483647"):
+        record_usage(conn, uuid4(), None, "rag", "llm", "llm", 2**31, 0, prices=prices)
+    assert conn.executed == []

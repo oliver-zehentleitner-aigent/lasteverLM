@@ -68,7 +68,8 @@ class InferenceSettings:
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> InferenceSettings:
-        return cls(
+        """Read the env; `ConfigError` names a missing key or a width or budget below 1."""
+        settings = cls(
             base_url=env_optional("INFERENCE_BASE_URL", env) or VULTR_INFERENCE_BASE_URL,
             api_key=env_required("INFERENCE_API_KEY", env),
             llm_model=env_required("LLM_MODEL", env),
@@ -76,6 +77,11 @@ class InferenceSettings:
             embedding_model=env_required("EMBEDDING_MODEL", env),
             embedding_dimension=env_int("EMBEDDING_DIMENSION", 1536, env),
         )
+        if settings.llm_max_tokens < 1:
+            raise ConfigError("LLM_MAX_TOKENS must be at least 1")
+        if settings.embedding_dimension < 1:
+            raise ConfigError("EMBEDDING_DIMENSION must be at least 1")
+        return settings
 
 
 from .pricing import ModelPrice, parse_model_prices  # noqa: E402  (pricing imports ConfigError)
