@@ -14,6 +14,7 @@ from lasteverlm_core import (
     RULES_TTL_SECONDS,
     AccessLogEntry,
     AuthSettings,
+    ConfigError,
     MemoryRateLimitStore,
     RateLimiter,
     RateLimitMiddleware,
@@ -108,7 +109,7 @@ async def test_healthz_sampled() -> None:
 
 def test_client_ip_prefers_forwarded_header_when_trusted() -> None:
     scope: dict[str, Any] = {
-        "headers": [(b"x-forwarded-for", b"203.0.113.9, 10.0.0.1")],
+        "headers": [(b"x-forwarded-for", b"203.0.113.9")],
         "client": ("10.1.1.1", 1234),
     }
     assert client_ip(scope) == "203.0.113.9"
@@ -116,6 +117,18 @@ def test_client_ip_prefers_forwarded_header_when_trusted() -> None:
     assert client_ip({"headers": [(b"x-forwarded-for", b"garbage")]}) == "0.0.0.0"
     assert client_ip({"client": ("testclient", 1)}) == "0.0.0.0"
     assert client_ip({"headers": [(b"x-forwarded-for", b"2001:db8::1")]}) == "2001:db8::1"
+    # a forged first entry is never read: the ingress's own entry is the last
+    forged = [(b"x-forwarded-for", b"198.51.100.1, 203.0.113.9")]
+    assert client_ip({"headers": forged, "client": ("10.1.1.1", 1)}) == "203.0.113.9"
+    split = [(b"x-forwarded-for", b"198.51.100.1"), (b"x-forwarded-for", b"203.0.113.9 ")]
+    assert client_ip({"headers": split}) == "203.0.113.9"
+    assert client_ip({"headers": [(b"x-forwarded-for", b" , ")], "client": ("10.1.1.1", 1)}) == (
+        "10.1.1.1"
+    )
+    # one client, one key: mapped IPv4 unwrapped, zone dropped, spelling normalised
+    assert client_ip({"headers": [(b"x-forwarded-for", b"::ffff:203.0.113.9")]}) == "203.0.113.9"
+    assert client_ip({"headers": [(b"x-forwarded-for", b"fe80::1%eth0")]}) == "fe80::1"
+    assert client_ip({"headers": [(b"x-forwarded-for", b"2001:DB8:0::1")]}) == "2001:db8::1"
 
 
 async def run_asgi(
@@ -218,6 +231,23 @@ async def test_postgres_store_reads_tuple_and_dict_rows() -> None:
         assert await store.blocked_until("ip") == T0
         assert await store.requests_since("ip", T0) == 5
         assert await store.strike("ip", T0, T0, T0) == 2
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "message"),
+    [
+        ("RATE_LIMIT_PER_MINUTE", "0", "between 1 and 10000"),
+        ("BLOCK_MINUTES", "1441", "between 1 and 1440"),
+        ("BAN_AFTER_STRIKES", "-1", "between 1 and 100"),
+        ("STRIKE_WINDOW_HOURS", "721", "between 1 and 720"),
+        ("RETENTION_DAYS", "0", "at least 1"),
+        ("BAN_MAX_DAYS", "0", "at least 1"),
+        ("ACCESS_LOG_HEALTHZ_SAMPLE", "0", "at least 1"),
+    ],
+)
+def test_settings_out_of_bounds_fail_at_startup(name: str, value: str, message: str) -> None:
+    with pytest.raises(ConfigError, match=f"{name} must be {message}"):
+        RateLimitSettings.from_env({name: value})
 
 
 def test_settings_from_env_reads_ban_max_days() -> None:

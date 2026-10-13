@@ -59,7 +59,8 @@ dependency of a library two of whose users are workers.
 
 **Id:** 77cf17e5-23d0-4679-87dc-080107344514
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** cc213071-7d4e-4a2e-8334-697ce37166d2
 **Evidence:** confirmed
 **Source:** parent docs/architecture.md ("as set by the ingress, never trusted from anywhere else"); core design 2026-10-12
 **Revisit when:** a service becomes reachable other than through the ingress, or the ingress is replaced
@@ -181,3 +182,34 @@ force within a minute everywhere.
 the normal state until an admin first saves the rules, and a warning
 every process start would teach operators to ignore the warning that
 matters, the malformed row.
+
+## The last X-Forwarded-For entry is the client, never the first
+
+**Id:** cc213071-7d4e-4a2e-8334-697ce37166d2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security audit 2026-10-14; ingress-nginx controller template (`nginx.tmpl`, real-ip block and `proxy_set_header X-Forwarded-For`)
+**Revisit when:** more than one trusted proxy sits in front of the services, or the ingress is replaced
+
+`client_ip` reads the last non-empty `X-Forwarded-For` entry (repeated
+header lines joined in order) when `trust_forwarded` is true, and the
+peer address otherwise. `trust_forwarded` (account's
+`TRUST_PROXY_HEADERS`, default true) means exactly one thing: every
+request reaches the service through exactly one proxy that writes the
+header, the cluster's ingress-nginx. A run reachable any other way sets
+it false. IPv4-mapped IPv6 addresses count as their IPv4 address and an
+IPv6 zone is dropped; anything that is not an address is `0.0.0.0`.
+
+**Reason:** the first entry is whatever the client sent; only the last
+one was written by the proxy we trust. Reading the first made the
+limiter's key a client choice: a forged header escapes every block and
+ban and can get someone else's address banned. With one trusted proxy
+the last entry is its own, whether it overwrites the header (the
+ingress's default, `X-Forwarded-For: $remote_addr`) or appends to it.
+
+**Alternatives:** the first entry, as before: the client's word.
+Counting trusted hops from the right with a configured proxy count:
+correct for chains, but there is one proxy, and a count is one more
+value to get wrong. The peer address without the header: always the
+ingress pod, so every client would share one key.

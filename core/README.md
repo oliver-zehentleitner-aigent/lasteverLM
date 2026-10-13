@@ -124,7 +124,7 @@ invalid value.
 | `LLM_MODEL`, `LLM_MAX_TOKENS` | `InferenceSettings.from_env` | the language model and the default completion budget (1024) |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | `InferenceSettings.from_env` | the embedding model and the vector width requested from it on every call (default 1536; the deployment uses 1024, below pgvector's 2000-dimension index limit); must match `chunks.embedding` |
 | `MODEL_PRICES` | `load_model_prices` | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`, merged over the defaults in `pricing.py` (empty until the platform's models are known, so every deployment sets it) |
-| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3; with `STRIKE_WINDOW_HOURS` the defaults of the runtime rules the admin panel can override |
+| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3; with `STRIKE_WINDOW_HOURS` the defaults of the runtime rules the admin panel can override; outside the panel's bounds a `ConfigError` at startup, as is a `RETENTION_DAYS`, `BAN_MAX_DAYS` or `ACCESS_LOG_HEALTHZ_SAMPLE` below 1 |
 | `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |
 | `BAN_MAX_DAYS` | `RateLimitSettings.from_env` | default 90; a ban older than this has expired, and the purge deletes it |
 

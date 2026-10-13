@@ -36,7 +36,7 @@ from uuid import UUID
 import anyio
 
 from .auth import AuthError, AuthSettings, current_user
-from .settings import env_int
+from .settings import ConfigError, env_int
 from .usage import AsyncConnection, Connection, scalar
 
 Scope = MutableMapping[str, Any]
@@ -52,6 +52,9 @@ log = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class RateLimitSettings:
+    """The limiter's env settings. The four rule thresholds are the defaults
+    that a stored `ratelimit` row overrides (`RateLimitRules`)."""
+
     per_minute: int = 120
     block_minutes: int = 15
     ban_after_strikes: int = 3
@@ -62,7 +65,8 @@ class RateLimitSettings:
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> RateLimitSettings:
-        return cls(
+        """Read the env; a value outside its bounds is a `ConfigError` at startup."""
+        settings = cls(
             per_minute=env_int("RATE_LIMIT_PER_MINUTE", cls.per_minute, env),
             block_minutes=env_int("BLOCK_MINUTES", cls.block_minutes, env),
             ban_after_strikes=env_int("BAN_AFTER_STRIKES", cls.ban_after_strikes, env),
@@ -71,6 +75,27 @@ class RateLimitSettings:
             retention_days=env_int("RETENTION_DAYS", cls.retention_days, env),
             ban_max_days=env_int("BAN_MAX_DAYS", cls.ban_max_days, env),
         )
+        # The same bounds the admin panel is held to, so an env value cannot
+        # do what a stored row may not (0 per minute would block everyone).
+        for name, (low, high) in RATE_LIMIT_RULE_BOUNDS.items():
+            value = getattr(settings, name)
+            if not low <= value <= high:
+                raise ConfigError(f"{_ENV_NAMES[name]} must be between {low} and {high}")
+        for name in ("healthz_sample", "retention_days", "ban_max_days"):
+            if getattr(settings, name) < 1:
+                raise ConfigError(f"{_ENV_NAMES[name]} must be at least 1")
+        return settings
+
+
+_ENV_NAMES = {
+    "per_minute": "RATE_LIMIT_PER_MINUTE",
+    "block_minutes": "BLOCK_MINUTES",
+    "ban_after_strikes": "BAN_AFTER_STRIKES",
+    "strike_window_hours": "STRIKE_WINDOW_HOURS",
+    "healthz_sample": "ACCESS_LOG_HEALTHZ_SAMPLE",
+    "retention_days": "RETENTION_DAYS",
+    "ban_max_days": "BAN_MAX_DAYS",
+}
 
 
 # --- runtime rules ---------------------------------------------------------------
@@ -257,26 +282,42 @@ def _retry_after(until: datetime, now: datetime) -> int:
 
 
 def client_ip(scope: Scope, trust_forwarded: bool = True) -> str:
-    """The client address: first `X-Forwarded-For` entry when trusted, else the peer.
+    """The client address: the last `X-Forwarded-For` entry when trusted, else the peer.
 
-    Only the ingress sets the header in the cluster; a service reachable
-    directly (local runs) passes `trust_forwarded=False`. Anything that
+    The last entry is the one the trusted proxy (the ingress) wrote; every
+    entry before it came from the client and can be forged, so it is never
+    read. A service reachable other than through that one proxy (local
+    runs) passes `trust_forwarded=False` (account's `TRUST_PROXY_HEADERS`). Anything that
     is not an IP address becomes `UNKNOWN_IP`, so a malformed header
-    cannot break the request or the `inet` column.
+    cannot break the request or the `inet` column. An IPv4-mapped IPv6
+    address counts as its IPv4 address, and an IPv6 zone (`%eth0`) is
+    dropped: one client, one key, and nothing `inet` would reject.
     """
     candidate: str | None = None
     if trust_forwarded:
-        for name, value in scope.get("headers", ()):
-            if name == b"x-forwarded-for":
-                candidate = value.decode("latin-1").split(",")[0].strip()
-                break
+        # Repeated header lines are one list in order (RFC 9110, 5.3).
+        entries = [
+            entry.strip()
+            for name, value in scope.get("headers", ())
+            if name == b"x-forwarded-for"
+            for entry in value.decode("latin-1").split(",")
+        ]
+        entries = [entry for entry in entries if entry]
+        if entries:
+            candidate = entries[-1]
     if candidate is None:
         client = scope.get("client")
         candidate = client[0] if client else None
     try:
-        return str(ipaddress.ip_address(candidate or ""))
+        address = ipaddress.ip_address(candidate or "")
     except ValueError:
         return UNKNOWN_IP
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        if address.scope_id is not None:
+            return str(ipaddress.IPv6Address(str(address).split("%", 1)[0]))
+    return str(address)
 
 
 class RateLimitMiddleware:

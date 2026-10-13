@@ -9,6 +9,11 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Security
+
+- `client_ip` takes the last `X-Forwarded-For` entry (the one the ingress wrote), not the first, which the client controls: a forged header could escape blocks and bans and get another address banned. Repeated header lines count as one list. IPv4-mapped IPv6 addresses are keyed as IPv4, an IPv6 zone is dropped.
+- `RateLimitSettings.from_env` holds the four rule thresholds to `RATE_LIMIT_RULE_BOUNDS` and `RETENTION_DAYS`, `BAN_MAX_DAYS`, `ACCESS_LOG_HEALTHZ_SAMPLE` to at least 1, failing with `ConfigError` at startup (`RATE_LIMIT_PER_MINUTE=0` blocked every request).
+
 ## [0.7.3] - 2026-10-13
 
 ### Changed
