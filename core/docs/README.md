@@ -268,7 +268,10 @@ storage.delete(key)
 One bucket for the family; keys are `<notebook_id>/<source_id>/<name>`
 for an upload and `<notebook_id>/<output_id>/<name>` for a file an
 output produces. `get` returns the bytes, `delete(*keys)` takes one or more
-keys (sent 1000 per request). A presigned GET is how a browser fetches
+keys (sent 1000 per request). `exists(key)` is a HEAD request: `False`
+only when the key is missing, a `StorageError` for anything else (no
+access, no bucket, endpoint down), so a cache check in front of a paid
+generation never mistakes a broken bucket for an empty one. A presigned GET is how a browser fetches
 a private object without a bearer header; it is signed with SigV4 and
 needs no request to storage. `S3_REGION` is optional (`us-east-1`).
 Every failure is a `StorageError`. The client is synchronous (boto3);

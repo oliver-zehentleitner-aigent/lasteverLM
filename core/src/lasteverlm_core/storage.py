@@ -16,10 +16,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from botocore.exceptions import ClientError
+
 from .settings import env_optional, env_required
 
 PRESIGN_SECONDS = 3600
 DEFAULT_S3_REGION = "us-east-1"
+# What S3 implementations answer a HEAD on a missing key with.
+MISSING_KEY_CODES = frozenset({"404", "NoSuchKey", "NotFound"})
 
 
 class StorageError(Exception):
@@ -32,6 +36,8 @@ class Storage(Protocol):
     def get(self, key: str) -> bytes: ...
 
     def delete(self, *keys: str) -> None: ...
+
+    def exists(self, key: str) -> bool: ...
 
     def presigned_get(self, key: str, expires_s: int = PRESIGN_SECONDS) -> str: ...
 
@@ -92,6 +98,20 @@ class S3Storage:
         except Exception as exc:
             raise StorageError(f"download failed: {exc}") from exc
         return body
+
+    def exists(self, key: str) -> bool:
+        """Whether `key` is stored. Only a missing key is `False`; any other
+        failure raises, so a broken bucket never reads as "not there yet"
+        to a caller that would then pay to regenerate the object."""
+        try:
+            self._client.head_object(Bucket=self._bucket, Key=key)
+        except ClientError as exc:
+            if str(exc.response.get("Error", {}).get("Code")) in MISSING_KEY_CODES:
+                return False
+            raise StorageError(f"head failed: {exc}") from exc
+        except Exception as exc:
+            raise StorageError(f"head failed: {exc}") from exc
+        return True
 
     def delete(self, *keys: str) -> None:
         """Delete one or more keys, 1000 per request (the S3 limit); missing keys are no error."""
