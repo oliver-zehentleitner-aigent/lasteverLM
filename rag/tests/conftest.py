@@ -79,8 +79,9 @@ def chunk(
 class FakeStore:
     """In-memory stand-in for PostgresStore with the same contract."""
 
-    def __init__(self, balance: int = 100) -> None:
+    def __init__(self, balance: int = 100, admins: set[str] | None = None) -> None:
         self.balance = balance
+        self.admins = admins or set()
         self.messages: list[dict[str, Any]] = []
         self.usage: list[tuple[str, str | None, Usage]] = []
         self.notebooks = {
@@ -224,8 +225,41 @@ class FakeStore:
         self.chunks.pop(source_id, None)
 
     # credit
-    def balance_cents(self, user_id: str) -> int:
-        return self.balance
+    def has_credit(self, user_id: str) -> bool:
+        return user_id in self.admins or self.balance > 0
+
+    def is_admin(self, user_id: str) -> bool:
+        return user_id in self.admins
+
+    def admin_stats(self, stale_after_s: int) -> dict[str, Any]:
+        rows = list(self.outputs.values())
+        now = datetime.now(UTC)
+
+        def live(r: dict[str, Any]) -> bool:
+            # the fake claims without a timestamp: a claim is live until released
+            return r["claimed_by"] is not None
+
+        processing = [r for r in rows if r["status"] == "processing"]
+        day_ago = now.timestamp() - 86400
+        return {
+            "notebooks": {"total": len(self.notebooks)},
+            "messages": {
+                "total": len(self.messages),
+                "last_24h": sum(
+                    1
+                    for m in self.messages
+                    if datetime.fromisoformat(m["created_at"]).timestamp() > day_ago
+                ),
+            },
+            "outputs": [(r["kind"], r["status"], 1) for r in rows],
+            "jobs": {
+                "pending": sum(1 for r in rows if r["status"] == "waiting")
+                + sum(1 for r in processing if not live(r)),
+                "running": sum(1 for r in processing if live(r)),
+                "failed": sum(1 for r in rows if r["status"] == "failed"),
+            },
+            "shared": {"outputs": sum(1 for r in rows if r.get("share_token"))},
+        }
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
         self.usage.append((user_id, notebook_id, usage))

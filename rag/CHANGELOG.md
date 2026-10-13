@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/rag/admin/stats` for admins: notebooks, messages (total, last 24 h), outputs by kind and by status, jobs pending, running and failed, shared outputs.
+
+### Changed
+
+- The credit check is core's `has_credit`: admins have unlimited credit; everyone else still gets 402 at a zero balance.
+
 ## [0.2.1] - 2026-10-13
 
 ### Changed

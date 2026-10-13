@@ -3,7 +3,7 @@
 Two interfaces with one PostgreSQL implementation each: ``Retriever`` for the
 pgvector similarity search, ``Store`` for everything else this service reads
 or writes: notebooks (read), messages, outputs, the generated sources and
-their chunks, usage and the credit balance. ``notebooks``, ``sources`` and
+their chunks, usage, the credit check and the admin flag. ``notebooks``, ``sources`` and
 ``chunks`` are ingest's tables; ``usage`` and ``ledger`` belong to core and
 account; this module only reads and writes them.
 """
@@ -23,7 +23,8 @@ from lasteverlm_core import (
     OutputKind,
     OutputStatus,
     Usage,
-    balance_cents,
+    has_credit,
+    is_admin,
     record_usage,
 )
 from lasteverlm_core.usage import Connection as CoreConnection
@@ -99,8 +100,13 @@ class Store(Protocol):
 
     def delete_source(self, source_id: str) -> None: ...
 
+    # admin overview (read only, across all users)
+    def admin_stats(self, stale_after_s: int) -> dict[str, Any]: ...
+
     # credit
-    def balance_cents(self, user_id: str) -> int: ...
+    def has_credit(self, user_id: str) -> bool: ...
+
+    def is_admin(self, user_id: str) -> bool: ...
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None: ...
 
@@ -356,9 +362,49 @@ class PostgresStore:
 
     # -- credit (core's helpers; usage rows are the only debit) -------------
 
-    def balance_cents(self, user_id: str) -> int:
+    def admin_stats(self, stale_after_s: int) -> dict[str, Any]:
+        """Counts for the admin overview, one query per group. The jobs split
+        uses the worker's stale-claim limit: a ``processing`` row whose claim is
+        younger than ``stale_after_s`` is running, an older or missing claim is
+        pending again (a worker will take it over)."""
+        stale = {"stale": f"{stale_after_s} seconds"}
         with self._pool.connection() as conn:
-            return balance_cents(core_connection(conn), uuid.UUID(user_id))
+            notebooks = conn.execute("select count(*) as total from notebooks").fetchone()
+            messages = conn.execute(
+                "select count(*) as total, "
+                "count(*) filter (where created_at > now() - interval '24 hours') as last_24h "
+                "from messages"
+            ).fetchone()
+            outputs = conn.execute(
+                "select kind, status, count(*) as n from outputs group by kind, status"
+            ).fetchall()
+            jobs = conn.execute(
+                "select count(*) filter (where status = 'waiting' or (status = 'processing' "
+                "and (claimed_at is null or claimed_at < now() - %(stale)s::interval))) "
+                "as pending, "
+                "count(*) filter (where status = 'processing' "
+                "and claimed_at >= now() - %(stale)s::interval) as running, "
+                "count(*) filter (where status = 'failed') as failed from outputs",
+                stale,
+            ).fetchone()
+            shared = conn.execute(
+                "select count(*) as outputs from outputs where share_token is not null"
+            ).fetchone()
+        return {
+            "notebooks": notebooks,
+            "messages": messages,
+            "outputs": [(r["kind"], r["status"], r["n"]) for r in outputs],
+            "jobs": jobs,
+            "shared": shared,
+        }
+
+    def has_credit(self, user_id: str) -> bool:
+        with self._pool.connection() as conn:
+            return has_credit(core_connection(conn), uuid.UUID(user_id))
+
+    def is_admin(self, user_id: str) -> bool:
+        with self._pool.connection() as conn:
+            return is_admin(core_connection(conn), uuid.UUID(user_id))
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
         with self._pool.connection() as conn:

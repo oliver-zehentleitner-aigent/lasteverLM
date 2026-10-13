@@ -94,3 +94,37 @@ class OutputRow:
     source_id: str | None
     attempts: int
     created_at: str
+
+
+class NotebookStats(BaseModel):
+    total: int
+
+
+class MessageStats(BaseModel):
+    total: int
+    last_24h: int
+
+
+class OutputStats(BaseModel):
+    by_kind: dict[OutputKind, int]
+    by_status: dict[OutputStatus, int]
+
+
+class JobStats(BaseModel):
+    pending: int
+    running: int
+    failed: int
+
+
+class ShareStats(BaseModel):
+    outputs: int
+
+
+class AdminStats(BaseModel):
+    """``GET /api/rag/admin/stats``; every key is present, zeros included."""
+
+    notebooks: NotebookStats
+    messages: MessageStats
+    outputs: OutputStats
+    jobs: JobStats
+    shared: ShareStats

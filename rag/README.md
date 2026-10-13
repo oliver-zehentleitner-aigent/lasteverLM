@@ -24,11 +24,25 @@ this directory implements the `/api/rag` prefix.
 | POST | `/api/rag/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/api/rag/outputs/{id}/share` | | 204 |
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
+| GET | `/api/rag/admin/stats` | admins only | `AdminStats`, see below |
 | GET | `/healthz`, `/api/rag/healthz` | no auth | `{"status": "ok"}` |
 
 Every other endpoint takes `Authorization: Bearer <token>`. Errors are
 `{"error": "<message>"}`: 401 unauthenticated, 402 credit exhausted,
-404 not yours or missing, 409 asking about an output that is not ready.
+403 admin only, 404 not yours or missing, 409 asking about an output that
+is not ready.
+
+**Admin overview.** `GET /api/rag/admin/stats` counts across all users,
+read only, with every key present (zeros included):
+`{"notebooks": {"total"}, "messages": {"total", "last_24h"}, "outputs":
+{"by_kind": {<each kind>}, "by_status": {<each status>}}, "jobs":
+{"pending", "running", "failed"}, "shared": {"outputs"}}`. A job is
+`pending` while waiting or processing without a live claim, `running`
+while processing under a claim younger than ten minutes (the worker's
+stale-claim limit), `failed` once failed; `shared.outputs` counts the
+outputs that have a share token now. Views of shared outputs are in
+account's visitor log (`/admin/visits`, path `/s/`). The admin check is
+core's `admin_only` over `users.is_admin`; anyone else gets 403.
 
 **Ask.** `answer` cites inline as single `[n]` markers, numbered 1..n in
 order of first appearance; `n` maps to an entry in `citations` (`source_id`, `source_name`, `source_kind`, `chunk_id`,
@@ -83,8 +97,9 @@ missing or a configured model has no price.
 | `LOG_LEVEL` | no | default `INFO` |
 
 Auth, inference, prices and rate limiting are loaded by `lasteverlm_core`;
-only the rest is rag's own. Before any model call the service checks the caller's balance (ledger
-credits minus priced usage) and answers 402 when it is zero. Every
+only the rest is rag's own. Before any model call the service runs core's credit
+check (`has_credit`: an admin always, anyone else with a positive balance of ledger
+credits minus priced usage) and answers 402 otherwise. Every
 embedding and LLM call writes one priced row to the `usage` table.
 
 ## Run locally
