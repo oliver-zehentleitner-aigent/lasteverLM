@@ -35,10 +35,10 @@ export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate
         ))}
       </div>
       <div className="create-row">
+        {blocker && <span className="muted small">{blocker}</span>}
         <button type="button" disabled={busy || blocker !== null} onClick={() => selected && onCreate(selected)}>
           Create
         </button>
-        {blocker && <span className="muted small">{blocker}</span>}
       </div>
     </section>
   )
