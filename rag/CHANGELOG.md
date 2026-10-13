@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `PATCH /api/rag/conversations/{id}` renames a chat tab: `{"title"}`, trimmed, 1–80 characters.
+
 ## [0.7.3] - 2026-10-13
 
 ### Fixed

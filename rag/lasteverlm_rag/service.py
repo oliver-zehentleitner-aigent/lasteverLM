@@ -222,6 +222,10 @@ class RagService:
             title = f"Chat {self._next_chat_number(notebook_id)}"
         return self._store.create_conversation(notebook_id, title.strip()).to_api()
 
+    def rename_conversation(self, user_id: str, conversation_id: str, title: str) -> Conversation:
+        self._owned_conversation(user_id, conversation_id)
+        return self._store.rename_conversation(conversation_id, title).to_api()
+
     def delete_conversation(self, user_id: str, conversation_id: str) -> None:
         self._owned_conversation(user_id, conversation_id)
         self._store.delete_conversation(conversation_id)

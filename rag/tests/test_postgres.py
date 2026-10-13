@@ -438,6 +438,8 @@ def test_conversations_history_window_and_cascade(store, pool, notebook):
         store.insert_message(notebook, chat.id, "user", f"m{i}", None)
     store.insert_message(notebook, other.id, "user", "elsewhere", None)
     assert [c.title for c in store.list_conversations(notebook)] == ["Chat 2", "Notes"]
+    assert store.rename_conversation(other.id, "Setup").title == "Setup"
+    assert [c.title for c in store.list_conversations(notebook)] == ["Chat 2", "Setup"]
     assert (store.get_conversation(chat.id) or chat).notebook_id == notebook
     assert [m.content for m in store.list_messages(chat.id, last=2)] == ["m3", "m4"]
     assert len(store.list_messages(chat.id)) == 5

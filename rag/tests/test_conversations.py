@@ -107,3 +107,25 @@ def test_a_scoped_question_lands_in_the_current_conversation(settings):
     assert r.status_code == 200, r.text
     assert len(messages(client, tab).json()) == 2
     assert messages(client, CONVERSATION).json() == []
+
+
+def test_a_conversation_is_renamed_with_a_trimmed_title(settings):
+    store = FakeStore()
+    client = make_client(settings, store, FakeRetriever([chunk(1, "x")]), FakeLLM("x [1]."))
+    url = f"/api/rag/conversations/{CONVERSATION}"
+    r = client.patch(url, json={"title": "  Setup questions  "}, headers=AUTH)
+    assert r.status_code == 200 and r.json()["title"] == "Setup questions"
+    assert client.get(CONVERSATIONS, headers=AUTH).json()[0]["title"] == "Setup questions"
+    assert client.patch(url, json={"title": "x" * 80}, headers=AUTH).status_code == 200
+    for bad in ({"title": "   "}, {"title": "x" * 81}, {}):
+        r = client.patch(url, json=bad, headers=AUTH)
+        assert r.status_code == 422 and "title" in r.json()["error"]
+
+
+def test_other_peoples_conversations_cannot_be_renamed(settings):
+    store = FakeStore()
+    theirs = store.create_conversation(OTHER_NOTEBOOK, "Chat 1")
+    client = make_client(settings, store, FakeRetriever([chunk(1, "x")]), FakeLLM("x [1]."))
+    r = client.patch(f"/api/rag/conversations/{theirs.id}", json={"title": "Mine"}, headers=AUTH)
+    assert (r.status_code, r.json()) == (404, {"error": "conversation not found"})
+    assert store.get_conversation(theirs.id).title == "Chat 1"

@@ -67,6 +67,8 @@ class Store(Protocol):
 
     def create_conversation(self, notebook_id: str, title: str) -> ConversationRow: ...
 
+    def rename_conversation(self, conversation_id: str, title: str) -> ConversationRow: ...
+
     def delete_conversation(self, conversation_id: str) -> None: ...
 
     def list_messages(self, conversation_id: str, last: int | None = None) -> list[Message]: ...
@@ -317,6 +319,15 @@ class PostgresStore:
             conn.execute(
                 "insert into conversations (id, notebook_id, title) values (%s, %s, %s)",
                 (conversation_id, notebook_id, title),
+            )
+        row = self.get_conversation(conversation_id)
+        assert row is not None
+        return row
+
+    def rename_conversation(self, conversation_id: str, title: str) -> ConversationRow:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update conversations set title = %s where id = %s", (title, conversation_id)
             )
         row = self.get_conversation(conversation_id)
         assert row is not None
