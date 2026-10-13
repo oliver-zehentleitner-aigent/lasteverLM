@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Read-only admin access: `Role` (`"user" | "viewer" | "admin"`, `ROLES`), `ROLE_SQL`, `admin_role` / `aadmin_role` reading account's `users.role` (no row is `"user"`), and `lasteverlm_core.web.admin_read(current_user, role_lookup)`, which admits viewers and admins with 403 `admin only` for everyone else. `admin_only` is unchanged and stays admin-only for writes.
+
 ### Security
 
 - `AuthSettings` refuses a `jwt_secret` shorter than 32 bytes (`MIN_JWT_SECRET_BYTES`, the HS256 key length) with `ConfigError`, in the dataclass itself so that account, which builds its settings without `from_env`, is covered too.

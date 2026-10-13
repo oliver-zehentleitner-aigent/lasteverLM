@@ -26,6 +26,10 @@ SourceKind = Literal["pdf", "text", "url", "image", "generated"]
 SourceStatus = Literal["processing", "ready", "failed"]
 OutputKind = Literal["report", "quiz", "table", "mindmap", "infographic", "audio"]
 OutputStatus = Literal["waiting", "processing", "ready", "failed"]
+# Access to the admin area: a viewer reads it, an admin also changes it.
+# Stored in account's `users.role`; `users.is_admin` is `role = 'admin'`.
+Role = Literal["user", "viewer", "admin"]
+ROLES: tuple[Role, ...] = ("user", "viewer", "admin")
 UsageKind = Literal["llm", "embedding", "tts"]
 UsageService = Literal["ingest", "rag"]
 MessageRole = Literal["user", "assistant"]
