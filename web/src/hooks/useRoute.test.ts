@@ -4,7 +4,7 @@ import { parseRoute } from './useRoute'
 describe('parseRoute', () => {
   it('maps the four app routes', () => {
     expect(parseRoute({ pathname: '/', search: '' })).toEqual({ name: 'home' })
-    expect(parseRoute({ pathname: '/admin', search: '' })).toEqual({ name: 'admin' })
+    expect(parseRoute({ pathname: '/admin', search: '' })).toEqual({ name: 'admin', page: 'overview' })
     expect(parseRoute({ pathname: '/auth/callback', search: '?token=abc' })).toEqual({ name: 'auth-callback', token: 'abc' })
     expect(parseRoute({ pathname: '/s/t%20k', search: '' })).toEqual({ name: 'shared', token: 't k' })
   })
@@ -12,5 +12,12 @@ describe('parseRoute', () => {
     expect(parseRoute({ pathname: '/nope', search: '' })).toEqual({ name: 'home' })
     expect(parseRoute({ pathname: '/s/', search: '' })).toEqual({ name: 'home' })
     expect(parseRoute({ pathname: '/auth/callback', search: '' })).toEqual({ name: 'auth-callback', token: '' })
+  })
+  it('maps the admin pages, deep links included', () => {
+    expect(parseRoute({ pathname: '/admin/users', search: '' })).toEqual({ name: 'admin', page: 'users' })
+    expect(parseRoute({ pathname: '/admin/security/', search: '' })).toEqual({ name: 'admin', page: 'security' })
+    expect(parseRoute({ pathname: '/admin/overview', search: '' })).toEqual({ name: 'admin', page: 'overview' })
+    expect(parseRoute({ pathname: '/admin/nope', search: '' })).toEqual({ name: 'admin', page: 'overview' })
+    expect(parseRoute({ pathname: '/administrator', search: '' })).toEqual({ name: 'home' })
   })
 })
