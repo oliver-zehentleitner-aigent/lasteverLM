@@ -39,6 +39,12 @@ export interface LibraryEntry {
   notebooks: { id: string; title: string; source_id: string }[]
 }
 
+/** A deleted library entry, kept until `purge_at` (the user's trash days). */
+export interface TrashEntry extends Omit<LibraryEntry, 'notebooks'> {
+  deleted_at: string
+  purge_at: string
+}
+
 export interface Citation {
   n: number
   source_id: string

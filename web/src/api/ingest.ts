@@ -1,6 +1,6 @@
 import { INGEST_PREFIX } from '../config'
 import { request, requestWithStatus } from './client'
-import type { LibraryEntry, Notebook, Source } from './types'
+import type { LibraryEntry, Notebook, Source, TrashEntry } from './types'
 
 export interface Added {
   source: Source
@@ -42,9 +42,17 @@ export const ingest = {
 
   /** newest first, generated documents never listed */
   listLibrary: () => request<LibraryEntry[]>(`${INGEST_PREFIX}/library`),
-  /** removes the entry from every notebook, with its chunks and stored object */
+  /** moves the entry to the trash: gone from every notebook, kept until purged */
   deleteLibraryEntry: (id: string) =>
     request<void>(`${INGEST_PREFIX}/library/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** most recently deleted first */
+  listTrash: () => request<TrashEntry[]>(`${INGEST_PREFIX}/library/trash`),
+  /** back in the library, in no notebook */
+  restoreFromTrash: (id: string) =>
+    request<void>(`${INGEST_PREFIX}/library/${encodeURIComponent(id)}/restore`, { method: 'POST' }),
+  /** gone for good, chunks and stored object included */
+  purgeFromTrash: (id: string) =>
+    request<void>(`${INGEST_PREFIX}/library/${encodeURIComponent(id)}/purge`, { method: 'DELETE' }),
 
   /** detaches: the source leaves this notebook and stays in the library */
   deleteSource: (id: string) =>
