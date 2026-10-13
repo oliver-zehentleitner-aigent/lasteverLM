@@ -6,7 +6,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { CAPTURE_MODES, preferredCapture, type CaptureMode } from '../lib/capture'
-import { filterLibrary, notInNotebook } from '../lib/library'
+import { filterLibrary, notInNotebook, shortUrl } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
@@ -165,7 +165,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
               <ul className="list library-pick">
                 {filterLibrary(library, { kind: 'all', query: libraryQuery }).map((e) => (
                   <li key={e.id}>
-                    <label className="check">
+                    <label className={picked.has(e.id) ? 'pick picked' : 'pick'}>
                       <input
                         type="checkbox"
                         checked={picked.has(e.id)}
@@ -178,9 +178,13 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                           })
                         }
                       />
-                      <span className="item">{e.name}</span>
-                      <DemoBadge demo={e.demo} />
-                      <span className="badge">{SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind}</span>
+                      <span className="pick-name" title={e.url ?? e.name}>
+                        {e.url ? shortUrl(e.url) : e.name}
+                      </span>
+                      <span className="pick-badges">
+                        <DemoBadge demo={e.demo} />
+                        <span className="badge">{SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind}</span>
+                      </span>
                     </label>
                   </li>
                 ))}
@@ -200,8 +204,9 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
               >
                 {t('common.back')}
               </button>
+              {picked.size > 0 && <span className="muted small">{t('wiz.selected', { n: picked.size })}</span>}
               <button type="button" onClick={() => void upload()} disabled={busy || !canUpload}>
-                {picked.size > 0 ? t('wiz.addN', { n: picked.size }) : t('common.add')}
+                {t('common.add')}
               </button>
             </div>
           </>

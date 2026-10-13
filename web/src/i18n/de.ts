@@ -156,7 +156,6 @@ export const de: Record<MessageKey, string> = {
   'wiz.filterLibraryLabel': 'Bibliothek filtern',
   'wiz.allInNotebook': 'Alles aus deiner Bibliothek ist schon in diesem Notebook.',
   'wiz.adding': 'Wird hinzugefügt … {n}',
-  'wiz.addN': '{n} hinzufügen',
   'wiz.howIn': 'Wie kommt es hinein?',
   'wiz.dropFiles': '{kind}-Dateien hier ablegen, oder',
   'wiz.capture': 'Erfassung',
@@ -430,4 +429,5 @@ export const de: Record<MessageKey, string> = {
   'set.theme': 'Theme',
   'set.themeSystem': 'Wie das System',
   'sys.noRole': 'Pod-Liste nicht verfügbar: der Account-Dienst hat im Cluster keine Leserolle für Pods und Deployments; der Betreiber ergänzt sie im Deployment.',
+  'wiz.selected': '{n} ausgewählt',
 }
