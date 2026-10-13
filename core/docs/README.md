@@ -249,8 +249,25 @@ thinking on, the result is returned as is and the caller reads
 falls back to the instance default, `LLM_MAX_TOKENS` (1024). Reasoning
 tokens are completion tokens and are billed as such through `usage`.
 
-Both raise `ProviderError` on a failed request. The `usage` of a result
-goes straight into `record_usage`. Another provider is another module
+Both raise `ProviderError` on a failed request, and on a response that
+reports no usage: a call is never accounted at zero by accident. When the
+provider answered and billed the call but the answer is unusable (empty
+with thinking off, a bad vector), the error carries `.usage`. Record it,
+then re-raise:
+
+```python
+try:
+    result = llm.complete(system, user, 400)
+except ProviderError as exc:
+    if exc.usage is not None:
+        record_usage(conn, user_id, notebook_id, "rag", "llm", exc.usage.model,
+                     exc.usage.tokens_in, exc.usage.tokens_out, prices=prices)
+    raise
+```
+
+The `usage` of a result goes straight into `record_usage`. `make_client`
+waits `LLM_TIMEOUT_SECONDS` (60) per request; `make_client(inference,
+timeout=180)` is for a worker with long generations. Another provider is another module
 implementing `Embedder` or `LLM`; callers are typed against the
 protocols.
 

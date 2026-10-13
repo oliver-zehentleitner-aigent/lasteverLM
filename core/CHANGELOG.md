@@ -11,6 +11,7 @@ preserves why it changed, in `context/`.
 
 ### Security
 
+- `AuthSettings` refuses a `jwt_secret` shorter than 32 bytes (`MIN_JWT_SECRET_BYTES`, the HS256 key length) with `ConfigError`, in the dataclass itself so that account, which builds its settings without `from_env`, is covered too.
 - The rate limiter keys IPv6 clients by their /64 (`limit_key`, e.g. `2001:db8:1:2::/64`) for the window, blocks and bans; IPv4 stays per address. A client could otherwise step out of every block and ban by picking another address in its own /64. `access_log`, `ip_blocks` and `ip_bans` hold the key, and `lift_ban` takes it as shown.
 - `object_key` requires UUID ids and one plain name segment (no `/` or `\`, not `.` or `..`, no control characters, at most 255 characters) and raises `ValueError` otherwise, so no caller can build a key outside its owner's prefix.
 - `presigned_get` refuses an expiry above seven days (`PRESIGN_MAX_SECONDS`, the SigV4 limit) as well as one below a second.
@@ -20,6 +21,8 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- A provider response without `usage` is a `ProviderError` instead of a call accounted at zero tokens. `ProviderError` carries `.usage` when the provider billed an unusable answer (empty with thinking off, a rejected vector, a wrong count); callers record it, then re-raise.
+- `make_client` takes its timeout from `InferenceSettings.llm_timeout_seconds` (`LLM_TIMEOUT_SECONDS`, default 60, at least 1) unless `timeout=` is passed.
 - `load_model_prices` lives in `pricing.py` next to what it parses; the package-root import is unchanged, `lasteverlm_core.settings.load_model_prices` is gone (no service imported it from there). It removes the late import with `noqa: E402` that settings needed to reach pricing.
 - README environment table lists `S3_*` and `APP_VERSION` / `APP_COMMIT`, which it had missed.
 - Docstrings on the public classes that had none (results, provider and storage protocols, the row models, `make_client`); the test's last `type: ignore` replaced by real ASGI callables.

@@ -93,8 +93,16 @@ def test_demo_user_id_is_the_contract_value() -> None:
 
 def test_settings_from_env_require_one_scheme() -> None:
     assert AuthSettings.from_env({"DEMO_TOKEN": " x "}) == AuthSettings(None, "x")
-    assert AuthSettings.from_env({"AUTH_JWT_SECRET": "s", "DEMO_TOKEN": ""}) == AuthSettings(
-        "s", None
+    assert AuthSettings.from_env({"AUTH_JWT_SECRET": SECRET, "DEMO_TOKEN": ""}) == AuthSettings(
+        SECRET, None
     )
     with pytest.raises(ConfigError):
         AuthSettings.from_env({})
+
+
+def test_a_short_jwt_secret_is_refused_wherever_settings_are_built() -> None:
+    with pytest.raises(ConfigError, match="AUTH_JWT_SECRET must be at least 32 bytes"):
+        AuthSettings.from_env({"AUTH_JWT_SECRET": "s" * 31})
+    with pytest.raises(ConfigError, match="at least 32 bytes"):
+        AuthSettings(jwt_secret="short", demo_token=None)
+    assert AuthSettings("s" * 32, None).jwt_secret == "s" * 32
