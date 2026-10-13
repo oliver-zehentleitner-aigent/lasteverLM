@@ -245,6 +245,38 @@ come back empty fails with "PDF holds no readable content (capture mode
 before any call; `vision` or `auto` without a vision model configured
 fail with "capture mode … needs a vision model".
 
+## Demo library
+
+Every new user finds four demo sources in their library, one per kind,
+forming one fictional set around Zeltavia (the country of the smoke
+test) so that questions across sources work:
+
+| Source | Kind | What it is |
+|---|---|---|
+| `field-notes-1893.pdf` | pdf (capture `text`) | three pages of an 1893 survey diary: Marrow Bay, the river Quill, a fog crossed by dead reckoning, the Saltglass Reef |
+| `zeltavian-glossary.md` | text | words and customs that the field notes use (brennet, smokra, the Knelling, …) |
+| `marrow-bay-map.png` | image | a map of the places in both, with labels the vision model transcribes |
+| https://en.wikipedia.org/wiki/Dead_reckoning | url | the real navigation method the diary describes |
+
+`seeds.ensure_seeded` runs on the owner's first `GET /library` or first
+upload. `library_seeds` (migration 0007) marks every owner it has looked
+at, so it seeds at most once; an owner who already has library sources
+is marked and not seeded, and deleting everything never brings the demo
+back. The demo user itself is never seeded. The sources are ordinary
+library sources with `demo: true` (shown in sources, library and trash
+entries), stored per owner like an upload and processed by the worker.
+Their processing does not check the owner's credit and its usage rows
+go to the demo user (`DEMO_USER_ID`) as the sponsor: a new user starts
+with no credit. Uploading a demo file again links the demo source, like
+any duplicate. `SEED_DEMO_LIBRARY=false` turns seeding off.
+
+The PDF and the map are generated from `src/lasteverlm_ingest/demo/`
+by `demo/build.py` (a small PDF writer with Helvetica and real page
+breaks, and Pillow for the map, under 30 KB) and committed; run it only
+after changing the sources. Measured: the vision model transcribes all
+fifteen labels of the map in one call (537 input, 119 output tokens);
+the call returned the labels without a description of the map.
+
 ## Running the container locally
 
 ```bash

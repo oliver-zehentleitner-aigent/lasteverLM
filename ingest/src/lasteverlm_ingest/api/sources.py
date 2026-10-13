@@ -10,7 +10,13 @@ from lasteverlm_core import Source, StorageError, object_key
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
-from lasteverlm_ingest.api.deps import owned_notebook, owned_source, repository, worker_deps
+from lasteverlm_ingest.api.deps import (
+    owned_notebook,
+    owned_source,
+    repository,
+    seed_if_new,
+    worker_deps,
+)
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
@@ -63,6 +69,7 @@ class LinkedSource(Source):
 
     library_id: UUID
     capture: str | None = None
+    demo: bool = False
 
 
 def _capture(value: object) -> Capture:
@@ -111,6 +118,7 @@ async def create_source(
     deps = worker_deps(request)
     repo = deps.repository
     owned_notebook(repo, user, notebook_id)
+    seed_if_new(request, user)
 
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("multipart/form-data"):

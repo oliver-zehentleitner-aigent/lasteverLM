@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from lasteverlm_ingest.api.deps import repository, worker_deps
+from lasteverlm_ingest.api.deps import repository, seed_if_new, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.repository import LibraryEntry, TrashEntry
 
@@ -21,6 +21,8 @@ def _not_found() -> HTTPException:
 
 @router.get("/library", response_model=list[LibraryEntry])
 def list_library(request: Request, user: CurrentUser) -> list[LibraryEntry]:
+    """A new user's first look at the library seeds the demo sources."""
+    seed_if_new(request, user)
     return repository(request).list_library(user)
 
 

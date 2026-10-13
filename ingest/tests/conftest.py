@@ -30,6 +30,9 @@ def make_settings(**overrides) -> Settings:
             '{"fake-embed": {"in": 2000, "out": 0}, "fake-llm": {"in": 30, "out": 150}}'
         ),
         "DEMO_TOKEN": DEMO_TOKEN,
+        # Seeding is tested on its own (test_seeds.py); elsewhere a new
+        # user's library starts empty.
+        "SEED_DEMO_LIBRARY": "false",
         "CHUNK_TOKENS": "50",
         "CHUNK_OVERLAP_TOKENS": "10",
         "MAX_UPLOAD_BYTES": "4096",
