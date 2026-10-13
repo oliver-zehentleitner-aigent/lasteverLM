@@ -11,14 +11,33 @@ from starlette.datastructures import UploadFile
 
 from lasteverlm_ingest.api.deps import owned_notebook, owned_source, repository, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
+from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.url import check_url
 from lasteverlm_ingest.storage import StorageError, object_key
 from lasteverlm_ingest.worker import CREDIT_EXHAUSTED
 
 router = APIRouter()
 
-_KIND_BY_SUFFIX = {".pdf": "pdf", ".txt": "text", ".md": "text", ".markdown": "text"}
-_KIND_BY_MEDIA_TYPE = {"application/pdf": "pdf", "text/plain": "text", "text/markdown": "text"}
+_KIND_BY_SUFFIX = {
+    ".pdf": "pdf",
+    ".txt": "text",
+    ".md": "text",
+    ".markdown": "text",
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+    ".webp": "image",
+    ".gif": "image",
+}
+_KIND_BY_MEDIA_TYPE = {
+    "application/pdf": "pdf",
+    "text/plain": "text",
+    "text/markdown": "text",
+    "image/png": "image",
+    "image/jpeg": "image",
+    "image/webp": "image",
+    "image/gif": "image",
+}
 _CONTENT_TYPE = {
     "pdf": "application/pdf",
     "text": "text/plain; charset=utf-8",
@@ -64,12 +83,16 @@ async def create_source(request: Request, user: CurrentUser, notebook_id: UUID) 
             raise HTTPException(status_code=400, detail="multipart field 'file' is required")
         kind = detect_kind(upload.filename, upload.content_type)
         if kind is None or kind not in deps.loaders.kinds:
-            raise HTTPException(status_code=415, detail="unsupported file type; use PDF or text")
+            raise HTTPException(
+                status_code=415, detail="unsupported file type; use PDF, text or an image"
+            )
         data = await upload.read(deps.settings.max_upload_bytes + 1)
         if len(data) > deps.settings.max_upload_bytes:
             raise HTTPException(status_code=413, detail="file is too large")
         if not data:
             raise HTTPException(status_code=400, detail="file is empty")
+        if kind == "image" and sniff_image_type(data) is None:
+            raise HTTPException(status_code=415, detail="not a PNG, JPEG, WebP or GIF image")
         name = safe_name(upload.filename)
     elif content_type.startswith("application/json"):
         body = SourceFromUrl.model_validate(await request.json())
@@ -93,7 +116,8 @@ async def create_source(request: Request, user: CurrentUser, notebook_id: UUID) 
     key = object_key(notebook_id, source_id, "url" if kind == "url" else name)
     source = repo.create_source(notebook_id, source_id, name, kind, key)
     try:
-        deps.storage.put(key, data, _CONTENT_TYPE[kind])
+        object_type = sniff_image_type(data) if kind == "image" else _CONTENT_TYPE[kind]
+        deps.storage.put(key, data, object_type or "application/octet-stream")
     except StorageError as exc:
         repo.set_source_status(source_id, "failed", str(exc)[:500])
         refreshed = repo.get_source(source_id)

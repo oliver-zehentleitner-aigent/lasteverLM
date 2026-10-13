@@ -139,9 +139,11 @@ class InMemoryRepository:
 class InMemoryStorage:
     def __init__(self) -> None:
         self.objects: dict[str, bytes] = {}
+        self.types: dict[str, str] = {}
 
     def put(self, key: str, data: bytes, content_type: str) -> None:
         self.objects[key] = data
+        self.types[key] = content_type
 
     def get(self, key: str) -> bytes:
         return self.objects[key]

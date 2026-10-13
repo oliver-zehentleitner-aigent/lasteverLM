@@ -33,6 +33,7 @@ from lasteverlm_ingest import __version__
 from lasteverlm_ingest.api import health, router
 from lasteverlm_ingest.config import ConfigError, Settings
 from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
+from lasteverlm_ingest.loaders.image import ImageLoader
 from lasteverlm_ingest.repository import PostgresRepository, Repository
 from lasteverlm_ingest.storage import S3Storage, Storage
 from lasteverlm_ingest.summarizer import LLMSummarizer, Summarizer
@@ -77,8 +78,11 @@ def build_worker_deps(
         secret_key=settings.s3_secret_key,
         region=settings.s3_region,
     )
-    if embedder is None or summarizer is None:
+    client = None
+    if embedder is None or summarizer is None or loaders is None:
         client = make_client(settings.inference)
+    if embedder is None or summarizer is None:
+        assert client is not None
         embedder = embedder or OpenAICompatibleEmbedder(
             client, settings.inference.embedding_model, settings.inference.embedding_dimension
         )
@@ -96,7 +100,13 @@ def build_worker_deps(
         settings=settings,
         repository=repository,
         storage=storage,
-        loaders=loaders or default_registry(max_url_bytes=settings.max_upload_bytes),
+        loaders=loaders
+        or default_registry(
+            max_url_bytes=settings.max_upload_bytes,
+            image=ImageLoader(
+                client, settings.inference.llm_model, max_tokens=settings.image_max_tokens
+            ),
+        ),
         chunker=chunker or TokenWindowChunker(**settings.chunker_kwargs()),
         embedder=embedder,
         summarizer=summarizer,
