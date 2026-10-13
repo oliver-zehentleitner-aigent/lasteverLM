@@ -141,3 +141,41 @@ two apart without parsing prose.
 **Rejected alternative:** keeping 202 and showing a generic "if your
 address is allowed, a mail is on its way" — rejected by the maintainer
 as the worse experience for exactly the people the product is for.
+
+## Three roles on the user row; viewers read the admin panel, only admins change it
+
+**Id:** 0349f547-f978-4092-8435-3494e7503f10
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-14
+**See:** auth.md#the-demo-user-is-seeded-by-migration-never-counts-as-the-first-user-and-can-never-be-admin — 21f1e426-85c5-4569-b99e-1c73c84d7005 — as of 2026-10-14
+**Revisit when:** a fourth role or per-resource permissions are asked for, or core's admin_read replaces this service's reader dependency
+
+`users.role` is `user`, `viewer` or `admin`; `is_admin` stays a plain
+column and is written together with `role` by the two write paths
+(`create_user`, `set_role`) so that core's `IS_ADMIN_SQL` keeps reading
+it. The role is decided at first sign-in — `ADMIN_EMAILS` and the very
+first real user become `admin`, a domain listed in `viewer_domains`
+gives `viewer`, everyone else is `user` — and changed afterwards only by
+an admin through `PATCH /admin/users/{id}`. Every `GET` under `/admin`
+goes through a reader dependency that admits `viewer` and `admin`; every
+write keeps the admin dependency. The last admin cannot step down (409),
+the demo user keeps `user`.
+
+**Reason:** the maintainer wants people who may look at the admin area
+without being able to change it. One column on the user row is the
+smallest model that expresses "may read" apart from "may write"; a
+flag per capability would be a permission system nobody asked for.
+`is_admin` is kept rather than replaced because two other services read
+it through core and the migrations are re-run on every deploy —
+migration 0001 inserts `is_admin` for the demo user, which a generated
+column would refuse. Deriving the first role from the domain reuses the
+allowlist's shape (one list more, same editing), so a partner domain can
+be read-only from the first sign-in without an admin's hand.
+
+**Rejected alternatives:** `is_admin` as a generated column — rejected
+for the re-run of migration 0001; a separate `roles` table — rejected
+as a join for one word; letting a viewer also redeem admin-only data
+such as the voucher codes — rejected, read-only means the GET routes and
+nothing else, and the plain codes are never listed anyway.
