@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Image: nginx-unprivileged 1.27 → 1.29 (1.29.8), and both base images (`node:24-alpine`, `nginx-unprivileged:1.29-alpine`) pinned by digest, with the refresh steps in the Dockerfile.
+- Image: nginx-unprivileged 1.27 → 1.29 (1.29.8), and both base images (`node:24-alpine`, `nginx-unprivileged:1.29-alpine`) pinned by digest, with the refresh steps in the Dockerfile; `server_tokens off`, so neither the `Server` header nor an error page names the nginx version.
 - Dependencies pinned to the exact versions the lockfile already installed (no version changes); the `@types/dompurify` stub removed, since DOMPurify ships its own types.
 - Wizard: opened from an existing notebook it ends after the sources (two steps, with a note and "Done" when some were in the notebook already); the output step is for a new notebook only and has a "Skip" button instead of "Just chat".
 
