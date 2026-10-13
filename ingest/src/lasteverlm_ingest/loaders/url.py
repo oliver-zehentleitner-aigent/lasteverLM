@@ -14,6 +14,7 @@ import ipaddress
 import socket
 import time
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -25,8 +26,13 @@ from lasteverlm_ingest.loaders.html import HtmlLoader
 
 IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 AddressCheck = Callable[[IPAddress], bool]
+Resolve = Callable[..., list[Any]]
 
 MAX_REDIRECTS = 5
+# getaddrinfo has no timeout of its own; lookups run here so the fetch
+# deadline bounds them. A lookup that never returns keeps its thread, so
+# the pool is small and a full pool makes the next lookups time out too.
+_RESOLVER = ThreadPoolExecutor(max_workers=4, thread_name_prefix="url-resolve")
 USER_AGENT = "lasteverLM-ingest/0.1 (+https://github.com/oliver-zehentleitner/lasteverLM)"
 _HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 _TEXT_TYPES = frozenset({"text/plain", "text/markdown"})
@@ -81,8 +87,11 @@ class GuardedBackend(httpcore.NetworkBackend):
     `allowed`, and connects to an address it checked: a second DNS
     answer (rebinding) never reaches the socket."""
 
-    def __init__(self, allowed: AddressCheck = is_public) -> None:
+    def __init__(
+        self, allowed: AddressCheck = is_public, resolve: Resolve = socket.getaddrinfo
+    ) -> None:
         self._allowed = allowed
+        self._resolve = resolve
         self._inner = httpcore.SyncBackend()
 
     def connect_tcp(
@@ -93,8 +102,12 @@ class GuardedBackend(httpcore.NetworkBackend):
         local_address: str | None = None,
         socket_options: Iterable[Any] | None = None,
     ) -> httpcore.NetworkStream:
+        lookup = _RESOLVER.submit(self._resolve, host, port, type=socket.SOCK_STREAM)
         try:
-            infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+            infos = lookup.result(timeout=timeout)
+        except TimeoutError:
+            lookup.cancel()
+            raise TransientLoaderError(f"host {host!r} did not resolve in time") from None
         except socket.gaierror as exc:
             raise LoaderError(f"host {host!r} could not be resolved") from exc
         addresses = [ipaddress.ip_address(info[4][0]) for info in infos]

@@ -26,6 +26,7 @@ preserves why it changed, in `context/`.
 - A JSON body that does not parse answers 400 `body is not valid JSON` instead of 500.
 - Routing errors (404 for an unknown path, 405) and the form parser's 400 use the `{"error"}` shape instead of Starlette's `{"detail"}`, and keep their headers (`Allow`).
 - Documentation: the README's CI and ktw-lint badges pointed to the retired single-service repository; `docs/README.md` lacked `capture`, `demo` and `preview_url` in the source, library and trash shapes; `.env.example` lacked `IMAGE_MAX_TOKENS`, `PDF_VISION_MAX_PAGES` and `SEED_DEMO_LIBRARY`.
+- The URL guard's DNS lookup was not bounded by the fetch deadline (`getaddrinfo` has no timeout); a slow resolver could hold a worker past the 30 seconds. The lookup now runs in a small thread pool and a lookup that does not answer in time is a transient failure.
 
 ## [0.9.0] - 2026-10-13
 

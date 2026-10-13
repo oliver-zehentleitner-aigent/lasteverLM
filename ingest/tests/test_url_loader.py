@@ -1,5 +1,6 @@
 import ipaddress
 import threading
+import time
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -9,7 +10,13 @@ from lasteverlm_ingest.loaders import LoaderError, TransientLoaderError
 from lasteverlm_ingest.loaders.html import HtmlLoader
 from lasteverlm_ingest.loaders.pdf import PdfLoader
 from lasteverlm_ingest.loaders.text import TextLoader
-from lasteverlm_ingest.loaders.url import Fetcher, UrlLoader, check_url, is_public
+from lasteverlm_ingest.loaders.url import (
+    Fetcher,
+    GuardedBackend,
+    UrlLoader,
+    check_url,
+    is_public,
+)
 from tests.test_loaders import minimal_pdf
 
 PAGE = b"""<!doctype html><html><head><title>Lake  Report</title>
@@ -141,3 +148,17 @@ def test_html_without_main_uses_body_and_charset():
     assert passage.text == "Straße\n\nzwei"
     with pytest.raises(LoaderError):
         HtmlLoader().load(b"<html><body><script>x()</script></body></html>")
+
+
+def test_a_hanging_dns_lookup_is_bounded_by_the_deadline():
+    release = threading.Event()
+
+    def hang(*_args, **_kwargs):
+        release.wait(5)
+        return []
+
+    started = time.monotonic()
+    with pytest.raises(TransientLoaderError, match="did not resolve in time"):
+        GuardedBackend(resolve=hang).connect_tcp("slow.example", 443, timeout=0.2)
+    assert time.monotonic() - started < 2
+    release.set()
