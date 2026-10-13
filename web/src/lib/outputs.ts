@@ -19,7 +19,7 @@ export const OUTPUT_FORMS: OutputForm[] = [
   { kind: 'table', label: 'Data table', description: 'Facts from the sources as rows and columns.', available: true, printable: true },
   { kind: 'mindmap', label: 'Mindmap', description: 'Topics and sub-topics as a tree.', available: true, printable: false },
   { kind: 'infographic', label: 'Infographic', description: 'Headline, key facts and short sections.', available: true, printable: false },
-  { kind: 'audio', label: 'Audio', description: 'A spoken overview of the sources.', available: false, printable: false },
+  { kind: 'audio', label: 'Audio', description: 'A spoken overview of the sources.', available: true, printable: false },
 ]
 
 export function formFor(kind: OutputKind): OutputForm {
