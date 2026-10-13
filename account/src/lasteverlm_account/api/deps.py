@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request
 from lasteverlm_core import AuthError, Principal, current_user
+from lasteverlm_core.ratelimit import client_ip
 
 from ..repository import UserRecord
 from ..service import AccountError, AccountService
@@ -44,6 +45,15 @@ def current_user_id(who: Annotated[Principal, Depends(principal)]) -> uuid.UUID:
 
 
 CurrentUserId = Annotated[uuid.UUID, Depends(current_user_id)]
+
+
+def client_address(request: Request, service: Service) -> str:
+    """The caller's IP as core's middleware sees it: first trusted X-Forwarded-For hop, else
+    the peer; anything that is not an address becomes 0.0.0.0, never an error."""
+    return client_ip(request.scope, service.settings.trust_proxy_headers)
+
+
+ClientIp = Annotated[str, Depends(client_address)]
 OptionalUserId = Annotated[uuid.UUID | None, Depends(optional_user_id)]
 
 

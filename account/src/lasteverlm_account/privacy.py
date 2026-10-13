@@ -46,17 +46,6 @@ def visitor_hash(ip: str, salt: bytes) -> str:
     return hashlib.sha256(salt + ip.strip().encode()).hexdigest()[:32]
 
 
-def client_ip(
-    client_host: str | None, forwarded_for: str | None, *, trust_proxy_headers: bool
-) -> str:
-    """The caller's address: first hop of X-Forwarded-For behind the ingress, else the peer."""
-    if trust_proxy_headers and forwarded_for:
-        first = forwarded_for.split(",")[0].strip()
-        if first:
-            return first
-    return client_host or "unknown"
-
-
 _UA_FAMILIES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("bot", re.compile(r"bot|crawl|spider|slurp|curl|wget|python-requests|httpx", re.I)),
     ("edge", re.compile(r"Edg/", re.I)),

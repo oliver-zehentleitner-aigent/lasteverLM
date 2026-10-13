@@ -140,7 +140,7 @@ def test_every_link_request_is_logged_with_outcome_and_client_ip(
     token, _ = login(client, mailer, "admin@example.org")
     assert [(a.email, a.ip, a.outcome) for a in repo.login_attempts] == [
         ("mallory@evil.test", "203.0.113.7", "refused"),
-        ("admin@example.org", "testclient", "allowed"),
+        ("admin@example.org", "0.0.0.0", "allowed"),  # the test client is no address
     ]
     r = client.get("/api/account/admin/login-attempts", headers=bearer(token))
     assert r.status_code == 200
@@ -165,3 +165,19 @@ def test_pasted_code_from_the_mail_signs_in(client: TestClient, mailer: FakeMail
     assert code == mailer.sent[-1].token  # the code is the link's token
     r = client.get("/api/account/auth/callback", params={"token": code})
     assert r.status_code == 200 and r.json()["user"]["email"] == "alice@example.org"
+
+
+def test_malformed_forwarded_header_cannot_break_a_request(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository
+) -> None:
+    r = client.post(
+        "/api/account/auth/request-link",
+        json={"email": "alice@example.org"},
+        headers={"X-Forwarded-For": "not-an-address, 10.0.0.1"},
+    )
+    assert r.status_code == 202
+    assert repo.login_attempts[-1].ip == "0.0.0.0"  # what the inet column can hold
+    r = client.post(
+        "/api/account/visits", json={"path": "/"}, headers={"X-Forwarded-For": "<script>"}
+    )
+    assert r.status_code == 204

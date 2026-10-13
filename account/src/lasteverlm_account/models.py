@@ -23,7 +23,10 @@ Email = Annotated[
 
 
 LanguageCode = Annotated[
-    str, StringConstraints(strip_whitespace=True, pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
+    str,
+    StringConstraints(
+        strip_whitespace=True, max_length=35, pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    ),
 ]
 VoiceId = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-z0-9_-]{1,64}$")]
 
@@ -295,7 +298,3 @@ class SystemInfo(BaseModel):
     services: list[SystemService]
     pods: list[SystemPod]
     deployments: list[SystemDeployment]
-
-
-class ErrorResponse(BaseModel):
-    error: str

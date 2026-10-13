@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from lasteverlm_account.privacy import DailySalt, client_ip, ua_family, visitor_hash
+from lasteverlm_account.privacy import DailySalt, ua_family, visitor_hash
 from lasteverlm_account.repository import LoginAttemptRecord, VisitRecord
 from lasteverlm_account.repository_memory import MemoryRepository
 from lasteverlm_account.service import AccountService
@@ -49,13 +49,6 @@ def test_visitor_hash_is_stable_within_a_day_only() -> None:
     assert h1 != visitor_hash("203.0.113.8", salt.for_day(today))
     assert h1 != visitor_hash("203.0.113.7", salt.for_day(tomorrow))
     assert "203.0.113.7" not in h1 and len(h1) == 32
-
-
-def test_client_ip_prefers_first_forwarded_hop_only_when_trusted() -> None:
-    assert client_ip("10.0.0.1", "203.0.113.7, 10.0.0.2", trust_proxy_headers=True) == "203.0.113.7"
-    assert client_ip("10.0.0.1", "203.0.113.7", trust_proxy_headers=False) == "10.0.0.1"
-    assert client_ip("10.0.0.1", "", trust_proxy_headers=True) == "10.0.0.1"
-    assert client_ip(None, None, trust_proxy_headers=True) == "unknown"
 
 
 @pytest.mark.parametrize(
@@ -139,7 +132,8 @@ async def test_startup_seeds_settings_only_once(
 ) -> None:
     await service.startup()
     assert await service.allowed_domains() == ["example.org"]
-    await service.set_allowed_domains(["changed.test"])
+    await service.add_allow_entry("domain", "changed.test")
+    await service.remove_allow_entry("domain", "example.org")
     await service.startup()  # a restart must not overwrite what an admin changed
     assert await service.allowed_domains() == ["changed.test"]
     assert datetime.now(UTC) is not None

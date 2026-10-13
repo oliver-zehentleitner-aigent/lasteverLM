@@ -1,3 +1,1 @@
-"""lasteverLM account service."""
-
-__version__ = "0.1.0.dev0"
+"""lasteverLM account service. The version is the family release, APP_VERSION at run time."""

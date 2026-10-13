@@ -9,6 +9,19 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- The client address for visits and sign-in attempts is resolved by core's `client_ip`, the same way the rate-limit middleware does; a malformed `X-Forwarded-For` becomes `0.0.0.0` instead of a failed insert.
+- `output_language` is capped at 35 characters, the callback token at 512; the OpenAPI version is `APP_VERSION`.
+
+### Removed
+
+- The service's own `client_ip`, the unused `ErrorResponse` model, the stale `__version__` constant, the whole-list `set_allowed_domains` helper.
+
+### Fixed
+
+- SECURITY.md described the login as never revealing the allowlist and the service as unlimited; both were stale since the `not_allowed` answer and core's middleware.
+
 ## [0.8.0] - 2026-10-13
 
 ### Added

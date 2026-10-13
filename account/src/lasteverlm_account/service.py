@@ -165,7 +165,7 @@ class AccountService:
         elif seed and not await self.allowed_domains():
             # An empty persisted list is "never configured", not an admin's choice: a
             # deployment whose seed was empty on first start would otherwise stay locked.
-            await self.repo.set_setting(SETTING_DOMAINS, {"allowed_domains": seed})
+            await self._store("domain", seed)
             log.info(
                 "settings: empty allowed_domains re-seeded from AUTH_ALLOWED_DOMAINS (%d)",
                 len(seed),
@@ -266,12 +266,6 @@ class AccountService:
         if value not in current:
             raise AccountError(404, f"not listed: {value}")
         await self._store(kind, [v for v in current if v != value])
-
-    async def set_allowed_domains(self, domains: list[str]) -> list[str]:
-        """Whole-list replacement, used by the startup re-seed and tests."""
-        cleaned = sorted({d.strip().lower().lstrip("@") for d in domains if d.strip()})
-        await self._store("domain", cleaned)
-        return cleaned
 
     async def is_allowed(self, email: str) -> bool:
         """Listed address, listed domain, or an address in ADMIN_EMAILS so the first admin

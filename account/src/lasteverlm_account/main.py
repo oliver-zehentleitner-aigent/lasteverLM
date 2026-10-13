@@ -81,7 +81,7 @@ def create_app(
         finally:
             await repo.close()
 
-    app = FastAPI(title="lasteverLM account", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="lasteverLM account", version=resolved.app_version, lifespan=lifespan)
 
     @app.exception_handler(AccountError)
     async def _account_error(_: Request, exc: AccountError) -> JSONResponse:
