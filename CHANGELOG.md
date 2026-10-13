@@ -8,6 +8,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Changed
 
+- Wording: "provide documents" instead of "upload documents" in the README, the docs site, AGENTS.md and the walkthrough script, because sources are files, links and images; the login page follows in web.
+
+### Changed
+
 - README and docs home: the tagline "Please explain this to me" opens the description instead of standing alone below it; the docs home lists its own address next to the live system and the code.
 
 ## [0.2.1] - 2026-10-13

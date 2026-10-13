@@ -25,7 +25,7 @@ deployed system, nothing is mocked.
 
 ## 0:00 Opening (30 s)
 
-"This is lasteverLM: upload documents, ask questions, get answers with
+"This is lasteverLM: provide documents, ask questions, get answers with
 citations into the sources, and turn the sources into reports, quizzes,
 tables, mind maps, infographics and audio. One repository, six services,
 running on Kubernetes at Vultr. I built it in three days with a fleet of
