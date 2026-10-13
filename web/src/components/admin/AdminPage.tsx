@@ -3,6 +3,7 @@ import { admin } from '../../api/admin'
 import type { AccessEntry, AccountStats, AdminUser, AllowKind, Allowlist, Ban, Block, IngestStats, LoginAttempt, LoginEvent, RagStats, RateLimitRules, RateLimitUpdate, Smtp, SystemInfo, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
 import { CopyButton } from '../CopyButton'
+import { ArchitectureDiagram } from './ArchitectureDiagram'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { ADMIN_PAGES, adminPath, type AdminPageId } from '../../lib/adminPages'
 import { useAsync } from '../../hooks/useAsync'
@@ -717,6 +718,11 @@ function SystemView() {
           </>
         )}
       </Section>
+      {data && (
+        <Section title={t('arch.title')}>
+          <ArchitectureDiagram system={data} />
+        </Section>
+      )}
       {data && clusterGap(data) === 'no-cluster' && <p className="notice">{t('sys.noCluster')}</p>}
       {data && clusterGap(data) === 'no-role' && <p className="notice">{t('sys.noRole')}</p>}
       {data && clusterGap(data) === null && (

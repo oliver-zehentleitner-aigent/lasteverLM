@@ -445,6 +445,18 @@ export const en = {
   'outputs.all': 'All',
   'theme.toDark': 'Switch to dark',
   'theme.toLight': 'Switch to light',
+  'arch.title': 'Architecture',
+  'arch.label': 'Architecture of the running system: browser, ingress, web and the three API services, the two workers, and PostgreSQL, object storage and the inference API',
+  'arch.browser': 'Browser',
+  'arch.ingress': 'Ingress (TLS, rate limit)',
+  'arch.ready': '{n} ready',
+  'arch.postgres': 'PostgreSQL + pgvector',
+  'arch.postgresNote': 'data, chunks, job queues',
+  'arch.storage': 'Object storage',
+  'arch.storageNote': 'uploads, audio',
+  'arch.inference': 'Inference API',
+  'arch.inferenceNote': 'LLM, embeddings, TTS',
+  'arch.external': 'external',
 } as const
 
 export type MessageKey = keyof typeof en
