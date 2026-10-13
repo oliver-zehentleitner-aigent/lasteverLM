@@ -107,7 +107,7 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - `usage.kind`: `llm` | `embedding` | `tts`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
 - Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
-- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes, a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
+- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
 
 ## Credits and accounting
 
@@ -179,7 +179,7 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 | POST | `/notebooks` | `{"title"}` | `Notebook` |
 | DELETE | `/notebooks/{id}` | | 204 |
 | GET | `/notebooks/{id}/sources` | | `[Source]` |
-| POST | `/notebooks/{id}/sources` | multipart `file`, or `{"url"}`, or `{"library_id"}` | 202 `Source` (new link, `status: "processing"` when newly processed); 200 `Source` when already in this notebook |
+| POST | `/notebooks/{id}/sources` | multipart `file` (+ field `capture`: `auto`\|`text`\|`vision` for PDFs), or `{"url"}`, or `{"library_id"}` | 202 `Source` (new link, `status: "processing"` when newly processed); 200 `Source` when already in this notebook |
 | DELETE | `/sources/{id}` | | 204, detaches the source from the notebook only |
 | GET | `/library` | | `[LibraryEntry]`, newest first, the user's own, never generated |
 | GET | `/library/{id}` | | `LibraryEntry` |
@@ -193,7 +193,7 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 ```json
 Notebook: {"id", "title", "created_at"}
 Source:   {"id", "notebook_id", "library_id", "name", "kind", "status", "error", "created_at"}
-LibraryEntry: {"id", "name", "kind", "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
+LibraryEntry: {"id", "name", "kind", "capture" (PDFs), "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
 IngestStats: {"sources": {"processing", "ready", "failed"}, "jobs": {"pending", "running", "failed"}, "chunks", "source_bytes"}
 ```
 
