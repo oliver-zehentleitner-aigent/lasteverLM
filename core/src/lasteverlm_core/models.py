@@ -148,6 +148,7 @@ class SharedOutput(BaseModel):
 
 
 UNKNOWN_BUILD = "unknown"
+INT4_MAX = 2**31 - 1
 
 
 class Health(BaseModel):
@@ -183,6 +184,7 @@ class UsageRecord(BaseModel):
     service: UsageService
     kind: UsageKind
     model: str
-    tokens_in: int = Field(ge=0)
-    tokens_out: int = Field(ge=0)
-    cost_cents: int = Field(ge=0)
+    # `integer` columns: a value past INT4_MAX fails here, named, not in the insert
+    tokens_in: int = Field(ge=0, le=INT4_MAX)
+    tokens_out: int = Field(ge=0, le=INT4_MAX)
+    cost_cents: int = Field(ge=0, le=INT4_MAX)

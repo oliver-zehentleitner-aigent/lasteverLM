@@ -11,8 +11,16 @@ preserves why it changed, in `context/`.
 
 ### Security
 
+- `object_key` requires UUID ids and one plain name segment (no `/` or `\`, not `.` or `..`, no control characters, at most 255 characters) and raises `ValueError` otherwise, so no caller can build a key outside its owner's prefix.
+- `presigned_get` refuses an expiry above seven days (`PRESIGN_MAX_SECONDS`, the SigV4 limit) as well as one below a second.
+- `UsageRecord` caps `tokens_in`, `tokens_out` and `cost_cents` at the `integer` columns' maximum, so an absurd price or count fails as a named `ValidationError` before the insert.
 - `client_ip` takes the last `X-Forwarded-For` entry (the one the ingress wrote), not the first, which the client controls: a forged header could escape blocks and bans and get another address banned. Repeated header lines count as one list. IPv4-mapped IPv6 addresses are keyed as IPv4, an IPv6 zone is dropped.
 - `RateLimitSettings.from_env` holds the four rule thresholds to `RATE_LIMIT_RULE_BOUNDS` and `RETENTION_DAYS`, `BAN_MAX_DAYS`, `ACCESS_LOG_HEALTHZ_SAMPLE` to at least 1, failing with `ConfigError` at startup (`RATE_LIMIT_PER_MINUTE=0` blocked every request).
+
+### Fixed
+
+- `OpenAICompatibleTextToSpeech.synthesize` raises `ProviderError` on an empty audio body instead of returning zero bytes.
+- `InferenceSettings.from_env` raises `ConfigError` for `LLM_MAX_TOKENS` or `EMBEDDING_DIMENSION` below 1.
 
 ## [0.7.3] - 2026-10-13
 

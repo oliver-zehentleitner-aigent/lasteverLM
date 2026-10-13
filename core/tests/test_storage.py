@@ -7,6 +7,7 @@ from __future__ import annotations
 import io
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+from uuid import UUID
 
 import pytest
 from botocore.exceptions import ClientError
@@ -19,6 +20,7 @@ from lasteverlm_core import (
     StorageError,
     object_key,
 )
+from lasteverlm_core.storage import PRESIGN_MAX_SECONDS
 
 SETTINGS = S3Settings(
     endpoint="https://fra1.example.test",
@@ -107,6 +109,9 @@ def test_presigned_get_defaults_to_one_hour() -> None:
     assert kwargs["Params"] == {"Bucket": "lasteverlm", "Key": "nb/out/audio.mp3"}
     with pytest.raises(ValueError):
         storage.presigned_get("k", expires_s=0)
+    assert storage.presigned_get("k", expires_s=PRESIGN_MAX_SECONDS).endswith("e=604800")
+    with pytest.raises(ValueError, match="between 1 and 604800"):
+        storage.presigned_get("k", expires_s=PRESIGN_MAX_SECONDS + 1)
 
 
 @pytest.mark.parametrize(
@@ -147,8 +152,27 @@ def test_settings_from_env() -> None:
         S3Settings.from_env({k: v for k, v in env.items() if k != "S3_BUCKET"})
 
 
+NB = "6f1c2e0a-5b7d-4c1e-9a3f-2d8b7e6c5a41"
+OUT = "0b9e8d7c-6a5f-4e3d-8c2b-1a0f9e8d7c6b"
+
+
 def test_object_key() -> None:
-    assert object_key("nb", "out", "audio.mp3") == "nb/out/audio.mp3"
+    assert object_key(NB, OUT, "audio.mp3") == f"{NB}/{OUT}/audio.mp3"
+    assert object_key(UUID(NB), UUID(OUT), "Bericht 2026.pdf") == f"{NB}/{OUT}/Bericht 2026.pdf"
+
+
+@pytest.mark.parametrize(
+    "name", ["", ".", "..", "../x", "a/b", "a\\b", "x\x00y", "line\nbreak", "a" * 256]
+)
+def test_object_key_rejects_a_name_that_is_not_one_segment(name: str) -> None:
+    with pytest.raises(ValueError, match="one plain path segment"):
+        object_key(NB, OUT, name)
+
+
+@pytest.mark.parametrize("ids", [("nb", OUT), (NB, "../other"), (NB, "")])
+def test_object_key_rejects_ids_that_are_not_uuids(ids: tuple[str, str]) -> None:
+    with pytest.raises(ValueError, match="must be UUIDs"):
+        object_key(ids[0], ids[1], "audio.mp3")
 
 
 def test_exists_is_false_only_for_a_missing_key() -> None:

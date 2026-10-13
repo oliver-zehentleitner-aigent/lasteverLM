@@ -227,6 +227,20 @@ def test_tts_voice_and_speed_per_call() -> None:
     ]
 
 
+def test_tts_empty_audio_is_an_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"", headers={"content-type": "audio/mpeg"})
+
+    client = OpenAI(
+        base_url="http://fake/v1",
+        api_key="test",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        max_retries=0,
+    )
+    with pytest.raises(ProviderError, match="returned no audio"):
+        OpenAICompatibleTextToSpeech(client, "tts").synthesize("Hallo.")
+
+
 def test_tts_http_error_becomes_provider_error() -> None:
     tts = OpenAICompatibleTextToSpeech(speech_client([], status=400), "tts", voice="alloy")
     with pytest.raises(ProviderError, match="speech request failed"):

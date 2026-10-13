@@ -202,4 +202,6 @@ class OpenAICompatibleTextToSpeech:
             )
         except APIError as exc:
             raise ProviderError(f"speech request failed: {exc}") from exc
+        if not response.content:
+            raise ProviderError(f"speech model {self._model} returned no audio")
         return response.content

@@ -268,12 +268,15 @@ from lasteverlm_core import S3Settings, S3Storage, object_key
 storage = S3Storage(S3Settings.from_env())  # S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
 key = object_key(notebook_id, output_id, "audio.mp3")
 storage.put(key, mp3, "audio/mpeg")
-url = storage.presigned_get(key)  # valid PRESIGN_SECONDS (3600); expires_s= to change
+url = storage.presigned_get(key)  # valid PRESIGN_SECONDS (3600); expires_s= up to 7 days
 storage.delete(key)
 ```
 
-One bucket for the family; keys are `<notebook_id>/<source_id>/<name>`
-for an upload and `<notebook_id>/<output_id>/<name>` for a file an
+`object_key` takes two UUIDs and one plain name segment (no `/` or `\`,
+not `.` or `..`, no control characters, at most 255 characters) and
+raises `ValueError` otherwise, so a key never leaves its owner's prefix.
+One bucket for the family; keys are `<user_id>/<library_source_id>/<name>`
+for an upload (a source lives in the user's library) and `<notebook_id>/<output_id>/<name>` for a file an
 output produces. `get` returns the bytes, `delete(*keys)` takes one or more
 keys (sent 1000 per request). `exists(key)` is a HEAD request: `False`
 only when the key is missing, a `StorageError` for anything else (no
