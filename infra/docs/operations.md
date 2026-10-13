@@ -274,3 +274,22 @@ account key and certificates go with the cluster.
 on `scripts/` and `tests/` (line length 100 from `pyproject.toml`, as in
 the services), `scripts/dburls.py`, the unit tests, `ktw-lint`. Helm
 lints and renders with `chart/values-prod.yaml`.
+
+`make web-csp-check` (needs Docker and `DEMO_TOKEN`) walks the web app in
+headless Chromium and lists every Content Security Policy violation:
+it builds the web image from this checkout with `CSP_MODE` (default
+`report`, so the policy is sent as `Content-Security-Policy-Report-Only`
+and nothing is blocked), or takes `WEB_IMAGE=<image>`, runs it read-only
+in a throwaway Docker network, and drives it from the Playwright image
+(pinned by digest in the `Makefile`). The page loads from the image;
+its `/api` and `/shared` requests are fetched from `URL` (the live
+deployment by default), so the app sees one origin as in production.
+`scripts/csp/walk.mjs` signs in with the demo token, opens every
+notebook and every ready output kind (mind map, audio, …), `/library`,
+`/settings`, the admin pages, a shared output and the theme toggle, and
+prints the pages it visited, the distinct violations (directive and
+blocked URL), console errors and failed responses. A canary inline
+script is injected first and must be reported, so "0 violations" cannot
+come from a page without a policy. Exit 0: clean; 1: violations; 2:
+the canary was not reported. On the VM: `sg docker -c "make
+web-csp-check"`. The output kinds covered are those the demo user has.

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `docker.yml` attaches a provenance attestation (`mode=max`), an SBOM and the OCI annotations from `docker/metadata-action` to every image.
+- `make web-csp-check`: runs the web image (built with `CSP_MODE=report` or given as `WEB_IMAGE`) and walks it in headless Chromium (Playwright image pinned by digest) against the live API with the demo token; lists every CSP violation, console error and failed response, with a canary violation that has to be reported (`scripts/web-csp-check.sh`, `scripts/csp/walk.mjs`).
 
 ### Changed
 
