@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { rag } from '../api/rag'
-import type { Output } from '../api/types'
+import type { AudioContent, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatTime } from '../lib/format'
 import { formFor } from '../lib/outputs'
@@ -115,7 +115,15 @@ export function OutputViewer({ outputs, selectedId, onSelect, onChanged, onDelet
                 )}
               </div>
             )}
-            <OutputContent kind={selected.kind} title={selected.title} status={selected.status} error={selected.error} content={selected.content} />
+            <OutputContent
+              key={selected.id}
+              kind={selected.kind}
+              title={selected.title}
+              status={selected.status}
+              error={selected.error}
+              content={selected.content}
+              onExpired={() => rag.getOutput(selected.id).then((o) => (o.content as AudioContent).url)}
+            />
           </>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { account } from '../api/account'
 import { rag } from '../api/rag'
-import type { SharedOutput } from '../api/types'
+import type { AudioContent, SharedOutput } from '../api/types'
 import { formatTime } from '../lib/format'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
@@ -42,7 +42,14 @@ export function SharePage({ token }: { token: string }) {
                 </span>
               )}
             </header>
-            <OutputContent kind={doc.kind} title={doc.title} status="ready" error={null} content={doc.content} />
+            <OutputContent
+              kind={doc.kind}
+              title={doc.title}
+              status="ready"
+              error={null}
+              content={doc.content}
+              onExpired={() => rag.getShared(token).then((d) => (d.content as AudioContent).url)}
+            />
           </>
         )}
       </div>
