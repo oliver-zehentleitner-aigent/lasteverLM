@@ -79,8 +79,9 @@ def chunk(
 class FakeStore:
     """In-memory stand-in for PostgresStore with the same contract."""
 
-    def __init__(self, balance: int = 100) -> None:
+    def __init__(self, balance: int = 100, admins: set[str] | None = None) -> None:
         self.balance = balance
+        self.admins = admins or set()
         self.messages: list[dict[str, Any]] = []
         self.usage: list[tuple[str, str | None, Usage]] = []
         self.notebooks = {
@@ -224,8 +225,11 @@ class FakeStore:
         self.chunks.pop(source_id, None)
 
     # credit
-    def balance_cents(self, user_id: str) -> int:
-        return self.balance
+    def has_credit(self, user_id: str) -> bool:
+        return user_id in self.admins or self.balance > 0
+
+    def is_admin(self, user_id: str) -> bool:
+        return user_id in self.admins
 
     def admin_stats(self, stale_after_s: int) -> dict[str, Any]:
         rows = list(self.outputs.values())

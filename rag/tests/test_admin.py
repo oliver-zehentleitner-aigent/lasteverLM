@@ -1,6 +1,16 @@
 from lasteverlm_rag.admin import admin_stats
 
-from .conftest import NOTEBOOK, FakeStore
+from .conftest import (
+    AUTH,
+    NOTEBOOK,
+    OWNER,
+    FakeLLM,
+    FakeRetriever,
+    FakeStore,
+    make_client,
+)
+
+STATS = "/api/rag/admin/stats"
 
 
 def test_stats_have_every_key_and_count_jobs_by_claim():
@@ -37,3 +47,27 @@ def test_stats_have_every_key_and_count_jobs_by_claim():
     # the claimed processing row runs; the unclaimed one is pending
     assert stats["jobs"] == {"pending": 1, "running": 1, "failed": 1}
     assert stats["shared"] == {"outputs": 1}
+
+
+def test_stats_endpoint_is_admin_only(settings):
+    client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
+    assert client.get(STATS).status_code == 401
+    r = client.get(STATS, headers=AUTH)
+    assert (r.status_code, r.json()) == (403, {"error": "admin only"})
+
+    client = make_client(settings, FakeStore(admins={OWNER}), FakeRetriever([]), FakeLLM())
+    r = client.get(STATS, headers=AUTH)
+    assert r.status_code == 200
+    assert set(r.json()) == {"notebooks", "messages", "outputs", "jobs", "shared"}
+
+
+def test_an_admin_without_balance_still_has_credit(settings):
+    store = FakeStore(balance=0, admins={OWNER})
+    store.add_source(NOTEBOOK, "a.txt", summary="s")
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM())
+    assert (
+        client.post(
+            f"/api/rag/notebooks/{NOTEBOOK}/outputs", json={"kind": "report"}, headers=AUTH
+        ).status_code
+        == 202
+    )

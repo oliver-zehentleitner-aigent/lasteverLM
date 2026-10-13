@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psycopg
 import pytest
@@ -32,10 +32,17 @@ from lasteverlm_core import (
     RateLimiter,
     RateLimitSettings,
     Usage,
+    balance_cents,
     parse_model_prices,
 )
 
-from lasteverlm_rag.store import PgVectorRetriever, PostgresStore, core_connect, make_pool
+from lasteverlm_rag.store import (
+    PgVectorRetriever,
+    PostgresStore,
+    core_connect,
+    core_connection,
+    make_pool,
+)
 
 pytestmark = pytest.mark.postgres
 
@@ -125,12 +132,22 @@ def add_source(pool, notebook_id: str, status: str, kind: str = "pdf") -> str:
 # -- credit through core over the dict-row pool ----------------------------------
 
 
-def test_balance_and_usage_over_dict_row_pool(store, user, notebook):
-    assert store.balance_cents(user) == 1000
+def test_credit_admin_and_usage_over_dict_row_pool(store, pool, user, notebook):
+    def balance() -> int:
+        with pool.connection() as conn:
+            return balance_cents(core_connection(conn), UUID(user))
+
+    assert store.has_credit(user) and not store.is_admin(user)
     store.record_usage(user, notebook, Usage("llm", "llm", 500_000, 100_000))  # 50 + 30 = 80
     store.record_usage(user, None, Usage("embedding", "emb", 1, 0))  # ceil(0.00001) = 1
     store.record_usage(user, notebook, Usage("tts", "tts", 1500, 0))  # 1500 chars: 3
-    assert store.balance_cents(user) == 1000 - 84
+    assert balance() == 1000 - 84
+    store.record_usage(user, None, Usage("llm", "llm", 10_000_000, 0))  # 1000: below zero
+    assert not store.has_credit(user)
+    with pool.connection() as conn:
+        conn.execute("update users set is_admin = true where id = %s", (user,))
+    assert store.is_admin(user) and store.has_credit(user)  # admins have unlimited credit
+    assert not store.is_admin(str(uuid4()))  # no users row: not an admin
     assert store.get_notebook(notebook) == {"id": notebook, "owner": user, "title": "nb"}
 
 

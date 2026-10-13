@@ -3,7 +3,7 @@
 Two interfaces with one PostgreSQL implementation each: ``Retriever`` for the
 pgvector similarity search, ``Store`` for everything else this service reads
 or writes: notebooks (read), messages, outputs, the generated sources and
-their chunks, usage and the credit balance. ``notebooks``, ``sources`` and
+their chunks, usage, the credit check and the admin flag. ``notebooks``, ``sources`` and
 ``chunks`` are ingest's tables; ``usage`` and ``ledger`` belong to core and
 account; this module only reads and writes them.
 """
@@ -23,7 +23,8 @@ from lasteverlm_core import (
     OutputKind,
     OutputStatus,
     Usage,
-    balance_cents,
+    has_credit,
+    is_admin,
     record_usage,
 )
 from lasteverlm_core.usage import Connection as CoreConnection
@@ -103,7 +104,9 @@ class Store(Protocol):
     def admin_stats(self, stale_after_s: int) -> dict[str, Any]: ...
 
     # credit
-    def balance_cents(self, user_id: str) -> int: ...
+    def has_credit(self, user_id: str) -> bool: ...
+
+    def is_admin(self, user_id: str) -> bool: ...
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None: ...
 
@@ -395,9 +398,13 @@ class PostgresStore:
             "shared": shared,
         }
 
-    def balance_cents(self, user_id: str) -> int:
+    def has_credit(self, user_id: str) -> bool:
         with self._pool.connection() as conn:
-            return balance_cents(core_connection(conn), uuid.UUID(user_id))
+            return has_credit(core_connection(conn), uuid.UUID(user_id))
+
+    def is_admin(self, user_id: str) -> bool:
+        with self._pool.connection() as conn:
+            return is_admin(core_connection(conn), uuid.UUID(user_id))
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
         with self._pool.connection() as conn:

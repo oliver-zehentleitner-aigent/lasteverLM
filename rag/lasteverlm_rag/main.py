@@ -36,10 +36,12 @@ from lasteverlm_core import (
     current_user,
     make_client,
 )
+from lasteverlm_core.web import admin_only
 
 from . import __version__
+from .admin import admin_stats
 from .config import Settings
-from .models import AskRequest, OutputCreate
+from .models import AdminStats, AskRequest, OutputCreate
 from .outputs import OutputGenerator, registry
 from .service import (
     InsufficientCredit,
@@ -135,6 +137,16 @@ def create_app(
 
     User = Annotated[str, Depends(user_id)]  # noqa: N806
 
+    def principal(authorization: Annotated[str | None, Header()] = None) -> uuid.UUID:
+        return uuid.UUID(user_id(authorization))
+
+    def admin_lookup(_: Request, uid: uuid.UUID) -> bool:
+        assert store is not None
+        return store.is_admin(str(uid))
+
+    # 401 from the principal, 403 "admin only" from core for everyone else
+    AdminUser = Annotated[uuid.UUID, Depends(admin_only(principal, admin_lookup))]  # noqa: N806
+
     @app.get("/healthz")
     @app.get(f"{PREFIX}/healthz")
     def healthz() -> dict[str, str]:
@@ -179,6 +191,11 @@ def create_app(
     @app.get(f"{PREFIX}/shared/{{token}}", response_model=SharedOutput)
     def shared_output(token: str) -> SharedOutput:
         return outputs.shared(token)
+
+    @app.get(f"{PREFIX}/admin/stats", response_model=AdminStats)
+    def stats(_: AdminUser) -> AdminStats:
+        assert store is not None
+        return admin_stats(store)
 
     return app
 
