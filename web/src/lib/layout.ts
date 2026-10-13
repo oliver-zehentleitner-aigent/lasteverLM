@@ -42,3 +42,22 @@ export function browserStorage(): Storage | undefined {
     return undefined
   }
 }
+
+/** Quick sizes for the chat, as the share of the right column it gets;
+ *  each is just a viewer ratio, so presets, the divider and the stored
+ *  ratio stay one mechanism. */
+export const CHAT_PRESETS = [
+  { label: '1x', chat: 0.15 },
+  { label: '2x', chat: 0.3 },
+  { label: '3x', chat: 0.45 },
+] as const
+
+export function presetRatio(chat: number): number {
+  return clampRatio(1 - chat)
+}
+
+/** The preset the ratio matches (within half a percent), for highlighting;
+ *  a drag moves off it. */
+export function activePreset(ratio: number): (typeof CHAT_PRESETS)[number]['label'] | null {
+  return CHAT_PRESETS.find((p) => Math.abs(presetRatio(p.chat) - ratio) < 0.005)?.label ?? null
+}

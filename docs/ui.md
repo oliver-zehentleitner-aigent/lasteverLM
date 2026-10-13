@@ -77,8 +77,11 @@ is closed. After the wizard the notebook view opens.
   Actions per document: ask about this, print, share, full view.
 - **Divider** between viewer and chat: drag it (or arrow keys when it
   has focus) to change the split; the split is remembered per browser,
-  a double-click (or Home) resets it to half and half. Hidden on narrow
-  screens, where the columns stack.
+  a double-click (or Home) resets it to half and half. Three presets
+  at the right end of the chat tab bar, **1x 2x 3x**, give the chat 15,
+  30 or 45 % of the right column; they set the same ratio the divider
+  does, the matching one is highlighted, a drag moves off it. Divider
+  and presets are hidden on narrow screens, where the columns stack.
 - **Full view**: the open document over the whole window, for tall or
   wide documents such as the mind map; the viewer's tabs stay, so
   another document is one click away. The chat is behind a "chat"
