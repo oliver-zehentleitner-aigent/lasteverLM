@@ -1,23 +1,24 @@
 # Security
 
-## Content-Security-Policy behind a build switch, off until a browser run is clean
+## Content-Security-Policy enforced, behind a build switch, after a clean browser run
 
 **Id:** 6743c3f5-5a44-451b-874d-16ff9bb8e2e6
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** family lead's instruction after the night audit, 2026-10-14 (a build-time or env switch, default off; the hash derived at build; a headless browser run in Docker by infra decides when it flips); the modes and the generator were this directory's call
-**Revisit when:** the report-mode run against the live API shows no violations (then the default becomes `enforce`), or a page needs a source the policy does not list
+**Source:** family lead's instruction after the night audit, 2026-10-14 (a build-time or env switch, default off; the hash derived at build; a headless browser run in Docker by infra decides when it flips); infra's report-mode run, 2026-10-14 (`make web-csp-check` in `infra/`): 0 violations over every page, report, quiz, table, mind map, infographic, the share page and the theme toggle; the modes and the generator were this directory's call
+**Revisit when:** a page needs a source the policy does not list, an audio output shows a violation (audio was not in the run: the demo account had none; `media-src` allows any `https:` origin, which the presigned URLs are), or the storage host is fixed enough to narrow `CSP_MEDIA_SRC` to it
 
 The full policy (`default-src 'self'`, the inline theme script by its
 sha256, `style-src 'self' 'unsafe-inline'`, images and audio from
 `'self'`, `data:`/`blob:` and the object storage, `connect-src 'self'`
 plus `API_BASE_URL`'s origin, `object-src 'none'`, `base-uri 'none'`,
 `frame-ancestors 'none'`) is written into the image at build by
-`scripts/csp.mjs`. The build arg `CSP` picks `off` (only
-`frame-ancestors`, the previous state, still the default), `report`
-(the full policy as `Content-Security-Policy-Report-Only` beside the
-enforced `frame-ancestors`) or `enforce`.
+`scripts/csp.mjs`. The build arg `CSP` picks `enforce` (the default
+since the clean run), `report` (the full policy as
+`Content-Security-Policy-Report-Only` beside the enforced
+`frame-ancestors`, the mode the check runs in) or `off` (only
+`frame-ancestors`, the earlier state).
 
 **Reason:** the reasons the earlier entry gave for not shipping a policy
 unverified still hold: a wrong one blanks a page silently. A report
