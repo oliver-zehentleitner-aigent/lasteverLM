@@ -25,9 +25,11 @@ from .repository import (
     BlockRecord,
     CreditTotals,
     LoginRecord,
+    StatsRecord,
     UserRecord,
     VisitRecord,
     VisitSummary,
+    VoucherRecord,
 )
 
 DictPool = AsyncConnectionPool[AsyncConnection[DictRow]]
@@ -243,6 +245,62 @@ class PostgresRepository:
             )
             rows = await cur.fetchall()
         return {r["id"]: CreditTotals(int(r["credited"]), int(r["spent"])) for r in rows}
+
+    async def list_vouchers(self, limit: int) -> list[VoucherRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select v.id, v.amount_cents, c.email as created_by, v.created_at,
+                          r.email as redeemed_by, v.redeemed_at
+                   from vouchers v
+                   join users c on c.id = v.created_by
+                   left join users r on r.id = v.redeemed_by
+                   order by v.created_at desc, v.id limit %s""",
+                (limit,),
+            )
+            rows = await cur.fetchall()
+        return [
+            VoucherRecord(
+                r["id"],
+                int(r["amount_cents"]),
+                r["created_by"],
+                r["created_at"],
+                r["redeemed_by"],
+                r["redeemed_at"],
+            )
+            for r in rows
+        ]
+
+    async def stats(self, since: datetime, now: datetime) -> StatsRecord:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select
+                     (select count(*) from users where id <> %(demo)s) as users,
+                     (select count(*) from login_log where at >= %(since)s) as logins_since,
+                     (select count(*) from vouchers) as vouchers_issued,
+                     (select count(*) from vouchers where redeemed_at is not null)
+                        as vouchers_redeemed,
+                     (select coalesce(sum(amount_cents), 0) from ledger) as credits_granted,
+                     (select coalesce(sum(cost_cents), 0) from usage) as usage_total,
+                     (select coalesce(sum(cost_cents), 0) from usage where created_at >= %(since)s)
+                        as usage_since,
+                     (select count(*) from ip_blocks where blocked_until > %(now)s)
+                        as blocks_active,
+                     (select count(*) from ip_bans where lifted_at is null) as bans_active""",
+                {"demo": DEMO_USER_ID, "since": since, "now": now},
+            )
+            r = await cur.fetchone()
+        assert r is not None
+        return StatsRecord(
+            users=int(r["users"]),
+            logins_since=int(r["logins_since"]),
+            vouchers_issued=int(r["vouchers_issued"]),
+            vouchers_redeemed=int(r["vouchers_redeemed"]),
+            credits_granted_cents=int(r["credits_granted"]),
+            usage_cost_cents_total=int(r["usage_total"]),
+            usage_cost_cents_since=int(r["usage_since"]),
+            blocks_active=int(r["blocks_active"]),
+            bans_active=int(r["bans_active"]),
+        )
 
     # visits -----------------------------------------------------------------
     async def add_visit(self, visit: VisitRecord) -> None:

@@ -82,6 +82,33 @@ class AccessRecord:
 
 
 @dataclass(frozen=True)
+class VoucherRecord:
+    """One voucher as the admin list shows it: the code is stored hashed, so it is not here."""
+
+    id: uuid.UUID
+    amount_cents: int
+    created_by: str  # email
+    created_at: datetime
+    redeemed_by: str | None  # email
+    redeemed_at: datetime | None
+
+
+@dataclass(frozen=True)
+class StatsRecord:
+    """Counters for the admin overview; `since` is the 24 h window the caller passes."""
+
+    users: int  # real users, the seeded demo user not counted
+    logins_since: int
+    vouchers_issued: int
+    vouchers_redeemed: int
+    credits_granted_cents: int  # sum of the ledger, the demo seed included
+    usage_cost_cents_total: int  # core's usage rows
+    usage_cost_cents_since: int
+    blocks_active: int
+    bans_active: int
+
+
+@dataclass(frozen=True)
 class CreditTotals:
     credited_cents: int
     usage_cents: int
@@ -132,6 +159,11 @@ class Repository(Protocol):
 
     async def credit_totals(self, user_id: uuid.UUID) -> CreditTotals: ...
     async def all_credit_totals(self) -> dict[uuid.UUID, CreditTotals]: ...
+    async def list_vouchers(self, limit: int) -> list[VoucherRecord]:
+        """Newest first, creator and redeemer resolved to e-mail addresses."""
+        ...
+
+    async def stats(self, since: datetime, now: datetime) -> StatsRecord: ...
 
     # visits -----------------------------------------------------------------
     async def add_visit(self, visit: VisitRecord) -> None: ...

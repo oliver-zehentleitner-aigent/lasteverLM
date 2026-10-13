@@ -153,3 +153,37 @@ async def test_delete_setting_reports_whether_a_row_went(repo: PostgresRepositor
     assert await repo.delete_setting("smtp") is True
     assert await repo.delete_setting("smtp") is False
     assert await repo.get_setting("smtp") is None
+
+
+async def test_voucher_list_and_stats(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    admin = await repo.create_user("admin@pg.test", admin=True, now=now - timedelta(days=2))
+    user = await repo.create_user("user@pg.test", admin=False, now=now)
+    await repo.record_login(admin.id, now - timedelta(days=2))
+    await repo.record_login(user.id, now)
+    open_id = await repo.create_voucher("hash-open", 500, admin.id, now - timedelta(minutes=1))
+    used_id = await repo.create_voucher("hash-used", 300, admin.id, now)
+    assert await repo.redeem_voucher("hash-used", user.id, now) == 300
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from usage where user_id = %s", (user.id,))
+        await conn.execute(
+            """insert into usage (user_id, service, kind, model, cost_cents, created_at)
+               values (%s, 'rag', 'llm', 'm', 120, %s), (%s, 'rag', 'llm', 'm', 80, %s)""",
+            (user.id, now - timedelta(hours=30), user.id, now - timedelta(hours=1)),
+        )
+
+    rows = await repo.list_vouchers(10)
+    assert [(v.id, v.created_by, v.redeemed_by) for v in rows[:2]] == [
+        (used_id, "admin@pg.test", "user@pg.test"),
+        (open_id, "admin@pg.test", None),
+    ]
+    assert rows[0].redeemed_at is not None and rows[1].redeemed_at is None
+    assert (await repo.list_vouchers(1))[0].id == used_id
+
+    s = await repo.stats(now - timedelta(hours=24), now)
+    assert s.users == 2  # the demo user is not counted
+    assert s.logins_since == 1
+    assert (s.vouchers_issued, s.vouchers_redeemed) == (2, 1)
+    assert s.credits_granted_cents == 1000 + 300  # demo seed plus the redeemed voucher
+    assert (s.usage_cost_cents_total, s.usage_cost_cents_since) == (200, 80)
+    assert s.bans_active == 0 and s.blocks_active == 0

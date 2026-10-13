@@ -12,6 +12,8 @@ preserves why it changed, in `context/`.
 ### Added
 
 - Single addresses in the allowlist next to domains (`allowed_addresses` setting); `GET /admin/settings/allowlist` returns both lists, `POST`/`DELETE` per entry under `/admin/settings/domains` and `/admin/settings/addresses`.
+- `GET /admin/vouchers?limit=` lists vouchers newest first with creator and redeemer as e-mail and a `status`; the code is never listed, only its hash is stored.
+- `GET /admin/stats`: users, logins last 24 h, vouchers issued/redeemed/open, credits granted, usage cost total and last 24 h (core's `usage` rows), active blocks and bans.
 - Error bodies carry a stable `code` where a client must tell refusals apart; the first is `not_allowed`.
 
 ### Changed
