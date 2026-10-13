@@ -152,7 +152,8 @@ is closed. After the wizard the notebook view opens.
 `/settings` (in the header next to Library): interface language
 (browser default, English, Deutsch), language of generated documents
 (same as the sources, or one of rag's languages) and the voice for
-audio (default, or one of rag's voices). Saved together with
+audio (default, or one of rag's voices), and the days a deleted
+library source stays in the trash (1–365, empty for 14). Saved together with
 `PUT /api/account/me/preferences`; an empty choice clears the value.
 The preferred language and voice are preselected in the output options
 and used by the wizard, which has no option menus. The interface

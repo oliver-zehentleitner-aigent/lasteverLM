@@ -185,6 +185,8 @@ export interface Preferences {
   ui_language: 'de' | 'en' | null
   output_language: string | null
   audio_voice: string | null
+  /** days a deleted library entry stays in the trash, 1–365; null is 14 */
+  trash_days?: number | null
 }
 
 export interface User {
