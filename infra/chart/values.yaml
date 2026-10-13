@@ -43,6 +43,13 @@ ingress:
     burstMultiplier: 5   # burst = rps * multiplier
     connections: 20
 
+# NetworkPolicies (templates/networkpolicy.yaml): pods accept connections only
+# from the ingress controller's namespace and, on the API port, from account.
+# VKE's CNI (Calico) enforces them.
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx
+
 # CA of the managed PostgreSQL, created by `make secrets` from PGSSLROOTCERT;
 # mounted read-only, every DATABASE_URL uses sslmode=verify-full against it.
 pgCa:

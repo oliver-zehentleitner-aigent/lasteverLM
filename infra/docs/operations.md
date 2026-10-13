@@ -88,6 +88,7 @@ reaches the deployment through the load balancer address:
 | Ingress `lasteverlm` | path routing `/api/account`, `/api/ingest`, `/api/rag`, `/`; TLS via cert-manager; per-IP rate limiting (`limit-rps`, burst multiplier, `limit-connections`) |
 | ClusterIssuer `letsencrypt` | ACME http01 |
 | Job `lasteverlm-migrate` + ConfigMap | pre-install/pre-upgrade hook, see Migrations |
+| NetworkPolicies `default-deny-ingress`, `from-ingress-controller`, `account-health-probes` | no pod accepts a connection except from the `ingress-nginx` namespace (any port, including cert-manager's HTTP-01 solver) and, on the API port, from `account` (the System page's health probes); egress is open |
 | ServiceAccount `account`, Role and RoleBinding `account-kubernetes-read` | `get`/`list` on `pods` and `apps/deployments` in this namespace only; the `account` pods mount the token (`automountServiceAccountToken: true`) for the admin System page |
 
 Values: `chart/values.yaml` holds the defaults (replicas, autoscaler
@@ -101,7 +102,12 @@ seccomp profile; `/tmp` is the only writable path, an `emptyDir` of
 mounts a ServiceAccount token, every other pod has
 `automountServiceAccountToken: false`. The migration Job runs the
 `postgres` image pinned by digest as its `postgres` user (uid 70), with
-its own resources. `kubernetesRead: true` on a service (only `account`) renders its
+its own resources.
+VKE's CNI is Calico, which enforces the NetworkPolicies;
+`networkPolicy.enabled: false` removes them. Check after a deploy:
+`kubectl -n lasteverlm run np-check --rm -i --restart=Never --image=busybox:1.37 -- wget -qO- -T 3 http://rag/healthz`
+must time out, and the site and the System page must still work.
+`kubernetesRead: true` on a service (only `account`) renders its
 ServiceAccount, Role and RoleBinding from `templates/rbac.yaml`; without
 them the System page still loads, with empty pod and deployment lists.
 Check the grant after a deploy:

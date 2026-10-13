@@ -1,0 +1,51 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /* Ingress only. Nothing in the namespace accepts a connection except from the
+     ingress controller and, for the health probes of the System page, from
+     account to the other API services. Kubelet probes come from the node and
+     are always allowed. Egress stays open: see context/cluster.md. */}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  labels:
+    {{- include "lasteverlm.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# Every pod, any port: the API services, web, and cert-manager's HTTP-01
+# solver pods, which run in this namespace and are reached through nginx.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: from-ingress-controller
+  labels:
+    {{- include "lasteverlm.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: account-health-probes
+  labels:
+    {{- include "lasteverlm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: api
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: account
+      ports:
+        - port: http
+{{- end }}
