@@ -153,8 +153,6 @@ than `RETENTION_DAYS` (30), with core's own purge statements; an active
 ban stays until an admin lifts it. The visitor statistics above never
 use them.
 
-Status: in development. Nothing is deployed yet.
-
 ## License
 
 MIT, see [LICENSE](../LICENSE) at the repository root.
