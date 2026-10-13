@@ -79,12 +79,14 @@ is closed. After the wizard the notebook view opens.
   and no mail goes out.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
-- Admin (only for admins, one page with sections): users with last
-  login and balance, login log, visitor log aggregated per day and
-  path, SMTP settings read-only (they come from the deployment) with a
-  test button, allowed sign-in (domains and single addresses, one
-  entry at a time), voucher
-  creation that shows the codes once.
+- Admin (only for admins, one page with sections): an overview at the
+  top with numbers from the three services' stats endpoints, each group
+  loading on its own; users with last login and balance, login log,
+  visitor log aggregated per day and path, SMTP settings read-only
+  (they come from the deployment) with a test button, allowed sign-in
+  (domains and single addresses, one entry at a time), voucher creation
+  (5 EUR by default) that shows the codes once, with the list of issued
+  vouchers below it.
 
 ## Language
 

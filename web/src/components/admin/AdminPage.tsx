@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
-import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginEvent, Smtp, VisitBucket } from '../../api/types'
+import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginEvent, Smtp, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
 import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
+import { accountTiles, ingestTiles, ragTiles, type StatTile } from '../../lib/stats'
 
 const LOGIN_LIMIT = 50
 const VISIT_DAYS = 14
 const ACCESS_LIMIT = 100
+const VOUCHER_LIMIT = 100
 
 /** Compact admin panel: everything on one page in collapsible sections, so a
  *  maintainer sees the whole state at a glance. Only mounted for is_admin;
@@ -17,6 +19,7 @@ export function AdminPage() {
     <main className="admin">
       <h1>Admin</h1>
       {ADMIN_MOCK && <p className="notice">Showing mock data: the build runs against an in-memory admin API.</p>}
+      <Overview />
       <Users />
       <Logins />
       <Visits />
@@ -121,10 +124,45 @@ function Visits() {
   )
 }
 
+/** Numbers from the three services side by side. Each group loads on its
+ *  own, so one service that is down shows its error and the rest stays. */
+function Overview() {
+  return (
+    <Section title="Overview">
+      <StatGroup title="Accounts" load={admin.accountStats} tiles={accountTiles} />
+      <StatGroup title="Sources" load={admin.ingestStats} tiles={ingestTiles} />
+      <StatGroup title="Notebooks and documents" load={admin.ragStats} tiles={ragTiles} />
+    </Section>
+  )
+}
+
+function StatGroup<T>({ title, load, tiles }: { title: string; load: () => Promise<T>; tiles: (s: T) => StatTile[] }) {
+  const { data, busy, error } = useLoad<T | null>(load, null)
+  return (
+    <div className="stat-group">
+      <h3>{title}</h3>
+      {error && <p className="error">{error}</p>}
+      {!data && !error && busy && <p className="muted small">Loading…</p>}
+      {data && (
+        <div className="stat-grid">
+          {tiles(data).map((t) => (
+            <div key={t.label} className={t.alert ? 'stat alert' : 'stat'}>
+              <span className="stat-value">{t.value}</span>
+              <span className="stat-label">{t.label}</span>
+              {t.detail && <span className="muted small">{t.detail}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Vouchers() {
-  const [amount, setAmount] = useState('10.00')
+  const [amount, setAmount] = useState('5.00')
   const [count, setCount] = useState('1')
   const [codes, setCodes] = useState<string[]>([])
+  const [listVersion, setListVersion] = useState(0)
   const { busy, error, run } = useAsync()
 
   async function create(e: FormEvent) {
@@ -133,7 +171,10 @@ function Vouchers() {
     const n = Number(count)
     if (!Number.isFinite(cents) || cents <= 0 || !Number.isInteger(n) || n <= 0) return
     const created = await run(() => admin.createVouchers(cents, n))
-    if (created) setCodes(created)
+    if (created) {
+      setCodes(created)
+      setListVersion((v) => v + 1)
+    }
   }
 
   return (
@@ -158,7 +199,34 @@ function Vouchers() {
           <pre>{codes.join('\n')}</pre>
         </div>
       )}
+      <VoucherList key={listVersion} />
     </Section>
+  )
+}
+
+const loadVouchers = () => admin.listVouchers(VOUCHER_LIMIT)
+
+/** Issued vouchers, newest first; remounted after a create so the new ones
+ *  appear. The codes are never listed: the server keeps only their hashes. */
+function VoucherList() {
+  const { data, error } = useLoad<Voucher[]>(loadVouchers, [])
+  return (
+    <>
+      {error && <p className="error">{error}</p>}
+      <Table
+        head={['Amount', 'Created by', 'Created', 'Status', 'Redeemed by', 'Redeemed']}
+        rows={data.map((v) => [
+          formatCents(v.amount_cents),
+          v.created_by,
+          formatTime(v.created_at),
+          <span key="status" className={`badge ${v.status === 'open' ? 'ready' : ''}`}>
+            {v.status}
+          </span>,
+          v.redeemed_by ?? '—',
+          v.redeemed_at ? formatTime(v.redeemed_at) : '—',
+        ])}
+      />
+    </>
   )
 }
 
