@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Changed
 
 - `docs/architecture.md`: the per-user source library (library_sources, sources as links, chunks per library source, dedupe by content hash or normalised URL, detach versus delete, `/library` endpoints, new object keys).
