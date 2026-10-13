@@ -258,6 +258,11 @@ the remote inference API. Lower requests free 750m without a cost or a
 single-replica window. Because the autoscaler's target is a percentage
 of the request, ingest at 29m against 50m would sit near 70 %; 80 %
 keeps that load from scaling out on its own.
+Known and accepted: right after a rollout the ingest-worker autoscaler
+scales out to four or six replicas for a few minutes on the start-up
+CPU spike, measured against the 100m request, and returns to two by
+itself; at the current headroom that is harmless, so no scale-up
+stabilization window was added.
 
 **Rejected alternatives:** a third node — 20 USD/month for headroom that
 measured use does not need; `maxSurge 0` / `maxUnavailable 1` —
