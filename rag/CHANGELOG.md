@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `PATCH /api/rag/conversations/{id}` renames a chat tab: `{"title"}`, trimmed, 1–80 characters.
+- The chat's system prompt lists the notebook's ready documents by kind and title, uploads and generated, so "which documents can you see?" or "the mind map you made" is answered; the model is called even when no passage matches, and only an empty notebook gets the fixed refusal.
+
+### Changed
+
+- An unscoped `/ask` retrieves generated documents again, bounded: the uploads fill the k passages by score, generated chunks above the floor may take at most `RETRIEVAL_GENERATED_SLOTS` (default 2) of them and are listed after the uploads. `RETRIEVAL_INCLUDE_GENERATED` is gone.
 
 ## [0.7.3] - 2026-10-13
 

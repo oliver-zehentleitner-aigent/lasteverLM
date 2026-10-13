@@ -38,6 +38,7 @@ from .models import (
     Conversation,
     ConversationRow,
     GeneratedOutput,
+    NotebookDocument,
     OutputRow,
     Passage,
     RetrievedChunk,
@@ -63,7 +64,28 @@ Rules:
 - If the passages do not contain the answer, say so in one sentence and do not guess.
 - Earlier turns of the conversation, when given, only tell you what the question
   refers to; facts and citations come from the passages alone.
+- The notebook's documents are listed below: uploaded sources and documents
+  generated from them. A question about which documents the notebook holds is
+  answered from that list, without a citation; what a document says comes from
+  the passages only.
+- A generated document restates the uploads: when an uploaded passage says the
+  same as a generated one, cite the uploaded one.
 - Be concise. Plain text, no headings."""
+
+# How the document list names a kind: an upload by its format, a generated
+# document by the output it is.
+_DOCUMENT_KINDS = {
+    "pdf": "PDF",
+    "text": "text",
+    "url": "web page",
+    "image": "image",
+    "report": "report",
+    "quiz": "quiz",
+    "table": "table",
+    "mindmap": "mind map",
+    "infographic": "infographic",
+    "audio": "audio overview",
+}
 
 ANSWER_MAX_TOKENS = 1024
 # A scoped question is bounded by its one document already: no similarity floor
@@ -110,6 +132,33 @@ class InsufficientCredit(Exception):
     """The caller's balance is zero; no provider call is made."""
 
 
+def answer_system_prompt(documents: list[NotebookDocument]) -> str:
+    """The answer rules plus the notebook's documents, so a question about the
+    notebook itself ("which documents can you see?") has something to go on."""
+    lines = [
+        (
+            f"- {_DOCUMENT_KINDS[d.output_kind or d.kind]} (generated): {d.name}"
+            if d.kind == "generated"
+            else f"- {_DOCUMENT_KINDS[d.kind]} (uploaded): {d.name}"
+        )
+        for d in documents
+    ]
+    return ANSWER_SYSTEM_PROMPT + "\n\nDocuments in this notebook:\n" + "\n".join(lines)
+
+
+def uploads_first(
+    uploads: list[RetrievedChunk], generated: list[RetrievedChunk], k: int, slots: int
+) -> list[RetrievedChunk]:
+    """The k best chunks of both searches, of which at most ``slots`` are
+    generated, uploads listed first: a generated chunk takes the place of a
+    weaker upload, but an original always precedes its paraphrase."""
+    candidates = [*uploads, *generated[:slots]]
+    best = sorted(candidates, key=lambda c: c.similarity, reverse=True)[:k]
+    kept = {c.chunk_id for c in best}
+    # each search's own order is kept; only membership comes from the scores
+    return [c for c in candidates if c.chunk_id in kept]
+
+
 def render_answer_prompt(
     question: str, passages: list[Passage], history: list[Message] | None = None
 ) -> str:
@@ -117,7 +166,8 @@ def render_answer_prompt(
     for p in passages:
         where = f"{p.source_name}, page {p.page}" if p.page is not None else p.source_name
         blocks.append(f"[{p.n}] ({where})\n{p.text}")
-    prompt = "Passages:\n\n" + "\n\n".join(blocks) + f"\n\nQuestion: {question}"
+    listed = "\n\n".join(blocks) if blocks else "(no passage matched the question)"
+    prompt = "Passages:\n\n" + listed + f"\n\nQuestion: {question}"
     if not history:
         return prompt
     # earlier answers lose their markers: their numbers point at other passages
@@ -138,7 +188,7 @@ class RagService:
         llm: LLM,
         retrieval_k: int,
         similarity_floor: float,
-        include_generated: bool = False,
+        generated_slots: int = 0,
     ) -> None:
         self._store = store
         self._retriever = retriever
@@ -146,7 +196,7 @@ class RagService:
         self._llm = llm
         self._k = retrieval_k
         self._floor = similarity_floor
-        self._include_generated = include_generated
+        self._generated_slots = generated_slots
 
     def ask(
         self,
@@ -166,22 +216,16 @@ class RagService:
 
         embedded = self._embedder.embed([question])
         self._store.record_usage(user_id, notebook_id, embedded.usage)
-        # Unscoped questions are answered from the uploads; generated documents
-        # restate them and are reached through scope.output_id instead.
-        chunks = self._retriever.search(
-            notebook_id,
-            embedded.vectors[0],
-            SCOPED_RETRIEVAL_K if source_id else self._k,
-            0.0 if source_id else self._floor,
-            source_id,
-            include_generated=self._include_generated,
-        )
+        chunks = self._retrieve(notebook_id, embedded.vectors[0], source_id)
+        documents = self._store.notebook_documents(notebook_id)
 
-        if chunks:
+        if chunks or documents:
+            # Without a matching passage the model still sees the document
+            # list, so a question about the notebook itself can be answered.
             passages = number_passages(chunks)
             history = self._store.list_messages(conversation_id, last=HISTORY_MESSAGES)
             completion = self._llm.complete(
-                ANSWER_SYSTEM_PROMPT,
+                answer_system_prompt(documents),
                 render_answer_prompt(question, passages, history),
                 ANSWER_MAX_TOKENS,
             )
@@ -192,8 +236,8 @@ class RagService:
                 raise ProviderError("the model returned no answer")
             answer, citations = map_citations(completion.text, passages)
         else:
-            # Nothing relevant: say so without asking the model, so the answer can
-            # never come from model knowledge alone.
+            # An empty notebook: say so without asking the model, so the answer
+            # can never come from model knowledge alone.
             answer, citations = REFUSAL, []
 
         # Both messages are written only once the answer exists, so the history
@@ -207,6 +251,23 @@ class RagService:
             [c.model_dump(mode="json") for c in citations],
         )
         return Answer(message_id=stored.id, answer=answer, citations=citations)
+
+    def _retrieve(
+        self, notebook_id: str, vector: list[float], source_id: str | None
+    ) -> list[RetrievedChunk]:
+        if source_id:
+            return self._retriever.search(notebook_id, vector, SCOPED_RETRIEVAL_K, 0.0, source_id)
+        # Unscoped: the uploads fill the k slots by score; a generated document
+        # may take a few of them when it scores above the floor too.
+        uploads = self._retriever.search(notebook_id, vector, self._k, self._floor)
+        generated = (
+            self._retriever.search(
+                notebook_id, vector, self._generated_slots, self._floor, generated=True
+            )
+            if self._generated_slots
+            else []
+        )
+        return uploads_first(uploads, generated, self._k, self._generated_slots)
 
     # -- conversations -------------------------------------------------------
 

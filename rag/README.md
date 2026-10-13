@@ -82,11 +82,17 @@ returns one chunk for its owner (`{"chunk_id", "source_id",
 "source_name", "source_kind", "page", "chunk_index", "chunk_count",
 "text"}`, 404 otherwise), so a reader can open the exact passage.
 Retrieval is top-k by cosine similarity over the
-notebook's ready sources with a similarity floor; if nothing passes it,
-the answer is a fixed refusal with empty citations and the model is not
-called. An unscoped question retrieves from the uploaded sources only;
-`scope.output_id` restricts retrieval to one generated document, without a
-similarity floor and with a larger k, since the scope bounds the context.
+notebook's ready sources with a similarity floor. An unscoped question
+searches the uploads and the generated documents separately: the uploads
+fill the k slots by score, and generated chunks above the floor may take
+at most `RETRIEVAL_GENERATED_SLOTS` of them (default 2); the passages list
+the uploads first, so an original precedes its paraphrase. The system
+prompt lists the notebook's ready documents by kind and title (uploads and
+generated), so a question about the notebook itself is answered even when
+no passage matches; only a notebook without any ready document gets the
+fixed refusal without a model call. `scope.output_id` restricts retrieval
+to one generated document, without a similarity floor and with a larger
+k, since the scope bounds the context.
 
 **Outputs.** `POST /outputs` inserts the job and answers at once. The
 worker entrypoint (`lasteverlm-rag-worker`) claims jobs from the
@@ -161,7 +167,7 @@ missing or a configured model has no price.
 | `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million characters |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
 | `RETRIEVAL_K` | no | chunks per question, default 8 |
-| `RETRIEVAL_INCLUDE_GENERATED` | no | default `false`: an unscoped question is answered from the uploads only; generated documents are reached through `scope.output_id` |
+| `RETRIEVAL_GENERATED_SLOTS` | no; default `2` | how many of an unscoped question's k passages may come from generated documents (above the floor, listed after the uploads); `0` leaves them out |
 | `SIMILARITY_FLOOR` | no | minimum cosine similarity, default 0.3 |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, ... | no | core's rate-limit middleware, defaults 120 / 15 / 3; see `core/README.md` |
 | `LOG_LEVEL` | no | default `INFO` |

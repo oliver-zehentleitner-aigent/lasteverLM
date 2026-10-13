@@ -35,7 +35,14 @@ from psycopg.rows import DictRow, TupleRow, dict_row, tuple_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from .models import ConversationRow, OutputRow, RetrievedChunk, SourceState, SourceSummary
+from .models import (
+    ConversationRow,
+    NotebookDocument,
+    OutputRow,
+    RetrievedChunk,
+    SourceState,
+    SourceSummary,
+)
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +59,7 @@ class Retriever(Protocol):
         k: int,
         floor: float,
         source_id: str | None = None,
-        include_generated: bool = False,
+        generated: bool = False,
     ) -> list[RetrievedChunk]: ...
 
 
@@ -112,6 +119,8 @@ class Store(Protocol):
 
     def source_summaries(self, notebook_id: str) -> list[SourceSummary]: ...
 
+    def notebook_documents(self, notebook_id: str) -> list[NotebookDocument]: ...
+
     def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str: ...
 
     def insert_chunks(
@@ -142,8 +151,9 @@ class Store(Protocol):
 # one source. Chunks belong to the library source and are reached through the
 # notebook's links, so a file linked into several notebooks is searched from
 # each; the source id returned is the link's (the id this notebook knows).
-# Generated documents are left out unless asked for or scoped to: they
-# restate the uploads. The floor is applied in SQL so a notebook with no
+# Unscoped, it searches either the uploads or the generated documents
+# (``generated``), so the caller can bound how many paraphrases reach the
+# model. The floor is applied in SQL so a notebook with no
 # relevant chunk costs one round trip.
 _SEARCH_SQL = """
 select c.id::text as chunk_id, s.id::text as source_id, l.name as source_name,
@@ -157,7 +167,7 @@ join chunks c on c.library_source_id = l.id
 where s.notebook_id = %(notebook_id)s
   and l.status = 'ready'
   and (%(source_id)s::uuid is null or s.id = %(source_id)s::uuid)
-  and (%(source_id)s::uuid is not null or %(include_generated)s or l.kind <> 'generated')
+  and (%(source_id)s::uuid is not null or (l.kind = 'generated') = %(generated)s)
   and 1 - (c.embedding <=> %(embedding)s::vector) >= %(floor)s
 order by c.embedding <=> %(embedding)s::vector
 limit %(k)s
@@ -206,13 +216,13 @@ class PgVectorRetriever:
         k: int,
         floor: float,
         source_id: str | None = None,
-        include_generated: bool = False,
+        generated: bool = False,
     ) -> list[RetrievedChunk]:
         params = {
             "notebook_id": notebook_id,
             "embedding": _vector_literal(embedding),
             "source_id": source_id,
-            "include_generated": include_generated,
+            "generated": generated,
             "floor": floor,
             "k": k,
         }
@@ -460,6 +470,20 @@ class PostgresStore:
                 (notebook_id,),
             ).fetchall()
         return [SourceSummary(r["id"], r["name"], r["kind"], r["summary"] or "") for r in rows]
+
+    def notebook_documents(self, notebook_id: str) -> list[NotebookDocument]:
+        """The ready sources, uploads and generated, oldest first; a generated
+        one carries its output's kind."""
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select l.name, l.kind, o.kind as output_kind from sources s "
+                "join library_sources l on l.id = s.library_source_id "
+                "left join outputs o on o.source_id = s.id "
+                "where s.notebook_id = %s and l.status = 'ready' "
+                "order by s.created_at, s.id",
+                (notebook_id,),
+            ).fetchall()
+        return [NotebookDocument(r["name"], r["kind"], r["output_kind"]) for r in rows]
 
     def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str:
         """A hidden library row of kind 'generated' (owned by the notebook's owner,

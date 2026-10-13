@@ -37,7 +37,7 @@ class Settings:
     tts_voice: str
     s3: S3Settings | None
     retrieval_k: int
-    retrieval_include_generated: bool
+    retrieval_generated_slots: int
     similarity_floor: float
     log_level: str
 
@@ -54,6 +54,11 @@ class Settings:
         retrieval_k = env_int("RETRIEVAL_K", 8, env)
         if retrieval_k <= 0:
             raise ConfigError(f"RETRIEVAL_K must be positive, got {retrieval_k}")
+        generated_slots = env_int("RETRIEVAL_GENERATED_SLOTS", 2, env)
+        if generated_slots < 0:
+            raise ConfigError(
+                f"RETRIEVAL_GENERATED_SLOTS must not be negative, got {generated_slots}"
+            )
         return cls(
             database_url=env_required("DATABASE_URL", env),
             auth=AuthSettings.from_env(env),
@@ -64,9 +69,7 @@ class Settings:
             tts_voice=_voice(env_optional("TTS_VOICE", env) or DEFAULT_TTS_VOICE),
             s3=_s3(env, tts_model),
             retrieval_k=retrieval_k,
-            retrieval_include_generated=_flag(
-                env.get("RETRIEVAL_INCLUDE_GENERATED", "false"), "RETRIEVAL_INCLUDE_GENERATED"
-            ),
+            retrieval_generated_slots=generated_slots,
             similarity_floor=_unit_float(env.get("SIMILARITY_FLOOR", "0.3"), "SIMILARITY_FLOOR"),
             log_level=(env_optional("LOG_LEVEL", env) or "INFO").upper(),
         )
@@ -80,15 +83,6 @@ def _unit_float(raw: str, name: str) -> float:
     if not 0.0 <= value <= 1.0:
         raise ConfigError(f"{name} must be between 0 and 1, got {value}")
     return value
-
-
-def _flag(raw: str, name: str) -> bool:
-    value = raw.strip().lower()
-    if value in ("true", "1", "yes"):
-        return True
-    if value in ("false", "0", "no", ""):
-        return False
-    raise ConfigError(f"{name} must be true or false, got {raw!r}")
 
 
 def _s3(env: Mapping[str, str], tts_model: str | None) -> S3Settings | None:
