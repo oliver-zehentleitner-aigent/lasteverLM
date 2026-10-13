@@ -26,3 +26,33 @@ keys need its own JSON identity configuration and the Docker Hub tag
 listing showed no plain release tags to pin; pointing local runs at
 the real Vultr bucket — mixes developer data into the deployment's
 storage and needs the production keys on every machine.
+
+## The local database is set up by the cluster's own scripts
+
+**Id:** 07934f86-700a-4f20-99ca-974182f87892
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Revisit when:** the cluster's migration path changes (another runner, migrations inside the services)
+
+The `migrate` service in `compose.yaml` runs `db/bootstrap.sh`
+and `db/migrate.sh` from this directory against the local
+PostgreSQL, with every service's `db/migrations/` mounted in the
+layout the chart's hook Job sees. The gateway routes the same paths as
+the production Ingress, with the same body size and read timeout.
+
+**Reason:** the local stack is where a migration or a routing change
+should fail first. The production path has rules a plain local setup
+would not exercise — the application role owning its tables through
+`SET ROLE`, the order infra, core, account, ingest, rag, the
+`:EMBEDDING_DIMENSION` variable — and the cluster has already
+failed once on table ownership; running the same scripts locally
+catches that class of error before a deploy.
+
+**Rejected alternatives:** a superuser connection with an init SQL
+file — simpler, but hides exactly the ownership and privilege errors
+the cluster would hit; each service creating its schema on start-up —
+contradicts the contract that migrations are applied once, outside the
+services; the web container's own dev proxy (`VITE_DEV_PROXY`) in
+place of a gateway — covers only the front end's requests, not the
+API paths a test or curl sends.
