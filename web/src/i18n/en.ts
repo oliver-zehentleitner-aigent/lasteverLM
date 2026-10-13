@@ -427,6 +427,8 @@ export const en = {
   'set.themeSystem': 'Like the system',
   'sys.noRole': 'Pod list not available: the account service has no read role for pods and deployments in the cluster (see "The chart" in infra/docs/operations.md, kubernetesRead).',
   'wiz.selected': '{n} selected',
+  'lib.sizeUnknown': 'unknown',
+  'lib.sizeUnknownTitle': 'Added before sizes were recorded',
 } as const
 
 export type MessageKey = keyof typeof en

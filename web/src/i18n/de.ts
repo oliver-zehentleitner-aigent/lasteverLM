@@ -430,4 +430,6 @@ export const de: Record<MessageKey, string> = {
   'set.themeSystem': 'Wie das System',
   'sys.noRole': 'Pod-Liste nicht verfügbar: der Account-Dienst hat im Cluster keine Leserolle für Pods und Deployments (siehe „The chart“ in infra/docs/operations.md, kubernetesRead).',
   'wiz.selected': '{n} ausgewählt',
+  'lib.sizeUnknown': 'unbekannt',
+  'lib.sizeUnknownTitle': 'Hinzugefügt, bevor Größen erfasst wurden',
 }

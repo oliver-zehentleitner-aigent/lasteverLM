@@ -183,7 +183,8 @@ service's sentence).
 ## Library
 
 `/library` (in the header next to Admin): every upload and URL of the
-user, once, newest first, with kind, status, size, date and the
+user, once, newest first, with kind, status, size ("unknown" for
+entries added before sizes were recorded), date and the
 notebooks it is in as links (or "not in any notebook"). Filters by kind
 and by part of the name or address. Delete moves the entry to the
 trash, out of every notebook, after a confirmation that names those

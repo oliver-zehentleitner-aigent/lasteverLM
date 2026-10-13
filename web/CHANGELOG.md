@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Admin System: the "no read role" notice points to "The chart" in `infra/docs/operations.md`, where `kubernetesRead` and the check of the grant are described.
 
+### Fixed
+
+- Form controls: selects get the same border, padding and background as text fields, and every single-line control (select, text, number, search, e-mail) one height, so controls side by side line up. In the library the two filters sit in one grid row with their labels on one line (the Kind label sat lower than the Name label).
+- Library: the size of an entry added before sizes were recorded reads "unknown" (muted, with a tooltip) instead of a dash.
+
 ## [0.8.1] - 2026-10-13
 
 ### Fixed
