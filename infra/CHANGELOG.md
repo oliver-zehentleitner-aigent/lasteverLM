@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - rag API and worker mount the `lasteverlm-s3` Secret (audio files go to the bucket); `TTS_VOICE` (default `ryan`) in the ConfigMap, from `make values` and the deploy workflow's repository variable.
+- `compose.yaml`: local development stack (PostgreSQL 18 with pgvector, RustFS as S3 storage, Mailpit, every service, an nginx gateway routing like the ingress), set up by the same bootstrap and migration scripts as the cluster; `make local-up`, `local-down`, `local-reset`, `local-smoke`.
+- `docs/operations.md`: what cert-manager did for the domain and how to check the certificate.
+
+### Removed
+
+- An empty file `--aws-sigv4` that an earlier `make bucket` bug had left in the directory.
 
 ## [0.1.0] - 2026-10-12
 

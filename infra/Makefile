@@ -32,7 +32,7 @@ export KUBECONFIG := $(BUILD)/kubeconfig
 # $(call require,VAR) fails loud when VAR is unset or empty.
 require = $(if $(strip $($(1))),,$(error $(1) is not set))
 
-.PHONY: help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations values deploy package status down check test smoke
+.PHONY: help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations values deploy package status down check test smoke local-up local-down local-reset local-smoke
 
 help: ## list targets
 > @grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s $$'\t'
@@ -187,3 +187,21 @@ smoke: ## end-to-end smoke test: make smoke URL=https://... (token from DEMO_TOK
 > $(call require,URL)
 > $(call require,DEMO_TOKEN)
 > python3 tests/smoke.py $(URL) $(SMOKE_ARGS)
+
+# Local development (compose.yaml) ------------------------------------------------
+
+COMPOSE := docker compose -f $(CURDIR)/compose.yaml
+
+local-up: ## local stack: Postgres+pgvector, S3 storage, Mailpit, every service, gateway on 127.0.0.1:8080 (needs INFERENCE_API_KEY)
+> $(call require,INFERENCE_API_KEY)
+> $(COMPOSE) up --build -d --wait
+> @echo "app http://localhost:8080  mail http://localhost:8025  storage console http://localhost:9001"
+
+local-down: ## stop the local stack, keep its data
+> $(COMPOSE) down
+
+local-reset: ## stop the local stack and delete its database and storage volumes
+> $(COMPOSE) down --volumes
+
+local-smoke: ## end-to-end smoke test against the local stack
+> DEMO_TOKEN=$${DEMO_TOKEN:-local-demo-token} python3 tests/smoke.py http://localhost:$${GATEWAY_PORT:-8080} --ready-timeout 300

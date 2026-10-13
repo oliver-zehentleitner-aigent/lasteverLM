@@ -10,14 +10,15 @@ the deploy procedure. No application code. The services live in the
 sibling directories; the contract they are built against is
 [`docs/architecture.md`](../docs/architecture.md).
 
-Status: skeleton, not yet applied to a real account. Planned: a compose
-file for local development once Docker is available on the development
-machine.
+Status: deployed on Vultr (VKE in Frankfurt, managed PostgreSQL,
+Object Storage), served at https://lasteverlm.zehentleitner.co with a
+Let's Encrypt certificate; `compose.yaml` runs the same stack locally.
 
 ## What is in here
 
 | Path | Purpose |
 |---|---|
+| `compose.yaml`, `compose/` | Local development stack and its gateway configuration |
 | `tofu/` | OpenTofu configuration: VKE cluster and Object Storage (the managed PostgreSQL is created by the maintainer and taken as an input) |
 | `chart/` | The Helm chart: ConfigMap, API and worker Deployments with autoscalers, Services, Ingress with rate limiting, ClusterIssuer, migration hook |
 | `platform/` | Values for the platform charts: ingress-nginx (JSON access log), cert-manager, metrics-server |
@@ -59,6 +60,43 @@ specific image tag out; the release workflow does the same on a tag
 deployment (demo token from `DEMO_TOKEN`): login, create a notebook,
 upload a text source, wait for ready, ask, assert a citation, delete
 the notebook. Details: [docs/operations.md](docs/operations.md).
+
+## Local development
+
+`compose.yaml` runs the whole application on one machine: PostgreSQL 18
+with pgvector, S3-compatible storage ([RustFS](https://github.com/rustfs/rustfs);
+the MinIO images are no longer published), Mailpit, every service
+built from this checkout, and an nginx gateway that routes like the
+production ingress. Needs Docker with the compose plugin and one value
+from outside, `INFERENCE_API_KEY`; the models default to the deployed
+ones.
+
+```sh
+export INFERENCE_API_KEY=...   # or: set -a; . ~/lasteverlm.env; set +a
+make local-up      # build, bootstrap + migrate the database, create the bucket, start; waits for health
+make local-smoke   # the end-to-end smoke test against http://localhost:8080
+make local-down    # stop, keep the data (local-reset also deletes the volumes)
+```
+
+| URL | What |
+|---|---|
+| http://localhost:8080 | the app (gateway: `/api/account`, `/api/ingest`, `/api/rag`, the rest to web) |
+| http://localhost:8025 | Mailpit: every magic-link mail lands here |
+| http://localhost:9001 | storage console (`local-dev-access` / `local-dev-secret-key`) |
+| `localhost:5432` | PostgreSQL (`lasteverlm` / `local-dev-password`, database `lasteverlm`) |
+
+Every port binds to 127.0.0.1. The database is set up by the same
+`db/bootstrap.sh` and `db/migrate.sh` the cluster uses, so a migration
+that would fail on deploy fails here first. Login: the demo token
+(`local-demo-token` unless `DEMO_TOKEN` is set) or a magic link for
+an address in `AUTH_ALLOWED_DOMAINS` (default `example.com`; the
+admin is `admin@example.com` unless `ADMIN_EMAILS` is set). Model
+names, `MODEL_PRICES`, `EMBEDDING_DIMENSION`, `TTS_MODEL`,
+`TTS_VOICE`, `POSTGRES_PORT` and `GATEWAY_PORT` are taken from the
+shell when set. The passwords and keys in `compose.yaml` are
+local-only values; the deployment never reads that file (`make
+secrets` generates its own). A changed `EMBEDDING_DIMENSION` needs
+`make local-reset`: the vector columns are created with it.
 
 ## Contract with the services
 
