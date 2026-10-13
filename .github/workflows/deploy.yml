@@ -12,6 +12,10 @@ on:
         description: image tag to roll out (a Git tag like v0.1.0, or a full SHA)
         required: true
 
+# The token only checks the repository out; cluster access is the kubeconfig secret.
+permissions:
+  contents: read
+
 concurrency:
   group: deploy
   cancel-in-progress: false
@@ -25,6 +29,11 @@ jobs:
     environment: production
     env:
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
+      # What is checked out. After docker: the exact commit docker built, not the
+      # tag name, which could be moved between the build and this checkout while
+      # secrets are in scope. By hand: the input as given; only a maintainer
+      # with write access can dispatch, and the run starts on that click.
+      CHECKOUT_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_sha }}
     # The configuration (domain, models, prices, S3 endpoint) is committed in
     # infra/chart/values-prod.yaml; the only required secret is KUBECONFIG_B64.
     steps:
@@ -45,7 +54,7 @@ jobs:
       - uses: actions/checkout@v7
         if: steps.gate.outputs.run == 'true'
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.CHECKOUT_REF }}
       - uses: azure/setup-helm@v5
         if: steps.gate.outputs.run == 'true'
       - uses: azure/setup-kubectl@v5
