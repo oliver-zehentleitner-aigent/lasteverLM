@@ -67,13 +67,14 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd }:
               </span>
               <span className={`badge ${s.status}`}>{s.kind === 'generated' ? 'generated' : s.status}</span>
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
+              {s.status === 'processing' && s.error && <span className="muted small">Retrying after: {s.error}</span>}
             </div>
             <button type="button" className="icon" title="Remove source" onClick={() => void remove(s)}>
               ×
             </button>
           </li>
         ))}
-        {sources.length === 0 && !busy && <li className="muted">No sources yet. Add a PDF or a text.</li>}
+        {sources.length === 0 && !busy && <li className="muted">No sources yet. Add a PDF, a text, a web page or an image.</li>}
       </ul>
     </section>
   )
