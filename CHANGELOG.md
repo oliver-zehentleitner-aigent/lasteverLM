@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/rag-pipeline.md` and `docs/architecture.md`: the chat knows the notebook's documents, generated chunks capped in unscoped retrieval (uploads first), conversation rename.
+
 ## [0.7.0] - 2026-10-13
 
 ### Changed
