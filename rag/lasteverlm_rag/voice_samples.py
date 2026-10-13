@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from lasteverlm_core import Storage, TextToSpeech, Usage
+from lasteverlm_core import ProviderError, Storage, TextToSpeech, Usage
 from pydantic import BaseModel, ConfigDict
 
 from .options import SPEED_DEFAULT, VOICES, OutputOptions, resolve
@@ -68,7 +68,8 @@ class VoiceSamples:
 
     def sample(self, user_id: str, request: VoiceSampleRequest) -> dict[str, Any]:
         """``{"url", "cached"}``; raises ``ValueError`` outside the catalogue and
-        ``InsufficientCredit`` (via ``charge``) when a synthesis is needed."""
+        ``InsufficientCredit`` when a synthesis is needed and the caller has no
+        credit, ``ProviderError`` when the synthesis returns no audio."""
         resolved = resolve(
             "audio",
             OutputOptions(voice=request.voice, speed=request.speed, language=request.language),
@@ -85,6 +86,8 @@ class VoiceSamples:
             text = SAMPLE_TEXT[language].format(name=self._labels[voice])
             audio = self._tts.synthesize(text, voice=voice, speed=speed)
             self._store.record_usage(user_id, None, Usage("tts", self._tts.model, len(text), 0))
+            if not audio:
+                raise ProviderError("text-to-speech returned no audio")
             self._objects.put(key, audio, "audio/mpeg")
         return {"url": self._objects.presigned_get(key, SAMPLE_URL_EXPIRES_S), "cached": cached}
 

@@ -26,6 +26,7 @@ from lasteverlm_core import (
     ProviderError,
     SharedOutput,
     Storage,
+    StorageError,
     TextToSpeech,
     TokenWindowChunker,
     Usage,
@@ -106,6 +107,7 @@ HISTORY_MESSAGE_CHARS = 1000
 DEFAULT_TITLE = re.compile(r"^Chat (\d+)$")
 AUDIO_URL_EXPIRES_S = 3600
 AUDIO_FILE = "audio.mp3"
+ERROR_LOG_CHARS = 1000
 
 
 class NotebookNotFound(Exception):
@@ -488,15 +490,16 @@ class OutputService:
             if source_id is not None:
                 self._store.delete_source(source_id)
             self._delete_objects(content)
-            error = _error_text(exc)
+            error = public_error(exc)
             final = isinstance(exc, GenerationFailed) or job.attempts >= MAX_ATTEMPTS
+            # the log keeps the detail; the row (which the user sees) the public text
             log.warning(
                 "output %s (%s) attempt %d failed%s: %s",
                 job.id,
                 job.kind,
                 job.attempts,
                 "" if final else ", will retry",
-                error,
+                (str(exc) or exc.__class__.__name__)[:ERROR_LOG_CHARS],
             )
             if final:
                 self._store.update_output(job.id, status="failed", error=error)
@@ -579,13 +582,15 @@ class OutputService:
             raise GenerationFailed("audio: the script is empty")
         parts: list[bytes] = []
         for segment in segments:
-            parts.append(
-                self._tts.synthesize(
-                    segment, voice=job.options.get("voice"), speed=job.options.get("speed")
-                )
+            audio = self._tts.synthesize(
+                segment, voice=job.options.get("voice"), speed=job.options.get("speed")
             )
             usage = Usage(kind="tts", model=self._tts.model, tokens_in=len(segment), tokens_out=0)
             self._store.record_usage(job.owner, job.notebook_id, usage)
+            # recorded first: the characters were sent and billed either way
+            if not audio:
+                raise ProviderError("text-to-speech returned no audio")
+            parts.append(audio)
         key = object_key(job.notebook_id, job.id, AUDIO_FILE)
         # MP3 frames are self-contained: the segments concatenate into one stream
         self._objects.put(key, b"".join(parts), "audio/mpeg")
@@ -677,5 +682,14 @@ def to_output(row: OutputRow) -> Output:
     )
 
 
-def _error_text(exc: Exception) -> str:
-    return (str(exc) or exc.__class__.__name__)[:1000]
+def public_error(exc: Exception) -> str:
+    """The error an output shows its owner. Only rag's own ``GenerationFailed``
+    texts are shown as they are; a provider or storage message can carry
+    endpoints and request details, and anything else is internal."""
+    if isinstance(exc, GenerationFailed):
+        return str(exc)
+    if isinstance(exc, ProviderError):
+        return "the model provider failed; the job is retried up to three times"
+    if isinstance(exc, StorageError):
+        return "storing the audio failed; the job is retried up to three times"
+    return "internal error while generating; the job is retried up to three times"

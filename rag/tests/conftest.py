@@ -414,8 +414,9 @@ class FakeTTS:
 
     model = "test-tts"
 
-    def __init__(self, fail: bool = False) -> None:
+    def __init__(self, fail: bool = False, silent: bool = False) -> None:
         self.fail = fail
+        self.silent = silent  # answers with no audio at all
         self.inputs: list[str] = []
         self.settings: list[tuple[str | None, float | None]] = []
 
@@ -426,7 +427,7 @@ class FakeTTS:
             raise ProviderError("speech request failed: boom")
         self.inputs.append(text)
         self.settings.append((voice, speed))
-        return b"\xff\xf3" + text[:4].encode()
+        return b"" if self.silent else b"\xff\xf3" + text[:4].encode()
 
 
 class FakeObjects:

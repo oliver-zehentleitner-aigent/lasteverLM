@@ -71,3 +71,15 @@ def test_without_speech_the_endpoint_says_so(settings):
 def test_every_catalogue_language_has_a_sample_text():
     assert set(SAMPLE_TEXT) == {lang.code for lang in LANGUAGES}
     assert all("{name}" in text for text in SAMPLE_TEXT.values())
+
+
+def test_a_synthesis_without_audio_is_a_502_billed_and_not_cached(settings):
+    store, objects = FakeStore(), FakeObjects()
+    client = client_with(settings, store, FakeTTS(silent=True), objects)
+    r = client.post(SAMPLE, json={"voice": "ryan"}, headers=AUTH)
+    assert (r.status_code, r.json()) == (
+        502,
+        {"error": "the model did not answer; please try again"},
+    )
+    assert objects.objects == {}
+    assert [u.kind for _, _, u in store.usage] == ["tts"]
