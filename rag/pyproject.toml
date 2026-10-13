@@ -19,6 +19,7 @@ lasteverlm-rag-worker = "lasteverlm_rag.worker:main"
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
+    "black>=24.8",
     "ruff>=0.6",
     "mypy>=1.11",
     "httpx>=0.27",
@@ -36,6 +37,10 @@ testpaths = ["tests"]
 markers = ["postgres: needs RAG_TEST_DATABASE_URL (make test-postgres)"]
 addopts = "-m 'not postgres'"
 filterwarnings = ["ignore::jwt.warnings.InsecureKeyLengthWarning"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
 
 [tool.ruff]
 line-length = 100
