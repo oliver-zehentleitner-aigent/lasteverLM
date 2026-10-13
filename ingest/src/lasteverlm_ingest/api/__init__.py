@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from lasteverlm_ingest.api import health, notebooks, sources
+from lasteverlm_ingest.api import admin, health, notebooks, sources
 
 PREFIX = "/api/ingest"
 
@@ -14,4 +14,5 @@ def router() -> APIRouter:
     api.include_router(health.router)
     api.include_router(notebooks.router)
     api.include_router(sources.router)
+    api.include_router(admin.router)
     return api

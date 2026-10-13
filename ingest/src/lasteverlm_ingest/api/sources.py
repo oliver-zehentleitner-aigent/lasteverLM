@@ -108,12 +108,12 @@ async def create_source(request: Request, user: CurrentUser, notebook_id: UUID) 
             status_code=415, detail="send multipart/form-data with 'file' or JSON with 'url'"
         )
 
-    if repo.balance_cents(user) <= 0:
+    if not repo.has_credit(user):
         raise HTTPException(status_code=402, detail=CREDIT_EXHAUSTED)
 
     source_id = uuid4()
     key = object_key(notebook_id, source_id, "url" if kind == "url" else name)
-    source = repo.create_source(notebook_id, source_id, name, kind, key)
+    source = repo.create_source(notebook_id, source_id, name, kind, key, len(data))
     try:
         object_type = sniff_image_type(data) if kind == "image" else _CONTENT_TYPE[kind]
         deps.storage.put(key, data, object_type or "application/octet-stream")

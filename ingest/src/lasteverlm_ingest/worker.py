@@ -102,7 +102,7 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     loader = deps.loaders.get(source.kind)
     if isinstance(loader, ModelLoader):
         # Reading this source is a model call of its own (images).
-        if repo.balance_cents(source.owner) <= 0:
+        if not repo.has_credit(source.owner):
             raise ProcessingError(CREDIT_EXHAUSTED)
         try:
             passages, usage = loader.load_with_usage(data)
@@ -115,7 +115,7 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     chunks = deps.chunker.chunk(passages)
     if not chunks:
         raise ProcessingError("no text to index")
-    if repo.balance_cents(source.owner) <= 0:
+    if not repo.has_credit(source.owner):
         raise ProcessingError(CREDIT_EXHAUSTED)
 
     vectors: list[list[float]] = []
@@ -139,7 +139,7 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     # The summary is its own model call, so it gets its own credit check
     # and its own usage row. Without a summary the source is not usable by
     # the output generators, so a failure here fails the source.
-    if repo.balance_cents(source.owner) <= 0:
+    if not repo.has_credit(source.owner):
         raise ProcessingError(CREDIT_EXHAUSTED)
     summary = deps.summarizer.summarize(source.name, passages)
     repo.record_usage(

@@ -21,7 +21,7 @@ from lasteverlm_core import (
     parse_model_prices,
 )
 
-from lasteverlm_ingest.repository import StoredSource
+from lasteverlm_ingest.repository import AdminStats, StoredSource
 
 
 class InMemoryRepository:
@@ -40,6 +40,7 @@ class InMemoryRepository:
         self.credits: dict[UUID, int] = {}
         self.claimed: dict[UUID, str] = {}
         self.default_balance = balance
+        self.admins: set[UUID] = set()
 
     def list_notebooks(self, owner: UUID) -> list[Notebook]:
         return [nb for o, nb in self.notebooks.values() if o == owner]
@@ -70,7 +71,13 @@ class InMemoryRepository:
         return [s for s in self.sources.values() if s.notebook_id == notebook_id]
 
     def create_source(
-        self, notebook_id: UUID, source_id: UUID, name: str, kind: str, storage_path: str | None
+        self,
+        notebook_id: UUID,
+        source_id: UUID,
+        name: str,
+        kind: str,
+        storage_path: str | None,
+        size_bytes: int | None = None,
     ) -> StoredSource:
         owner = self.notebooks[notebook_id][0]
         source = StoredSource(
@@ -83,6 +90,7 @@ class InMemoryRepository:
             created_at=datetime.now(UTC),
             owner=owner,
             storage_path=storage_path,
+            size_bytes=size_bytes,
         )
         self.sources[source_id] = source
         return source
@@ -134,6 +142,30 @@ class InMemoryRepository:
     def balance_cents(self, user_id: UUID) -> int:
         credits = self.credits.get(user_id, self.default_balance)
         return credits - sum(u.cost_cents for u in self.usage if u.user_id == user_id)
+
+    def has_credit(self, user_id: UUID) -> bool:
+        return self.is_admin(user_id) or self.balance_cents(user_id) > 0
+
+    def is_admin(self, user_id: UUID) -> bool:
+        return user_id in self.admins
+
+    def admin_stats(self, stale_after_seconds: int) -> AdminStats:
+        counts = {status: 0 for status in ("processing", "ready", "failed")}
+        for source in self.sources.values():
+            counts[source.status] += 1
+        running = sum(
+            1 for s in self.sources.values() if s.status == "processing" and s.id in self.claimed
+        )
+        return AdminStats(
+            sources=counts,
+            jobs={
+                "pending": counts["processing"] - running,
+                "running": running,
+                "failed": counts["failed"],
+            },
+            chunks=sum(len(c) for c in self.chunks.values()),
+            source_bytes=sum(s.size_bytes or 0 for s in self.sources.values()),
+        )
 
 
 class InMemoryStorage:
