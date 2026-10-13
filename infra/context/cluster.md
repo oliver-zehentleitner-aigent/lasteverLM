@@ -401,3 +401,37 @@ most fixed image and the least privilege.
 against the pod's memory limit, and an upload spool would compete with
 the worker's PDF rendering; leaving the Jobs on the moving tag — a
 silent image change in the one container that runs DDL as admin.
+
+## NetworkPolicies restrict ingress; egress stays open
+
+**Id:** 4091a506-e9a2-4803-bfe0-f48fc113d632
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** infra security audit requested by the maintainer through the family coordinator, 2026-10-14; the CNI read from the cluster (calico-node DaemonSet); the policy shape and the egress reasoning are drawn here
+**Revisit when:** a policy engine with domain-based egress rules is installed, the managed database gets a VPC address, or a service starts calling another one directly
+
+The chart denies every incoming connection in the namespace except
+from the `ingress-nginx` namespace (any pod, any port) and, on the API
+port, from `account` to the API services. Nothing restricts egress.
+
+**Reason, ingress:** core trusts the `X-Forwarded-For` nginx sets, and
+the edge rate limits live in nginx; a pod that reached a service
+directly would bypass both. No service calls another over HTTP except
+account's health probes; the services share data through the database.
+The controller's namespace is allowed on every port because
+cert-manager's HTTP-01 solver pods run in this namespace on their own
+port and are reached through nginx.
+
+**Reason, egress open:** every outbound destination is an external
+host named by DNS — Object Storage, Serverless Inference, the SMTP
+server, the managed database (public address, VPC attachment pending)
+— and Kubernetes NetworkPolicy matches only IP blocks and ports. An
+egress policy would come down to "DNS, 443, 587 and the database port to
+anywhere", which blocks little and breaks on the next port a provider
+uses.
+
+**Rejected alternatives:** per-service policies naming each caller
+(nginx only to web, account, ingest, rag) — the controller already
+reaches nothing but the Ingress backends, so it adds objects without
+closing a path; a port-based egress allowlist — see above.
