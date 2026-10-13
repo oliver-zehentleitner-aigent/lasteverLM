@@ -33,7 +33,16 @@ from lasteverlm_core import (
 )
 
 from .citations import map_citations, number_passages
-from .models import Conversation, ConversationRow, GeneratedOutput, OutputRow, Passage
+from .coverage import balance, per_source_quota, uncovered_sources
+from .models import (
+    Conversation,
+    ConversationRow,
+    GeneratedOutput,
+    OutputRow,
+    Passage,
+    RetrievedChunk,
+    SourceSummary,
+)
 from .options import OutputOptions, language_name, resolve
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
@@ -408,7 +417,9 @@ class OutputService:
 
         embedded = self._embedder.embed([generator.focus_query])
         self._store.record_usage(user_id, row.notebook_id, embedded.usage)
-        chunks = self._retriever.search(row.notebook_id, embedded.vectors[0], self._k, self._floor)
+        chunks = balanced_chunks(
+            self._retriever, row.notebook_id, embedded.vectors[0], summaries, self._k, self._floor
+        )
 
         def complete(
             system: str,
@@ -421,13 +432,19 @@ class OutputService:
             self._store.record_usage(user_id, row.notebook_id, result.usage)
             return result
 
-        return generator.generate(
+        generated = generator.generate(
             complete,
             str(notebook.get("title", "")),
             summaries,
             number_passages(chunks),
             language=language_name(row.options.get("language")),
         )
+        for name in uncovered_sources(generated.index_text, summaries, chunks):
+            # fail-loud light: the document is kept, the gap is visible in the log
+            log.warning(
+                "output %s (%s) does not mention source %r of its input", row.id, row.kind, name
+            )
+        return generated
 
     def _index(self, user_id: str, notebook_id: str, generated: GeneratedOutput) -> str:
         """Store the document as a source of kind ``generated`` with its chunks
@@ -486,6 +503,22 @@ class OutputService:
         if row is None or row.owner != user_id:
             raise OutputNotFound(output_id)
         return row
+
+
+def balanced_chunks(
+    retriever: Retriever,
+    notebook_id: str,
+    vector: list[float],
+    summaries: list[SourceSummary],
+    k: int,
+    floor: float,
+) -> list[RetrievedChunk]:
+    """A generator's focus-query passages with every ready source represented:
+    each source's best chunks regardless of the floor, the rest by score."""
+    each, total = per_source_quota(len(summaries), k)
+    per_source = [retriever.search(notebook_id, vector, each, 0.0, s.source_id) for s in summaries]
+    ranked = retriever.search(notebook_id, vector, total, floor)
+    return balance(per_source, ranked, total)
 
 
 def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, Any]:
