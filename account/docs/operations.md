@@ -14,7 +14,7 @@ when a required value is missing. `.env.example` lists every variable.
 | `ADMIN_EMAILS` | no | comma-separated admin addresses, may log in regardless of the allowlist |
 | `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist in the settings table, first start only |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | the mail configuration (Secret `lasteverlm-smtp`), read at start, shown read-only at `GET /admin/settings/smtp`, never stored |
-| `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
+| `MAGIC_LINK_TTL_MINUTES`, `LINK_QUOTA_PER_HOUR`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 5 (sign-in links per address per hour), 7, 1000, 30, true, INFO |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware, see `../core/docs/README.md`; the first four are defaults the admin panel overrides at run time (`settings` key `ratelimit`, picked up by every service within 30 s; `DELETE /admin/settings/ratelimit` returns to these values) |
 
@@ -50,7 +50,7 @@ answers `{"status": "ok"}`. The Kubernetes probe uses the root path.
 
 ## Behind the ingress
 
-The service trusts the first entry of `X-Forwarded-For` for the visitor
+The service trusts the last entry of `X-Forwarded-For` (the ingress's) for the visitor
 hash and for core's rate limiter (`TRUST_PROXY_HEADERS=true`). Set it to `false` when the service is
 reachable without a trusted reverse proxy in front, otherwise a caller can
 choose the address that is hashed.

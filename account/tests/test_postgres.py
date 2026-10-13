@@ -277,3 +277,22 @@ async def test_preferences_round_trip(repo: PostgresRepository) -> None:
     stored = await repo.get_user(user.id)
     assert stored is not None and stored.preferences == {"ui_language": "de", "audio_voice": "ryan"}
     assert (await repo.get_user_by_email("prefs@pg.test")).preferences["ui_language"] == "de"  # type: ignore[union-attr]
+
+
+async def test_count_allowed_attempts_per_address(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from login_attempts where email like 'quota%%'")
+    for minutes, outcome in ((5, "allowed"), (30, "allowed"), (90, "allowed"), (1, "refused")):
+        await repo.add_login_attempt(
+            LoginAttemptRecord(
+                now - timedelta(minutes=minutes),
+                "quota@pg.test",
+                "203.0.113.1",
+                "allowed" if outcome == "allowed" else "refused",
+            )
+        )
+    await repo.add_login_attempt(
+        LoginAttemptRecord(now, "quota-other@pg.test", "203.0.113.1", "allowed")
+    )
+    assert await repo.count_allowed_attempts("quota@pg.test", now - timedelta(hours=1)) == 2

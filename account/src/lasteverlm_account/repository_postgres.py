@@ -197,6 +197,16 @@ class PostgresRepository:
             for r in rows
         ]
 
+    async def count_allowed_attempts(self, email: str, since: datetime) -> int:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select count(*) as n from login_attempts
+                   where email = %s and outcome = 'allowed' and at >= %s""",
+                (email, since),
+            )
+            row = await cur.fetchone()
+        return int(row["n"]) if row else 0
+
     async def purge_login_attempts(self, before: datetime) -> int:
         async with self._pool.connection() as conn:
             cur = await conn.execute("delete from login_attempts where at < %s", (before,))

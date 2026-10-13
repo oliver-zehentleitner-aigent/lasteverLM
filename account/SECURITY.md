@@ -19,4 +19,4 @@ You will get an answer within a few days.
 
 ## Known limitations
 
-- Rate limiting is core's middleware (120 requests per minute per address, then blocks and bans); within that budget a caller can make the service send sign-in mails to an allowed address and fill `login_attempts` rows (254-byte address, 30-day retention). No per-address mail quota exists yet.
+- Rate limiting is core's middleware (120 requests per minute per IP, then blocks and bans) plus a per-address quota of `LINK_QUOTA_PER_HOUR` (5) sign-in links per hour; a throttled request writes no `login_attempts` row. Refused addresses are still logged within the IP budget (254-byte rows, 30-day retention).
