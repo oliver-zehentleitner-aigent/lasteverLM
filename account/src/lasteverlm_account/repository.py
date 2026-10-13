@@ -12,7 +12,7 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 
 @dataclass(frozen=True)
@@ -164,6 +164,11 @@ class Repository(Protocol):
         ...
 
     async def stats(self, since: datetime, now: datetime) -> StatsRecord: ...
+    async def delete_voucher(
+        self, voucher_id: uuid.UUID
+    ) -> Literal["deleted", "redeemed", "missing"]:
+        """Remove an open voucher. A redeemed one is history (it backs a ledger row) and stays."""
+        ...
 
     # visits -----------------------------------------------------------------
     async def add_visit(self, visit: VisitRecord) -> None: ...

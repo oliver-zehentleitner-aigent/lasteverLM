@@ -387,6 +387,13 @@ class AccountService:
             for v in await self.repo.list_vouchers(limit)
         ]
 
+    async def delete_voucher(self, voucher_id: uuid.UUID) -> None:
+        outcome = await self.repo.delete_voucher(voucher_id)
+        if outcome == "missing":
+            raise AccountError(404, "unknown voucher")
+        if outcome == "redeemed":
+            raise AccountError(409, "a redeemed voucher is history and cannot be deleted")
+
     async def admin_stats(self) -> AdminStats:
         now = self.now()
         s = await self.repo.stats(now - timedelta(hours=24), now)

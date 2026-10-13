@@ -29,6 +29,7 @@ ADMIN_ROUTES = [
     ("DELETE", "/api/account/admin/settings/addresses/a@x.test", None),
     ("POST", "/api/account/admin/vouchers", {}),
     ("GET", "/api/account/admin/vouchers", None),
+    ("DELETE", "/api/account/admin/vouchers/00000000-0000-4000-8000-000000000099", None),
     ("GET", "/api/account/admin/stats", None),
     ("GET", "/api/account/admin/blocks", None),
     ("GET", "/api/account/admin/bans", None),

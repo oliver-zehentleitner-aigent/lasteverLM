@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Path, Query, Response
 from fastapi.responses import JSONResponse
 
@@ -108,6 +110,13 @@ async def create_vouchers(
 ) -> CreateVouchersResponse:
     codes = await service.create_vouchers(admin.id, body.amount_cents, body.count)
     return CreateVouchersResponse(codes=codes)
+
+
+@router.delete("/vouchers/{voucher_id}", status_code=204)
+async def delete_voucher(voucher_id: uuid.UUID, service: Service, _: AdminUserDep) -> Response:
+    """Remove an open voucher; a redeemed one stays (409), it backs a ledger row."""
+    await service.delete_voucher(voucher_id)
+    return Response(status_code=204)
 
 
 # --- access control: tables written by core's rate-limit middleware ------------

@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `DELETE /admin/vouchers/{id}` removes an open voucher; a redeemed one answers 409, it is history and backs a ledger row.
+
 ## [0.3.0] - 2026-10-13
 
 ### Added
