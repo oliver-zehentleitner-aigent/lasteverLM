@@ -21,7 +21,6 @@ src/lasteverlm_ingest/
 ├── config.py        Settings from the environment (shared parts via core)
 ├── auth.py          bearer-token dependency on core's current_user (account JWT or demo token)
 ├── repository.py    all PostgreSQL access (notebooks, sources, chunks, queue claim, usage via core)
-├── storage.py       object storage for uploads (S3-compatible, boto3)
 ├── worker.py        claim loop and pipeline: load → parse → chunk → embed → summarize → ready
 ├── summarizer.py    one-paragraph summary per source on core's LLM interface
 ├── loaders/         pdf, text → passages; registry open for url and image

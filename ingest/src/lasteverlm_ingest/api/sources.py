@@ -5,7 +5,7 @@ from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from lasteverlm_core import Source
+from lasteverlm_core import Source, StorageError, object_key
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
@@ -13,7 +13,6 @@ from lasteverlm_ingest.api.deps import owned_notebook, owned_source, repository,
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.url import check_url
-from lasteverlm_ingest.storage import StorageError, object_key
 from lasteverlm_ingest.worker import CREDIT_EXHAUSTED
 
 router = APIRouter()
@@ -133,5 +132,5 @@ def delete_source(request: Request, user: CurrentUser, source_id: UUID) -> Respo
     source = owned_source(deps.repository, user, source_id)
     deps.repository.delete_source(source_id)
     if source.storage_path:
-        deps.storage.delete([source.storage_path])
+        deps.storage.delete(source.storage_path)
     return Response(status_code=204)

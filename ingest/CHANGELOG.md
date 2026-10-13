@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- Object storage comes from core (`lasteverlm_core.storage`, shared with rag); ingest's own S3 client is gone, the `S3_*` variables are unchanged.
+
 ### Added
 
 - URL sources: `POST /notebooks/{id}/sources` with `{"url"}` stores the URL, the worker fetches it and loads web pages (HTML text extraction), PDFs and plain text behind it. Every connection and redirect hop is checked against public addresses only.

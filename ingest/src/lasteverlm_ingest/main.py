@@ -24,6 +24,8 @@ from lasteverlm_core import (
     RateLimiter,
     RateLimitMiddleware,
     RateLimitStore,
+    S3Storage,
+    Storage,
     TokenWindowChunker,
     make_client,
 )
@@ -35,7 +37,6 @@ from lasteverlm_ingest.config import ConfigError, Settings
 from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
 from lasteverlm_ingest.loaders.image import ImageLoader
 from lasteverlm_ingest.repository import PostgresRepository, Repository
-from lasteverlm_ingest.storage import S3Storage, Storage
 from lasteverlm_ingest.summarizer import LLMSummarizer, Summarizer
 from lasteverlm_ingest.worker import WorkerDeps
 
@@ -71,13 +72,7 @@ def build_worker_deps(
     repository = repository or PostgresRepository(
         settings.database_url, model_prices=settings.model_prices, service=settings.service_name
     )
-    storage = storage or S3Storage(
-        endpoint=settings.s3_endpoint,
-        bucket=settings.s3_bucket,
-        access_key=settings.s3_access_key,
-        secret_key=settings.s3_secret_key,
-        region=settings.s3_region,
-    )
+    storage = storage or S3Storage(settings.s3)
     client = None
     if embedder is None or summarizer is None or loaders is None:
         client = make_client(settings.inference)

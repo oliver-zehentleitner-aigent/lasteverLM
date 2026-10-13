@@ -32,5 +32,5 @@ def delete_notebook(request: Request, user: CurrentUser, notebook_id: UUID) -> R
     deps = worker_deps(request)
     owned_notebook(deps.repository, user, notebook_id)
     keys = deps.repository.delete_notebook(user, notebook_id)
-    deps.storage.delete(keys)
+    deps.storage.delete(*keys)
     return Response(status_code=204)
