@@ -23,8 +23,12 @@ The migrations are
 (the stored object's size) and
 [`0003_source_library.sql`](../db/migrations/0003_source_library.sql)
 (the library; the expand step: every existing source got a library
-source with the same id, the old columns on `sources` and `chunks` stay
-nullable until 0004 drops them one release later), plain SQL for psql, applied by infra's `make migrate` after infra's extensions
+source with the same id, the old columns on `sources` and `chunks` stayed
+nullable for the rolling deploy) and
+[`0004_source_library_contract.sql`](../db/migrations/0004_source_library_contract.sql)
+(the contract step, one release later: drops those columns and makes
+`library_source_id` not null; added after 0005–0008, which the runner
+allows since it records each file by name), plain SQL for psql, applied by infra's `make migrate` after infra's extensions
 migration and core's migration; the runner wraps each file in one
 transaction, so the file has no `begin`/`commit` of its own. An applied
 file is never edited; a change is a new numbered file. The embedding dimension
