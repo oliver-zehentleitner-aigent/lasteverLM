@@ -74,13 +74,16 @@ is closed. After the wizard the notebook view opens.
 ## Login, credit, admin
 
 - Login page: one field, the e-mail address; then "check your mail";
-  the link lands on `/auth/callback` and the app is open.
+  the link lands on `/auth/callback` and the app is open. An address
+  without access is told "This address has no access to lasteverLM."
+  and no mail goes out.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
 - Admin (only for admins, one page with sections): users with last
   login and balance, login log, visitor log aggregated per day and
   path, SMTP settings read-only (they come from the deployment) with a
-  test button, allowed domains, voucher
+  test button, allowed sign-in (domains and single addresses, one
+  entry at a time), voucher
   creation that shows the codes once.
 
 ## Language

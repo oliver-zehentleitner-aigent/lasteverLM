@@ -169,3 +169,12 @@ export interface AccessEntry {
   user_id: string | null
   service: 'account' | 'ingest' | 'rag'
 }
+
+/** Who may sign in besides the configured admins: listed addresses and
+ *  addresses at a listed domain. Both empty means only the admins. */
+export interface Allowlist {
+  allowed_domains: string[]
+  allowed_addresses: string[]
+}
+
+export type AllowKind = 'domain' | 'address'

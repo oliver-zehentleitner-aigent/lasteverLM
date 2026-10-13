@@ -257,3 +257,7 @@ button.link.danger { color: var(--danger); }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0 0 0.75rem; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+/* admin allowlist */
+.allow-list h3 { margin: 0 0 0.3rem; font-size: 0.95rem; }
+.allow-list .list { margin-bottom: 0.5rem; }

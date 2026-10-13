@@ -1,6 +1,6 @@
 import { ACCOUNT_PREFIX, ADMIN_MOCK } from '../config'
 import { request } from './client'
-import type { AccessEntry, AdminUser, Ban, Block, LoginEvent, Smtp, VisitBucket } from './types'
+import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginEvent, Smtp, VisitBucket } from './types'
 
 /** Everything the admin panel needs, as one interface so the pages do not
  *  care whether they talk to the account service or to the mock below.
@@ -11,8 +11,10 @@ export interface AdminApi {
   listVisits(days: number): Promise<VisitBucket[]>
   getSmtp(): Promise<Smtp>
   testSmtp(): Promise<{ sent_to: string }>
-  getAllowedDomains(): Promise<string[]>
-  saveAllowedDomains(domains: string[]): Promise<string[]>
+  getAllowlist(): Promise<Allowlist>
+  /** one entry at a time; the server normalizes it and returns both lists */
+  addAllowed(kind: AllowKind, value: string): Promise<Allowlist>
+  removeAllowed(kind: AllowKind, value: string): Promise<void>
   /** Codes are shown once; the server stores only their hashes. */
   createVouchers(amountCents: number, count: number): Promise<string[]>
   /** rate limiting and blocking, read-only except for lifting a ban */
@@ -23,7 +25,7 @@ export interface AdminApi {
 }
 
 const A = `${ACCOUNT_PREFIX}/admin`
-type Domains = { allowed_domains: string[] }
+const ALLOW_PATH: Record<AllowKind, string> = { domain: 'domains', address: 'addresses' }
 
 const httpAdmin: AdminApi = {
   listUsers: () => request<AdminUser[]>(`${A}/users`),
@@ -31,9 +33,11 @@ const httpAdmin: AdminApi = {
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
   getSmtp: () => request<Smtp>(`${A}/settings/smtp`),
   testSmtp: () => request<{ sent_to: string }>(`${A}/settings/smtp/test`, { method: 'POST' }),
-  getAllowedDomains: () => request<Domains>(`${A}/settings/domains`).then((d) => d.allowed_domains),
-  saveAllowedDomains: (allowed_domains) =>
-    request<Domains>(`${A}/settings/domains`, { method: 'PUT', json: { allowed_domains } }).then((d) => d.allowed_domains),
+  getAllowlist: () => request<Allowlist>(`${A}/settings/allowlist`),
+  addAllowed: (kind, value) =>
+    request<Allowlist>(`${A}/settings/${ALLOW_PATH[kind]}`, { method: 'POST', json: { [kind]: value } }),
+  removeAllowed: (kind, value) =>
+    request<void>(`${A}/settings/${ALLOW_PATH[kind]}/${encodeURIComponent(value)}`, { method: 'DELETE' }),
   createVouchers: (amount_cents, count) =>
     request<{ codes: string[] }>(`${A}/vouchers`, { method: 'POST', json: { amount_cents, count } }).then((r) => r.codes),
   listBlocks: () => request<Block[]>(`${A}/blocks`),
@@ -69,7 +73,8 @@ function mockAdmin(): AdminApi {
     { at: '2026-10-12T20:15:30Z', ip: '198.51.100.9', method: 'POST', path: '/api/rag/notebooks/n1/ask', status: 200, user_id: 'u1', service: 'rag' },
   ]
   const smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
-  let domains = ['example.org']
+  let allow: Allowlist = { allowed_domains: ['example.org'], allowed_addresses: ['guest@partner.test'] }
+  const listKey = (kind: AllowKind) => (kind === 'domain' ? 'allowed_domains' : 'allowed_addresses')
 
   return {
     listUsers: () => delay([...users]),
@@ -77,10 +82,18 @@ function mockAdmin(): AdminApi {
     listVisits: () => delay([...visits]),
     getSmtp: () => delay({ ...smtp }),
     testSmtp: () => delay({ sent_to: 'admin@example.org' }),
-    getAllowedDomains: () => delay([...domains]),
-    saveAllowedDomains: (d) => {
-      domains = [...d]
-      return delay([...domains])
+    getAllowlist: () => delay({ ...allow }),
+    addAllowed: (kind, value) => {
+      const v = value.trim().toLowerCase().replace(/^@/, '')
+      const key = listKey(kind)
+      if (allow[key].includes(v)) return Promise.reject(new Error('already listed'))
+      allow = { ...allow, [key]: [...allow[key], v].sort() }
+      return delay({ ...allow })
+    },
+    removeAllowed: (kind, value) => {
+      const key = listKey(kind)
+      allow = { ...allow, [key]: allow[key].filter((x) => x !== value) }
+      return delay(undefined)
     },
     createVouchers: (_amount, count) =>
       delay(Array.from({ length: count }, () => `V-${Math.random().toString(36).slice(2, 8).toUpperCase()}`)),

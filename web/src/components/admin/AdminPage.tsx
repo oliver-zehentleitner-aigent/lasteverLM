@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
-import type { AccessEntry, AdminUser, Ban, Block, LoginEvent, Smtp, VisitBucket } from '../../api/types'
+import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginEvent, Smtp, VisitBucket } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
 import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
@@ -21,7 +21,7 @@ export function AdminPage() {
       <Logins />
       <Visits />
       <Vouchers />
-      <AllowedDomains />
+      <AllowedSignIn />
       <SmtpSettings />
       <Blocks />
       <Bans />
@@ -162,35 +162,94 @@ function Vouchers() {
   )
 }
 
-function AllowedDomains() {
-  const { data, setData, busy, error, run } = useLoad<string[]>(admin.getAllowedDomains, [])
-  const [text, setText] = useState<string | null>(null)
-  const value = text ?? data.join('\n')
+const EMPTY_ALLOWLIST: Allowlist = { allowed_domains: [], allowed_addresses: [] }
 
-  async function save(e: FormEvent) {
+/** Two lists edited one entry at a time; every change answers with both
+ *  lists as stored (normalized, sorted), which replaces the local copy. */
+function AllowedSignIn() {
+  const { data, setData, error } = useLoad<Allowlist>(admin.getAllowlist, EMPTY_ALLOWLIST)
+  const empty = data.allowed_domains.length === 0 && data.allowed_addresses.length === 0
+  return (
+    <Section title="Allowed sign-in">
+      <p className="muted small">
+        Listed addresses, addresses at a listed domain and the configured admins may sign in.
+        {empty && ' Both lists are empty: no one but the configured admins can sign in.'}
+      </p>
+      {error && <p className="error">{error}</p>}
+      <div className="grid2">
+        <AllowList kind="domain" title="Domains" placeholder="example.org" values={data.allowed_domains} onChange={setData} />
+        <AllowList
+          kind="address"
+          title="Single addresses"
+          placeholder="name@example.org"
+          values={data.allowed_addresses}
+          onChange={setData}
+        />
+      </div>
+    </Section>
+  )
+}
+
+interface AllowListProps {
+  kind: AllowKind
+  title: string
+  placeholder: string
+  values: string[]
+  onChange: (a: Allowlist) => void
+}
+
+function AllowList({ kind, title, placeholder, values, onChange }: AllowListProps) {
+  const [value, setValue] = useState('')
+  const { busy, error, run } = useAsync()
+
+  async function add(e: FormEvent) {
     e.preventDefault()
-    const domains = value
-      .split(/[\s,]+/)
-      .map((d) => d.trim().toLowerCase())
-      .filter(Boolean)
-    const saved = await run(() => admin.saveAllowedDomains(domains))
-    if (saved) {
-      setData(saved)
-      setText(null)
+    if (!value.trim()) return
+    const updated = await run(() => admin.addAllowed(kind, value.trim()))
+    if (updated) {
+      onChange(updated)
+      setValue('')
     }
   }
 
+  async function remove(v: string) {
+    if (!confirm(`Remove ${v} from the allowed ${kind === 'domain' ? 'domains' : 'addresses'}?`)) return
+    const ok = await run(async () => {
+      await admin.removeAllowed(kind, v)
+      return true
+    })
+    if (ok) onChange(await admin.getAllowlist())
+  }
+
   return (
-    <Section title="Allowed sign-in domains">
-      <form onSubmit={save}>
-        <p className="muted small">One domain per line. Empty means any address may request a link.</p>
-        <textarea rows={4} value={value} onChange={(e) => setText(e.target.value)} spellCheck={false} />
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={busy || text === null}>
-          Save domains
+    <div className="allow-list">
+      <h3>{title}</h3>
+      <ul className="list">
+        {values.map((v) => (
+          <li key={v}>
+            <span className="item">{v}</span>
+            <button type="button" className="icon" title={`Remove ${v}`} disabled={busy} onClick={() => void remove(v)}>
+              ×
+            </button>
+          </li>
+        ))}
+        {values.length === 0 && <li className="muted small">None.</li>}
+      </ul>
+      <form className="row" onSubmit={add}>
+        <input
+          type={kind === 'address' ? 'email' : 'text'}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder}
+          aria-label={`Add to ${title.toLowerCase()}`}
+          spellCheck={false}
+        />
+        <button type="submit" disabled={busy || !value.trim()}>
+          Add
         </button>
       </form>
-    </Section>
+      {error && <p className="error">{error}</p>}
+    </div>
   )
 }
 
