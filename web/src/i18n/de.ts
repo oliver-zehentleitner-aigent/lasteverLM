@@ -394,4 +394,9 @@ export const de: Record<MessageKey, string> = {
   'sample.play': '▶ Hörprobe',
   'sample.loading': 'lädt …',
   'sample.title': 'Eine kurze Hörprobe dieser Stimme abspielen',
+  'copy.copy': 'kopieren',
+  'copy.copied': 'kopiert',
+  'copy.all': 'alle kopieren',
+  'copy.selected': 'markiert, Strg+C drücken',
+  'adm.codes': 'Gutscheincodes',
 }

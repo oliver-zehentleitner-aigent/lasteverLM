@@ -215,8 +215,10 @@ deleted from the library) stays readable with its quote and is marked
   - **Access** (`/admin/access`): allowed sign-in, domains and single
     addresses, one entry at a time.
   - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
-    that shows the codes once, the list of issued vouchers below (open
-    ones can be deleted).
+    that shows the codes once as chips with a copy button each ("copy
+    all" for several; without the clipboard API the text is selected
+    instead), next to the form when there is room; the list of issued
+    vouchers below (open ones can be deleted).
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
     with its four editable numbers and a reset to the deployment
     defaults, then blocks, bans (with lift) and the raw access log.
