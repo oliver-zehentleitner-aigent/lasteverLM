@@ -67,7 +67,7 @@ repository root's `context/`.
 
 ## S
 
-- [security.md](security.md) — response headers of the web image and why the Content-Security-Policy is limited to frame-ancestors until a browser run
+- [security.md](security.md) — response headers of the web image, the Content-Security-Policy behind a build switch (off, report, enforce) with the inline script's hash derived at build (frame-ancestors-only superseded)
 
 ## T
 
