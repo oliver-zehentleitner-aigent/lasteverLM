@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Outputs list: rows in a grid with the kind and the status in fixed slots and, under the title, when the document was made (relative within a day, absolute after, the exact time as tooltip) with its language and, for audio, its voice; a sort control (newest first by default, oldest, kind, language, status) and kind chips from six documents on.
 - Theme toggle in the header: light and dark only, starting from the theme on screen, its icon showing what a click gives; "system" is chosen in Settings.
 
+### Fixed
+
+- Provenance on a citation into a generated document: "open document" (was "open in source", which did nothing visible because the tab was already open) opens the document's tab and shows the passage: the best-matching text block in a report, quiz, table or infographic scrolls into view and flashes; a mind map fits and flashes the matching node. Uploads keep "open in source".
+
 ## [0.9.0] - 2026-10-13
 
 ### Added
@@ -36,7 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chat tabs can be renamed in place: double-click or F2 turns the title into a field with the text selected, Enter or leaving it saves (`PATCH /api/rag/conversations/{id}`), Esc cancels, an empty or unchanged name keeps the old one, the field is as wide as its text (up to 80 characters).
 - Mind map controls: a small bar on the map (zoom in, zoom out, fit) and the keys +, − and 0 on the focused map, through markmap's `rescale()` and `fit()`; in the viewer, the full view and on the shared page.
 
-
 ### Changed
 
 - Output format tiles: always three columns by two rows at a fixed width; the middle column's default and minimum width (27rem, 378 px) come from that grid, so the divider cannot squeeze it into another layout. On a phone the three tiles share the width. A test keeps the stylesheet and the divider's minimum equal.
@@ -44,7 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Provenance on a citation into a generated document: "open document" (was "open in source", which did nothing visible because the tab was already open) opens the document's tab and shows the passage: the best-matching text block in a report, quiz, table or infographic scrolls into view and flashes; a mind map fits and flashes the matching node. Uploads keep "open in source".
 - Form controls: selects get the same border, padding and background as text fields, and every single-line control (select, text, number, search, e-mail) one height, so controls side by side line up. In the library the two filters sit in one grid row with their labels on one line (the Kind label sat lower than the Name label).
 - Library: the size of an entry added before sizes were recorded reads "unknown" (muted, with a tooltip) instead of a dash.
 
@@ -62,16 +64,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Theme switch: "system" (default), light or dark, from a toggle in the header and the Settings page; applied before the first paint from this browser's last choice and synced with the account's `theme` preference after sign-in. All colours, charts and mind map included, come from the theme tokens; a test checks the WCAG contrast of the token pairs in both themes.
 
-
 ### Changed
 
 - Colours adjusted for contrast in the light theme: accent `#2b66cc` (was `#2f6fdd`), warning `#a06000`, chart orange and yellow darker; button text uses a new `--on-accent` token, which is dark in the dark theme (white on the light blue accent was below 4.5:1); the dialog backdrop is a token.
+
+## [0.7.2] - 2026-10-13
+
+### Changed
+
 - Admin Overview redesigned: the heading with one meta line (build and service health with status dots, linked to System) instead of the version link, one row of six equal KPI tiles instead of three groups of 18, an attention strip only for what needs an action (bans, blocks, a service down or without a version) as the only red on the page, failures without an admin page as muted details. The charts share one time range (7 days while the data is young, else 30, with a toggle) in a two-column grid of equal cards paired by topic; a chart without data is listed on one line instead of drawn empty.
 - Wizard: after a failed upload (a storage outage now answers 503) the files that went in leave the list and the rest stays selected for a retry, with a line saying how many are left.
 - Library trash: "settings" in the note links to the settings page, scrolled to and focused on the trash-days field.
-- Admin Credits: new voucher codes are compact chips with a copy button each and "copy all" for several ("copied" for a second; the text is selected when the clipboard API is not available), placed next to the create form when there is room.
 
-## [0.6.1] - 2026-10-13
+## [0.7.0] - 2026-10-13
 
 ### Added
 
@@ -80,28 +85,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Voice sample: a "sample" button next to the voice in the audio options and in the settings plays a short sentence pair in that voice, speed and language (`POST /api/rag/outputs/voice-sample`, fetched on click only).
 - The interface in German and English: every visible string goes through `t()` with one map per language (`src/i18n/`, the German map typed against the English keys, so a missing key fails the typecheck); `ui_language` decides, the browser's language before login; dates, numbers and amounts are formatted in that language. Messages from the services stay in English.
 - PDF capture mode: the wizard offers Auto, Text or Vision for PDF uploads with a line on each (cost included), preset from the `pdf_capture` preference and sent as `capture`; the settings page sets the default; the source list and the library show the mode on PDF entries.
-- Library trash: a Trash view next to the sources lists deleted entries with when they are purged; restore puts one back in the library (in no notebook), "delete for good" removes it at once after a confirmation. The settings page sets the days an entry stays there (`trash_days`, empty for 14).
 
 ### Changed
 
+- Admin Credits: new voucher codes are compact chips with a copy button each and "copy all" for several ("copied" for a second; the text is selected when the clipboard API is not available), placed next to the create form when there is room.
 - Wizard: "From library" is the first tile.
+
+## [0.6.1] - 2026-10-13
+
+### Added
+
+- Library trash: a Trash view next to the sources lists deleted entries with when they are purged; restore puts one back in the library (in no notebook), "delete for good" removes it at once after a confirmation. The settings page sets the days an entry stays there (`trash_days`, empty for 14).
+- Column dividers between the notebook list, the left column and the right column: drag or arrow keys, widths remembered per browser, double-click or Home for the default, minimum widths kept.
+
+### Changed
+
 - Library delete moves the entry to the trash instead of removing it; the confirmation says so.
+
+### Fixed
+
+- The document and chat tab bars scroll sideways when the tabs do not fit (columns no longer grow with them); the active tab scrolls into view, the mouse wheel scrolls the bar, arrows, Home and End move between tabs. In the chat bar "+" stays in place.
 
 ## [0.6.0] - 2026-10-13
 
 ### Added
 
-- Column dividers between the notebook list, the left column and the right column: drag or arrow keys, widths remembered per browser, double-click or Home for the default, minimum widths kept.
 - Output options under the format tiles, from rag's `GET /outputs/options`: language for every kind, voice (grouped female and male) and speed for audio; preset from the user's preferences, sent as `options` with only the keys the kind takes. The wizard uses the preferences too. The viewer and the shared page show what a document was made with.
 - Settings page `/settings` (header link): interface language, language of generated documents, voice for audio, saved through `PUT /api/account/me/preferences`.
 - Citation provenance panel: a click on `[n]` shows source and kind, page, chunk position ("chunk 12 of 43"), the similarity to the question as a number and a bar, and the full chunk text with the sentence closest to the cited statement marked; "open in source" as before. The citation list shows page and similarity inline. Older citations get position and full text from `GET /api/rag/chunks/{id}` where the chunk still exists.
 - Admin overview charts of the last 30 days under the headline numbers: cost and credit granted per day, logins and visits, chat messages and documents, documents by kind, sources added per day by kind, cost by model, top users by usage. Each chart loads on its own; recharts 3.10.1 in its own chunk, loaded only on the overview, behind an error boundary; colours from the theme (`--chart-1` … `--chart-6`, light and dark).
 - Chat height presets 1x, 2x, 3x at the right end of the chat tab bar: the chat gets 15, 30 or 45 % of the right column. They set the divider's ratio (stored the same way), the matching preset is highlighted, a drag moves off it.
 - Admin Users: a "Granted" column (the user's ledger sum) next to used and balance; the overview's "Credit granted" tile links to the Users page and "Vouchers open" to Credits.
-
-### Fixed
-
-- The document and chat tab bars scroll sideways when the tabs do not fit (columns no longer grow with them); the active tab scrolls into view, the mouse wheel scrolls the bar, arrows, Home and End move between tabs. In the chat bar "+" stays in place.
 
 ## [0.5.1] - 2026-10-13
 
