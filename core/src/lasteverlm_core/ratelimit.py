@@ -11,11 +11,12 @@ share one view of a client:
 - `ip_blocks`: over the limit means 429 for `BLOCK_MINUTES` and one
   strike; strikes reset after `STRIKE_WINDOW_HOURS` of quiet.
 - `ip_bans`: the `BAN_AFTER_STRIKES`th strike within the window. 403 on
-  everything until an admin lifts the ban.
+  everything until an admin lifts the ban, for at most `BAN_MAX_DAYS`.
 
 The rules are in `RateLimiter`, pure over a `RateLimitStore`; the
 middleware only adapts ASGI to them. Raw IPs exist only here, for this
-purpose, and `purge` removes them after `RETENTION_DAYS`.
+purpose, and `purge` removes them after `RETENTION_DAYS` (an active ban
+after `BAN_MAX_DAYS`).
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ class RateLimitSettings:
     strike_window_hours: int = 24
     healthz_sample: int = 100
     retention_days: int = 30
+    ban_max_days: int = 90
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> RateLimitSettings:
@@ -63,6 +65,7 @@ class RateLimitSettings:
             strike_window_hours=env_int("STRIKE_WINDOW_HOURS", cls.strike_window_hours, env),
             healthz_sample=env_int("ACCESS_LOG_HEALTHZ_SAMPLE", cls.healthz_sample, env),
             retention_days=env_int("RETENTION_DAYS", cls.retention_days, env),
+            ban_max_days=env_int("BAN_MAX_DAYS", cls.ban_max_days, env),
         )
 
 
@@ -96,7 +99,10 @@ BANNED = Decision("banned")
 class RateLimitStore(Protocol):
     """What the rules need from storage. Implemented over PostgreSQL and in memory."""
 
-    async def is_banned(self, ip: str) -> bool: ...
+    async def is_banned(self, ip: str, since: datetime) -> bool:
+        """An unlifted ban on `ip` created at or after `since`; an older one has expired."""
+        ...
+
     async def blocked_until(self, ip: str) -> datetime | None: ...
     async def requests_since(self, ip: str, since: datetime) -> int: ...
     async def strike(
@@ -109,7 +115,7 @@ class RateLimitStore(Protocol):
         """
         ...
 
-    async def ban(self, ip: str, reason: str) -> None: ...
+    async def ban(self, ip: str, reason: str, now: datetime) -> None: ...
     async def log(self, entry: AccessLogEntry) -> None: ...
 
 
@@ -127,7 +133,7 @@ class RateLimiter:
 
     async def check(self, ip: str, now: datetime) -> Decision:
         s = self._settings
-        if await self._store.is_banned(ip):
+        if await self._store.is_banned(ip, now - timedelta(days=s.ban_max_days)):
             return BANNED
         until = await self._store.blocked_until(ip)
         if until is not None and until > now:
@@ -139,7 +145,7 @@ class RateLimiter:
         strikes = await self._store.strike(ip, until, now, window_start)
         if strikes >= s.ban_after_strikes:
             reason = f"{strikes} rate-limit strikes within {s.strike_window_hours}h"
-            await self._store.ban(ip, reason)
+            await self._store.ban(ip, reason, now)
             return BANNED
         return Decision("blocked", _retry_after(until, now))
 
@@ -273,7 +279,11 @@ async def _send_json(send: Send, decision: Decision) -> None:
 
 # --- stores -----------------------------------------------------------------
 
-IS_BANNED_SQL = "select 1 as banned from ip_bans where ip = %(ip)s and lifted_at is null"
+# A ban older than BAN_MAX_DAYS has expired even before the purge removes it.
+IS_BANNED_SQL = """
+select 1 as banned from ip_bans
+where ip = %(ip)s and lifted_at is null and created_at >= %(since)s
+"""
 BLOCKED_UNTIL_SQL = "select blocked_until from ip_blocks where ip = %(ip)s"
 # 429s are the limiter's own answers and must not keep a client over the limit.
 REQUESTS_SINCE_SQL = """
@@ -291,29 +301,49 @@ on conflict (ip) do update set
 returning strikes
 """
 BAN_SQL = """
-insert into ip_bans (ip, reason) values (%(ip)s, %(reason)s)
-on conflict (ip) do update set reason = excluded.reason, created_at = now(), lifted_at = null
+insert into ip_bans (ip, reason, created_at) values (%(ip)s, %(reason)s, %(now)s)
+on conflict (ip) do update
+set reason = excluded.reason, created_at = excluded.created_at, lifted_at = null
 """
 LIFT_BAN_SQL = "update ip_bans set lifted_at = now() where ip = %(ip)s and lifted_at is null"
 ACCESS_LOG_SQL = """
 insert into access_log (at, ip, path, method, status, user_id, service)
 values (%(at)s, %(ip)s, %(path)s, %(method)s, %(status)s, %(user_id)s, %(service)s)
 """
-# Raw IPs are kept for the security purpose only. An active ban stays until
-# an admin lifts it; everything else older than the cutoff goes.
+# Raw IPs are kept for the security purpose only. Everything older than
+# `cutoff` goes, except an active ban: it stays until an admin lifts it, but
+# no longer than `ban_cutoff`. Every statement takes `purge_params(...)`.
 PURGE_SQL = (
     "delete from access_log where at < %(cutoff)s",
     "delete from ip_blocks where updated_at < %(cutoff)s",
-    "delete from ip_bans where lifted_at is not null and lifted_at < %(cutoff)s",
+    "delete from ip_bans"
+    " where (lifted_at is not null and lifted_at < %(cutoff)s) or created_at < %(ban_cutoff)s",
 )
 
 
-def purge(conn: Connection, retention_days: int = 30, now: datetime | None = None) -> None:
-    """Remove rows older than `retention_days` from the three tables. The caller commits."""
-    cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
+def purge_params(
+    retention_days: int = 30, ban_max_days: int = 90, now: datetime | None = None
+) -> dict[str, datetime]:
+    """The parameters of every `PURGE_SQL` statement: `cutoff` and `ban_cutoff`."""
+    now = now or datetime.now(UTC)
+    return {
+        "cutoff": now - timedelta(days=retention_days),
+        "ban_cutoff": now - timedelta(days=ban_max_days),
+    }
+
+
+def purge(
+    conn: Connection,
+    retention_days: int = 30,
+    ban_max_days: int = 90,
+    now: datetime | None = None,
+) -> None:
+    """Remove rows older than `retention_days` from the three tables, and active
+    bans older than `ban_max_days`. The caller commits."""
+    params = purge_params(retention_days, ban_max_days, now)
     with conn.cursor() as cur:
         for statement in PURGE_SQL:
-            cur.execute(statement, {"cutoff": cutoff})
+            cur.execute(statement, params)
 
 
 def lift_ban(conn: Connection, ip: str) -> None:
@@ -346,8 +376,8 @@ class PostgresRateLimitStore:
     async def _query(self, sql: str, params: Mapping[str, Any], fetch: bool) -> Any:
         return await anyio.to_thread.run_sync(self._run, sql, params, fetch)
 
-    async def is_banned(self, ip: str) -> bool:
-        return await self._query(IS_BANNED_SQL, {"ip": ip}, True) is not None
+    async def is_banned(self, ip: str, since: datetime) -> bool:
+        return await self._query(IS_BANNED_SQL, {"ip": ip, "since": since}, True) is not None
 
     async def blocked_until(self, ip: str) -> datetime | None:
         row = await self._query(BLOCKED_UNTIL_SQL, {"ip": ip}, True)
@@ -364,8 +394,8 @@ class PostgresRateLimitStore:
         row = await self._query(STRIKE_SQL, params, True)
         return int(scalar(row, "strikes") or 1)
 
-    async def ban(self, ip: str, reason: str) -> None:
-        await self._query(BAN_SQL, {"ip": ip, "reason": reason}, False)
+    async def ban(self, ip: str, reason: str, now: datetime) -> None:
+        await self._query(BAN_SQL, {"ip": ip, "reason": reason, "now": now}, False)
 
     async def log(self, entry: AccessLogEntry) -> None:
         await self._query(ACCESS_LOG_SQL, entry.__dict__, False)
@@ -382,8 +412,8 @@ class AsyncPostgresRateLimitStore:
             await cur.execute(sql, params)
             return await cur.fetchone() if fetch else None
 
-    async def is_banned(self, ip: str) -> bool:
-        return await self._query(IS_BANNED_SQL, {"ip": ip}, True) is not None
+    async def is_banned(self, ip: str, since: datetime) -> bool:
+        return await self._query(IS_BANNED_SQL, {"ip": ip, "since": since}, True) is not None
 
     async def blocked_until(self, ip: str) -> datetime | None:
         row = await self._query(BLOCKED_UNTIL_SQL, {"ip": ip}, True)
@@ -400,8 +430,8 @@ class AsyncPostgresRateLimitStore:
         row = await self._query(STRIKE_SQL, params, True)
         return int(scalar(row, "strikes") or 1)
 
-    async def ban(self, ip: str, reason: str) -> None:
-        await self._query(BAN_SQL, {"ip": ip, "reason": reason}, False)
+    async def ban(self, ip: str, reason: str, now: datetime) -> None:
+        await self._query(BAN_SQL, {"ip": ip, "reason": reason, "now": now}, False)
 
     async def log(self, entry: AccessLogEntry) -> None:
         await self._query(ACCESS_LOG_SQL, entry.__dict__, False)
@@ -415,9 +445,11 @@ class MemoryRateLimitStore:
     # ip -> (blocked_until, strikes, last strike at)
     blocks: dict[str, tuple[datetime, int, datetime]] = field(default_factory=dict)
     bans: dict[str, str] = field(default_factory=dict)
+    # ip -> created_at; a ban without an entry (set directly in a test) counts as current
+    banned_at: dict[str, datetime] = field(default_factory=dict)
 
-    async def is_banned(self, ip: str) -> bool:
-        return ip in self.bans
+    async def is_banned(self, ip: str, since: datetime) -> bool:
+        return ip in self.bans and self.banned_at.get(ip, since) >= since
 
     async def blocked_until(self, ip: str) -> datetime | None:
         block = self.blocks.get(ip)
@@ -434,8 +466,9 @@ class MemoryRateLimitStore:
         self.blocks[ip] = (blocked_until, strikes, now)
         return strikes
 
-    async def ban(self, ip: str, reason: str) -> None:
+    async def ban(self, ip: str, reason: str, now: datetime) -> None:
         self.bans[ip] = reason
+        self.banned_at[ip] = now
 
     async def log(self, entry: AccessLogEntry) -> None:
         self.entries.append(entry)

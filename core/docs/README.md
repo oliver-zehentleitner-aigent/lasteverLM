@@ -99,13 +99,34 @@ peer address):
 2. Strikes accumulate while each new one is within `STRIKE_WINDOW_HOURS`
    of the previous; after a quiet window the count restarts at one.
 3. The `BAN_AFTER_STRIKES`th strike bans: 403 on everything until the
-   admin panel calls `lift_ban(conn, ip)`.
+   admin panel calls `lift_ban(conn, ip)`, for at most `BAN_MAX_DAYS`
+   (90): an older ban no longer refuses anything, and the purge later
+   deletes it, lifted or not.
 
 `AsyncPostgresRateLimitStore` takes `AsyncConnectionPool.connection`;
 `MemoryRateLimitStore` is for tests and for `make run-dev` without a
-database. `purge(conn, RETENTION_DAYS)` deletes expired rows from the
-three tables; it is run by whoever owns the periodic job (infra's
-CronJob or the account service), not by the middleware.
+database.
+
+Retention is not the middleware's job. The account service owns it and
+runs the purge at start, on its async pool, with the exported
+statements:
+
+```python
+from lasteverlm_core import PURGE_SQL, RateLimitSettings, purge_params
+
+settings = RateLimitSettings.from_env()
+params = purge_params(settings.retention_days, settings.ban_max_days)
+async with conn.cursor() as cur:
+    for statement in PURGE_SQL:
+        await cur.execute(statement, params)
+```
+
+Every statement takes the same two parameters: `cutoff` (now minus
+`RETENTION_DAYS`) for `access_log`, `ip_blocks` and lifted bans, and
+`ban_cutoff` (now minus `BAN_MAX_DAYS`) for bans nobody lifted. A sync
+caller uses `purge(conn, retention_days, ban_max_days)`. The purge is
+cleanup only: the limiter already treats a ban past `BAN_MAX_DAYS` as
+expired, so an admin list may show such a ban until the next purge.
 
 ## Providers
 
