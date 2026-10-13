@@ -16,7 +16,7 @@ the three services share:
 | `lasteverlm_core.pricing` | `MODEL_PRICES` parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
 | `lasteverlm_core.usage` | `record_usage`, `balance_cents`, `has_credit` (balance above zero, admins included), `is_admin` (sync psycopg) and their async twins `arecord_usage`, `abalance_cents`, `ahas_credit`, `ais_admin`; the SQL as constants |
 | `lasteverlm_core.web` | `admin_only(current_user, lookup)`: FastAPI dependency answering 403 for non-admins; needs FastAPI (the `web` extra), not re-exported from the root |
-| `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge` with `PURGE_SQL` and `purge_params`, `lift_ban`; a ban holds until lifted, at most `BAN_MAX_DAYS` |
+| `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge` with `PURGE_SQL` and `purge_params`, `lift_ban`; a ban holds until lifted, at most `BAN_MAX_DAYS`; the four thresholds overridable at runtime from account's `settings` row `ratelimit` (`RateLimitRules`, `RATE_LIMIT_RULE_BOUNDS`) |
 | `lasteverlm_core.chunking` | `TokenWindowChunker` with `Passage` and `Chunk`: the token windows both ingest (sources) and rag (generated documents) embed; defaults 420/50 regex tokens, about 800 model tokens for German |
 | `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations; embeddings request `EMBEDDING_DIMENSION`, completions run with reasoning off unless asked (`thinking=True`); speech with the platform voice `ryan` by default |
 | `lasteverlm_core.storage` | `S3Storage` (put, get, delete, presigned GET with an expiry, default one hour) over `S3Settings.from_env`, `object_key`; the family's only S3 code |
@@ -124,7 +124,7 @@ invalid value.
 | `LLM_MODEL`, `LLM_MAX_TOKENS` | `InferenceSettings.from_env` | the language model and the default completion budget (1024) |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | `InferenceSettings.from_env` | the embedding model and the vector width requested from it on every call (default 1536; the deployment uses 1024, below pgvector's 2000-dimension index limit); must match `chunks.embedding` |
 | `MODEL_PRICES` | `load_model_prices` | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`, merged over the defaults in `pricing.py` (empty until the platform's models are known, so every deployment sets it) |
-| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3 |
+| `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3; with `STRIKE_WINDOW_HOURS` the defaults of the runtime rules the admin panel can override |
 | `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |
 | `BAN_MAX_DAYS` | `RateLimitSettings.from_env` | default 90; a ban older than this has expired, and the purge deletes it |
 

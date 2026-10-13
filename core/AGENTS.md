@@ -24,7 +24,7 @@ src/lasteverlm_core/
 ├── pricing.py       ModelPrice, parse_model_prices, cost_cents, require_prices
 ├── usage.py         record_usage, balance_cents, has_credit, is_admin (+ async), SQL constants
 ├── chunking.py      Passage, Chunk, TokenWindowChunker (420/50 regex tokens) shared by ingest and rag
-├── ratelimit.py     rules, ASGI middleware, PostgreSQL and memory stores, purge, lift_ban
+├── ratelimit.py     rules (runtime-overridable), ASGI middleware, PostgreSQL and memory stores, purge, lift_ban
 ├── storage.py       S3Storage (put, get, delete, presigned GET), S3Settings, object_key
 ├── web.py           admin_only: FastAPI dependency for admin-only endpoints (needs FastAPI)
 └── providers/       Embedder, LLM, TextToSpeech interfaces; OpenAI-compatible implementations

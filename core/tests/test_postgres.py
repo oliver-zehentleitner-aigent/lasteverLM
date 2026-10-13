@@ -5,8 +5,9 @@ against a throwaway pgvector container and skips without
 `CORE_TEST_DATABASE_URL`.
 
 The database is empty: core's own migrations are applied here, and the
-`ledger` and `users` tables that `BALANCE_SQL` and `HAS_CREDIT_SQL` read
-are created as the columns the account service's migration gives them,
+`ledger`, `users` and `settings` tables that `BALANCE_SQL`, `IS_ADMIN_SQL`
+and `RULES_SQL` read are created as the columns the account service's
+migrations give them,
 because core's tests cannot depend on another service's migration files.
 """
 
@@ -23,9 +24,11 @@ from uuid import uuid4
 import psycopg
 import pytest
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from lasteverlm_core import (
+    RATE_LIMIT_SETTINGS_KEY,
     AccessLogEntry,
     AsyncPostgresRateLimitStore,
     MemoryRateLimitStore,
@@ -59,7 +62,8 @@ USERS_MIRROR = (
     "create table if not exists users"
     " (id uuid primary key, is_admin boolean not null default false)"
 )
-TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger", "users")
+SETTINGS_MIRROR = "create table if not exists settings (key text primary key, value jsonb not null)"
+TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger", "users", "settings")
 PRICES = parse_model_prices('{"llm": {"in": 30, "out": 150}, "tts": {"in": 2000, "out": 0}}')
 T0 = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 SETTINGS = RateLimitSettings(per_minute=3, block_minutes=15, ban_after_strikes=3)
@@ -76,6 +80,7 @@ def dsn() -> str:
             with psycopg.connect(value, connect_timeout=2) as conn, conn.cursor() as cur:
                 cur.execute(LEDGER_MIRROR)
                 cur.execute(USERS_MIRROR)
+                cur.execute(SETTINGS_MIRROR)
                 for path in MIGRATIONS:
                     cur.execute(path.read_text())
             return value
@@ -321,3 +326,23 @@ async def test_middleware_end_to_end(pool: ConnectionPool, conn: psycopg.Connect
     for _ in range(3):
         await mem.record(entry("10.0.0.5", T0, 204))
     assert (await mem.check("10.0.0.5", T0)).kind == "blocked"
+
+
+async def test_stores_read_the_stored_rules(dsn: str, conn: psycopg.Connection[Any]) -> None:
+    rules = {"per_minute": 1, "block_minutes": 5, "ban_after_strikes": 2, "strike_window_hours": 6}
+    with ConnectionPool(dsn, min_size=1, max_size=1, open=True) as p:
+        store = PostgresRateLimitStore(p.connection)
+        assert await store.rule_overrides() is None
+        conn.execute(
+            "insert into settings (key, value) values (%s, %s)",
+            (RATE_LIMIT_SETTINGS_KEY, Jsonb(rules)),
+        )
+        assert await store.rule_overrides() == rules
+        limiter = RateLimiter(store, SETTINGS)
+        await store.log(entry("192.0.2.1", T0))
+        decision = await limiter.check("192.0.2.1", T0)
+        assert decision.kind == "blocked" and decision.retry_after == 5 * 60
+    async with AsyncConnectionPool(
+        dsn, min_size=1, max_size=1, kwargs={"row_factory": dict_row}, open=False
+    ) as ap:
+        assert await AsyncPostgresRateLimitStore(ap.connection).rule_overrides() == rules
