@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Sources list: a source the worker retries shows the error of the last attempt ("Retrying after: …") instead of a bare "processing"; the empty list names all four source kinds.
 - Admin page: the bans section states how long a ban holds (until lifted, at most 90 days).
 - Audio is an active document kind: the tile creates an audio overview, played in the viewer and on the share page.
 - Wizard: Web page (enter a URL) and Image (PNG, JPEG, WebP, GIF) are active source types.
