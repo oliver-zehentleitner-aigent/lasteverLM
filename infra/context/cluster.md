@@ -301,3 +301,28 @@ no cost, but each Deployment drops to one replica during a rollout;
 the VKE node-pool autoscaler (min 2, max 3) — deferred, not rejected: a
 node it adds gets a public IP outside the database's trusted list, so
 it waits for the database's VPC attachment.
+
+## account reads the cluster through its own ServiceAccount, not the namespace default
+
+**Id:** ac46e922-85b8-40be-b238-994f2cbef5de
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request, 2026-10-13 (ServiceAccount, Role with get/list on pods and apps/deployments, RoleBinding, token mounted for account); the reasons below are drawn here
+**Revisit when:** a second service needs cluster data, or the System page needs more than get/list (watch, logs, exec)
+
+The chart gives a service a ServiceAccount of its own when its values
+set `kubernetesRead: true` (only `account`); `templates/rbac.yaml`
+binds it to a Role with `get`/`list` on `pods` and
+`apps/deployments` in the release namespace, and the API Deployment
+runs with that ServiceAccount and `automountServiceAccountToken: true`.
+
+**Reason:** the grant belongs to the one pod that reads it. Every other
+pod (the workers, ingest, rag, web, the migration Job) keeps the
+namespace's default ServiceAccount, which has no Role.
+
+**Rejected alternatives:** binding the Role to the namespace's
+`default` ServiceAccount — one object fewer, but every pod in the
+namespace could then list the deployments; a ClusterRole — the page
+only shows this namespace (account's `context/system.md`, Id
+5abc5d2b-1a56-4774-8ccb-3f93ccc0222a).
