@@ -527,3 +527,15 @@ button.link.copy { font-size: 0.85em; }
 
 /* the figure next to "Generating…": monospace on a fixed track, muted */
 .walker { display: inline-block; vertical-align: baseline; white-space: pre; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.95em; color: var(--muted); overflow: hidden; }
+/* admin System: the architecture diagram, coloured through the tokens */
+.arch-wrap { overflow-x: auto; }
+.arch { display: block; width: 100%; min-width: 560px; max-width: 900px; height: auto; margin: 0 auto; }
+.arch-box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; }
+.arch-box.ext { fill: var(--bg); stroke-dasharray: 4 3; }
+.arch-node.down .arch-box { stroke: var(--danger); stroke-width: 2; }
+.arch-title { fill: var(--fg); font-size: 13px; font-weight: 600; }
+.arch-meta { fill: var(--muted); font-size: 11px; }
+.arch-node.down .arch-meta { fill: var(--danger); }
+.arch-line { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.arch-line.soft { stroke-dasharray: 3 3; }
+.arch-head { fill: var(--muted); }

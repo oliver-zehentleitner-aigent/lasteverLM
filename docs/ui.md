@@ -285,7 +285,16 @@ deleted from the library) stays readable with its quote and is marked
   - **Mail** (`/admin/mail`): SMTP settings read-only (they come from the
     deployment) with a test button.
   - **System** (`/admin/system`): per service a card with version,
-    commit and health, then the cluster's pods (name, service, image
+    commit and health; an **architecture diagram** (plain SVG, static
+    layout, live numbers): the browser and the ingress at the top, web
+    and the three API services below, the ingest and rag workers under
+    their services, and PostgreSQL with pgvector, the object storage and
+    the inference API as external boxes at the bottom, with arrows for
+    the flows (ingress to the services, the services and the workers'
+    job queues to PostgreSQL, the workers to storage and the models, rag
+    to the models for answers); each deployment's box shows its
+    replicas ready of total and its build, in the attention colour when
+    short of replicas or not answering. Then the cluster's pods (name, service, image
     tag, ready, restarts, node, started) and deployments (replicas,
     ready, updated); a local run without a cluster says so instead, and
     in a cluster where both lists come back empty (the account service

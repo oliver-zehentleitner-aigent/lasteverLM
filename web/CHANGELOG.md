@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A small ASCII figure walks beside "Generating…" while a document is processing: monospace frames every 250 ms on a fixed-width track in the muted colour, aria-hidden, still when the system asks for reduced motion.
+- Admin System: an architecture diagram of the running system (plain SVG): browser, ingress, web and the three API services, the two workers, and PostgreSQL with pgvector, object storage and the inference API with the flows between them; each deployment shows its replicas ready of total and its build, an unhealthy one in the attention colour. The tables stay below it.
 
 ### Changed
 

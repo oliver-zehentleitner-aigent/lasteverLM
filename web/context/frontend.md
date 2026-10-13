@@ -340,6 +340,28 @@ and the contrast test could not see them.
 **Rejected alternative:** light as the default. Rejected because it
 ignores the device setting the user already made.
 
+## The header toggle switches light and dark only; "system" lives in Settings
+
+**Id:** de0e4933-ad37-44b3-8f5d-b8d738b2b150
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request relayed by the family lead, 2026-10-13 (drop "system" from the header toggle, start from the theme on screen, a click under "system" sets the explicit opposite); the reason is not stated there and is inferred below
+**Revisit when:** someone asks for "system" back in the header, or a browser run shows the toggle confusing
+
+The header toggle replaced a three-step cycle (light, dark, system). It
+always sets the opposite of the theme on screen, its icon shows what a
+click gives, and it writes through the one theme store like the Settings
+page. "system" can be chosen on the Settings page only.
+
+**Reason (inferred):** in the cycle, the step to "system" often changed
+nothing visible (the system's theme was the one already on screen), so a
+click looked broken; two states make every click visible. The choice is
+confirmed, the reason is this directory's reading.
+
+**Rejected alternative:** the three-step cycle it replaced, for the
+reason above.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4
@@ -366,3 +388,31 @@ first (upload, first question).
 Gateway"). Rejected because the nginx title tells the user nothing
 useful; a description written for the situation does, and the code stays
 visible for anyone debugging.
+
+## The architecture diagram is hand-drawn SVG, unlike the charts
+
+**Id:** e9c8295b-3e1d-400a-a269-5949aa11f034
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request relayed by the family lead, 2026-10-13 ("SVG, no library", recharts "not the tool here", static layout with live numbers); the layout and the data mapping were this directory's call
+**Revisit when:** the set of deployments changes often enough that a fixed layout needs editing each time, or the diagram has to show more than the chart's deployments and the three external services
+
+The System page draws the architecture as one SVG component with fixed
+coordinates: browser and ingress on top, the four deployments and the two
+workers in the middle, PostgreSQL, object storage and the inference API
+as external boxes below, the lines routed between the boxes. Only the
+numbers are live: replicas ready of total, the build, and the attention
+colour for an unhealthy deployment, mapped from the System data by the
+chart's deployment names in a tested function.
+
+**Reason:** the topology is fixed and small, so coordinates are less code
+than a layout engine and keep the picture the same on every visit, which
+is what makes the design recognisable. The charts entry above rules out
+hand-rolled SVG for charts, because axes, scales and tooltips are what a
+chart library is for; a box-and-arrow picture of nine nodes needs none
+of that, and recharts has no shape for it.
+
+**Rejected alternative:** a diagram library with automatic layout
+(Mermaid and similar). Ruled out by the request; it would also add a
+large dependency for a picture whose layout never changes.
