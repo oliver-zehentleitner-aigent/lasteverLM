@@ -65,7 +65,7 @@ repository root's `context/`.
 ## Q
 
 ## R
-- [ratelimit.md](ratelimit.md) — why the window is counted over access_log excluding 429s, why the middleware is plain ASGI, which header is trusted, and why an active ban survives the purge
+- [ratelimit.md](ratelimit.md) — why the window is counted over access_log excluding 429s, why the middleware is plain ASGI, which header is trusted, and why an active ban survives the purge for at most ninety days
 
 ## S
 - [storage.md](storage.md) — why ingest and rag share one synchronous S3 client from core and why presigned URLs are signed with SigV4

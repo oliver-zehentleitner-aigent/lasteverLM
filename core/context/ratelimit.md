@@ -82,7 +82,8 @@ bypassed the ingress could send one.
 
 **Id:** 51544138-d1a5-41df-aaae-30101ed4315b
 **Type:** decision
-**Status:** pending-confirmation
+**Status:** superseded
+**Superseded by:** a9ede8b5-5da7-4907-825a-0f7cb6d3b693
 **Evidence:** inferred
 **Source:** parent docs/architecture.md, "Rate limiting" (two sentences that pull apart: a ban holds until an admin lifts it, and raw IPs are purged after thirty days); core design 2026-10-12
 **Revisit when:** the maintainer confirms or changes the retention rule for bans (written while the maintainer was unavailable; the first attended session confirms it)
@@ -102,3 +103,37 @@ author's reading, not a confirmed instruction.
 **Rejected alternative:** purge bans by age like the other tables.
 Rejected because it turns "until lifted" into "for thirty days" without
 telling the admin panel.
+
+## An active ban survives the purge for at most ninety days
+
+**Id:** a9ede8b5-5da7-4907-825a-0f7cb6d3b693
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's decision on the ban retention rule, 2026-10-13
+**Revisit when:** bans need to outlive ninety days (repeat offenders), or the limiter should stop enforcing an expired ban before the next purge
+
+A ban holds until an admin lifts it, but at most `BAN_MAX_DAYS` (default
+90). `PURGE_SQL` drops from `ip_bans` every row lifted before the
+retention cutoff (`RETENTION_DAYS`, 30, like `access_log` and
+`ip_blocks`) and every row created before `ban_cutoff`, lifted or not.
+Both cutoffs come from `purge_params`, so the account service, which
+runs the statements at start on its async pool, passes one dict.
+
+**Reason:** the architecture's two rules pulled apart for an active ban
+older than the retention period: "until an admin lifts it" would keep a
+raw IP forever, "purged after thirty days" would end every ban after a
+month without anyone deciding it. The maintainer settled it with an upper
+bound: long enough that a ban outlasts any burst and an admin has time to
+look, short enough that no raw IP is kept indefinitely.
+
+**Rejected alternative:** an active ban is never purged (the earlier,
+unconfirmed reading). Rejected by the maintainer: it keeps personal data
+without a time limit.
+
+**Rejected alternative:** bans purged at `RETENTION_DAYS` like the other
+tables. Rejected: thirty days ends a ban too soon for a security measure.
+
+**Known limit:** the limiter does not age a ban itself; a ban past
+`BAN_MAX_DAYS` is enforced until the next purge, which runs when the
+account service starts.
