@@ -33,6 +33,8 @@ repository root's `context/`.
 
 - [contracts.md](contracts.md) — why the shared contract types are mirrored locally until the core library ships
 
+- [conversations.md](conversations.md) — several conversations per notebook instead of one history (tags rejected), and how much history the model sees
+
 - [credit.md](credit.md) — the credit check before any provider call, and how usage is priced while the core library is pending
 
 ## D
