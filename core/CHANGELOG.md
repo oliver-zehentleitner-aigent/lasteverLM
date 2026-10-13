@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-13
+
 ### Added
 
 - `Health` (`status`, `version`, `commit`) with `Health.from_env()`: the `/healthz` body reporting the build from `APP_VERSION` and `APP_COMMIT`, each `"unknown"` (`UNKNOWN_BUILD`) when unset or blank.

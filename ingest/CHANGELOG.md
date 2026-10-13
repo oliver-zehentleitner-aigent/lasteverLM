@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-13
+
 ### Added
 
 - Demo library: every new user's library starts with four demo sources around the fictional Zeltavia (field notes PDF, glossary, map image, the Wikipedia article on dead reckoning), seeded once on the first library access or upload and processed at the demo user's expense; entries carry `demo: true`. `SEED_DEMO_LIBRARY` turns it off. Migration `0007_library_seeds.sql`.

@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-13
+
 ### Changed
 
 - `docs/architecture.md`: `/admin/system` and the build in every `/healthz`, the voice preview endpoint, the demo library seeds, the token in the sign-in mail.

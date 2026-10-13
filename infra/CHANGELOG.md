@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-13
+
 ### Added
 
 - `PDF_VISION_MAX_PAGES` in the ConfigMap (`config.pdfVisionMaxPages`, default 100 as in ingest): the most pages of one PDF the vision model reads.
