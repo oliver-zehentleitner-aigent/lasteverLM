@@ -12,6 +12,8 @@ import type {
   IngestStats,
   LoginEvent,
   RagStats,
+  RateLimitRules,
+  RateLimitUpdate,
   Smtp,
   VisitBucket,
   Voucher,
@@ -42,6 +44,10 @@ export interface AdminApi {
   listVouchers(limit: number): Promise<Voucher[]>
   /** open vouchers only; a redeemed one answers 409 */
   deleteVoucher(id: string): Promise<void>
+  /** the rule for every service; PUT the four editable fields, DELETE back to the environment */
+  getRateLimit(): Promise<RateLimitRules>
+  saveRateLimit(u: RateLimitUpdate): Promise<RateLimitRules>
+  resetRateLimit(): Promise<void>
   /** rate limiting and blocking, read-only except for lifting a ban */
   listBlocks(): Promise<Block[]>
   listBans(includeLifted: boolean): Promise<Ban[]>
@@ -71,6 +77,9 @@ const httpAdmin: AdminApi = {
     request<{ codes: string[] }>(`${A}/vouchers`, { method: 'POST', json: { amount_cents, count } }).then((r) => r.codes),
   listVouchers: (limit) => request<Voucher[]>(`${A}/vouchers?limit=${limit}`),
   deleteVoucher: (id) => request<void>(`${A}/vouchers/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  getRateLimit: () => request<RateLimitRules>(`${A}/settings/ratelimit`),
+  saveRateLimit: (u) => request<RateLimitRules>(`${A}/settings/ratelimit`, { method: 'PUT', json: u }),
+  resetRateLimit: () => request<void>(`${A}/settings/ratelimit`, { method: 'DELETE' }),
   listBlocks: () => request<Block[]>(`${A}/blocks`),
   listBans: (includeLifted) => request<Ban[]>(`${A}/bans?include_lifted=${includeLifted}`),
   liftBan: (ip) => request<void>(`${A}/bans/${encodeURIComponent(ip)}`, { method: 'DELETE' }),
@@ -107,6 +116,8 @@ function mockAdmin(): AdminApi {
     { at: '2026-10-12T20:16:00Z', ip: '203.0.113.7', method: 'POST', path: '/api/account/auth/request-link', status: 429, user_id: null, service: 'account' },
     { at: '2026-10-12T20:15:30Z', ip: '198.51.100.9', method: 'POST', path: '/api/rag/notebooks/n1/ask', status: 200, user_id: 'u1', service: 'rag' },
   ]
+  const RULE_DEFAULTS: RateLimitRules = { per_minute: 120, block_minutes: 15, ban_after_strikes: 3, strike_window_hours: 24, ban_max_days: 90, retention_days: 30 }
+  let rules = { ...RULE_DEFAULTS }
   const smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
   let allow: Allowlist = { allowed_domains: ['example.org'], allowed_addresses: ['guest@partner.test'] }
   const listKey = (kind: AllowKind) => (kind === 'domain' ? 'allowed_domains' : 'allowed_addresses')
@@ -171,6 +182,15 @@ function mockAdmin(): AdminApi {
     deleteVoucher: (id) => {
       if (vouchers.some((v) => v.id === id && v.status === 'redeemed')) return Promise.reject(new Error('voucher already redeemed'))
       vouchers = vouchers.filter((v) => v.id !== id)
+      return delay(undefined)
+    },
+    getRateLimit: () => delay({ ...rules }),
+    saveRateLimit: (u) => {
+      rules = { ...rules, ...u }
+      return delay({ ...rules })
+    },
+    resetRateLimit: () => {
+      rules = { ...RULE_DEFAULTS }
       return delay(undefined)
     },
     listBlocks: () => delay([...blocks]),
