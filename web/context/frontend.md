@@ -151,6 +151,35 @@ step, and a job without a ready source has nothing to work on.
 **Rejected alternative:** one click on a tile creates the document, as
 before. Rejected by the maintainer.
 
+## Full view covers the whole window, the chat sits behind a toggle
+
+**Id:** 86a0a61a-7bdd-47af-af5d-be2a144c0192
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request for tall documents relayed by the family lead, 2026-10-13; window versus column and the toggle were left to this directory's call
+**Revisit when:** a browser run shows the toggle is missed, or the left column is needed while reading a document in full view
+
+The full view puts the open document over the whole window, with the
+viewer's tabs kept. The chat is not visible there; a "chat" toggle in
+the bar at the top right opens it in the lower part, and "ask about
+this" opens it as well. Esc closes that chat first, then the full view.
+
+**Reason:** the documents that need the full view, the mind map and wide
+tables, need width as much as height, and the viewer's own tabs still
+switch between documents, so the left column has nothing the full view
+needs. A toggle is predictable with mouse, keyboard and touch alike.
+
+**Rejected alternative:** full view over the right column only. Rejected
+because it keeps a third of the width for sources and tiles that are
+not used while reading.
+
+**Rejected alternative:** the chat sliding up when the document is
+scrolled to the end. Rejected for now: it depends on scroll behaviour
+per renderer (the mind map does not scroll, it pans), and it could not
+be tried in a browser here; the request allowed the toggle as the
+fallback.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { rag } from '../api/rag'
 import type { AudioContent, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
@@ -14,12 +14,41 @@ interface Props {
   onDeleted: (id: string) => void
   onAskAbout: (o: Output) => void
   error: string | null
+  /** the document over the whole window, the chat behind a toggle */
+  fullView: boolean
+  onFullView: (on: boolean) => void
+  chatOpen: boolean
+  onToggleChat: () => void
+  style?: CSSProperties
 }
 
 /** Right column, top: one tab per generated document, newest first, with
- *  the three actions per document: ask about this, print, share. */
-export function OutputViewer({ outputs, selectedId, onSelect, onChanged, onDeleted, onAskAbout, error }: Props) {
+ *  the actions per document: ask about this, print, share, full view. */
+export function OutputViewer({
+  outputs,
+  selectedId,
+  onSelect,
+  onChanged,
+  onDeleted,
+  onAskAbout,
+  error,
+  fullView,
+  onFullView,
+  chatOpen,
+  onToggleChat,
+  style,
+}: Props) {
   const selected = outputs.find((o) => o.id === selectedId) ?? null
+  const enterButton = useRef<HTMLButtonElement>(null)
+  const leaveButton = useRef<HTMLButtonElement>(null)
+  const wasFull = useRef(fullView)
+
+  // focus follows the mode: the × on entering, the full-view button on leaving
+  useEffect(() => {
+    if (fullView) leaveButton.current?.focus()
+    else if (wasFull.current) enterButton.current?.focus()
+    wasFull.current = fullView
+  }, [fullView])
   const [shareOpen, setShareOpen] = useState(false)
   const { busy, error: actionError, run } = useAsync()
 
@@ -49,7 +78,24 @@ export function OutputViewer({ outputs, selectedId, onSelect, onChanged, onDelet
   const printable = selected ? formFor(selected.kind).printable && selected.status === 'ready' : false
 
   return (
-    <section className="pane viewer">
+    <section className="pane viewer" style={style}>
+      {fullView && (
+        <div className="full-bar no-print">
+          <button type="button" className={chatOpen ? 'secondary small active' : 'secondary small'} aria-pressed={chatOpen} onClick={onToggleChat}>
+            chat
+          </button>
+          <button
+            ref={leaveButton}
+            type="button"
+            className="icon"
+            title="Leave full view (Esc)"
+            aria-label="Leave full view"
+            onClick={() => onFullView(false)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div className="tabs no-print" role="tablist">
         {outputs.map((o) => (
           <button
@@ -85,6 +131,11 @@ export function OutputViewer({ outputs, selectedId, onSelect, onChanged, onDelet
                 <button type="button" className="link" disabled={selected.status !== 'ready'} onClick={() => setShareOpen((v) => !v)}>
                   {selected.share_token ? 'shared' : 'share'}
                 </button>
+                {!fullView && (
+                  <button ref={enterButton} type="button" className="link" onClick={() => onFullView(true)}>
+                    full view
+                  </button>
+                )}
                 <button type="button" className="link danger" disabled={busy} onClick={() => void remove()}>
                   delete
                 </button>
