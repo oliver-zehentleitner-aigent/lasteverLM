@@ -146,8 +146,10 @@ the `library_sources` table, a `processing` row that no worker holds;
 generated rows are rag's and never claimed. Worker processes (`lasteverlm-ingest-worker`, any number
 of them) claim one row at a time with `UPDATE ... WHERE id = (SELECT ...
 FOR UPDATE SKIP LOCKED)`, oldest first, writing `claimed_at` and
-`claimed_by`; a claim older than `CLAIM_TIMEOUT_SECONDS` is treated as
-abandoned and taken over, unless the row has had three attempts: then
+`claimed_by`; the job moves `claimed_at` to now with every answered
+model call (an image, a PDF page) and every embedding batch, and a claim
+not moved for `CLAIM_TIMEOUT_SECONDS` is treated as abandoned and taken
+over, unless the row has had three attempts: then
 the claim fails it ("processing did not finish in 3 attempts"), so a
 source that kills or hangs its worker does not take every worker in
 turn. An idle worker polls every
