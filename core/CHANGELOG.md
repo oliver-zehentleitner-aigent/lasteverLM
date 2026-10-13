@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-10-13
+
 ### Changed
 
 - `OpenAICompatibleEmbedder.embed` raises `ProviderError` when a vector has a non-finite component (NaN, inf) or a zero norm, naming the input index: pgvector's cosine distance against such a vector is NaN, so the chunk was dropped silently and its source stayed `ready` while unsearchable.
