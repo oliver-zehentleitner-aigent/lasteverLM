@@ -326,3 +326,45 @@ namespace's default ServiceAccount, which has no Role.
 namespace could then list the deployments; a ClusterRole — the page
 only shows this namespace (account's `context/system.md`, Id
 5abc5d2b-1a56-4774-8ccb-3f93ccc0222a).
+
+## The client address comes from the load balancer's PROXY protocol header, never from a request header
+
+**Id:** 4ef95aa0-b4d0-4ede-a065-1fa2298eb58b
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security audit finding relayed by the family coordinator, 2026-10-14; checked against production the same night (a request with a forged `X-Forwarded-For: 203.0.113.9` was logged as 203.0.113.9; requests without it as a node address); Vultr CCM load balancer annotations; ingress-nginx 1.15.1 template
+**Revisit when:** the load balancer changes to HTTP (layer 7) forwarding, or a CDN or second proxy is put in front of it
+
+The trust boundary for the client address is the Vultr load balancer:
+it forwards TCP and puts a PROXY protocol header in front of each
+connection, and nginx takes the address only from that header
+(`use-proxy-protocol`). What nginx passes on as `X-Forwarded-For` and
+`X-Real-IP` is that address, replacing anything the client sent; the
+edge rate limits, core's rate limiter, blocks, bans and the login log
+all rely on it. The Service carries the domain as
+`vultr-loadbalancer-hostname`, so in-cluster requests to the domain
+go through the load balancer and arrive with the header too.
+
+**Reason:** a request header is written by whoever sends the request.
+With `enable-real-ip` and its default trusted range `0.0.0.0/0`, nginx
+believed every client's `X-Forwarded-For`: limits could be bypassed by
+changing the header, and anyone could get a third party's address
+blocked. Without the header the address was a node's, so every client
+shared one rate-limit bucket. The load balancer forwards at layer 4,
+so it sees the real peer and adds no header of its own; PROXY protocol
+is how it hands that peer over, and only the load balancer can write it.
+
+**Rejected alternatives:** `enable-real-ip` with `proxy-real-ip-cidr`
+limited to the load balancer's addresses: the layer-4 load balancer
+adds no `X-Forwarded-For`, so it would have yielded the load balancer's
+address, not the client's. `externalTrafficPolicy: Local`: keeps the
+source address only for traffic that is not proxied, and the Vultr load
+balancer is a proxy. Keeping `0.0.0.0/0`: rejected, it is the finding.
+
+**Consequence:** a PROXY protocol change has to switch both sides
+together (`make platform` does), and requests fail for the moment
+between nginx switching and the load balancer applying the annotation.
+Without the hostname annotation, kube-proxy sends in-cluster requests to
+the load balancer IP straight to nginx without the header, and
+cert-manager's HTTP-01 self check fails at the next renewal.
