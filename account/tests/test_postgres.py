@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from lasteverlm_core import DEMO_USER_ID, purge_params
 
+from lasteverlm_account.repository import CreditTotals
 from lasteverlm_account.repository_postgres import PostgresRepository
 
 DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
@@ -187,3 +188,15 @@ async def test_voucher_list_and_stats(repo: PostgresRepository) -> None:
     assert s.credits_granted_cents == 1000 + 300  # demo seed plus the redeemed voucher
     assert (s.usage_cost_cents_total, s.usage_cost_cents_since) == (200, 80)
     assert s.bans_active == 0 and s.blocks_active == 0
+
+
+async def test_delete_voucher_states(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    admin = await repo.create_user("admin2@pg.test", admin=True, now=now)
+    open_id = await repo.create_voucher("hash-del-open", 100, admin.id, now)
+    used_id = await repo.create_voucher("hash-del-used", 100, admin.id, now)
+    assert await repo.redeem_voucher("hash-del-used", admin.id, now) == 100
+    assert await repo.delete_voucher(open_id) == "deleted"
+    assert await repo.delete_voucher(open_id) == "missing"
+    assert await repo.delete_voucher(used_id) == "redeemed"
+    assert await repo.credit_totals(admin.id) == CreditTotals(100, 0)

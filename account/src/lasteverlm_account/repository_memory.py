@@ -14,7 +14,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from lasteverlm_core import DEMO_USER_ID
 
@@ -190,6 +190,18 @@ class MemoryRepository:
 
     async def all_credit_totals(self) -> dict[uuid.UUID, CreditTotals]:
         return {u: await self.credit_totals(u) for u in self.users}
+
+    async def delete_voucher(
+        self, voucher_id: uuid.UUID
+    ) -> Literal["deleted", "redeemed", "missing"]:
+        async with self._lock:
+            for code_hash, voucher in self.vouchers.items():
+                if voucher.id == voucher_id:
+                    if voucher.redeemed_at is not None:
+                        return "redeemed"
+                    del self.vouchers[code_hash]
+                    return "deleted"
+            return "missing"
 
     def _email(self, user_id: uuid.UUID | None) -> str | None:
         return self.users[user_id].email if user_id in self.users else None

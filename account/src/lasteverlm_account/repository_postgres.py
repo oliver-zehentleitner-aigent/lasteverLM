@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from lasteverlm_core import DEMO_USER_ID
 from lasteverlm_core.ratelimit import LIFT_BAN_SQL, PURGE_SQL
@@ -245,6 +245,18 @@ class PostgresRepository:
             )
             rows = await cur.fetchall()
         return {r["id"]: CreditTotals(int(r["credited"]), int(r["spent"])) for r in rows}
+
+    async def delete_voucher(
+        self, voucher_id: uuid.UUID
+    ) -> Literal["deleted", "redeemed", "missing"]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "delete from vouchers where id = %s and redeemed_at is null", (voucher_id,)
+            )
+            if cur.rowcount == 1:
+                return "deleted"
+            cur = await conn.execute("select 1 from vouchers where id = %s", (voucher_id,))
+            return "redeemed" if await cur.fetchone() else "missing"
 
     async def list_vouchers(self, limit: int) -> list[VoucherRecord]:
         async with self._pool.connection() as conn:

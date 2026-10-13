@@ -114,3 +114,23 @@ async def test_concurrent_redeem_of_one_code_credits_exactly_once(
     assert sum(e.amount_cents for e in repo.ledger) == 700
     totals = await repo.all_credit_totals()
     assert sum(t.balance_cents for t in totals.values()) == 700
+
+
+def test_delete_voucher_only_while_open(client: TestClient, mailer: FakeMailer) -> None:
+    token, _ = login(client, mailer, "admin@example.org")
+    codes = client.post(VOUCHERS, json={"count": 2}, headers=bearer(token)).json()["codes"]
+    client.post(REDEEM, json={"code": codes[0]}, headers=bearer(token))
+    rows = {row["status"]: row for row in client.get(VOUCHERS, headers=bearer(token)).json()}
+
+    r = client.delete(f"{VOUCHERS}/{rows['open']['id']}", headers=bearer(token))
+    assert r.status_code == 204
+    r = client.delete(f"{VOUCHERS}/{rows['open']['id']}", headers=bearer(token))
+    assert r.status_code == 404
+    r = client.delete(f"{VOUCHERS}/{rows['redeemed']['id']}", headers=bearer(token))
+    assert r.status_code == 409  # history: it backs a ledger row
+    assert [row["status"] for row in client.get(VOUCHERS, headers=bearer(token)).json()] == [
+        "redeemed"
+    ]
+    # the deleted code is gone for good
+    r = client.post(REDEEM, json={"code": codes[1]}, headers=bearer(token))
+    assert r.status_code == 404
