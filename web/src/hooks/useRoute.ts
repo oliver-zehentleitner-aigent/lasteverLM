@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
+import { adminPageFromPath, type AdminPageId } from '../lib/adminPages'
 
-/** Four routes do not justify a router dependency. Path-based so the
+/** A handful of routes does not justify a router dependency. Path-based so the
  *  magic-link callback URL is a plain /auth/callback?token=..., which nginx
  *  rewrites to index.html. */
 export type Route =
   | { name: 'home' }
   | { name: 'auth-callback'; token: string }
-  | { name: 'admin' }
+  | { name: 'admin'; page: AdminPageId }
   | { name: 'shared'; token: string }
 
 /** Pure, so the route table is unit-tested without a browser. */
@@ -14,7 +15,10 @@ export function parseRoute(loc: Pick<Location, 'pathname' | 'search'>): Route {
   if (loc.pathname === '/auth/callback') {
     return { name: 'auth-callback', token: new URLSearchParams(loc.search).get('token') ?? '' }
   }
-  if (loc.pathname === '/admin') return { name: 'admin' }
+  if (loc.pathname === '/admin' || loc.pathname.startsWith('/admin/')) {
+    // an unknown admin page opens the overview rather than the workspace
+    return { name: 'admin', page: adminPageFromPath(loc.pathname) ?? 'overview' }
+  }
   const shared = /^\/s\/([^/]+)$/.exec(loc.pathname)
   if (shared) return { name: 'shared', token: decodeURIComponent(shared[1]) }
   return { name: 'home' }

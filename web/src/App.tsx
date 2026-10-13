@@ -69,18 +69,18 @@ export default function App() {
   if (session.state === 'checking') return <main className="login"><p className="muted">Loading…</p></main>
 
   const me = session.me
-  const page = route.name === 'admin' && me?.is_admin ? 'admin' : 'home'
+  const adminPage = route.name === 'admin' && me?.is_admin ? route.page : null
 
   return (
     <>
       <Header
         me={me}
-        route={page}
+        route={adminPage ? 'admin' : 'home'}
         onNavigate={navigate}
         onVoucher={() => setVoucher({ open: true, reason: 'manual' })}
         onLogout={logout}
       />
-      {page === 'admin' ? <AdminPage /> : <Workspace />}
+      {adminPage ? <AdminPage page={adminPage} onNavigate={navigate} /> : <Workspace />}
       <VoucherDialog
         open={voucher.open}
         reason={voucher.reason}

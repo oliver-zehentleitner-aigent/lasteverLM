@@ -91,17 +91,23 @@ is closed. After the wizard the notebook view opens.
   and no mail goes out.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
-- Admin (only for admins, one page with sections): an overview at the
-  top with numbers from the three services' stats endpoints, each group
-  loading on its own; users with last login and balance, login log,
-  sign-in attempts (allowed or refused, with IP),
-  visitor log aggregated per day and path, SMTP settings read-only
-  (they come from the deployment) with a test button, allowed sign-in
-  (domains and single addresses, one entry at a time), voucher creation
-  (5 EUR by default) that shows the codes once, with the list of issued
-  vouchers below it (open ones can be deleted).
-  Above the blocks and bans, the rate-limit rule as a sentence with
-  its four editable numbers and a reset to the deployment defaults.
+- Admin (only for admins): pages under `/admin` with a sub-navigation;
+  each page loads only its own data, every page has its own URL.
+  - **Overview** (`/admin`): numbers from the three services' stats
+    endpoints, each group loading on its own.
+  - **Users** (`/admin/users`): users with last login and balance, the
+    login log, sign-in attempts (allowed or refused, with IP).
+  - **Access** (`/admin/access`): allowed sign-in, domains and single
+    addresses, one entry at a time.
+  - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
+    that shows the codes once, the list of issued vouchers below (open
+    ones can be deleted).
+  - **Security** (`/admin/security`): the rate-limit rule as a sentence
+    with its four editable numbers and a reset to the deployment
+    defaults, then blocks, bans (with lift) and the raw access log.
+  - **Visits** (`/admin/visits`): visitor log aggregated per day and path.
+  - **Mail** (`/admin/mail`): SMTP settings read-only (they come from the
+    deployment) with a test button.
 
 ## Language
 

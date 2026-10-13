@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { admin } from '../../api/admin'
 import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, RateLimitRules, RateLimitUpdate, Smtp, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
+import { ADMIN_PAGES, adminPath, type AdminPageId } from '../../lib/adminPages'
 import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
 import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
@@ -12,26 +13,61 @@ const VISIT_DAYS = 14
 const ACCESS_LIMIT = 100
 const VOUCHER_LIMIT = 100
 
-/** Compact admin panel: everything on one page in collapsible sections, so a
- *  maintainer sees the whole state at a glance. Only mounted for is_admin;
- *  the server enforces that too (403). */
-export function AdminPage() {
-  return (
-    <main className="admin">
-      <h1>Admin</h1>
-      {ADMIN_MOCK && <p className="notice">Showing mock data: the build runs against an in-memory admin API.</p>}
-      <Overview />
+/** The sections of each admin page. Only the open page is mounted, so a
+ *  page loads its own data and nothing else. */
+const PAGE_SECTIONS: Record<AdminPageId, () => ReactNode> = {
+  overview: () => <Overview />,
+  users: () => (
+    <>
       <Users />
       <Logins />
       <LoginAttempts />
-      <Visits />
-      <Vouchers />
-      <AllowedSignIn />
-      <SmtpSettings />
+    </>
+  ),
+  access: () => <AllowedSignIn />,
+  credits: () => <Vouchers />,
+  security: () => (
+    <>
       <RateLimit />
       <Blocks />
       <Bans />
       <Access />
+    </>
+  ),
+  visits: () => <Visits />,
+  mail: () => <SmtpSettings />,
+}
+
+interface Props {
+  page: AdminPageId
+  onNavigate: (path: string) => void
+}
+
+/** Admin panel: a few pages under /admin with a sub-navigation, each a
+ *  stack of collapsible sections. Only mounted for is_admin; the server
+ *  enforces that too (403). */
+export function AdminPage({ page, onNavigate }: Props) {
+  return (
+    <main className="admin">
+      <h1>Admin</h1>
+      <nav className="subnav" aria-label="Admin pages">
+        {ADMIN_PAGES.map((p) => (
+          <a
+            key={p.id}
+            href={adminPath(p.id)}
+            className={p.id === page ? 'active' : undefined}
+            aria-current={p.id === page ? 'page' : undefined}
+            onClick={(e) => {
+              e.preventDefault()
+              onNavigate(adminPath(p.id))
+            }}
+          >
+            {p.label}
+          </a>
+        ))}
+      </nav>
+      {ADMIN_MOCK && <p className="notice">Showing mock data: the build runs against an in-memory admin API.</p>}
+      {PAGE_SECTIONS[page]()}
     </main>
   )
 }
