@@ -1,6 +1,9 @@
-import type { Output } from '../api/types'
-import { formFor } from '../lib/outputs'
+import { useEffect, useState } from 'react'
+import type { Output, OutputKind } from '../api/types'
+import { useOutputOptions } from '../hooks/useOutputOptions'
 import { t } from '../i18n'
+import { formatTime } from '../lib/format'
+import { FILTER_FROM, SORTS, kindLabel, kindsPresent, optionsBrief, sortOutputs, whenLabel, type Sort } from '../lib/outputsList'
 
 interface Props {
   outputs: Output[]
@@ -9,26 +12,76 @@ interface Props {
   onDelete: (o: Output) => void
 }
 
-/** Left column, under Create: the generated documents with kind, title and
- *  status. A click opens the document's tab in the viewer; × deletes it,
- *  the same as the viewer's delete action. */
+/** Left column, under the output formats: the generated documents. Each row
+ *  has the kind and the status in fixed slots, the title, and below it when
+ *  it was made (relative within a day) with its language and voice, since a
+ *  kind is often made again from the same sources. A sort control, and
+ *  kind chips once the list is long. A click opens the tab; × deletes. */
 export function OutputsPane({ outputs, selectedId, onOpen, onDelete }: Props) {
+  const [sort, setSort] = useState<Sort>('newest')
+  const [kind, setKind] = useState<OutputKind | 'all'>('all')
+  const spec = useOutputOptions()
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const kinds = kindsPresent(outputs)
+  // a filter on a kind that is gone (deleted) falls back to all
+  const active = kind !== 'all' && kinds.includes(kind) ? kind : 'all'
+  const shown = sortOutputs(active === 'all' ? outputs : outputs.filter((o) => o.kind === active), sort)
+  const voiceLabel = (id: string) => spec?.audio.voices.find((v) => v.id === id)?.label ?? id
+
   return (
     <section className="pane outputs">
-      <h2>{t('outputs.title')}</h2>
-      <ul className="list">
-        {outputs.map((o) => (
-          <li key={o.id} id={`output-${o.id}`} className={o.id === selectedId ? 'selected' : ''}>
-            <button type="button" className="item" onClick={() => onOpen(o.id)} title={o.title || formFor(o.kind).label}>
-              <span className="badge">{formFor(o.kind).label}</span>
-              <span className="name">{o.title || formFor(o.kind).label}</span>
-              <span className={`badge ${o.status}`}>{t(`status.${o.status}`)}</span>
+      <div className="outputs-head">
+        <h2>{t('outputs.title')}</h2>
+        {outputs.length > 1 && (
+          <select className="outputs-sort" aria-label={t('outputs.sort')} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            {SORTS.map((s) => (
+              <option key={s} value={s}>
+                {t(`sort.${s}`)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      {outputs.length >= FILTER_FROM && kinds.length > 1 && (
+        <div className="kind-chips" role="group" aria-label={t('outputs.filter')}>
+          {(['all', ...kinds] as const).map((k) => (
+            <button key={k} type="button" className={k === active ? 'preset active' : 'preset'} aria-pressed={k === active} onClick={() => setKind(k)}>
+              {k === 'all' ? t('outputs.all') : kindLabel(k)}
             </button>
-            <button type="button" className="icon" title={t('outputs.delete')} onClick={() => onDelete(o)}>
-              ×
-            </button>
-          </li>
-        ))}
+          ))}
+        </div>
+      )}
+      <ul className="list out-list">
+        {shown.map((o) => {
+          const brief = optionsBrief(o, voiceLabel)
+          return (
+            <li key={o.id} id={`output-${o.id}`} className={o.id === selectedId ? 'selected' : ''}>
+              <button type="button" className="out-row" onClick={() => onOpen(o.id)} title={o.title || kindLabel(o.kind)}>
+                <span className="out-kind">
+                  <span className="badge">{kindLabel(o.kind)}</span>
+                </span>
+                <span className="out-title">{o.title || kindLabel(o.kind)}</span>
+                <span className="out-status">
+                  <span className={`badge ${o.status}`}>{t(`status.${o.status}`)}</span>
+                </span>
+                <span className="out-meta muted small">
+                  <time dateTime={o.created_at} title={formatTime(o.created_at)}>
+                    {whenLabel(o.created_at, now)}
+                  </time>
+                  {brief && ` · ${brief}`}
+                </span>
+              </button>
+              <button type="button" className="icon" title={t('outputs.delete')} onClick={() => onDelete(o)}>
+                ×
+              </button>
+            </li>
+          )
+        })}
         {outputs.length === 0 && <li className="muted small">{t('outputs.none')}</li>}
       </ul>
     </section>

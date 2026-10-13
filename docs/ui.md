@@ -98,8 +98,15 @@ is closed. After the wizard the notebook view opens.
   create request with only the keys the kind takes. The viewer and the
   shared page show what a document was made with ("Deutsch · Ryan ·
   1.25×").
-- **Outputs** (left, bottom): the generated documents with kind, title
-  and status; a click opens the document's tab, × deletes it.
+- **Outputs** (left, bottom): the generated documents, one row each:
+  the kind and the status in fixed slots, the title between them, and
+  below the title when it was made ("14 min ago", the date and time as
+  tooltip; the absolute time once it is older than a day) with its
+  language code and, for audio, the voice. A sort control above the
+  list: newest first (the default, since a kind is often made again
+  from the same sources), oldest first, by kind, by language, by
+  status. From six documents on, kind chips filter the list. A click
+  opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs
   show a spinner and poll. Each kind has its own renderer; the audio
   player sits centred in the pane, and the mind map fills the pane and
@@ -293,8 +300,10 @@ everyone, from the public `/api/account/healthz`.
 
 Light or dark: a `theme` preference "system" (the default, following the
 operating system's setting), "light" or "dark". A toggle in the header
-(◐ system, ☀ light, ☾ dark) cycles through them and applies at once; the
-Settings page has the same choice; both read and write one theme store
+switches between light and dark only, starting from what is on screen
+(its icon shows what a click gives; under "system" a click sets the
+explicit opposite), and applies at once; "system" is chosen on the
+Settings page; both read and write one theme store
 (`lib/theme.ts`), so the toggle always shows what Settings saved and the
 other way round. The choice is kept in this browser
 (read by a small script in `index.html` before the first paint, so a

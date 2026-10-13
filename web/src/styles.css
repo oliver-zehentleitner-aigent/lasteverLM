@@ -158,8 +158,8 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .list li.selected { background: var(--accent-soft); }
 .list li.highlight { background: var(--accent-soft); outline: 1px solid var(--accent); }
 .sources .add { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
-.sources .item, .outputs .item { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.3rem 0.4rem; min-width: 0; }
-.sources .name, .outputs .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.sources .item { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.3rem 0.4rem; min-width: 0; }
+.sources .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .badge { font-size: 0.75em; padding: 0.05rem 0.4rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .badge.ready { color: var(--ok); border-color: var(--ok); }
 .badge.processing { color: var(--warn); border-color: var(--warn); }
@@ -510,3 +510,17 @@ button.link.copy { font-size: 0.85em; }
 @keyframes flash-bg { from { background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent); } to { background: transparent; box-shadow: 0 0 0 2px transparent; } }
 .flash { animation: flash-bg 1.8s ease-out; border-radius: 3px; }
 @media (prefers-reduced-motion: reduce) { .flash { animation: none; outline: 2px solid var(--accent); } }
+
+/* Outputs list: kind and status in fixed slots, the title between them,
+   when and how below the title */
+.outputs-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.outputs-head h2 { margin: 0; }
+.outputs-sort { width: auto; height: 1.9rem; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+.kind-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
+.kind-chips .preset { border: 1px solid var(--line); border-radius: 999px; }
+.out-list li { gap: 0; }
+.out-row { flex: 1; min-width: 0; display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) 6.5rem; grid-template-rows: auto auto; align-items: center; column-gap: 0.5rem; row-gap: 0.05rem; padding: 0.35rem 0.4rem; background: none; border: none; color: inherit; text-align: left; white-space: normal; }
+.out-kind, .out-status { display: flex; min-width: 0; }
+.out-status { justify-content: flex-end; }
+.out-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.out-meta { grid-column: 2 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
