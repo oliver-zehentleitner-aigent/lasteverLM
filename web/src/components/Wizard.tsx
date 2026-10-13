@@ -8,6 +8,7 @@ import { useOutputOptions } from '../hooks/useOutputOptions'
 import { CAPTURE_MODES, preferredCapture, type CaptureMode } from '../lib/capture'
 import { filterLibrary, notInNotebook, shortUrl } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
+import { afterSources, wizardSteps } from '../lib/wizard'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { ImageName } from './ImageName'
@@ -15,6 +16,9 @@ import { t, tn } from '../i18n'
 
 interface Props {
   notebookId: string
+  /** the output step, for a new notebook only; adding to an existing one
+   *  ends after the sources */
+  withOutputs: boolean
   onDone: () => void
   onClose: () => void
 }
@@ -23,10 +27,13 @@ type Step = 1 | 2 | 3
 
 /** Adding sources in three steps, one question each, tiles instead of a
  *  form. Step 2 uploads per file as soon as the user confirms; step 3
- *  creates one output per selected kind, and rag waits for the sources
- *  itself, so closing the browser after "Done" loses nothing. */
-export function Wizard({ notebookId, onDone, onClose }: Props) {
+ *  (a new notebook only) creates one output per selected kind, and rag
+ *  waits for the sources itself, so closing the browser after "Done"
+ *  loses nothing. */
+export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
   const [step, setStep] = useState<Step>(1)
+  // adding to an existing notebook: the note shown when some were there already
+  const [addedNote, setAddedNote] = useState(false)
   const [form, setForm] = useState<SourceForm | null>(null)
   // "from library": entries of the user's library not yet in this notebook
   const [fromLibrary, setFromLibrary] = useState(false)
@@ -72,11 +79,11 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
       }
       if (fromLibrary) {
         for (const id of picked) count(await ingest.addFromLibrary(notebookId, id))
-        return true
+        return already
       }
       if (form?.input === 'url') {
         count(await ingest.addUrl(notebookId, url.trim()))
-        return true
+        return already
       }
       // a file that went in leaves the list, so after a failure (a storage
       // outage answers 503) only the rest is retried and stays selected
@@ -89,9 +96,13 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
         count(await ingest.uploadFile(notebookId, new File([pasted], name, { type: 'text/plain' })))
         setPasted('')
       }
-      return true
+      return already
     })
-    if (ok) setStep(3)
+    if (ok === undefined) return
+    const next = afterSources(withOutputs, ok)
+    if (next === 'outputs') setStep(3)
+    else if (next === 'note') setAddedNote(true)
+    else onDone()
   }
 
   async function finish() {
@@ -116,7 +127,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
     <div className="backdrop" onClick={onClose}>
       <div className="dialog wizard" onClick={(e) => e.stopPropagation()}>
         <header className="row">
-          <span className="muted small">{t('wiz.step', { step })}</span>
+          <span className="muted small">{t('wiz.step', { step, steps: wizardSteps(withOutputs) })}</span>
           <button type="button" className="icon" onClick={onClose} title={t('common.close')}>
             ×
           </button>
@@ -150,7 +161,19 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
           </>
         )}
 
-        {step === 2 && fromLibrary && (
+        {addedNote && (
+          <>
+            <h2>{t('wiz.added')}</h2>
+            <p className="muted small">{tn('wiz.existing', existing)}</p>
+            <div className="row">
+              <button type="button" onClick={onDone}>
+                {t('common.done')}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 2 && fromLibrary && !addedNote && (
           <>
             <h2>{t('wiz.whichFromLibrary')}</h2>
             <input
@@ -213,7 +236,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
           </>
         )}
 
-        {step === 2 && form && !fromLibrary && (
+        {step === 2 && form && !fromLibrary && !addedNote && (
           <>
             <h2>{t('wiz.howIn')}</h2>
             {form.input === 'files' && (
@@ -308,8 +331,11 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
             </div>
             {error && <p className="error">{error}</p>}
             <div className="row">
-              <button type="button" onClick={() => void finish()} disabled={busy}>
-                {kinds.size === 0 ? t('wiz.justChat') : tn('wiz.createDocs', kinds.size)}
+              <button type="button" className="secondary" onClick={onDone} disabled={busy}>
+                {t('wiz.skip')}
+              </button>
+              <button type="button" onClick={() => void finish()} disabled={busy || kinds.size === 0}>
+                {tn('wiz.createDocs', Math.max(kinds.size, 1))}
               </button>
             </div>
           </>

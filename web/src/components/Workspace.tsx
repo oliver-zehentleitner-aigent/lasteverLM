@@ -38,7 +38,8 @@ import { t } from '../i18n'
 export function Workspace() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(readLastNotebook)
-  const [wizardFor, setWizardFor] = useState<string | null>(null)
+  // the notebook the wizard is open for; fresh = just created, so it asks for outputs too
+  const [wizardFor, setWizardFor] = useState<{ id: string; fresh: boolean } | null>(null)
   // the notebook list's width, remembered per browser; null is the stylesheet's
   const [sidebarWidth, setSidebarWidth] = useState(() => readWidth(browserStorage(), SIDEBAR_WIDTH.key, SIDEBAR_WIDTH.min, SIDEBAR_WIDTH.max))
   const workspaceRef = useRef<HTMLElement>(null)
@@ -62,7 +63,7 @@ export function Workspace() {
     if (nb) {
       setNotebooks((prev) => [nb, ...prev])
       setSelectedId(nb.id)
-      setWizardFor(nb.id)
+      setWizardFor({ id: nb.id, fresh: true })
     }
   }
 
@@ -100,7 +101,9 @@ export function Workspace() {
         }}
       />
       {selectedId ? (
-        <NotebookView key={selectedId} notebookId={selectedId} wizardOpen={wizardFor === selectedId} onWizard={(open) => setWizardFor(open ? selectedId : null)} />
+        <NotebookView key={selectedId} notebookId={selectedId} wizard={wizardFor?.id === selectedId ? wizardFor : null}
+          onWizard={(open) => setWizardFor(open ? { id: selectedId, fresh: false } : null)}
+        />
       ) : (
         <div className="columns empty">
           <p className="muted">{t('nb.createFirst')}</p>
@@ -112,14 +115,15 @@ export function Workspace() {
 
 interface ViewProps {
   notebookId: string
-  wizardOpen: boolean
+  /** open with the output step (fresh) or without it; null when closed */
+  wizard: { fresh: boolean } | null
   onWizard: (open: boolean) => void
 }
 
 /** Everything that belongs to one notebook; remounted by key on a switch.
  *  Holds the outputs because tiles create them, the viewer shows them and
  *  the chat cites them. */
-function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
+function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   const [outputs, setOutputs] = useState<Output[]>([])
   const [selectedOutput, setSelectedOutput] = useState<string | null>(null)
   const [scope, setScope] = useState<Output | null>(null)
@@ -355,9 +359,10 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
           />
         </div>
       </div>
-      {wizardOpen && (
+      {wizard && (
         <Wizard
           notebookId={notebookId}
+          withOutputs={wizard.fresh}
           onClose={() => onWizard(false)}
           onDone={() => {
             onWizard(false)

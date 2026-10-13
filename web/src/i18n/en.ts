@@ -144,7 +144,7 @@ export const en = {
   'tiles.male': 'Male',
   'tiles.speed': 'Speed',
   'tiles.create': 'Create',
-  'wiz.step': 'Step {step} of 3',
+  'wiz.step': 'Step {step} of {steps}',
   'wiz.whatIn': 'What goes in?',
   'wiz.fromLibrary': 'From library',
   'wiz.fromLibrary.note': 'Something you added before, to another notebook.',
@@ -160,10 +160,9 @@ export const en = {
   'wiz.address': 'Address',
   'wiz.uploading': 'Uploading… {n}',
   'wiz.whatOut': 'What should come out of it?',
-  'wiz.pickAny': 'Pick any number, or none to just chat.',
+  'wiz.pickAny': 'Pick any number, or skip to just chat.',
   'wiz.existing.one': 'One of them was already in this notebook; nothing was added twice.',
   'wiz.existing.other': '{n} of them were already in this notebook; nothing was added twice.',
-  'wiz.justChat': 'Just chat',
   'wiz.createDocs.one': 'Create {n} document',
   'wiz.createDocs.other': 'Create {n} documents',
   'wiz.pastedName': 'pasted',
@@ -457,6 +456,9 @@ export const en = {
   'arch.inference': 'Inference API',
   'arch.inferenceNote': 'LLM, embeddings, TTS',
   'arch.external': 'external',
+  'wiz.skip': 'Skip',
+  'wiz.added': 'Added',
+  'common.done': 'Done',
 } as const
 
 export type MessageKey = keyof typeof en

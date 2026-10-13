@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Wizard: opened from an existing notebook it ends after the sources (two steps, with a note and "Done" when some were in the notebook already); the output step is for a new notebook only and has a "Skip" button instead of "Just chat".
+
 ## [0.9.1] - 2026-10-13
 
 ### Added

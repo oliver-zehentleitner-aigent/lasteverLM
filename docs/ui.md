@@ -12,7 +12,10 @@ space.
 
 ## The wizard: adding sources
 
-Three steps, one question each, large tiles instead of a form.
+Three steps, one question each, large tiles instead of a form, for a
+new notebook. Opened from an existing notebook (the add button) it has
+two: it ends after the sources, with a short note and "Done" when some
+were in the notebook already.
 
 1. **What goes in?** Tiles: **From library** first, for something
    added before to another notebook, then PDF, Text, Web page, Image. A
@@ -36,8 +39,9 @@ Three steps, one question each, large tiles instead of a form.
    For the
    library, a filterable list of the entries not yet in this notebook to
    tick.
-3. **What should come out of it?** Tiles of the output kinds, multiple
-   selection, "just chat" is allowed. Done.
+3. **What should come out of it?** (new notebook only) Tiles of the
+   output kinds, multiple selection; "Create n documents", or "Skip" to
+   just chat.
 
 Step 2 calls `POST /api/ingest/notebooks/{id}/sources` per file, once
 with `{"url"}` for a web page, or with `{"library_id"}` per picked
@@ -70,7 +74,8 @@ is closed. After the wizard the notebook view opens.
 ```
 
 - **Sources** (left, top): the uploads (PDF, text, web page, image)
-  with status and remove; the add button opens the wizard at step 1.
+  with status and remove; the add button opens the wizard at step 1,
+  without the output step.
   Removing only detaches the source from this notebook, it stays in the
   library. Deleting a notebook detaches its sources the same way.
   Generated documents are not listed here, although the backend keeps
