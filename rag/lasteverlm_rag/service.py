@@ -14,6 +14,7 @@ import secrets
 from typing import Any
 
 from lasteverlm_core import (
+    DEFAULT_TTS_VOICE,
     LLM,
     Answer,
     ChunkView,
@@ -33,6 +34,7 @@ from lasteverlm_core import (
 
 from .citations import map_citations, number_passages
 from .models import Conversation, ConversationRow, GeneratedOutput, OutputRow, Passage
+from .options import OutputOptions, language_name, resolve
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
 from .speech import split_for_speech
@@ -77,6 +79,10 @@ class NotebookNotFound(Exception):
 
 class OutputNotFound(Exception):
     """No output with that id belongs to the caller."""
+
+
+class InvalidOptions(Exception):
+    """The output options do not fit the kind or the catalogue."""
 
 
 class ChunkNotFound(Exception):
@@ -261,6 +267,7 @@ class OutputService:
         chunker: TokenWindowChunker | None = None,
         tts: TextToSpeech | None = None,
         objects: Storage | None = None,
+        default_voice: str = DEFAULT_TTS_VOICE,
     ) -> None:
         self._store = store
         self._retriever = retriever
@@ -272,15 +279,28 @@ class OutputService:
         self._chunker = chunker or TokenWindowChunker()
         self._tts = tts
         self._objects = objects
+        self._default_voice = default_voice
 
     # -- API-facing ----------------------------------------------------------
 
-    def create(self, user_id: str, notebook_id: str, kind: OutputKind) -> Output:
+    def create(
+        self,
+        user_id: str,
+        notebook_id: str,
+        kind: OutputKind,
+        options: OutputOptions | None = None,
+    ) -> Output:
+        try:
+            resolved = resolve(kind, options, self._default_voice)
+        except ValueError as exc:
+            raise InvalidOptions(str(exc)) from exc
         require_notebook(self._store, user_id, notebook_id)
         require_credit(self._store, user_id)
         states = self._store.source_states(notebook_id)
         waiting = any(s.status == "processing" for s in states)
-        row = self._store.create_output(notebook_id, kind, "waiting" if waiting else "processing")
+        row = self._store.create_output(
+            notebook_id, kind, "waiting" if waiting else "processing", resolved
+        )
         return self._present(row)
 
     def list(self, user_id: str, notebook_id: str) -> list[Output]:
@@ -320,6 +340,7 @@ class OutputService:
                 "title": row.title,
                 "content": self._public_content(row.content),
                 "created_at": row.created_at,
+                "options": row.options,
             }
         )
 
@@ -401,7 +422,11 @@ class OutputService:
             return result
 
         return generator.generate(
-            complete, str(notebook.get("title", "")), summaries, number_passages(chunks)
+            complete,
+            str(notebook.get("title", "")),
+            summaries,
+            number_passages(chunks),
+            language=language_name(row.options.get("language")),
         )
 
     def _index(self, user_id: str, notebook_id: str, generated: GeneratedOutput) -> str:
@@ -427,7 +452,11 @@ class OutputService:
             raise GenerationFailed("audio: the script is empty")
         parts: list[bytes] = []
         for segment in segments:
-            parts.append(self._tts.synthesize(segment))
+            parts.append(
+                self._tts.synthesize(
+                    segment, voice=job.options.get("voice"), speed=job.options.get("speed")
+                )
+            )
             usage = Usage(kind="tts", model=self._tts.model, tokens_in=len(segment), tokens_out=0)
             self._store.record_usage(job.owner, job.notebook_id, usage)
         key = object_key(job.notebook_id, job.id, AUDIO_FILE)
@@ -486,6 +515,7 @@ def to_output(row: OutputRow) -> Output:
             "share_token": row.share_token,
             "source_id": row.source_id,
             "created_at": row.created_at,
+            "options": row.options,
         }
     )
 

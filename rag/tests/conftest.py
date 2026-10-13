@@ -166,7 +166,13 @@ class FakeStore:
         return Message.model_validate({**row, "citations": row["citations"] or []})
 
     # outputs
-    def create_output(self, notebook_id: str, kind: OutputKind, status: OutputStatus) -> OutputRow:
+    def create_output(
+        self,
+        notebook_id: str,
+        kind: OutputKind,
+        status: OutputStatus,
+        options: dict[str, Any] | None = None,
+    ) -> OutputRow:
         row = {
             "id": str(uuid.uuid4()),
             "notebook_id": notebook_id,
@@ -180,6 +186,7 @@ class FakeStore:
             "attempts": 0,
             "claimed_by": None,
             "created_at": (datetime.now(UTC) + timedelta(seconds=len(self.outputs))).isoformat(),
+            "options": options or {},
         }
         self.outputs[row["id"]] = row
         return self._output_row(row)
@@ -393,11 +400,15 @@ class FakeTTS:
     def __init__(self, fail: bool = False) -> None:
         self.fail = fail
         self.inputs: list[str] = []
+        self.settings: list[tuple[str | None, float | None]] = []
 
-    def synthesize(self, text: str) -> bytes:
+    def synthesize(
+        self, text: str, *, voice: str | None = None, speed: float | None = None
+    ) -> bytes:
         if self.fail:
             raise ProviderError("speech request failed: boom")
         self.inputs.append(text)
+        self.settings.append((voice, speed))
         return b"\xff\xf3" + text[:4].encode()
 
 

@@ -82,7 +82,11 @@ class Store(Protocol):
 
     # outputs
     def create_output(
-        self, notebook_id: str, kind: OutputKind, status: OutputStatus
+        self,
+        notebook_id: str,
+        kind: OutputKind,
+        status: OutputStatus,
+        options: dict[str, Any] | None = None,
     ) -> OutputRow: ...
 
     def get_output(self, output_id: str) -> OutputRow | None: ...
@@ -160,7 +164,7 @@ limit %(k)s
 _OUTPUT_COLUMNS = """
 o.id::text as id, o.notebook_id::text as notebook_id, n.owner::text as owner, o.kind, o.title,
 o.content, o.status, o.error, o.share_token, o.source_id::text as source_id, o.attempts,
-o.created_at
+o.created_at, o.options
 """
 _OUTPUT_FROM = "from outputs o join notebooks n on n.id = o.notebook_id"
 _OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_id"}
@@ -353,13 +357,19 @@ class PostgresStore:
 
     # -- outputs ----------------------------------------------------------
 
-    def create_output(self, notebook_id: str, kind: OutputKind, status: OutputStatus) -> OutputRow:
+    def create_output(
+        self,
+        notebook_id: str,
+        kind: OutputKind,
+        status: OutputStatus,
+        options: dict[str, Any] | None = None,
+    ) -> OutputRow:
         output_id = _new_id()
         with self._pool.connection() as conn:
             conn.execute(
-                "insert into outputs (id, notebook_id, kind, title, status) "
-                "values (%s, %s, %s, '', %s)",
-                (output_id, notebook_id, kind, status),
+                "insert into outputs (id, notebook_id, kind, title, status, options) "
+                "values (%s, %s, %s, '', %s, %s)",
+                (output_id, notebook_id, kind, status, Jsonb(options or {})),
             )
         row = self.get_output(output_id)
         assert row is not None
@@ -632,4 +642,5 @@ def _to_output(row: dict[str, Any]) -> OutputRow:
         source_id=row["source_id"],
         attempts=int(row.get("attempts", 0)),
         created_at=str(row["created_at"]),
+        options=row.get("options") or {},
     )

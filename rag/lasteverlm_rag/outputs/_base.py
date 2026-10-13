@@ -14,14 +14,28 @@ from . import CompleteFn
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
 
+SOURCE_LANGUAGE = "Write in the language the material is written in."
+
 SYSTEM_RULES = """You create documents strictly from the material the user provides.
 
 Rules:
 - Use only the provided material. Do not add facts from your own knowledge.
-- Write in the language the material is written in.
+- {language_rule}
 - "title" names this document specifically (its subject and form); never reuse the notebook's name.
 - Answer with one JSON object only, no prose before or after it, no code fences.
 """
+
+
+def system_rules(language: str | None) -> str:
+    """The shared rules; an explicit language (an English name such as
+    "German") overrides the material's language, title included."""
+    rule = (
+        f"Write everything, the title included, in {language}, whatever language the "
+        "material is written in."
+        if language
+        else SOURCE_LANGUAGE
+    )
+    return SYSTEM_RULES.format(language_rule=rule)
 
 
 class GenerationFailed(Exception):
@@ -44,9 +58,11 @@ class JsonGenerator:
         notebook_title: str,
         summaries: list[SourceSummary],
         passages: list[Passage],
+        *,
+        language: str | None = None,
     ) -> GeneratedOutput:
         user = render_material(notebook_title, summaries, passages) + "\n\n" + self.instructions
-        system = SYSTEM_RULES
+        system = system_rules(language)
         last_error = ""
         for attempt in range(2):
             prompt = (

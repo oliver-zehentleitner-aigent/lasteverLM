@@ -25,6 +25,8 @@ class OutputGenerator(Protocol):
         notebook_title: str,
         summaries: list[SourceSummary],
         passages: list[Passage],
+        *,
+        language: str | None = None,
     ) -> GeneratedOutput: ...
 
 

@@ -358,9 +358,9 @@ def test_registry_covers_every_kind():
 
 
 def test_generators_are_told_not_to_reuse_the_notebook_name_as_title():
-    from lasteverlm_rag.outputs._base import SYSTEM_RULES
+    from lasteverlm_rag.outputs._base import system_rules
 
-    assert "never reuse the notebook's name" in SYSTEM_RULES
+    assert "never reuse the notebook's name" in system_rules(None)
 
 
 def test_render_material_lists_summaries_and_numbered_passages():
