@@ -14,6 +14,7 @@ from lasteverlm_core import (
     Message,
     OutputKind,
     OutputStatus,
+    ProviderError,
     Usage,
 )
 from lasteverlm_core.chunking import Chunk
@@ -287,6 +288,37 @@ class FakeLLM:
         return CompletionResult(reply, Usage("llm", "test-llm", 50, 20))
 
 
+class FakeTTS:
+    """Returns one fake MP3 frame per segment."""
+
+    model = "test-tts"
+
+    def __init__(self, fail: bool = False) -> None:
+        self.fail = fail
+        self.inputs: list[str] = []
+
+    def synthesize(self, text: str) -> bytes:
+        if self.fail:
+            raise ProviderError("speech request failed: boom")
+        self.inputs.append(text)
+        return b"\xff\xf3" + text[:4].encode()
+
+
+class FakeObjects:
+    def __init__(self) -> None:
+        self.objects: dict[str, tuple[bytes, str]] = {}
+
+    def put(self, key: str, data: bytes, content_type: str) -> None:
+        self.objects[key] = (data, content_type)
+
+    def delete(self, keys: list[str]) -> None:
+        for key in keys:
+            self.objects.pop(key, None)
+
+    def presigned_get(self, key: str, expires_s: int) -> str:
+        return f"https://objects.test/{key}?expires={expires_s}"
+
+
 @pytest.fixture
 def settings() -> Settings:
     return Settings.from_env(
@@ -295,9 +327,14 @@ def settings() -> Settings:
 
 
 def make_client(
-    settings: Settings, store: FakeStore, retriever: FakeRetriever, llm: FakeLLM
+    settings: Settings,
+    store: FakeStore,
+    retriever: FakeRetriever,
+    llm: FakeLLM,
+    tts: FakeTTS | None = None,
+    objects: FakeObjects | None = None,
 ) -> TestClient:
-    generators = registry(tts_available=False)
+    generators = registry(tts_available=tts is not None)
     outputs = OutputService(
         store,
         retriever,
@@ -306,6 +343,8 @@ def make_client(
         generators,
         settings.retrieval_k,
         settings.similarity_floor,
+        tts=tts,
+        objects=objects,
     )
     app = create_app(
         settings=settings,

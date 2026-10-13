@@ -30,6 +30,7 @@ class Settings:
     rate_limit: RateLimitSettings
     model_prices: ModelPrices
     tts_model: str | None
+    tts_voice: str
     retrieval_k: int
     retrieval_include_generated: bool
     similarity_floor: float
@@ -55,6 +56,7 @@ class Settings:
             rate_limit=RateLimitSettings.from_env(env),
             model_prices=prices,
             tts_model=tts_model,
+            tts_voice=env_optional("TTS_VOICE", env) or "ryan",
             retrieval_k=retrieval_k,
             retrieval_include_generated=_flag(
                 env.get("RETRIEVAL_INCLUDE_GENERATED", "false"), "RETRIEVAL_INCLUDE_GENERATED"

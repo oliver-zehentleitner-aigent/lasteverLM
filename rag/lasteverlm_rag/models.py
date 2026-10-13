@@ -74,6 +74,8 @@ class GeneratedOutput:
     title: str
     content: dict[str, Any]
     index_text: str
+    speech: str | None = None
+    """Text to synthesize into the output's audio file (audio kind only)."""
 
 
 @dataclass(frozen=True)

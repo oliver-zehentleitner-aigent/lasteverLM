@@ -22,14 +22,17 @@ from lasteverlm_core import (
     OutputKind,
     ProviderError,
     SharedOutput,
+    TextToSpeech,
     TokenWindowChunker,
+    Usage,
 )
 
 from .citations import map_citations, number_passages
 from .models import GeneratedOutput, OutputRow, Passage
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
-from .store import Retriever, Store
+from .speech import split_for_speech
+from .store import ObjectStore, Retriever, Store
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ ANSWER_MAX_TOKENS = 1024
 SCOPED_RETRIEVAL_K = 12
 MAX_ATTEMPTS = 3
 SUMMARY_MAX_CHARS = 500
+AUDIO_URL_EXPIRES_S = 3600
 
 
 class NotebookNotFound(Exception):
@@ -167,6 +171,8 @@ class OutputService:
         retrieval_k: int,
         similarity_floor: float,
         chunker: TokenWindowChunker | None = None,
+        tts: TextToSpeech | None = None,
+        objects: ObjectStore | None = None,
     ) -> None:
         self._store = store
         self._retriever = retriever
@@ -176,6 +182,8 @@ class OutputService:
         self._k = retrieval_k
         self._floor = similarity_floor
         self._chunker = chunker or TokenWindowChunker()
+        self._tts = tts
+        self._objects = objects
 
     # -- API-facing ----------------------------------------------------------
 
@@ -185,19 +193,21 @@ class OutputService:
         states = self._store.source_states(notebook_id)
         waiting = any(s.status == "processing" for s in states)
         row = self._store.create_output(notebook_id, kind, "waiting" if waiting else "processing")
-        return to_output(row)
+        return self._present(row)
 
     def list(self, user_id: str, notebook_id: str) -> list[Output]:
         require_notebook(self._store, user_id, notebook_id)
-        return [to_output(r) for r in self._store.list_outputs(notebook_id)]
+        return [self._present(r) for r in self._store.list_outputs(notebook_id)]
 
     def get(self, user_id: str, output_id: str) -> Output:
-        return to_output(self._owned(user_id, output_id))
+        return self._present(self._owned(user_id, output_id))
 
     def delete(self, user_id: str, output_id: str) -> None:
         row = self._owned(user_id, output_id)
         if row.source_id is not None:
             self._store.delete_source(row.source_id)
+        # objects first: a failed delete leaves the row for another try, not an orphan file
+        self._delete_objects(row.content)
         self._store.delete_output(row.id)
 
     def share(self, user_id: str, output_id: str) -> str:
@@ -220,7 +230,7 @@ class OutputService:
             {
                 "kind": row.kind,
                 "title": row.title,
-                "content": row.content,
+                "content": self._public_content(row.content),
                 "created_at": row.created_at,
             }
         )
@@ -240,15 +250,19 @@ class OutputService:
         row with its error, never in a log only.
         """
         source_id: str | None = None
+        content: dict[str, Any] = {}
         try:
             self._store.update_output(job.id, status="processing")
             generated = self._generate(job.owner, job)
+            content = generated.content
+            if generated.speech is not None:
+                content = {"key": self._speak(job, generated.speech)}
             source_id = self._index(job.owner, job.notebook_id, generated)
             self._store.update_output(
                 job.id,
                 status="ready",
                 title=generated.title,
-                content=generated.content,
+                content=content,
                 source_id=source_id,
                 error=None,
             )
@@ -259,6 +273,7 @@ class OutputService:
         except Exception as exc:
             if source_id is not None:
                 self._store.delete_source(source_id)
+            self._delete_objects(content)
             error = _error_text(exc)
             final = isinstance(exc, GenerationFailed) or job.attempts >= MAX_ATTEMPTS
             log.warning(
@@ -313,6 +328,41 @@ class OutputService:
             self._store.insert_chunks(source_id, notebook_id, chunks, embedded.vectors)
         self._store.set_source_status(source_id, "ready")
         return source_id
+
+    def _speak(self, job: OutputRow, script: str) -> str:
+        """Synthesize the script segment by segment (one usage row each, priced
+        per input character) and store the joined MP3; returns the object key."""
+        if self._tts is None or self._objects is None:
+            raise GenerationFailed("audio: text-to-speech is not available on this deployment")
+        segments = split_for_speech(script)
+        if not segments:
+            raise GenerationFailed("audio: the script is empty")
+        parts: list[bytes] = []
+        for segment in segments:
+            parts.append(self._tts.synthesize(segment))
+            usage = Usage(kind="tts", model=self._tts.model, tokens_in=len(segment), tokens_out=0)
+            self._store.record_usage(job.owner, job.notebook_id, usage)
+        key = f"{job.notebook_id}/{job.id}/audio.mp3"
+        # MP3 frames are self-contained: the segments concatenate into one stream
+        self._objects.put(key, b"".join(parts), "audio/mpeg")
+        return key
+
+    def _public_content(self, content: dict[str, Any] | None) -> dict[str, Any] | None:
+        """The row keeps the object key; a reader gets a presigned URL instead,
+        because an <audio> element cannot send a bearer header."""
+        key = (content or {}).get("key")
+        if not isinstance(key, str) or self._objects is None:
+            return content
+        return {"url": self._objects.presigned_get(key, AUDIO_URL_EXPIRES_S)}
+
+    def _delete_objects(self, content: dict[str, Any] | None) -> None:
+        key = (content or {}).get("key")
+        if isinstance(key, str) and self._objects is not None:
+            self._objects.delete([key])
+
+    def _present(self, row: OutputRow) -> Output:
+        output = to_output(row)
+        return output.model_copy(update={"content": self._public_content(row.content)})
 
     def _owned(self, user_id: str, output_id: str) -> OutputRow:
         row = self._store.get_output(output_id)
