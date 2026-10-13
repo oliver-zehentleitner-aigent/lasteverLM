@@ -56,6 +56,7 @@ class InMemoryRepository:
         self.usage: list[UsageRecord] = []
         self.credits: dict[UUID, int] = {}
         self.claimed: dict[UUID, str] = {}
+        self.refreshed: list[UUID] = []
         self.default_balance = balance
         self.admins: set[UUID] = set()
         # account's users.preferences -> 'trash_days'; missing means 14
@@ -315,6 +316,9 @@ class InMemoryRepository:
         self.library[library_id] = self.library[library_id].model_copy(update={"error": error})
         self.claimed.pop(library_id, None)
         self.retry_at[library_id] = datetime.now(UTC) + timedelta(seconds=delay_seconds)
+
+    def refresh_claim(self, library_id: UUID) -> None:
+        self.refreshed.append(library_id)
 
     def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
         for lib in sorted(self.library.values(), key=lambda s: s.created_at):

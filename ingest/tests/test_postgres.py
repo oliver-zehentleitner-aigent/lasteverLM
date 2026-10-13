@@ -293,6 +293,22 @@ def test_a_row_that_stalled_every_attempt_is_failed_not_handed_out_again(repo):
     assert source is not None and source.status == "processing" and source.attempts == 3
 
 
+def test_a_refreshed_claim_is_not_stale(repo):
+    _claim_all(repo)
+    entry, idle = _library(repo, _user(repo)), _library(repo, _user(repo))
+    assert _claim_all(repo) == {entry.id, idle.id}
+    time.sleep(1.1)
+    repo.refresh_claim(entry.id)
+    taken = _claim_all(repo, stale=1)
+    assert idle.id in taken and entry.id not in taken
+    # A row nobody holds is not claimed by a refresh.
+    unclaimed = _library(repo, _user(repo))
+    repo.refresh_claim(unclaimed.id)
+    source = repo.get_library_source(unclaimed.id)
+    assert source is not None and source.attempts == 0
+    assert unclaimed.id in _claim_all(repo)
+
+
 def test_concurrent_workers_never_claim_the_same_row(repo):
     _claim_all(repo)
     owner = _user(repo)

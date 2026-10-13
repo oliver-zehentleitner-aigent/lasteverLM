@@ -224,6 +224,11 @@ class Repository(Protocol):
         Generated rows are rag's and never claimed; trashed ones wait."""
         ...
 
+    def refresh_claim(self, library_id: UUID) -> None:
+        """The worker is still at it: move `claimed_at` to now, so a long
+        job is not taken over as stale while it makes progress."""
+        ...
+
     def set_library_summary(self, library_id: UUID, summary: str) -> None: ...
 
     def replace_chunks(
@@ -643,6 +648,14 @@ class PostgresRepository:
             cur.execute(self._CLAIM_SQL, params)
             row = cur.fetchone()
             return row[0] if row else None
+
+    def refresh_claim(self, library_id: UUID) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set claimed_at = now() "
+                "where id = %(id)s and status = 'processing' and claimed_at is not null",
+                {"id": library_id},
+            )
 
     def set_library_summary(self, library_id: UUID, summary: str) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
