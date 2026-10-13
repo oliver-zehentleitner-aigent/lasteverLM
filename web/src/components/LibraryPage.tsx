@@ -8,6 +8,7 @@ import { kindWithCapture } from '../lib/capture'
 import { deleteConfirmText, filterLibrary, purgeIn, type LibraryFilter } from '../lib/library'
 import { SOURCE_FORMS } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
+import { ImageName } from './ImageName'
 import { t } from '../i18n'
 
 interface Props {
@@ -116,8 +117,11 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
         <tbody>
           {shown.map((e) => (
             <tr key={e.id}>
-              <td className="name" title={e.url ?? e.name}>
-                {e.name} <DemoBadge demo={e.demo} />
+              <td className="name">
+                <span className="name-cell">
+                  <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                  <DemoBadge demo={e.demo} />
+                </span>
               </td>
               <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
               <td>
@@ -231,8 +235,11 @@ function TrashList({ onOpenSettings }: Pick<Props, 'onOpenSettings'>) {
         <tbody>
           {entries.map((e) => (
             <tr key={e.id}>
-              <td className="name" title={e.url ?? e.name}>
-                {e.name} <DemoBadge demo={e.demo} />
+              <td className="name">
+                <span className="name-cell">
+                  <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                  <DemoBadge demo={e.demo} />
+                </span>
               </td>
               <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
               <td>

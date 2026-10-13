@@ -26,6 +26,8 @@ export interface Source {
   capture?: 'auto' | 'text' | 'vision' | null
   /** one of the example sources a new account starts with */
   demo?: boolean
+  /** images only: a presigned picture of it, valid one hour */
+  preview_url?: string | null
 }
 
 /** One upload or URL of the user, with the notebooks it is in. */
@@ -43,6 +45,8 @@ export interface LibraryEntry {
   capture?: 'auto' | 'text' | 'vision' | null
   /** one of the example sources a new account starts with */
   demo?: boolean
+  /** images only: a presigned picture of it, valid one hour */
+  preview_url?: string | null
   created_at: string
   notebooks: { id: string; title: string; source_id: string }[]
 }

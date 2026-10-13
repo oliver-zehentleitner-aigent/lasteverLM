@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Image thumbnails: image entries in the library, the trash and the wizard's library picker show a 2rem thumbnail (lazy, from `preview_url`) and a preview up to 320 px on hover, focus or tap, placed inside the window and closed on leave, Esc or a tap elsewhere.
+
 
 ### Changed
 
