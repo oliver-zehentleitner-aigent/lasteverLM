@@ -12,13 +12,15 @@ import { t } from '../i18n'
 
 interface Props {
   onOpenNotebook: (id: string) => void
+  /** the settings page, at the trash-days field */
+  onOpenSettings: () => void
 }
 
 /** /library: every upload and URL of the user with the notebooks it is in,
  *  and the trash. Removing a source in a notebook only detaches it;
  *  deleting here moves it to the trash (out of every notebook, after a
  *  confirmation that names them), from where it is restored or purged. */
-export function LibraryPage({ onOpenNotebook }: Props) {
+export function LibraryPage({ onOpenNotebook, onOpenSettings }: Props) {
   const [view, setView] = useState<'library' | 'trash'>('library')
   return (
     <main className="library">
@@ -39,12 +41,12 @@ export function LibraryPage({ onOpenNotebook }: Props) {
           </a>
         ))}
       </nav>
-      {view === 'library' ? <LibraryList onOpenNotebook={onOpenNotebook} /> : <TrashList />}
+      {view === 'library' ? <LibraryList onOpenNotebook={onOpenNotebook} /> : <TrashList onOpenSettings={onOpenSettings} />}
     </main>
   )
 }
 
-function LibraryList({ onOpenNotebook }: Props) {
+function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   const [entries, setEntries] = useState<LibraryEntry[]>([])
   const [filter, setFilter] = useState<LibraryFilter>({ kind: 'all', query: '' })
   const { busy, error, run } = useAsync()
@@ -166,7 +168,7 @@ function LibraryList({ onOpenNotebook }: Props) {
 
 /** Deleted entries until they are purged: restore puts one back in the
  *  library (in no notebook), delete removes it for good. */
-function TrashList() {
+function TrashList({ onOpenSettings }: Pick<Props, 'onOpenSettings'>) {
   const [entries, setEntries] = useState<TrashEntry[]>([])
   const { busy, error, run } = useAsync()
 
@@ -194,7 +196,17 @@ function TrashList() {
   return (
     <>
       <p className="muted small">
-        {t('lib.trashIntro')}
+        {t('lib.trashIntro.before')}
+        <a
+          href="/settings#trash-days"
+          onClick={(e) => {
+            e.preventDefault()
+            onOpenSettings()
+          }}
+        >
+          {t('lib.trashIntro.link')}
+        </a>
+        {t('lib.trashIntro.after')}
       </p>
       {error && <p className="error">{error}</p>}
       <table>

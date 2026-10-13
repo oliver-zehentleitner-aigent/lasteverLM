@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Admin Overview redesigned: the heading with one meta line (build and service health with status dots, linked to System) instead of the version link, one row of six equal KPI tiles instead of three groups of 18, an attention strip only for what needs an action (bans, blocks, a service down or without a version) as the only red on the page, failures without an admin page as muted details. The charts share one time range (7 days while the data is young, else 30, with a toggle) in a two-column grid of equal cards paired by topic; a chart without data is listed on one line instead of drawn empty.
+- Wizard: after a failed upload (a storage outage now answers 503) the files that went in leave the list and the rest stays selected for a retry, with a line saying how many are left.
+- Library trash: "settings" in the note links to the settings page, scrolled to and focused on the trash-days field.
 - Admin Credits: new voucher codes are compact chips with a copy button each and "copy all" for several ("copied" for a second; the text is selected when the clipboard API is not available), placed next to the create form when there is room.
 
 ## [0.6.1] - 2026-10-13

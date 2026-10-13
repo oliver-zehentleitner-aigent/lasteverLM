@@ -1,6 +1,6 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
-import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, RateLimitRules, RateLimitUpdate, Smtp, SystemInfo, VisitBucket, Voucher } from '../../api/types'
+import type { AccessEntry, AccountStats, AdminUser, AllowKind, Allowlist, Ban, Block, IngestStats, LoginAttempt, LoginEvent, RagStats, RateLimitRules, RateLimitUpdate, Smtp, SystemInfo, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
 import { CopyButton } from '../CopyButton'
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -9,7 +9,7 @@ import { useAsync } from '../../hooks/useAsync'
 import { known, shortCommit, versionLine } from '../../lib/build'
 import { formatCents, formatTime } from '../../lib/format'
 import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
-import { accountTiles, ingestTiles, ragTiles, type StatTile } from '../../lib/stats'
+import { attentionItems, kpiTiles, systemMeta } from '../../lib/stats'
 import { t } from '../../i18n'
 
 // recharts only in the admin overview: its own chunk, loaded on demand
@@ -205,83 +205,66 @@ function Visits() {
 
 /** Numbers from the three services side by side. Each group loads on its
  *  own, so one service that is down shows its error and the rest stays. */
+/** The admin landing page: one meta line (build and service health,
+ *  linked to System), one row of six numbers, an attention strip only when
+ *  something needs an action, then the charts. Nothing is red unless it is
+ *  in the attention strip. */
 function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { data: system } = useLoad<SystemInfo | null>(admin.system, null)
-  const build = system ? versionLine(system.version, system.commit) : null
+  const { data: account } = useLoad<AccountStats | null>(admin.accountStats, null)
+  const { data: ingest } = useLoad<IngestStats | null>(admin.ingestStats, null)
+  const { data: rag } = useLoad<RagStats | null>(admin.ragStats, null)
+  const meta = system ? systemMeta(system) : null
+  const attention = attentionItems(account, system)
+  const go = (href: string) => (e: MouseEvent) => {
+    e.preventDefault()
+    onNavigate(href)
+  }
+
   return (
-    <Section title={t('adm.overview')}>
-      {build && (
-        <p className="muted small build-line">
-          <a
-            href={adminPath('system')}
-            onClick={(e) => {
-              e.preventDefault()
-              onNavigate(adminPath('system'))
-            }}
-          >
-            {build}
+    <section className="overview">
+      <header className="overview-head">
+        <h2>{t('adm.overview')}</h2>
+        {meta && (
+          <a className="overview-meta" href={adminPath('system')} onClick={go(adminPath('system'))}>
+            <span className="dots" aria-hidden="true">
+              {meta.dots.map((d) => (
+                <span key={d.name} className={d.healthy ? 'dot ok' : 'dot down'} title={d.name} />
+              ))}
+            </span>
+            {[meta.build, meta.health].filter(Boolean).join(' · ')}
           </a>
-        </p>
+        )}
+      </header>
+      <div className="kpi-row">
+        {kpiTiles(account, ingest, rag).map((k) => (
+          <div key={k.key} className="kpi">
+            <span className="kpi-value">{k.value}</span>
+            <span className="kpi-label">{k.label}</span>
+            {k.detail && <span className="kpi-detail">{k.detail}</span>}
+          </div>
+        ))}
+      </div>
+      {attention.length > 0 && (
+        <div className="attention" role="status">
+          <strong>{t('att.title')}</strong>
+          <ul>
+            {attention.map((a) => (
+              <li key={a.key}>
+                <a href={a.href} onClick={go(a.href)}>
+                  {a.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-      <StatGroup title={t('adm.group.accounts')} load={admin.accountStats} tiles={accountTiles} onNavigate={onNavigate} />
-      <StatGroup title={t('adm.group.sources')} load={admin.ingestStats} tiles={ingestTiles} onNavigate={onNavigate} />
-      <StatGroup title={t('adm.group.notebooks')} load={admin.ragStats} tiles={ragTiles} onNavigate={onNavigate} />
       <ErrorBoundary what={t('adm.charts')}>
         <Suspense fallback={<p className="muted small">{t('adm.loadingCharts')}</p>}>
           <StatsCharts />
         </Suspense>
       </ErrorBoundary>
-    </Section>
-  )
-}
-
-interface StatGroupProps<T> {
-  title: string
-  load: () => Promise<T>
-  tiles: (s: T) => StatTile[]
-  onNavigate: (path: string) => void
-}
-
-function StatGroup<T>({ title, load, tiles, onNavigate }: StatGroupProps<T>) {
-  const { data, busy, error } = useLoad<T | null>(load, null)
-  return (
-    <div className="stat-group">
-      <h3>{title}</h3>
-      {error && <p className="error">{error}</p>}
-      {!data && !error && busy && <p className="muted small">{t('common.loading')}</p>}
-      {data && (
-        <div className="stat-grid">
-          {tiles(data).map((t) => {
-            const className = ['stat', t.alert ? 'alert' : '', t.href ? 'linked' : ''].join(' ').trim()
-            const body = (
-              <>
-                <span className="stat-value">{t.value}</span>
-                <span className="stat-label">{t.label}</span>
-                {t.detail && <span className="muted small">{t.detail}</span>}
-              </>
-            )
-            const href = t.href
-            return href ? (
-              <a
-                key={t.label}
-                href={href}
-                className={className}
-                onClick={(e) => {
-                  e.preventDefault()
-                  onNavigate(href)
-                }}
-              >
-                {body}
-              </a>
-            ) : (
-              <div key={t.label} className={className}>
-                {body}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+    </section>
   )
 }
 

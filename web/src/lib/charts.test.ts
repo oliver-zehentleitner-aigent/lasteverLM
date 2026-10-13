@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountDay, IngestDay, RagDay } from '../api/types'
-import { activitySeries, costSeries, dayLabel, modelSeries, outputsByKind, sourcesSeries, total } from './charts'
+import { activitySeries, costSeries, dayLabel, defaultRange, hasData, lastDays, modelSeries, outputsByKind, sourcesSeries, total } from './charts'
 
 const acc: AccountDay[] = [
   { day: '2026-10-12', logins: 2, visits: 10, usage_cost_cents: 150, credits_granted_cents: 0 },
@@ -43,5 +43,20 @@ describe('chart series', () => {
       { name: 'm · tts', cost: 6.4, calls: 3 },
     ])
     expect(total(acc, (d) => d.logins)).toBe(5)
+  })
+})
+
+describe('ranges', () => {
+  it('defaults to 7 days while nothing happened before the last week', () => {
+    expect(defaultRange([...Array(29).fill(0), 3])).toBe(7)
+    expect(defaultRange([1, ...Array(29).fill(0)])).toBe(30)
+    expect(defaultRange([0, 0, 2])).toBe(7)
+  })
+
+  it('cuts the last days and tells empty series apart', () => {
+    expect(lastDays([1, 2, 3, 4], 2)).toEqual([3, 4])
+    expect(lastDays([1], 7)).toEqual([1])
+    expect(hasData([{ a: 0, b: 0 }, { a: 0, b: 2 }], ['a', 'b'])).toBe(true)
+    expect(hasData([{ a: 0, b: 0 }], ['a'])).toBe(false)
   })
 })

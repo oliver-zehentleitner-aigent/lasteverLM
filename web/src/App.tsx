@@ -102,6 +102,7 @@ export default function App() {
         <SettingsPage />
       ) : route.name === 'library' ? (
         <LibraryPage
+          onOpenSettings={() => navigate('/settings#trash-days')}
           onOpenNotebook={(id) => {
             writeLastNotebook(id)
             navigate('/')

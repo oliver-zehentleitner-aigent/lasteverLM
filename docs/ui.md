@@ -25,6 +25,9 @@ Three steps, one question each, large tiles instead of a form.
    Vision (every page through the vision model, one model call per
    page), preset from the preference and sent as `capture` with the
    upload. The same file in another mode is a separate library entry.
+   A failed upload (a storage outage answers 503) shows the service's
+   sentence at this step; the files that went in leave the list, the
+   rest stays selected for a retry.
    For the
    library, a filterable list of the entries not yet in this notebook to
    tick.
@@ -182,7 +185,7 @@ and by part of the name or address. Delete moves the entry to the
 trash, out of every notebook, after a confirmation that names those
 notebooks. The **Trash** view next to it lists deleted entries with
 the date they are purged (after the trash days set in the settings,
-14 by default): restore puts one back in the library in no notebook,
+14 by default; "settings" links to that field): restore puts one back in the library in no notebook,
 "delete for good" removes the file and its passages at once. Uploading
 the same file or URL again restores it too. Generated documents are not in the library;
 they live in their notebook.
@@ -210,14 +213,25 @@ deleted from the library) stays readable with its quote and is marked
   dialog. A 402 anywhere opens the same dialog.
 - Admin (only for admins): pages under `/admin` with a sub-navigation;
   each page loads only its own data, every page has its own URL.
-  - **Overview** (`/admin`): numbers from the three services' stats
-    endpoints, each group loading on its own; "Credit granted" links to
-    Users (who got it), "Vouchers open" to Credits. Below the numbers,
-    charts of the last 30 days, each loading on its own: cost and credit
-    granted per day (bars), logins and visits (lines), chat messages and
-    documents (areas), documents by kind (donut), sources added per day
-    by kind (stacked bars), cost by model (horizontal bars), and the top
-    users by usage (table).
+  - **Overview** (`/admin`): the heading with one muted meta line,
+    "v0.7.1 · b44f38a · 3 services healthy" with a status dot per
+    service, linked to System. One row of six equal tiles, a number and
+    a short label each: Users, Logins 24 h, Cost 24 h (the total as a
+    detail), Open vouchers, Sources (ready; failed as a detail),
+    Documents (failed as a detail); a service whose stats do not load
+    shows a dash. An **attention strip** only when something needs an
+    action, one line each with its page: active bans and rate-limit
+    blocks (Security), a service that is not reachable or reports no
+    version (System). Red appears there and nowhere else on the page;
+    failed sources and documents have no admin page to act on, so they
+    stay a muted detail. Below, the charts in a two-column grid of equal
+    cards and one shared time range (7 days while everything happened
+    in the last week, else 30, with a 7 / 30 toggle): cost and credit
+    granted per day next to logins and visits, chat messages and
+    documents next to sources added per day by kind, documents by kind
+    (donut) next to cost by model (all time), the top users (all time)
+    across both columns. A chart without data in the range is not
+    drawn; one quiet line names those ("No data yet: …").
   - **Users** (`/admin/users`): users with credit granted, used and
     balance and their last login, the login log, sign-in attempts
     (allowed or refused, with IP).

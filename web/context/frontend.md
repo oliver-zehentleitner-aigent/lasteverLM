@@ -277,6 +277,35 @@ needed `t` as a parameter.
 **Rejected alternative:** "Sie" in German. Rejected for the tone; a
 switch touches only `de.ts`.
 
+## On the admin overview, red means "act here", and only the attention strip has it
+
+**Id:** 160e3a94-c9f3-415e-a9e7-fb4a4da49ddd
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer review of the 0.7.1 overview ("too many tiles, several large and mostly empty, some red without anything he can do"), relayed by the family lead, 2026-10-13
+**Revisit when:** an admin page appears where failed sources or documents can be inspected or retried
+
+The overview has one KPI row of six plain tiles and, only when needed,
+an attention strip whose every line links to the page where the admin
+acts (Security for bans and blocks, System for a service down or
+without a version). No tile is ever coloured. Failed sources and
+documents are a muted detail under their tile, because no admin page
+lists them yet. Charts share one time range and hide when empty.
+
+**Reason:** a red number that offers nothing to do reads as an alarm the
+admin cannot answer, and a wall of tiles hides the few numbers that
+matter. The strip keeps colour for what is actionable, and the revisit
+condition moves failures there once they have a page.
+
+**Rejected alternative:** the previous three tile groups with red
+outlines on failures. Rejected by the maintainer in review.
+
+**Rejected alternative:** "pending sources older than N minutes" in the
+strip, as requested. Not built: the stats carry no age, and pending
+without an age would flash on every normal upload; it needs ingest to
+report the oldest pending time.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4
