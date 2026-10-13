@@ -14,6 +14,7 @@ when the budget is small, so thinking is off unless a caller asks.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from openai import APIError, OpenAI
@@ -69,11 +70,24 @@ class OpenAICompatibleEmbedder:
         vectors = [item.embedding for item in sorted(response.data, key=lambda d: d.index)]
         if len(vectors) != len(texts):
             raise ProviderError(f"provider returned {len(vectors)} vectors for {len(texts)} inputs")
-        for vector in vectors:
+        for i, vector in enumerate(vectors):
             if len(vector) != self._dimension:
                 raise ProviderError(
                     f"embedding model {self._model} returned {len(vector)} dimensions "
                     f"although {self._dimension} were requested (EMBEDDING_DIMENSION)"
+                )
+            # Cosine distance against such a vector is NaN in pgvector: the
+            # similarity floor drops the chunk silently and its source stays
+            # "ready" while unsearchable. Fail the call instead.
+            if not all(math.isfinite(x) for x in vector):
+                raise ProviderError(
+                    f"embedding model {self._model} returned an unusable vector "
+                    f"(non-finite component) for input {i}"
+                )
+            if sum(x * x for x in vector) == 0.0:
+                raise ProviderError(
+                    f"embedding model {self._model} returned an unusable vector "
+                    f"(zero norm) for input {i}"
                 )
         tokens = response.usage.prompt_tokens if response.usage else 0
         return EmbeddingResult(vectors, Usage("embedding", self._model, tokens, 0))

@@ -31,7 +31,13 @@ class FakeServer:
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(json.loads(request.content))
-        return httpx.Response(200, json=self.responses.pop(0))
+        # json.dumps writes NaN and Infinity as the SDK's parser accepts them;
+        # httpx's json= refuses them, and a provider may still send them.
+        return httpx.Response(
+            200,
+            content=json.dumps(self.responses.pop(0)).encode(),
+            headers={"content-type": "application/json"},
+        )
 
     def client(self) -> OpenAI:
         return OpenAI(
@@ -78,11 +84,11 @@ def completion(
 
 def test_embedder_requests_the_configured_dimension() -> None:
     server = FakeServer()
-    server.responses.append(embeddings([0.0] * 4, [1.0] * 4))
+    server.responses.append(embeddings([0.5] * 4, [1.0] * 4))
     result = OpenAICompatibleEmbedder(server.client(), "embed", 4).embed(["a", "b"])
     assert server.requests[0]["dimensions"] == 4
     assert server.requests[0]["input"] == ["a", "b"]
-    assert result.vectors == [[0.0] * 4, [1.0] * 4]  # ordered by index, not arrival
+    assert result.vectors == [[0.5] * 4, [1.0] * 4]  # ordered by index, not arrival
     assert (result.usage.kind, result.usage.model, result.usage.tokens_in) == (
         "embedding",
         "embed",
@@ -95,6 +101,21 @@ def test_embedder_rejects_a_vector_of_another_width() -> None:
     server.responses.append(embeddings([0.0] * 2560))
     with pytest.raises(ProviderError, match="2560 dimensions although 1024 were requested"):
         OpenAICompatibleEmbedder(server.client(), "embed", 1024).embed(["a"])
+
+
+@pytest.mark.parametrize(
+    ("bad", "reason"),
+    [
+        ([0.0, 0.0, 0.0, 0.0], "zero norm"),
+        ([1.0, float("nan"), 0.0, 0.0], "non-finite"),
+        ([float("inf"), 0.0, 0.0, 0.0], "non-finite"),
+    ],
+)
+def test_embedder_rejects_an_unusable_vector(bad: list[float], reason: str) -> None:
+    server = FakeServer()
+    server.responses.append(embeddings([1.0, 0.0, 0.0, 0.0], bad))
+    with pytest.raises(ProviderError, match=rf"unusable vector \({reason}.*for input 1"):
+        OpenAICompatibleEmbedder(server.client(), "embed", 4).embed(["a", "b"])
 
 
 def test_embedder_empty_input_makes_no_request() -> None:
