@@ -170,6 +170,12 @@ held for failures that return; this applies it to the ones that do not.
 - Leaving the claim as it was: the queue's only failure mode with no
   end.
 
+A per-job time limit is the known next step (accepted in the audit,
+2026-10-14): until then a hung job holds its worker for up to three
+claim timeouts, and after a takeover two workers can write the same row
+(the results are the same; the double billing is what the claim refresh
+prevents).
+
 ## A job in progress refreshes its claim with every model call
 
 **Id:** e3b21110-c7ed-4f74-afba-fb60ae41df3e
