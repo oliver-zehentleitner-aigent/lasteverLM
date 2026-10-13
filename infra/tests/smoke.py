@@ -12,6 +12,7 @@ Exit code 0 when every step passed, 1 on a failed assertion, 2 on a
 transport error (connection refused, timeout). The notebook is deleted
 at the end unless --keep is given.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,8 +42,14 @@ class SmokeFailure(Exception):
 
 
 class Client:
-    def __init__(self, base_url: str, token: str, timeout: float,
-                 host: str | None = None, insecure: bool = False) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        timeout: float,
+        host: str | None = None,
+        insecure: bool = False,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
@@ -51,8 +58,15 @@ class Client:
         # a port-forward or the raw load balancer address with the Host header set.
         self.context = ssl._create_unverified_context() if insecure else None
 
-    def request(self, method: str, path: str, *, body: bytes | None = None,
-                content_type: str | None = None, expect: tuple[int, ...] = (200,)):
+    def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        body: bytes | None = None,
+        content_type: str | None = None,
+        expect: tuple[int, ...] = (200,),
+    ):
         req = urllib.request.Request(self.base_url + path, data=body, method=method)
         req.add_header("Authorization", f"Bearer {self.token}")
         req.add_header("Accept", "application/json")
@@ -75,18 +89,32 @@ class Client:
             raise SmokeFailure(f"{method} {path}: response is not JSON: {raw[:300]!r}") from exc
 
     def json(self, method: str, path: str, payload: dict, *, expect=(200,)):
-        return self.request(method, path, body=json.dumps(payload).encode(),
-                            content_type="application/json", expect=expect)
+        return self.request(
+            method,
+            path,
+            body=json.dumps(payload).encode(),
+            content_type="application/json",
+            expect=expect,
+        )
 
     def upload(self, path: str, filename: str, content: bytes, *, expect=(202,)):
         boundary = f"----lasteverlm-{uuid.uuid4().hex}"
         body = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-            "Content-Type: text/plain\r\n\r\n"
-        ).encode() + content + f"\r\n--{boundary}--\r\n".encode()
-        return self.request("POST", path, body=body,
-                            content_type=f"multipart/form-data; boundary={boundary}", expect=expect)
+            (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+                "Content-Type: text/plain\r\n\r\n"
+            ).encode()
+            + content
+            + f"\r\n--{boundary}--\r\n".encode()
+        )
+        return self.request(
+            "POST",
+            path,
+            body=body,
+            content_type=f"multipart/form-data; boundary={boundary}",
+            expect=expect,
+        )
 
 
 def step(name: str) -> None:
@@ -103,16 +131,23 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
         raise SmokeFailure(f"demo user has no credit: balance_cents={me['balance_cents']}")
 
     step("create a notebook")
-    notebook = client.json("POST", "/api/ingest/notebooks",
-                           {"title": f"smoke {time.strftime('%Y-%m-%d %H:%M:%S')}"}, expect=(201,))
+    notebook = client.json(
+        "POST",
+        "/api/ingest/notebooks",
+        {"title": f"smoke {time.strftime('%Y-%m-%d %H:%M:%S')}"},
+        expect=(201,),
+    )
     notebook_id = notebook["id"]
     try:
         step("upload a text source")
-        source = client.upload(f"/api/ingest/notebooks/{notebook_id}/sources",
-                               "zeltavia.txt", SOURCE_TEXT.encode())
+        source = client.upload(
+            f"/api/ingest/notebooks/{notebook_id}/sources", "zeltavia.txt", SOURCE_TEXT.encode()
+        )
         source_id = source["id"]
         if source.get("status") != "processing":
-            raise SmokeFailure(f"upload answered with status {source.get('status')!r}, expected 'processing'")
+            raise SmokeFailure(
+                f"upload answered with status {source.get('status')!r}, expected 'processing'"
+            )
 
         step(f"wait for the source to become ready (up to {ready_timeout:.0f}s)")
         deadline = time.monotonic() + ready_timeout
@@ -130,7 +165,9 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
             time.sleep(2)
 
         step("ask a question")
-        answer = client.json("POST", f"/api/rag/notebooks/{notebook_id}/ask", {"question": QUESTION})
+        answer = client.json(
+            "POST", f"/api/rag/notebooks/{notebook_id}/ask", {"question": QUESTION}
+        )
         text = answer.get("answer") or ""
         citations = answer.get("citations") or []
         if not text.strip():
@@ -140,7 +177,9 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
         numbers = {c.get("n") for c in citations}
         markers = {int(n) for n in MARKER.findall(text)}
         if not markers & numbers:
-            raise SmokeFailure(f"answer carries no [n] marker matching a citation; markers={markers}, citations={numbers}")
+            raise SmokeFailure(
+                f"answer carries no [n] marker matching a citation; markers={markers}, citations={numbers}"
+            )
         for c in citations:
             for key in ("n", "source_id", "source_name", "chunk_id", "quote"):
                 if key not in c:
@@ -167,16 +206,31 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("base_url", help="e.g. https://lasteverlm.example.com or http://localhost:8080")
-    parser.add_argument("--token", default=os.environ.get("DEMO_TOKEN"),
-                        help="bearer token; default: $DEMO_TOKEN")
-    parser.add_argument("--ready-timeout", type=float, default=120.0,
-                        help="seconds to wait for the source to become ready (default 120)")
-    parser.add_argument("--timeout", type=float, default=60.0,
-                        help="per-request timeout in seconds (default 60)")
+    parser.add_argument(
+        "base_url", help="e.g. https://lasteverlm.example.com or http://localhost:8080"
+    )
+    parser.add_argument(
+        "--token", default=os.environ.get("DEMO_TOKEN"), help="bearer token; default: $DEMO_TOKEN"
+    )
+    parser.add_argument(
+        "--ready-timeout",
+        type=float,
+        default=120.0,
+        help="seconds to wait for the source to become ready (default 120)",
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=60.0, help="per-request timeout in seconds (default 60)"
+    )
     parser.add_argument("--keep", action="store_true", help="do not delete the notebook afterwards")
-    parser.add_argument("--host", help="Host header to send, e.g. the public domain while reaching the ingress by IP")
-    parser.add_argument("--insecure", action="store_true", help="do not verify the TLS certificate (before DNS and ACME exist)")
+    parser.add_argument(
+        "--host",
+        help="Host header to send, e.g. the public domain while reaching the ingress by IP",
+    )
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="do not verify the TLS certificate (before DNS and ACME exist)",
+    )
     args = parser.parse_args(argv)
     if not args.token:
         parser.error("--token or DEMO_TOKEN is required")

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - CPU requests lowered to measured use (APIs 50m, workers 100m, web 25m); autoscaler target 80 % instead of 70 %.
+- Python in `scripts/` and `tests/` formatted with black (line length 100, `pyproject.toml`); `make check` and CI run `black --check`.
 
 ## [0.2.0] - 2026-10-13
 

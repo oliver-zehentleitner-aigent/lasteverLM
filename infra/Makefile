@@ -175,10 +175,11 @@ down: ## destroy every Vultr resource (asks first)
 LINT_SET := --set domain=example.test --set acmeEmail=ops@example.test --set config.llmModel=m \
   --set config.embeddingModel=e --set-string config.modelPrices='{}' --set config.s3Endpoint=https://s3.example.test
 
-check: test ## static checks and unit tests: tofu, helm lint + template, shell syntax, tests, ktw-lint
+check: test ## static checks and unit tests: tofu, helm lint + template, shell syntax, black, tests, ktw-lint
 > cd $(TOFU_DIR) && tofu fmt -check -recursive && tofu init -backend=false -input=false >/dev/null && VULTR_API_KEY=$${VULTR_API_KEY:-validate-only} tofu validate
 > helm lint $(CHART) $(LINT_SET) >/dev/null && helm template check $(CHART) $(LINT_SET) >/dev/null && echo "helm ok"
 > sh -n db/migrate.sh && sh -n db/bootstrap.sh && echo "migrate.sh + bootstrap.sh ok"
+> black --check --quiet scripts tests && echo "black ok"
 > DATABASE_ADMIN_URL='postgresql://a:b@h:1/defaultdb?sslmode=require' APP_DB_PASSWORD=x python3 scripts/dburls.py >/dev/null && echo "dburls.py ok"
 > DOMAIN=d ACME_EMAIL=e LLM_MODEL=l EMBEDDING_MODEL=m MODEL_PRICES='{"m":{"in":1,"out":2}}' S3_ENDPOINT=https://s3 python3 scripts/values.py >/dev/null && echo "values.py ok"
 > @if command -v ktw-lint >/dev/null; then ktw-lint .; else echo "ktw-lint not installed, skipped (pipx install keep-the-why-lint)"; fi

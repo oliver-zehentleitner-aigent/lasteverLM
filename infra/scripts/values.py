@@ -6,6 +6,7 @@ values file for `helm upgrade`. JSON strings such as MODEL_PRICES are
 passed through untouched, which `--set` cannot do because it parses
 commas and braces itself. Fails loud on a missing required variable.
 """
+
 import json
 import os
 import sys

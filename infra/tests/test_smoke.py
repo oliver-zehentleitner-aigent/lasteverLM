@@ -4,6 +4,7 @@ The stub implements just enough of the v1 contract for the smoke test
 to walk through; it is not a test of any service. Run with
 `python3 -m unittest discover -s tests`.
 """
+
 from __future__ import annotations
 
 import io
@@ -53,9 +54,16 @@ class Stub(BaseHTTPRequestHandler):
             return
         store = self.server.store
         if self.path == "/api/account/me":
-            return self._send(200, {"id": "0000", "email": "demo@localhost", "is_admin": False,
-                                    "balance_cents": 0 if self.server.mode == "broke" else 1000,
-                                    "created_at": "2026-01-01T00:00:00Z"})
+            return self._send(
+                200,
+                {
+                    "id": "0000",
+                    "email": "demo@localhost",
+                    "is_admin": False,
+                    "balance_cents": 0 if self.server.mode == "broke" else 1000,
+                    "created_at": "2026-01-01T00:00:00Z",
+                },
+            )
         m = re.fullmatch(r"/api/ingest/notebooks/([^/]+)/sources", self.path)
         if m:
             sources = store["sources"].get(m.group(1), [])
@@ -80,10 +88,20 @@ class Stub(BaseHTTPRequestHandler):
             return self._send(201, nb)
         m = re.fullmatch(r"/api/ingest/notebooks/([^/]+)/sources", self.path)
         if m:
-            assert self.headers["Content-Type"].startswith("multipart/form-data"), "multipart expected"
+            assert self.headers["Content-Type"].startswith(
+                "multipart/form-data"
+            ), "multipart expected"
             assert b'name="file"' in body and b"Zeltavia" in body, "file part missing"
-            src = {"id": str(uuid.uuid4()), "notebook_id": m.group(1), "name": "zeltavia.txt",
-                   "kind": "text", "status": "processing", "error": None, "created_at": "now", "polls": 0}
+            src = {
+                "id": str(uuid.uuid4()),
+                "notebook_id": m.group(1),
+                "name": "zeltavia.txt",
+                "kind": "text",
+                "status": "processing",
+                "error": None,
+                "created_at": "now",
+                "polls": 0,
+            }
             store["sources"].setdefault(m.group(1), []).append(src)
             return self._send(202, {k: v for k, v in src.items() if k != "polls"})
         m = re.fullmatch(r"/api/rag/notebooks/([^/]+)/ask", self.path)
@@ -91,18 +109,45 @@ class Stub(BaseHTTPRequestHandler):
             nb_id = m.group(1)
             src = store["sources"][nb_id][0]
             if self.server.mode == "no-citation":
-                answer = {"message_id": "m1", "answer": "The sources do not cover this.", "citations": []}
+                answer = {
+                    "message_id": "m1",
+                    "answer": "The sources do not cover this.",
+                    "citations": [],
+                }
             else:
-                answer = {"message_id": "m1",
-                          "answer": "The capital of Zeltavia is Marrow Bay [1], on the river Quill [1].",
-                          "citations": [{"n": 1, "source_id": src["id"], "source_name": src["name"],
-                                         "source_kind": "text", "chunk_id": "c1", "page": None,
-                                         "quote": "The capital of the fictional country Zeltavia is Marrow Bay."}]}
-            store["messages"].setdefault(nb_id, []).extend([
-                {"id": "u1", "role": "user", "content": json.loads(body)["question"],
-                 "citations": None, "created_at": "now"},
-                {"id": "m1", "role": "assistant", "content": answer["answer"],
-                 "citations": answer["citations"], "created_at": "now"}])
+                answer = {
+                    "message_id": "m1",
+                    "answer": "The capital of Zeltavia is Marrow Bay [1], on the river Quill [1].",
+                    "citations": [
+                        {
+                            "n": 1,
+                            "source_id": src["id"],
+                            "source_name": src["name"],
+                            "source_kind": "text",
+                            "chunk_id": "c1",
+                            "page": None,
+                            "quote": "The capital of the fictional country Zeltavia is Marrow Bay.",
+                        }
+                    ],
+                }
+            store["messages"].setdefault(nb_id, []).extend(
+                [
+                    {
+                        "id": "u1",
+                        "role": "user",
+                        "content": json.loads(body)["question"],
+                        "citations": None,
+                        "created_at": "now",
+                    },
+                    {
+                        "id": "m1",
+                        "role": "assistant",
+                        "content": answer["answer"],
+                        "citations": answer["citations"],
+                        "created_at": "now",
+                    },
+                ]
+            )
             return self._send(200, answer)
         self._send(404, {"error": "not found"})
 

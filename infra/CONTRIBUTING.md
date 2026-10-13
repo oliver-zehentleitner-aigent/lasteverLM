@@ -13,7 +13,7 @@
 ## Checks before a pull request
 
 ```sh
-make check    # tofu fmt + validate, helm lint + template, shell syntax, unit tests, ktw-lint
+make check    # tofu fmt + validate, helm lint + template, shell syntax, black, unit tests, ktw-lint
 ```
 
 - Schema changes are a new file `db/migrations/NNNN_<topic>.sql`, never an edit of an applied one.
