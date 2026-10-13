@@ -128,6 +128,29 @@ make the difference clear enough.
 backend. Rejected because citations into documents and the scoped ask
 rely on it, and the confusion is one of display only.
 
+## An output format is selected first, a Create button starts the job
+
+**Id:** 50dbbbc8-0fe9-4037-a53c-cdaac2bdbe3f
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request after a click-through, relayed by the family lead, 2026-10-13
+**Revisit when:** creating a document becomes free, or users ask for several formats in one go
+
+The output tiles are a single choice: a click or Enter selects a
+format, and only the Create button under them starts a generation. The
+button is disabled without a selection or while no upload of the
+notebook is ready, and a hint says which (`createBlocker` in
+`src/lib/outputs.ts`).
+
+**Reason:** the maintainer did not want a click on a tile to start a
+job at once. The why was not stated; inferred: a generation costs
+credit and cannot be undone, so it should take a deliberate second
+step, and a job without a ready source has nothing to work on.
+
+**Rejected alternative:** one click on a tile creates the document, as
+before. Rejected by the maintainer.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4
