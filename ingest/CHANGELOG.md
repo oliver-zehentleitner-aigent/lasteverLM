@@ -13,11 +13,13 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- PDF capture modes per upload (`capture` field: `text`, `vision`, `auto`, default `auto`): `vision` has the vision model read every rendered page (pypdfium2, 150 dpi, one billed call per page), `auto` only the pages without a text layer, so scanned and mixed PDFs work. The mode is stored on the library source and returned in sources, library and trash entries; the same bytes in two modes are two library sources. `PDF_VISION_MAX_PAGES` caps the pages per PDF (100). Migration `0006_pdf_capture.sql`.
 - Library trash: `GET /library/trash` (with `deleted_at`, `purge_at`), `POST /library/{id}/restore`, `DELETE /library/{id}/purge`. Workers purge entries past the owner's `trash_days` (account preference, default 14) at start and once an hour. Migration `0005_library_trash.sql` adds `library_sources.deleted_at`.
 - `GET /api/ingest/admin/stats/daily?days=30` (admins only): library sources created per UTC day by kind, and how many of them failed, every day present, oldest first.
 
 ### Changed
 
+- Model-reading loaders bill every call as it returns through a callback, and the credit is checked before the next call (before, an image's usage was returned at the end).
 - `DELETE /library/{id}` moves the entry to the trash: removed from every notebook, chunks and stored object kept until purged. Uploading the same bytes or URL again restores a trashed entry.
 
 ## [0.5.0] - 2026-10-13

@@ -66,7 +66,9 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
         "error",
         "created_at",
         "library_id",
+        "capture",
     }
+    assert body["capture"] is None  # only PDFs have a capture mode
     # The API only stored the file and queued the library source.
     assert list(storage.objects) == [f"{DEMO_USER_ID}/{body['library_id']}/notes.txt"]
     assert embedder.calls == [] and repo.usage == []

@@ -7,15 +7,16 @@ its kind, nothing else changes.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from lasteverlm_core import Passage, Usage
 
 if TYPE_CHECKING:
-    from lasteverlm_ingest.loaders.image import ImageLoader
+    from lasteverlm_ingest.loaders.image import VisionReader
 
 __all__ = [
-    "BilledLoaderError",
+    "Bill",
     "LoaderError",
     "LoaderRegistry",
     "ModelLoader",
@@ -23,21 +24,12 @@ __all__ = [
     "SourceLoader",
     "TransientLoaderError",
     "default_registry",
+    "loader_key",
 ]
 
 
 class LoaderError(Exception):
     """The source could not be read; the message is shown to the user."""
-
-
-class BilledLoaderError(LoaderError):
-    """A `ModelLoader` call that was answered (and is billed) but whose
-    answer is no usable source; the worker records `usage`, then fails
-    the source like any `LoaderError`."""
-
-    def __init__(self, message: str, usage: Usage) -> None:
-        super().__init__(message)
-        self.usage = usage
 
 
 class TransientLoaderError(Exception):
@@ -49,16 +41,18 @@ class SourceLoader(Protocol):
     def load(self, data: bytes) -> list[Passage]: ...
 
 
+# Records one model call's usage; raises when the owner's credit is gone,
+# which stops the loader before its next call.
+Bill = Callable[[Usage], None]
+
+
 @runtime_checkable
 class ModelLoader(Protocol):
-    """A loader that reads the source with a billed model call. The
-    worker checks the credit before calling it and records the usage it
-    returns."""
+    """A loader that reads the source with billed model calls. The worker
+    checks the credit before calling it; the loader hands every call's
+    usage to `bill` as soon as the call returns."""
 
-    @property
-    def model(self) -> str: ...
-
-    def load_with_usage(self, data: bytes) -> tuple[list[Passage], Usage]: ...
+    def load_billed(self, data: bytes, bill: Bill) -> list[Passage]: ...
 
 
 class LoaderRegistry:
@@ -79,10 +73,25 @@ class LoaderRegistry:
         return frozenset(self._loaders)
 
 
+def loader_key(kind: str, capture: str | None) -> str:
+    """The registry key for a library source: PDFs per capture mode
+    (`pdf` is the text layer, `pdf:vision`, `pdf:auto`), everything else
+    by kind."""
+    if kind == "pdf" and capture in ("vision", "auto"):
+        return f"pdf:{capture}"
+    return kind
+
+
 def default_registry(
-    *, max_url_bytes: int = 20 * 1024 * 1024, image: ImageLoader | None = None
+    *,
+    max_url_bytes: int = 20 * 1024 * 1024,
+    vision: VisionReader | None = None,
+    pdf_vision_max_pages: int = 100,
 ) -> LoaderRegistry:
-    from lasteverlm_ingest.loaders.pdf import PdfLoader
+    """Without a vision reader there are no image sources and PDFs are
+    read by their text layer only."""
+    from lasteverlm_ingest.loaders.image import ImageLoader
+    from lasteverlm_ingest.loaders.pdf import PdfLoader, VisionPdfLoader
     from lasteverlm_ingest.loaders.text import TextLoader
     from lasteverlm_ingest.loaders.url import Fetcher, UrlLoader
 
@@ -93,6 +102,11 @@ def default_registry(
     registry.register(
         "url", UrlLoader(fetch=Fetcher(max_bytes=max_url_bytes).fetch, text=text, pdf=pdf)
     )
-    if image is not None:
-        registry.register("image", image)
+    if vision is not None:
+        registry.register("image", ImageLoader(vision))
+        for capture in ("vision", "auto"):
+            registry.register(
+                f"pdf:{capture}",
+                VisionPdfLoader(vision, capture, max_pages=pdf_vision_max_pages),
+            )
     return registry

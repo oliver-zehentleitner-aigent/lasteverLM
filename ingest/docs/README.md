@@ -49,7 +49,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/notebooks` | 201 | `{"title"}` |
 | DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library) and deletes its generated sources |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
-| POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library); 200 with the existing source when it is already in this notebook |
+| POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF) with an optional field `capture` for PDFs (`text`, `vision`, `auto`; default `auto`), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library); 200 with the existing source when it is already in this notebook |
 | DELETE | `/sources/{id}` | 204 | detach: removes the source from this notebook, it stays in the library |
 | GET | `/library` | 200 | the caller's library, newest first, with where-used |
 | GET | `/library/{id}` | 200 | one library source |
@@ -199,14 +199,51 @@ The worker reads the image with one call to `LLM_MODEL` (the platform's
 chat model takes images): it transcribes all legible text verbatim and
 then describes the image, charts and tables with their values, in the
 language of the text in the image. Because that call is billed, the
-image loader is a `ModelLoader`: the worker checks the credit before it
-and records its own `usage` row of kind `llm`, before the embedding and
-summary rows. The text is then chunked, embedded and summarized like any
+image loader is a `ModelLoader`: the worker checks the credit before it,
+and the loader hands the call's usage to the worker's `bill` callback as
+soon as it returns, which records a `usage` row of kind `llm` before the
+embedding and summary rows and stops the source when the credit is gone. The text is then chunked, embedded and summarized like any
 other source. A model refusing the image (HTTP 400) fails the source at
 once, and so does an empty answer (a blank image: "the image holds no
 readable content"), whose call is still recorded as usage; other
 provider errors are retried. `IMAGE_MAX_TOKENS` (2000) caps
 the answer.
+
+## PDF capture modes
+
+A PDF upload carries `capture` (multipart field next to `file`): `text`
+reads the text layer (pypdf), `vision` has the vision model read every
+page, `auto` (the default; web sends the user's `pdf_capture` preference
+explicitly) reads the text layer and has the model read only the pages
+without one — a page counts as text when its layer has at least 20
+visible characters. Any other value is 400; the field is ignored for
+other kinds and in the JSON forms (a PDF behind a URL is read by its
+text layer). The mode is stored on the library source (`capture`, null
+for non-PDFs) and returned in sources, library and trash entries. The
+same bytes captured in two modes are two library sources: the dedupe key
+of a PDF is `sha256:<hex>:<capture>`; PDFs from before migration 0006
+are `text`.
+
+Pages for the model are rendered with pypdfium2 at 150 dpi, long edge at
+most 2000 px (A4: 1241 × 1754), as JPEG, one at a time (pdfium is not
+thread-safe); up to four model calls run at once. Each call is
+`LLM_MODEL` with the page and a transcription prompt, billed as it
+returns like an image; every answered call is billed even when another
+page of the batch fails, and the credit is checked before the next
+batch. Page numbers stay with their text for citations; a page the model
+finds empty is skipped. Cost: `vision` is one model call per page, `auto`
+only pays for the pages without a text layer; measured on two scanned
+A4 pages, about 515 input and 960 output tokens per page, 5 s for both.
+Transcription of a scan is good but not perfect (a running header was
+misread in the measurement), the text layer is exact where one exists,
+which is why `auto` prefers it.
+
+Failures name the mode: a PDF without any text in `text` mode fails
+with a hint to upload it with `auto` or `vision`; a PDF whose pages all
+come back empty fails with "PDF holds no readable content (capture mode
+…)"; more than `PDF_VISION_MAX_PAGES` (100) pages for the model fail
+before any call; `vision` or `auto` without a vision model configured
+fail with "capture mode … needs a vision model".
 
 ## Running the container locally
 

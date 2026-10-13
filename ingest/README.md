@@ -43,7 +43,8 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `WORKER_POLL_SECONDS` | no | how often an idle worker looks for work, default 2 |
 | `CLAIM_TIMEOUT_SECONDS` | no | a claim older than this is taken over by another worker, default 600; after three attempts a source is `failed` |
 | `SUMMARY_INPUT_TOKENS`, `SUMMARY_MAX_TOKENS` | no | how much of a source the summary prompt sees (6000) and how long the answer may be (300) |
-| `IMAGE_MAX_TOKENS` | no | how long the model's transcription and description of an image source may be (2000) |
+| `IMAGE_MAX_TOKENS` | no | how long the model's transcription and description of an image source or a PDF page may be (2000) |
+| `PDF_VISION_MAX_PAGES` | no | most pages of one PDF the vision model reads (`vision`/`auto` capture); more fail the source before any call (100) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware, defaults 120 / 15 / 3 / 24 / 100 |
 | `LOG_LEVEL` | no | default `INFO` |
 

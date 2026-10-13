@@ -5,8 +5,10 @@ from fastapi.testclient import TestClient
 from lasteverlm_core import MemoryRateLimitStore
 
 from lasteverlm_ingest.config import Settings
+from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
+from lasteverlm_ingest.loaders.image import VisionReader
 from lasteverlm_ingest.main import create_app
-from tests.fakes import FakeEmbedder, FakeSummarizer, InMemoryRepository, InMemoryStorage
+from tests.fakes import FakeChat, FakeEmbedder, FakeSummarizer, InMemoryRepository, InMemoryStorage
 
 DEMO_TOKEN = "test-demo-token"
 
@@ -56,8 +58,18 @@ def summarizer() -> FakeSummarizer:
     return FakeSummarizer()
 
 
+def fake_loaders(chat: FakeChat) -> LoaderRegistry:
+    """The default registry with a fake vision model: tests never call out."""
+    return default_registry(max_url_bytes=4000, vision=VisionReader(chat, "fake-llm"))
+
+
 @pytest.fixture
-def client(repo, storage, embedder, summarizer) -> TestClient:
+def vision_chat() -> FakeChat:
+    return FakeChat(answer="A page read by the vision model.")
+
+
+@pytest.fixture
+def client(repo, storage, embedder, summarizer, vision_chat) -> TestClient:
     app = create_app(
         make_settings(),
         rate_limit_store=MemoryRateLimitStore(),
@@ -65,6 +77,7 @@ def client(repo, storage, embedder, summarizer) -> TestClient:
         storage=storage,
         embedder=embedder,
         summarizer=summarizer,
+        loaders=fake_loaders(vision_chat),
     )
     with TestClient(app) as c:
         c.headers["Authorization"] = f"Bearer {DEMO_TOKEN}"
@@ -72,7 +85,7 @@ def client(repo, storage, embedder, summarizer) -> TestClient:
 
 
 @pytest.fixture
-def run_queue(repo, storage, embedder, summarizer):
+def run_queue(repo, storage, embedder, summarizer, vision_chat):
     """Process everything currently queued, the way a worker pod would."""
     import threading
 
@@ -85,6 +98,7 @@ def run_queue(repo, storage, embedder, summarizer):
         storage=storage,
         embedder=embedder,
         summarizer=summarizer,
+        loaders=fake_loaders(vision_chat),
     )
 
     def run() -> int:

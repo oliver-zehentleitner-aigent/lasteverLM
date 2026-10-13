@@ -25,11 +25,11 @@ from lasteverlm_core import Chunker, Embedder, ProviderError, Storage, StorageEr
 
 from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.loaders import (
-    BilledLoaderError,
     LoaderError,
     LoaderRegistry,
     ModelLoader,
     TransientLoaderError,
+    loader_key,
 )
 from lasteverlm_ingest.repository import LibrarySource, Repository
 from lasteverlm_ingest.summarizer import Summarizer
@@ -104,17 +104,23 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     if source.storage_path is None:
         raise ProcessingError(f"source kind {source.kind!r} has nothing to load yet")
     data = deps.storage.get(source.storage_path)
-    loader = deps.loaders.get(source.kind)
+    key = loader_key(source.kind, source.capture)
+    if key not in deps.loaders.kinds and key != source.kind:
+        raise ProcessingError(f"capture mode {source.capture} needs a vision model")
+    loader = deps.loaders.get(key)
     if isinstance(loader, ModelLoader):
-        # Reading this source is a model call of its own (images).
+        # Reading this source takes model calls of its own (images, PDF
+        # pages): each one is recorded as it returns, and the next one is
+        # only made while the owner still has credit.
         if not repo.has_credit(source.owner):
             raise ProcessingError(CREDIT_EXHAUSTED)
-        try:
-            passages, usage = loader.load_with_usage(data)
-        except BilledLoaderError as exc:
-            _record(repo, source, notebook_id, exc.usage)
-            raise
-        _record(repo, source, notebook_id, usage)
+
+        def bill(usage: Usage) -> None:
+            _record(repo, source, notebook_id, usage)
+            if not repo.has_credit(source.owner):
+                raise ProcessingError(CREDIT_EXHAUSTED)
+
+        passages = loader.load_billed(data, bill)
     else:
         passages = loader.load(data)
     chunks = deps.chunker.chunk(passages)

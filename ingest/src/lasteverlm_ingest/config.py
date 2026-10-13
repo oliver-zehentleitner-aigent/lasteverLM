@@ -41,6 +41,7 @@ class Settings:
     summary_input_tokens: int
     summary_max_tokens: int
     image_max_tokens: int
+    pdf_vision_max_pages: int
     worker_poll_seconds: float
     claim_timeout_seconds: int
     log_level: str
@@ -93,6 +94,7 @@ class Settings:
             summary_input_tokens=env_int("SUMMARY_INPUT_TOKENS", 6000, env),
             summary_max_tokens=env_int("SUMMARY_MAX_TOKENS", 300, env),
             image_max_tokens=env_int("IMAGE_MAX_TOKENS", 2000, env),
+            pdf_vision_max_pages=env_int("PDF_VISION_MAX_PAGES", 100, env),
             worker_poll_seconds=float(poll_seconds),
             claim_timeout_seconds=claim_timeout,
             log_level=env_optional("LOG_LEVEL", env) or "INFO",
