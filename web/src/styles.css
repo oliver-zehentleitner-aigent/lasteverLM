@@ -410,3 +410,6 @@ a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); 
 button.link.copy { font-size: 0.85em; }
 .build-line { margin: 0; }
 .build-line a { color: inherit; }
+.badge.demo { color: var(--accent); border-color: var(--accent); }
+.suggestion { color: var(--muted); }
+.suggestion button.link { text-align: left; white-space: normal; }

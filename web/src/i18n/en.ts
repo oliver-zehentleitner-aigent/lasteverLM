@@ -416,6 +416,9 @@ export const en = {
   'sys.col.replicas': 'Replicas',
   'sys.col.updated': 'Updated',
   'header.build': 'Version: {line}',
+  'demo.badge': 'demo',
+  'demo.badgeTitle': 'An example source every new account starts with',
+  'chat.tryDemo': 'Try a first question:',
 } as const
 
 export type MessageKey = keyof typeof en

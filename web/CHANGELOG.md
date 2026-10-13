@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Demo sources: a "demo" badge on the example sources a new account starts with (library, trash, the wizard's library picker, the source list); the library page polls while entries are processing; an empty chat in a notebook with demo sources offers a first question to ask.
 - Admin System page (`/admin/system`, from `GET /api/account/admin/system`): per service version, commit and health, the cluster's pods and deployments, or a note for a local run; the overview shows the build under its heading. The build is the tooltip of the brand in the header for everyone (from the public `healthz`).
 - Voice sample: a "sample" button next to the voice in the audio options and in the settings plays a short sentence pair in that voice, speed and language (`POST /api/rag/outputs/voice-sample`, fetched on click only).
 - The interface in German and English: every visible string goes through `t()` with one map per language (`src/i18n/`, the German map typed against the English keys, so a missing key fails the typecheck); `ui_language` decides, the browser's language before login; dates, numbers and amounts are formatted in that language. Messages from the services stay in English.

@@ -18,6 +18,7 @@ import {
   writeRatio,
   writeWidth,
 } from '../lib/layout'
+import { DEMO_QUESTION } from '../lib/demo'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { formFor } from '../lib/outputs'
 import { ChatPane } from './ChatPane'
@@ -308,6 +309,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
             notebookId={notebookId}
             scope={scope}
             presentSources={presentSources}
+            suggestion={uploads?.some((s) => s.demo) ? DEMO_QUESTION : undefined}
             onClearScope={() => setScope(null)}
             onCitationSelected={onCitation}
             tools={

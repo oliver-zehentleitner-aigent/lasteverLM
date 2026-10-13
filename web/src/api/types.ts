@@ -24,6 +24,8 @@ export interface Source {
   library_id?: string | null
   /** how a PDF was read; null for other kinds */
   capture?: 'auto' | 'text' | 'vision' | null
+  /** one of the example sources a new account starts with */
+  demo?: boolean
 }
 
 /** One upload or URL of the user, with the notebooks it is in. */
@@ -39,6 +41,8 @@ export interface LibraryEntry {
   url: string | null
   /** how a PDF was read; null for other kinds */
   capture?: 'auto' | 'text' | 'vision' | null
+  /** one of the example sources a new account starts with */
+  demo?: boolean
   created_at: string
   notebooks: { id: string; title: string; source_id: string }[]
 }

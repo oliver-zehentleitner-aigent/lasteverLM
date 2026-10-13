@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { ingest } from '../api/ingest'
+import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import type { LibraryEntry, TrashEntry } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
 import { deleteConfirmText, filterLibrary, purgeIn, type LibraryFilter } from '../lib/library'
 import { SOURCE_FORMS } from '../lib/outputs'
+import { DemoBadge } from './DemoBadge'
 import { t } from '../i18n'
 
 interface Props {
@@ -50,6 +52,18 @@ function LibraryList({ onOpenNotebook }: Props) {
   useEffect(() => {
     void run(async () => setEntries(await ingest.listLibrary()))
   }, [run])
+
+  // new entries (a new account's demo sources, say) turn ready as the worker gets to them
+  const processing = entries.some((e) => e.status === 'processing')
+  useEffect(() => {
+    if (!processing) return
+    const timer = setInterval(() => {
+      ingest.listLibrary().then(setEntries, () => {
+        // a failed poll is retried on the next tick
+      })
+    }, SOURCE_POLL_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [processing])
 
   async function remove(e: LibraryEntry) {
     if (!confirm(deleteConfirmText(e))) return
@@ -101,7 +115,7 @@ function LibraryList({ onOpenNotebook }: Props) {
           {shown.map((e) => (
             <tr key={e.id}>
               <td className="name" title={e.url ?? e.name}>
-                {e.name}
+                {e.name} <DemoBadge demo={e.demo} />
               </td>
               <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
               <td>
@@ -198,7 +212,7 @@ function TrashList() {
           {entries.map((e) => (
             <tr key={e.id}>
               <td className="name" title={e.url ?? e.name}>
-                {e.name}
+                {e.name} <DemoBadge demo={e.demo} />
               </td>
               <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
               <td>{e.size_bytes === null ? '—' : formatBytes(e.size_bytes)}</td>

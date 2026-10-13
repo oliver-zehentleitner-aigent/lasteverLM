@@ -419,4 +419,7 @@ export const de: Record<MessageKey, string> = {
   'sys.col.replicas': 'Replikas',
   'sys.col.updated': 'Aktualisiert',
   'header.build': 'Version: {line}',
+  'demo.badge': 'Demo',
+  'demo.badgeTitle': 'Eine Beispielquelle, mit der jedes neue Konto startet',
+  'chat.tryDemo': 'Probier eine erste Frage:',
 }

@@ -19,6 +19,8 @@ interface Props {
   onCitationSelected: (c: Citation | null) => void
   /** controls at the right end of the tab bar (the chat height presets) */
   tools?: ReactNode
+  /** a first question to offer in an empty chat (the demo sources'); none otherwise */
+  suggestion?: string
 }
 
 /** A notebook without conversations gets its first one when the chat opens,
@@ -38,7 +40,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected, tools }: Props) {
+export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected, tools, suggestion }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const { busy, error, run } = useAsync()
@@ -129,6 +131,7 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
           conversationId={active.id}
           scope={scope}
           presentSources={presentSources}
+          suggestion={suggestion}
           onClearScope={onClearScope}
           onCitationSelected={onCitationSelected}
         />
@@ -145,7 +148,7 @@ interface ConversationProps extends Props {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-function ConversationView({ notebookId, conversationId, scope, presentSources, onClearScope, onCitationSelected }: ConversationProps) {
+function ConversationView({ notebookId, conversationId, scope, presentSources, suggestion, onClearScope, onCitationSelected }: ConversationProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
@@ -239,6 +242,21 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, o
         ))}
         {busy && <p className="muted">…</p>}
         {messages.length === 0 && !busy && <p className="muted">{t('chat.empty')}</p>}
+        {messages.length === 0 && !busy && suggestion && (
+          <p className="suggestion small">
+            {t('chat.tryDemo')}{' '}
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setQuestion(suggestion)
+                input.current?.focus()
+              }}
+            >
+              {suggestion}
+            </button>
+          </p>
+        )}
         <div ref={bottom} />
       </div>
       {error && <p className="error">{error}</p>}
