@@ -30,11 +30,12 @@ def test_full_login_flow_issues_jwt_and_creates_user(
     assert set(me.json()) == {"id", "email", "is_admin", "balance_cents", "created_at"}
 
 
-def test_request_link_is_202_and_silent_for_unknown_domain(
+def test_request_link_refuses_an_address_without_access_and_says_so(
     client: TestClient, mailer: FakeMailer
 ) -> None:
     r = client.post("/api/account/auth/request-link", json={"email": "mallory@evil.test"})
-    assert r.status_code == 202
+    assert r.status_code == 403
+    assert r.json() == {"error": "This address has no access to lasteverLM.", "code": "not_allowed"}
     assert mailer.sent == []
 
     r = client.post("/api/account/auth/request-link", json={"email": "alice@example.org"})

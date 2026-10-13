@@ -31,7 +31,7 @@ configuration is deleted at start, so the old password does not linger.
 ## First start on a fresh database
 
 1. Apply `db/migrations/*.sql` in order (`make migrate` in `infra/` does this for every service; core's tables come first).
-2. Start the service with `ADMIN_EMAILS` set to the first admin's address (read live, bypasses the allowlist) and `AUTH_ALLOWED_DOMAINS` as the seed. With both empty nobody can log in; the startup log warns about it. The first user who logs in becomes admin anyway; the demo user does not count.
+2. Start the service with `ADMIN_EMAILS` set to the first admin's address (read live, bypasses the allowlist) and `AUTH_ALLOWED_DOMAINS` as the seed of the domain list. With both empty and no single addresses listed nobody can log in; the startup log warns about it. Single addresses are added in the admin panel, there is no seed for them. The first user who logs in becomes admin anyway; the demo user does not count.
 3. Log in, open the admin panel: `GET /admin/settings/smtp` shows the mail configuration in effect, `POST /admin/settings/smtp/test` sends a test mail to the admin. Changing it means changing the Secret and restarting.
 
 ## Health

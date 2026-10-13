@@ -9,6 +9,19 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Single addresses in the allowlist next to domains (`allowed_addresses` setting); `GET /admin/settings/allowlist` returns both lists, `POST`/`DELETE` per entry under `/admin/settings/domains` and `/admin/settings/addresses`.
+- Error bodies carry a stable `code` where a client must tell refusals apart; the first is `not_allowed`.
+
+### Changed
+
+- `POST /auth/request-link` answers 403 `not_allowed` for an address that may not sign in instead of a silent 202; no mail is sent for it either way.
+
+### Removed
+
+- `PUT /admin/settings/domains`; entries are added and removed one at a time.
+
 ## [0.2.1] - 2026-10-13
 
 ### Changed

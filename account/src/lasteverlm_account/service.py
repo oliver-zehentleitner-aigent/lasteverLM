@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import secrets
 import uuid
 from collections.abc import Callable
@@ -21,6 +22,8 @@ from .models import (
     AdminLogin,
     AdminUser,
     AdminVisit,
+    AllowKind,
+    Allowlist,
     Smtp,
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
@@ -30,6 +33,12 @@ log = logging.getLogger("lasteverlm_account")
 
 SETTING_SMTP = "smtp"  # no longer written; a leftover row is deleted at start
 SETTING_DOMAINS = "allowed_domains"
+SETTING_ADDRESSES = "allowed_addresses"
+_SETTING_KEYS: dict[str, tuple[str, str]] = {  # kind -> (setting key, list key inside the value)
+    "domain": (SETTING_DOMAINS, "allowed_domains"),
+    "address": (SETTING_ADDRESSES, "allowed_addresses"),
+}
+_DOMAIN_RE = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
 
 _VOUCHER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I
 
@@ -37,10 +46,11 @@ _VOUCHER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I
 class AccountError(Exception):
     """A request the service refuses; carries the HTTP status the API should answer."""
 
-    def __init__(self, status: int, message: str) -> None:
+    def __init__(self, status: int, message: str, code: str | None = None) -> None:
         super().__init__(message)
         self.status = status
         self.message = message
+        self.code = code  # stable marker for clients that must tell refusals apart
 
 
 @dataclass(frozen=True)
@@ -56,6 +66,20 @@ def hash_secret(value: str) -> str:
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def normalize_allow_value(kind: AllowKind, value: str) -> str:
+    """Lower-cased, trimmed; a domain may be written with a leading ``@``. 422 on bad shape."""
+    value = value.strip().lower()
+    if kind == "domain":
+        value = value.lstrip("@")
+        if not _DOMAIN_RE.match(value):
+            raise AccountError(422, f"not a domain: {value!r}")
+        return value
+    local, sep, domain = value.rpartition("@")
+    if not sep or not local or " " in value or not _DOMAIN_RE.match(domain):
+        raise AccountError(422, f"not an e-mail address: {value!r}")
+    return value
 
 
 def normalize_voucher_code(code: str) -> str:
@@ -121,8 +145,12 @@ class AccountService:
                 "on" if smtp.starttls else "off",
                 "with login" if smtp.username else "no login",
             )
-        if not self.settings.admin_emails and not await self.allowed_domains():
-            log.warning("nobody can log in: ADMIN_EMAILS is empty and allowed_domains is empty")
+        if (
+            not self.settings.admin_emails
+            and not await self.allowed_domains()
+            and not await self.allowed_addresses()
+        ):
+            log.warning("nobody can log in: ADMIN_EMAILS is empty and the allowlist is empty")
         now = self.now()
         removed = await self.repo.purge_visits(
             now - timedelta(days=self.settings.visit_retention_days)
@@ -154,30 +182,66 @@ class AccountService:
         )
 
     # auth -------------------------------------------------------------------
+    async def _list(self, kind: AllowKind) -> list[str]:
+        key, list_key = _SETTING_KEYS[kind]
+        value = await self.repo.get_setting(key) or {}
+        return sorted({str(v).lower() for v in value.get(list_key, [])})
+
+    async def _store(self, kind: AllowKind, values: list[str]) -> None:
+        key, list_key = _SETTING_KEYS[kind]
+        await self.repo.set_setting(key, {list_key: sorted(set(values))})
+
     async def allowed_domains(self) -> list[str]:
-        value = await self.repo.get_setting(SETTING_DOMAINS) or {}
-        return [str(d).lower() for d in value.get("allowed_domains", [])]
+        return await self._list("domain")
+
+    async def allowed_addresses(self) -> list[str]:
+        return await self._list("address")
+
+    async def allowlist(self) -> Allowlist:
+        return Allowlist(
+            allowed_domains=await self.allowed_domains(),
+            allowed_addresses=await self.allowed_addresses(),
+        )
+
+    async def add_allow_entry(self, kind: AllowKind, value: str) -> Allowlist:
+        value = normalize_allow_value(kind, value)
+        current = await self._list(kind)
+        if value in current:
+            raise AccountError(409, f"already listed: {value}")
+        await self._store(kind, [*current, value])
+        return await self.allowlist()
+
+    async def remove_allow_entry(self, kind: AllowKind, value: str) -> None:
+        value = value.strip().lower().lstrip("@")
+        current = await self._list(kind)
+        if value not in current:
+            raise AccountError(404, f"not listed: {value}")
+        await self._store(kind, [v for v in current if v != value])
 
     async def set_allowed_domains(self, domains: list[str]) -> list[str]:
+        """Whole-list replacement, used by the startup re-seed and tests."""
         cleaned = sorted({d.strip().lower().lstrip("@") for d in domains if d.strip()})
-        await self.repo.set_setting(SETTING_DOMAINS, {"allowed_domains": cleaned})
+        await self._store("domain", cleaned)
         return cleaned
 
     async def is_allowed(self, email: str) -> bool:
-        """Allowlisted domain, or an address named in ADMIN_EMAILS so the first admin can get in."""
+        """Listed address, listed domain, or an address in ADMIN_EMAILS so the first admin
+        can get in."""
         if email in self.settings.admin_emails:
+            return True
+        if email in await self.allowed_addresses():
             return True
         domain = email.rsplit("@", 1)[-1]
         return domain in await self.allowed_domains()
 
-    async def request_link(self, email: str) -> PendingMail | None:
-        """Prepare a magic link for an allowed address. Returns None, silently, for any other.
+    async def request_link(self, email: str) -> PendingMail:
+        """Prepare a magic link for an allowed address; 403 ``not_allowed`` for any other.
 
-        The caller answers 202 either way; whether an address is allowed is never revealed.
+        A refused address is told so (context/auth.md): no mail goes out for it.
         """
         email = normalize_email(email)
         if "@" not in email or not await self.is_allowed(email):
-            return None
+            raise AccountError(403, "This address has no access to lasteverLM.", "not_allowed")
         token = secrets.token_urlsafe(32)
         expires_at = self.now() + timedelta(minutes=self.settings.magic_link_ttl_minutes)
         await self.repo.create_magic_link(email, hash_secret(token), expires_at)

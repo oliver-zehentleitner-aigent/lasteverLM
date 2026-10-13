@@ -75,7 +75,10 @@ def create_app(
 
     @app.exception_handler(AccountError)
     async def _account_error(_: Request, exc: AccountError) -> JSONResponse:
-        return JSONResponse(status_code=exc.status, content={"error": exc.message})
+        content: dict[str, str] = {"error": exc.message}
+        if exc.code:
+            content["code"] = exc.code
+        return JSONResponse(status_code=exc.status, content=content)
 
     @app.exception_handler(HTTPException)
     async def _http_error(_: Request, exc: HTTPException) -> JSONResponse:

@@ -21,7 +21,11 @@ ADMIN_ROUTES = [
     ("GET", "/api/account/admin/logins", None),
     ("GET", "/api/account/admin/visits", None),
     ("GET", "/api/account/admin/settings/smtp", None),
-    ("GET", "/api/account/admin/settings/domains", None),
+    ("GET", "/api/account/admin/settings/allowlist", None),
+    ("POST", "/api/account/admin/settings/domains", {"domain": "x.test"}),
+    ("DELETE", "/api/account/admin/settings/domains/example.org", None),
+    ("POST", "/api/account/admin/settings/addresses", {"address": "a@x.test"}),
+    ("DELETE", "/api/account/admin/settings/addresses/a@x.test", None),
     ("POST", "/api/account/admin/vouchers", {}),
     ("GET", "/api/account/admin/blocks", None),
     ("GET", "/api/account/admin/bans", None),
@@ -49,22 +53,67 @@ def test_demo_user_is_never_admin(client: TestClient, repo: MemoryRepository) ->
     assert r.status_code == 403
 
 
-def test_domains_roundtrip_normalizes(client: TestClient, mailer: FakeMailer) -> None:
+def test_allowlist_entries_are_added_and_removed_one_at_a_time(
+    client: TestClient, mailer: FakeMailer
+) -> None:
     token, _ = login(client, mailer, "admin@example.org")
-    r = client.get("/api/account/admin/settings/domains", headers=bearer(token))
-    assert r.json() == {"allowed_domains": ["example.org"]}
+    h = bearer(token)
+    r = client.get("/api/account/admin/settings/allowlist", headers=h)
+    assert r.json() == {"allowed_domains": ["example.org"], "allowed_addresses": []}
 
-    r = client.put(
-        "/api/account/admin/settings/domains",
-        json={"allowed_domains": [" Example.ORG", "@acme.test", "acme.test", ""]},
-        headers=bearer(token),
+    r = client.post(
+        "/api/account/admin/settings/domains", json={"domain": " @Acme.TEST "}, headers=h
     )
-    assert r.status_code == 200
-    assert r.json() == {"allowed_domains": ["acme.test", "example.org"]}
+    assert r.status_code == 201
+    assert r.json()["allowed_domains"] == ["acme.test", "example.org"]
+    r = client.post("/api/account/admin/settings/domains", json={"domain": "acme.test"}, headers=h)
+    assert r.status_code == 409
+    r = client.post(
+        "/api/account/admin/settings/domains", json={"domain": "not a domain"}, headers=h
+    )
+    assert r.status_code == 422
 
-    # takes effect immediately
-    client.post("/api/account/auth/request-link", json={"email": "x@acme.test"})
-    assert mailer.sent[-1].to == "x@acme.test"
+    r = client.post(
+        "/api/account/admin/settings/addresses", json={"address": "Guest@Partner.test"}, headers=h
+    )
+    assert r.status_code == 201
+    assert r.json()["allowed_addresses"] == ["guest@partner.test"]
+    r = client.post("/api/account/admin/settings/addresses", json={"address": "nope"}, headers=h)
+    assert r.status_code == 422
+
+    # both kinds take effect immediately; the address does not open its whole domain
+    assert (
+        client.post("/api/account/auth/request-link", json={"email": "x@acme.test"}).status_code
+        == 202
+    )
+    assert (
+        client.post(
+            "/api/account/auth/request-link", json={"email": "guest@partner.test"}
+        ).status_code
+        == 202
+    )
+    assert (
+        client.post(
+            "/api/account/auth/request-link", json={"email": "other@partner.test"}
+        ).status_code
+        == 403
+    )
+    assert [m.to for m in mailer.sent[-2:]] == ["x@acme.test", "guest@partner.test"]
+
+    r = client.delete("/api/account/admin/settings/addresses/Guest@partner.test", headers=h)
+    assert r.status_code == 204
+    r = client.delete("/api/account/admin/settings/addresses/guest@partner.test", headers=h)
+    assert r.status_code == 404
+    r = client.delete("/api/account/admin/settings/domains/acme.test", headers=h)
+    assert r.status_code == 204
+    assert client.get("/api/account/admin/settings/domains", headers=h).json() == {
+        "allowed_domains": ["example.org"],
+        "allowed_addresses": [],
+    }
+    assert (
+        client.post("/api/account/auth/request-link", json={"email": "x@acme.test"}).status_code
+        == 403
+    )
 
 
 def test_smtp_is_read_only_and_shows_the_environment_without_password(

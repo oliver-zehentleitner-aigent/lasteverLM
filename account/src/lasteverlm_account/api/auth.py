@@ -15,11 +15,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def request_link(
     body: RequestLinkBody, service: Service, background: BackgroundTasks
 ) -> JSONResponse:
-    # Always 202: whether the address is allowed is never revealed. The mail goes
-    # out after the response so the answer time does not reveal it either.
+    # 202 for an allowed address, 403 {"code": "not_allowed"} for any other (context/auth.md).
+    # The mail goes out after the response.
     pending = await service.request_link(str(body.email))
-    if pending is not None:
-        background.add_task(service.deliver, pending)
+    background.add_task(service.deliver, pending)
     return JSONResponse(status_code=202, content={"status": "accepted"})
 
 
