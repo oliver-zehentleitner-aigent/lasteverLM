@@ -7,15 +7,14 @@ one connection. The schema is ``db/migrations/``; the infra repository applies i
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 from lasteverlm_core import DEMO_USER_ID
 from lasteverlm_core.ratelimit import LIFT_BAN_SQL
 from psycopg import AsyncConnection
-from psycopg.rows import DictRow, dict_row, tuple_row
+from psycopg.rows import DictRow, dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
@@ -322,20 +321,9 @@ class PostgresRepository:
         ]
 
     # lifecycle --------------------------------------------------------------
-    @asynccontextmanager
-    async def tuple_connection(self) -> AsyncIterator[AsyncConnection[Any]]:
-        """A pooled connection with the default tuple rows, for core's rate-limit store.
-
-        Core's store reads scalars as ``row[0]``; this pool hands out dict rows. Until
-        core's reads are row-factory independent, the store gets the same connections
-        with the row factory switched for the duration of its call (``context/``).
-        """
-        async with self._pool.connection() as conn:
-            conn.row_factory = tuple_row  # type: ignore[assignment]
-            try:
-                yield cast("AsyncConnection[Any]", conn)
-            finally:
-                conn.row_factory = dict_row
+    def connection(self) -> AbstractAsyncContextManager[AsyncConnection[DictRow]]:
+        """One pooled connection, for core's rate-limit store (dict rows, autocommit)."""
+        return self._pool.connection()
 
     async def ping(self) -> None:
         async with self._pool.connection() as conn:

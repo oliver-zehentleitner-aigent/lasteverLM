@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- Core's rate-limit store gets the repository's pooled connections directly; the tuple-row detour is gone since core reads scalars independently of the row factory.
+
 ## [0.1.0] - 2026-10-12
 
 ### Added
