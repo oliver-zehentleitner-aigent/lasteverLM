@@ -27,7 +27,19 @@ def test_full_login_flow_issues_jwt_and_creates_user(
     me = client.get("/api/account/me", headers=bearer(token))
     assert me.status_code == 200
     assert me.json()["id"] == user["id"]
-    assert set(me.json()) == {"id", "email", "is_admin", "balance_cents", "created_at"}
+    assert set(me.json()) == {
+        "id",
+        "email",
+        "is_admin",
+        "balance_cents",
+        "created_at",
+        "preferences",
+    }
+    assert me.json()["preferences"] == {
+        "ui_language": None,
+        "output_language": None,
+        "audio_voice": None,
+    }
 
 
 def test_request_link_refuses_an_address_without_access_and_says_so(

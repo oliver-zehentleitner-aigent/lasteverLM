@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Literal, Protocol
 
@@ -22,6 +22,7 @@ class UserRecord:
     is_admin: bool
     created_at: datetime
     last_login_at: datetime | None
+    preferences: dict[str, Any] = field(default_factory=dict)  # the stored jsonb, as is
 
 
 @dataclass(frozen=True)
@@ -172,6 +173,10 @@ class Repository(Protocol):
         self, user_id: uuid.UUID, email: str, *, admin: bool, now: datetime
     ) -> UserRecord: ...
     async def record_login(self, user_id: uuid.UUID, at: datetime) -> None: ...
+    async def set_preferences(self, user_id: uuid.UUID, preferences: dict[str, Any]) -> None:
+        """Replace the stored preferences object; the service merges before calling."""
+        ...
+
     async def list_users(self) -> list[UserRecord]: ...
     async def list_logins(self, limit: int) -> list[LoginRecord]: ...
     async def add_login_attempt(self, attempt: LoginAttemptRecord) -> None: ...

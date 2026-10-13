@@ -267,3 +267,13 @@ async def test_daily_and_usage_stats(repo: PostgresRepository) -> None:
         ("stats-user@pg.test", 40, 210),
         ("stats-admin@pg.test", 4, -4),
     ]
+
+
+async def test_preferences_round_trip(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    user = await repo.create_user("prefs@pg.test", admin=False, now=now)
+    assert user.preferences == {}
+    await repo.set_preferences(user.id, {"ui_language": "de", "audio_voice": "ryan"})
+    stored = await repo.get_user(user.id)
+    assert stored is not None and stored.preferences == {"ui_language": "de", "audio_voice": "ryan"}
+    assert (await repo.get_user_by_email("prefs@pg.test")).preferences["ui_language"] == "de"  # type: ignore[union-attr]

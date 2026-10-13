@@ -46,6 +46,7 @@ def _user(row: dict[str, Any]) -> UserRecord:
         is_admin=row["is_admin"],
         created_at=row["created_at"],
         last_login_at=row["last_login_at"],
+        preferences=dict(row.get("preferences") or {}),
     )
 
 
@@ -142,6 +143,12 @@ class PostgresRepository:
             row = await cur.fetchone()
         assert row is not None
         return _user(row)
+
+    async def set_preferences(self, user_id: uuid.UUID, preferences: dict[str, Any]) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "update users set preferences = %s where id = %s", (Jsonb(preferences), user_id)
+            )
 
     async def record_login(self, user_id: uuid.UUID, at: datetime) -> None:
         async with self._pool.connection() as conn:

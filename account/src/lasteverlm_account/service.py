@@ -10,6 +10,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
+from typing import Any
 
 from lasteverlm_core import (
     DEMO_USER_ID,
@@ -17,7 +18,6 @@ from lasteverlm_core import (
     AuthSettings,
     RateLimitRules,
     RateLimitSettings,
-    User,
     issue_jwt,
     purge_params,
 )
@@ -39,11 +39,14 @@ from .models import (
     DailyStat,
     DailyStats,
     ModelUsage,
+    Preferences,
+    PreferencesUpdate,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     Smtp,
     UsageCost,
     UsageStats,
+    User,
     UserUsage,
     VoucherCounts,
 )
@@ -83,6 +86,14 @@ class PendingMail:
 
 def hash_secret(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _valid(key: str, value: Any) -> bool:
+    try:
+        Preferences(**{key: value})
+    except ValueError:
+        return False
+    return True
 
 
 def normalize_email(email: str) -> str:
@@ -329,7 +340,31 @@ class AccountService:
             is_admin=user.is_admin,
             balance_cents=totals.balance_cents,
             created_at=user.created_at,
+            preferences=self.preferences_of(user),
         )
+
+    @staticmethod
+    def preferences_of(user: UserRecord) -> Preferences:
+        """The stored object, tolerant of keys a later version may have added or removed:
+        unknown keys are ignored, a stored value that no longer validates reads as unset."""
+        known = {k: user.preferences.get(k) for k in Preferences.model_fields}
+        try:
+            return Preferences(**known)
+        except ValueError:
+            return Preferences(**{k: v for k, v in known.items() if _valid(k, v)})
+
+    async def preferences(self, user_id: uuid.UUID) -> Preferences:
+        return self.preferences_of(await self.user(user_id))
+
+    async def update_preferences(self, user_id: uuid.UUID, update: PreferencesUpdate) -> User:
+        """Merge the keys the client sent (null clears) into the stored object."""
+        if user_id == DEMO_USER_ID:
+            raise AccountError(403, "the shared demo user has no preferences to change")
+        user = await self.user(user_id)
+        merged = self.preferences_of(user).model_dump()
+        merged.update(update.model_dump(include=update.model_fields_set))
+        await self.repo.set_preferences(user.id, {k: v for k, v in merged.items() if v is not None})
+        return await self.user_view(user.id)
 
     async def redeem(self, user_id: uuid.UUID, code: str) -> User:
         user = await self.user(user_id)

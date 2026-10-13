@@ -20,6 +20,12 @@ prefix `/api/account`. Changes to the contract are made there first.
 
 ## API, prefix `/api/account`
 
+`User` carries `preferences` `{ui_language: de|en|null, output_language: <language code>|null,
+audio_voice: <voice id>|null}`; `null` means not set (the web's default language, the
+source's language, the platform's default voice). `PUT /me/preferences` takes any subset:
+a key with a value sets it, with `null` clears it, an absent key is kept. Validation is by
+shape only; which voices and output languages exist is rag's business.
+
 `GET /admin/stats` is the admin overview: users, logins and usage cost of the last
 24 h, vouchers issued/redeemed/open, credits granted (the ledger sum), active blocks
 and bans. The seeded demo user is a row in `GET /admin/users` and counts in both
@@ -30,7 +36,7 @@ rows, which ingest and rag write.
 | Area | Endpoints |
 |---|---|
 | Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
-| Account | `GET /me`, `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
+| Account | `GET /me` → `User` (with `preferences`), `GET /me/preferences`, `PUT /me/preferences` (partial, returns `User`; the demo user gets 403), `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
 | Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the four runtime fields for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, no codes), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans/{ip}`, `GET /admin/access?limit=` |
 | Health | `GET /healthz`, also at the server root for the Kubernetes probe |
