@@ -13,6 +13,8 @@ from lasteverlm_core import (
     ConfigError,
     InferenceSettings,
     Message,
+    Output,
+    SharedOutput,
     env_int,
     env_optional,
     env_required,
@@ -40,6 +42,22 @@ def test_inference_settings_from_env() -> None:
     assert InferenceSettings.from_env({**env, "LLM_MAX_TOKENS": "400"}).llm_max_tokens == 400
     with pytest.raises(ConfigError, match="INFERENCE_API_KEY"):
         InferenceSettings.from_env({})
+
+
+def test_output_options_default_to_empty() -> None:
+    row = {
+        "id": str(uuid4()),
+        "notebook_id": str(uuid4()),
+        "kind": "audio",
+        "title": "t",
+        "status": "ready",
+        "created_at": "2026-10-13T00:00:00Z",
+    }
+    assert Output.model_validate(row).options == {}
+    options = {"language": "de", "voice": "ryan", "speed": 1.0}
+    assert Output.model_validate({**row, "options": options}).options == options
+    shared = SharedOutput(kind="audio", title="t", created_at=datetime(2026, 10, 13, tzinfo=UTC))
+    assert shared.options == {}
 
 
 def test_models_serialize_ids_and_times_as_strings() -> None:

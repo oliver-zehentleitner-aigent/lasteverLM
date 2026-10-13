@@ -66,6 +66,7 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
         "error",
         "share_token",
         "source_id",
+        "options",
         "created_at",
     }
     # the generator saw the summaries and the focus-query passages
@@ -268,6 +269,7 @@ def test_share_and_revoke(settings):
         "kind": "report",
         "title": "Sky report",
         "content": {"markdown": "## Sky\n\nThe sky is blue."},
+        "options": {},
         "created_at": shared.json()["created_at"],
     }
     assert client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()["share_token"] == token

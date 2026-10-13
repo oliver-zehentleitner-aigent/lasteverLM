@@ -158,8 +158,11 @@ class OpenAICompatibleTextToSpeech:
 
     The platform's voices are not the OpenAI names (`alloy` is rejected with
     a 400); it offers vivian, serena, uncle_fu, dylan, eric, ryan, aiden,
-    ono_anna and sohee. Usage is priced per input character, which the
-    caller records as `tokens_in=len(text)`, `tokens_out=0`, kind `tts`.
+    ono_anna and sohee. `synthesize` takes a voice per call (the
+    constructor's otherwise) and a `speed`, sent only when given; the
+    platform accepts 0.25 to 4 and answers anything else with a 400.
+    Usage is priced per input character, which the caller records as
+    `tokens_in=len(text)`, `tokens_out=0`, kind `tts`.
     """
 
     def __init__(self, client: OpenAI, model: str, voice: str = DEFAULT_TTS_VOICE) -> None:
@@ -175,10 +178,13 @@ class OpenAICompatibleTextToSpeech:
     def voice(self) -> str:
         return self._voice
 
-    def synthesize(self, text: str) -> bytes:
+    def synthesize(
+        self, text: str, *, voice: str | None = None, speed: float | None = None
+    ) -> bytes:
+        extra: dict[str, Any] = {} if speed is None else {"speed": speed}
         try:
             response = self._client.audio.speech.create(
-                model=self._model, voice=self._voice, input=text
+                model=self._model, voice=voice or self._voice, input=text, **extra
             )
         except APIError as exc:
             raise ProviderError(f"speech request failed: {exc}") from exc
