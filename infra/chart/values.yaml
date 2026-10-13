@@ -54,49 +54,49 @@ services:
     secrets: [lasteverlm-db, lasteverlm-auth, lasteverlm-account]
     optionalSecrets: [lasteverlm-smtp-seed]
     resources:
-      requests: {cpu: 100m, memory: 256Mi}
+      requests: {cpu: 50m, memory: 256Mi}
       limits: {memory: 1Gi}
-    hpa: {enabled: true, min: 2, max: 5, cpu: 70}
+    hpa: {enabled: true, min: 2, max: 5, cpu: 80}
   ingest:
     replicas: 2
     secrets: [lasteverlm-db, lasteverlm-s3, lasteverlm-inference, lasteverlm-auth]
     optionalSecrets: []
     resources:
-      requests: {cpu: 100m, memory: 256Mi}
+      requests: {cpu: 50m, memory: 256Mi}
       limits: {memory: 1Gi}
-    hpa: {enabled: true, min: 2, max: 5, cpu: 70}
+    hpa: {enabled: true, min: 2, max: 5, cpu: 80}
     worker:
       enabled: true
       replicas: 2
       command: [lasteverlm-ingest-worker]   # same image as the API, claims jobs from Postgres
       resources:
-        requests: {cpu: 200m, memory: 512Mi}
+        requests: {cpu: 100m, memory: 512Mi}
         limits: {memory: 2Gi}
-      hpa: {enabled: true, min: 2, max: 6, cpu: 70}
+      hpa: {enabled: true, min: 2, max: 6, cpu: 80}
   rag:
     replicas: 2
     secrets: [lasteverlm-db, lasteverlm-s3, lasteverlm-inference, lasteverlm-auth]
     optionalSecrets: []
     resources:
-      requests: {cpu: 100m, memory: 256Mi}
+      requests: {cpu: 50m, memory: 256Mi}
       limits: {memory: 1Gi}
-    hpa: {enabled: true, min: 2, max: 5, cpu: 70}
+    hpa: {enabled: true, min: 2, max: 5, cpu: 80}
     worker:
       enabled: true
       replicas: 2
       command: [lasteverlm-rag-worker]
       resources:
-        requests: {cpu: 200m, memory: 512Mi}
+        requests: {cpu: 100m, memory: 512Mi}
         limits: {memory: 2Gi}
-      hpa: {enabled: true, min: 2, max: 6, cpu: 70}
+      hpa: {enabled: true, min: 2, max: 6, cpu: 80}
 
 web:
   replicas: 2
   port: 8080
   resources:
-    requests: {cpu: 50m, memory: 64Mi}
+    requests: {cpu: 25m, memory: 64Mi}
     limits: {memory: 256Mi}
-  hpa: {enabled: true, min: 2, max: 4, cpu: 70}
+  hpa: {enabled: true, min: 2, max: 4, cpu: 80}
 
 # Migrations run as a pre-install/pre-upgrade hook Job when
 # files/migrations.tgz exists in the chart (written by `make migrations`).
