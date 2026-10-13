@@ -146,8 +146,11 @@ response status and the user the bearer token resolved to (anonymous
 when it did not). Requests to a path ending in `/healthz` are logged one
 in `ACCESS_LOG_HEALTHZ_SAMPLE`.
 
-Rules, all per client IP (`X-Forwarded-For` from the ingress, else the
-peer address):
+Rules, all per client IP. With `trust_forwarded` (the default; account
+names it `TRUST_PROXY_HEADERS`) that is the last `X-Forwarded-For`
+entry, the one the ingress wrote; earlier entries come from the client
+and are never read. Without it, the peer address. An IPv4-mapped IPv6
+address counts as its IPv4 address, an IPv6 zone is dropped.
 
 1. More than `RATE_LIMIT_PER_MINUTE` logged requests in the last minute
    (the limiter's own 429s not counted): 429 for `BLOCK_MINUTES`, one strike.
