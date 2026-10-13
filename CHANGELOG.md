@@ -8,6 +8,7 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Changed
 
+- `docs/architecture.md`: the library trash (delete moves to the trash, restore, purge, per-user `trash_days`).
 - `docs/architecture.md`: user preferences (`/me/preferences`), output options per kind with the catalogue endpoint, the cited chunk endpoint and the ChunkView shape.
 
 ### Added
