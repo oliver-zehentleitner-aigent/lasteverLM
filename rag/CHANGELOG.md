@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Audio output: an LLM-written spoken-word script, synthesized with `TTS_MODEL` and `TTS_VOICE` (default `ryan`) in sentence-boundary segments, stored as one MP3 in object storage and served as a presigned URL valid for one hour; one `tts` usage row per segment.
+
+### Changed
+
+- Deleting an output also deletes its stored files.
+
 ## [0.1.0] - 2026-10-12
 
 ### Added
