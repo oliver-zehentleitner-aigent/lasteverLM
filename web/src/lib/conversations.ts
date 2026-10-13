@@ -8,3 +8,10 @@ export function activeAfterClose(ids: readonly string[], closed: string, active:
   const at = ids.indexOf(closed)
   return rest[Math.min(Math.max(at, 0), rest.length - 1)]
 }
+
+/** The title to save after an inline rename, or null to keep the old one:
+ *  an empty or unchanged entry saves nothing. */
+export function renamedTitle(draft: string, old: string): string | null {
+  const title = draft.trim().replace(/\s+/g, ' ')
+  return title && title !== old ? title : null
+}

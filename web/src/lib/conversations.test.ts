@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { activeAfterClose } from './conversations'
+import { activeAfterClose, renamedTitle } from './conversations'
 
 describe('activeAfterClose', () => {
   const ids = ['a', 'b', 'c']
@@ -18,5 +18,16 @@ describe('activeAfterClose', () => {
 
   it('is null when no tab is left', () => {
     expect(activeAfterClose(['a'], 'a', 'a')).toBeNull()
+  })
+})
+
+describe('renamedTitle', () => {
+  it('saves a changed title, trimmed and with single spaces', () => {
+    expect(renamedTitle('  Elbe   questions ', 'Chat 2')).toBe('Elbe questions')
+  })
+
+  it('keeps the old title for an empty or unchanged entry', () => {
+    expect(renamedTitle('   ', 'Chat 2')).toBeNull()
+    expect(renamedTitle('Chat 2', 'Chat 2')).toBeNull()
   })
 })

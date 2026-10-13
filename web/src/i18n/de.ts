@@ -432,4 +432,6 @@ export const de: Record<MessageKey, string> = {
   'wiz.selected': '{n} ausgewählt',
   'lib.sizeUnknown': 'unbekannt',
   'lib.sizeUnknownTitle': 'Hinzugefügt, bevor Größen erfasst wurden',
+  'chat.renameHint': 'Doppelklick oder F2 zum Umbenennen',
+  'chat.renameLabel': 'Name des Chats',
 }
