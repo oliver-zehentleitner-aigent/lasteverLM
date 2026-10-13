@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 
 from lasteverlm_core import DEMO_USER_ID
-from lasteverlm_core.ratelimit import LIFT_BAN_SQL
+from lasteverlm_core.ratelimit import LIFT_BAN_SQL, PURGE_SQL
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow, dict_row
 from psycopg.types.json import Jsonb
@@ -319,6 +319,14 @@ class PostgresRepository:
             )
             for r in rows
         ]
+
+    async def purge_access_tables(self, cutoff: datetime) -> tuple[int, int, int]:
+        counts: list[int] = []
+        async with self._pool.connection() as conn, conn.transaction():
+            for statement in PURGE_SQL:  # core's statements, so both sides agree on the rule
+                cur = await conn.execute(statement, {"cutoff": cutoff})
+                counts.append(cur.rowcount)
+        return counts[0], counts[1], counts[2]
 
     # lifecycle --------------------------------------------------------------
     def connection(self) -> AbstractAsyncContextManager[AsyncConnection[DictRow]]:

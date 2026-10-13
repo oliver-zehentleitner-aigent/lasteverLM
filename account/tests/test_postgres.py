@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -111,3 +111,34 @@ async def test_lift_ban_marks_only_the_active_one(repo: PostgresRepository) -> N
     assert await repo.lift_ban("203.0.113.9", now) is False
     assert await repo.bans(include_lifted=False) == []
     assert len(await repo.bans(include_lifted=True)) == 2
+
+
+async def test_purge_access_tables_keeps_active_bans(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    old, fresh = now - timedelta(days=31), now - timedelta(days=29)
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from access_log where service = 'test'")
+        for at in (old, fresh):
+            await conn.execute(
+                "insert into access_log (at, ip, path, method, status, service)"
+                " values (%s, '203.0.113.1', '/', 'GET', 200, 'test')",
+                (at,),
+            )
+            await conn.execute(
+                "insert into ip_blocks (ip, blocked_until, updated_at) values (%s, %s, %s)",
+                (f"203.0.113.{10 if at == old else 11}", at, at),
+            )
+            await conn.execute(
+                "insert into ip_bans (ip, reason, lifted_at) values (%s, 'lifted', %s)",
+                (f"203.0.113.{20 if at == old else 21}", at),
+            )
+        await conn.execute("insert into ip_bans (ip, reason) values ('203.0.113.9', 'active')")
+    assert await repo.purge_access_tables(now - timedelta(days=30)) == (1, 1, 1)
+    async with repo._pool.connection() as conn:
+        cur = await conn.execute("select count(*) as n from access_log where service = 'test'")
+        row = await cur.fetchone()
+        assert row is not None and row["n"] == 1
+    assert [str(b.ip) for b in await repo.active_blocks(fresh - timedelta(seconds=1))] == [
+        "203.0.113.11"
+    ]
+    assert sorted(b.reason for b in await repo.bans(include_lifted=True)) == ["active", "lifted"]
