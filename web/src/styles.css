@@ -267,7 +267,11 @@ button.link.danger { color: var(--danger); }
 
 /* mindmap */
 .viewer-body:has(> .mindmap) { display: flex; flex-direction: column; }
-.mindmap { flex: 1; display: flex; flex-direction: column; min-height: 24rem; }
+.mindmap { flex: 1; display: flex; flex-direction: column; min-height: 24rem; position: relative; }
+/* fit and zoom, on the map's top right */
+.map-controls { position: absolute; top: 0.4rem; right: 0.4rem; z-index: 1; display: flex; gap: 0.25rem; }
+.map-controls button { min-width: 2rem; padding: 0.2rem 0.45rem; }
+.mindmap svg:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .mindmap svg { flex: 1; width: 100%; height: 100%; min-height: 0; }
 /* markmap's defaults are a dark grey at weight 300, unreadable on the dark theme */
 .mindmap .markmap {

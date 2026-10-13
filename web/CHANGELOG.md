@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Image thumbnails: image entries in the library, the trash and the wizard's library picker show a 2rem thumbnail (lazy, from `preview_url`) and a preview up to 320 px on hover, focus or tap, placed inside the window and closed on leave, Esc or a tap elsewhere.
 - Chat tabs can be renamed in place: double-click or F2 turns the title into a field with the text selected, Enter or leaving it saves (`PATCH /api/rag/conversations/{id}`), Esc cancels, an empty or unchanged name keeps the old one, the field is as wide as its text (up to 80 characters).
+- Mind map controls: a small bar on the map (zoom in, zoom out, fit) and the keys +, − and 0 on the focused map, through markmap's `rescale()` and `fit()`; in the viewer, the full view and on the shared page.
 
 
 ### Changed

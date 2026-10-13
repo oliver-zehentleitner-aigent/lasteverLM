@@ -431,6 +431,11 @@ export const en = {
   'lib.sizeUnknownTitle': 'Added before sizes were recorded',
   'chat.renameHint': 'Double-click or F2 to rename',
   'chat.renameLabel': 'Chat name',
+  'map.controls': 'Mind map view',
+  'map.fit': 'Fit the map (0)',
+  'map.zoomIn': 'Zoom in (+)',
+  'map.zoomOut': 'Zoom out (−)',
+  'map.label': 'Mind map; drag to pan, scroll to zoom, 0 to fit',
 } as const
 
 export type MessageKey = keyof typeof en

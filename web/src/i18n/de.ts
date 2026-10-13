@@ -434,4 +434,9 @@ export const de: Record<MessageKey, string> = {
   'lib.sizeUnknownTitle': 'Hinzugefügt, bevor Größen erfasst wurden',
   'chat.renameHint': 'Doppelklick oder F2 zum Umbenennen',
   'chat.renameLabel': 'Name des Chats',
+  'map.controls': 'Ansicht der Mindmap',
+  'map.fit': 'Karte einpassen (0)',
+  'map.zoomIn': 'Vergrößern (+)',
+  'map.zoomOut': 'Verkleinern (−)',
+  'map.label': 'Mindmap; ziehen zum Verschieben, scrollen zum Zoomen, 0 zum Einpassen',
 }
