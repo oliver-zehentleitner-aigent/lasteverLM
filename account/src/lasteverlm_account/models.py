@@ -30,12 +30,14 @@ VoiceId = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-
 
 class Preferences(BaseModel):
     """Per-user preferences. ``null`` means not set: the web's default language, the
-    source's language for output, the platform's default voice, 14 days in the trash."""
+    source's language for output, the platform's default voice, 14 days in the trash,
+    automatic PDF capture."""
 
     ui_language: Literal["de", "en"] | None = None
     output_language: LanguageCode | None = None
     audio_voice: VoiceId | None = None
     trash_days: Annotated[int, Field(ge=1, le=365)] | None = None  # null: 14, applied by ingest
+    pdf_capture: Literal["auto", "text", "vision"] | None = None  # null: auto
 
 
 class PreferencesUpdate(BaseModel):
@@ -45,6 +47,7 @@ class PreferencesUpdate(BaseModel):
     output_language: LanguageCode | None = None
     audio_voice: VoiceId | None = None
     trash_days: Annotated[int, Field(ge=1, le=365)] | None = None
+    pdf_capture: Literal["auto", "text", "vision"] | None = None
 
 
 class User(CoreUser):
