@@ -15,6 +15,7 @@ import { QuizView } from './QuizView'
 import { ReportView } from './ReportView'
 import { TableView } from './TableView'
 import { t } from '../../i18n'
+import type { LocateRequest } from '../../lib/locate'
 
 interface Props {
   kind: OutputKind
@@ -24,11 +25,13 @@ interface Props {
   content: unknown
   /** a fresh presigned audio url, read when the current one has expired */
   onExpired?: () => Promise<string>
+  /** a passage to show; only the mind map handles it here, the viewer the rest */
+  locate?: LocateRequest | null
 }
 
 /** Dispatches a document to its renderer by kind. Works for an owned output
  *  and for a shared one alike, which is why it takes fields, not an Output. */
-export function OutputContent({ kind, title, status, error, content, onExpired }: Props) {
+export function OutputContent({ kind, title, status, error, content, onExpired, locate }: Props) {
   if (status === 'waiting') return <p className="muted">{t('content.waiting')}</p>
   if (status === 'processing') return <p className="muted">{t('content.generating')}</p>
   if (status === 'failed') return <p className="error">{error ?? t('content.failed')}</p>
@@ -41,7 +44,7 @@ export function OutputContent({ kind, title, status, error, content, onExpired }
     case 'table':
       return <TableView content={content as TableContent} title={title} />
     case 'mindmap':
-      return <MindmapView content={content as MindmapContent} />
+      return <MindmapView content={content as MindmapContent} locate={locate ?? null} />
     case 'infographic':
       return <InfographicView content={content as InfographicContent} />
     case 'audio':

@@ -1,4 +1,5 @@
 import { t } from '../i18n'
+import { words } from './words'
 
 /** Formatting and the passage heuristic for the citation provenance panel. */
 
@@ -30,7 +31,6 @@ export function claimFor(answer: string, n: number): string {
   return (hit ?? '').replace(MARKERS, '').replace(/\s+([.!?,;:])/g, '$1').trim()
 }
 
-const words = (s: string) => new Set(s.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [])
 
 /** Splits the chunk around its sentence that shares the most words with the
  *  claim, so that sentence can be highlighted. The backend sends no span,

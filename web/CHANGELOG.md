@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Provenance on a citation into a generated document: "open document" (was "open in source", which did nothing visible because the tab was already open) opens the document's tab and shows the passage: the best-matching text block in a report, quiz, table or infographic scrolls into view and flashes; a mind map fits and flashes the matching node. Uploads keep "open in source".
 - Form controls: selects get the same border, padding and background as text fields, and every single-line control (select, text, number, search, e-mail) one height, so controls side by side line up. In the library the two filters sit in one grid row with their labels on one line (the Kind label sat lower than the Name label).
 - Library: the size of an entry added before sizes were recorded reads "unknown" (muted, with a tooltip) instead of a dash.
 

@@ -69,7 +69,7 @@ export function ProvenancePanel({ citation, answer, removed, onOpenSource }: Pro
           <span className="muted small">{t('prov.gone')}</span>
         ) : (
           <button type="button" className="link" onClick={() => onOpenSource(citation)}>
-            {t('prov.open')}
+            {citation.source_kind === 'generated' ? t('prov.openDoc') : t('prov.open')}
           </button>
         )}
         {passage.match && <span className="muted small">{t('prov.marked')}</span>}

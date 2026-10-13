@@ -21,6 +21,7 @@ import {
 import { DEMO_QUESTION } from '../lib/demo'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { formFor } from '../lib/outputs'
+import type { LocateRequest } from '../lib/locate'
 import { ChatPane } from './ChatPane'
 import { ColumnDivider } from './ColumnDivider'
 import { Divider } from './Divider'
@@ -235,6 +236,21 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
     [outputs],
   )
 
+  /** "Open document" on a citation into a generated document: that
+   *  document's tab, and a request for the viewer to show the passage. An
+   *  upload's "open in source" highlights it in the list as before. */
+  const [locate, setLocate] = useState<LocateRequest | null>(null)
+  function openSource(c: Citation) {
+    if (c.source_kind !== 'generated') {
+      onCitation(c)
+      return
+    }
+    const match = outputs.find((o) => o.source_id === c.source_id)
+    if (!match) return
+    setSelectedOutput(match.id)
+    setLocate((prev) => ({ outputId: match.id, text: c.quote, nonce: (prev?.nonce ?? 0) + 1 }))
+  }
+
   return (
     <div
       ref={columnsRef}
@@ -281,6 +297,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
           onSelect={setSelectedOutput}
           onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
           onDeleted={removeOutput}
+          locate={locate && locate.outputId === selectedOutput ? locate : null}
           onAskAbout={(o) => {
             setScope(o)
             if (fullView) setChatOpen(true)
@@ -312,6 +329,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
             suggestion={uploads?.some((s) => s.demo) ? DEMO_QUESTION : undefined}
             onClearScope={() => setScope(null)}
             onCitationSelected={onCitation}
+            onOpenSource={openSource}
             tools={
               fullView ? undefined : (
                 <span className="presets" role="group" aria-label={t('ws.chatHeight')}>

@@ -436,6 +436,7 @@ export const en = {
   'map.zoomIn': 'Zoom in (+)',
   'map.zoomOut': 'Zoom out (−)',
   'map.label': 'Mind map; drag to pan, scroll to zoom, 0 to fit',
+  'prov.openDoc': 'open document',
 } as const
 
 export type MessageKey = keyof typeof en
