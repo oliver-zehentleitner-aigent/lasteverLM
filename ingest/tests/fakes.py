@@ -24,6 +24,7 @@ from lasteverlm_core import (
 
 from lasteverlm_ingest.repository import (
     KINDS,
+    MAX_ATTEMPTS,
     AdminStats,
     DailyStats,
     LibraryEntry,
@@ -322,6 +323,7 @@ class InMemoryRepository:
                 and lib.kind != "generated"
                 and lib.deleted_at is None
                 and lib.id not in self.claimed
+                and lib.attempts < MAX_ATTEMPTS
                 and self.retry_at.get(lib.id, datetime.min.replace(tzinfo=UTC)) <= datetime.now(UTC)
             ):
                 self.claimed[lib.id] = worker_id
