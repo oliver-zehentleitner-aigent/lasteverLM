@@ -38,6 +38,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Architecture and API contract: architecture.md
+  - The RAG pipeline: rag-pipeline.md
   - User interface: ui.md
   - Walkthrough script: walkthrough.md
   - Repository standard: repository-standard.md

@@ -222,7 +222,7 @@ v1; the frontend polls `GET /sources`.
 
 ```json
 Answer:   {"message_id", "answer", "citations": [Citation]}
-Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote"}
+Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote" (verbatim chunk text), "similarity", "chunk_index", "chunk_count"}
 Conversation: {"id", "notebook_id", "title", "created_at"}
 Message:  {"id", "conversation_id", "role", "content", "citations", "created_at"}
 Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "share_token", "source_id", "created_at"}

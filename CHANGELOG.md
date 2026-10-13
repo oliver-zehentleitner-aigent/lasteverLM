@@ -6,6 +6,14 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Added
+
+- `docs/rag-pipeline.md`: the retrieval pipeline stage by stage (loaders, chunking, embeddings, pgvector, retrieval, answering and citations, generated documents) with the choice and the reason at each stage and what is left out on purpose; linked from the README, the docs home and the nav.
+
+### Changed
+
+- `docs/architecture.md`: Citation carries the verbatim chunk text, similarity, chunk index and count (provenance).
+
 ## [0.5.0] - 2026-10-13
 
 ### Changed
