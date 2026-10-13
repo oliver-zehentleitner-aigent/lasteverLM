@@ -105,3 +105,33 @@ says.
 the demo token — rejected because ingest and rag resolve the token too
 and would write `usage` rows for a user that account has not created
 yet, breaking the balance join.
+
+## A refused sign-in request is told so: 403 `not_allowed`, not a silent 202
+
+**Id:** d2dd5d52-70d4-41eb-a9ed-287e6de3fe9e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-13
+**See:** auth.md#addresses-in-admin_emails-bypass-the-domain-allowlist-an-empty-allowlist-denies-everyone-else — 5bef96eb-4ba1-498e-b26f-ca77f8a56fff — as of 2026-10-13
+**Revisit when:** the allowlist stops being a handful of known partner domains and addresses, or the service is exposed to a public audience
+
+`POST /auth/request-link` answers 202 for an address that may sign in and
+403 with `{"error": ..., "code": "not_allowed"}` for every other; no mail
+goes out for a refused address. This reverses the rule of the family
+contract v1 and of this service until 0.2.1, "always 202, never reveal
+whether an address is allowed".
+
+**Reason:** the maintainer wants people who have no access to be told so
+instead of waiting for a mail that never comes. The always-202 rule bought
+one thing, that nobody could probe which addresses are allowed; here that
+protection is worth little: the allowlist is a handful of partner domains
+and single addresses, not a secret, and learning that a domain is allowed
+gains an attacker nothing they could use without a mailbox there — the
+link still goes only to the address itself. The stable `code` exists
+because the web client also sees 403 for a banned IP and must tell the
+two apart without parsing prose.
+
+**Rejected alternative:** keeping 202 and showing a generic "if your
+address is allowed, a mail is on its way" — rejected by the maintainer
+as the worse experience for exactly the people the product is for.
