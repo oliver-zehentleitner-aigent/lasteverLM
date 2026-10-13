@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Added
 
 - Library page `/library` (header link): every upload and URL of the user with kind, status, size, date and the notebooks it is in (links), filter by kind and name, delete from every notebook after a confirmation that names them.

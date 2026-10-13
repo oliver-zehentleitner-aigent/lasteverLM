@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Changed
 
 - Retrieval, the output queue's gate and the generator input read sources through ingest's source library (`sources` link → `library_sources` → `chunks`); the source id in answers stays the link's.

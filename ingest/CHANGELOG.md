@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Added
 
 - Per-user source library: `GET /library`, `GET /library/{id}` (with the notebooks each source is in) and `DELETE /library/{id}` (removes it from every notebook, chunks and stored object included). Generated outputs are never part of it.
