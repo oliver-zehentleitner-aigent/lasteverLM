@@ -10,6 +10,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 - `ci.yml` and `ktw-lint.yml` limit the `GITHUB_TOKEN` to read access (CodeQL `actions/missing-workflow-permissions`).
 
+### Added
+
+- `black.yml`: a black workflow of its own (one `black --check` per Python directory, each with its own `pyproject.toml`) with the badge in the README; `make check` in every directory still runs black as before.
+
 ### Changed
 
 - `docs/architecture.md`: the SMTP configuration comes from the environment (Secret `lasteverlm-smtp`) and is read-only in the admin panel; the settings table keeps only the allowlist.
