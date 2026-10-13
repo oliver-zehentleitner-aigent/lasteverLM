@@ -286,9 +286,12 @@ its `/api` and `/shared` requests are fetched from `URL` (the live
 deployment by default), so the app sees one origin as in production.
 `scripts/csp/walk.mjs` signs in with the demo token, opens every
 notebook and every ready output kind (mind map, audio, …), `/library`,
-`/settings`, the admin pages, a shared output and the theme toggle, and
-prints the pages it visited, the distinct violations (directive and
-blocked URL), console errors and failed responses. A canary inline
+`/settings`, the admin pages and the theme toggle,
+opens one shared page per output kind and plays the audio in the
+viewer and on its shared page. It prints the pages it visited, the
+distinct violations (directive and blocked URL), console errors, failed
+responses, every other origin the page loaded from directly (the
+storage host for images and audio) and whether the audio played. A canary inline
 script is injected first and must be reported, so "0 violations" cannot
 come from a page without a policy. Exit 0: clean; 1: violations; 2:
 the canary was not reported. On the VM: `sg docker -c "make

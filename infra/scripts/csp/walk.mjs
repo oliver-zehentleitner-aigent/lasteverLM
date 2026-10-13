@@ -42,11 +42,39 @@ page.on('console', (m) => {
 })
 page.on('pageerror', (e) => consoleErrors.set('pageerror: ' + e.message.slice(0, 200), 1))
 const failed = new Map()
+// Origins the page loads from directly (not through the API route): storage, fonts, …
+const origins = new Map()
+const track = async (r) => {
+  const origin = new URL(r.url()).origin
+  if (origin === new URL(WEB).origin) return
+  const resp = await r.response()
+  const key = `${r.resourceType()} ${origin} ${resp ? resp.status() : '-'}`
+  origins.set(key, (origins.get(key) ?? 0) + 1)
+}
+page.on('requestfinished', track)
+page.on('requestfailed', track)
 page.on('response', (r) => {
   if (r.status() < 400) return
   const key = `${r.status()} ${new URL(r.url()).pathname.replace(/[0-9a-f-]{36}/g, '<id>')}`
   failed.set(key, (failed.get(key) ?? 0) + 1)
 })
+
+// Plays the first <audio> for a moment; reports its origin and whether it got data.
+const playAudio = async () => {
+  const a = await page.$('audio')
+  if (!a) return 'no <audio> element'
+  const result = await a.evaluate(async (el) => {
+    try {
+      await el.play()
+      await new Promise((r) => setTimeout(r, 1500))
+      el.pause()
+    } catch (e) {
+      return { error: String(e).slice(0, 120) }
+    }
+    return { origin: new URL(el.currentSrc).origin, readyState: el.readyState, played: el.currentTime > 0 }
+  })
+  return JSON.stringify(result)
+}
 
 const visited = []
 const step = async (label, fn) => {
@@ -93,14 +121,15 @@ await page.evaluate(() => {
 await settle(500)
 const canary = violations.size > 0
 violations.clear()
+consoleErrors.clear() // the canary's own console message
 console.log('canary (inline script) reported:', canary)
 
 const notebooks = await api('/api/ingest/notebooks')
-let share = null
+const shares = new Map() // kind -> share token, one shared page per output kind
 for (const nb of notebooks.slice(0, Number(process.env.MAX_NOTEBOOKS ?? 6))) {
   const outputs = await api(`/api/rag/notebooks/${nb.id}/outputs`)
   const ready = outputs.filter((o) => o.status === 'ready')
-  for (const o of outputs) if (o.share_token && !share) share = o.share_token
+  for (const o of outputs) if (o.share_token && o.status === 'ready' && !shares.has(o.kind)) shares.set(o.kind, o.share_token)
   await page.evaluate((id) => localStorage.setItem('lasteverlm.notebook', id), nb.id)
   await step(`notebook ${nb.id.slice(0, 8)}`, async () => {
     await page.goto(WEB + '/')
@@ -111,7 +140,7 @@ for (const nb of notebooks.slice(0, Number(process.env.MAX_NOTEBOOKS ?? 6))) {
     await step(`  output ${kind}`, async () => {
       await page.click(`#output-${o.id} .out-row`, { timeout: 4000 })
       await settle(kind === 'mindmap' || kind === 'audio' ? 3500 : 1500)
-      if (kind === 'audio') await page.$eval('audio', (a) => a.play()).catch(() => {})
+      if (kind === 'audio') console.log('  audio in viewer:', await playAudio())
     })
   }
 }
@@ -121,14 +150,14 @@ for (const path of ['/library', '/settings', '/admin', '/admin/system', '/admin/
     await settle()
   })
 }
-if (share) {
-  await step('/s/<share>', async () => {
-    await page.goto(WEB + '/s/' + share)
+for (const [kind, token] of shares) {
+  await step(`/s/<share> ${kind}`, async () => {
+    await page.goto(WEB + '/s/' + token)
     await settle(3000)
+    if (kind === 'audio') console.log('  audio on share page:', await playAudio())
   })
-} else {
-  visited.push('/s/<share> (no shared output found)')
 }
+if (!shares.size) visited.push('/s/<share> (no shared output found)')
 for (const theme of ['toggle 1', 'toggle 2']) {
   await step(`theme ${theme}`, async () => {
     await page.goto(WEB + '/')
@@ -145,6 +174,8 @@ console.log(`\nCSP violations (distinct): ${violations.size}`)
 for (const [k, n] of violations) console.log(`  ${n}x ${k}`)
 console.log(`\nconsole errors (distinct): ${consoleErrors.size}`)
 for (const [k, n] of consoleErrors) console.log(`  ${n}x ${k}`)
+console.log(`\nother origins loaded (type origin status): ${origins.size}`)
+for (const [k, n] of origins) console.log(`  ${n}x ${k}`)
 console.log(`\nfailed responses (distinct): ${failed.size}`)
 for (const [k, n] of failed) console.log(`  ${n}x ${k}`)
 if (!canary) {
