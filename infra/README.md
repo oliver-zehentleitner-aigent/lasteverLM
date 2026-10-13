@@ -30,7 +30,7 @@ Let's Encrypt certificate; `compose.yaml` runs the same stack locally.
 | `context/` | Why the infrastructure is built this way ([Keep the Why](https://keepthewhy.com)) |
 
 The repository's workflows under `../.github/workflows/` are owned
-here as well: `ci.yml`, `docker.yml`, `deploy.yml`, `ktw-lint.yml`,
+here as well: `ci.yml`, `docker.yml`, `deploy.yml`, `ktw-lint.yml`, `black.yml`,
 `pages.yml`.
 
 ## From a clean checkout to a running cluster

@@ -435,3 +435,33 @@ uses.
 (nginx only to web, account, ingest, rag) — the controller already
 reaches nothing but the Ingress backends, so it adds objects without
 closing a path; a port-based egress allowlist — see above.
+
+## Workflow actions are pinned by commit SHA; images carry provenance and an SBOM
+
+**Id:** 4408c83d-3036-4b90-8cd2-a9dec926e165
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** infra security audit requested by the maintainer through the family coordinator, 2026-10-14; the reasons are drawn here
+**Revisit when:** an automatic updater for action pins is enabled (then the bump path changes), or GitHub offers immutable action releases that every action used here adopts
+
+Every `uses:` in `.github/workflows/` names a commit SHA with the
+release as a comment; the exception is the rolling
+`keep-the-why@lint-latest` in `ktw-lint.yml`, from the maintainer's own
+repository and documented in place. `docker.yml` pushes every image
+with a provenance attestation (`mode=max`), an SBOM and the OCI
+annotations.
+
+**Reason:** a tag is a pointer its owner can move. `deploy.yml` runs
+next to the cluster's kubeconfig and `docker.yml` with a token that
+can push images; a moved tag in a third-party action would run new
+code there without a change in this repository. A SHA cannot move. The
+provenance and the SBOM let a reviewer check which commit and which
+build an image in the registry came from and what is inside it, without
+access to the build logs.
+
+**Rejected alternatives:** pinning only the third-party actions and
+leaving `actions/*` on major tags — the same risk class with fewer
+owners, and a mixed rule is easier to get wrong; adding Dependabot for
+the pins in the same change — it opens pull requests on its own, which
+is the maintainer's call, so it is proposed separately.
