@@ -8,6 +8,7 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Changed
 
+- `docs/architecture.md`: admins are exempt from the credit check (`has_credit`, `is_admin`, `admin_only` in core); `request-link` answers 403 `not_allowed` instead of a silent 202; allowlist of domains and single addresses edited per entry; voucher list and one `/admin/stats` per service (account, ingest, rag) with their shapes.
 - Wording: "provide documents" instead of "upload documents" in the README, the docs site, AGENTS.md and the walkthrough script, because sources are files, links and images; the login page follows in web.
 
 ### Changed

@@ -46,7 +46,7 @@ Rules that hold everywhere:
 - **Services share the database, never each other's APIs.** The schema is the contract between them. There are no service-to-service HTTP calls.
 - **Every stage is an interface with one implementation.** New source kinds, chunkers, embedding or LLM providers, retrievers are added as modules, never by editing callers.
 - **Configuration from the environment only.** A service fails at startup when a required value is missing. Secrets never enter a repository.
-- **Every model call is accounted.** One `usage` row per LLM or embedding call, priced at write time. Zero balance means 402.
+- **Every model call is accounted.** One `usage` row per LLM or embedding call, priced at write time. Zero balance means 402. Admins are exempt from the check.
 - **Nothing is shipped but containers.** Python source goes into the image; no PyPI, no conda, no compiled artifacts. One image per service, tagged with the Git SHA and the release tag, in GitHub's container registry.
 - **Every process can run any number of times.** API pods hold no state; background work is claimed from PostgreSQL by worker pods; uploads live in object storage; sessions are JWTs.
 
@@ -109,29 +109,29 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 ## Credits and accounting
 
 - Prices per model live in config (`MODEL_PRICES`, JSON, cents per million tokens, in and out), with defaults in core. The writer of a usage row prices it: `cost_cents = ceil(tokens_in * price_in + tokens_out * price_out)`.
-- Core provides `record_usage(conn, user_id, notebook_id, service, kind, model, tokens_in, tokens_out)` and `balance_cents(conn, user_id)`. Services call these, never write `usage` by hand.
+- Core provides `record_usage(conn, user_id, notebook_id, service, kind, model, tokens_in, tokens_out)`, `balance_cents(conn, user_id)`, `has_credit(conn, user_id)` and `is_admin(conn, user_id)` (async twins with an `a` prefix), plus `lasteverlm_core.web.admin_only`, the FastAPI dependency behind every admin endpoint of ingest and rag. Services call these, never write `usage` by hand.
 - Core provides the object-storage client (`lasteverlm_core.storage`: put, get, delete, presigned GET with an expiry). Ingest and rag use it; no service carries its own S3 code.
-- A voucher is a single-use code; redeeming it writes one positive ledger row. Default amount 1000 cents.
-- Before any model call a service checks `balance_cents > 0`, otherwise 402 `{"error": "credit exhausted"}`.
+- A voucher is a single-use code; redeeming it writes one positive ledger row. Default amount `VOUCHER_DEFAULT_CENTS` (1000 in code, 500 in production). The code is stored hashed and shown once; the admin list never shows it.
+- Before any model call a service checks `has_credit`: an admin always has credit, anyone else needs `balance_cents > 0`, otherwise 402 `{"error": "credit exhausted"}` (`core/context/credit.md`).
 
 ## Authentication
 
 - Bearer token on every request. Two schemes, resolved by one function in core, `current_user(authorization) -> User`:
   - JWT, HS256 with `AUTH_JWT_SECRET`, `sub` = user id, 7 days, issued by account after a magic link.
   - `DEMO_TOKEN` from config, resolves to the demo user `00000000-0000-4000-8000-000000000001`, seeded by account's migration with email `demo@localhost` and an initial ledger credit. Exists for development and recorded demos; unset in production.
-- Magic link: `POST /api/account/auth/request-link` always answers 202; the mail carries `<PUBLIC_BASE_URL>/auth/callback?token=...`; the frontend exchanges the token at `GET /api/account/auth/callback?token=...` for `{jwt, user}`. Tokens are stored hashed, single use, 15 minutes.
-- Allowed e-mail domains live in `settings` (key `allowed_domains`), seeded once from `AUTH_ALLOWED_DOMAINS`, edited in the admin panel. Not in any repository.
+- Magic link: `POST /api/account/auth/request-link` answers 202 for an address that may sign in and 403 `{"error", "code": "not_allowed"}` for any other, no mail in that case (`account/context/auth.md`); the mail carries `<PUBLIC_BASE_URL>/auth/callback?token=...`; the frontend exchanges the token at `GET /api/account/auth/callback?token=...` for `{jwt, user}`. Tokens are stored hashed, single use, 15 minutes.
+- Who may sign in: addresses in `ADMIN_EMAILS`, addresses on the allowlist (`settings` key `allowed_addresses`) and addresses whose domain is on it (`settings` key `allowed_domains`, seeded once from `AUTH_ALLOWED_DOMAINS`). Both lists are edited entry by entry in the admin panel. Not in any repository.
 - `is_admin`: the first user ever created, plus addresses in `ADMIN_EMAILS`.
 
 ## API contract v1
 
-JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx. 401 unauthenticated, 402 credit exhausted, 403 not admin, 404 not yours or missing.
+JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, plus a stable `"code"` where a client must tell refusals apart (today `not_allowed`). 401 unauthenticated, 402 credit exhausted, 403 not admin, 404 not yours or missing.
 
 ### account, prefix `/api/account`
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/auth/request-link` | `{"email"}` | 202 |
+| POST | `/auth/request-link` | `{"email"}` | 202, or 403 `code: not_allowed` |
 | GET | `/auth/callback?token=` | | `{"jwt", "user": User}` |
 | GET | `/me` | | `User` |
 | POST | `/vouchers/redeem` | `{"code"}` | `User` |
@@ -141,14 +141,24 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx. 40
 | GET | `/admin/visits?days=` | | `[{"day","path","visits","unique"}]` |
 | GET | `/admin/settings/smtp` | | `Smtp` (read-only, from the environment, never the password) |
 | POST | `/admin/settings/smtp/test` | | 202 |
-| GET, PUT | `/admin/settings/domains` | `{"allowed_domains": []}` | same |
+| GET | `/admin/settings/allowlist` | | `Allowlist` |
+| POST | `/admin/settings/domains` | `{"domain"}` | 201 `Allowlist`; 409 listed, 422 bad value |
+| DELETE | `/admin/settings/domains/{domain}` | | 204 |
+| POST | `/admin/settings/addresses` | `{"address"}` | 201 `Allowlist`; 409 listed, 422 bad value |
+| DELETE | `/admin/settings/addresses/{address}` | | 204 |
 | POST | `/admin/vouchers` | `{"amount_cents", "count"}` | `{"codes": []}` once |
+| GET | `/admin/vouchers?limit=` | | `[AdminVoucher]`, newest first |
+| GET | `/admin/stats` | | `AccountStats` |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
 User:      {"id", "email", "is_admin", "balance_cents", "created_at"}
 AdminUser: {"id", "email", "is_admin", "created_at", "last_login_at", "balance_cents", "usage_cents"}
 Smtp:      {"host", "port", "username", "from_address", "starttls"}   -- empty host: mail not configured
+Allowlist: {"allowed_domains": [], "allowed_addresses": []}
+AdminVoucher: {"id", "amount_cents", "created_by", "created_at", "redeemed_by", "redeemed_at", "status": "open|redeemed"}
+AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}, "credits_granted_cents",
+               "usage_cost_cents": {"total", "last_24h"}, "blocks_active", "bans_active"}
 ```
 
 ### ingest, prefix `/api/ingest`
@@ -161,11 +171,13 @@ Smtp:      {"host", "port", "username", "from_address", "starttls"}   -- empty h
 | GET | `/notebooks/{id}/sources` | | `[Source]` |
 | POST | `/notebooks/{id}/sources` | multipart `file`, or `{"url"}` | `Source` with `status: "processing"` |
 | DELETE | `/sources/{id}` | | 204 |
+| GET | `/admin/stats` | admin only | `IngestStats` |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
 Notebook: {"id", "title", "created_at"}
 Source:   {"id", "notebook_id", "name", "kind", "status", "error", "created_at"}
+IngestStats: {"sources": {"processing", "ready", "failed"}, "jobs": {"pending", "running", "failed"}, "chunks", "source_bytes"}
 ```
 
 Status codes: `POST /notebooks` 201, `POST /notebooks/{id}/sources` 202, `DELETE` 204, `{"url"}` 501 until the url loader exists.
@@ -190,6 +202,7 @@ v1; the frontend polls `GET /sources`.
 | POST | `/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/outputs/{id}/share` | | 204 |
 | GET | `/shared/{token}` | no auth | `Output` without ids, read-only |
+| GET | `/admin/stats` | admin only | `RagStats` |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
@@ -197,6 +210,8 @@ Answer:   {"message_id", "answer", "citations": [Citation]}
 Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote"}
 Message:  {"id", "role", "content", "citations", "created_at"}
 Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "share_token", "source_id", "created_at"}
+RagStats: {"notebooks": {"total"}, "messages": {"total", "last_24h"}, "outputs": {"by_kind": {<kind>: n}, "by_status": {<status>: n}},
+           "jobs": {"pending", "running", "failed"}, "shared": {"outputs"}}
 ```
 
 `scope.output_id` restricts retrieval to the chunks of one generated
