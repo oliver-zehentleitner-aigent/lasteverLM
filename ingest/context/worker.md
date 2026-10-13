@@ -76,6 +76,13 @@ The credit check runs in the handler, so the user gets a 402 before
 anything is stored, and again in the worker before each model call,
 because the balance can change in between.
 
+The order inside the handler is part of the decision: the object goes to
+the bucket first and the claimable row is written after it. A
+`processing` row is in the queue the moment it exists; with the row
+first, a worker polling in that instant claimed it and found no object
+(`NoSuchKey`, the v0.7.1 smoke failure, 2026-10-13). A failed upload now
+leaves no row at all (503), instead of a row marked failed.
+
 ## A failed summary fails the source, even though its chunks are written
 
 **Id:** f11ae1b9-3c5a-4eb7-bc8d-52c1344805ef
