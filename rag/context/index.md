@@ -73,7 +73,7 @@ repository root's `context/`.
 
 ## R
 
-- [retrieval.md](retrieval.md) — why an unscoped question is answered from the uploads only (pending the maintainer's confirmation), and why a scoped one runs without a similarity floor
+- [retrieval.md](retrieval.md) — why an unscoped question is answered from the uploads only (pending the maintainer's confirmation), and why a scoped one runs without a similarity floor; incident: a ready PDF that never retrieved, and the unusable-vector guard
 
 ## S
 
