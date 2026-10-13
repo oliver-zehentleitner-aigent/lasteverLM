@@ -32,6 +32,16 @@ class LoginRecord:
 
 
 @dataclass(frozen=True)
+class LoginAttemptRecord:
+    """A request for a sign-in link, allowed or refused, with the plain client address."""
+
+    at: datetime
+    email: str
+    ip: str
+    outcome: Literal["allowed", "refused"]
+
+
+@dataclass(frozen=True)
 class VisitRecord:
     at: datetime
     path: str
@@ -138,6 +148,9 @@ class Repository(Protocol):
     async def record_login(self, user_id: uuid.UUID, at: datetime) -> None: ...
     async def list_users(self) -> list[UserRecord]: ...
     async def list_logins(self, limit: int) -> list[LoginRecord]: ...
+    async def add_login_attempt(self, attempt: LoginAttemptRecord) -> None: ...
+    async def list_login_attempts(self, limit: int) -> list[LoginAttemptRecord]: ...
+    async def purge_login_attempts(self, before: datetime) -> int: ...
 
     # magic links ------------------------------------------------------------
     async def create_magic_link(

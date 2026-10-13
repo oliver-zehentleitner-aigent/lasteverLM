@@ -23,6 +23,7 @@ from .repository import (
     BanRecord,
     BlockRecord,
     CreditTotals,
+    LoginAttemptRecord,
     LoginRecord,
     StatsRecord,
     UserRecord,
@@ -72,6 +73,7 @@ class MemoryRepository:
     settings: dict[str, dict[str, Any]] = field(default_factory=dict)
     users: dict[uuid.UUID, UserRecord] = field(default_factory=dict)
     logins: list[LoginRecord] = field(default_factory=list)
+    login_attempts: list[LoginAttemptRecord] = field(default_factory=list)
     magic_links: dict[str, _MagicLink] = field(default_factory=dict)
     vouchers: dict[str, _Voucher] = field(default_factory=dict)
     ledger: list[_Ledger] = field(default_factory=list)
@@ -143,6 +145,20 @@ class MemoryRepository:
 
     async def list_logins(self, limit: int) -> list[LoginRecord]:
         return sorted(self.logins, key=lambda r: r.at, reverse=True)[:limit]
+
+    async def add_login_attempt(self, attempt: LoginAttemptRecord) -> None:
+        async with self._lock:
+            self.login_attempts.append(attempt)
+
+    async def list_login_attempts(self, limit: int) -> list[LoginAttemptRecord]:
+        return sorted(self.login_attempts, key=lambda r: r.at, reverse=True)[:limit]
+
+    async def purge_login_attempts(self, before: datetime) -> int:
+        async with self._lock:
+            kept = [a for a in self.login_attempts if a.at >= before]
+            removed = len(self.login_attempts) - len(kept)
+            self.login_attempts = kept
+            return removed
 
     # magic links ------------------------------------------------------------
     async def create_magic_link(self, email: str, token_hash: str, expires_at: datetime) -> None:

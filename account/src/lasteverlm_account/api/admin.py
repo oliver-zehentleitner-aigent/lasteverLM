@@ -13,6 +13,7 @@ from ..models import (
     AdminBan,
     AdminBlock,
     AdminLogin,
+    AdminLoginAttempt,
     AdminStats,
     AdminUser,
     AdminVisit,
@@ -44,6 +45,14 @@ async def logins(
     service: Service, _: AdminUserDep, limit: int = Query(default=100, ge=1, le=1000)
 ) -> list[AdminLogin]:
     return await service.admin_logins(limit)
+
+
+@router.get("/login-attempts", response_model=list[AdminLoginAttempt])
+async def login_attempts(
+    service: Service, _: AdminUserDep, limit: int = Query(default=100, ge=1, le=1000)
+) -> list[AdminLoginAttempt]:
+    """Requests for a sign-in link, newest first, allowed and refused, with the client IP."""
+    return await service.admin_login_attempts(limit)
 
 
 @router.get("/visits", response_model=list[AdminVisit])

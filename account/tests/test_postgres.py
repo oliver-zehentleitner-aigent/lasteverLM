@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from lasteverlm_core import DEMO_USER_ID, purge_params
 
-from lasteverlm_account.repository import CreditTotals
+from lasteverlm_account.repository import CreditTotals, LoginAttemptRecord
 from lasteverlm_account.repository_postgres import PostgresRepository
 
 DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
@@ -200,3 +200,20 @@ async def test_delete_voucher_states(repo: PostgresRepository) -> None:
     assert await repo.delete_voucher(open_id) == "missing"
     assert await repo.delete_voucher(used_id) == "redeemed"
     assert await repo.credit_totals(admin.id) == CreditTotals(100, 0)
+
+
+async def test_login_attempts_keep_the_plain_ip_and_are_purged(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from login_attempts")
+    await repo.add_login_attempt(
+        LoginAttemptRecord(now - timedelta(days=31), "old@pg.test", "203.0.113.1", "refused")
+    )
+    await repo.add_login_attempt(LoginAttemptRecord(now, "new@pg.test", "2001:db8::7", "allowed"))
+    rows = await repo.list_login_attempts(10)
+    assert [(a.email, a.ip, a.outcome) for a in rows] == [
+        ("new@pg.test", "2001:db8::7", "allowed"),
+        ("old@pg.test", "203.0.113.1", "refused"),
+    ]
+    assert await repo.purge_login_attempts(now - timedelta(days=30)) == 1
+    assert [a.email for a in await repo.list_login_attempts(10)] == ["new@pg.test"]

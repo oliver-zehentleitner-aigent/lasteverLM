@@ -111,3 +111,32 @@ def test_demo_token_resolves_to_seeded_demo_user(
     r = client.get("/api/account/me", headers=bearer(DEMO_TOKEN))
     assert r.status_code == 200
     assert r.json()["id"] == str(DEMO_USER_ID)
+
+
+def test_every_link_request_is_logged_with_outcome_and_client_ip(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository, clock: Clock
+) -> None:
+    client.post(
+        "/api/account/auth/request-link",
+        json={"email": "Mallory@evil.test"},
+        headers={"X-Forwarded-For": "203.0.113.7, 10.0.0.1"},
+    )
+    clock.advance(minutes=1)
+    token, _ = login(client, mailer, "admin@example.org")
+    assert [(a.email, a.ip, a.outcome) for a in repo.login_attempts] == [
+        ("mallory@evil.test", "203.0.113.7", "refused"),
+        ("admin@example.org", "testclient", "allowed"),
+    ]
+    r = client.get("/api/account/admin/login-attempts", headers=bearer(token))
+    assert r.status_code == 200
+    assert [(a["email"], a["outcome"]) for a in r.json()] == [
+        ("admin@example.org", "allowed"),
+        ("mallory@evil.test", "refused"),
+    ]  # newest first
+    assert set(r.json()[0]) == {"at", "email", "ip", "outcome"}
+    assert (
+        client.get("/api/account/admin/login-attempts?limit=1", headers=bearer(token)).json()[0][
+            "email"
+        ]
+        == "admin@example.org"
+    )

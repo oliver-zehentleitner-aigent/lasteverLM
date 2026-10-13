@@ -24,6 +24,7 @@ from .repository import (
     BanRecord,
     BlockRecord,
     CreditTotals,
+    LoginAttemptRecord,
     LoginRecord,
     StatsRecord,
     UserRecord,
@@ -160,6 +161,36 @@ class PostgresRepository:
             )
             rows = await cur.fetchall()
         return [LoginRecord(r["user_id"], r["email"], r["at"]) for r in rows]
+
+    async def add_login_attempt(self, attempt: LoginAttemptRecord) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "insert into login_attempts (at, email, ip, outcome) values (%s, %s, %s, %s)",
+                (attempt.at, attempt.email, attempt.ip, attempt.outcome),
+            )
+
+    async def list_login_attempts(self, limit: int) -> list[LoginAttemptRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select at, email, ip, outcome from login_attempts
+                   order by at desc, id desc limit %s""",
+                (limit,),
+            )
+            rows = await cur.fetchall()
+        return [
+            LoginAttemptRecord(
+                r["at"],
+                r["email"],
+                str(r["ip"]),
+                "allowed" if r["outcome"] == "allowed" else "refused",
+            )
+            for r in rows
+        ]
+
+    async def purge_login_attempts(self, before: datetime) -> int:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute("delete from login_attempts where at < %s", (before,))
+            return int(cur.rowcount)
 
     # magic links ------------------------------------------------------------
     async def create_magic_link(self, email: str, token_hash: str, expires_at: datetime) -> None:

@@ -20,6 +20,7 @@ from .conftest import DEMO_TOKEN, Clock, FakeMailer, bearer, login
 ADMIN_ROUTES = [
     ("GET", "/api/account/admin/users", None),
     ("GET", "/api/account/admin/logins", None),
+    ("GET", "/api/account/admin/login-attempts", None),
     ("GET", "/api/account/admin/visits", None),
     ("GET", "/api/account/admin/settings/smtp", None),
     ("GET", "/api/account/admin/settings/allowlist", None),

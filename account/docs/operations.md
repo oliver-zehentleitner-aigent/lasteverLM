@@ -49,7 +49,8 @@ choose the address that is hashed.
 ## Retention and cleanup
 
 At every start the service deletes visitor-log rows older than
-`VISIT_RETENTION_DAYS`, expired magic links, and — with core's own
+`VISIT_RETENTION_DAYS`, expired magic links, `login_attempts` rows older
+than `RETENTION_DAYS`, and — with core's own
 `PURGE_SQL` statements, in one transaction — rows older than
 `RETENTION_DAYS` from the tables core's rate-limit middleware writes:
 `access_log` rows, `ip_blocks` rows not updated since, and `ip_bans`

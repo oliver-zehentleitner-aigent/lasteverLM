@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from lasteverlm_account.privacy import DailySalt, client_ip, ua_family, visitor_hash
-from lasteverlm_account.repository import VisitRecord
+from lasteverlm_account.repository import LoginAttemptRecord, VisitRecord
 from lasteverlm_account.repository_memory import MemoryRepository
 from lasteverlm_account.service import AccountService
 
@@ -127,8 +127,10 @@ async def test_startup_applies_retention(
     fresh = clock.now - timedelta(days=29)
     for at in (old, fresh):
         await repo.add_visit(VisitRecord(at, "/", None, "h", "other"))
+        await repo.add_login_attempt(LoginAttemptRecord(at, "a@b.test", "203.0.113.1", "refused"))
     await service.startup()
     assert [v.at for v in repo.visits] == [fresh]
+    assert [a.at for a in repo.login_attempts] == [fresh]
 
 
 @pytest.mark.anyio
