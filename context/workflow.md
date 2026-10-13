@@ -105,3 +105,23 @@ write access and sets branch protection to require CI only.
 in the superseded entry). Right for the long run, rejected for the
 build phase because it would make the maintainer the bottleneck for
 six parallel agents.
+
+## Black formats the Python services; ruff only lints
+
+**Id:** 011fb29d-7593-49be-a12f-2e0619e40d77
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer instruction, 2026-10-13
+
+Every Python directory (core, account, ingest, rag, the infra scripts)
+is formatted with black at line length 100, checked by `black --check`
+in `make lint`. ruff stays for linting (imports, bugbear, pyupgrade)
+and no longer formats.
+
+**Reason:** the maintainer formats all of his repositories with black
+and wants one formatter dialect across them, not one per project.
+
+**Rejected alternative:** `ruff format`, which the services used until
+then. It is black-compatible and one tool fewer, but a second
+formatter in the maintainer's tool chain for no gain.
