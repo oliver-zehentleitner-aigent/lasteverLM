@@ -1,31 +1,44 @@
 import type { OutputKind } from '../api/types'
-import { OUTPUT_FORMS, tileNote } from '../lib/outputs'
+import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 
 interface Props {
-  disabled: boolean
+  selected: OutputKind | null
+  hasReadySource: boolean
+  busy: boolean
+  onSelect: (kind: OutputKind) => void
   onCreate: (kind: OutputKind) => void
 }
 
-/** The output forms as tiles under the sources. A click asks rag to
- *  generate one; the result appears as a tab in the viewer. */
-export function OutputTiles({ disabled, onCreate }: Props) {
+/** The output formats as tiles under the sources. A click (or Enter on a
+ *  focused tile) only selects one; the Create button below starts the job
+ *  for the selected format, and says why when it cannot yet. */
+export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate }: Props) {
+  const blocker = createBlocker(selected, hasReadySource)
   return (
     <section className="tiles">
-      <h2>Create</h2>
-      <div className="tile-grid">
+      <h2>Output format</h2>
+      <div className="tile-grid" role="radiogroup" aria-label="Output format">
         {OUTPUT_FORMS.map((f) => (
           <button
             key={f.kind}
             type="button"
-            className="tile"
-            disabled={disabled || !f.available}
+            role="radio"
+            aria-checked={f.kind === selected}
+            className={f.kind === selected ? 'tile selected' : 'tile'}
+            disabled={!f.available}
             title={tileNote(f)}
-            onClick={() => onCreate(f.kind)}
+            onClick={() => onSelect(f.kind)}
           >
             <strong>{f.label}</strong>
             <span className="muted small">{tileNote(f)}</span>
           </button>
         ))}
+      </div>
+      <div className="create-row">
+        <button type="button" disabled={busy || blocker !== null} onClick={() => selected && onCreate(selected)}>
+          Create
+        </button>
+        {blocker && <span className="muted small">{blocker}</span>}
       </div>
     </section>
   )

@@ -11,6 +11,8 @@ interface Props {
   /** bumps when the wizard added sources, to reload the list */
   version: number
   onAdd: () => void
+  /** whether any upload is ready, for the Create button */
+  onReadyChange: (hasReady: boolean) => void
 }
 
 /** Left column, top: the sources with status and delete; the add button
@@ -18,13 +20,16 @@ interface Props {
  *  (the contract has no push channel) and stops when everything is ready
  *  or failed. Only uploads are listed: generated documents are sources of
  *  kind `generated` for the chat, but the Outputs list shows them. */
-export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd }: Props) {
+export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, onReadyChange }: Props) {
   const [sources, setSources] = useState<Source[]>([])
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
     void run(async () => setSources(uploadedSources(await ingest.listSources(notebookId))))
   }, [notebookId, version, run])
+
+  const hasReady = sources.some((s) => s.status === 'ready')
+  useEffect(() => onReadyChange(hasReady), [hasReady, onReadyChange])
 
   const processing = sources.some((s) => s.status === 'processing')
   useEffect(() => {

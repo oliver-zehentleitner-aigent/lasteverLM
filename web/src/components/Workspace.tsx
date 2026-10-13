@@ -101,6 +101,9 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   const [scope, setScope] = useState<Output | null>(null)
   const [highlight, setHighlight] = useState<string | null>(null)
   const [sourcesVersion, setSourcesVersion] = useState(0)
+  // the picked output format, kept while this notebook is open
+  const [format, setFormat] = useState<OutputKind | null>(null)
+  const [hasReadySource, setHasReadySource] = useState(false)
   const { busy, error, run } = useAsync()
 
   const reloadOutputs = useCallback(async () => {
@@ -172,8 +175,20 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   return (
     <div className="columns">
       <div className="column left no-print">
-        <SourcesPane notebookId={notebookId} highlightedSourceId={highlight} version={sourcesVersion} onAdd={() => onWizard(true)} />
-        <OutputTiles disabled={busy} onCreate={(k) => void createOutput(k)} />
+        <SourcesPane
+          notebookId={notebookId}
+          highlightedSourceId={highlight}
+          version={sourcesVersion}
+          onAdd={() => onWizard(true)}
+          onReadyChange={setHasReadySource}
+        />
+        <OutputTiles
+          selected={format}
+          hasReadySource={hasReadySource}
+          busy={busy}
+          onSelect={setFormat}
+          onCreate={(k) => void createOutput(k)}
+        />
         <OutputsPane outputs={outputs} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
       </div>
       <div className="column right">
