@@ -6,6 +6,7 @@ import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
 import { deleteConfirmText, filterLibrary, purgeIn, type LibraryFilter } from '../lib/library'
+import { openTarget } from '../lib/openEntry'
 import { SOURCE_FORMS } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { ImageName } from './ImageName'
@@ -115,56 +116,74 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
           </tr>
         </thead>
         <tbody>
-          {shown.map((e) => (
-            <tr key={e.id}>
-              <td className="name">
-                <span className="name-cell">
-                  <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
-                  <DemoBadge demo={e.demo} />
-                </span>
-              </td>
-              <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
-              <td>
-                <span className={`badge ${e.status}`}>{t(`status.${e.status}`)}</span>
-                {e.status === 'failed' && e.error && <span className="error small"> {e.error}</span>}
-              </td>
-              <td>
-                {e.size_bytes === null ? (
-                  <span className="muted small" title={t('lib.sizeUnknownTitle')}>
-                    {t('lib.sizeUnknown')}
-                  </span>
-                ) : (
-                  formatBytes(e.size_bytes)
-                )}
-              </td>
-              <td>{formatTime(e.created_at)}</td>
-              <td>
-                {e.notebooks.length === 0 ? (
-                  <span className="muted small">{t('lib.notInAny')}</span>
-                ) : (
-                  <span className="where-used">
-                    {e.notebooks.map((n) => (
-                      <a
-                        key={n.id}
-                        href="/"
-                        onClick={(ev) => {
-                          ev.preventDefault()
-                          onOpenNotebook(n.id)
-                        }}
-                      >
-                        {n.title}
+          {shown.map((e) => {
+            const href = openTarget(e)
+            return (
+              <tr key={e.id}>
+                <td className="name">
+                  <span className="name-cell">
+                    {href ? (
+                      <a className="open-name" href={href} target="_blank" rel="noopener noreferrer" title={t('lib.openTitle', { name: e.name })}>
+                        <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
                       </a>
-                    ))}
+                    ) : (
+                      <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                    )}
+                    <DemoBadge demo={e.demo} />
                   </span>
-                )}
-              </td>
-              <td>
-                <button type="button" className="link danger" disabled={busy} onClick={() => void remove(e)}>
-                  {t('common.delete')}
-                </button>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
+                <td>
+                  <span className={`badge ${e.status}`}>{t(`status.${e.status}`)}</span>
+                  {e.status === 'failed' && e.error && <span className="error small"> {e.error}</span>}
+                </td>
+                <td>
+                  {e.size_bytes === null ? (
+                    <span className="muted small" title={t('lib.sizeUnknownTitle')}>
+                      {t('lib.sizeUnknown')}
+                    </span>
+                  ) : (
+                    formatBytes(e.size_bytes)
+                  )}
+                </td>
+                <td>{formatTime(e.created_at)}</td>
+                <td>
+                  {e.notebooks.length === 0 ? (
+                    <span className="muted small">{t('lib.notInAny')}</span>
+                  ) : (
+                    <span className="where-used">
+                      {e.notebooks.map((n) => (
+                        <a
+                          key={n.id}
+                          href="/"
+                          onClick={(ev) => {
+                            ev.preventDefault()
+                            onOpenNotebook(n.id)
+                          }}
+                        >
+                          {n.title}
+                        </a>
+                      ))}
+                    </span>
+                  )}
+                </td>
+                <td className="row-actions">
+                  {href ? (
+                    <a className="link" href={href} target="_blank" rel="noopener noreferrer">
+                      {t('lib.open')}
+                    </a>
+                  ) : (
+                    <button type="button" className="link" disabled title={t('lib.openUnavailable')}>
+                      {t('lib.open')}
+                    </button>
+                  )}
+                  <button type="button" className="link danger" disabled={busy} onClick={() => void remove(e)}>
+                    {t('common.delete')}
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
           {shown.length === 0 && !busy && (
             <tr>
               <td className="muted" colSpan={7}>
