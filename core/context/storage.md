@@ -32,3 +32,28 @@ that `anyio.to_thread.run_sync` serves.
 unchanged. A settings object read from the environment is how core's
 auth and inference settings work, and it lets a service fail at startup
 on a missing `S3_*` variable instead of at the first upload.
+
+## Only a missing key means "not there"; every other storage error raises
+
+**Id:** c7bab6fe-8259-44ce-8451-ad5a3e434065
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** rag's request for cached voice samples at deterministic keys, 2026-10-13
+**Revisit when:** a caller needs a cache check that may degrade instead of fail, or the object store reports a missing key with a code other than 404, NoSuchKey or NotFound
+
+`exists(key)` is a HEAD request. It returns `False` only for the codes
+an S3 implementation uses for a missing key (`404`, `NoSuchKey`,
+`NotFound`). Anything else raises `StorageError`: denied access, a
+missing bucket, a 5xx, an unreachable endpoint.
+
+**Reason:** the caller is a cache in front of a paid synthesis. If
+"broken" read as "not cached yet", an outage or a revoked key would
+re-synthesise and pay on every request, and the fault would show up on
+the bill instead of in the logs.
+
+**Rejected alternative:** `False` on any error, the forgiving check.
+That is what makes a broken bucket look like an empty cache.
+
+**Rejected alternative:** `get` and catching the miss. That downloads the
+whole object just to learn that it exists.
