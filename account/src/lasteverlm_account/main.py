@@ -59,11 +59,13 @@ def create_app(
             else MemoryRateLimitStore()
         )
 
+    limits = rate_limit_settings or RateLimitSettings.from_env()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if postgres is not None:
             await postgres.open()
-        service = AccountService(resolved, repo, mailer or SmtpMailer())
+        service = AccountService(resolved, repo, mailer or SmtpMailer(), rate_limit=limits)
         await service.startup()
         app.state.service = service
         try:
@@ -105,7 +107,7 @@ def create_app(
     # Outermost: 429 / 403 before any route runs, one access_log row per request.
     app.add_middleware(
         RateLimitMiddleware,
-        limiter=RateLimiter(rate_limit_store, rate_limit_settings or RateLimitSettings.from_env()),
+        limiter=RateLimiter(rate_limit_store, limits),
         service="account",
         auth=AuthSettings(jwt_secret=resolved.auth_jwt_secret, demo_token=resolved.demo_token),
         trust_forwarded=resolved.trust_proxy_headers,

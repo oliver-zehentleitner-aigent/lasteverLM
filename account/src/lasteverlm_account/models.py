@@ -76,6 +76,28 @@ class AdminLogin(BaseModel):
     at: datetime
 
 
+class RateLimitRulesView(BaseModel):
+    """The rate-limit rule in force. The first four are editable at run time (stored under
+    the ``ratelimit`` settings key, read by core's middleware in every service within 30 s);
+    ``ban_max_days`` and ``retention_days`` come from the environment only."""
+
+    per_minute: int
+    block_minutes: int
+    ban_after_strikes: int
+    strike_window_hours: int
+    ban_max_days: int
+    retention_days: int
+
+
+class RateLimitRulesUpdate(BaseModel):
+    """Bounds are core's ``RATE_LIMIT_RULE_BOUNDS``; a value outside them is a 422."""
+
+    per_minute: int
+    block_minutes: int
+    ban_after_strikes: int
+    strike_window_hours: int
+
+
 class AdminLoginAttempt(BaseModel):
     """A request for a sign-in link. Holds the plain client IP (context/privacy.md)."""
 

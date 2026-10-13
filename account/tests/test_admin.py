@@ -23,6 +23,9 @@ ADMIN_ROUTES = [
     ("GET", "/api/account/admin/login-attempts", None),
     ("GET", "/api/account/admin/visits", None),
     ("GET", "/api/account/admin/settings/smtp", None),
+    ("GET", "/api/account/admin/settings/ratelimit", None),
+    ("PUT", "/api/account/admin/settings/ratelimit", {}),
+    ("DELETE", "/api/account/admin/settings/ratelimit", None),
     ("GET", "/api/account/admin/settings/allowlist", None),
     ("POST", "/api/account/admin/settings/domains", {"domain": "x.test"}),
     ("DELETE", "/api/account/admin/settings/domains/example.org", None),
@@ -263,3 +266,43 @@ def test_stats_overview(
         "blocks_active": 1,
         "bans_active": 1,
     }
+
+
+def test_ratelimit_rules_are_env_defaults_until_overridden(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository
+) -> None:
+    from lasteverlm_core import RATE_LIMIT_SETTINGS_KEY
+
+    token, _ = login(client, mailer, "admin@example.org")
+    h = bearer(token)
+    url = "/api/account/admin/settings/ratelimit"
+    defaults = {
+        "per_minute": 120,
+        "block_minutes": 15,
+        "ban_after_strikes": 3,
+        "strike_window_hours": 24,
+        "ban_max_days": 90,
+        "retention_days": 30,
+    }
+    assert client.get(url, headers=h).json() == defaults
+
+    body = {"per_minute": 60, "block_minutes": 5, "ban_after_strikes": 2, "strike_window_hours": 12}
+    r = client.put(url, json=body, headers=h)
+    assert r.status_code == 200
+    assert r.json() == {**body, "ban_max_days": 90, "retention_days": 30}
+    # stored under core's key, in core's shape, so every service's middleware reads it
+    assert repo.settings[RATE_LIMIT_SETTINGS_KEY] == body
+
+    r = client.put(url, json={**body, "per_minute": 0}, headers=h)
+    assert r.status_code == 422
+    assert "per_minute" in r.json()["error"]
+    r = client.put(url, json={**body, "block_minutes": 1441}, headers=h)
+    assert r.status_code == 422 and "block_minutes" in r.json()["error"]
+    assert repo.settings[RATE_LIMIT_SETTINGS_KEY] == body  # a refused update changes nothing
+
+    repo.settings[RATE_LIMIT_SETTINGS_KEY] = {"per_minute": "lots"}  # malformed by hand
+    assert client.get(url, headers=h).json() == defaults
+
+    assert client.delete(url, headers=h).status_code == 204
+    assert RATE_LIMIT_SETTINGS_KEY not in repo.settings
+    assert client.get(url, headers=h).json() == defaults

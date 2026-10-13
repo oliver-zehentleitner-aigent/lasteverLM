@@ -217,3 +217,17 @@ async def test_login_attempts_keep_the_plain_ip_and_are_purged(repo: PostgresRep
     ]
     assert await repo.purge_login_attempts(now - timedelta(days=30)) == 1
     assert [a.email for a in await repo.list_login_attempts(10)] == ["new@pg.test"]
+
+
+async def test_ratelimit_override_is_what_core_store_reads(repo: PostgresRepository) -> None:
+    from lasteverlm_core import RATE_LIMIT_SETTINGS_KEY, AsyncPostgresRateLimitStore, RateLimitRules
+
+    store = AsyncPostgresRateLimitStore(repo.connection)
+    await repo.delete_setting(RATE_LIMIT_SETTINGS_KEY)
+    assert await store.rule_overrides() is None
+    rules = RateLimitRules(
+        per_minute=7, block_minutes=1, ban_after_strikes=1, strike_window_hours=1
+    )
+    await repo.set_setting(RATE_LIMIT_SETTINGS_KEY, rules.as_json())
+    assert RateLimitRules.parse(await store.rule_overrides()) == rules
+    await repo.delete_setting(RATE_LIMIT_SETTINGS_KEY)

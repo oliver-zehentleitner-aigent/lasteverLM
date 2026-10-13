@@ -99,7 +99,7 @@ def clock() -> Clock:
 def service(
     settings: Settings, repo: MemoryRepository, mailer: FakeMailer, clock: Clock
 ) -> AccountService:
-    return AccountService(settings, repo, mailer, clock=clock)
+    return AccountService(settings, repo, mailer, clock=clock, rate_limit=RateLimitSettings())
 
 
 @pytest.fixture
