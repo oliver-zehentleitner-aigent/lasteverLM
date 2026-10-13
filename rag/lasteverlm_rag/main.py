@@ -21,6 +21,7 @@ from lasteverlm_core import (
     LLM,
     Answer,
     AuthError,
+    ChunkView,
     Embedder,
     Message,
     OpenAICompatibleEmbedder,
@@ -52,6 +53,7 @@ from .models import (
 )
 from .outputs import OutputGenerator, registry
 from .service import (
+    ChunkNotFound,
     ConversationNotFound,
     InsufficientCredit,
     NotebookNotFound,
@@ -76,6 +78,7 @@ log = logging.getLogger("lasteverlm_rag")
 NotebookId = Annotated[uuid.UUID, Path()]
 OutputId = Annotated[uuid.UUID, Path()]
 ConversationId = Annotated[uuid.UUID, Path()]
+ChunkId = Annotated[uuid.UUID, Path()]
 MAX_DAILY_DAYS = 365
 
 
@@ -188,6 +191,11 @@ def create_app(
         rag.delete_conversation(user, str(conversation_id))
         return Response(status_code=204)
 
+    @app.get(f"{PREFIX}/chunks/{{chunk_id}}", response_model=ChunkView)
+    def get_chunk(chunk_id: ChunkId, user: User) -> ChunkView:
+        """The exact passage behind a citation, for its owner."""
+        return rag.chunk(user, str(chunk_id))
+
     @app.get(f"{PREFIX}/conversations/{{conversation_id}}/messages", response_model=list[Message])
     def messages(conversation_id: ConversationId, user: User) -> list[Message]:
         return rag.messages(user, str(conversation_id))
@@ -247,6 +255,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
         return error(exc.status_code, str(exc.detail))
+
+    @app.exception_handler(ChunkNotFound)
+    async def chunk_not_found(_: Request, exc: ChunkNotFound) -> JSONResponse:
+        return error(404, "chunk not found")
 
     @app.exception_handler(ConversationNotFound)
     async def conversation_not_found(_: Request, exc: ConversationNotFound) -> JSONResponse:

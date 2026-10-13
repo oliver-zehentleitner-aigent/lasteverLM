@@ -116,6 +116,9 @@ class Store(Protocol):
 
     def delete_source(self, source_id: str) -> None: ...
 
+    # one chunk for its owner (provenance view)
+    def get_chunk(self, chunk_id: str, user_id: str) -> dict[str, Any] | None: ...
+
     # admin overview (read only, across all users)
     def admin_stats(self, stale_after_s: int) -> dict[str, Any]: ...
 
@@ -138,7 +141,9 @@ class Store(Protocol):
 # relevant chunk costs one round trip.
 _SEARCH_SQL = """
 select c.id::text as chunk_id, s.id::text as source_id, l.name as source_name,
-       l.kind as source_kind, c.page, c.text,
+       l.kind as source_kind, c.page, c.text, c.idx as chunk_index,
+       (select count(*) from chunks n where n.library_source_id = c.library_source_id)
+           as chunk_count,
        1 - (c.embedding <=> %(embedding)s::vector) as similarity
 from sources s
 join library_sources l on l.id = s.library_source_id
@@ -216,10 +221,27 @@ class PgVectorRetriever:
                 page=r["page"],
                 text=r["text"],
                 similarity=float(r["similarity"]),
+                chunk_index=r["chunk_index"],
+                chunk_count=r["chunk_count"],
             )
             for r in rows
         ]
 
+
+_CHUNK_SQL = """
+select c.id::text as chunk_id, s.id::text as source_id, l.name as source_name,
+       l.kind as source_kind, c.page, c.idx as chunk_index,
+       (select count(*) from chunks n where n.library_source_id = c.library_source_id)
+           as chunk_count,
+       c.text
+from chunks c
+join library_sources l on l.id = c.library_source_id
+join sources s on s.library_source_id = l.id
+join notebooks nb on nb.id = s.notebook_id
+where c.id = %(chunk_id)s and l.owner = %(user_id)s and nb.owner = %(user_id)s
+order by s.created_at, s.id
+limit 1
+"""
 
 _DAILY_SQL = """
 with span as (
@@ -506,6 +528,14 @@ class PostgresStore:
             "jobs": jobs,
             "shared": shared,
         }
+
+    def get_chunk(self, chunk_id: str, user_id: str) -> dict[str, Any] | None:
+        """The chunk with its position and source, if its library source belongs
+        to ``user_id`` and is linked into one of their notebooks; the source id
+        is that link's (the oldest, when the file is in several notebooks)."""
+        with self._pool.connection() as conn:
+            row = conn.execute(_CHUNK_SQL, {"chunk_id": chunk_id, "user_id": user_id}).fetchone()
+        return dict(row) if row else None
 
     def daily_stats(self, days: int) -> list[dict[str, Any]]:
         """Per UTC day, the last ``days`` days up to today: messages written and

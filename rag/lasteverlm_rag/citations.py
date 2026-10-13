@@ -11,7 +11,7 @@ from lasteverlm_core import Citation
 
 from .models import Passage, RetrievedChunk
 
-QUOTE_MAX_CHARS = 300
+SIMILARITY_DECIMALS = 3
 
 # One bracket group: "[1]", "[1, 2]", "[ 3 ]". Several groups in a row are matched one by one.
 _MARKER_GROUP = re.compile(r"\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]")
@@ -28,6 +28,9 @@ def number_passages(chunks: list[RetrievedChunk]) -> list[Passage]:
             source_kind=c.source_kind,
             page=c.page,
             text=c.text,
+            similarity=c.similarity,
+            chunk_index=c.chunk_index,
+            chunk_count=c.chunk_count,
         )
         for i, c in enumerate(chunks, start=1)
     ]
@@ -72,6 +75,9 @@ def map_citations(answer: str, passages: list[Passage]) -> tuple[str, list[Citat
 
 
 def _to_citation(p: Passage, n: int) -> Citation:
+    """Provenance travels with the citation: the verbatim chunk text (never
+    trimmed, so a reader can check the claim against exactly what the model
+    saw), the chunk's score for this question and its position in its source."""
     # ids are strings inside this service; the contract model parses them into UUIDs
     return Citation.model_validate(
         {
@@ -81,14 +87,11 @@ def _to_citation(p: Passage, n: int) -> Citation:
             "source_kind": p.source_kind,
             "chunk_id": p.chunk_id,
             "page": p.page,
-            "quote": _quote(p.text),
+            "quote": p.text,
+            "similarity": (
+                round(p.similarity, SIMILARITY_DECIMALS) if p.similarity is not None else None
+            ),
+            "chunk_index": p.chunk_index,
+            "chunk_count": p.chunk_count,
         }
     )
-
-
-def _quote(text: str) -> str:
-    text = " ".join(text.split())
-    if len(text) <= QUOTE_MAX_CHARS:
-        return text
-    cut = text.rfind(" ", 0, QUOTE_MAX_CHARS)
-    return text[: cut if cut > 0 else QUOTE_MAX_CHARS].rstrip() + "…"

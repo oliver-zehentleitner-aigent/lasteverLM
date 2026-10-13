@@ -1,5 +1,4 @@
 from lasteverlm_rag.citations import (
-    QUOTE_MAX_CHARS,
     extract_markers,
     map_citations,
     number_passages,
@@ -62,12 +61,16 @@ def test_map_citations_without_markers_yields_no_citations():
     assert citations == []
 
 
-def test_quote_is_whitespace_normalized_and_truncated_at_word_boundary():
-    long_text = "word " * 100
-    passages = number_passages([chunk(1, "  line one\n\nline   two  "), chunk(2, long_text)])
+def test_citation_carries_the_verbatim_chunk_score_and_position():
+    long_text = "  line one\n\nline   two  " + "word " * 100
+    passages = number_passages(
+        [
+            chunk(1, long_text, similarity=0.73456, chunk_index=11, chunk_count=43),
+            chunk(2, "short"),
+        ]
+    )
     _, citations = map_citations("[1] [2]", passages)
-    assert [c.n for c in citations] == [1, 2]
-    assert citations[0].quote == "line one line two"
-    assert citations[1].quote.endswith("…")
-    assert len(citations[1].quote) <= QUOTE_MAX_CHARS + 1
-    assert not citations[1].quote[:-1].endswith(" ")
+    first = citations[0]
+    assert first.quote == long_text  # verbatim: whitespace and length untouched
+    assert (first.similarity, first.chunk_index, first.chunk_count) == (0.735, 11, 43)
+    assert citations[1].chunk_index is None and citations[1].similarity == 0.9
