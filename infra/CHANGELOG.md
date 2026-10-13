@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `APP_VERSION` and `APP_COMMIT` in the ConfigMap (`appVersion`, `appCommit`): `make deploy` sets them to `TAG` and the full SHA of the checked-out commit (`COMMIT`, default `git rev-parse HEAD`), so `/healthz` and the System page show the build instead of `unknown`.
+
 ## [0.7.0] - 2026-10-13
 
 ### Added

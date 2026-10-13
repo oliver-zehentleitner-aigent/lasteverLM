@@ -17,6 +17,9 @@ REPO_ROOT   := $(abspath $(CURDIR)/..)
 # TAG defaults to latest. One tag for every service: the repository is one.
 REGISTRY ?= ghcr.io/oliver-zehentleitner
 TAG      ?= latest
+# The checked-out commit, reported as APP_COMMIT. deploy.yml checks out the
+# commit the images were built from; on an operator machine, check out TAG first.
+COMMIT   ?= $(shell git -C $(REPO_ROOT) rev-parse HEAD 2>/dev/null)
 
 # The deployment's non-secret configuration (domain, models, prices, S3
 # endpoint), committed. Another deployment passes its own file.
@@ -153,8 +156,10 @@ tag-check: ## refuse a short commit SHA as TAG (images carry the full SHA)
 > @if [[ "$(TAG)" =~ ^[0-9a-f]{7,39}$$ ]]; then echo "TAG=$(TAG) looks like a short commit SHA; docker.yml tags images with the full 40-character SHA" >&2; exit 1; fi
 
 deploy: tag-check migrations ## helm upgrade --install of the chart with VALUES: migrations hook, then every service at TAG (HELM_WAIT=0 returns without waiting)
+> $(call require,COMMIT)
 > helm upgrade --install $(RELEASE) $(CHART) -n $(KUBE_NS) --create-namespace -f $(VALUES) \
->   --set registry=$(REGISTRY) --set-string imageTag=$(TAG) $(if $(filter 0,$(HELM_WAIT)),,--wait --timeout 10m)
+>   --set registry=$(REGISTRY) --set-string imageTag=$(TAG) \
+>   --set-string appVersion=$(TAG) --set-string appCommit=$(COMMIT) $(if $(filter 0,$(HELM_WAIT)),,--wait --timeout 10m)
 > kubectl -n $(KUBE_NS) get deployments,hpa
 
 package: migrations ## package the chart: make package VERSION=0.1.0 (from the tag v0.1.0)
