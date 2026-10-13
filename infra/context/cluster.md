@@ -234,3 +234,34 @@ should say numeric.
 
 **Rejected alternative:** dropping `runAsNonRoot` — would start the
 pods tonight and silently allow a future image to run as root.
+
+## CPU requests are sized from measured use, the autoscalers target 80 %
+
+**Id:** 14e82ec9-09aa-4642-a43a-dbf3cec84084
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** `kubectl top` on the cluster, 2026-10-13: idle and under five parallel smoke runs × 3; maintainer go relayed by the family coordinator
+**Revisit when:** PDF, image or audio processing shows sustained CPU above the new requests, or the node plan changes
+
+CPU requests: APIs (account, ingest, rag) 50m, workers 100m, web 25m,
+down from 100m, 200m and 50m; memory unchanged. The autoscalers'
+target rises from 70 % to 80 %.
+
+**Reason:** at the old values the application alone requested 1500m
+of the two nodes' 4000m, and the platform another ~1400m, so a rollout
+of all six Deployments at once (one surge pod each) left web Pending.
+Measured use was a fraction of that: 1–7m per pod idle, peaks of 29m
+(ingest), 35m (ingest-worker), 16m (rag), 6m (account), 1m (rag-worker,
+web) under load, 287m on the busiest node. The services mostly wait on
+the remote inference API. Lower requests free 750m without a cost or a
+single-replica window. Because the autoscaler's target is a percentage
+of the request, ingest at 29m against 50m would sit near 70 %; 80 %
+keeps that load from scaling out on its own.
+
+**Rejected alternatives:** a third node — 0/month for headroom that
+measured use does not need; `maxSurge 0` / `maxUnavailable 1` —
+no cost, but each Deployment drops to one replica during a rollout;
+the VKE node-pool autoscaler (min 2, max 3) — deferred, not rejected: a
+node it adds gets a public IP outside the database's trusted list, so
+it waits for the database's VPC attachment.
