@@ -62,7 +62,9 @@ async def test_startup_purges_core_tables_but_keeps_active_bans(
         repo.blocks.append(BlockRecord("203.0.113.1", at, 1, at))
         repo.ip_bans.append(BanRecord("203.0.113.1", "lifted", at, at))
     repo.ip_bans.append(BanRecord("203.0.113.9", "active", old, None))
+    repo.ip_bans.append(BanRecord("203.0.113.8", "expired", clock.now - timedelta(days=91), None))
     await service.startup()
     assert [a.at for a in repo.access] == [fresh]
     assert [b.updated_at for b in repo.blocks] == [fresh]
+    # a ban holds until an admin lifts it, at most BAN_MAX_DAYS (90)
     assert [(b.reason, b.lifted_at) for b in repo.ip_bans] == [("lifted", fresh), ("active", None)]

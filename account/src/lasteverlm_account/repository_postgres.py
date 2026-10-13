@@ -7,6 +7,7 @@ one connection. The schema is ``db/migrations/``; the infra repository applies i
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Any
@@ -320,11 +321,11 @@ class PostgresRepository:
             for r in rows
         ]
 
-    async def purge_access_tables(self, cutoff: datetime) -> tuple[int, int, int]:
+    async def purge_access_tables(self, params: Mapping[str, datetime]) -> tuple[int, int, int]:
         counts: list[int] = []
         async with self._pool.connection() as conn, conn.transaction():
             for statement in PURGE_SQL:  # core's statements, so both sides agree on the rule
-                cur = await conn.execute(statement, {"cutoff": cutoff})
+                cur = await conn.execute(statement, dict(params))
                 counts.append(cur.rowcount)
         return counts[0], counts[1], counts[2]
 

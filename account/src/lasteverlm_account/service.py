@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from lasteverlm_core import DEMO_USER_ID, AuthSettings, User, issue_jwt
+from lasteverlm_core import DEMO_USER_ID, AuthSettings, User, issue_jwt, purge_params
 
 from .config import Settings
 from .mail import Mailer, MailError, SmtpConfig, magic_link_mail
@@ -129,17 +129,18 @@ class AccountService:
             links,
         )
         # Core's middleware writes these tables and never deletes; this service owns their
-        # retention (context/core.md). Active bans stay until an admin lifts them.
+        # retention (context/core.md). A ban holds until an admin lifts it, at most BAN_MAX_DAYS.
         access, blocks, bans = await self.repo.purge_access_tables(
-            now - timedelta(days=self.settings.access_retention_days)
+            purge_params(self.settings.access_retention_days, self.settings.ban_max_days, now)
         )
         log.info(
-            "retention: core tables: removed %d access_log rows, %d stale blocks, "
-            "%d lifted bans older than %d days",
+            "retention: core tables: removed %d access_log rows, %d stale blocks older than "
+            "%d days, %d bans (lifted before that or older than %d days)",
             access,
             blocks,
-            bans,
             self.settings.access_retention_days,
+            bans,
+            self.settings.ban_max_days,
         )
         log.info(
             "visitor hash salt: %s",

@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- A ban holds until an admin lifts it, at most `BAN_MAX_DAYS` (90): the startup purge follows core's new `purge_params` (both cutoffs) instead of a single cutoff.
+
 ### Added
 
 - Retention of core's rate-limit tables (`access_log`, stale `ip_blocks`, lifted `ip_bans`) at every start, `RETENTION_DAYS` (30); active bans stay. Core's middleware writes those tables and nobody purged them before.

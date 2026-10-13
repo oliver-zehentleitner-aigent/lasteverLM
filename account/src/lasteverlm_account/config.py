@@ -40,6 +40,7 @@ class Settings:
     voucher_default_cents: int = 1000
     visit_retention_days: int = 30
     access_retention_days: int = 30  # core's RETENTION_DAYS, for the tables its middleware writes
+    ban_max_days: int = 90  # core's BAN_MAX_DAYS: a ban holds until lifted, at most this long
     trust_proxy_headers: bool = True
     visit_hash_secret: str | None = None
     log_level: str = "INFO"
@@ -87,6 +88,7 @@ class Settings:
                 env.get("VISIT_RETENTION_DAYS", "30"), "VISIT_RETENTION_DAYS"
             ),
             access_retention_days=_positive_int(env.get("RETENTION_DAYS", "30"), "RETENTION_DAYS"),
+            ban_max_days=_positive_int(env.get("BAN_MAX_DAYS", "90"), "BAN_MAX_DAYS"),
             trust_proxy_headers=_bool(
                 env.get("TRUST_PROXY_HEADERS", "true"), "TRUST_PROXY_HEADERS"
             ),
