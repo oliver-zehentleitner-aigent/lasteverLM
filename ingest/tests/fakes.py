@@ -60,6 +60,7 @@ class InMemoryRepository:
         # account's users.preferences -> 'trash_days'; missing means 14
         self.trash_days: dict[UUID, int] = {}
         self.seeded: set[UUID] = set()
+        self.retry_at: dict[UUID, datetime] = {}
 
     # -- test helpers ----------------------------------------------------------
 
@@ -186,9 +187,10 @@ class InMemoryRepository:
         return None
 
     def create_library_source(self, new: NewLibrarySource) -> LibrarySource:
-        found = self.find_library_source(new.owner, new.dedupe_key)
-        if found is not None:
-            return found
+        # Like the unique index (owner, dedupe_key): independent of any lookup.
+        for lib in self.library.values():
+            if lib.owner == new.owner and lib.dedupe_key == new.dedupe_key:
+                return lib
         lib = LibrarySource(**new.model_dump(), status="processing", created_at=datetime.now(UTC))
         self.library[lib.id] = lib
         return lib
@@ -206,6 +208,7 @@ class InMemoryRepository:
                 update={"status": "processing", "error": None, "attempts": 0}
             )
             self.claimed.pop(library_id, None)
+            self.retry_at.pop(library_id, None)
 
     def _entry(self, lib: LibrarySource) -> LibraryEntry:
         uses = sorted(
@@ -306,6 +309,11 @@ class InMemoryRepository:
             update={"status": status, "error": error}
         )
 
+    def release_for_retry(self, library_id: UUID, error: str, delay_seconds: float) -> None:
+        self.library[library_id] = self.library[library_id].model_copy(update={"error": error})
+        self.claimed.pop(library_id, None)
+        self.retry_at[library_id] = datetime.now(UTC) + timedelta(seconds=delay_seconds)
+
     def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
         for lib in sorted(self.library.values(), key=lambda s: s.created_at):
             if (
@@ -313,6 +321,7 @@ class InMemoryRepository:
                 and lib.kind != "generated"
                 and lib.deleted_at is None
                 and lib.id not in self.claimed
+                and self.retry_at.get(lib.id, datetime.min.replace(tzinfo=UTC)) <= datetime.now(UTC)
             ):
                 self.claimed[lib.id] = worker_id
                 self.library[lib.id] = lib.model_copy(update={"attempts": lib.attempts + 1})

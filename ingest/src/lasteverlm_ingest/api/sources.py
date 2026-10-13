@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import re
 from pathlib import PurePosixPath
@@ -186,6 +187,13 @@ async def create_source(
 
     library_id = uuid4()
     key = object_key(user, library_id, "url" if kind == "url" else name)
+    # The object first, the row after: a `processing` row is claimable the
+    # moment it exists, so a worker must never find one without its object.
+    try:
+        object_type = sniff_image_type(data) if kind == "image" else _CONTENT_TYPE[kind]
+        deps.storage.put(key, data, object_type or "application/octet-stream")
+    except StorageError as exc:
+        raise HTTPException(status_code=503, detail=f"storage unavailable: {exc}") from exc
     created = repo.create_library_source(
         NewLibrarySource(
             id=library_id,
@@ -199,12 +207,11 @@ async def create_source(
             capture=capture,
         )
     )
-    if created.id == library_id:
-        try:
-            object_type = sniff_image_type(data) if kind == "image" else _CONTENT_TYPE[kind]
-            deps.storage.put(key, data, object_type or "application/octet-stream")
-        except StorageError as exc:
-            repo.set_library_status(library_id, "failed", str(exc)[:500])
+    if created.id != library_id:
+        # A concurrent upload of the same bytes inserted its row first:
+        # link that one, our object is not needed.
+        with contextlib.suppress(StorageError):
+            deps.storage.delete(key)
     # Nothing else happens here: the library source is in the queue, a
     # worker claims it (see worker.run_worker).
     return _link(repo, response, notebook_id, created.id)

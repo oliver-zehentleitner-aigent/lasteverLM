@@ -9,6 +9,11 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Fixed
+
+- Uploads write the object to the bucket before the library row: a worker could claim the row first and fail with `NoSuchKey` (the v0.7.1 smoke failure). A failed upload now answers 503 and leaves no row.
+- A transient failure releases the claim with a backoff of 5 and then 15 seconds (`retry_at`, migration `0008_retry_at.sql`), so the next attempt follows promptly instead of after the 10-minute stale-claim timeout.
+
 ## [0.7.1] - 2026-10-13
 
 ### Changed

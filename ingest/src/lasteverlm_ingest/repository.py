@@ -200,6 +200,11 @@ class Repository(Protocol):
         self, library_id: UUID, status: str, error: str | None = None
     ) -> None: ...
 
+    def release_for_retry(self, library_id: UUID, error: str, delay_seconds: float) -> None:
+        """A transient failure: keep `processing` with the error, drop the
+        claim, and let no worker take it before `delay_seconds` from now."""
+        ...
+
     def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
         """Claim one unprocessed library source for this worker and return
         its id, or None when the queue is empty. A claim older than
@@ -456,7 +461,8 @@ class PostgresRepository:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "update library_sources set status = 'processing', error = null, attempts = 0, "
-                "claimed_at = null, claimed_by = null where id = %(id)s and status = 'failed'",
+                "claimed_at = null, claimed_by = null, retry_at = null "
+                "where id = %(id)s and status = 'failed'",
                 {"id": library_id},
             )
 
@@ -587,12 +593,21 @@ class PostgresRepository:
      where id = (
         select id from library_sources
          where status = 'processing' and kind <> 'generated' and deleted_at is null
+           and (retry_at is null or retry_at <= now())
            and (claimed_at is null or claimed_at < now() - make_interval(secs => %(stale)s))
          order by created_at
          for update skip locked
          limit 1)
     returning id
     """
+
+    def release_for_retry(self, library_id: UUID, error: str, delay_seconds: float) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set error = %(error)s, claimed_at = null, "
+                "retry_at = now() + make_interval(secs => %(delay)s) where id = %(id)s",
+                {"error": error, "delay": delay_seconds, "id": library_id},
+            )
 
     def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
         with self._pool.connection() as conn, conn.cursor() as cur:

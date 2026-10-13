@@ -30,7 +30,8 @@ the user needs. A failure that may pass next time — object storage, the
 embedding or summary request, anything unexpected — leaves the row
 `processing` with the error, so the stale-claim timeout hands it to the
 next worker; the third attempt that fails ends it as `failed`, the
-family's rule. Retrying everything three times was the alternative;
+family's rule (since 2026-10-13 the next attempt follows within
+seconds instead of after the stale-claim timeout: b53c94f0-b1e7-47ca-bc17-59b8fd3b967b). Retrying everything three times was the alternative;
 rejected because a bad PDF would then sit at `processing` for half an
 hour before the user learns it is unreadable.
 
@@ -76,6 +77,13 @@ The credit check runs in the handler, so the user gets a 402 before
 anything is stored, and again in the worker before each model call,
 because the balance can change in between.
 
+The order inside the handler is part of the decision: the object goes to
+the bucket first and the claimable row is written after it. A
+`processing` row is in the queue the moment it exists; with the row
+first, a worker polling in that instant claimed it and found no object
+(`NoSuchKey`, the v0.7.1 smoke failure, 2026-10-13). A failed upload now
+leaves no row at all (503), instead of a row marked failed.
+
 ## A failed summary fails the source, even though its chunks are written
 
 **Id:** f11ae1b9-3c5a-4eb7-bc8d-52c1344805ef
@@ -101,3 +109,33 @@ cap in force.
 the failure. Keeps the chat usable for that source immediately, rejected
 because the gap would surface only as weaker generated outputs, with no
 trace of why.
+
+## A transient failure releases the claim with a short, growing backoff
+
+**Id:** b53c94f0-b1e7-47ca-bc17-59b8fd3b967b
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the v0.7.1 smoke failure, 2026-10-13: an attempt failed with `NoSuchKey` and no second attempt came within 15 minutes; the fix was requested by the fleet lead; the backoff values are the ingest author's
+**Revisit when:** a provider's rate limit or outage outlasts 20 seconds often enough that three attempts within that window fail sources that would have passed later
+
+After a transient failure the worker keeps the row `processing` with the
+error, drops its claim and sets `retry_at`: 5 seconds ahead after the
+first failure, 15 after the second. The claim query skips a row until its
+`retry_at` has passed. The third failure fails the source for good.
+
+**Reason:** before, a failed attempt kept its claim, so the next attempt
+waited for the stale-claim timeout of ten minutes, and the user watched a
+source sit at `processing` for that long after a hiccup that would have
+passed in seconds. Releasing at once would spend the three attempts
+within one poll interval, before a short outage is over; a growing
+backoff gives it seconds, not minutes.
+
+**Alternatives:**
+- Release the claim at once: the three attempts are gone within a few
+  seconds of an outage.
+- Keep waiting for the stale-claim timeout: the user waits ten minutes
+  per hiccup (the behaviour this replaces).
+- Set `claimed_at` into the past so the stale rule fires early: no new
+  column, but it hides a retry inside the crash-recovery rule and makes
+  `claimed_at` mean two things.
