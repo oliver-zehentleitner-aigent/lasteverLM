@@ -25,6 +25,7 @@ preserves why it changed, in `context/`.
 - A multipart upload accepts one file and at most the `capture` field; more answer 400 before the parser spools them (the default allowed 1000 of each).
 - A JSON body that does not parse answers 400 `body is not valid JSON` instead of 500.
 - Routing errors (404 for an unknown path, 405) and the form parser's 400 use the `{"error"}` shape instead of Starlette's `{"detail"}`, and keep their headers (`Allow`).
+- Documentation: the README's CI and ktw-lint badges pointed to the retired single-service repository; `docs/README.md` lacked `capture`, `demo` and `preview_url` in the source, library and trash shapes; `.env.example` lacked `IMAGE_MAX_TOKENS`, `PDF_VISION_MAX_PAGES` and `SEED_DEMO_LIBRARY`.
 
 ## [0.9.0] - 2026-10-13
 

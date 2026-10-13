@@ -1,7 +1,7 @@
 # lasteverLM-ingest
 
-[![ci](https://github.com/oliver-zehentleitner/lasteverLM-ingest/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM-ingest/actions/workflows/ci.yml)
-[![ktw-lint](https://github.com/oliver-zehentleitner/lasteverLM-ingest/actions/workflows/ktw-lint.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM-ingest/actions/workflows/ktw-lint.yml)
+[![ci](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml)
+[![ktw-lint](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml)
 [![Keep the Why](https://keepthewhy.com/assets/badge.svg)](https://keepthewhy.com)
 
 The ingest service of [lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM),
