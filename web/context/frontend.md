@@ -340,6 +340,28 @@ and the contrast test could not see them.
 **Rejected alternative:** light as the default. Rejected because it
 ignores the device setting the user already made.
 
+## The header toggle switches light and dark only; "system" lives in Settings
+
+**Id:** de0e4933-ad37-44b3-8f5d-b8d738b2b150
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request relayed by the family lead, 2026-10-13 (drop "system" from the header toggle, start from the theme on screen, a click under "system" sets the explicit opposite); the reason is not stated there and is inferred below
+**Revisit when:** someone asks for "system" back in the header, or a browser run shows the toggle confusing
+
+The header toggle replaced a three-step cycle (light, dark, system). It
+always sets the opposite of the theme on screen, its icon shows what a
+click gives, and it writes through the one theme store like the Settings
+page. "system" can be chosen on the Settings page only.
+
+**Reason (inferred):** in the cycle, the step to "system" often changed
+nothing visible (the system's theme was the one already on screen), so a
+click looked broken; two states make every click visible. The choice is
+confirmed, the reason is this directory's reading.
+
+**Rejected alternative:** the three-step cycle it replaced, for the
+reason above.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4

@@ -35,7 +35,7 @@ repository root's `context/`.
 
 ## F
 
-- [frontend.md](frontend.md) — two-column layout with output tabs, generated documents listed under Outputs instead of Sources, charts with recharts in a chunk of their own, German and English through a small t(), red on the admin overview only where an admin can act, light and dark through tokens only, the provenance panel's best-matching sentence, no router or UI framework, 401/402 as app-level events, readable messages for every failure, admin panel behind one interface with a build-time mock
+- [frontend.md](frontend.md) — two-column layout with output tabs, generated documents listed under Outputs instead of Sources, charts with recharts in a chunk of their own, German and English through a small t(), red on the admin overview only where an admin can act, light and dark through tokens only, a header toggle for light and dark only, the provenance panel's best-matching sentence, no router or UI framework, 401/402 as app-level events, readable messages for every failure, admin panel behind one interface with a build-time mock
 
 ## G
 
