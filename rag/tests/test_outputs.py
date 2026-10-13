@@ -72,7 +72,11 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
     # the generator saw the summaries and the focus-query passages
     prompt = llm.calls[0][1]
     assert "- sky.pdf: About the sky." in prompt and "[1] (doc1.pdf, page 1)" in prompt
-    assert retriever.calls[0]["source_id"] is None
+    # balanced input: the source's own best chunks first, then the global top-k by score
+    assert [c["source_id"] for c in retriever.calls] == [
+        next(iter(store.sources)),
+        None,
+    ]
     # indexed as a ready generated source with embedded chunks
     generated = [s for s in store.sources.values() if s["kind"] == "generated"]
     assert len(generated) == 1 and generated[0]["status"] == "ready"

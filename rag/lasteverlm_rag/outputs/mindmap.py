@@ -24,8 +24,11 @@ class MindmapGenerator(JsonGenerator):
     focus_query: str = "structure, main themes and their sub-topics"
     schema: type[BaseModel] = Mindmap
     instructions: str = (
-        "Build a mind map of the material: one root node with the central theme, 4 to 8 "
-        "main branches, each with 2 to 6 sub-nodes, at most three levels deep, short labels. "
+        "Build a mind map of the material: one root node whose label spans all sources (for "
+        "sources on distinct topics, name them together, e.g. 'Linux administration: vi and "
+        "VNC'), 4 to 8 main branches with at least one branch per source when the sources "
+        "cover distinct topics, each with 2 to 6 sub-nodes, at most three levels deep, short "
+        "labels. "
         'Reply as {"title": "...", "root": {"label": "...", "children": [...]}}.'
     )
 

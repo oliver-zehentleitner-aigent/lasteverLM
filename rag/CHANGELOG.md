@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A generated document could cover one source only: the generator's passages were a global top-k that one source could fill. Retrieval for generators now keeps each ready source's best chunks and fills the rest by score; the prompts require every source to be covered (the mind map's root spans them), and a source the document never mentions is logged as a warning.
+
 ## [0.7.1] - 2026-10-13
 
 ### Changed

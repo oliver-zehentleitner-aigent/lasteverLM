@@ -98,6 +98,16 @@ indexes the result as a source of kind `generated` in the same notebook
 so the chat can cite it; `Output.source_id` names that source. Deleting
 the output deletes the source and its stored files.
 
+The focus-query chunks are balanced across sources: every ready upload
+contributes its best two chunks whatever their score, the rest of the
+budget (at least `RETRIEVAL_K`, two per source, at most 24 passages) goes
+by score, so one large or very relevant source cannot fill the input on
+its own. Every generator prompt says to cover all listed sources; the
+mind map's root spans them, with a branch per source when they are on
+distinct topics. After generation, a source whose distinctive file-name
+words (words no other source's name has) appear nowhere in the document
+is logged as a warning with the output id; the document is kept.
+
 **Options.** `options` on `POST .../outputs` is `{"language"?, "voice"?,
 "speed"?}`: `language` (one of ten codes, `de`, `en`, `fr`, ...) for every
 kind, `voice` and `speed` for audio only. An option the kind does not

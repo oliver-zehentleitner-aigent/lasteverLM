@@ -215,3 +215,39 @@ files nobody may ever play; shipping recorded samples in the image,
 rejected because they would drift from what the configured model really
 sounds like; a database table of generated samples, rejected as a
 second record of what the object store already knows.
+
+## A generator's passages are balanced across sources, not a global top-k
+
+**Id:** cfe78834-7ea7-49b4-9491-9720f4703a40
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer's screenshot and coordinator's analysis, 2026-10-13; live mind-map run, 2026-10-13
+**Revisit when:** notebooks routinely hold more than a dozen sources (the 24-passage cap then leaves one chunk per source), or a reranker replaces plain cosine ranking
+
+The focus-query passages a generator sees are chosen per source first:
+every ready upload contributes its two best chunks regardless of the
+similarity floor, then the remaining budget (at least `RETRIEVAL_K`, two
+per source, capped at 24 passages; above the cap one chunk per source,
+round robin) is filled from the global ranking. The system rules require
+every listed source to be covered, and the mind map's root must span
+all sources with a branch per source on distinct topics. After
+generation, a source whose distinctive file-name words never appear in
+the document is logged as a warning with the output id.
+
+**Reason:** a mind map of a notebook with a vi PDF and a VNC PDF came
+out entirely about VNC: the global top-k for "main topics" was filled by
+VNC chunks, the prompt asked for one root theme, and the model took the
+dominant source. The summaries alone did not prevent it. With the vi
+chunks guaranteed in the input and the coverage rule in the prompt, a
+live run with the same two sources gave a root "Linux Tools: vi and
+VNC" with one branch per source. The warning is deliberately light: a
+heuristic over file names cannot decide coverage reliably enough to
+fail or retry a generation, but it makes a gap visible in the log.
+
+**Rejected alternatives:** the global top-k for the focus query (the
+behaviour this incident showed); one generation per source merged
+afterwards, rejected as several model calls per output and a merge step
+that loses the cross-source structure; failing or retrying an output
+that misses a source, rejected because the name-word check gives false
+positives and a retry would charge the user again for the same input.
