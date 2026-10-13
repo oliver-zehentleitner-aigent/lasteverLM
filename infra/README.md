@@ -20,7 +20,7 @@ Let's Encrypt certificate; `compose.yaml` runs the same stack locally.
 |---|---|
 | `compose.yaml`, `compose/` | Local development stack and its gateway configuration |
 | `tofu/` | OpenTofu configuration: VKE cluster and Object Storage (the managed PostgreSQL is created by the maintainer and taken as an input) |
-| `chart/` | The Helm chart (`values-prod.yaml`: the production configuration, committed): ConfigMap, API and worker Deployments with autoscalers, Services, Ingress with rate limiting, ClusterIssuer, migration hook |
+| `chart/` | The Helm chart (`values-prod.yaml`: the production configuration, committed): ConfigMap, API and worker Deployments with autoscalers, Services, Ingress with rate limiting, ClusterIssuer, migration hook, account's read-only Role |
 | `platform/` | Values for the platform charts: ingress-nginx (JSON access log), cert-manager, metrics-server |
 | `db/migrations/` | Infra-owned SQL (extensions); the services' own migrations are collected at deploy time |
 | `db/migrate.sh`, `db/bootstrap.sh` | The migration runner the chart's hook Job executes, and the one-time database bootstrap |

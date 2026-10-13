@@ -88,12 +88,18 @@ reaches the deployment through the load balancer address:
 | Ingress `lasteverlm` | path routing `/api/account`, `/api/ingest`, `/api/rag`, `/`; TLS via cert-manager; per-IP rate limiting (`limit-rps`, burst multiplier, `limit-connections`) |
 | ClusterIssuer `letsencrypt` | ACME http01 |
 | Job `lasteverlm-migrate` + ConfigMap | pre-install/pre-upgrade hook, see Migrations |
+| ServiceAccount `account`, Role and RoleBinding `account-kubernetes-read` | `get`/`list` on `pods` and `apps/deployments` in this namespace only; the `account` pods mount the token (`automountServiceAccountToken: true`) for the admin System page |
 
 Values: `chart/values.yaml` holds the defaults (replicas, autoscaler
 bounds, resources, rate limits, which Secrets each service mounts).
 Every image sets a numeric `USER`; an image that names its user would
 need `runAsUser` in its values, because `runAsNonRoot` cannot verify a
-name.
+name. `kubernetesRead: true` on a service (only `account`) renders its
+ServiceAccount, Role and RoleBinding from `templates/rbac.yaml`; without
+them the System page still loads, with empty pod and deployment lists.
+Check the grant after a deploy:
+`kubectl -n lasteverlm auth can-i list deployments.apps --as=system:serviceaccount:lasteverlm:account`
+(`yes`; the same for `pods`, and `no` for any verb other than `get` and `list`).
 `chart/values-prod.yaml` holds the deployment-specific part (domain,
 ACME e-mail, model names, prices, embedding dimension, TTS voice, S3
 endpoint, voucher credit), committed and changed by pull request; `make deploy` passes

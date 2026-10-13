@@ -21,6 +21,10 @@ spec:
         app.kubernetes.io/name: {{ $name }}
         app.kubernetes.io/component: api
     spec:
+      {{- if $svc.kubernetesRead }}
+      serviceAccountName: {{ $name }}
+      automountServiceAccountToken: true
+      {{- end }}
       containers:
         - name: {{ $name }}
           image: {{ include "lasteverlm.image" (dict "root" $ "name" $name) }}
