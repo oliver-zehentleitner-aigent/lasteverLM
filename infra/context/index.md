@@ -53,6 +53,8 @@ repository root's `context/`.
 
 ## L
 
+- [local-development.md](local-development.md) — the local compose stack: RustFS instead of MinIO, the same bootstrap and migration scripts as the cluster, local-only credentials in the file
+
 ## M
 
 ## N
