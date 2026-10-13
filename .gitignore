@@ -227,3 +227,4 @@ __marimo__/
 vultr.txt
 *.secret
 *_env
+/site/

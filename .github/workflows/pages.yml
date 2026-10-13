@@ -1,8 +1,7 @@
 name: pages
 
-# The Keep the Why dashboard of the whole family on GitHub Pages
-# (<site>/keep-the-why-dashboard/). The docs site joins this workflow once
-# a site generator is chosen; until then the export is the whole site.
+# The docs site (mkdocs, from docs/) and the Keep the Why dashboard of the
+# whole family (<site>/keep-the-why-dashboard/) on GitHub Pages.
 on:
   push:
     branches: [main]
@@ -34,7 +33,8 @@ jobs:
       # .keep-the-why names its export in dashboard-state, which is how the
       # family resolves in public mode.
       - run: |
-          pip install --quiet keep-the-why-dashboard
+          pip install --quiet mkdocs-material==9.7.7 keep-the-why-dashboard
+          mkdocs build --strict -d site
           ktw-dashboard --export site/keep-the-why-dashboard .
           for d in core account infra ingest rag web; do
             ktw-dashboard "$d" --export "site/keep-the-why-dashboard/$d"
