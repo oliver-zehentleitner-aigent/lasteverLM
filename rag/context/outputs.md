@@ -146,3 +146,39 @@ one fifty-second request with nothing to retry but all of it;
 re-encoding the joined audio, rejected because it adds a codec
 dependency for no audible gain.
 
+
+## Output options are validated per kind, sent explicitly by the client, and stored on the output
+
+**Id:** bd95d88e-3eb9-4ce9-ac07-510c6d9ce95f
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request, relayed by the coordinator, 2026-10-13; platform probe and the Qwen3-TTS model card, 2026-10-13
+**Revisit when:** the platform changes its voices or speech limits, or rag needs a user preference it cannot get from the request
+
+`POST .../outputs` takes `options`: `language` for every kind, `voice`
+and `speed` for audio. They are checked against one catalogue
+(`lasteverlm_rag/options.py`, served at `GET /api/rag/outputs/options`
+with which options each kind takes), resolved with audio's defaults
+(`TTS_VOICE`, speed 1.0), stored in `outputs.options` and returned on
+the output and the shared view. A missing `language` keeps the old
+behaviour: the document follows the language of its sources. The user's
+preferred language lives in account; the web resolves it and sends it.
+
+**Reason:** the viewer must show what an output was made with, and a
+later default change must not rewrite history, so the resolved values
+go on the row. The catalogue in one place lets the web render the
+options without a release per voice. Voices, genders and the ten
+languages are the speech model's own (model card); the speed range is
+inside the 0.25–4 the endpoint accepted in the probe, and a speed of 0.5
+or 2.0 did change the audio length, so the option is real. The
+generator prompt names the language explicitly, title included: a live
+run turned an English source into a German and a French report.
+
+**Rejected alternatives:** rag reading the preference from account's API
+with the user's token, rejected because it adds a call between services
+that the family's design keeps apart and a failure path to every
+generation; silently ignoring unknown or misplaced options, rejected
+because a client bug would produce a document in the wrong language
+without any sign; the full 0.25–4 speed range in the UI, rejected
+because the extremes are not usable for listening.
