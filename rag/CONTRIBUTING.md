@@ -8,7 +8,8 @@ told.
 ## Setup
 
 ```bash
-make check    # creates .venv with uv on first run, then ruff, mypy, pytest
+make check          # creates .venv with uv on first run, then black, ruff, mypy (strict), pytest
+make test-postgres  # the queries against a real PostgreSQL with pgvector (a throwaway container)
 ```
 
 ## Branches, commits, pull requests
