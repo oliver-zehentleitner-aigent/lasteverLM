@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibraryEntry } from '../api/types'
-import { deleteConfirmText, filterLibrary, notInNotebook } from './library'
+import { deleteConfirmText, filterLibrary, notInNotebook, purgeIn } from './library'
 
 const entry = (id: string, kind: LibraryEntry['kind'], name: string, notebooks: LibraryEntry['notebooks'] = [], url: string | null = null): LibraryEntry => ({
   id,
@@ -42,9 +42,19 @@ describe('notInNotebook', () => {
 describe('deleteConfirmText', () => {
   it('names every notebook the entry disappears from', () => {
     expect(deleteConfirmText(list[2])).toBe(
-      'Delete "notes.txt" from your library? It disappears from these 2 notebooks: "Thesis", "Rivers". Citations to it show as removed.',
+      'Move "notes.txt" to the trash? It disappears from these 2 notebooks: "Thesis", "Rivers". It stays restorable in the trash until it is purged; citations to it show as removed meanwhile.',
     )
     expect(deleteConfirmText(list[0])).toContain('It disappears from this notebook: "Thesis".')
     expect(deleteConfirmText(list[1])).toContain('It is not in any notebook.')
+  })
+})
+
+describe('purgeIn', () => {
+  const now = new Date('2026-10-13T12:00:00Z')
+
+  it('counts whole days until the purge', () => {
+    expect(purgeIn('2026-10-27T12:00:00Z', now)).toBe('purged in 14 days')
+    expect(purgeIn('2026-10-14T06:00:00Z', now)).toBe('purged in 1 day')
+    expect(purgeIn('2026-10-13T11:00:00Z', now)).toBe('purged today')
   })
 })

@@ -395,3 +395,4 @@ a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); 
 .vdivider:hover, .vdivider:focus-visible { background: var(--accent); outline: none; }
 .columns.full .vdivider { display: none; }
 @media (max-width: 900px) { .vdivider { display: none; } }
+.library .actions-cell { white-space: nowrap; display: flex; gap: 0.75rem; }

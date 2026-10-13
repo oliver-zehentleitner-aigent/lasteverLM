@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Library trash: a Trash view next to the sources lists deleted entries with when they are purged; restore puts one back in the library (in no notebook), "delete for good" removes it at once after a confirmation. The settings page sets the days an entry stays there (`trash_days`, empty for 14).
+
+### Changed
+
+- Library delete moves the entry to the trash instead of removing it; the confirmation says so.
+
 ## [0.6.0] - 2026-10-13
 
 ### Added

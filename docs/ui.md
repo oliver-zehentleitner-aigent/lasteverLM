@@ -152,7 +152,8 @@ is closed. After the wizard the notebook view opens.
 `/settings` (in the header next to Library): interface language
 (browser default, English, Deutsch), language of generated documents
 (same as the sources, or one of rag's languages) and the voice for
-audio (default, or one of rag's voices). Saved together with
+audio (default, or one of rag's voices), and the days a deleted
+library source stays in the trash (1–365, empty for 14). Saved together with
 `PUT /api/account/me/preferences`; an empty choice clears the value.
 The preferred language and voice are preselected in the output options
 and used by the wizard, which has no option menus. The interface
@@ -165,9 +166,13 @@ service's sentence).
 `/library` (in the header next to Admin): every upload and URL of the
 user, once, newest first, with kind, status, size, date and the
 notebooks it is in as links (or "not in any notebook"). Filters by kind
-and by part of the name or address. Delete removes the entry from every
-notebook, with its chunks and the stored file, after a confirmation
-that names those notebooks. Generated documents are not in the library;
+and by part of the name or address. Delete moves the entry to the
+trash, out of every notebook, after a confirmation that names those
+notebooks. The **Trash** view next to it lists deleted entries with
+the date they are purged (after the trash days set in the settings,
+14 by default): restore puts one back in the library in no notebook,
+"delete for good" removes the file and its passages at once. Uploading
+the same file or URL again restores it too. Generated documents are not in the library;
 they live in their notebook.
 
 A citation whose source is no longer in the notebook (detached, or

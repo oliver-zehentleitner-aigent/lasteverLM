@@ -6,7 +6,8 @@ import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { voiceGroups } from '../lib/outputOptions'
 
-const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null }
+const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null }
+const TRASH_DEFAULT = 14
 
 /** /settings: the user's preferences, preselected in every menu they
  *  apply to. Saved together; an empty choice clears the value (null). */
@@ -83,6 +84,19 @@ export function SettingsPage() {
               <option value={p.audio_voice}>{p.audio_voice}</option>
             )}
           </select>
+        </label>
+        <label>
+          Days in the trash
+          <input
+            type="number"
+            min={1}
+            max={365}
+            step={1}
+            placeholder={`${TRASH_DEFAULT} (default)`}
+            value={p.trash_days ?? ''}
+            onChange={(e) => set({ trash_days: e.target.value === '' ? null : Math.round(Number(e.target.value)) })}
+          />
+          <span className="muted small">How long a deleted library source can be restored. Empty means {TRASH_DEFAULT} days.</span>
         </label>
         {!spec && <p className="muted small">The lists of languages and voices could not be loaded; the stored values are kept.</p>}
         {error && <p className="error">{error}</p>}
