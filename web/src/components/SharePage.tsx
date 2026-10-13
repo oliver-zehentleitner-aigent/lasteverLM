@@ -3,6 +3,7 @@ import { account } from '../api/account'
 import { rag } from '../api/rag'
 import type { AudioContent, SharedOutput } from '../api/types'
 import { formatTime } from '../lib/format'
+import { optionsLabel } from '../lib/outputOptions'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
 
@@ -34,6 +35,8 @@ export function SharePage({ token }: { token: string }) {
               <h1 className="doc-title">{doc.title || formFor(doc.kind).label}</h1>
               <span className="badge">{formFor(doc.kind).label}</span>
               <span className="muted small">{formatTime(doc.created_at)}</span>
+              {/* no spec here: it needs a login, so the codes are shown as they are */}
+              {optionsLabel(doc.options, null) && <span className="muted small">{optionsLabel(doc.options, null)}</span>}
               {formFor(doc.kind).printable && (
                 <span className="actions no-print">
                   <button type="button" className="link" onClick={() => window.print()}>

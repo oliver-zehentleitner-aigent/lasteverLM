@@ -109,12 +109,34 @@ export interface Output {
   /** the `generated` source rag made from this document once it was ready; null before */
   source_id: string | null
   created_at: string
+  /** the options it was made with, defaults filled in; {} for older outputs */
+  options?: OutputOptions
+}
+
+/** What a document is made with; which keys a kind takes comes from the spec. */
+export interface OutputOptions {
+  language?: string
+  voice?: string
+  speed?: number
+}
+
+export type OutputOption = keyof OutputOptions
+
+/** `GET /api/rag/outputs/options`: the choices per kind. */
+export interface OutputOptionsSpec {
+  languages: { code: string; label: string }[]
+  audio: {
+    voices: { id: string; label: string; gender: 'male' | 'female'; language: string }[]
+    default_voice: string
+    speed: { min: number; max: number; step: number; default: number }
+  }
+  kinds: Partial<Record<OutputKind, OutputOption[]>>
 }
 
 /** `GET /shared/{token}`: the document without ids, read-only. The service
  *  returns kind, title, content and created_at only; a shared document is
  *  always ready, so status and error are not part of the shape. */
-export type SharedOutput = Pick<Output, 'kind' | 'title' | 'content' | 'created_at'>
+export type SharedOutput = Pick<Output, 'kind' | 'title' | 'content' | 'created_at' | 'options'>
 
 export interface ReportContent {
   markdown: string
@@ -151,12 +173,22 @@ export interface AudioContent {
 
 // account prefix
 
+/** null means not set: the web's default UI language, the sources'
+ *  language for documents, the platform's default voice. */
+export interface Preferences {
+  ui_language: 'de' | 'en' | null
+  output_language: string | null
+  audio_voice: string | null
+}
+
 export interface User {
   id: string
   email: string
   is_admin: boolean
   balance_cents: number
   created_at: string
+  /** absent from services that predate preferences */
+  preferences?: Preferences
 }
 
 export interface AdminUser extends User {

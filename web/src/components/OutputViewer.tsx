@@ -3,6 +3,8 @@ import { rag } from '../api/rag'
 import type { AudioContent, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatTime } from '../lib/format'
+import { useOutputOptions } from '../hooks/useOutputOptions'
+import { optionsLabel } from '../lib/outputOptions'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
 
@@ -39,6 +41,8 @@ export function OutputViewer({
   style,
 }: Props) {
   const selected = outputs.find((o) => o.id === selectedId) ?? null
+  const spec = useOutputOptions()
+  const made = selected ? optionsLabel(selected.options, spec) : null
   const enterButton = useRef<HTMLButtonElement>(null)
   const leaveButton = useRef<HTMLButtonElement>(null)
   const wasFull = useRef(fullView)
@@ -121,6 +125,7 @@ export function OutputViewer({
               <h1 className="doc-title">{selected.title || formFor(selected.kind).label}</h1>
               <span className="badge">{formFor(selected.kind).label}</span>
               <span className="muted small">{formatTime(selected.created_at)}</span>
+              {made && <span className="muted small" title="Made with these options">{made}</span>}
               <span className="actions no-print">
                 <button type="button" className="link" disabled={selected.status !== 'ready'} onClick={() => onAskAbout(selected)}>
                   ask about this

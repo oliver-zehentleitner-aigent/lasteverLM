@@ -3,7 +3,10 @@ import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
 import type { LibraryEntry, OutputKind, SourceKind } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
+import { useMe } from '../hooks/useMe'
+import { useOutputOptions } from '../hooks/useOutputOptions'
 import { filterLibrary, notInNotebook } from '../lib/library'
+import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
 
 interface Props {
@@ -33,6 +36,8 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
   const [kinds, setKinds] = useState<Set<OutputKind>>(new Set())
   const [uploaded, setUploaded] = useState(0)
   const { busy, error, run } = useAsync()
+  const spec = useOutputOptions()
+  const { me } = useMe()
 
   const canUpload = fromLibrary
     ? picked.size > 0
@@ -79,7 +84,8 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
 
   async function finish() {
     const ok = await run(async () => {
-      for (const k of kinds) await rag.createOutput(notebookId, k)
+      // the wizard has no option menus: each kind gets the user's preferences
+      for (const k of kinds) await rag.createOutput(notebookId, k, spec ? buildOptions(k, spec, defaultValues(spec, me?.preferences)) : {})
       return true
     })
     if (ok) onDone()

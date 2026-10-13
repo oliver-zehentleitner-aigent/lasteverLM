@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
-import type { Citation, Notebook, Output, OutputKind, Source } from '../api/types'
+import type { Citation, Notebook, Output, OutputKind, OutputOptions, Source } from '../api/types'
 import { OUTPUT_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
 import { CHAT_PRESETS, activePreset, browserStorage, DEFAULT_VIEWER_RATIO, presetRatio, readRatio, writeRatio } from '../lib/layout'
@@ -161,8 +161,8 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
     if (ok) removeOutput(o.id)
   }
 
-  async function createOutput(kind: OutputKind) {
-    const created = await run(() => rag.createOutput(notebookId, kind))
+  async function createOutput(kind: OutputKind, options: OutputOptions) {
+    const created = await run(() => rag.createOutput(notebookId, kind, options))
     if (created) {
       setOutputs((prev) => [created, ...prev])
       setSelectedOutput(created.id)
@@ -215,7 +215,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
           hasReadySource={hasReadySource}
           busy={busy}
           onSelect={setFormat}
-          onCreate={(k) => void createOutput(k)}
+          onCreate={(k, o) => void createOutput(k, o)}
         />
         <OutputsPane outputs={outputs} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
       </div>
