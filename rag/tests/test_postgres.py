@@ -510,3 +510,11 @@ def test_search_and_chunk_view_carry_the_position_in_the_source(store, pool, use
     assert view["text"] == " text 1\n"  # verbatim
     assert store.get_chunk(ids[1], str(uuid4())) is None  # not the owner
     assert store.get_chunk(str(uuid4()), user) is None
+
+
+def test_output_options_round_trip(store, notebook):
+    chosen = {"language": "de", "voice": "serena", "speed": 1.25}
+    row = store.create_output(notebook, "audio", "processing", chosen)
+    assert row.options == chosen
+    assert (store.get_output(row.id) or row).options == chosen
+    assert store.create_output(notebook, "report", "processing").options == {}

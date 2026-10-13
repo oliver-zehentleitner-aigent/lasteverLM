@@ -21,7 +21,8 @@ this directory implements the `/api/rag` prefix.
 | DELETE | `/api/rag/conversations/{id}` | | 204, the conversation and its messages |
 | GET | `/api/rag/conversations/{id}/messages` | | `[Message]`, oldest first |
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
-| POST | `/api/rag/notebooks/{id}/outputs` | `{"kind"}` | 202 `Output`, status `waiting` or `processing` |
+| POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?}` | 202 `Output`, status `waiting` or `processing` |
+| GET | `/api/rag/outputs/options` | | the options catalogue, see below |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` |
 | GET | `/api/rag/outputs/{id}` | | `Output` |
 | DELETE | `/api/rag/outputs/{id}` | | 204 |
@@ -96,6 +97,21 @@ indexes the result as a source of kind `generated` in the same notebook
 so the chat can cite it; `Output.source_id` names that source. Deleting
 the output deletes the source and its stored files.
 
+**Options.** `options` on `POST .../outputs` is `{"language"?, "voice"?,
+"speed"?}`: `language` (one of ten codes, `de`, `en`, `fr`, ...) for every
+kind, `voice` and `speed` for audio only. An option the kind does not
+take, an unknown key, code or voice, or a speed off the offered range
+(0.75–1.5 in steps of 0.25) is a 422. Without `language` the document
+follows the language of its sources; with it the generator is told to
+write everything, the title included, in that language. Audio defaults
+to `TTS_VOICE` and speed 1.0. The resolved options are stored on the
+output (`outputs.options`) and returned as `Output.options` and on the
+shared view. `GET /api/rag/outputs/options` lists the languages, the
+voices (`id`, `label`, `gender`, native `language`, from the Qwen3-TTS
+model card), the default voice, the speed range and which options each
+kind takes, so clients hardcode nothing; the language preference itself
+lives in account and the web sends it explicitly.
+
 `audio`: the model writes a spoken-word script (three to five minutes);
 the worker reads it with `TTS_MODEL` and `TTS_VOICE` in segments of at
 most 1500 characters that end at a sentence, one `tts` usage row per
@@ -120,7 +136,7 @@ missing or a configured model has no price.
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | yes / default 1536 | query and chunk embedding, requested at that width (`dimensions`); identical to the ingest service |
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
-| `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is one of the platform's (`vivian`, `serena`, `ryan`, ...), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million characters |
+| `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million characters |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
 | `RETRIEVAL_K` | no | chunks per question, default 8 |
 | `RETRIEVAL_INCLUDE_GENERATED` | no | default `false`: an unscoped question is answered from the uploads only; generated documents are reached through `scope.output_id` |
@@ -153,7 +169,8 @@ through `create_app`.
 `db/migrations/0001_rag.sql` creates `messages` and `outputs`;
 `0002_rag_conversations.sql` adds `conversations` and
 `messages.conversation_id` and moves each notebook's existing messages
-into one conversation `Chat 1`. The migrations runner applies them after
+into one conversation `Chat 1`; `0003_rag_output_options.sql` adds
+`outputs.options`. The migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
 `chunks`. A library source is a file, text, URL or image processed once

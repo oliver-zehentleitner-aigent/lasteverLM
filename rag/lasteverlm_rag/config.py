@@ -23,6 +23,8 @@ from lasteverlm_core import (
     require_prices,
 )
 
+from .options import is_voice
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -59,7 +61,7 @@ class Settings:
             rate_limit=RateLimitSettings.from_env(env),
             model_prices=prices,
             tts_model=tts_model,
-            tts_voice=env_optional("TTS_VOICE", env) or DEFAULT_TTS_VOICE,
+            tts_voice=_voice(env_optional("TTS_VOICE", env) or DEFAULT_TTS_VOICE),
             s3=_s3(env, tts_model),
             retrieval_k=retrieval_k,
             retrieval_include_generated=_flag(
@@ -97,3 +99,9 @@ def _s3(env: Mapping[str, str], tts_model: str | None) -> S3Settings | None:
             raise ConfigError("TTS_MODEL is set but S3_ENDPOINT is not: audio needs object storage")
         return None
     return S3Settings.from_env(env)
+
+
+def _voice(voice: str) -> str:
+    if not is_voice(voice):
+        raise ConfigError(f"TTS_VOICE {voice!r} is not one of the platform's voices")
+    return voice

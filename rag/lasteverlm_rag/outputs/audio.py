@@ -45,11 +45,13 @@ class AudioGenerator(JsonGenerator):
         notebook_title: str,
         summaries: list[SourceSummary],
         passages: list[Passage],
+        *,
+        language: str | None = None,
     ) -> GeneratedOutput:
         if not self.available:
             # fail before the script costs tokens nobody can listen to
             raise GenerationFailed("audio: text-to-speech is not available on this deployment")
-        return super().generate(complete, notebook_title, summaries, passages)
+        return super().generate(complete, notebook_title, summaries, passages, language=language)
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         assert isinstance(document, AudioScript)

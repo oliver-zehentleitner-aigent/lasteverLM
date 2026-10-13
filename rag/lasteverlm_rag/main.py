@@ -3,7 +3,7 @@
 import logging
 import uuid
 from functools import partial
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import (
     Depends,
@@ -51,11 +51,13 @@ from .models import (
     DailyStats,
     OutputCreate,
 )
+from .options import catalogue
 from .outputs import OutputGenerator, registry
 from .service import (
     ChunkNotFound,
     ConversationNotFound,
     InsufficientCredit,
+    InvalidOptions,
     NotebookNotFound,
     OutputNotFound,
     OutputNotReady,
@@ -130,6 +132,7 @@ def create_app(
         settings.retrieval_k,
         settings.similarity_floor,
         objects=S3Storage(settings.s3) if settings.s3 else None,
+        default_voice=settings.tts_voice,
     )
 
     app = FastAPI(title="lasteverLM rag", version=__version__, docs_url=None, redoc_url=None)
@@ -203,7 +206,12 @@ def create_app(
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=Output, status_code=202)
     def create_output(notebook_id: NotebookId, body: OutputCreate, user: User) -> Output:
         """Inserts the job; a worker (``lasteverlm_rag.worker``) picks it up."""
-        return outputs.create(user, str(notebook_id), body.kind)
+        return outputs.create(user, str(notebook_id), body.kind, body.options)
+
+    @app.get(f"{PREFIX}/outputs/options")
+    def output_options(_: User) -> dict[str, Any]:
+        """The options catalogue per kind: languages, voices, speeds."""
+        return catalogue(settings.tts_voice)
 
     @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=list[Output])
     def list_outputs(notebook_id: NotebookId, user: User) -> list[Output]:
@@ -255,6 +263,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
         return error(exc.status_code, str(exc.detail))
+
+    @app.exception_handler(InvalidOptions)
+    async def invalid_options(_: Request, exc: InvalidOptions) -> JSONResponse:
+        return error(422, f"options: {exc}")
 
     @app.exception_handler(ChunkNotFound)
     async def chunk_not_found(_: Request, exc: ChunkNotFound) -> JSONResponse:

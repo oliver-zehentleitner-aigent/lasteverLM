@@ -3,13 +3,15 @@ API models (Answer, Citation, Message, Output, SharedOutput) come from core."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
 from lasteverlm_core import OutputKind, OutputStatus, SourceKind
 from pydantic import BaseModel, Field
+
+from .options import OutputOptions
 
 
 class AskScope(BaseModel):
@@ -58,6 +60,7 @@ class ConversationRow:
 
 class OutputCreate(BaseModel):
     kind: OutputKind
+    options: OutputOptions | None = None
 
 
 @dataclass(frozen=True)
@@ -136,6 +139,7 @@ class OutputRow:
     source_id: str | None
     attempts: int
     created_at: str
+    options: dict[str, Any] = field(default_factory=dict)
 
 
 class NotebookStats(BaseModel):

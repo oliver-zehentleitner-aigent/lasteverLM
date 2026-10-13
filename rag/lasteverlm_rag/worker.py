@@ -108,6 +108,7 @@ def main() -> None:
             else None
         ),
         objects=S3Storage(settings.s3) if settings.s3 else None,
+        default_voice=settings.tts_voice,
     )
     worker = Worker(store, outputs)
     for sig in (signal.SIGTERM, signal.SIGINT):

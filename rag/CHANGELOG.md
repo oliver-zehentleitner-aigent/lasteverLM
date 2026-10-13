@@ -11,11 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Citations carry their provenance: `similarity` (the chunk's score for the question), `chunk_index` and `chunk_count`; persisted messages keep them.
 - `GET /api/rag/chunks/{chunk_id}`: the exact chunk behind a citation, for its owner.
+- Output options: `language` for every kind, `voice` and `speed` for audio, validated per kind, stored on the output (migration `0003_rag_output_options.sql`) and returned as `options`; `GET /api/rag/outputs/options` serves the catalogue.
 - `GET /api/rag/admin/stats/daily?days=30` for the admin charts: messages and outputs (total and by kind) per UTC day, every day present.
 
 ### Changed
 
 - A citation's `quote` is the verbatim chunk text; it was cut at 300 characters before.
+- `TTS_VOICE` must be one of the platform's voices; startup refuses any other.
 
 ## [0.5.0] - 2026-10-13
 
