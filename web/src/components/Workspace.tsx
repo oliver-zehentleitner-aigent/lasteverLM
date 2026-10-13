@@ -29,6 +29,7 @@ import { OutputTiles } from './OutputTiles'
 import { OutputViewer } from './OutputViewer'
 import { SourcesPane } from './SourcesPane'
 import { Wizard } from './Wizard'
+import { t } from '../i18n'
 
 /** The two-column screen. Left: sources, then the output forms as tiles.
  *  Right: the viewer with one tab per generated document, then the chat. */
@@ -84,7 +85,7 @@ export function Workspace() {
         {error && <p className="error">{error}</p>}
       </aside>
       <ColumnDivider
-        label="Resize the notebook list"
+        label={t('ws.resizeList')}
         width={sidebarWidth}
         min={SIDEBAR_WIDTH.min}
         max={() => SIDEBAR_WIDTH.max}
@@ -100,7 +101,7 @@ export function Workspace() {
         <NotebookView key={selectedId} notebookId={selectedId} wizardOpen={wizardFor === selectedId} onWizard={(open) => setWizardFor(open ? selectedId : null)} />
       ) : (
         <div className="columns empty">
-          <p className="muted">Create a notebook to start.</p>
+          <p className="muted">{t('nb.createFirst')}</p>
         </div>
       )}
     </main>
@@ -186,7 +187,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   }
 
   async function deleteOutput(o: Output) {
-    if (!confirm(`Delete "${o.title || formFor(o.kind).label}"?`)) return
+    if (!confirm(t('ws.deleteDoc', { title: o.title || formFor(o.kind).label }))) return
     const ok = await run(async () => {
       await rag.deleteOutput(o.id)
       return true
@@ -257,7 +258,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
         <OutputsPane outputs={outputs} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
       </div>
       <ColumnDivider
-        label="Resize sources and documents"
+        label={t('ws.resizeLeft')}
         width={leftWidth}
         min={LEFT_WIDTH.min}
         max={() => {
@@ -311,14 +312,14 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
             onCitationSelected={onCitation}
             tools={
               fullView ? undefined : (
-                <span className="presets" role="group" aria-label="Chat height">
+                <span className="presets" role="group" aria-label={t('ws.chatHeight')}>
                   {CHAT_PRESETS.map((p) => (
                     <button
                       key={p.label}
                       type="button"
                       className={activePreset(ratio) === p.label ? 'preset active' : 'preset'}
                       aria-pressed={activePreset(ratio) === p.label}
-                      title={`Chat at ${Math.round(p.chat * 100)} % of the column`}
+                      title={t('ws.chatAt', { pct: Math.round(p.chat * 100) })}
                       onClick={() => {
                         const r = presetRatio(p.chat)
                         setRatio(r)

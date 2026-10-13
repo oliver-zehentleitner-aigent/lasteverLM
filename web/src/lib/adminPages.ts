@@ -1,13 +1,15 @@
+import { t } from '../i18n'
+
 /** The admin panel's pages, in the order of the sub-navigation. The
  *  overview is the default and lives at /admin itself. */
 export const ADMIN_PAGES = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'users', label: 'Users' },
-  { id: 'access', label: 'Access' },
-  { id: 'credits', label: 'Credits' },
-  { id: 'security', label: 'Security' },
-  { id: 'visits', label: 'Visits' },
-  { id: 'mail', label: 'Mail' },
+  { id: 'overview', get label() { return t('admin.page.overview') } },
+  { id: 'users', get label() { return t('admin.page.users') } },
+  { id: 'access', get label() { return t('admin.page.access') } },
+  { id: 'credits', get label() { return t('admin.page.credits') } },
+  { id: 'security', get label() { return t('admin.page.security') } },
+  { id: 'visits', get label() { return t('admin.page.visits') } },
+  { id: 'mail', get label() { return t('admin.page.mail') } },
 ] as const
 
 export type AdminPageId = (typeof ADMIN_PAGES)[number]['id']

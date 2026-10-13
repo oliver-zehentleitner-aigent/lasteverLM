@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { t } from '../i18n'
 
 interface Props {
   /** what failed, for the sentence shown instead */
@@ -18,9 +19,7 @@ export class ErrorBoundary extends Component<Props, { error: string | null }> {
   render() {
     if (this.state.error) {
       return (
-        <p className="error">
-          {this.props.what} could not be shown: {this.state.error}
-        </p>
+        <p className="error">{t('boundary.failed', { what: this.props.what, error: this.state.error })}</p>
       )
     }
     return this.props.children

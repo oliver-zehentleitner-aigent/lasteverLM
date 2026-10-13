@@ -6,6 +6,7 @@ import { formatTime } from '../lib/format'
 import { optionsLabel } from '../lib/outputOptions'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
+import { t } from '../i18n'
 
 /** /s/<token>: one generated document, read-only, no login. The page view
  *  goes to the visitor log like any other. */
@@ -24,11 +25,11 @@ export function SharePage({ token }: { token: string }) {
         <a href="/" className="brand">
           lasteverLM
         </a>
-        <span className="muted small">shared document</span>
+        <span className="muted small">{t('share.shared')}</span>
       </header>
       <div className="viewer-body printable">
         {error && <p className="error">{error}</p>}
-        {!doc && !error && <p className="muted">Loading…</p>}
+        {!doc && !error && <p className="muted">{t('common.loading')}</p>}
         {doc && (
           <>
             <header className="viewer-head">
@@ -40,7 +41,7 @@ export function SharePage({ token }: { token: string }) {
               {formFor(doc.kind).printable && (
                 <span className="actions no-print">
                   <button type="button" className="link" onClick={() => window.print()}>
-                    print
+                    {t('viewer.print')}
                   </button>
                 </span>
               )}

@@ -4,6 +4,7 @@ import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { buildOptions, defaultValues, optionsFor, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
+import { t } from '../i18n'
 
 interface Props {
   selected: OutputKind | null
@@ -27,8 +28,8 @@ export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate
   const set = (patch: Partial<OptionValues>) => values && setChosen({ ...values, ...patch })
   return (
     <section className="tiles">
-      <h2>Output format</h2>
-      <div className="tile-grid" role="radiogroup" aria-label="Output format">
+      <h2>{t('tiles.title')}</h2>
+      <div className="tile-grid" role="radiogroup" aria-label={t('tiles.title')}>
         {OUTPUT_FORMS.map((f) => (
           <button
             key={f.kind}
@@ -49,9 +50,9 @@ export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate
         <div className="output-options">
           {shown.includes('language') && (
             <label>
-              Language
+              {t('tiles.language')}
               <select value={values.language} onChange={(e) => set({ language: e.target.value })}>
-                <option value="">Same as the sources</option>
+                <option value="">{t('tiles.sameAsSources')}</option>
                 {spec.languages.map((l) => (
                   <option key={l.code} value={l.code}>
                     {l.label}
@@ -62,10 +63,10 @@ export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate
           )}
           {shown.includes('voice') && (
             <label>
-              Voice
+              {t('tiles.voice')}
               <select value={values.voice} onChange={(e) => set({ voice: e.target.value })}>
                 {voiceGroups(spec).map((g) => (
-                  <optgroup key={g.gender} label={g.gender === 'female' ? 'Female' : 'Male'}>
+                  <optgroup key={g.gender} label={g.gender === 'female' ? t('tiles.female') : t('tiles.male')}>
                     {g.voices.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.label}
@@ -78,7 +79,7 @@ export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate
           )}
           {shown.includes('speed') && (
             <label>
-              Speed
+              {t('tiles.speed')}
               <select value={values.speed} onChange={(e) => set({ speed: Number(e.target.value) })}>
                 {speedSteps(spec).map((v) => (
                   <option key={v} value={v}>
@@ -93,7 +94,7 @@ export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate
       <div className="create-row">
         {blocker && <span className="muted small">{blocker}</span>}
         <button type="button" disabled={busy || blocker !== null} onClick={() => selected && onCreate(selected, spec && values ? buildOptions(selected, spec, values) : {})}>
-          Create
+          {t('tiles.create')}
         </button>
       </div>
     </section>

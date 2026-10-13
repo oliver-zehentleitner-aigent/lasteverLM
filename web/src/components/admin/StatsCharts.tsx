@@ -29,6 +29,7 @@ import {
   total,
 } from '../../lib/charts'
 import { formatCents } from '../../lib/format'
+import { t, tn } from '../../i18n'
 
 const DAYS = 30
 
@@ -86,7 +87,7 @@ function Card({
         {headline && <span className="headline">{headline}</span>}
       </header>
       {state.error && <p className="error small">{state.error}</p>}
-      {!state.ready && !state.error && <p className="muted small">Loading…</p>}
+      {!state.ready && !state.error && <p className="muted small">{t('common.loading')}</p>}
       {state.ready && children}
     </section>
   )
@@ -129,7 +130,7 @@ export default function StatsCharts() {
   return (
     <div className="charts">
       <Card
-        title={`Cost per day, last ${DAYS} days`}
+        title={t('chart.costPerDay', { n: DAYS })}
         headline={accountDaily.data ? formatCents(total(accountDaily.data, (d) => d.usage_cost_cents)) : undefined}
         wide
         state={st(accountDaily)}
@@ -142,16 +143,16 @@ export default function StatsCharts() {
               <YAxis {...axis(c)} width={40} unit=" €" />
               <Tooltip {...tooltip(c)} formatter={(v) => `${Number(v).toFixed(2)} €`} />
               <Legend {...legend(c)} />
-              <Bar dataKey="cost" name="Usage cost" fill={c.series[0]} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="granted" name="Credit granted" fill={c.series[2]} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="cost" name={t('chart.usageCost')} fill={c.series[0]} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="granted" name={t('chart.creditGranted')} fill={c.series[2]} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card
-        title="Logins and visits"
-        headline={accountDaily.data ? `${total(accountDaily.data, (d) => d.logins)} logins` : undefined}
+        title={t('chart.loginsVisits')}
+        headline={accountDaily.data ? tn('chart.logins', total(accountDaily.data, (d) => d.logins)) : undefined}
         state={st(accountDaily)}
       >
         <div className="chart-body">
@@ -162,16 +163,16 @@ export default function StatsCharts() {
               <YAxis {...axis(c)} width={32} allowDecimals={false} />
               <Tooltip {...tooltip(c)} cursor={{ stroke: c.line }} />
               <Legend {...legend(c)} />
-              <Line type="monotone" dataKey="visits" name="Visits" stroke={c.series[1]} strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="logins" name="Logins" stroke={c.series[0]} strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="visits" name={t('chart.visits')} stroke={c.series[1]} strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="logins" name={t('chart.loginsSeries')} stroke={c.series[0]} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card
-        title="Chat and documents"
-        headline={ragDaily.data ? `${total(ragDaily.data, (d) => d.messages)} messages` : undefined}
+        title={t('chart.chatDocs')}
+        headline={ragDaily.data ? tn('chart.messages', total(ragDaily.data, (d) => d.messages)) : undefined}
         state={st(ragDaily)}
       >
         <div className="chart-body">
@@ -182,21 +183,21 @@ export default function StatsCharts() {
               <YAxis {...axis(c)} width={32} allowDecimals={false} />
               <Tooltip {...tooltip(c)} cursor={{ stroke: c.line }} />
               <Legend {...legend(c)} />
-              <Area type="monotone" dataKey="messages" name="Messages" stroke={c.series[3]} fill={c.series[3]} fillOpacity={0.25} />
-              <Area type="monotone" dataKey="documents" name="Documents" stroke={c.series[4]} fill={c.series[4]} fillOpacity={0.25} />
+              <Area type="monotone" dataKey="messages" name={t('chart.messagesSeries')} stroke={c.series[3]} fill={c.series[3]} fillOpacity={0.25} />
+              <Area type="monotone" dataKey="documents" name={t('chart.documentsSeries')} stroke={c.series[4]} fill={c.series[4]} fillOpacity={0.25} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card
-        title="Documents by kind"
-        headline={ragDaily.data ? `${total(kinds, (k) => k.value)} in ${DAYS} days` : undefined}
+        title={t('chart.docsByKind')}
+        headline={ragDaily.data ? t('chart.inDays', { total: total(kinds, (k) => k.value), n: DAYS }) : undefined}
         state={st(ragDaily)}
       >
         <div className="chart-body">
           {kinds.length === 0 ? (
-            <p className="muted small">No documents in this period.</p>
+            <p className="muted small">{t('chart.noDocs')}</p>
           ) : (
             <ResponsiveContainer>
               <PieChart>
@@ -214,8 +215,8 @@ export default function StatsCharts() {
       </Card>
 
       <Card
-        title="Sources added per day"
-        headline={ingestDaily.data ? `${total(ingestDaily.data, (d) => d.sources_created)} added` : undefined}
+        title={t('chart.sourcesPerDay')}
+        headline={ingestDaily.data ? t('chart.added', { n: total(ingestDaily.data, (d) => d.sources_created) }) : undefined}
         wide
         state={st(ingestDaily)}
       >
@@ -236,7 +237,7 @@ export default function StatsCharts() {
       </Card>
 
       <Card
-        title="Cost by model"
+        title={t('chart.costByModel')}
         headline={accountUsage.data ? formatCents(total(accountUsage.data.by_model, (m) => m.cost_cents)) : undefined}
         state={st(accountUsage)}
       >
@@ -247,19 +248,19 @@ export default function StatsCharts() {
               <XAxis type="number" {...axis(c)} unit=" €" />
               <YAxis type="category" dataKey="name" {...axis(c)} width={150} />
               <Tooltip {...tooltip(c)} formatter={(v) => `${Number(v).toFixed(2)} €`} />
-              <Bar dataKey="cost" name="Cost" fill={c.series[5]} radius={[0, 3, 3, 0]} />
+              <Bar dataKey="cost" name={t('chart.cost')} fill={c.series[5]} radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
-      <Card title="Top users by usage" state={st(accountUsage)}>
+      <Card title={t('chart.topUsers')} state={st(accountUsage)}>
         <table className="top-users">
           <thead>
             <tr>
-              <th>User</th>
-              <th>Used</th>
-              <th>Balance</th>
+              <th>{t('adm.col.user')}</th>
+              <th>{t('adm.col.used')}</th>
+              <th>{t('adm.col.balance')}</th>
             </tr>
           </thead>
           <tbody>

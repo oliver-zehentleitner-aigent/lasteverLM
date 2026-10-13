@@ -1,3 +1,4 @@
+import { t, type MessageKey } from '../i18n'
 import { getToken } from './token'
 
 export class ApiError extends Error {
@@ -54,7 +55,7 @@ export async function requestWithStatus<T>(url: string, opts: RequestOptions = {
   try {
     res = await fetch(url, { method: opts.method ?? 'GET', headers, body })
   } catch {
-    throw new ApiError(0, NETWORK_MESSAGE)
+    throw new ApiError(0, networkMessage())
   }
 
   if (res.status === 401) apiEvents.dispatchEvent(new Event(UNAUTHORIZED))
@@ -69,19 +70,22 @@ export async function requestWithStatus<T>(url: string, opts: RequestOptions = {
   try {
     return { status: res.status, body: JSON.parse(text) as T }
   } catch {
-    throw new ApiError(res.status, 'The server answered with something that is not JSON.')
+    throw new ApiError(res.status, t('http.notJson'))
   }
 }
 
-export const NETWORK_MESSAGE = 'Cannot reach the server. Check your connection, or try again in a moment.'
+export function networkMessage(): string {
+  return t('http.network')
+}
 
 /** What the user reads for a failed response. Pure, so the mapping is
  *  tested; the UI shows this string and nothing else. */
 export function failureMessage(status: number, bodyText: string): string {
   const fromService = serviceError(bodyText)
   if (fromService) return fromService
-  const described = STATUS_TEXT[status]
-  return described ? `${described} (HTTP ${status})` : `The server answered with HTTP ${status}.`
+  return STATUS_TEXT.has(status)
+    ? t('http.status', { text: t(`http.${status}` as MessageKey), status })
+    : t('http.unknown', { status })
 }
 
 /** The service's own `{"error": "<message>"}`, if the body is one. */
@@ -116,20 +120,4 @@ export function serviceCode(bodyText: string): string | null {
 /** Statuses the deployment produces without a JSON body, mostly from the
  *  ingress in front of the services, plus the contract's codes as a
  *  fallback when a service answers without a message. */
-const STATUS_TEXT: Record<number, string> = {
-  400: 'The request was not understood',
-  401: 'You are signed out',
-  402: 'Your credit is used up',
-  403: 'This needs admin rights',
-  404: 'Not found, or not yours',
-  409: 'Not ready yet',
-  413: 'The file is too large for the server',
-  415: 'This file type is not supported',
-  422: 'The request was rejected',
-  429: 'Too many requests, slow down',
-  500: 'The server hit an error',
-  501: 'This source type is not supported yet',
-  502: 'The service is not reachable, it may still be starting',
-  503: 'The service is unavailable, it may still be starting',
-  504: 'The service took too long to answer',
-}
+const STATUS_TEXT = new Set([400, 401, 402, 403, 404, 409, 413, 415, 422, 429, 500, 501, 502, 503, 504])

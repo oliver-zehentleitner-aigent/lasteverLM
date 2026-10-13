@@ -1,10 +1,11 @@
 import type { AccountDay, AccountUsage, IngestDay, OutputKind, RagDay } from '../api/types'
+import { language } from '../i18n'
 import { formFor, SOURCE_FORMS } from './outputs'
 
-/** "Oct 13" for a UTC date "2026-10-13"; the axis labels of every chart. */
+/** "Oct 13" ("13. Okt." in German) for a UTC date "2026-10-13"; the axis labels of every chart. */
 export function dayLabel(day: string): string {
   const d = new Date(`${day}T00:00:00Z`)
-  return Number.isNaN(d.getTime()) ? day : d.toLocaleDateString('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  return Number.isNaN(d.getTime()) ? day : d.toLocaleDateString(language(), { month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
 
 const euros = (cents: number) => Math.round(cents) / 100
@@ -38,7 +39,12 @@ export function outputsByKind(days: readonly RagDay[]) {
 }
 
 /** The source kinds as series keys, in the wizard's order. */
-export const SOURCE_SERIES = SOURCE_FORMS.map((f) => ({ key: f.kind, label: f.label }))
+export const SOURCE_SERIES = SOURCE_FORMS.map((f) => ({
+  key: f.kind,
+  get label() {
+    return f.label
+  },
+}))
 
 /** Sources created per day split by kind, for the stacked bars. */
 export function sourcesSeries(days: readonly IngestDay[]) {

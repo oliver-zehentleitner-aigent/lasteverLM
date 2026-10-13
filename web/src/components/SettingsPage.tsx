@@ -6,6 +6,7 @@ import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { CAPTURE_MODES } from '../lib/capture'
 import { voiceGroups } from '../lib/outputOptions'
+import { t } from '../i18n'
 
 const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null, pdf_capture: null }
 const TRASH_DEFAULT = 14
@@ -39,23 +40,23 @@ export function SettingsPage() {
 
   return (
     <main className="settings">
-      <h1>Settings</h1>
+      <h1>{t('set.title')}</h1>
       <form className="card" onSubmit={save}>
         <label>
-          Interface language
+          {t('set.uiLanguage')}
           <select
             value={p.ui_language ?? ''}
             onChange={(e) => set({ ui_language: (e.target.value || null) as Preferences['ui_language'] })}
           >
-            <option value="">Browser default</option>
+            <option value="">{t('set.browserDefault')}</option>
             <option value="en">English</option>
             <option value="de">Deutsch</option>
           </select>
         </label>
         <label>
-          Language of generated documents
+          {t('set.outputLanguage')}
           <select value={p.output_language ?? ''} onChange={(e) => set({ output_language: e.target.value || null })}>
-            <option value="">Same as the sources</option>
+            <option value="">{t('tiles.sameAsSources')}</option>
             {spec?.languages.map((l) => (
               <option key={l.code} value={l.code}>
                 {l.label}
@@ -68,12 +69,16 @@ export function SettingsPage() {
           </select>
         </label>
         <label>
-          Voice for audio
+          {t('set.voice')}
           <select value={p.audio_voice ?? ''} onChange={(e) => set({ audio_voice: e.target.value || null })}>
-            <option value="">Default{spec ? ` (${spec.audio.voices.find((v) => v.id === spec.audio.default_voice)?.label ?? spec.audio.default_voice})` : ''}</option>
+            <option value="">
+              {spec
+                ? t('set.defaultNamed', { name: spec.audio.voices.find((v) => v.id === spec.audio.default_voice)?.label ?? spec.audio.default_voice })
+                : t('set.default')}
+            </option>
             {spec &&
               voiceGroups(spec).map((g) => (
-                <optgroup key={g.gender} label={g.gender === 'female' ? 'Female' : 'Male'}>
+                <optgroup key={g.gender} label={g.gender === 'female' ? t('tiles.female') : t('tiles.male')}>
                   {g.voices.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.label}
@@ -87,12 +92,12 @@ export function SettingsPage() {
           </select>
         </label>
         <label>
-          Reading PDFs
+          {t('set.pdf')}
           <select
             value={p.pdf_capture ?? ''}
             onChange={(e) => set({ pdf_capture: (e.target.value || null) as Preferences['pdf_capture'] })}
           >
-            <option value="">Default (Auto)</option>
+            <option value="">{t('set.pdfDefault')}</option>
             {CAPTURE_MODES.map((m) => (
               <option key={m.mode} value={m.mode}>
                 {m.label}: {m.explain}
@@ -101,24 +106,24 @@ export function SettingsPage() {
           </select>
         </label>
         <label>
-          Days in the trash
+          {t('set.trashDays')}
           <input
             type="number"
             min={1}
             max={365}
             step={1}
-            placeholder={`${TRASH_DEFAULT} (default)`}
+            placeholder={t('set.trashDefault', { n: TRASH_DEFAULT })}
             value={p.trash_days ?? ''}
             onChange={(e) => set({ trash_days: e.target.value === '' ? null : Math.round(Number(e.target.value)) })}
           />
-          <span className="muted small">How long a deleted library source can be restored. Empty means {TRASH_DEFAULT} days.</span>
+          <span className="muted small">{t('set.trashHint', { n: TRASH_DEFAULT })}</span>
         </label>
-        {!spec && <p className="muted small">The lists of languages and voices could not be loaded; the stored values are kept.</p>}
+        {!spec && <p className="muted small">{t('set.noSpec')}</p>}
         {error && <p className="error">{error}</p>}
-        {saved && <p className="muted small">Saved.</p>}
+        {saved && <p className="muted small">{t('common.saved')}</p>}
         <div className="row">
           <button type="submit" disabled={busy || form === null}>
-            Save
+            {t('common.save')}
           </button>
         </div>
       </form>

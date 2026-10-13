@@ -1,4 +1,5 @@
 import type { AccountStats, IngestStats, OutputKind, RagStats } from '../api/types'
+import { language, t } from '../i18n'
 import { adminPath } from './adminPages'
 import { formatBytes, formatCents } from './format'
 import { formFor } from './outputs'
@@ -14,44 +15,44 @@ export interface StatTile {
   href?: string
 }
 
-const n = (v: number) => v.toLocaleString()
+const n = (v: number) => v.toLocaleString(language())
 
 export function accountTiles(s: AccountStats): StatTile[] {
   return [
-    { label: 'Users', value: n(s.users) },
-    { label: 'Logins, 24 h', value: n(s.logins_24h) },
+    { label: t('stat.users'), value: n(s.users) },
+    { label: t('stat.logins24h'), value: n(s.logins_24h) },
     {
-      label: 'Vouchers open',
+      label: t('stat.vouchersOpen'),
       value: n(s.vouchers.open),
-      detail: `${n(s.vouchers.issued)} issued · ${n(s.vouchers.redeemed)} redeemed`,
+      detail: t('stat.vouchersDetail', { issued: n(s.vouchers.issued), redeemed: n(s.vouchers.redeemed) }),
       href: adminPath('credits'),
     },
-    { label: 'Credit granted', value: formatCents(s.credits_granted_cents), href: adminPath('users') },
+    { label: t('stat.creditGranted'), value: formatCents(s.credits_granted_cents), href: adminPath('users') },
     {
-      label: 'Usage cost',
+      label: t('stat.usageCost'),
       value: formatCents(s.usage_cost_cents.total),
-      detail: `${formatCents(s.usage_cost_cents.last_24h)} in 24 h`,
+      detail: t('stat.in24h', { value: formatCents(s.usage_cost_cents.last_24h) }),
     },
-    { label: 'Blocks active', value: n(s.blocks_active), alert: s.blocks_active > 0 },
-    { label: 'Bans active', value: n(s.bans_active), alert: s.bans_active > 0 },
+    { label: t('stat.blocksActive'), value: n(s.blocks_active), alert: s.blocks_active > 0 },
+    { label: t('stat.bansActive'), value: n(s.bans_active), alert: s.bans_active > 0 },
   ]
 }
 
 export function ingestTiles(s: IngestStats): StatTile[] {
   return [
     {
-      label: 'Sources ready',
+      label: t('stat.sourcesReady'),
       value: n(s.sources.ready),
-      detail: `${n(s.sources.processing)} processing`,
+      detail: t('stat.processing', { n: n(s.sources.processing) }),
     },
-    { label: 'Sources failed', value: n(s.sources.failed), alert: s.sources.failed > 0 },
+    { label: t('stat.sourcesFailed'), value: n(s.sources.failed), alert: s.sources.failed > 0 },
     {
-      label: 'Ingest jobs pending',
+      label: t('stat.ingestPending'),
       value: n(s.jobs.pending),
-      detail: `${n(s.jobs.running)} running`,
+      detail: t('stat.running', { n: n(s.jobs.running) }),
     },
-    { label: 'Chunks', value: n(s.chunks) },
-    { label: 'Stored sources', value: formatBytes(s.source_bytes) },
+    { label: t('stat.chunks'), value: n(s.chunks) },
+    { label: t('stat.storedSources'), value: formatBytes(s.source_bytes) },
   ]
 }
 
@@ -62,19 +63,19 @@ export function ragTiles(s: RagStats): StatTile[] {
     .map(([kind, count]) => `${formFor(kind).label} ${n(count)}`)
     .join(' · ')
   return [
-    { label: 'Notebooks', value: n(s.notebooks.total) },
+    { label: t('stat.notebooks'), value: n(s.notebooks.total) },
     {
-      label: 'Chat messages',
+      label: t('stat.chatMessages'),
       value: n(s.messages.total),
-      detail: `${n(s.messages.last_24h)} in 24 h`,
+      detail: t('stat.in24h', { value: n(s.messages.last_24h) }),
     },
-    { label: 'Documents', value: n(total), detail: kinds || undefined },
-    { label: 'Documents failed', value: n(s.outputs.by_status.failed), alert: s.outputs.by_status.failed > 0 },
+    { label: t('stat.documents'), value: n(total), detail: kinds || undefined },
+    { label: t('stat.documentsFailed'), value: n(s.outputs.by_status.failed), alert: s.outputs.by_status.failed > 0 },
     {
-      label: 'Document jobs pending',
+      label: t('stat.documentPending'),
       value: n(s.jobs.pending),
-      detail: `${n(s.jobs.running)} running`,
+      detail: t('stat.running', { n: n(s.jobs.running) }),
     },
-    { label: 'Shared documents', value: n(s.shared.outputs) },
+    { label: t('stat.shared'), value: n(s.shared.outputs) },
   ]
 }

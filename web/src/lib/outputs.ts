@@ -1,6 +1,8 @@
 import type { OutputKind, Source, SourceKind } from '../api/types'
+import { t } from '../i18n'
 
-/** The output forms offered as tiles, in display order. `available: false`
+/** The output forms offered as tiles, in display order. Labels and
+ *  descriptions are getters, so they follow the current language. `available: false`
  *  shows the tile disabled with "Soon." (see `tileNote`), so the shape of
  *  the panel is complete before every generator exists and enabling one is
  *  a one-line change. `printable` enables the print
@@ -14,12 +16,12 @@ export interface OutputForm {
 }
 
 export const OUTPUT_FORMS: OutputForm[] = [
-  { kind: 'report', label: 'Report', description: 'A structured write-up of the sources.', available: true, printable: true },
-  { kind: 'quiz', label: 'Quiz', description: 'Questions with answers and explanations.', available: true, printable: false },
-  { kind: 'table', label: 'Data table', description: 'Facts from the sources as rows and columns.', available: true, printable: true },
-  { kind: 'mindmap', label: 'Mindmap', description: 'Topics and sub-topics as a tree.', available: true, printable: false },
-  { kind: 'infographic', label: 'Infographic', description: 'Headline, key facts and short sections.', available: true, printable: false },
-  { kind: 'audio', label: 'Audio', description: 'A spoken overview of the sources.', available: true, printable: false },
+  { kind: 'report', get label() { return t('kind.report') }, get description() { return t('kind.report.note') }, available: true, printable: true },
+  { kind: 'quiz', get label() { return t('kind.quiz') }, get description() { return t('kind.quiz.note') }, available: true, printable: false },
+  { kind: 'table', get label() { return t('kind.table') }, get description() { return t('kind.table.note') }, available: true, printable: true },
+  { kind: 'mindmap', get label() { return t('kind.mindmap') }, get description() { return t('kind.mindmap.note') }, available: true, printable: false },
+  { kind: 'infographic', get label() { return t('kind.infographic') }, get description() { return t('kind.infographic.note') }, available: true, printable: false },
+  { kind: 'audio', get label() { return t('kind.audio') }, get description() { return t('kind.audio.note') }, available: true, printable: false },
 ]
 
 export function formFor(kind: OutputKind): OutputForm {
@@ -40,13 +42,17 @@ export interface SourceForm {
 }
 
 export const SOURCE_FORMS: SourceForm[] = [
-  { kind: 'pdf', label: 'PDF', description: 'Drop or pick one or more PDF files.', available: true, input: 'files', accept: '.pdf,application/pdf' },
-  { kind: 'text', label: 'Text', description: 'Plain text or Markdown files, or paste text.', available: true, input: 'files', accept: '.txt,.md,text/plain,text/markdown' },
-  { kind: 'url', label: 'Web page', description: 'The address of a web page, or of a PDF or text file.', available: true, input: 'url' },
+  { kind: 'pdf', get label() { return t('source.pdf') }, get description() { return t('source.pdf.note') }, available: true, input: 'files', accept: '.pdf,application/pdf' },
+  { kind: 'text', get label() { return t('source.text') }, get description() { return t('source.text.note') }, available: true, input: 'files', accept: '.txt,.md,text/plain,text/markdown' },
+  { kind: 'url', get label() { return t('source.url') }, get description() { return t('source.url.note') }, available: true, input: 'url' },
   {
     kind: 'image',
-    label: 'Image',
-    description: 'PNG, JPEG, WebP or GIF; the text in it is transcribed and the picture described.',
+    get label() {
+      return t('source.image')
+    },
+    get description() {
+      return t('source.image.note')
+    },
     available: true,
     input: 'files',
     accept: '.png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif',
@@ -56,7 +62,7 @@ export const SOURCE_FORMS: SourceForm[] = [
 /** The line under a tile's label: its description, or "Soon." while the
  *  form is not available yet. */
 export function tileNote(f: { description: string; available: boolean }): string {
-  return f.available ? f.description : 'Soon.'
+  return f.available ? f.description : t('tile.soon')
 }
 
 /** The sources a user added. A generated document is a source of kind
@@ -69,7 +75,7 @@ export function uploadedSources(sources: readonly Source[]): Source[] {
 /** Why the Create button is disabled, as the hint under it, or null when
  *  a job can start: a format must be picked and a source must be ready. */
 export function createBlocker(selected: OutputKind | null, hasReadySource: boolean): string | null {
-  if (!hasReadySource) return 'Add a source and wait until it is ready.'
-  if (!selected) return 'Pick a format above.'
+  if (!hasReadySource) return t('create.needSource')
+  if (!selected) return t('create.needFormat')
   return null
 }

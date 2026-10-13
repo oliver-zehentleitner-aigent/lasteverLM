@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, NETWORK_MESSAGE, PAYMENT_REQUIRED, UNAUTHORIZED, apiEvents, failureMessage, request, serviceCode } from './client'
+import { ApiError, networkMessage, PAYMENT_REQUIRED, UNAUTHORIZED, apiEvents, failureMessage, request, serviceCode } from './client'
 
 const html = '<html><head><title>502 Bad Gateway</title></head><body><center><h1>502 Bad Gateway</h1></center><hr><center>nginx</center></body></html>'
 
@@ -55,7 +55,7 @@ describe('request', () => {
   })
   it('turns a network failure into a readable message', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
-    await expect(request('/x')).rejects.toMatchObject({ status: 0, message: NETWORK_MESSAGE })
+    await expect(request('/x')).rejects.toMatchObject({ status: 0, message: networkMessage() })
   })
 })
 

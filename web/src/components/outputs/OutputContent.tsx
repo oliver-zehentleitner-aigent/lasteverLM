@@ -14,6 +14,7 @@ import { MindmapView } from './MindmapView'
 import { QuizView } from './QuizView'
 import { ReportView } from './ReportView'
 import { TableView } from './TableView'
+import { t } from '../../i18n'
 
 interface Props {
   kind: OutputKind
@@ -28,10 +29,10 @@ interface Props {
 /** Dispatches a document to its renderer by kind. Works for an owned output
  *  and for a shared one alike, which is why it takes fields, not an Output. */
 export function OutputContent({ kind, title, status, error, content, onExpired }: Props) {
-  if (status === 'waiting') return <p className="muted">Waiting for the sources to finish processing…</p>
-  if (status === 'processing') return <p className="muted">Generating…</p>
-  if (status === 'failed') return <p className="error">{error ?? 'Generation failed.'}</p>
-  if (content === null || content === undefined) return <p className="muted">No content.</p>
+  if (status === 'waiting') return <p className="muted">{t('content.waiting')}</p>
+  if (status === 'processing') return <p className="muted">{t('content.generating')}</p>
+  if (status === 'failed') return <p className="error">{error ?? t('content.failed')}</p>
+  if (content === null || content === undefined) return <p className="muted">{t('content.none')}</p>
   switch (kind) {
     case 'report':
       return <ReportView content={content as ReportContent} />

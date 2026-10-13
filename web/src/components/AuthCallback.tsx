@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { account } from '../api/account'
 import { setToken } from '../api/token'
+import { t } from '../i18n'
 
 interface Props {
   token: string
@@ -11,7 +12,7 @@ interface Props {
  *  go home. Runs once; a failure stays on screen rather than redirecting
  *  to a login page that would hide what went wrong. */
 export function AuthCallback({ token, onDone }: Props) {
-  const [error, setError] = useState<string | null>(token ? null : 'The link is missing its token.')
+  const [error, setError] = useState<string | null>(token ? null : t('callback.noToken'))
 
   useEffect(() => {
     let cancelled = false
@@ -37,12 +38,12 @@ export function AuthCallback({ token, onDone }: Props) {
       <section className="card">
         {error ? (
           <>
-            <h2>Sign-in failed</h2>
+            <h2>{t('callback.failed')}</h2>
             <p className="error">{error}</p>
-            <a href="/">Request a new link</a>
+            <a href="/">{t('callback.newLink')}</a>
           </>
         ) : (
-          <p>Signing you in…</p>
+          <p>{t('callback.signingIn')}</p>
         )}
       </section>
     </main>
