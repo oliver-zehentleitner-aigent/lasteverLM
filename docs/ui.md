@@ -187,6 +187,15 @@ the date they are purged (after the trash days set in the settings,
 the same file or URL again restores it too. Generated documents are not in the library;
 they live in their notebook.
 
+A new account starts with four example sources in its library (a PDF,
+a Markdown glossary, an image and a Wikipedia page), marked "demo"
+there, in the wizard's library picker and in a notebook's source list.
+The library page polls while entries are still processing, so they
+turn ready on their own. In a notebook that holds demo sources, an
+empty chat offers a first question ("How did Ida Vennholt find her way
+in the fog, and what is that method called?"); a click puts it into
+the question field.
+
 A citation whose source is no longer in the notebook (detached, or
 deleted from the library) stays readable with its quote and is marked
 "source removed".

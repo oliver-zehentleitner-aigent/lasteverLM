@@ -4,6 +4,7 @@ import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
 import { uploadedSources } from '../lib/outputs'
+import { DemoBadge } from './DemoBadge'
 import { t } from '../i18n'
 
 interface Props {
@@ -77,6 +78,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
               <span className="name" title={s.name}>
                 {s.name}
               </span>
+              <DemoBadge demo={s.demo} />
               {s.capture && (
                 <span className="badge" title={t('sources.captureTitle')}>
                   {t(`capture.${s.capture}`)}

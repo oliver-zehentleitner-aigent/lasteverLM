@@ -9,6 +9,7 @@ import { CAPTURE_MODES, preferredCapture, type CaptureMode } from '../lib/captur
 import { filterLibrary, notInNotebook } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
+import { DemoBadge } from './DemoBadge'
 import { t, tn } from '../i18n'
 
 interface Props {
@@ -172,6 +173,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                         }
                       />
                       <span className="item">{e.name}</span>
+                      <DemoBadge demo={e.demo} />
                       <span className="badge">{SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind}</span>
                     </label>
                   </li>
