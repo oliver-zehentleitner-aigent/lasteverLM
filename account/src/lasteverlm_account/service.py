@@ -31,7 +31,7 @@ from .models import (
     AdminLogin,
     AdminLoginAttempt,
     AdminStats,
-    AdminUser,
+    AdminUserView,
     AdminVisit,
     AdminVoucher,
     AllowKind,
@@ -382,13 +382,15 @@ class AccountService:
         except MailError as exc:
             raise AccountError(502, f"SMTP delivery failed: {exc}") from exc
 
-    async def admin_users(self) -> list[AdminUser]:
+    async def admin_users(self) -> list[AdminUserView]:
+        """Every user row, the seeded demo user included: it consumes credit like anyone
+        else, and the stats count it the same way so the numbers add up."""
         totals = await self.repo.all_credit_totals()
         result = []
         for user in await self.repo.list_users():
             t = totals.get(user.id)
             result.append(
-                AdminUser(
+                AdminUserView(
                     id=user.id,
                     email=user.email,
                     is_admin=user.is_admin,
@@ -396,6 +398,7 @@ class AccountService:
                     last_login_at=user.last_login_at,
                     balance_cents=t.balance_cents if t else 0,
                     usage_cents=t.usage_cents if t else 0,
+                    granted_cents=t.credited_cents if t else 0,
                 )
             )
         return result

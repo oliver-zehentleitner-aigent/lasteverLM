@@ -317,7 +317,7 @@ class PostgresRepository:
         async with self._pool.connection() as conn:
             cur = await conn.execute(
                 """select
-                     (select count(*) from users where id <> %(demo)s) as users,
+                     (select count(*) from users) as users,
                      (select count(*) from login_log where at >= %(since)s) as logins_since,
                      (select count(*) from vouchers) as vouchers_issued,
                      (select count(*) from vouchers where redeemed_at is not null)
@@ -329,7 +329,7 @@ class PostgresRepository:
                      (select count(*) from ip_blocks where blocked_until > %(now)s)
                         as blocks_active,
                      (select count(*) from ip_bans where lifted_at is null) as bans_active""",
-                {"demo": DEMO_USER_ID, "since": since, "now": now},
+                {"since": since, "now": now},
             )
             r = await cur.fetchone()
         assert r is not None

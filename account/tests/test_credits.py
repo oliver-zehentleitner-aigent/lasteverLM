@@ -92,6 +92,7 @@ def test_balance_is_ledger_minus_usage(
     assert client.get("/api/account/me", headers=bearer(token)).json()["balance_cents"] == 650
     users = client.get("/api/account/admin/users", headers=bearer(token)).json()
     assert users[0]["balance_cents"] == 650 and users[0]["usage_cents"] == 350
+    assert users[0]["granted_cents"] == 1000  # the Users page shows who got the credit
 
 
 @pytest.mark.anyio
