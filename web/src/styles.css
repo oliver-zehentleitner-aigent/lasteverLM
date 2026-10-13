@@ -107,17 +107,17 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .account { display: flex; align-items: center; gap: 0.75rem; }
 
 /* workspace */
-.workspace { display: grid; grid-template-columns: 220px 1fr; height: calc(100% - 48px); }
-.sidebar { border-right: 1px solid var(--line); padding: 0.75rem; overflow: auto; background: var(--panel); }
-.columns { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; min-height: 0; }
+.workspace { display: grid; grid-template-columns: var(--sidebar-w, 220px) 6px minmax(0, 1fr); height: calc(100% - 48px); }
+.sidebar { padding: 0.75rem; overflow: auto; background: var(--panel); }
+.columns { display: grid; grid-template-columns: var(--left-w, minmax(260px, 1fr)) 6px minmax(0, 2fr); min-height: 0; }
 .columns.empty { display: flex; align-items: center; justify-content: center; }
-.column { display: flex; flex-direction: column; min-height: 0; }
-.column.left { border-right: 1px solid var(--line); }
+/* min-width: 0 lets a long tab bar scroll instead of widening the column */
+.column { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .column.left .sources, .column.left .outputs { flex: 1; min-height: 0; }
 .column.left .outputs { border-top: 1px solid var(--line); }
 .column.right .viewer { flex: 0 0 50%; min-height: 0; position: relative; }
 .column.right .chat { flex: 1 1 50%; min-height: 0; }
-.pane { display: flex; flex-direction: column; padding: 0.75rem 1rem; min-height: 0; }
+.pane { display: flex; flex-direction: column; padding: 0.75rem 1rem; min-height: 0; min-width: 0; }
 .list { list-style: none; margin: 0; padding: 0; overflow: auto; }
 .list li { display: flex; align-items: center; gap: 0.25rem; border-radius: var(--radius); padding: 0.1rem 0.2rem; }
 .list li.selected { background: var(--accent-soft); }
@@ -137,7 +137,7 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .tile:not(:disabled):hover { border-color: var(--accent); background: var(--accent-soft); }
 
 /* output viewer */
-.tabs { display: flex; gap: 0.25rem; overflow-x: auto; border-bottom: 1px solid var(--line); padding-bottom: 0.4rem; margin-bottom: 0.6rem; min-height: 2rem; align-items: center; }
+.tabs { display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: thin; overscroll-behavior-x: contain; border-bottom: 1px solid var(--line); padding-bottom: 0.4rem; margin-bottom: 0.6rem; min-height: 2rem; align-items: center; }
 .tab { background: none; color: var(--muted); border: 1px solid transparent; border-radius: var(--radius); padding: 0.25rem 0.6rem; display: inline-flex; gap: 0.4rem; align-items: center; }
 .tab.active { color: var(--fg); background: var(--panel); border-color: var(--line); }
 .tab.status-failed { color: var(--danger); }
@@ -385,3 +385,13 @@ a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); 
 .settings select { min-width: 16rem; }
 .tiles .output-options { display: flex; flex-wrap: wrap; gap: 0.5rem 0.8rem; margin-top: 0.6rem; }
 .tiles .output-options select { min-width: 9rem; }
+/* chat tabs: the tabs scroll, the new-chat button and the tools stay */
+.chat-tabs { overflow: visible; }
+.chat-tabs .tab-scroll { display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: thin; overscroll-behavior-x: contain; min-width: 0; flex: 0 1 auto; }
+.tab { flex: 0 0 auto; white-space: nowrap; }
+
+/* column dividers: notebook list | left column | right column */
+.vdivider { cursor: col-resize; touch-action: none; background: linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat; }
+.vdivider:hover, .vdivider:focus-visible { background: var(--accent); outline: none; }
+.columns.full .vdivider { display: none; }
+@media (max-width: 900px) { .vdivider { display: none; } }

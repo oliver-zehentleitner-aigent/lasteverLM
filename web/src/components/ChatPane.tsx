@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { rag } from '../api/rag'
 import type { Citation, Conversation, Message, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
+import { useTabStrip } from '../hooks/useTabStrip'
 import { isRemoved, splitCitations } from '../lib/citations'
 import { similarityLabel } from '../lib/provenance'
 import { ProvenancePanel } from './ProvenancePanel'
@@ -84,20 +85,36 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
   }
 
   const active = conversations.find((c) => c.id === activeId) ?? null
+  const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
+    conversations.map((c) => c.id),
+    activeId,
+    select,
+  )
 
   return (
     <section className="pane chat">
-      <div className="tabs chat-tabs" role="tablist" aria-label="Chats">
-        {conversations.map((c) => (
-          <span key={c.id} className={c.id === activeId ? 'tab active' : 'tab'}>
-            <button type="button" role="tab" className="tab-label" aria-selected={c.id === activeId} onClick={() => select(c.id)}>
-              {c.title}
-            </button>
-            <button type="button" className="icon" title="Close this chat" disabled={busy} onClick={() => void close(c)}>
-              ×
-            </button>
-          </span>
-        ))}
+      <div className="tabs chat-tabs">
+        {/* only the tabs scroll; "+" and the tools stay in place */}
+        <div className="tab-scroll" role="tablist" aria-label="Chats" ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
+          {conversations.map((c) => (
+            <span key={c.id} className={c.id === activeId ? 'tab active' : 'tab'}>
+              <button
+                type="button"
+                role="tab"
+                data-tab-id={c.id}
+                tabIndex={c.id === activeId ? 0 : -1}
+                className="tab-label"
+                aria-selected={c.id === activeId}
+                onClick={() => select(c.id)}
+              >
+                {c.title}
+              </button>
+              <button type="button" className="icon" title="Close this chat" disabled={busy} onClick={() => void close(c)}>
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
         <button type="button" className="icon" title="New chat" disabled={busy} onClick={() => void add()}>
           +
         </button>

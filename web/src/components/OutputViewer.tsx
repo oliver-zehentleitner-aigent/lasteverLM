@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { rag } from '../api/rag'
 import type { AudioContent, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
+import { useTabStrip } from '../hooks/useTabStrip'
 import { formatTime } from '../lib/format'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { optionsLabel } from '../lib/outputOptions'
@@ -43,6 +44,11 @@ export function OutputViewer({
   const selected = outputs.find((o) => o.id === selectedId) ?? null
   const spec = useOutputOptions()
   const made = selected ? optionsLabel(selected.options, spec) : null
+  const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
+    outputs.map((o) => o.id),
+    selectedId,
+    onSelect,
+  )
   const enterButton = useRef<HTMLButtonElement>(null)
   const leaveButton = useRef<HTMLButtonElement>(null)
   const wasFull = useRef(fullView)
@@ -100,12 +106,14 @@ export function OutputViewer({
           </button>
         </div>
       )}
-      <div className="tabs no-print" role="tablist">
+      <div className="tabs no-print" role="tablist" aria-label="Documents" ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
         {outputs.map((o) => (
           <button
             key={o.id}
             type="button"
             role="tab"
+            data-tab-id={o.id}
+            tabIndex={o.id === selectedId || (!selectedId && o === outputs[0]) ? 0 : -1}
             aria-selected={o.id === selectedId}
             className={`tab status-${o.status}${o.id === selectedId ? ' active' : ''}`}
             onClick={() => onSelect(o.id)}
