@@ -391,4 +391,12 @@ export const de: Record<MessageKey, string> = {
   'chart.costByModel': 'Kosten nach Modell',
   'chart.cost': 'Kosten',
   'chart.topUsers': 'Benutzer mit dem höchsten Verbrauch',
+  'sample.play': '▶ Hörprobe',
+  'sample.loading': 'lädt …',
+  'sample.title': 'Eine kurze Hörprobe dieser Stimme abspielen',
+  'copy.copy': 'kopieren',
+  'copy.copied': 'kopiert',
+  'copy.all': 'alle kopieren',
+  'copy.selected': 'markiert, Strg+C drücken',
+  'adm.codes': 'Gutscheincodes',
 }

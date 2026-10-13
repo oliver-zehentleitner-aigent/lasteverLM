@@ -14,8 +14,8 @@ space.
 
 Three steps, one question each, large tiles instead of a form.
 
-1. **What goes in?** Tiles: PDF, Text, Web page, Image, all active, and
-   **From library** for something added before to another notebook. A
+1. **What goes in?** Tiles: **From library** first, for something
+   added before to another notebook, then PDF, Text, Web page, Image. A
    kind that is not available yet is shown greyed with "Soon.", so the
    extension points stay visible.
 2. **How does it get in?** Only the ways that fit the type: drop or
@@ -77,7 +77,11 @@ is closed. After the wizard the notebook view opens.
   Between the tiles and the button, the selected format's options as
   rag's `GET /outputs/options` lists them per kind: language for every
   kind ("same as the sources" or one of the listed languages), voice
-  (grouped female and male) and speed for audio. They start from the
+  (grouped female and male) and speed for audio, with a "sample" button
+  that plays a short sentence pair in that voice, speed and language
+  (the interface language when "same as the sources" is chosen); the
+  sample is fetched on click only, since the first one per combination
+  is synthesized. They start from the
   user's preferences, else rag's defaults, and go into `options` of the
   create request with only the keys the kind takes. The viewer and the
   shared page show what a document was made with ("Deutsch · Ryan ·
@@ -158,7 +162,8 @@ is closed. After the wizard the notebook view opens.
 `/settings` (in the header next to Library): interface language
 (browser default, English, Deutsch), language of generated documents
 (same as the sources, or one of rag's languages) and the voice for
-audio (default, or one of rag's voices), and the days a deleted
+audio (default, or one of rag's voices, with the same sample button),
+and the days a deleted
 library source stays in the trash (1–365, empty for 14), and how PDFs
 are read by default (Auto, Text or Vision). Saved together with
 `PUT /api/account/me/preferences`; an empty choice clears the value.
@@ -210,8 +215,10 @@ deleted from the library) stays readable with its quote and is marked
   - **Access** (`/admin/access`): allowed sign-in, domains and single
     addresses, one entry at a time.
   - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
-    that shows the codes once, the list of issued vouchers below (open
-    ones can be deleted).
+    that shows the codes once as chips with a copy button each ("copy
+    all" for several; without the clipboard API the text is selected
+    instead), next to the form when there is room; the list of issued
+    vouchers below (open ones can be deleted).
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
     with its four editable numbers and a reset to the deployment
     defaults, then blocks, bans (with lift) and the raw access log.

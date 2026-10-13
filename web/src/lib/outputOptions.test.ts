@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OutputOptionsSpec } from '../api/types'
-import { buildOptions, defaultValues, optionsLabel, speedSteps, voiceGroups } from './outputOptions'
+import { buildOptions, defaultValues, optionsLabel, sampleLanguage, speedSteps, voiceGroups } from './outputOptions'
 
 const spec: OutputOptionsSpec = {
   languages: [
@@ -50,5 +50,14 @@ describe('output options', () => {
     expect(optionsLabel({ language: 'de', voice: 'ryan', speed: 1.25 }, spec)).toBe('Deutsch · Ryan · 1.25×')
     expect(optionsLabel({}, spec)).toBeNull()
     expect(optionsLabel({ language: 'fr' }, null)).toBe('fr')
+  })
+})
+
+describe('sampleLanguage', () => {
+  it('takes the chosen language, else the interface language, else none', () => {
+    expect(sampleLanguage('de', spec, 'en')).toBe('de')
+    expect(sampleLanguage('', spec, 'de')).toBe('de')
+    expect(sampleLanguage(null, spec, 'fr')).toBeUndefined()
+    expect(sampleLanguage('xx', spec, 'en')).toBe('en')
   })
 })

@@ -38,6 +38,15 @@ export const rag = {
       json: options && Object.keys(options).length > 0 ? { kind, options } : { kind },
     }),
 
+  /** A short fixed sentence pair spoken by a voice: synthesized once per
+   *  voice, speed and language (about 1 cent, 402 without credit), then
+   *  served from storage for everyone. */
+  voiceSample: (voice: string, speed?: number, language?: string) =>
+    request<{ url: string; cached: boolean }>(`${RAG_PREFIX}/outputs/voice-sample`, {
+      method: 'POST',
+      json: { voice, ...(speed !== undefined ? { speed } : {}), ...(language ? { language } : {}) },
+    }),
+
   /** the choices per kind: languages, voices, speed */
   outputOptions: () => request<OutputOptionsSpec>(`${RAG_PREFIX}/outputs/options`),
   getOutput: (id: string) => request<Output>(out(id)),

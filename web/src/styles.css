@@ -177,7 +177,6 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
   .chat .messages { max-height: 60vh; }
   .viewer-body { max-height: 50vh; }
 }
-.codes pre { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.5rem 0.75rem; }
 .grid2 > .row { grid-column: 1 / -1; justify-content: flex-end; }
 
 /* header row inside a pane */
@@ -398,3 +397,14 @@ a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); 
 .library .actions-cell { white-space: nowrap; display: flex; gap: 0.75rem; }
 .wizard .capture { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .wizard .capture legend { color: var(--muted); font-size: 0.9em; padding: 0 0.25rem; }
+.voice-sample { display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-end; }
+
+/* fresh voucher codes: next to the create form when there is room */
+.voucher-create { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem 1.5rem; }
+.voucher-create form input { width: 7rem; }
+.codes { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.codes p { margin: 0; }
+.code-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.code-chip { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem; background: var(--bg); }
+.code-chip code { font-size: 0.9em; letter-spacing: 0.03em; }
+button.link.copy { font-size: 0.85em; }

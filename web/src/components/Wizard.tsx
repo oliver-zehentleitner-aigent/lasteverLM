@@ -118,6 +118,10 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
           <>
             <h2>{t('wiz.whatIn')}</h2>
             <div className="tile-grid">
+              <button type="button" className="tile" onClick={() => void openLibrary()}>
+                <strong>{t('wiz.fromLibrary')}</strong>
+                <span className="muted small">{t('wiz.fromLibrary.note')}</span>
+              </button>
               {SOURCE_FORMS.map((f) => (
                 <button
                   key={f.kind}
@@ -134,10 +138,6 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                   <span className="muted small">{tileNote(f)}</span>
                 </button>
               ))}
-              <button type="button" className="tile" onClick={() => void openLibrary()}>
-                <strong>{t('wiz.fromLibrary')}</strong>
-                <span className="muted small">{t('wiz.fromLibrary.note')}</span>
-              </button>
             </div>
           </>
         )}

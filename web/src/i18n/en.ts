@@ -388,6 +388,14 @@ export const en = {
   'chart.costByModel': 'Cost by model',
   'chart.cost': 'Cost',
   'chart.topUsers': 'Top users by usage',
+  'sample.play': '▶ sample',
+  'sample.loading': 'loading…',
+  'sample.title': 'Play a short sample of this voice',
+  'copy.copy': 'copy',
+  'copy.copied': 'copied',
+  'copy.all': 'copy all',
+  'copy.selected': 'selected, press Ctrl+C',
+  'adm.codes': 'Voucher codes',
 } as const
 
 export type MessageKey = keyof typeof en

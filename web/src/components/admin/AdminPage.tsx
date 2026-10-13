@@ -1,7 +1,8 @@
-import { Suspense, lazy, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
 import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, RateLimitRules, RateLimitUpdate, Smtp, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
+import { CopyButton } from '../CopyButton'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { ADMIN_PAGES, adminPath, type AdminPageId } from '../../lib/adminPages'
 import { useAsync } from '../../hooks/useAsync'
@@ -288,28 +289,52 @@ function Vouchers() {
 
   return (
     <Section title={t('adm.vouchers')}>
-      <form className="row" onSubmit={create}>
-        <label>
-          {t('adm.amountEur')}
-          <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </label>
-        <label>
-          {t('adm.count')}
-          <input type="number" min={1} max={100} value={count} onChange={(e) => setCount(e.target.value)} />
-        </label>
-        <button type="submit" disabled={busy}>
-          {t('adm.create')}
-        </button>
-      </form>
+      <div className="voucher-create">
+        <form className="row" onSubmit={create}>
+          <label>
+            {t('adm.amountEur')}
+            <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </label>
+          <label>
+            {t('adm.count')}
+            <input type="number" min={1} max={100} value={count} onChange={(e) => setCount(e.target.value)} />
+          </label>
+          <button type="submit" disabled={busy}>
+            {t('adm.create')}
+          </button>
+        </form>
+        {codes.length > 0 && <VoucherCodes codes={codes} />}
+      </div>
       {error && <p className="error">{error}</p>}
-      {codes.length > 0 && (
-        <div className="codes">
-          <p className="muted small">{t('adm.copyCodes')}</p>
-          <pre>{codes.join('\n')}</pre>
-        </div>
-      )}
       <VoucherList key={listVersion} />
     </Section>
+  )
+}
+
+/** Fresh codes, shown once: compact chips with a copy button each, and
+ *  "copy all" (one per line) when there are several. */
+function VoucherCodes({ codes }: { codes: string[] }) {
+  const all = useRef<HTMLDivElement>(null)
+  return (
+    <div className="codes" ref={all} aria-label={t('adm.codes')}>
+      <p className="muted small">{t('adm.copyCodes')}</p>
+      <ul className="code-chips">
+        {codes.map((c) => (
+          <CodeChip key={c} code={c} />
+        ))}
+      </ul>
+      {codes.length > 1 && <CopyButton text={codes.join('\n')} target={all} label={t('copy.all')} />}
+    </div>
+  )
+}
+
+function CodeChip({ code }: { code: string }) {
+  const el = useRef<HTMLElement>(null)
+  return (
+    <li className="code-chip">
+      <code ref={el}>{code}</code>
+      <CopyButton text={code} target={el} />
+    </li>
   )
 }
 

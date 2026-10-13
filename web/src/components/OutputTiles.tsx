@@ -2,9 +2,10 @@ import { useState } from 'react'
 import type { OutputKind, OutputOptions } from '../api/types'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
-import { buildOptions, defaultValues, optionsFor, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
+import { buildOptions, defaultValues, optionsFor, sampleLanguage, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
-import { t } from '../i18n'
+import { VoiceSample } from './VoiceSample'
+import { language, t } from '../i18n'
 
 interface Props {
   selected: OutputKind | null
@@ -89,6 +90,7 @@ export function OutputTiles({ selected, hasReadySource, busy, onSelect, onCreate
               </select>
             </label>
           )}
+          {shown.includes('voice') && <VoiceSample voice={values.voice} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />}
         </div>
       )}
       <div className="create-row">
