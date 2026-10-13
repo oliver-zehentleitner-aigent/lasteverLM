@@ -473,4 +473,7 @@ export const de: Record<MessageKey, string> = {
   'madeFrom.n.other': 'aus {n} Quellen',
   'madeFrom.removed.one': '{n} inzwischen entfernt',
   'madeFrom.removed.other': '{n} inzwischen entfernt',
+  'lib.open': 'öffnen',
+  'lib.openTitle': '{name} in einem neuen Tab öffnen',
+  'lib.openUnavailable': 'Für diesen Eintrag gibt es noch keine Vorschau',
 }

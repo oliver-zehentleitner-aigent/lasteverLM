@@ -470,6 +470,9 @@ export const en = {
   'madeFrom.n.other': 'from {n} sources',
   'madeFrom.removed.one': '{n} removed since',
   'madeFrom.removed.other': '{n} removed since',
+  'lib.open': 'open',
+  'lib.openTitle': 'Open {name} in a new tab',
+  'lib.openUnavailable': 'No preview of this entry yet',
 } as const
 
 export type MessageKey = keyof typeof en

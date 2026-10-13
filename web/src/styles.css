@@ -546,3 +546,9 @@ button.link.copy { font-size: 0.85em; }
 .source-all { display: inline-flex; align-items: center; gap: 0.3rem; margin-left: auto; margin-right: 0.5rem; }
 .source-all button.link:disabled { color: var(--muted); cursor: default; }
 .source-count { margin: 0.25rem 0; }
+
+/* library: the name opens the entry; open and delete side by side */
+a.open-name { color: inherit; text-decoration: none; min-width: 0; }
+a.open-name:hover .image-name-text, a.open-name:focus-visible .image-name-text { text-decoration: underline; color: var(--accent); }
+td.row-actions { white-space: nowrap; }
+td.row-actions > * + * { margin-left: 0.75rem; }

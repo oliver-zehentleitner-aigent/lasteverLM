@@ -227,7 +227,12 @@ service's sentence).
 user, once, newest first, with kind, status, size ("unknown" for
 entries added before sizes were recorded), date and the
 notebooks it is in as links (or "not in any notebook"). Filters by kind
-and by part of the name or address. Delete moves the entry to the
+and by part of the name or address. **Open** (a row action, and the
+name itself) shows the entry in a new tab: a web page at its address,
+an upload (PDF, text, image) through its presigned `preview_url`; an
+image also keeps the hover preview below. Only `http(s)` addresses are
+linked, and without a preview the action is disabled with a note.
+Delete moves the entry to the
 trash, out of every notebook, after a confirmation that names those
 notebooks. The **Trash** view next to it lists deleted entries with
 the date they are purged (after the trash days set in the settings,
