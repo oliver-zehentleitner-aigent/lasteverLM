@@ -29,7 +29,7 @@ repository root's `context/`.
 
 ## C
 
-- [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why an unmatched question still reaches the model (only an empty notebook is refused without it); provenance (verbatim chunk, score, position) on every citation
+- [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why an unmatched question still reaches the model (only an empty notebook is refused without it); provenance (verbatim chunk, score, position) on every citation; why marker-shaped text from sources is rewritten before prompts
 
 - [contracts.md](contracts.md) — why the shared contract types are mirrored locally until the core library ships
 
