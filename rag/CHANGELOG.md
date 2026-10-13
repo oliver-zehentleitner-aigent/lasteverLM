@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-13
+
 ### Added
 
 - Conversations: several chats per notebook (`GET`/`POST /api/rag/notebooks/{id}/conversations`, `DELETE /api/rag/conversations/{id}`, `GET /api/rag/conversations/{id}/messages`); migration `0002_rag_conversations.sql` moves existing history into `Chat 1`.

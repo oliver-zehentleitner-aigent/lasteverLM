@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-13
+
 ### Added
 
 - Runtime rate-limit rules: the limiter overrides `per_minute`, `block_minutes`, `ban_after_strikes` and `strike_window_hours` from account's `settings` row `ratelimit` (jsonb), re-read at most every 30 s per process; env values stay the defaults, an unusable row falls back to them with one warning. `RateLimitRules` (`parse`, `from_settings`, `as_json`), `RATE_LIMIT_SETTINGS_KEY`, `RATE_LIMIT_RULE_BOUNDS`, `RULES_TTL_SECONDS`, `RULES_SQL`; `RateLimiter.rules` and `current_rules`; stores gain `rule_overrides`.

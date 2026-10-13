@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-13
+
 ### Added
 
 - `GET/PUT/DELETE /admin/settings/ratelimit`: the rate-limit rule in force; PUT overrides per_minute, block_minutes, ban_after_strikes and strike_window_hours for every service (core's `ratelimit` settings key and bounds, 422 outside them), DELETE returns to the environment defaults; `ban_max_days` and `retention_days` are shown read-only.
