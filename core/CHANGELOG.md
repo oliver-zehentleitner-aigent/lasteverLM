@@ -14,6 +14,8 @@ preserves why it changed, in `context/`.
 ### Added
 
 - Runtime rate-limit rules: the limiter overrides `per_minute`, `block_minutes`, `ban_after_strikes` and `strike_window_hours` from account's `settings` row `ratelimit` (jsonb), re-read at most every 30 s per process; env values stay the defaults, an unusable row falls back to them with one warning. `RateLimitRules` (`parse`, `from_settings`, `as_json`), `RATE_LIMIT_SETTINGS_KEY`, `RATE_LIMIT_RULE_BOUNDS`, `RULES_TTL_SECONDS`, `RULES_SQL`; `RateLimiter.rules` and `current_rules`; stores gain `rule_overrides`.
+- `Citation` gains the optional `similarity` (cosine similarity to the question, 3 decimals), `chunk_index` (0-based `chunks.idx`) and `chunk_count` (chunks of the source); messages stored without them still validate. `quote` is documented as the verbatim chunk text, never trimmed.
+- `ChunkView`: one chunk with source name, kind, page, `chunk_index`, `chunk_count` and full `text`, the response of rag's `GET /api/rag/chunks/{chunk_id}`.
 
 ## [0.3.1] - 2026-10-13
 

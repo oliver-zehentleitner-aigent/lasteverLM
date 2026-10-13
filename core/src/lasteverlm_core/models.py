@@ -69,7 +69,12 @@ class Citation(BaseModel):
     """One `[n]` marker of an answer, mapped back to the chunk it cites.
 
     `source_kind` lets the frontend render a citation into a PDF
-    differently from one into a generated report.
+    differently from one into a generated report. `quote` is the verbatim
+    chunk text, never trimmed. `similarity` is the chunk's cosine
+    similarity to the question (3 decimals), `chunk_index` its 0-based
+    position in its source (`chunks.idx`), `chunk_count` the number of
+    chunks of that source. The three are optional because messages stored
+    before they existed carry none and still validate.
     """
 
     n: int = Field(ge=1)
@@ -79,6 +84,23 @@ class Citation(BaseModel):
     chunk_id: UUID
     page: int | None = None
     quote: str
+    similarity: float | None = None
+    chunk_index: int | None = Field(default=None, ge=0)
+    chunk_count: int | None = Field(default=None, ge=1)
+
+
+class ChunkView(BaseModel):
+    """One chunk with its place in the source: what a click on a citation
+    opens (`GET /api/rag/chunks/{chunk_id}`). `text` is the full chunk."""
+
+    chunk_id: UUID
+    source_id: UUID
+    source_name: str
+    source_kind: SourceKind
+    page: int | None = None
+    chunk_index: int = Field(ge=0)
+    chunk_count: int = Field(ge=1)
+    text: str
 
 
 class Message(_Row):
