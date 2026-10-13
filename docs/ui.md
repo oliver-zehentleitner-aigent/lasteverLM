@@ -266,7 +266,9 @@ everyone, from the public `/api/account/healthz`.
 Light or dark: a `theme` preference "system" (the default, following the
 operating system's setting), "light" or "dark". A toggle in the header
 (◐ system, ☀ light, ☾ dark) cycles through them and applies at once; the
-Settings page has the same choice. The choice is kept in this browser
+Settings page has the same choice; both read and write one theme store
+(`lib/theme.ts`), so the toggle always shows what Settings saved and the
+other way round. The choice is kept in this browser
 (read by a small script in `index.html` before the first paint, so a
 dark choice never flashes light) and, when signed in, in the account,
 so it follows the user to other browsers; the shared demo account keeps

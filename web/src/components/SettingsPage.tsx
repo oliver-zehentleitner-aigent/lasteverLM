@@ -6,6 +6,7 @@ import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { CAPTURE_MODES } from '../lib/capture'
 import { sampleLanguage, voiceGroups } from '../lib/outputOptions'
+import { setTheme, useTheme } from '../lib/theme'
 import { VoiceSample } from './VoiceSample'
 import { language, t } from '../i18n'
 
@@ -21,7 +22,9 @@ export function SettingsPage() {
   const [form, setForm] = useState<Preferences | null>(null)
   const [saved, setSaved] = useState(false)
   const { busy, error, run } = useAsync()
-  const p = form ?? stored
+  // without an account preference the select shows this browser's choice
+  const browserTheme = useTheme()
+  const p = form ?? { ...stored, theme: stored.theme ?? (browserTheme === 'system' ? null : browserTheme) }
 
   // arriving from the trash's link (/settings#trash-days): show and focus that field
   const trashDays = useRef<HTMLInputElement>(null)
@@ -34,6 +37,9 @@ export function SettingsPage() {
   async function save(e: FormEvent) {
     e.preventDefault()
     setSaved(false)
+    // the store first, so the page and the header toggle change at once;
+    // "like the system" is null in the account and "system" in the store
+    setTheme(p.theme ?? 'system')
     const user = await run(() => account.savePreferences(p))
     if (user) {
       setMe(user)
