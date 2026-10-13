@@ -15,7 +15,7 @@ contract and the data model live in the repository root
 - One checkout per agent; branches `agent-<letter>/<topic>`; pull requests against `main` of the maintainer's repository, the maintainer merges.
 - A change to an interface another service depends on is agreed in the root's `docs/architecture.md` first.
 - Code, comments, commits, docs and `context/` in English. Secrets come from the environment only.
-- `ruff`, `mypy` and `pytest` must pass before a pull request.
+- `make check` (black, ruff, mypy strict, pytest) and `make test-postgres` must pass before a pull request.
 
 ## Keep the Why
 

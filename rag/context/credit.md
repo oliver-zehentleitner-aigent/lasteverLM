@@ -6,8 +6,8 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** family coordination, 2026-10-12; implementation session, 2026-10-12
-**Revisit when:** lasteverlm-core ships balance and usage helpers, or pricing moves out of the writer
+**Source:** family coordination, 2026-10-12; implementation session, 2026-10-12; re-checked against the code in the audit of 2026-10-14
+**Revisit when:** pricing moves out of the writer, or a provider call is made before the credit check
 
 The ask flow reads the caller's balance before embedding the question and
 answers 402 when it is zero, so a user without credit causes no provider
@@ -27,5 +27,7 @@ account service from the usage rows. Rejected by the family because it
 doubles the writes and leaves a window in which usage exists but is not
 yet charged.
 
-**Interim:** balance SQL and pricing live in `store.py` and `contracts.py`
-as mirrors of what `lasteverlm-core` will ship (see `contracts.md`).
+**Since the core library shipped:** the balance check is core's
+`has_credit` and the priced insert core's `record_usage`, called from
+`store.py` with the `MODEL_PRICES` table; the rule above is unchanged.
+The earlier mirrors in this service are gone (see `contracts.md`).

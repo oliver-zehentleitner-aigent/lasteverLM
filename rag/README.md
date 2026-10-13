@@ -250,6 +250,11 @@ lasteverlm_rag/
 ├── service.py      ask flow and output lifecycle (API side and worker side)
 ├── worker.py       worker entrypoint: claim jobs, run them, release or finish
 ├── citations.py    pure marker-to-citation mapping
+├── coverage.py     balanced generator input and the uncovered-source check
+├── options.py      output options catalogue (languages, voices, speeds) and validation
+├── speech.py       splitting an audio script into synthesis segments
+├── voice_samples.py cached voice previews
+├── admin.py        admin statistics (totals, daily series)
 ├── outputs/        OutputGenerator interface, one module per kind
 ├── store.py        Retriever and Store interfaces + PostgreSQL/pgvector adapters
 ├── models.py       request bodies and internal data shapes (shared models come from core)
