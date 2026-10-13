@@ -18,7 +18,7 @@ repository; see the [root README](../README.md) for the whole system.
 - **Notebook view** in two columns. Left: sources with status and delete, and the output kinds as tiles. Right: a viewer with one tab per generated document, and the chat with `[n]` citations that open the cited passage.
 - **Documents**: report (Markdown), quiz (interactive, with reveal), data table (sortable, CSV export), mind map (markmap), infographic (card grid), audio (player that re-fetches its presigned URL once it expires). Per document: ask about this (scopes the chat), print (report and table), share (read-only link `/s/<token>`, revocable).
 - **Credit**: balance in the header, voucher dialog; a 402 anywhere opens it.
-- **Admin** page for admins: users, login log, visits per day and path, voucher creation (codes shown once), allowed sign-in (domains and single addresses, added and removed one at a time), SMTP settings read-only (configured in the deployment) with a test button, rate-limit blocks, bans (with lift), raw access log.
+- **Admin** page for admins: an overview of numbers from all three services (each loads on its own, so one service down does not blank the rest), users, login log, visits per day and path, voucher creation (5 EUR by default, codes shown once) with the list of issued vouchers, allowed sign-in (domains and single addresses, added and removed one at a time), SMTP settings read-only (configured in the deployment) with a test button, rate-limit blocks, bans (with lift), raw access log.
 
 Status: skeleton, verified against the account service's in-memory dev server. Not yet deployed.
 

@@ -261,3 +261,12 @@ button.link.danger { color: var(--danger); }
 /* admin allowlist */
 .allow-list h3 { margin: 0 0 0.3rem; font-size: 0.95rem; }
 .allow-list .list { margin-bottom: 0.5rem; }
+
+/* admin overview */
+.stat-group h3 { margin: 0.25rem 0 0.4rem; font-size: 0.95rem; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
+.stat { display: flex; flex-direction: column; gap: 0.1rem; border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem; background: var(--bg); }
+.stat-value { font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 0.85rem; }
+.stat.alert { border-color: var(--danger); }
+.stat.alert .stat-value { color: var(--danger); }

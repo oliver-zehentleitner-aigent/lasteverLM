@@ -178,3 +178,42 @@ export interface Allowlist {
 }
 
 export type AllowKind = 'domain' | 'address'
+
+// admin overview: one stats endpoint per service, every key always present
+
+export interface AccountStats {
+  users: number
+  logins_24h: number
+  vouchers: { issued: number; redeemed: number; open: number }
+  credits_granted_cents: number
+  usage_cost_cents: { total: number; last_24h: number }
+  blocks_active: number
+  bans_active: number
+}
+
+export interface IngestStats {
+  sources: { processing: number; ready: number; failed: number }
+  jobs: { pending: number; running: number; failed: number }
+  chunks: number
+  /** bytes in object storage, for sources uploaded since the size is stored */
+  source_bytes: number
+}
+
+export interface RagStats {
+  notebooks: { total: number }
+  messages: { total: number; last_24h: number }
+  outputs: { by_kind: Record<OutputKind, number>; by_status: Record<OutputStatus, number> }
+  jobs: { pending: number; running: number; failed: number }
+  shared: { outputs: number }
+}
+
+/** One voucher as listed for admins; the code is stored hashed and never returned. */
+export interface Voucher {
+  id: string
+  amount_cents: number
+  created_by: string
+  created_at: string
+  redeemed_by: string | null
+  redeemed_at: string | null
+  status: 'open' | 'redeemed'
+}

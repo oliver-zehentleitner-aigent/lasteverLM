@@ -1,11 +1,29 @@
-import { ACCOUNT_PREFIX, ADMIN_MOCK } from '../config'
+import { ACCOUNT_PREFIX, ADMIN_MOCK, INGEST_PREFIX, RAG_PREFIX } from '../config'
 import { request } from './client'
-import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginEvent, Smtp, VisitBucket } from './types'
+import type {
+  AccessEntry,
+  AccountStats,
+  AdminUser,
+  AllowKind,
+  Allowlist,
+  Ban,
+  Block,
+  IngestStats,
+  LoginEvent,
+  RagStats,
+  Smtp,
+  VisitBucket,
+  Voucher,
+} from './types'
 
 /** Everything the admin panel needs, as one interface so the pages do not
  *  care whether they talk to the account service or to the mock below.
- *  Paths and shapes follow the account section of the family contract. */
+ *  Paths and shapes follow the account section of the family contract;
+ *  the three stats endpoints are one per service. */
 export interface AdminApi {
+  accountStats(): Promise<AccountStats>
+  ingestStats(): Promise<IngestStats>
+  ragStats(): Promise<RagStats>
   listUsers(): Promise<AdminUser[]>
   listLogins(limit: number): Promise<LoginEvent[]>
   listVisits(days: number): Promise<VisitBucket[]>
@@ -17,6 +35,8 @@ export interface AdminApi {
   removeAllowed(kind: AllowKind, value: string): Promise<void>
   /** Codes are shown once; the server stores only their hashes. */
   createVouchers(amountCents: number, count: number): Promise<string[]>
+  /** newest first, without codes */
+  listVouchers(limit: number): Promise<Voucher[]>
   /** rate limiting and blocking, read-only except for lifting a ban */
   listBlocks(): Promise<Block[]>
   listBans(includeLifted: boolean): Promise<Ban[]>
@@ -28,6 +48,9 @@ const A = `${ACCOUNT_PREFIX}/admin`
 const ALLOW_PATH: Record<AllowKind, string> = { domain: 'domains', address: 'addresses' }
 
 const httpAdmin: AdminApi = {
+  accountStats: () => request<AccountStats>(`${A}/stats`),
+  ingestStats: () => request<IngestStats>(`${INGEST_PREFIX}/admin/stats`),
+  ragStats: () => request<RagStats>(`${RAG_PREFIX}/admin/stats`),
   listUsers: () => request<AdminUser[]>(`${A}/users`),
   listLogins: (limit) => request<LoginEvent[]>(`${A}/logins?limit=${limit}`),
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
@@ -40,6 +63,7 @@ const httpAdmin: AdminApi = {
     request<void>(`${A}/settings/${ALLOW_PATH[kind]}/${encodeURIComponent(value)}`, { method: 'DELETE' }),
   createVouchers: (amount_cents, count) =>
     request<{ codes: string[] }>(`${A}/vouchers`, { method: 'POST', json: { amount_cents, count } }).then((r) => r.codes),
+  listVouchers: (limit) => request<Voucher[]>(`${A}/vouchers?limit=${limit}`),
   listBlocks: () => request<Block[]>(`${A}/blocks`),
   listBans: (includeLifted) => request<Ban[]>(`${A}/bans?include_lifted=${includeLifted}`),
   liftBan: (ip) => request<void>(`${A}/bans/${encodeURIComponent(ip)}`, { method: 'DELETE' }),
@@ -75,8 +99,35 @@ function mockAdmin(): AdminApi {
   const smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
   let allow: Allowlist = { allowed_domains: ['example.org'], allowed_addresses: ['guest@partner.test'] }
   const listKey = (kind: AllowKind) => (kind === 'domain' ? 'allowed_domains' : 'allowed_addresses')
+  let vouchers: Voucher[] = [
+    { id: 'v2', amount_cents: 500, created_by: 'admin@example.org', created_at: '2026-10-12T17:30:00Z', redeemed_by: null, redeemed_at: null, status: 'open' },
+    { id: 'v1', amount_cents: 1000, created_by: 'admin@example.org', created_at: '2026-10-10T09:00:00Z', redeemed_by: 'reader@example.org', redeemed_at: '2026-10-11T09:45:00Z', status: 'redeemed' },
+  ]
 
   return {
+    accountStats: () =>
+      delay({
+        users: users.length,
+        logins_24h: 1,
+        vouchers: { issued: vouchers.length, redeemed: 1, open: vouchers.length - 1 },
+        credits_granted_cents: 3000,
+        usage_cost_cents: { total: 1310, last_24h: 120 },
+        blocks_active: blocks.length,
+        bans_active: bans.filter((b) => b.lifted_at === null).length,
+      }),
+    ingestStats: () =>
+      delay({ sources: { processing: 1, ready: 12, failed: 1 }, jobs: { pending: 0, running: 1, failed: 1 }, chunks: 640, source_bytes: 18_400_000 }),
+    ragStats: () =>
+      delay({
+        notebooks: { total: 4 },
+        messages: { total: 38, last_24h: 5 },
+        outputs: {
+          by_kind: { report: 3, quiz: 2, table: 1, mindmap: 1, infographic: 0, audio: 1 },
+          by_status: { waiting: 0, processing: 1, ready: 6, failed: 1 },
+        },
+        jobs: { pending: 0, running: 1, failed: 1 },
+        shared: { outputs: 2 },
+      }),
     listUsers: () => delay([...users]),
     listLogins: (limit) => delay(logins.slice(0, limit)),
     listVisits: () => delay([...visits]),
@@ -95,8 +146,16 @@ function mockAdmin(): AdminApi {
       allow = { ...allow, [key]: allow[key].filter((x) => x !== value) }
       return delay(undefined)
     },
-    createVouchers: (_amount, count) =>
-      delay(Array.from({ length: count }, () => `V-${Math.random().toString(36).slice(2, 8).toUpperCase()}`)),
+    createVouchers: (amount, count) => {
+      const codes = Array.from({ length: count }, () => `V-${Math.random().toString(36).slice(2, 8).toUpperCase()}`)
+      const now = new Date().toISOString()
+      vouchers = [
+        ...codes.map((_, i) => ({ id: `v${vouchers.length + i + 1}`, amount_cents: amount, created_by: 'admin@example.org', created_at: now, redeemed_by: null, redeemed_at: null, status: 'open' as const })),
+        ...vouchers,
+      ]
+      return delay(codes)
+    },
+    listVouchers: (limit) => delay(vouchers.slice(0, limit)),
     listBlocks: () => delay([...blocks]),
     listBans: (includeLifted) => delay(bans.filter((b) => includeLifted || b.lifted_at === null)),
     liftBan: (ip) => {
