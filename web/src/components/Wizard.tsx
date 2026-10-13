@@ -9,6 +9,7 @@ import { CAPTURE_MODES, preferredCapture, type CaptureMode } from '../lib/captur
 import { filterLibrary, notInNotebook } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
+import { t, tn } from '../i18n'
 
 interface Props {
   notebookId: string
@@ -77,7 +78,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
       }
       for (const f of files) count(await ingest.uploadFile(notebookId, f, capture))
       if (pasted.trim()) {
-        const name = `${pasted.trim().split('\n')[0].slice(0, 40) || 'pasted'}.txt`
+        const name = `${pasted.trim().split('\n')[0].slice(0, 40) || t('wiz.pastedName')}.txt`
         count(await ingest.uploadFile(notebookId, new File([pasted], name, { type: 'text/plain' })))
       }
       return true
@@ -107,15 +108,15 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
     <div className="backdrop" onClick={onClose}>
       <div className="dialog wizard" onClick={(e) => e.stopPropagation()}>
         <header className="row">
-          <span className="muted small">Step {step} of 3</span>
-          <button type="button" className="icon" onClick={onClose} title="Close">
+          <span className="muted small">{t('wiz.step', { step })}</span>
+          <button type="button" className="icon" onClick={onClose} title={t('common.close')}>
             ×
           </button>
         </header>
 
         {step === 1 && (
           <>
-            <h2>What goes in?</h2>
+            <h2>{t('wiz.whatIn')}</h2>
             <div className="tile-grid">
               {SOURCE_FORMS.map((f) => (
                 <button
@@ -134,8 +135,8 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                 </button>
               ))}
               <button type="button" className="tile" onClick={() => void openLibrary()}>
-                <strong>From library</strong>
-                <span className="muted small">Something you added before, to another notebook.</span>
+                <strong>{t('wiz.fromLibrary')}</strong>
+                <span className="muted small">{t('wiz.fromLibrary.note')}</span>
               </button>
             </div>
           </>
@@ -143,16 +144,16 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
 
         {step === 2 && fromLibrary && (
           <>
-            <h2>Which ones from your library?</h2>
+            <h2>{t('wiz.whichFromLibrary')}</h2>
             <input
               type="search"
-              placeholder="Filter by name or address"
+              placeholder={t('wiz.filterLibrary')}
               value={libraryQuery}
               onChange={(e) => setLibraryQuery(e.target.value)}
-              aria-label="Filter the library"
+              aria-label={t('wiz.filterLibraryLabel')}
             />
-            {library === null && !error && <p className="muted">Loading…</p>}
-            {library && library.length === 0 && <p className="muted">Everything in your library is in this notebook already.</p>}
+            {library === null && !error && <p className="muted">{t('common.loading')}</p>}
+            {library && library.length === 0 && <p className="muted">{t('wiz.allInNotebook')}</p>}
             {library && library.length > 0 && (
               <ul className="list library-pick">
                 {filterLibrary(library, { kind: 'all', query: libraryQuery }).map((e) => (
@@ -177,7 +178,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                 ))}
               </ul>
             )}
-            {busy && uploaded > 0 && <p className="muted">Adding… {uploaded}</p>}
+            {busy && uploaded > 0 && <p className="muted">{t('wiz.adding', { n: uploaded })}</p>}
             {error && <p className="error">{error}</p>}
             <div className="row">
               <button
@@ -189,10 +190,10 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                 }}
                 disabled={busy}
               >
-                Back
+                {t('common.back')}
               </button>
               <button type="button" onClick={() => void upload()} disabled={busy || !canUpload}>
-                Add {picked.size > 0 ? picked.size : ''}
+                {picked.size > 0 ? t('wiz.addN', { n: picked.size }) : t('common.add')}
               </button>
             </div>
           </>
@@ -200,14 +201,14 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
 
         {step === 2 && form && !fromLibrary && (
           <>
-            <h2>How does it get in?</h2>
+            <h2>{t('wiz.howIn')}</h2>
             {form.input === 'files' && (
               <div
                 className="drop"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={onDrop}
               >
-                <p>Drop {form.label} files here, or</p>
+                <p>{t('wiz.dropFiles', { kind: form.label })}</p>
                 <input type="file" multiple accept={form.accept} onChange={(e) => addFiles(e.target.files)} />
                 {files.length > 0 && (
                   <ul className="list small">
@@ -223,7 +224,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                 )}
                 {form.kind === 'pdf' && (
                   <fieldset className="capture">
-                    <legend>Capture</legend>
+                    <legend>{t('wiz.capture')}</legend>
                     {CAPTURE_MODES.map((m) => (
                       <label key={m.mode} className="check">
                         <input type="radio" name="capture" value={m.mode} checked={capture === m.mode} onChange={() => setCapture(m.mode)} />
@@ -236,7 +237,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                 )}
                 {form.kind === 'text' && (
                   <label>
-                    or paste text
+                    {t('wiz.orPaste')}
                     <textarea rows={5} value={pasted} onChange={(e) => setPasted(e.target.value)} />
                   </label>
                 )}
@@ -244,18 +245,18 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
             )}
             {form.input === 'url' && (
               <label>
-                Address
+                {t('wiz.address')}
                 <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" autoFocus />
               </label>
             )}
-            {busy && <p className="muted">Uploading… {uploaded}</p>}
+            {busy && <p className="muted">{t('wiz.uploading', { n: uploaded })}</p>}
             {error && <p className="error">{error}</p>}
             <div className="row">
               <button type="button" className="secondary" onClick={() => setStep(1)} disabled={busy}>
-                Back
+                {t('common.back')}
               </button>
               <button type="button" onClick={() => void upload()} disabled={busy || !canUpload}>
-                Add
+                {t('common.add')}
               </button>
             </div>
           </>
@@ -263,12 +264,10 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
 
         {step === 3 && (
           <>
-            <h2>What should come out of it?</h2>
-            <p className="muted small">Pick any number, or none to just chat.</p>
+            <h2>{t('wiz.whatOut')}</h2>
+            <p className="muted small">{t('wiz.pickAny')}</p>
             {existing > 0 && (
-              <p className="muted small">
-                {existing === 1 ? 'One of them was' : `${existing} of them were`} already in this notebook; nothing was added twice.
-              </p>
+              <p className="muted small">{tn('wiz.existing', existing)}</p>
             )}
             <div className="tile-grid">
               {OUTPUT_FORMS.map((f) => (
@@ -295,7 +294,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
             {error && <p className="error">{error}</p>}
             <div className="row">
               <button type="button" onClick={() => void finish()} disabled={busy}>
-                {kinds.size === 0 ? 'Just chat' : `Create ${kinds.size} ${kinds.size === 1 ? 'document' : 'documents'}`}
+                {kinds.size === 0 ? t('wiz.justChat') : tn('wiz.createDocs', kinds.size)}
               </button>
             </div>
           </>

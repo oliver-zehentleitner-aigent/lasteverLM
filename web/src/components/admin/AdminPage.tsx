@@ -8,6 +8,7 @@ import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
 import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
 import { accountTiles, ingestTiles, ragTiles, type StatTile } from '../../lib/stats'
+import { t } from '../../i18n'
 
 // recharts only in the admin overview: its own chunk, loaded on demand
 const StatsCharts = lazy(() => import('./StatsCharts'))
@@ -53,8 +54,8 @@ interface Props {
 export function AdminPage({ page, onNavigate }: Props) {
   return (
     <main className="admin">
-      <h1>Admin</h1>
-      <nav className="subnav" aria-label="Admin pages">
+      <h1>{t('adm.title')}</h1>
+      <nav className="subnav" aria-label={t('adm.pages')}>
         {ADMIN_PAGES.map((p) => (
           <a
             key={p.id}
@@ -70,7 +71,7 @@ export function AdminPage({ page, onNavigate }: Props) {
           </a>
         ))}
       </nav>
-      {ADMIN_MOCK && <p className="notice">Showing mock data: the build runs against an in-memory admin API.</p>}
+      {ADMIN_MOCK && <p className="notice">{t('adm.mock')}</p>}
       {PAGE_SECTIONS[page](onNavigate)}
     </main>
   )
@@ -116,7 +117,7 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
         {rows.length === 0 && (
           <tr>
             <td className="muted" colSpan={head.length}>
-              nothing yet
+              {t('adm.nothingYet')}
             </td>
           </tr>
         )}
@@ -128,13 +129,21 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
 function Users() {
   const { data, error } = useLoad<AdminUser[]>(admin.listUsers, [])
   return (
-    <Section title={`Users (${data.length})`}>
+    <Section title={t('adm.users', { n: data.length })}>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['E-mail', 'Admin', 'Granted', 'Used', 'Balance', 'Last login', 'Since']}
+        head={[
+          t('adm.col.email'),
+          t('adm.col.admin'),
+          t('adm.col.granted'),
+          t('adm.col.used'),
+          t('adm.col.balance'),
+          t('adm.col.lastLogin'),
+          t('adm.col.since'),
+        ]}
         rows={data.map((u) => [
           u.email,
-          u.is_admin ? 'yes' : '',
+          u.is_admin ? t('adm.yes') : '',
           formatCents(u.granted_cents),
           formatCents(u.usage_cents),
           formatCents(u.balance_cents),
@@ -150,9 +159,9 @@ function Logins() {
   const load = useCallback(() => admin.listLogins(LOGIN_LIMIT), [])
   const { data, error } = useLoad<LoginEvent[]>(load, [])
   return (
-    <Section title={`Login log (last ${LOGIN_LIMIT})`}>
+    <Section title={t('adm.loginLog', { n: LOGIN_LIMIT })}>
       {error && <p className="error">{error}</p>}
-      <Table head={['When', 'E-mail']} rows={data.map((e) => [formatTime(e.at), e.email])} />
+      <Table head={[t('adm.col.when'), t('adm.col.email')]} rows={data.map((e) => [formatTime(e.at), e.email])} />
     </Section>
   )
 }
@@ -163,16 +172,16 @@ function LoginAttempts() {
   const load = useCallback(() => admin.listLoginAttempts(LOGIN_LIMIT), [])
   const { data, error } = useLoad<LoginAttempt[]>(load, [])
   return (
-    <Section title={`Sign-in attempts (last ${LOGIN_LIMIT}, kept 30 days)`}>
+    <Section title={t('adm.attempts', { n: LOGIN_LIMIT })}>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['When', 'E-mail', 'IP', 'Outcome']}
+        head={[t('adm.col.when'), t('adm.col.email'), t('adm.col.ip'), t('adm.col.outcome')]}
         rows={data.map((a) => [
           formatTime(a.at),
           a.email,
           a.ip,
           <span key="outcome" className={`badge ${a.outcome === 'allowed' ? 'ready' : 'failed'}`}>
-            {a.outcome}
+            {t(`adm.outcome.${a.outcome}`)}
           </span>,
         ])}
       />
@@ -184,9 +193,9 @@ function Visits() {
   const load = useCallback(() => admin.listVisits(VISIT_DAYS), [])
   const { data, error } = useLoad<VisitBucket[]>(load, [])
   return (
-    <Section title={`Visits, last ${VISIT_DAYS} days (per day and path, no addresses)`}>
+    <Section title={t('adm.visits', { n: VISIT_DAYS })}>
       {error && <p className="error">{error}</p>}
-      <Table head={['Day', 'Path', 'Visits', 'Unique']} rows={data.map((v) => [v.day, v.path, v.visits, v.unique])} />
+      <Table head={[t('adm.col.day'), t('adm.col.path'), t('adm.col.visits'), t('adm.col.unique')]} rows={data.map((v) => [v.day, v.path, v.visits, v.unique])} />
     </Section>
   )
 }
@@ -195,12 +204,12 @@ function Visits() {
  *  own, so one service that is down shows its error and the rest stays. */
 function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
   return (
-    <Section title="Overview">
-      <StatGroup title="Accounts" load={admin.accountStats} tiles={accountTiles} onNavigate={onNavigate} />
-      <StatGroup title="Sources" load={admin.ingestStats} tiles={ingestTiles} onNavigate={onNavigate} />
-      <StatGroup title="Notebooks and documents" load={admin.ragStats} tiles={ragTiles} onNavigate={onNavigate} />
-      <ErrorBoundary what="The charts">
-        <Suspense fallback={<p className="muted small">Loading charts…</p>}>
+    <Section title={t('adm.overview')}>
+      <StatGroup title={t('adm.group.accounts')} load={admin.accountStats} tiles={accountTiles} onNavigate={onNavigate} />
+      <StatGroup title={t('adm.group.sources')} load={admin.ingestStats} tiles={ingestTiles} onNavigate={onNavigate} />
+      <StatGroup title={t('adm.group.notebooks')} load={admin.ragStats} tiles={ragTiles} onNavigate={onNavigate} />
+      <ErrorBoundary what={t('adm.charts')}>
+        <Suspense fallback={<p className="muted small">{t('adm.loadingCharts')}</p>}>
           <StatsCharts />
         </Suspense>
       </ErrorBoundary>
@@ -221,7 +230,7 @@ function StatGroup<T>({ title, load, tiles, onNavigate }: StatGroupProps<T>) {
     <div className="stat-group">
       <h3>{title}</h3>
       {error && <p className="error">{error}</p>}
-      {!data && !error && busy && <p className="muted small">Loading…</p>}
+      {!data && !error && busy && <p className="muted small">{t('common.loading')}</p>}
       {data && (
         <div className="stat-grid">
           {tiles(data).map((t) => {
@@ -278,24 +287,24 @@ function Vouchers() {
   }
 
   return (
-    <Section title="Vouchers">
+    <Section title={t('adm.vouchers')}>
       <form className="row" onSubmit={create}>
         <label>
-          Amount (EUR)
+          {t('adm.amountEur')}
           <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </label>
         <label>
-          Count
+          {t('adm.count')}
           <input type="number" min={1} max={100} value={count} onChange={(e) => setCount(e.target.value)} />
         </label>
         <button type="submit" disabled={busy}>
-          Create
+          {t('adm.create')}
         </button>
       </form>
       {error && <p className="error">{error}</p>}
       {codes.length > 0 && (
         <div className="codes">
-          <p className="muted small">Copy these now; they are not shown again.</p>
+          <p className="muted small">{t('adm.copyCodes')}</p>
           <pre>{codes.join('\n')}</pre>
         </div>
       )}
@@ -314,7 +323,7 @@ function VoucherList() {
   const { busy, error: actionError, run } = useAsync()
 
   async function remove(v: Voucher) {
-    if (!confirm(`Delete the open voucher over ${formatCents(v.amount_cents)}? Its code stops working.`)) return
+    if (!confirm(t('adm.voucherDeleteConfirm', { amount: formatCents(v.amount_cents) }))) return
     const ok = await run(async () => {
       await admin.deleteVoucher(v.id)
       return true
@@ -326,19 +335,27 @@ function VoucherList() {
     <>
       {(error ?? actionError) && <p className="error">{error ?? actionError}</p>}
       <Table
-        head={['Amount', 'Created by', 'Created', 'Status', 'Redeemed by', 'Redeemed', '']}
+        head={[
+          t('adm.col.amount'),
+          t('adm.col.createdBy'),
+          t('adm.col.created'),
+          t('adm.col.status'),
+          t('adm.col.redeemedBy'),
+          t('adm.col.redeemed'),
+          '',
+        ]}
         rows={data.map((v) => [
           formatCents(v.amount_cents),
           v.created_by,
           formatTime(v.created_at),
           <span key="status" className={`badge ${v.status === 'open' ? 'ready' : ''}`}>
-            {v.status}
+            {t(`status.${v.status}`)}
           </span>,
           v.redeemed_by ?? '—',
           v.redeemed_at ? formatTime(v.redeemed_at) : '—',
           v.status === 'open' ? (
             <button key="delete" type="button" className="link danger" disabled={busy} onClick={() => void remove(v)}>
-              delete
+              {t('common.delete')}
             </button>
           ) : (
             ''
@@ -357,17 +374,17 @@ function AllowedSignIn() {
   const { data, setData, error } = useLoad<Allowlist>(admin.getAllowlist, EMPTY_ALLOWLIST)
   const empty = data.allowed_domains.length === 0 && data.allowed_addresses.length === 0
   return (
-    <Section title="Allowed sign-in">
+    <Section title={t('adm.allowed')}>
       <p className="muted small">
-        Listed addresses, addresses at a listed domain and the configured admins may sign in.
-        {empty && ' Both lists are empty: no one but the configured admins can sign in.'}
+        {t('adm.allowedHint')}
+        {empty && t('adm.allowedEmpty')}
       </p>
       {error && <p className="error">{error}</p>}
       <div className="grid2">
-        <AllowList kind="domain" title="Domains" placeholder="example.org" values={data.allowed_domains} onChange={setData} />
+        <AllowList kind="domain" title={t('adm.domains')} placeholder="example.org" values={data.allowed_domains} onChange={setData} />
         <AllowList
           kind="address"
-          title="Single addresses"
+          title={t('adm.addresses')}
           placeholder="name@example.org"
           values={data.allowed_addresses}
           onChange={setData}
@@ -400,7 +417,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
   }
 
   async function remove(v: string) {
-    if (!confirm(`Remove ${v} from the allowed ${kind === 'domain' ? 'domains' : 'addresses'}?`)) return
+    if (!confirm(t(kind === 'domain' ? 'adm.removeAllowedDomain' : 'adm.removeAllowedAddress', { v }))) return
     const ok = await run(async () => {
       await admin.removeAllowed(kind, v)
       return true
@@ -415,12 +432,12 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
         {values.map((v) => (
           <li key={v}>
             <span className="item">{v}</span>
-            <button type="button" className="icon" title={`Remove ${v}`} disabled={busy} onClick={() => void remove(v)}>
+            <button type="button" className="icon" title={t('adm.remove', { v })} disabled={busy} onClick={() => void remove(v)}>
               ×
             </button>
           </li>
         ))}
-        {values.length === 0 && <li className="muted small">None.</li>}
+        {values.length === 0 && <li className="muted small">{t('adm.none')}</li>}
       </ul>
       <form className="row" onSubmit={add}>
         <input
@@ -428,11 +445,11 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}
-          aria-label={`Add to ${title.toLowerCase()}`}
+          aria-label={t('adm.addTo', { list: title })}
           spellCheck={false}
         />
         <button type="submit" disabled={busy || !value.trim()}>
-          Add
+          {t('common.add')}
         </button>
       </form>
       {error && <p className="error">{error}</p>}
@@ -453,40 +470,40 @@ function SmtpSettings() {
   }
 
   return (
-    <Section title="SMTP (sign-in mails)">
-      <p className="muted small">Configured in the deployment (Secret lasteverlm-smtp, set by the operator); changing it needs a redeploy.</p>
+    <Section title={t('adm.smtp')}>
+      <p className="muted small">{t('adm.smtpHint')}</p>
       {data && configured ? (
         <dl className="kv">
-          <dt>Host</dt>
+          <dt>{t('adm.smtp.host')}</dt>
           <dd>{data.host}</dd>
-          <dt>Port</dt>
+          <dt>{t('adm.smtp.port')}</dt>
           <dd>{data.port}</dd>
-          <dt>Username</dt>
+          <dt>{t('adm.smtp.username')}</dt>
           <dd>{data.username || '—'}</dd>
-          <dt>From address</dt>
+          <dt>{t('adm.smtp.from')}</dt>
           <dd>{data.from_address}</dd>
-          <dt>STARTTLS</dt>
-          <dd>{data.starttls ? 'yes' : 'no'}</dd>
+          <dt>{t('adm.smtp.starttls')}</dt>
+          <dd>{data.starttls ? t('adm.yes') : t('adm.no')}</dd>
         </dl>
       ) : (
-        data && <p>Not configured: sign-in mails cannot be sent.</p>
+        data && <p>{t('adm.smtp.notConfigured')}</p>
       )}
       {(loadError ?? error) && <p className="error">{loadError ?? error}</p>}
-      {sentTo && <p className="muted">Test mail queued for {sentTo}.</p>}
+      {sentTo && <p className="muted">{t('adm.smtp.queued', { to: sentTo })}</p>}
       <div className="row">
         <button type="button" className="secondary" disabled={busy || !configured} onClick={() => void test()}>
-          Send test mail
+          {t('adm.smtp.test')}
         </button>
       </div>
     </Section>
   )
 }
 
-const RULE_FIELDS: { key: keyof RateLimitUpdate; label: string }[] = [
-  { key: 'per_minute', label: 'Requests per minute' },
-  { key: 'block_minutes', label: 'Block, minutes' },
-  { key: 'ban_after_strikes', label: 'Strikes to a ban' },
-  { key: 'strike_window_hours', label: 'Strike window, hours' },
+const RULE_FIELDS: { key: keyof RateLimitUpdate; label: () => string }[] = [
+  { key: 'per_minute', label: () => t('adm.rl.perMinute') },
+  { key: 'block_minutes', label: () => t('adm.rl.blockMinutes') },
+  { key: 'ban_after_strikes', label: () => t('adm.rl.strikes') },
+  { key: 'strike_window_hours', label: () => t('adm.rl.window') },
 ]
 
 /** The rule behind the blocks and bans below, as a sentence and as the
@@ -520,7 +537,7 @@ function RateLimit() {
   }
 
   async function reset() {
-    if (!confirm('Reset the rate limit to the deployment defaults?')) return
+    if (!confirm(t('adm.rl.resetConfirm'))) return
     const fresh = await run(async () => {
       await admin.resetRateLimit()
       return admin.getRateLimit()
@@ -533,25 +550,20 @@ function RateLimit() {
   }
 
   return (
-    <Section title="Rate limit and bans">
-      <p className="muted small">
-        A coarse per-IP limit at the ingress (requests per second, open connections) sits in front of this rule.
-      </p>
+    <Section title={t('adm.rl.title')}>
+      <p className="muted small">{t('adm.rl.ingress')}</p>
       {loadError && <p className="error">{loadError}</p>}
       {data && (
         <>
           <p>{describeRateLimit(data)}</p>
-          <p className="muted small">
-            From the deployment, not editable here: a ban holds at most {data.ban_max_days} days; the access log, stale
-            blocks and lifted bans are kept {data.retention_days} days.
-          </p>
+          <p className="muted small">{t('adm.rl.fromEnv', { ban: data.ban_max_days, keep: data.retention_days })}</p>
         </>
       )}
       {values && (
         <form className="grid2" onSubmit={save}>
           {RULE_FIELDS.map((f) => (
             <label key={f.key}>
-              {f.label}
+              {f.label()}
               <input
                 type="number"
                 min={RATE_LIMIT_BOUNDS[f.key][0]}
@@ -565,13 +577,13 @@ function RateLimit() {
           {(invalid ?? error) && <p className="error">{invalid ?? error}</p>}
           <div className="row">
             <button type="button" className="secondary" disabled={busy} onClick={() => void reset()}>
-              Reset to defaults
+              {t('adm.rl.reset')}
             </button>
             <button type="submit" disabled={busy || form === null}>
-              Save rule
+              {t('adm.rl.save')}
             </button>
           </div>
-          <p className="muted small">Every service applies a change within 30 seconds.</p>
+          <p className="muted small">{t('adm.rl.applies')}</p>
         </form>
       )}
     </Section>
@@ -590,11 +602,11 @@ function toForm(r: RateLimitRules): Record<keyof RateLimitUpdate, string> {
 function Blocks() {
   const { data, error } = useLoad<Block[]>(admin.listBlocks, [])
   return (
-    <Section title={`Rate-limit blocks (${data.length} active)`}>
-      <p className="muted small">Temporary blocks set by the rate limiter; they expire on their own.</p>
+    <Section title={t('adm.blocks', { n: data.length })}>
+      <p className="muted small">{t('adm.blocksHint')}</p>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['Address', 'Strikes', 'Last strike', 'Until']}
+        head={[t('adm.col.address'), t('adm.col.strikes'), t('adm.col.lastStrike'), t('adm.col.until')]}
         rows={data.map((b) => [b.ip, b.strikes, formatTime(b.updated_at), formatTime(b.blocked_until)])}
       />
     </Section>
@@ -607,7 +619,7 @@ function Bans() {
   const { data, setData, busy, error, run } = useLoad<Ban[]>(load, [])
 
   async function lift(ip: string) {
-    if (!confirm(`Lift the ban for ${ip}?`)) return
+    if (!confirm(t('adm.liftConfirm', { ip }))) return
     const ok = await run(async () => {
       await admin.liftBan(ip)
       return true
@@ -616,14 +628,14 @@ function Bans() {
   }
 
   return (
-    <Section title="Bans">
-      <p className="muted small">An active ban stays until an admin lifts it, at most 90 days.</p>
+    <Section title={t('adm.bans')}>
+      <p className="muted small">{t('adm.bansHint')}</p>
       <label className="check">
-        <input type="checkbox" checked={includeLifted} onChange={(e) => setIncludeLifted(e.target.checked)} /> Show lifted bans too
+        <input type="checkbox" checked={includeLifted} onChange={(e) => setIncludeLifted(e.target.checked)} /> {t('adm.showLifted')}
       </label>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['Address', 'Reason', 'Since', 'Lifted', '']}
+        head={[t('adm.col.address'), t('adm.col.reason'), t('adm.col.since'), t('adm.col.lifted'), '']}
         rows={data.map((b) => [
           b.ip,
           b.reason,
@@ -631,7 +643,7 @@ function Bans() {
           b.lifted_at ? formatTime(b.lifted_at) : '',
           b.lifted_at ? '' : (
             <button key="lift" type="button" className="link" disabled={busy} onClick={() => void lift(b.ip)}>
-              lift
+              {t('adm.lift')}
             </button>
           ),
         ])}
@@ -644,11 +656,11 @@ function Access() {
   const load = useCallback(() => admin.listAccess(ACCESS_LIMIT), [])
   const { data, error } = useLoad<AccessEntry[]>(load, [])
   return (
-    <Section title={`Access log (last ${ACCESS_LIMIT})`} open={false}>
-      <p className="muted small">Raw requests from the rate-limiting middleware, with full addresses. Admin only; see the Privacy section of the account service.</p>
+    <Section title={t('adm.access', { n: ACCESS_LIMIT })} open={false}>
+      <p className="muted small">{t('adm.accessHint')}</p>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['When', 'Address', 'Service', 'Request', 'Status', 'User']}
+        head={[t('adm.col.when'), t('adm.col.address'), t('adm.col.service'), t('adm.col.request'), t('adm.col.status'), t('adm.col.user')]}
         rows={data.map((a) => [formatTime(a.at), a.ip, a.service, `${a.method} ${a.path}`, a.status, a.user_id ?? ''])}
       />
     </Section>

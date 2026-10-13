@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Notebook } from '../api/types'
+import { t } from '../i18n'
 
 interface Props {
   notebooks: Notebook[]
@@ -14,18 +15,18 @@ export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDele
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    const t = title.trim()
-    if (!t) return
-    await onCreate(t)
+    const name = title.trim()
+    if (!name) return
+    await onCreate(name)
     setTitle('')
   }
 
   return (
     <section className="notebooks">
       <form onSubmit={submit} className="row">
-        <input placeholder="New notebook…" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input placeholder={t('nb.new')} value={title} onChange={(e) => setTitle(e.target.value)} />
         <button type="submit" disabled={!title.trim()}>
-          Add
+          {t('common.add')}
         </button>
       </form>
       <ul className="list">
@@ -37,16 +38,16 @@ export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDele
             <button
               type="button"
               className="icon"
-              title="Delete notebook"
+              title={t('nb.delete')}
               onClick={() => {
-                if (confirm(`Delete notebook "${nb.title}"? Its chats and generated documents are deleted; its sources stay in your library.`)) void onDelete(nb.id)
+                if (confirm(t('nb.deleteConfirm', { title: nb.title }))) void onDelete(nb.id)
               }}
             >
               ×
             </button>
           </li>
         ))}
-        {notebooks.length === 0 && <li className="muted">No notebooks yet.</li>}
+        {notebooks.length === 0 && <li className="muted">{t('nb.none')}</li>}
       </ul>
     </section>
   )

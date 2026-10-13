@@ -4,6 +4,7 @@ import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
 import { uploadedSources } from '../lib/outputs'
+import { t } from '../i18n'
 
 interface Props {
   notebookId: string
@@ -48,7 +49,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
   }, [processing, notebookId])
 
   async function remove(s: Source) {
-    if (!confirm(`Remove "${s.name}" from this notebook? It stays in your library.`)) return
+    if (!confirm(t('sources.removeConfirm', { name: s.name }))) return
     const ok = await run(async () => {
       await ingest.deleteSource(s.id)
       return true
@@ -59,9 +60,9 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
   return (
     <section className="pane sources">
       <div className="row head">
-        <h2>Sources</h2>
+        <h2>{t('sources.title')}</h2>
         <button type="button" className="secondary small" onClick={onAdd}>
-          + add
+          {t('sources.add')}
         </button>
       </div>
       {error && <p className="error">{error}</p>}
@@ -77,20 +78,20 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
                 {s.name}
               </span>
               {s.capture && (
-                <span className="badge" title="How this PDF was read">
-                  {s.capture}
+                <span className="badge" title={t('sources.captureTitle')}>
+                  {t(`capture.${s.capture}`)}
                 </span>
               )}
-              <span className={`badge ${s.status}`}>{s.status}</span>
+              <span className={`badge ${s.status}`}>{t(`status.${s.status}`)}</span>
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
-              {s.status === 'processing' && s.error && <span className="muted small">Retrying after: {s.error}</span>}
+              {s.status === 'processing' && s.error && <span className="muted small">{t('sources.retrying', { error: s.error })}</span>}
             </div>
-            <button type="button" className="icon" title="Remove from this notebook" onClick={() => void remove(s)}>
+            <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>
               ×
             </button>
           </li>
         ))}
-        {sources.length === 0 && !busy && <li className="muted">No sources yet. Add a PDF, a text, a web page or an image.</li>}
+        {sources.length === 0 && !busy && <li className="muted">{t('sources.none')}</li>}
       </ul>
     </section>
   )

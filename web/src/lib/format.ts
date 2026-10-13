@@ -1,11 +1,13 @@
+import { language, t } from '../i18n'
+
 export function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString(undefined, { style: 'currency', currency: 'EUR' })
+  return (cents / 100).toLocaleString(language(), { style: 'currency', currency: 'EUR' })
 }
 
 export function formatTime(iso: string | null): string {
-  if (!iso) return 'never'
+  if (!iso) return t('time.never')
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString()
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(language())
 }
 
 export function formatBytes(bytes: number): string {

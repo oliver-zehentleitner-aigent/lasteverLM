@@ -1,4 +1,5 @@
 import type { LibraryEntry } from '../api/types'
+import { t, tn } from '../i18n'
 
 export interface LibraryFilter {
   kind: LibraryEntry['kind'] | 'all'
@@ -26,11 +27,9 @@ export function notInNotebook(entries: readonly LibraryEntry[], notebookId: stri
 export function deleteConfirmText(e: LibraryEntry): string {
   const where =
     e.notebooks.length === 0
-      ? 'It is not in any notebook.'
-      : `It disappears from ${e.notebooks.length === 1 ? 'this notebook' : `these ${e.notebooks.length} notebooks`}: ${e.notebooks
-          .map((n) => `"${n.title}"`)
-          .join(', ')}.`
-  return `Move "${e.name}" to the trash? ${where} It stays restorable in the trash until it is purged; citations to it show as removed meanwhile.`
+      ? t('lib.inNoNotebook')
+      : tn('lib.disappears', e.notebooks.length, { names: e.notebooks.map((n) => `"${n.title}"`).join(', ') })
+  return t('lib.trashConfirm', { name: e.name, where })
 }
 
 /** When a trashed entry is purged, relative to now, in whole days. */
@@ -38,6 +37,5 @@ export function purgeIn(purgeAt: string, now: Date = new Date()): string {
   const ms = new Date(purgeAt).getTime() - now.getTime()
   if (!Number.isFinite(ms)) return purgeAt
   const days = Math.ceil(ms / 86_400_000)
-  if (days <= 0) return 'purged today'
-  return days === 1 ? 'purged in 1 day' : `purged in ${days} days`
+  return days <= 0 ? t('lib.purgedToday') : tn('lib.purgedIn', days)
 }

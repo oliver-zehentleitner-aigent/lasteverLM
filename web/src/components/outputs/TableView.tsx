@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { TableContent } from '../../api/types'
 import { sortRows, toCsv, type SortDir } from '../../lib/table'
+import { t } from '../../i18n'
 
 /** Sortable table with CSV export. Sorting is done on a copy; the content
  *  itself is never mutated. */
@@ -28,7 +29,7 @@ export function TableView({ content, title }: { content: TableContent; title: st
     <div className="datatable">
       <div className="row toolbar no-print">
         <button type="button" className="secondary" onClick={download}>
-          Download CSV
+          {t('table.csv')}
         </button>
       </div>
       <table>

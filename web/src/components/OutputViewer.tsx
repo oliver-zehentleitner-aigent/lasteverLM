@@ -8,6 +8,7 @@ import { useOutputOptions } from '../hooks/useOutputOptions'
 import { optionsLabel } from '../lib/outputOptions'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
+import { t } from '../i18n'
 
 interface Props {
   outputs: Output[]
@@ -76,7 +77,7 @@ export function OutputViewer({
     if (ok) onChanged({ ...selected, share_token: null })
   }
   async function remove() {
-    if (!selected || !confirm(`Delete "${selected.title || formFor(selected.kind).label}"?`)) return
+    if (!selected || !confirm(t('ws.deleteDoc', { title: selected.title || formFor(selected.kind).label }))) return
     const ok = await run(async () => {
       await rag.deleteOutput(selected.id)
       return true
@@ -92,21 +93,21 @@ export function OutputViewer({
       {fullView && (
         <div className="full-bar no-print">
           <button type="button" className={chatOpen ? 'secondary small active' : 'secondary small'} aria-pressed={chatOpen} onClick={onToggleChat}>
-            chat
+            {t('viewer.chat')}
           </button>
           <button
             ref={leaveButton}
             type="button"
             className="icon"
-            title="Leave full view (Esc)"
-            aria-label="Leave full view"
+            title={t('viewer.leaveFull')}
+            aria-label={t('viewer.leaveFullLabel')}
             onClick={() => onFullView(false)}
           >
             ×
           </button>
         </div>
       )}
-      <div className="tabs no-print" role="tablist" aria-label="Documents" ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
+      <div className="tabs no-print" role="tablist" aria-label={t('viewer.documents')} ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
         {outputs.map((o) => (
           <button
             key={o.id}
@@ -123,7 +124,7 @@ export function OutputViewer({
             {(o.status === 'processing' || o.status === 'waiting') && <span className="spinner" aria-label={o.status} />}
           </button>
         ))}
-        {outputs.length === 0 && <span className="muted">Generated documents appear here as tabs.</span>}
+        {outputs.length === 0 && <span className="muted">{t('viewer.noDocs')}</span>}
       </div>
       {(error || actionError) && <p className="error no-print">{error ?? actionError}</p>}
       <div className="viewer-body printable">
@@ -133,24 +134,24 @@ export function OutputViewer({
               <h1 className="doc-title">{selected.title || formFor(selected.kind).label}</h1>
               <span className="badge">{formFor(selected.kind).label}</span>
               <span className="muted small">{formatTime(selected.created_at)}</span>
-              {made && <span className="muted small" title="Made with these options">{made}</span>}
+              {made && <span className="muted small" title={t('viewer.madeWith')}>{made}</span>}
               <span className="actions no-print">
                 <button type="button" className="link" disabled={selected.status !== 'ready'} onClick={() => onAskAbout(selected)}>
-                  ask about this
+                  {t('viewer.askAbout')}
                 </button>
                 <button type="button" className="link" disabled={!printable} onClick={() => window.print()}>
-                  print
+                  {t('viewer.print')}
                 </button>
                 <button type="button" className="link" disabled={selected.status !== 'ready'} onClick={() => setShareOpen((v) => !v)}>
-                  {selected.share_token ? 'shared' : 'share'}
+                  {selected.share_token ? t('viewer.shared') : t('viewer.share')}
                 </button>
                 {!fullView && (
                   <button ref={enterButton} type="button" className="link" onClick={() => onFullView(true)}>
-                    full view
+                    {t('viewer.fullView')}
                   </button>
                 )}
                 <button type="button" className="link danger" disabled={busy} onClick={() => void remove()}>
-                  delete
+                  {t('common.delete')}
                 </button>
               </span>
             </header>
@@ -158,22 +159,22 @@ export function OutputViewer({
               <div className="share card no-print">
                 {shareUrl ? (
                   <>
-                    <p className="small">Anyone with this link can read the document without signing in.</p>
+                    <p className="small">{t('viewer.shareInfo')}</p>
                     <div className="row">
                       <input readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
                       <button type="button" className="secondary" onClick={() => void navigator.clipboard?.writeText(shareUrl)}>
-                        Copy
+                        {t('viewer.copy')}
                       </button>
                       <button type="button" className="secondary" disabled={busy} onClick={() => void unshare()}>
-                        Revoke
+                        {t('viewer.revoke')}
                       </button>
                     </div>
                   </>
                 ) : (
                   <div className="row">
-                    <p className="small">Create a read-only link to this document.</p>
+                    <p className="small">{t('viewer.shareCreateInfo')}</p>
                     <button type="button" disabled={busy} onClick={() => void share()}>
-                      Create link
+                      {t('viewer.createLink')}
                     </button>
                   </div>
                 )}

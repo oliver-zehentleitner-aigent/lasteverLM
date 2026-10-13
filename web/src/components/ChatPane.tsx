@@ -7,6 +7,7 @@ import { isRemoved, splitCitations } from '../lib/citations'
 import { similarityLabel } from '../lib/provenance'
 import { ProvenancePanel } from './ProvenancePanel'
 import { activeAfterClose } from '../lib/conversations'
+import { t } from '../i18n'
 
 interface Props {
   notebookId: string
@@ -65,7 +66,7 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
   }
 
   async function close(c: Conversation) {
-    if (!confirm('Close this chat? Its messages are deleted.')) return
+    if (!confirm(t('chat.closeConfirm'))) return
     const next = await run(async () => {
       await rag.deleteConversation(c.id)
       const nextId = activeAfterClose(
@@ -95,7 +96,7 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
     <section className="pane chat">
       <div className="tabs chat-tabs">
         {/* only the tabs scroll; "+" and the tools stay in place */}
-        <div className="tab-scroll" role="tablist" aria-label="Chats" ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
+        <div className="tab-scroll" role="tablist" aria-label={t('chat.chats')} ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
           {conversations.map((c) => (
             <span key={c.id} className={c.id === activeId ? 'tab active' : 'tab'}>
               <button
@@ -109,13 +110,13 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
               >
                 {c.title}
               </button>
-              <button type="button" className="icon" title="Close this chat" disabled={busy} onClick={() => void close(c)}>
+              <button type="button" className="icon" title={t('chat.close')} disabled={busy} onClick={() => void close(c)}>
                 ×
               </button>
             </span>
           ))}
         </div>
-        <button type="button" className="icon" title="New chat" disabled={busy} onClick={() => void add()}>
+        <button type="button" className="icon" title={t('chat.new')} disabled={busy} onClick={() => void add()}>
           +
         </button>
         {tools && <span className="tab-tools">{tools}</span>}
@@ -210,13 +211,13 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, o
                       .join(' ')
                       .trim()}
                     onClick={() => toggle(m, c)}
-                    title={isRemoved(c.source_id, presentSources) ? `${c.source_name} (removed from this notebook)` : c.source_name}
+                    title={isRemoved(c.source_id, presentSources) ? t('chat.removedTitle', { name: c.source_name }) : c.source_name}
                   >
                     [{c.n}] {c.source_name}
-                    {c.page != null && <span className="muted"> p. {c.page}</span>}
+                    {c.page != null && <span className="muted"> {t('chat.page', { page: c.page })}</span>}
                     {similarityLabel(c.similarity) && <span className="muted"> · {similarityLabel(c.similarity)}</span>}
-                    {c.source_kind === 'generated' && <span className="muted"> · generated</span>}
-                    {isRemoved(c.source_id, presentSources) && <span className="muted"> · source removed</span>}
+                    {c.source_kind === 'generated' && <span className="muted"> · {t('chat.generated')}</span>}
+                    {isRemoved(c.source_id, presentSources) && <span className="muted"> · {t('chat.sourceRemoved')}</span>}
                   </button>
                 ))}
               </footer>
@@ -237,15 +238,15 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, o
           </article>
         ))}
         {busy && <p className="muted">…</p>}
-        {messages.length === 0 && !busy && <p className="muted">Ask a question about the sources of this notebook.</p>}
+        {messages.length === 0 && !busy && <p className="muted">{t('chat.empty')}</p>}
         <div ref={bottom} />
       </div>
       {error && <p className="error">{error}</p>}
       {scope && (
         <div className="scope">
           <span className="chip">
-            about: {scope.title || scope.kind}
-            <button type="button" className="icon" title="Ask the whole notebook again" onClick={onClearScope}>
+            {t('chat.about', { title: scope.title || scope.kind })}
+            <button type="button" className="icon" title={t('chat.wholeNotebook')} onClick={onClearScope}>
               ×
             </button>
           </span>
@@ -254,14 +255,14 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, o
       <form className="ask row" onSubmit={ask}>
         <input
           ref={input}
-          placeholder={scope ? `Ask about "${scope.title || scope.kind}"…` : 'Ask your sources…'}
+          placeholder={scope ? t('chat.askAbout', { title: scope.title || scope.kind }) : t('chat.askSources')}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           disabled={busy}
           autoFocus
         />
         <button type="submit" disabled={busy || !question.trim()}>
-          Ask
+          {t('chat.ask')}
         </button>
       </form>
     </>

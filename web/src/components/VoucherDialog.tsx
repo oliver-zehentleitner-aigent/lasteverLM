@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { account } from '../api/account'
 import type { User } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
+import { t } from '../i18n'
 
 interface Props {
   open: boolean
@@ -28,19 +29,19 @@ export function VoucherDialog({ open, reason, onClose, onRedeemed }: Props) {
   return (
     <div className="backdrop" onClick={onClose}>
       <form className="dialog" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2>Redeem a voucher</h2>
-        {reason === 'exhausted' && <p className="error">Your credit is used up. Enter a voucher code to continue.</p>}
+        <h2>{t('voucher.title')}</h2>
+        {reason === 'exhausted' && <p className="error">{t('voucher.exhausted')}</p>}
         <label>
-          Code
+          {t('voucher.code')}
           <input autoFocus value={code} onChange={(e) => setCode(e.target.value)} />
         </label>
         {error && <p className="error">{error}</p>}
         <div className="row">
           <button type="button" className="secondary" onClick={onClose}>
-            Close
+            {t('common.close')}
           </button>
           <button type="submit" disabled={busy || !code.trim()}>
-            {busy ? 'Redeeming…' : 'Redeem'}
+            {busy ? t('voucher.redeeming') : t('voucher.redeem')}
           </button>
         </div>
       </form>

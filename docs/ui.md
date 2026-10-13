@@ -221,5 +221,12 @@ deleted from the library) stays readable with its quote and is marked
 
 ## Language
 
-The interface is English; sources, questions, answers and generated
-documents are in whatever language the user and the sources use.
+The interface is English or German: the user's `ui_language`
+preference decides, and before login (or without a preference) the
+browser's language, English when it is neither. Every visible string of
+the web goes through `t()` (`web/src/i18n/`, one map per language);
+German addresses the user with "du". Messages that come from the
+services (an `{"error"}` text) stay as the service wrote them, in
+English. Sources, questions, answers and generated documents are in
+whatever language the user and the sources use, or the one picked in
+the output options.

@@ -1,5 +1,6 @@
 import type { User } from '../api/types'
 import { formatCents } from '../lib/format'
+import { t } from '../i18n'
 
 interface Props {
   me: User | null
@@ -31,7 +32,7 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
             onNavigate('/library')
           }}
         >
-          Library
+          {t('header.library')}
         </a>
         <a
           href="/settings"
@@ -41,7 +42,7 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
             onNavigate('/settings')
           }}
         >
-          Settings
+          {t('header.settings')}
         </a>
         {me?.is_admin && (
           <a
@@ -52,7 +53,7 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
               onNavigate('/admin')
             }}
           >
-            Admin
+            {t('header.admin')}
           </a>
         )}
       </nav>
@@ -60,13 +61,13 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         {me && (
           <>
             <span className="muted">{me.email}</span>
-            <button type="button" className="pill" onClick={onVoucher} title="Redeem a voucher">
+            <button type="button" className="pill" onClick={onVoucher} title={t('header.redeem')}>
               {formatCents(me.balance_cents)}
             </button>
           </>
         )}
         <button type="button" className="link" onClick={onLogout}>
-          Sign out
+          {t('header.signOut')}
         </button>
       </div>
     </header>

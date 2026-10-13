@@ -1,9 +1,11 @@
+import { t } from '../i18n'
+
 /** Formatting and the passage heuristic for the citation provenance panel. */
 
 /** "chunk 12 of 43"; the index is 0-based. Null when unknown. */
 export function chunkPosition(index: number | null | undefined, count: number | null | undefined): string | null {
   if (index === null || index === undefined || count === null || count === undefined) return null
-  return `chunk ${index + 1} of ${count}`
+  return t('prov.chunk', { i: index + 1, n: count })
 }
 
 /** Similarity as shown next to a citation, two decimals; null when unknown. */

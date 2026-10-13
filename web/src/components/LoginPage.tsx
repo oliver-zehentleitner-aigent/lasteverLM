@@ -3,6 +3,7 @@ import { account } from '../api/account'
 import { ApiError } from '../api/client'
 import { setToken } from '../api/token'
 import { useAsync } from '../hooks/useAsync'
+import { t } from '../i18n'
 
 interface Props {
   onLoggedIn: () => void
@@ -46,42 +47,40 @@ export function LoginPage({ onLoggedIn }: Props) {
   return (
     <main className="login">
       <h1>lasteverLM</h1>
-      <p className="muted">Provide documents, ask questions, get cited answers.</p>
+      <p className="muted">{t('login.tagline')}</p>
 
       {sent ? (
         <section className="card">
-          <h2>Check your mail</h2>
-          <p>
-            A sign-in link went to <strong>{email}</strong>. Open it in this browser.
-          </p>
+          <h2>{t('login.checkMail')}</h2>
+          <p>{t('login.sentTo', { email })}</p>
           <button type="button" className="link" onClick={() => setSent(false)}>
-            Use another address
+            {t('login.otherAddress')}
           </button>
         </section>
       ) : (
         <form className="card" onSubmit={submit}>
-          <h2>Sign in</h2>
+          <h2>{t('login.signIn')}</h2>
           <label>
-            E-mail
+            {t('login.email')}
             <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           <button type="submit" disabled={busy || !email}>
-            {busy ? 'Sending…' : 'Send sign-in link'}
+            {busy ? t('login.sending') : t('login.send')}
           </button>
-          {refused && <p className="error">This address has no access to lasteverLM.</p>}
+          {refused && <p className="error">{t('login.notAllowed')}</p>}
           {error && <p className="error">{error}</p>}
         </form>
       )}
 
       <details className="card demo">
-        <summary>Have an access token?</summary>
+        <summary>{t('login.haveToken')}</summary>
         <form onSubmit={useDemo}>
           <label>
-            Token
+            {t('login.token')}
             <input type="password" value={demo} onChange={(e) => setDemo(e.target.value)} autoComplete="off" />
           </label>
           <button type="submit" disabled={!demo.trim()}>
-            Continue
+            {t('login.continue')}
           </button>
         </form>
       </details>

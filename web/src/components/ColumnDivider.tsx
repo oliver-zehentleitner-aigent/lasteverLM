@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { clampWidth } from '../lib/layout'
+import { t } from '../i18n'
 
 interface Props {
   label: string
@@ -63,7 +64,7 @@ export function ColumnDivider({ label, width, min, max, origin, onChange, onComm
       aria-valuenow={width ?? undefined}
       aria-valuemin={min}
       tabIndex={0}
-      title="Drag to resize, double-click to reset"
+      title={t('divider.hint')}
       onPointerDown={(e) => {
         dragging.current = true
         last.current = null

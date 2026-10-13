@@ -13,6 +13,7 @@ repository; see the [root README](../README.md) for the whole system.
 
 ## What it does
 
+- **German and English**: the interface follows the user's language setting, the browser's language before login.
 - **Sign in** with a magic link sent by mail (an address without access is told so), or with an access token for development.
 - **Wizard** for adding sources in three steps: what goes in (PDF, Text, Web page, Image), how it gets in (drop or pick files, paste text, enter a URL), what should come out (any number of document kinds, or just chat).
 - **Notebook view** in two columns. Left: the uploaded sources with status and delete, the output formats as tiles (a click selects, a Create button starts the job), and the generated documents (kind, title, status; open and delete). Right: a viewer with one tab per generated document, and the chat in tabs, one per conversation (new with "+", closed and deleted with "×"), with `[n]` citations that open a provenance panel (source, page, chunk position, similarity, the chunk verbatim with the matching sentence marked).

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { QuizContent } from '../../api/types'
 import { answerIndex, score } from '../../lib/quiz'
+import { t } from '../../i18n'
 
 /** Interactive quiz: pick an option, the right one and the explanation are
  *  revealed per question; a running score sits at the top. */
@@ -12,12 +13,12 @@ export function QuizView({ content }: { content: QuizContent }) {
   return (
     <div className="quiz">
       <p className="muted">
-        {s.answered} of {questions.length} answered, {s.correct} correct.
+        {t('quiz.progress', { answered: s.answered, total: questions.length, correct: s.correct })}
         {s.answered > 0 && (
           <>
             {' '}
             <button type="button" className="link" onClick={() => setChosen(questions.map(() => null))}>
-              Start over
+              {t('quiz.restart')}
             </button>
           </>
         )}
@@ -49,7 +50,7 @@ export function QuizView({ content }: { content: QuizContent }) {
               </ul>
               {picked !== null && (
                 <p className="explanation">
-                  {right === -1 && <span className="error">The answer key matches no option. </span>}
+                  {right === -1 && <span className="error">{t('quiz.noKey')} </span>}
                   {q.explanation}
                 </p>
               )}

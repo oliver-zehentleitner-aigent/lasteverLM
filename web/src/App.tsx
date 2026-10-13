@@ -15,6 +15,8 @@ import { Workspace } from './components/Workspace'
 import { MeContext } from './hooks/useMe'
 import { useRoute } from './hooks/useRoute'
 import { writeLastNotebook } from './lib/lastNotebook'
+import { setLanguage, t } from './i18n'
+import { pickLanguage } from './i18n/translate'
 
 type Session = { state: 'checking' } | { state: 'anonymous' } | { state: 'in'; me: User | null }
 
@@ -22,6 +24,14 @@ export default function App() {
   const { route, navigate } = useRoute()
   const [session, setSession] = useState<Session>(() => (getToken() ? { state: 'checking' } : { state: 'anonymous' }))
   const [voucher, setVoucher] = useState<{ open: boolean; reason: 'manual' | 'exhausted' }>({ open: false, reason: 'manual' })
+
+  // The UI language: the signed-in user's preference, else the browser's.
+  // Set before the children render, so every t() in this render uses it.
+  const lang = pickLanguage(session.state === 'in' ? session.me?.preferences?.ui_language : null, navigator.languages ?? [])
+  setLanguage(lang)
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
 
   /** Load the account behind the stored token. A 401 is handled by the event
    *  below; any other failure keeps the session with an unknown account so
@@ -70,7 +80,7 @@ export default function App() {
   if (route.name === 'shared') return <SharePage token={route.token} />
   if (route.name === 'auth-callback') return <AuthCallback token={route.token} onDone={loggedIn} />
   if (session.state === 'anonymous') return <LoginPage onLoggedIn={loggedIn} />
-  if (session.state === 'checking') return <main className="login"><p className="muted">Loading…</p></main>
+  if (session.state === 'checking') return <main className="login"><p className="muted">{t('common.loading')}</p></main>
 
   const me = session.me
   const adminPage = route.name === 'admin' && me?.is_admin ? route.page : null

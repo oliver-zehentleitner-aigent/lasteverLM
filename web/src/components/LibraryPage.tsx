@@ -6,6 +6,7 @@ import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
 import { deleteConfirmText, filterLibrary, purgeIn, type LibraryFilter } from '../lib/library'
 import { SOURCE_FORMS } from '../lib/outputs'
+import { t } from '../i18n'
 
 interface Props {
   onOpenNotebook: (id: string) => void
@@ -19,8 +20,8 @@ export function LibraryPage({ onOpenNotebook }: Props) {
   const [view, setView] = useState<'library' | 'trash'>('library')
   return (
     <main className="library">
-      <h1>Library</h1>
-      <nav className="subnav" aria-label="Library views">
+      <h1>{t('lib.title')}</h1>
+      <nav className="subnav" aria-label={t('lib.views')}>
         {(['library', 'trash'] as const).map((v) => (
           <a
             key={v}
@@ -32,7 +33,7 @@ export function LibraryPage({ onOpenNotebook }: Props) {
               setView(v)
             }}
           >
-            {v === 'library' ? 'Sources' : 'Trash'}
+            {v === 'library' ? t('lib.sources') : t('lib.trash')}
           </a>
         ))}
       </nav>
@@ -64,13 +65,13 @@ function LibraryList({ onOpenNotebook }: Props) {
   return (
     <>
       <p className="muted small">
-        Everything you uploaded or linked, once, and the notebooks it is in. Generated documents live in their notebook.
+        {t('lib.intro')}
       </p>
       <div className="row filters">
         <label>
-          Kind
+          {t('lib.kind')}
           <select value={filter.kind} onChange={(e) => setFilter({ ...filter, kind: e.target.value as LibraryFilter['kind'] })}>
-            <option value="all">All</option>
+            <option value="all">{t('lib.all')}</option>
             {SOURCE_FORMS.map((f) => (
               <option key={f.kind} value={f.kind}>
                 {f.label}
@@ -79,20 +80,20 @@ function LibraryList({ onOpenNotebook }: Props) {
           </select>
         </label>
         <label>
-          Name
-          <input type="search" value={filter.query} placeholder="part of a name or address" onChange={(e) => setFilter({ ...filter, query: e.target.value })} />
+          {t('lib.name')}
+          <input type="search" value={filter.query} placeholder={t('lib.searchPlaceholder')} onChange={(e) => setFilter({ ...filter, query: e.target.value })} />
         </label>
       </div>
       {error && <p className="error">{error}</p>}
       <table>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Kind</th>
-            <th>Status</th>
-            <th>Size</th>
-            <th>Added</th>
-            <th>In notebooks</th>
+            <th>{t('lib.name')}</th>
+            <th>{t('lib.kind')}</th>
+            <th>{t('lib.status')}</th>
+            <th>{t('lib.size')}</th>
+            <th>{t('lib.added')}</th>
+            <th>{t('lib.inNotebooks')}</th>
             <th />
           </tr>
         </thead>
@@ -104,14 +105,14 @@ function LibraryList({ onOpenNotebook }: Props) {
               </td>
               <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
               <td>
-                <span className={`badge ${e.status}`}>{e.status}</span>
+                <span className={`badge ${e.status}`}>{t(`status.${e.status}`)}</span>
                 {e.status === 'failed' && e.error && <span className="error small"> {e.error}</span>}
               </td>
               <td>{e.size_bytes === null ? '—' : formatBytes(e.size_bytes)}</td>
               <td>{formatTime(e.created_at)}</td>
               <td>
                 {e.notebooks.length === 0 ? (
-                  <span className="muted small">not in any notebook</span>
+                  <span className="muted small">{t('lib.notInAny')}</span>
                 ) : (
                   <span className="where-used">
                     {e.notebooks.map((n) => (
@@ -131,7 +132,7 @@ function LibraryList({ onOpenNotebook }: Props) {
               </td>
               <td>
                 <button type="button" className="link danger" disabled={busy} onClick={() => void remove(e)}>
-                  delete
+                  {t('common.delete')}
                 </button>
               </td>
             </tr>
@@ -139,7 +140,7 @@ function LibraryList({ onOpenNotebook }: Props) {
           {shown.length === 0 && !busy && (
             <tr>
               <td className="muted" colSpan={7}>
-                {entries.length === 0 ? 'Nothing yet. Sources you add to a notebook appear here.' : 'Nothing matches the filter.'}
+                {entries.length === 0 ? t('lib.empty') : t('lib.noMatch')}
               </td>
             </tr>
           )}
@@ -168,7 +169,7 @@ function TrashList() {
   }
 
   async function purge(e: TrashEntry) {
-    if (!confirm(`Delete "${e.name}" for good? Its stored file and its passages are removed; this cannot be undone.`)) return
+    if (!confirm(t('lib.purgeConfirm', { name: e.name }))) return
     const ok = await run(async () => {
       await ingest.purgeFromTrash(e.id)
       return true
@@ -179,18 +180,17 @@ function TrashList() {
   return (
     <>
       <p className="muted small">
-        Deleted sources stay here for the days set in your settings, then they are purged. A restored source is in no
-        notebook; add it again from the library. Uploading the same file again restores it as well.
+        {t('lib.trashIntro')}
       </p>
       {error && <p className="error">{error}</p>}
       <table>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Kind</th>
-            <th>Size</th>
-            <th>Deleted</th>
-            <th>Purge</th>
+            <th>{t('lib.name')}</th>
+            <th>{t('lib.kind')}</th>
+            <th>{t('lib.size')}</th>
+            <th>{t('lib.deleted')}</th>
+            <th>{t('lib.purge')}</th>
             <th />
           </tr>
         </thead>
@@ -206,10 +206,10 @@ function TrashList() {
               <td title={formatTime(e.purge_at)}>{purgeIn(e.purge_at)}</td>
               <td className="actions-cell">
                 <button type="button" className="link" disabled={busy} onClick={() => void restore(e)}>
-                  restore
+                  {t('lib.restore')}
                 </button>
                 <button type="button" className="link danger" disabled={busy} onClick={() => void purge(e)}>
-                  delete for good
+                  {t('lib.deleteForGood')}
                 </button>
               </td>
             </tr>
@@ -217,7 +217,7 @@ function TrashList() {
           {entries.length === 0 && !busy && (
             <tr>
               <td className="muted" colSpan={6}>
-                The trash is empty.
+                {t('lib.trashEmpty')}
               </td>
             </tr>
           )}

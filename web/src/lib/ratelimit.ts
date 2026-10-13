@@ -1,4 +1,5 @@
 import type { RateLimitRules, RateLimitUpdate } from '../api/types'
+import { t, tn } from '../i18n'
 
 /** Core's bounds for the editable fields, inclusive; the server answers 422
  *  outside them, the form checks first so the message comes sooner. */
@@ -9,23 +10,22 @@ export const RATE_LIMIT_BOUNDS: Record<keyof RateLimitUpdate, [number, number]> 
   strike_window_hours: [1, 720],
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
-
 /** The rule as one readable paragraph, as the admin page shows it. */
 export function describeRateLimit(r: RateLimitRules): string {
-  return (
-    `More than ${plural(r.per_minute, 'request', 'requests')} per minute from one IP: ` +
-    `blocked for ${plural(r.block_minutes, 'minute', 'minutes')}, one strike. ` +
-    `${plural(r.ban_after_strikes, 'strike', 'strikes')} within ${plural(r.strike_window_hours, 'hour', 'hours')}: ` +
-    `banned until an admin lifts it, at most ${plural(r.ban_max_days, 'day', 'days')}.`
-  )
+  return t('rl.sentence', {
+    requests: tn('rl.requests', r.per_minute),
+    minutes: tn('rl.minutes', r.block_minutes),
+    strikes: tn('rl.strikes', r.ban_after_strikes),
+    hours: tn('rl.hours', r.strike_window_hours),
+    days: tn('rl.days', r.ban_max_days),
+  })
 }
 
 /** The first field outside its bounds, as a sentence, or null. */
 export function rateLimitError(u: RateLimitUpdate): string | null {
   for (const [field, [lo, hi]] of Object.entries(RATE_LIMIT_BOUNDS) as [keyof RateLimitUpdate, [number, number]][]) {
     const v = u[field]
-    if (!Number.isInteger(v) || v < lo || v > hi) return `${field} must be between ${lo} and ${hi}`
+    if (!Number.isInteger(v) || v < lo || v > hi) return t('rl.bounds', { field, lo, hi })
   }
   return null
 }

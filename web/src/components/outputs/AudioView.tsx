@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AudioContent } from '../../api/types'
+import { t } from '../../i18n'
 
 interface Props {
   content: AudioContent
@@ -31,7 +32,7 @@ export function AudioView({ content, onExpired }: Props) {
   return (
     <div className="audio-view">
       {failed ? (
-        <p className="error">The audio could not be loaded.</p>
+        <p className="error">{t('audio.failed')}</p>
       ) : (
         <audio controls preload="metadata" src={src} onError={onError} onLoadedMetadata={() => setRefreshed(false)} />
       )}

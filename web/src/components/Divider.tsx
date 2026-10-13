@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { DEFAULT_VIEWER_RATIO, MAX_VIEWER_RATIO, MIN_VIEWER_RATIO, clampRatio, ratioFromPointer } from '../lib/layout'
+import { t } from '../i18n'
 
 interface Props {
   ratio: number
@@ -50,12 +51,12 @@ export function Divider({ ratio, container, onChange, onCommit, onReset }: Props
       className="divider no-print"
       role="separator"
       aria-orientation="horizontal"
-      aria-label="Resize document and chat"
+      aria-label={t('divider.resizeChat')}
       aria-valuemin={MIN_VIEWER_RATIO * 100}
       aria-valuemax={MAX_VIEWER_RATIO * 100}
       aria-valuenow={Math.round(ratio * 100)}
       tabIndex={0}
-      title="Drag to resize, double-click to reset"
+      title={t('divider.hint')}
       onPointerDown={(e) => {
         dragging.current = true
         e.currentTarget.setPointerCapture(e.pointerId)
