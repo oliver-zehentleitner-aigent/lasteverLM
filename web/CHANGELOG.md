@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependencies pinned to the exact versions the lockfile already installed (no version changes); the `@types/dompurify` stub removed, since DOMPurify ships its own types.
 - Wizard: opened from an existing notebook it ends after the sources (two steps, with a note and "Done" when some were in the notebook already); the output step is for a new notebook only and has a "Skip" button instead of "Just chat".
 
+### Fixed
+
+- Lifting a ban sends its key as a query parameter (`DELETE /api/account/admin/bans?ip=<key>`), so an IPv6 /64 key such as `2001:db8:1:2::/64` works; through the path its slash (`%2F`) would have been decoded into a separate segment.
+
 ### Security
 
 - Mind map: the node labels (the model's text) were rendered by markmap as raw HTML, so markup in a label (an `<img onerror>`, say) could run in the app and on the shared page; every node is now passed through DOMPurify, and a line break in a label no longer starts a node of its own.

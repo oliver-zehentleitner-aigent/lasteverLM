@@ -261,6 +261,7 @@ export interface Smtp {
 // rate limiting and blocking: the admin view on core's middleware
 
 export interface Block {
+  /** the key: an IPv4 address or an IPv6 /64 prefix, shown as is */
   ip: string
   blocked_until: string
   strikes: number
@@ -268,6 +269,7 @@ export interface Block {
 }
 
 export interface Ban {
+  /** the key: an IPv4 address or an IPv6 /64 prefix, shown as is */
   ip: string
   reason: string
   created_at: string

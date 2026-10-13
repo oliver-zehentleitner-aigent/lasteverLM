@@ -99,7 +99,9 @@ const httpAdmin: AdminApi = {
   resetRateLimit: () => request<void>(`${A}/settings/ratelimit`, { method: 'DELETE' }),
   listBlocks: () => request<Block[]>(`${A}/blocks`),
   listBans: (includeLifted) => request<Ban[]>(`${A}/bans?include_lifted=${includeLifted}`),
-  liftBan: (ip) => request<void>(`${A}/bans/${encodeURIComponent(ip)}`, { method: 'DELETE' }),
+  // the key is an IPv4 address or an IPv6 /64 prefix ("2001:db8:1:2::/64");
+  // as a query parameter its slash never reaches the path
+  liftBan: (ip) => request<void>(`${A}/bans?ip=${encodeURIComponent(ip)}`, { method: 'DELETE' }),
   listAccess: (limit) => request<AccessEntry[]>(`${A}/access?limit=${limit}`),
 }
 
@@ -143,6 +145,7 @@ function mockAdmin(): AdminApi {
   let bans: Ban[] = [
     { ip: '198.51.100.23', reason: 'repeated blocks', created_at: '2026-10-11T22:00:00Z', lifted_at: null },
     { ip: '192.0.2.44', reason: 'abuse report', created_at: '2026-10-09T10:00:00Z', lifted_at: '2026-10-10T08:00:00Z' },
+    { ip: '2001:db8:1:2::/64', reason: 'repeated blocks', created_at: '2026-10-12T09:30:00Z', lifted_at: null },
   ]
   const access: AccessEntry[] = [
     { at: '2026-10-12T20:16:00Z', ip: '203.0.113.7', method: 'POST', path: '/api/account/auth/request-link', status: 429, user_id: null, service: 'account' },
