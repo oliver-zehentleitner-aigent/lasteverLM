@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-13
+
 ### Added
 
 - Theme switch: "system" (default), light or dark, from a toggle in the header and the Settings page; applied before the first paint from this browser's last choice and synced with the account's `theme` preference after sign-in. All colours, charts and mind map included, come from the theme tokens; a test checks the WCAG contrast of the token pairs in both themes.
