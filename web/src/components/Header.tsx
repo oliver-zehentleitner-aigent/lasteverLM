@@ -4,6 +4,8 @@ import type { User } from '../api/types'
 import { t } from '../i18n'
 import { versionLine } from '../lib/build'
 import { formatCents } from '../lib/format'
+import { useMe } from '../hooks/useMe'
+import { applyTheme, nextTheme, readStoredTheme, type Theme } from '../lib/theme'
 
 interface Props {
   me: User | null
@@ -30,6 +32,28 @@ function useBuild(): string | null {
     }
   }, [])
   return line
+}
+
+const THEME_ICON: Record<Theme, string> = { system: '◐', light: '☀', dark: '☾' }
+
+/** Cycles system, light, dark; applies at once and keeps the choice in this
+ *  browser and, when signed in, in the account (the shared demo account
+ *  cannot store preferences; then it stays in this browser). */
+function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme>(readStoredTheme)
+  const { me, setMe } = useMe()
+  function cycle() {
+    const next = nextTheme(theme)
+    setTheme(next)
+    applyTheme(next)
+    if (me) account.savePreferences({ theme: next }).then(setMe, () => {})
+  }
+  const name = t(`theme.${theme}`)
+  return (
+    <button type="button" className="icon theme-toggle" title={t('theme.toggle', { theme: name })} aria-label={t('theme.toggle', { theme: name })} onClick={cycle}>
+      {THEME_ICON[theme]}
+    </button>
+  )
 }
 
 export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
@@ -82,6 +106,7 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         )}
       </nav>
       <div className="account">
+        <ThemeToggle />
         {me && (
           <>
             <span className="muted">{me.email}</span>

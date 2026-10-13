@@ -13,6 +13,7 @@ repository; see the [root README](../README.md) for the whole system.
 
 ## What it does
 
+- **Light and dark**: a theme toggle in the header and in Settings, following the system by default; the choice follows the user across browsers.
 - **German and English**: the interface follows the user's language setting, the browser's language before login.
 - **Sign in** with a magic link sent by mail (an address without access is told so), or with an access token for development.
 - **Wizard** for adding sources in three steps: what goes in (PDF, Text, Web page, Image), how it gets in (drop or pick files, paste text, enter a URL), what should come out (any number of document kinds, or just chat).

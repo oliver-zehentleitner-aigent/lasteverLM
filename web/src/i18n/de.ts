@@ -423,4 +423,10 @@ export const de: Record<MessageKey, string> = {
   'lib.trashIntro.after': ' festgelegt, dann werden sie endgültig gelöscht. Eine wiederhergestellte Quelle ist in keinem Notebook; füge sie aus der Bibliothek wieder hinzu. Die gleiche Datei erneut hochzuladen stellt sie ebenfalls wieder her.',
   'wiz.retryLeft.one': '{n} Datei fehlt noch; versuch es noch einmal.',
   'wiz.retryLeft.other': '{n} Dateien fehlen noch; versuch es noch einmal.',
+  'theme.system': 'System',
+  'theme.light': 'Hell',
+  'theme.dark': 'Dunkel',
+  'theme.toggle': 'Theme: {theme} (klicken zum Wechseln)',
+  'set.theme': 'Theme',
+  'set.themeSystem': 'Wie das System',
 }

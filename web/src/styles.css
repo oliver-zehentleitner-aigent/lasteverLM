@@ -4,18 +4,22 @@
   --muted: #6b6b6b;
   --line: #e2e2e2;
   --panel: #ffffff;
-  --accent: #2f6fdd;
+  --accent: #2b66cc;
   --accent-soft: #e6eefc;
   --danger: #b4231f;
   --ok: #1e7f3d;
-  --warn: #b26a00;
+  --warn: #a06000;
   /* chart series, distinct on both themes */
-  --chart-1: #2f6fdd;
-  --chart-2: #e07b39;
+  --chart-1: #2b66cc;
+  --chart-2: #d06a2a;
   --chart-3: #1e9e6a;
   --chart-4: #9b59b6;
-  --chart-5: #d4a017;
+  --chart-5: #b08200;
   --chart-6: #d94f70;
+  /* text on an accent background, and the dim layer behind dialogs */
+  --on-accent: #ffffff;
+  --overlay: rgba(0, 0, 0, 0.35);
+  color-scheme: light;
   --radius: 6px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -23,8 +27,32 @@
   color: var(--fg);
   background: var(--bg);
 }
+/* Dark: forced with data-theme="dark", or followed from the system when
+   no theme is forced. The two blocks hold the same values; CSS cannot
+   share one declaration block between a selector and a media query. */
+:root[data-theme='dark'] {
+  --bg: #141517;
+  --fg: #e8e8e8;
+  --muted: #9a9a9a;
+  --line: #2c2d31;
+  --panel: #1c1d21;
+  --accent: #6c9cf0;
+  --accent-soft: #1f2b44;
+  --danger: #ff7b76;
+  --ok: #5fcf84;
+  --warn: #f0b858;
+  --chart-1: #6c9cf0;
+  --chart-2: #f2a065;
+  --chart-3: #5fcf9a;
+  --chart-4: #c39be0;
+  --chart-5: #f0cf5a;
+  --chart-6: #f2839f;
+  --on-accent: #0d1420;
+  --overlay: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #141517;
     --fg: #e8e8e8;
     --muted: #9a9a9a;
@@ -41,6 +69,9 @@
     --chart-4: #c39be0;
     --chart-5: #f0cf5a;
     --chart-6: #f2839f;
+    --on-accent: #0d1420;
+    --overlay: rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
   }
 }
 
@@ -75,7 +106,7 @@ button {
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -158,7 +189,7 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .ask { margin-top: 0.5rem; }
 
 /* dialog */
-.backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: center; }
+.backdrop { position: fixed; inset: 0; z-index: 50; background: var(--overlay); display: flex; align-items: center; justify-content: center; }
 .dialog { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.25rem; width: min(380px, 90vw); display: flex; flex-direction: column; gap: 0.75rem; }
 .dialog .row { justify-content: flex-end; }
 
@@ -267,7 +298,8 @@ button.link.danger { color: var(--danger); }
 @media print {
   .columns.full .column.right { position: static; }
   @page { margin: 18mm; }
-  :root { --bg: #fff; --fg: #000; --panel: #fff; --line: #bbb; --muted: #444; }
+  /* print is always light; !important wins over a forced dark theme */
+  :root { --bg: #fff !important; --fg: #000 !important; --panel: #fff !important; --line: #bbb !important; --muted: #444 !important; color-scheme: light; }
   body { background: #fff; }
   .no-print, .topbar, .sidebar, .tabs, .actions, .share, .toolbar, .chat-wrap { display: none !important; }
   .workspace, .columns { display: block; height: auto; }

@@ -420,6 +420,12 @@ export const en = {
   'lib.trashIntro.after': ', then they are purged. A restored source is in no notebook; add it again from the library. Uploading the same file again restores it as well.',
   'wiz.retryLeft.one': '{n} file is still to upload; try again.',
   'wiz.retryLeft.other': '{n} files are still to upload; try again.',
+  'theme.system': 'System',
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+  'theme.toggle': 'Theme: {theme} (click to change)',
+  'set.theme': 'Theme',
+  'set.themeSystem': 'Like the system',
 } as const
 
 export type MessageKey = keyof typeof en

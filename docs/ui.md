@@ -258,6 +258,21 @@ deleted from the library) stays readable with its quote and is marked
 The running build is also the tooltip of "lasteverLM" in the header, for
 everyone, from the public `/api/account/healthz`.
 
+## Theme
+
+Light or dark: a `theme` preference "system" (the default, following the
+operating system's setting), "light" or "dark". A toggle in the header
+(◐ system, ☀ light, ☾ dark) cycles through them and applies at once; the
+Settings page has the same choice. The choice is kept in this browser
+(read by a small script in `index.html` before the first paint, so a
+dark choice never flashes light) and, when signed in, in the account,
+so it follows the user to other browsers; the shared demo account keeps
+it in the browser only. Every colour goes through the tokens in
+`styles.css` (one block per theme), the charts and the mind map
+included; the charts read the tokens again when the theme changes. A
+test computes the WCAG contrast of the token pairs in both themes (4.5:1
+for text, 3:1 for chart colours). Printing is always light.
+
 ## Language
 
 The interface is English or German: the user's `ui_language`

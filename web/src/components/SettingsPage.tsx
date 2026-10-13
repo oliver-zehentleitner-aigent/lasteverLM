@@ -9,7 +9,7 @@ import { sampleLanguage, voiceGroups } from '../lib/outputOptions'
 import { VoiceSample } from './VoiceSample'
 import { language, t } from '../i18n'
 
-const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null, pdf_capture: null }
+const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null, pdf_capture: null, theme: null }
 const TRASH_DEFAULT = 14
 
 /** /settings: the user's preferences, preselected in every menu they
@@ -60,6 +60,14 @@ export function SettingsPage() {
             <option value="">{t('set.browserDefault')}</option>
             <option value="en">English</option>
             <option value="de">Deutsch</option>
+          </select>
+        </label>
+        <label>
+          {t('set.theme')}
+          <select value={p.theme ?? ''} onChange={(e) => set({ theme: (e.target.value || null) as Preferences['theme'] })}>
+            <option value="">{t('set.themeSystem')}</option>
+            <option value="light">{t('theme.light')}</option>
+            <option value="dark">{t('theme.dark')}</option>
           </select>
         </label>
         <label>
