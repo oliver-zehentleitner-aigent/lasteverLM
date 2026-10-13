@@ -1,7 +1,7 @@
 """The SQL paths of the store against a real PostgreSQL with pgvector: credit
 through core's helpers over this service's dict-row pool, messages, the
 outputs queue (claim, release, stale takeover, attempts), generated sources
-with their chunks, and scoped vector search. Everything else in the suite
+with their chunks, scoped vector search, and the admin counts. Everything else in the suite
 runs against fakes; this file is what `make test-postgres` runs against a
 throwaway container and skips without `RAG_TEST_DATABASE_URL`.
 
@@ -21,6 +21,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import psycopg
@@ -285,3 +286,41 @@ def test_generated_source_chunks_and_scoped_search(store, pool, notebook):
     with pool.connection() as conn:
         left = conn.execute("select count(*) as n from chunks where source_id = %s", (generated,))
         assert left.fetchone()["n"] == 0
+
+
+def test_admin_stats_counts_across_users(store, pool, notebook):
+    before = store.admin_stats(600)
+    running = store.create_output(notebook, "quiz", "processing")
+    stale = store.create_output(notebook, "audio", "processing")
+    store.create_output(notebook, "report", "waiting")
+    shared = store.create_output(notebook, "table", "failed")
+    store.update_output(shared.id, share_token=f"t-{shared.id}")
+    store.insert_message(notebook, "user", "hi", [])
+    with pool.connection() as conn:
+        conn.execute(
+            "update outputs set claimed_at = now(), claimed_by = 'w' where id = %s", (running.id,)
+        )
+        conn.execute(
+            "update outputs set claimed_at = now() - interval '11 minutes', claimed_by = 'w' "
+            "where id = %s",
+            (stale.id,),
+        )
+    after = store.admin_stats(600)
+
+    def delta(group: str, key: str) -> int:
+        return int(after[group][key]) - int(before[group][key])
+
+    assert delta("messages", "total") == delta("messages", "last_24h") == 1
+    assert (delta("jobs", "pending"), delta("jobs", "running"), delta("jobs", "failed")) == (
+        2,
+        1,
+        1,
+    )
+    assert delta("shared", "outputs") == 1
+    assert after["notebooks"]["total"] >= 1
+
+    def count(stats: dict[str, Any], kind: str, status: str) -> int:
+        return sum(n for k, s, n in stats["outputs"] if (k, s) == (kind, status))
+
+    assert count(after, "audio", "processing") - count(before, "audio", "processing") == 1
+    assert count(after, "table", "failed") - count(before, "table", "failed") == 1
