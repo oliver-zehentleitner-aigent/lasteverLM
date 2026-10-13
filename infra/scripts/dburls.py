@@ -11,6 +11,7 @@ sslmode=verify-full against the CA the pods mount at PG_CA_PATH:
 
 Values are shell-quoted; nothing is printed on error but the reason.
 """
+
 import os
 import shlex
 import sys
@@ -47,8 +48,12 @@ def main() -> int:
     admin_user, admin_pw = unquote(parts.username), unquote(parts.password)
     admin_db = parts.path.lstrip("/") or "defaultdb"
     print(f"DATABASE_URL={shlex.quote(with_credentials(admin, APP_USER, password, APP_DB))}")
-    print(f"DATABASE_ADMIN_APP_URL={shlex.quote(with_credentials(admin, admin_user, admin_pw, APP_DB))}")
-    print(f"DATABASE_ADMIN_URL={shlex.quote(with_credentials(admin, admin_user, admin_pw, admin_db))}")
+    print(
+        f"DATABASE_ADMIN_APP_URL={shlex.quote(with_credentials(admin, admin_user, admin_pw, APP_DB))}"
+    )
+    print(
+        f"DATABASE_ADMIN_URL={shlex.quote(with_credentials(admin, admin_user, admin_pw, admin_db))}"
+    )
     return 0
 
 

@@ -202,5 +202,6 @@ account key and certificates go with the cluster.
 ## Checks
 
 `make check` runs what CI runs for this directory: `tofu fmt` and
-`validate`, `helm lint` and `helm template`, `sh -n` on the runner,
-`scripts/values.py`, the unit tests, `ktw-lint`.
+`validate`, `helm lint` and `helm template`, `sh -n` on the runner, `black --check`
+on `scripts/` and `tests/` (line length 100 from `pyproject.toml`, as in
+the services), `scripts/values.py`, the unit tests, `ktw-lint`.

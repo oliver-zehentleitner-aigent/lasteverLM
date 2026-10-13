@@ -1,0 +1,4 @@
+# Tool configuration only; infra/ is not a Python package.
+[tool.black]
+line-length = 100
+target-version = ["py312"]
