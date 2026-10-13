@@ -111,7 +111,7 @@ the condition.
 
 Every `POST /auth/request-link` writes a `login_attempts` row: time,
 address as entered (lower-cased), the client IP as core's middleware
-resolves it (first hop of `X-Forwarded-For` behind the ingress) and the
+resolves it (the last `X-Forwarded-For` entry, written by the ingress) and the
 outcome, `allowed` or `refused`. Admins read it at
 `GET /admin/login-attempts`. Rows are deleted after `RETENTION_DAYS`
 (30) at every start — the same window as core's `access_log`, not the
