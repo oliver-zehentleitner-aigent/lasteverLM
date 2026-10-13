@@ -27,7 +27,7 @@ repository root's `context/`.
 
 - [admin-settings.md](admin-settings.md) — the allowlist seed is applied once (an empty one is re-seeded); SMTP comes from the environment only, shown read-only (the plain-text password workaround is superseded)
 
-- [auth.md](auth.md) — the former core mirror in `contracts.py` (superseded), admin addresses bypassing the allowlist (domains and single addresses), shape-only e-mail validation, the demo user's special status, refused sign-in requests answered with 403 `not_allowed`
+- [auth.md](auth.md) — the former core mirror in `contracts.py` (superseded), admin addresses bypassing the allowlist (domains and single addresses), shape-only e-mail validation, the demo user's special status, refused sign-in requests answered with 403 `not_allowed`; three roles with viewers reading the admin panel; one-day tokens without a denylist
 
 ## B
 

@@ -31,6 +31,7 @@ def test_full_login_flow_issues_jwt_and_creates_user(
         "id",
         "email",
         "is_admin",
+        "role",
         "balance_cents",
         "created_at",
         "preferences",

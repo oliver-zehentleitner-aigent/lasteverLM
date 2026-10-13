@@ -15,6 +15,10 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Roles `user` | `viewer` | `admin` (migration 0006, `users.role`; `is_admin` stays equal to `role = 'admin'`): a viewer reads every `GET` under `/admin`, writes stay admin only; `User` and the admin user rows carry `role`; `PATCH /admin/users/{id}` sets it (409 for the last admin or the demo user); `viewer_domains` in the allowlist (`POST/DELETE /admin/settings/viewer-domains`) makes a first sign-in from a listed domain a viewer.
+
+### Added
+
 - Per-address quota for sign-in links: more than `LINK_QUOTA_PER_HOUR` (5) within an hour answers 429 with `code: too_many_links` and a readable sentence; counted on `login_attempts`, a throttled request writes no row.
 
 ### Changed

@@ -116,28 +116,34 @@ class MemoryRepository:
     async def get_user_by_email(self, email: str) -> UserRecord | None:
         return next((u for u in self.users.values() if u.email == email), None)
 
-    async def create_user(self, email: str, *, admin: bool, now: datetime) -> UserRecord:
+    async def create_user(self, email: str, *, role: str, now: datetime) -> UserRecord:
         async with self._lock:
             existing = await self.get_user_by_email(email)
             if existing is not None:
                 return existing
+            if not any(u != DEMO_USER_ID for u in self.users):
+                role = "admin"  # the first real user
             user = UserRecord(
                 id=uuid.uuid4(),
                 email=email,
-                is_admin=admin or not any(u != DEMO_USER_ID for u in self.users),
+                is_admin=role == "admin",
                 created_at=now,
                 last_login_at=None,
+                role=role,
             )
             self.users[user.id] = user
             return user
 
-    async def ensure_user(
-        self, user_id: uuid.UUID, email: str, *, admin: bool, now: datetime
-    ) -> UserRecord:
+    async def set_role(self, user_id: uuid.UUID, role: str) -> bool:
         async with self._lock:
-            if user_id not in self.users:
-                self.users[user_id] = UserRecord(user_id, email, admin, now, None)
-            return self.users[user_id]
+            user = self.users.get(user_id)
+            if user is None:
+                return False
+            self.users[user_id] = replace(user, role=role, is_admin=role == "admin")
+            return True
+
+    async def count_admins(self) -> int:
+        return sum(1 for u in self.users.values() if u.role == "admin")
 
     async def set_preferences(self, user_id: uuid.UUID, preferences: dict[str, Any]) -> None:
         async with self._lock:

@@ -77,8 +77,8 @@ async def test_demo_user_seeded_with_credit(repo: PostgresRepository) -> None:
 
 async def test_first_real_user_is_admin(repo: PostgresRepository) -> None:
     now = datetime.now(UTC)
-    first = await repo.create_user("a@example.org", admin=False, now=now)
-    second = await repo.create_user("b@example.org", admin=False, now=now)
+    first = await repo.create_user("a@example.org", role="user", now=now)
+    second = await repo.create_user("b@example.org", role="user", now=now)
     # The demo user exists before anyone logs in and must not count as "first user".
     assert first.is_admin is True
     assert second.is_admin is False
@@ -86,8 +86,8 @@ async def test_first_real_user_is_admin(repo: PostgresRepository) -> None:
 
 async def test_redeem_is_atomic_under_concurrency(repo: PostgresRepository) -> None:
     now = datetime.now(UTC)
-    admin = await repo.create_user("admin@example.org", admin=True, now=now)
-    users = [await repo.create_user(f"u{i}@example.org", admin=False, now=now) for i in range(10)]
+    admin = await repo.create_user("admin@example.org", role="admin", now=now)
+    users = [await repo.create_user(f"u{i}@example.org", role="user", now=now) for i in range(10)]
     code_hash = uuid.uuid4().hex
     await repo.create_voucher(code_hash, 700, admin.id, now)
 
@@ -158,8 +158,8 @@ async def test_delete_setting_reports_whether_a_row_went(repo: PostgresRepositor
 
 async def test_voucher_list_and_stats(repo: PostgresRepository) -> None:
     now = datetime.now(UTC)
-    admin = await repo.create_user("admin@pg.test", admin=True, now=now - timedelta(days=2))
-    user = await repo.create_user("user@pg.test", admin=False, now=now)
+    admin = await repo.create_user("admin@pg.test", role="admin", now=now - timedelta(days=2))
+    user = await repo.create_user("user@pg.test", role="user", now=now)
     await repo.record_login(admin.id, now - timedelta(days=2))
     await repo.record_login(user.id, now)
     open_id = await repo.create_voucher("hash-open", 500, admin.id, now - timedelta(minutes=1))
@@ -192,7 +192,7 @@ async def test_voucher_list_and_stats(repo: PostgresRepository) -> None:
 
 async def test_delete_voucher_states(repo: PostgresRepository) -> None:
     now = datetime.now(UTC)
-    admin = await repo.create_user("admin2@pg.test", admin=True, now=now)
+    admin = await repo.create_user("admin2@pg.test", role="admin", now=now)
     open_id = await repo.create_voucher("hash-del-open", 100, admin.id, now)
     used_id = await repo.create_voucher("hash-del-used", 100, admin.id, now)
     assert await repo.redeem_voucher("hash-del-used", admin.id, now) == 100
@@ -236,8 +236,8 @@ async def test_ratelimit_override_is_what_core_store_reads(repo: PostgresReposit
 async def test_daily_and_usage_stats(repo: PostgresRepository) -> None:
     now = datetime.now(UTC)
     today = now.astimezone(UTC).date()
-    admin = await repo.create_user("stats-admin@pg.test", admin=True, now=now)
-    user = await repo.create_user("stats-user@pg.test", admin=False, now=now)
+    admin = await repo.create_user("stats-admin@pg.test", role="admin", now=now)
+    user = await repo.create_user("stats-user@pg.test", role="user", now=now)
     await repo.record_login(user.id, now)
     await repo.add_visit(VisitRecord(now, "/", None, "h", "other"))
     await repo.add_visit(VisitRecord(now - timedelta(days=1), "/", None, "h", "other"))
@@ -271,7 +271,7 @@ async def test_daily_and_usage_stats(repo: PostgresRepository) -> None:
 
 async def test_preferences_round_trip(repo: PostgresRepository) -> None:
     now = datetime.now(UTC)
-    user = await repo.create_user("prefs@pg.test", admin=False, now=now)
+    user = await repo.create_user("prefs@pg.test", role="user", now=now)
     assert user.preferences == {}
     await repo.set_preferences(user.id, {"ui_language": "de", "audio_voice": "ryan"})
     stored = await repo.get_user(user.id)
@@ -296,3 +296,20 @@ async def test_count_allowed_attempts_per_address(repo: PostgresRepository) -> N
         LoginAttemptRecord(now, "quota-other@pg.test", "203.0.113.1", "allowed")
     )
     assert await repo.count_allowed_attempts("quota@pg.test", now - timedelta(hours=1)) == 2
+
+
+async def test_roles_round_trip_and_is_admin_stays_in_sync(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    admin = await repo.create_user("roles-admin@pg.test", role="admin", now=now)
+    viewer = await repo.create_user("roles-viewer@pg.test", role="viewer", now=now)
+    plain = await repo.create_user("roles-user@pg.test", role="user", now=now)
+    assert (admin.role, admin.is_admin) == ("admin", True)
+    assert (viewer.role, viewer.is_admin) == ("viewer", False)
+    assert (plain.role, plain.is_admin) == ("user", False)
+    assert await repo.count_admins() >= 1
+    before = await repo.count_admins()
+    assert await repo.set_role(plain.id, "admin") is True
+    assert await repo.count_admins() == before + 1
+    stored = await repo.get_user(plain.id)
+    assert stored is not None and (stored.role, stored.is_admin) == ("admin", True)
+    assert await repo.set_role(uuid.uuid4(), "viewer") is False

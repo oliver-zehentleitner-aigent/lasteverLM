@@ -141,3 +141,68 @@ two apart without parsing prose.
 **Rejected alternative:** keeping 202 and showing a generic "if your
 address is allowed, a mail is on its way" — rejected by the maintainer
 as the worse experience for exactly the people the product is for.
+
+## Three roles on the user row; viewers read the admin panel, only admins change it
+
+**Id:** 0349f547-f978-4092-8435-3494e7503f10
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-14
+**See:** auth.md#the-demo-user-is-seeded-by-migration-never-counts-as-the-first-user-and-can-never-be-admin — 21f1e426-85c5-4569-b99e-1c73c84d7005 — as of 2026-10-14
+**Revisit when:** a fourth role or per-resource permissions are asked for, or core's admin_read replaces this service's reader dependency
+
+`users.role` is `user`, `viewer` or `admin`; `is_admin` stays a plain
+column and is written together with `role` by the two write paths
+(`create_user`, `set_role`) so that core's `IS_ADMIN_SQL` keeps reading
+it. The role is decided at first sign-in — `ADMIN_EMAILS` and the very
+first real user become `admin`, a domain listed in `viewer_domains`
+gives `viewer`, everyone else is `user` — and changed afterwards only by
+an admin through `PATCH /admin/users/{id}`. Every `GET` under `/admin`
+goes through a reader dependency that admits `viewer` and `admin`; every
+write keeps the admin dependency. The last admin cannot step down (409),
+the demo user keeps `user`.
+
+**Reason:** the maintainer wants people who may look at the admin area
+without being able to change it. One column on the user row is the
+smallest model that expresses "may read" apart from "may write"; a
+flag per capability would be a permission system nobody asked for.
+`is_admin` is kept rather than replaced because two other services read
+it through core and the migrations are re-run on every deploy —
+migration 0001 inserts `is_admin` for the demo user, which a generated
+column would refuse. Deriving the first role from the domain reuses the
+allowlist's shape (one list more, same editing), so a partner domain can
+be read-only from the first sign-in without an admin's hand.
+
+**Rejected alternatives:** `is_admin` as a generated column — rejected
+for the re-run of migration 0001; a separate `roles` table — rejected
+as a join for one word; letting a viewer also redeem admin-only data
+such as the voucher codes — rejected, read-only means the GET routes and
+nothing else, and the plain codes are never listed anyway.
+
+## Session tokens live one day; sign-out is client-side, there is no denylist
+
+**Id:** 4489400f-db4c-4aa4-b032-06da9ecec8fb
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-14
+**Revisit when:** a session must be revoked at once (a lost device, an offboarding) and rotating the shared secret is too blunt
+
+`JWT_TTL_DAYS` defaults to 1 (was 7). The web drops the token on
+sign-out; the service keeps no session list and cannot revoke a single
+token before it expires. Revoking everything at once means rotating
+`AUTH_JWT_SECRET` in all services.
+
+**Reason:** a stateless token is what lets ingest and rag verify a
+session without asking account; a denylist would put a database lookup
+into every request of every service, in core, for a token that now lives
+a day. A magic link is cheap to request again, so the short lifetime
+costs the user one click a day and buys the same bound a denylist would,
+one day later at most.
+
+**Rejected alternatives:** a token denylist checked by core on every
+request — rejected as the lookup above, a contract change for all
+services; a per-user token generation counter — the right tool if
+immediate revocation is ever required, also a core contract change,
+deferred until asked for.

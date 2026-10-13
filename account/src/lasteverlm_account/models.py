@@ -55,10 +55,19 @@ class PreferencesUpdate(BaseModel):
     theme: Literal["system", "light", "dark"] | None = None
 
 
-class User(CoreUser):
-    """Core's User plus the preferences, so the web has them at login."""
+Role = Literal["user", "viewer", "admin"]
 
+
+class User(CoreUser):
+    """Core's User plus the role and the preferences, so the web has them at login.
+    ``is_admin`` stays and equals ``role == "admin"``; a viewer reads the admin panel."""
+
+    role: Role
     preferences: Preferences
+
+
+class RoleUpdate(BaseModel):
+    role: Role
 
 
 class RequestLinkBody(BaseModel):
@@ -86,6 +95,7 @@ class AdminUserView(AdminUser):
     sum of the user's ledger rows, vouchers and the demo seed alike)."""
 
     granted_cents: int
+    role: Role
 
 
 class Smtp(BaseModel):
@@ -99,14 +109,16 @@ class Smtp(BaseModel):
     starttls: bool
 
 
-AllowKind = Literal["domain", "address"]
+AllowKind = Literal["domain", "address", "viewer"]
 
 
 class Allowlist(BaseModel):
-    """Who may sign in besides ADMIN_EMAILS: listed domains and listed single addresses."""
+    """Who may sign in besides ADMIN_EMAILS: listed domains and listed single addresses.
+    ``viewer_domains``: a first sign-in from one of these domains gets the viewer role."""
 
     allowed_domains: list[str]
     allowed_addresses: list[str]
+    viewer_domains: list[str]
 
 
 class DomainAdd(BaseModel):
