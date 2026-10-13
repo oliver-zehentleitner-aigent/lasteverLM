@@ -227,6 +227,7 @@ class InMemoryRepository:
             created_at=lib.created_at,
             capture=lib.capture,
             demo=lib.demo,
+            storage_path=lib.storage_path,
             notebooks=[
                 NotebookUse(id=nb, title=self.notebooks[nb][1].title, source_id=link_id)
                 for _, link_id, nb in uses
