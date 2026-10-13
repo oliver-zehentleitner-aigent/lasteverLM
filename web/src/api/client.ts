@@ -2,10 +2,13 @@ import { getToken } from './token'
 
 export class ApiError extends Error {
   readonly status: number
-  constructor(status: number, message: string) {
+  /** the service's stable machine-readable `code`, when it sends one */
+  readonly code: string | null
+  constructor(status: number, message: string, code: string | null = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
   }
 }
 
@@ -54,7 +57,7 @@ export async function request<T>(url: string, opts: RequestOptions = {}): Promis
   if (res.status === 204) return undefined as T
 
   const text = await res.text()
-  if (!res.ok) throw new ApiError(res.status, failureMessage(res.status, text))
+  if (!res.ok) throw new ApiError(res.status, failureMessage(res.status, text), serviceCode(text))
 
   if (!text) return undefined as T
   try {
@@ -86,6 +89,20 @@ function serviceError(bodyText: string): string | null {
     }
   } catch {
     // not JSON: an HTML error page from the ingress, or plain text
+  }
+  return null
+}
+
+/** The `code` next to `error`, e.g. "not_allowed" on a refused sign-in. */
+export function serviceCode(bodyText: string): string | null {
+  try {
+    const data: unknown = JSON.parse(bodyText)
+    if (data && typeof data === 'object' && 'code' in data) {
+      const c = (data as { code: unknown }).code
+      if (typeof c === 'string' && c) return c
+    }
+  } catch {
+    // no JSON body, no code
   }
   return null
 }
