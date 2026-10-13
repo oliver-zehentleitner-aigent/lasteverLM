@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-13
+
 ### Changed
 
 - `/healthz` answers with core's `Health`: `status`, plus `version` and `commit` from `APP_VERSION` and `APP_COMMIT`, so the admin system view shows ingest's build.
