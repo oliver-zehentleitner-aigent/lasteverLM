@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from lasteverlm_core import UNKNOWN_BUILD
+
 from .mail import SmtpConfig
 
 
@@ -37,9 +39,9 @@ class Settings:
     visit_hash_secret: str | None = None
     log_level: str = "INFO"
     app_version: str = (
-        "unknown"  # APP_VERSION, from the ConfigMap; shown on /healthz and /admin/system
+        UNKNOWN_BUILD  # APP_VERSION, from the ConfigMap; shown on /healthz and /admin/system
     )
-    app_commit: str = "unknown"  # APP_COMMIT
+    app_commit: str = UNKNOWN_BUILD  # APP_COMMIT
     # name=healthz URL of the other services, probed by /admin/system over the cluster DNS
     system_services: tuple[tuple[str, str], ...] = (
         ("ingest", "http://ingest/healthz"),
@@ -95,8 +97,8 @@ class Settings:
             ),
             visit_hash_secret=env.get("VISIT_HASH_SECRET", "").strip() or None,
             log_level=env.get("LOG_LEVEL", "INFO").upper(),
-            app_version=env.get("APP_VERSION", "").strip() or "unknown",
-            app_commit=env.get("APP_COMMIT", "").strip() or "unknown",
+            app_version=env.get("APP_VERSION", "").strip() or UNKNOWN_BUILD,
+            app_commit=env.get("APP_COMMIT", "").strip() or UNKNOWN_BUILD,
             system_services=_services(env.get("SYSTEM_SERVICES")),
         )
 

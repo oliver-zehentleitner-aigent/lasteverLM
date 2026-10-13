@@ -259,12 +259,6 @@ class AdminStats(BaseModel):
     bans_active: int
 
 
-class Health(BaseModel):
-    status: str = "ok"
-    version: str = "unknown"  # APP_VERSION; core's Health.from_env uses the same word
-    commit: str = "unknown"  # APP_COMMIT
-
-
 class SystemService(BaseModel):
     name: str
     version: str | None

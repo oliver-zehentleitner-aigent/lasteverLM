@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from lasteverlm_core import (
     AsyncPostgresRateLimitStore,
     AuthSettings,
+    Health,
     MemoryRateLimitStore,
     RateLimiter,
     RateLimitMiddleware,
@@ -26,7 +27,6 @@ from lasteverlm_core import (
 from .api import account, admin, auth
 from .config import Settings
 from .mail import Mailer, SmtpMailer
-from .models import Health
 from .repository import Repository
 from .repository_postgres import PostgresRepository
 from .service import AccountError, AccountService
