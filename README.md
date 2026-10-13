@@ -22,6 +22,7 @@ workflows. Each service is a directory with its own `context/`:
 - [Architecture and API contract](docs/architecture.md)
 - [User interface](docs/ui.md)
 - [Repository standard](docs/repository-standard.md)
+- [Walkthrough script](docs/walkthrough.md) — the ten-minute recorded tour
 - [Why it is built this way](context/index.md)
 - [Open work](TASKS.md)
 - [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), [Code of conduct](CODE_OF_CONDUCT.md)
