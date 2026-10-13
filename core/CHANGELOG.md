@@ -20,6 +20,7 @@ preserves why it changed, in `context/`.
 ### Changed
 
 - `load_model_prices` lives in `pricing.py` next to what it parses; the package-root import is unchanged, `lasteverlm_core.settings.load_model_prices` is gone (no service imported it from there). It removes the late import with `noqa: E402` that settings needed to reach pricing.
+- README environment table lists `S3_*` and `APP_VERSION` / `APP_COMMIT`, which it had missed.
 - Docstrings on the public classes that had none (results, provider and storage protocols, the row models, `make_client`); the test's last `type: ignore` replaced by real ASGI callables.
 
 ### Fixed

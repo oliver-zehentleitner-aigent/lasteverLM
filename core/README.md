@@ -127,6 +127,9 @@ invalid value.
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3; with `STRIKE_WINDOW_HOURS` the defaults of the runtime rules the admin panel can override; outside the panel's bounds a `ConfigError` at startup, as is a `RETENTION_DAYS`, `BAN_MAX_DAYS` or `ACCESS_LOG_HEALTHZ_SAMPLE` below 1 |
 | `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |
 | `BAN_MAX_DAYS` | `RateLimitSettings.from_env` | default 90; a ban older than this has expired, and the purge deletes it |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | `S3Settings.from_env` | the object store; all four required where storage is used |
+| `S3_REGION` | `S3Settings.from_env` | default `us-east-1` |
+| `APP_VERSION`, `APP_COMMIT` | `Health.from_env` | the build `/healthz` reports; `"unknown"` when unset |
 
 ## Run locally
 
