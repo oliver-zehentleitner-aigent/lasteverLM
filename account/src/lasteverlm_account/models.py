@@ -178,6 +178,40 @@ class UsageCost(BaseModel):
     last_24h: int
 
 
+class DailyStat(BaseModel):
+    day: date
+    logins: int
+    visits: int
+    usage_cost_cents: int
+    credits_granted_cents: int
+
+
+class DailyStats(BaseModel):
+    """Every UTC day of the window, zeros included, oldest first, today last."""
+
+    days: list[DailyStat]
+
+
+class ModelUsage(BaseModel):
+    model: str
+    kind: str
+    calls: int
+    cost_cents: int
+
+
+class UserUsage(BaseModel):
+    email: str
+    usage_cents: int
+    balance_cents: int
+
+
+class UsageStats(BaseModel):
+    """Core's usage rows by model and kind (cost descending) and the ten heaviest users."""
+
+    by_model: list[ModelUsage]
+    top_users: list[UserUsage]
+
+
 class AdminStats(BaseModel):
     """The admin overview. Usage comes from core's `usage` rows, written by ingest and rag."""
 

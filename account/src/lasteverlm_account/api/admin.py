@@ -21,10 +21,12 @@ from ..models import (
     Allowlist,
     CreateVouchersBody,
     CreateVouchersResponse,
+    DailyStats,
     DomainAdd,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     Smtp,
+    UsageStats,
 )
 from .deps import AdminUserDep, Service
 
@@ -40,6 +42,20 @@ async def users(service: Service, _: AdminUserDep) -> list[AdminUserView]:
 async def stats(service: Service, _: AdminUserDep) -> AdminStats:
     """One overview: users, logins and usage cost of the last 24 h, vouchers, blocks, bans."""
     return await service.admin_stats()
+
+
+@router.get("/stats/daily", response_model=DailyStats)
+async def stats_daily(
+    service: Service, _: AdminUserDep, days: int = Query(default=30, ge=1, le=365)
+) -> DailyStats:
+    """Per UTC day: logins, visits, usage cost, credits granted; every day, oldest first."""
+    return await service.admin_daily_stats(days)
+
+
+@router.get("/stats/usage", response_model=UsageStats)
+async def stats_usage(service: Service, _: AdminUserDep) -> UsageStats:
+    """Usage by model and kind, and the ten users with the highest usage."""
+    return await service.admin_usage_stats()
 
 
 @router.get("/logins", response_model=list[AdminLogin])

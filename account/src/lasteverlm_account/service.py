@@ -9,7 +9,7 @@ import secrets
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from lasteverlm_core import (
     DEMO_USER_ID,
@@ -36,10 +36,15 @@ from .models import (
     AdminVoucher,
     AllowKind,
     Allowlist,
+    DailyStat,
+    DailyStats,
+    ModelUsage,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     Smtp,
     UsageCost,
+    UsageStats,
+    UserUsage,
     VoucherCounts,
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
@@ -423,6 +428,39 @@ class AccountService:
             raise AccountError(404, "unknown voucher")
         if outcome == "redeemed":
             raise AccountError(409, "a redeemed voucher is history and cannot be deleted")
+
+    async def admin_daily_stats(self, days: int) -> DailyStats:
+        """The last `days` UTC days up to today, every day present."""
+        today = utc_today(self.now())
+        first = today - timedelta(days=days - 1)
+        since = datetime.combine(first, time.min, tzinfo=UTC)
+        found = {r.day: r for r in await self.repo.daily_stats(since)}
+        out = []
+        for offset in range(days):
+            day = first + timedelta(days=offset)
+            r = found.get(day)
+            out.append(
+                DailyStat(
+                    day=day,
+                    logins=r.logins if r else 0,
+                    visits=r.visits if r else 0,
+                    usage_cost_cents=r.usage_cost_cents if r else 0,
+                    credits_granted_cents=r.credits_granted_cents if r else 0,
+                )
+            )
+        return DailyStats(days=out)
+
+    async def admin_usage_stats(self) -> UsageStats:
+        return UsageStats(
+            by_model=[
+                ModelUsage(model=r.model, kind=r.kind, calls=r.calls, cost_cents=r.cost_cents)
+                for r in await self.repo.usage_by_model()
+            ],
+            top_users=[
+                UserUsage(email=r.email, usage_cents=r.usage_cents, balance_cents=r.balance_cents)
+                for r in await self.repo.top_users_by_usage(10)
+            ],
+        )
 
     async def admin_stats(self) -> AdminStats:
         now = self.now()

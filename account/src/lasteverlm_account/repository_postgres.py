@@ -24,10 +24,13 @@ from .repository import (
     BanRecord,
     BlockRecord,
     CreditTotals,
+    DailyStatsRecord,
     LoginAttemptRecord,
     LoginRecord,
+    ModelUsageRecord,
     StatsRecord,
     UserRecord,
+    UserUsageRecord,
     VisitRecord,
     VisitSummary,
     VoucherRecord,
@@ -344,6 +347,62 @@ class PostgresRepository:
             blocks_active=int(r["blocks_active"]),
             bans_active=int(r["bans_active"]),
         )
+
+    async def daily_stats(self, since: datetime) -> list[DailyStatsRecord]:
+        # One statement: each source aggregated per UTC day, joined on the day.
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """with l as (select (at at time zone 'UTC')::date d, count(*) n
+                              from login_log where at >= %(since)s group by 1),
+                        v as (select (at at time zone 'UTC')::date d, count(*) n
+                              from visit_log where at >= %(since)s group by 1),
+                        u as (select (created_at at time zone 'UTC')::date d, sum(cost_cents) n
+                              from usage where created_at >= %(since)s group by 1),
+                        g as (select (created_at at time zone 'UTC')::date d, sum(amount_cents) n
+                              from ledger where created_at >= %(since)s group by 1)
+                   select d, coalesce(l.n, 0) logins, coalesce(v.n, 0) visits,
+                          coalesce(u.n, 0) usage_cost, coalesce(g.n, 0) granted
+                   from (select d from l union select d from v
+                         union select d from u union select d from g) days
+                   left join l using (d) left join v using (d)
+                   left join u using (d) left join g using (d)
+                   order by d""",
+                {"since": since},
+            )
+            rows = await cur.fetchall()
+        return [
+            DailyStatsRecord(
+                r["d"], int(r["logins"]), int(r["visits"]), int(r["usage_cost"]), int(r["granted"])
+            )
+            for r in rows
+        ]
+
+    async def usage_by_model(self) -> list[ModelUsageRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute("""select model, kind, count(*) calls, sum(cost_cents) cost
+                   from usage group by model, kind order by cost desc, model, kind""")
+            rows = await cur.fetchall()
+        return [
+            ModelUsageRecord(r["model"], r["kind"], int(r["calls"]), int(r["cost"])) for r in rows
+        ]
+
+    async def top_users_by_usage(self, limit: int) -> list[UserUsageRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select u.email, c.spent as usage_cents,
+                          coalesce(l.credited, 0) - c.spent as balance_cents
+                   from (select user_id, sum(cost_cents) spent from usage group by user_id) c
+                   join users u on u.id = c.user_id
+                   left join (select user_id, sum(amount_cents) credited from ledger
+                              group by user_id) l on l.user_id = u.id
+                   order by c.spent desc, u.email limit %s""",
+                (limit,),
+            )
+            rows = await cur.fetchall()
+        return [
+            UserUsageRecord(r["email"], int(r["usage_cents"]), int(r["balance_cents"]))
+            for r in rows
+        ]
 
     # visits -----------------------------------------------------------------
     async def add_visit(self, visit: VisitRecord) -> None:

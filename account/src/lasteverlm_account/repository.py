@@ -104,6 +104,32 @@ class VoucherRecord:
 
 
 @dataclass(frozen=True)
+class DailyStatsRecord:
+    """One UTC day of the overview charts; the repository returns only days with activity."""
+
+    day: date
+    logins: int
+    visits: int
+    usage_cost_cents: int
+    credits_granted_cents: int
+
+
+@dataclass(frozen=True)
+class ModelUsageRecord:
+    model: str
+    kind: str
+    calls: int
+    cost_cents: int
+
+
+@dataclass(frozen=True)
+class UserUsageRecord:
+    email: str
+    usage_cents: int
+    balance_cents: int
+
+
+@dataclass(frozen=True)
 class StatsRecord:
     """Counters for the admin overview; `since` is the 24 h window the caller passes."""
 
@@ -177,6 +203,15 @@ class Repository(Protocol):
         ...
 
     async def stats(self, since: datetime, now: datetime) -> StatsRecord: ...
+    async def daily_stats(self, since: datetime) -> list[DailyStatsRecord]:
+        """Per UTC day from `since`, days with activity only, oldest first."""
+        ...
+
+    async def usage_by_model(self) -> list[ModelUsageRecord]:
+        """Core's usage rows grouped by model and kind, highest cost first."""
+        ...
+
+    async def top_users_by_usage(self, limit: int) -> list[UserUsageRecord]: ...
     async def delete_voucher(
         self, voucher_id: uuid.UUID
     ) -> Literal["deleted", "redeemed", "missing"]:
