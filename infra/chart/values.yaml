@@ -20,6 +20,7 @@ config:
   modelPrices: ""       # JSON, required until core ships defaults
   similarityFloor: ""   # empty = the service's default
   ttsModel: ""          # optional, rag audio outputs
+  ttsVoice: ryan        # rag audio voice; the platform does not take the OpenAI names
   s3Endpoint: ""        # from `make secrets` / tofu outputs, or set here
   s3Bucket: lasteverlm-sources
 
@@ -74,7 +75,7 @@ services:
       hpa: {enabled: true, min: 2, max: 6, cpu: 70}
   rag:
     replicas: 2
-    secrets: [lasteverlm-db, lasteverlm-inference, lasteverlm-auth]
+    secrets: [lasteverlm-db, lasteverlm-s3, lasteverlm-inference, lasteverlm-auth]
     optionalSecrets: []
     resources:
       requests: {cpu: 100m, memory: 256Mi}

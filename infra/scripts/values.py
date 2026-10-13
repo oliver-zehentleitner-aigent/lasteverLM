@@ -37,6 +37,7 @@ def main() -> int:
             "modelPrices": env["MODEL_PRICES"],
             "similarityFloor": env.get("SIMILARITY_FLOOR", ""),
             "ttsModel": env.get("TTS_MODEL", ""),
+            "ttsVoice": env.get("TTS_VOICE") or "ryan",
             "s3Endpoint": env["S3_ENDPOINT"],
             "s3Bucket": env.get("S3_BUCKET", "lasteverlm-sources"),
         },
