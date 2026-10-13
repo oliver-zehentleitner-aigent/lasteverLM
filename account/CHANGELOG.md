@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-13
+
 ### Added
 
 - Single addresses in the allowlist next to domains (`allowed_addresses` setting); `GET /admin/settings/allowlist` returns both lists, `POST`/`DELETE` per entry under `/admin/settings/domains` and `/admin/settings/addresses`.

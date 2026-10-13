@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-13
+
 ### Added
 
 - `has_credit` / `ahas_credit`: the pre-call check, true for an admin whatever the balance and for anyone else with `balance_cents > 0`; replaces `balance_cents(...) <= 0` in the services. Admins are still billed.

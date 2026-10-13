@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-13
+
 ### Added
 
 - `GET /api/rag/admin/stats` for admins: notebooks, messages (total, last 24 h), outputs by kind and by status, jobs pending, running and failed, shared outputs.
