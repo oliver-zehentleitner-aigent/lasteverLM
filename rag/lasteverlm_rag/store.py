@@ -119,6 +119,8 @@ class Store(Protocol):
     # admin overview (read only, across all users)
     def admin_stats(self, stale_after_s: int) -> dict[str, Any]: ...
 
+    def daily_stats(self, days: int) -> list[dict[str, Any]]: ...
+
     # credit
     def has_credit(self, user_id: str) -> bool: ...
 
@@ -218,6 +220,29 @@ class PgVectorRetriever:
             for r in rows
         ]
 
+
+_DAILY_SQL = """
+with span as (
+    select (now() at time zone 'utc')::date - (%(days)s - 1) as first_day
+), d as (
+    select first_day + i as day from span, generate_series(0, %(days)s - 1) as i
+), since as (
+    select first_day::timestamp at time zone 'utc' as at from span
+), m as (
+    select (created_at at time zone 'utc')::date as day, count(*) as n
+    from messages, since where created_at >= since.at group by 1
+), o as (
+    select (created_at at time zone 'utc')::date as day, kind, count(*) as n
+    from outputs, since where created_at >= since.at group by 1, 2
+)
+select d.day, coalesce(max(m.n), 0) as messages,
+       coalesce(jsonb_object_agg(o.kind, o.n) filter (where o.kind is not null), '{}') as by_kind
+from d
+left join m on m.day = d.day
+left join o on o.day = d.day
+group by d.day
+order by d.day
+"""
 
 _CONVERSATION_COLUMNS = (
     "c.id::text as id, c.notebook_id::text as notebook_id, n.owner::text as owner, "
@@ -481,6 +506,13 @@ class PostgresStore:
             "jobs": jobs,
             "shared": shared,
         }
+
+    def daily_stats(self, days: int) -> list[dict[str, Any]]:
+        """Per UTC day, the last ``days`` days up to today: messages written and
+        outputs created by kind, in one query; days without activity included."""
+        with self._pool.connection() as conn:
+            rows = conn.execute(_DAILY_SQL, {"days": days}).fetchall()
+        return [dict(r) for r in rows]
 
     def has_credit(self, user_id: str) -> bool:
         with self._pool.connection() as conn:

@@ -450,3 +450,33 @@ def test_conversations_history_window_and_cascade(store, pool, notebook):
         ).fetchone()["n"]
     assert left == 0
     assert [m.content for m in store.list_messages(other.id)] == ["elsewhere"]
+
+
+def test_daily_stats_count_per_utc_day(store, pool, notebook):
+    chat = store.create_conversation(notebook, "Chat 1")
+    before = {r["day"]: r for r in store.daily_stats(3)}
+    store.insert_message(notebook, chat.id, "user", "today", None)
+    old = store.insert_message(notebook, chat.id, "user", "two days ago", None)
+    store.create_output(notebook, "report", "ready")
+    store.create_output(notebook, "audio", "failed")
+    gone = store.create_output(notebook, "quiz", "ready")
+    with pool.connection() as conn:
+        conn.execute(
+            "update messages set created_at = now() - interval '2 days' where id = %s", (old.id,)
+        )
+        conn.execute(
+            "update outputs set created_at = now() - interval '40 days' where id = %s", (gone.id,)
+        )
+    rows = store.daily_stats(3)
+    assert len(rows) == 3 and rows[0]["day"] < rows[1]["day"] < rows[2]["day"]
+    today, first = rows[2], rows[0]
+
+    def kinds(row: dict[str, Any]) -> dict[str, int]:
+        return {k: int(v) for k, v in row["by_kind"].items()}
+
+    def gained(row: dict[str, Any], kind: str) -> int:
+        return kinds(row).get(kind, 0) - kinds(before[row["day"]]).get(kind, 0)
+
+    assert today["messages"] - before[today["day"]]["messages"] == 1
+    assert first["messages"] - before[first["day"]]["messages"] == 1
+    assert (gained(today, "report"), gained(today, "audio"), gained(today, "quiz")) == (1, 1, 0)

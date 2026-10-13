@@ -28,6 +28,7 @@ this directory implements the `/api/rag` prefix.
 | DELETE | `/api/rag/outputs/{id}/share` | | 204 |
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
 | GET | `/api/rag/admin/stats` | admins only | `AdminStats`, see below |
+| GET | `/api/rag/admin/stats/daily?days=` | admins only; `days` 1–365, default 30 | `DailyStats`, see below |
 | GET | `/healthz`, `/api/rag/healthz` | no auth | `{"status": "ok"}` |
 
 Every other endpoint takes `Authorization: Bearer <token>`. Errors are
@@ -55,7 +56,13 @@ read only, with every key present (zeros included):
 while processing under a claim younger than ten minutes (the worker's
 stale-claim limit), `failed` once failed; `shared.outputs` counts the
 outputs that have a share token now. Views of shared outputs are in
-account's visitor log (`/admin/visits`, path `/s/`). The admin check is
+account's visitor log (`/admin/visits`, path `/s/`).
+`GET /api/rag/admin/stats/daily` feeds the charts:
+`{"days": [{"day", "messages", "outputs", "outputs_by_kind": {<each kind>}}]}`,
+one entry per UTC day for the last `days` days, oldest first and ending
+today, every day and every kind present; `messages` counts questions and
+answers written that day, `outputs` the outputs created that day in any
+status. One query, read only. The admin check is
 core's `admin_only` over `users.is_admin`; anyone else gets 403.
 
 **Ask.** `answer` cites inline as single `[n]` markers, numbered 1..n in

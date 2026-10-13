@@ -4,7 +4,7 @@ API models (Answer, Citation, Message, Output, SharedOutput) come from core."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -165,3 +165,17 @@ class AdminStats(BaseModel):
     outputs: OutputStats
     jobs: JobStats
     shared: ShareStats
+
+
+class DayStats(BaseModel):
+    day: date
+    messages: int
+    outputs: int
+    outputs_by_kind: dict[OutputKind, int]
+
+
+class DailyStats(BaseModel):
+    """``GET /api/rag/admin/stats/daily``: one entry per UTC day, oldest first,
+    the last one today; every day and every kind present, zeros included."""
+
+    days: list[DayStats]

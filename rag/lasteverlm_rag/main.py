@@ -11,6 +11,7 @@ from fastapi import (
     Header,
     HTTPException,
     Path,
+    Query,
     Request,
     Response,
 )
@@ -39,9 +40,16 @@ from lasteverlm_core import (
 from lasteverlm_core.web import admin_only
 
 from . import __version__
-from .admin import admin_stats
+from .admin import admin_stats, daily_stats
 from .config import Settings
-from .models import AdminStats, AskRequest, Conversation, ConversationCreate, OutputCreate
+from .models import (
+    AdminStats,
+    AskRequest,
+    Conversation,
+    ConversationCreate,
+    DailyStats,
+    OutputCreate,
+)
 from .outputs import OutputGenerator, registry
 from .service import (
     ConversationNotFound,
@@ -68,6 +76,7 @@ log = logging.getLogger("lasteverlm_rag")
 NotebookId = Annotated[uuid.UUID, Path()]
 OutputId = Annotated[uuid.UUID, Path()]
 ConversationId = Annotated[uuid.UUID, Path()]
+MAX_DAILY_DAYS = 365
 
 
 def create_app(
@@ -218,6 +227,13 @@ def create_app(
     def stats(_: AdminUser) -> AdminStats:
         assert store is not None
         return admin_stats(store)
+
+    @app.get(f"{PREFIX}/admin/stats/daily", response_model=DailyStats)
+    def stats_daily(
+        _: AdminUser, days: Annotated[int, Query(ge=1, le=MAX_DAILY_DAYS)] = 30
+    ) -> DailyStats:
+        assert store is not None
+        return daily_stats(store, days)
 
     return app
 

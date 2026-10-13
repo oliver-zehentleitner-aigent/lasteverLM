@@ -94,6 +94,7 @@ class FakeStore:
         self.chunks: dict[str, list[tuple[Chunk, list[float]]]] = {}
         self.outputs: dict[str, dict[str, Any]] = {}
         self.conversations: dict[str, dict[str, Any]] = {}
+        self.daily: dict[str, tuple[int, dict[str, int]]] = {}
         self._add_conversation(NOTEBOOK, "Chat 1", CONVERSATION)
 
     def _add_conversation(
@@ -269,6 +270,16 @@ class FakeStore:
 
     def is_admin(self, user_id: str) -> bool:
         return user_id in self.admins
+
+    def daily_stats(self, days: int) -> list[dict[str, Any]]:
+        """Rows as the SQL returns them; tests set ``daily`` to what a day holds."""
+        today = datetime.now(UTC).date()
+        rows = []
+        for i in range(days):
+            day = today - timedelta(days=days - 1 - i)
+            messages, by_kind = self.daily.get(day.isoformat(), (0, {}))
+            rows.append({"day": day, "messages": messages, "by_kind": by_kind})
+        return rows
 
     def admin_stats(self, stale_after_s: int) -> dict[str, Any]:
         rows = list(self.outputs.values())
