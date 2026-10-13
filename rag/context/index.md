@@ -35,7 +35,7 @@ repository root's `context/`.
 
 - [conversations.md](conversations.md) — several conversations per notebook instead of one history (tags rejected), and how much history the model sees
 
-- [credit.md](credit.md) — the credit check before any provider call, and how usage is priced while the core library is pending
+- [credit.md](credit.md) — the credit check before any provider call, and how usage is priced (through core's helpers)
 
 ## D
 
