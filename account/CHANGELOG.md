@@ -11,6 +11,10 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Per-user preferences `ui_language`, `output_language`, `audio_voice` (migration 0005, jsonb on `users`): `GET/PUT /me/preferences` (partial update, null clears), carried on `User` so the web has them at login; the shared demo user cannot change them.
+
+### Added
+
 - Chart data for the admin overview: `GET /admin/stats/daily?days=` (logins, visits, usage cost and credits granted per UTC day, every day present, zeros included, oldest first) and `GET /admin/stats/usage` (core's usage rows by model and kind, the ten users with the highest usage).
 
 ### Added

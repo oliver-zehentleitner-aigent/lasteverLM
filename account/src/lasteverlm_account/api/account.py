@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, Response
 
-from ..models import RedeemBody, User, VisitBody
+from ..models import Preferences, PreferencesUpdate, RedeemBody, User, VisitBody
 from ..privacy import client_ip
 from .deps import CurrentUserId, OptionalUserId, Service
 
@@ -14,6 +14,19 @@ router = APIRouter(tags=["account"])
 @router.get("/me", response_model=User)
 async def me(service: Service, user_id: CurrentUserId) -> User:
     return await service.user_view(user_id)
+
+
+@router.get("/me/preferences", response_model=Preferences)
+async def preferences(service: Service, user_id: CurrentUserId) -> Preferences:
+    return await service.preferences(user_id)
+
+
+@router.put("/me/preferences", response_model=User)
+async def put_preferences(
+    body: PreferencesUpdate, service: Service, user_id: CurrentUserId
+) -> User:
+    """Partial: keys present are applied (null clears), absent keys are kept. Returns the user."""
+    return await service.update_preferences(user_id, body)
 
 
 @router.post("/vouchers/redeem", response_model=User)

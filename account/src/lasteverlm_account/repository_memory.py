@@ -139,6 +139,10 @@ class MemoryRepository:
                 self.users[user_id] = UserRecord(user_id, email, admin, now, None)
             return self.users[user_id]
 
+    async def set_preferences(self, user_id: uuid.UUID, preferences: dict[str, Any]) -> None:
+        async with self._lock:
+            self.users[user_id] = replace(self.users[user_id], preferences=dict(preferences))
+
     async def record_login(self, user_id: uuid.UUID, at: datetime) -> None:
         async with self._lock:
             user = self.users[user_id]

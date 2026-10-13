@@ -6,10 +6,11 @@ import uuid
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from lasteverlm_core import AdminUser, User
+from lasteverlm_core import AdminUser
+from lasteverlm_core import User as CoreUser
 from pydantic import BaseModel, Field, StringConstraints
 
-__all__ = ["AdminUser", "User"]
+__all__ = ["AdminUser", "CoreUser"]
 
 # Shape only: one @, no whitespace, something on both sides. Deliverability is the
 # mail server's call, and reserved names such as demo@localhost must stay valid here.
@@ -19,6 +20,35 @@ Email = Annotated[
         strip_whitespace=True, min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$"
     ),
 ]
+
+
+LanguageCode = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
+]
+VoiceId = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-z0-9_-]{1,64}$")]
+
+
+class Preferences(BaseModel):
+    """Per-user preferences. ``null`` means not set: the web's default language, the
+    source's language for output, the platform's default voice."""
+
+    ui_language: Literal["de", "en"] | None = None
+    output_language: LanguageCode | None = None
+    audio_voice: VoiceId | None = None
+
+
+class PreferencesUpdate(BaseModel):
+    """Partial update: a key present (with a value or null) is applied, an absent key kept."""
+
+    ui_language: Literal["de", "en"] | None = None
+    output_language: LanguageCode | None = None
+    audio_voice: VoiceId | None = None
+
+
+class User(CoreUser):
+    """Core's User plus the preferences, so the web has them at login."""
+
+    preferences: Preferences
 
 
 class RequestLinkBody(BaseModel):
