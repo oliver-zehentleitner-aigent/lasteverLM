@@ -53,7 +53,7 @@ services:
   account:
     replicas: 2
     secrets: [lasteverlm-db, lasteverlm-auth, lasteverlm-account]
-    optionalSecrets: [lasteverlm-smtp-seed]
+    optionalSecrets: [lasteverlm-smtp]
     resources:
       requests: {cpu: 50m, memory: 256Mi}
       limits: {memory: 1Gi}

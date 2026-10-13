@@ -115,11 +115,13 @@ secrets: env ## create the Secrets and the CA ConfigMap from cluster.env and the
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-auth --from-literal=AUTH_JWT_SECRET="$$AUTH_JWT_SECRET" --from-literal=DEMO_TOKEN="$$DEMO_TOKEN" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-account --from-literal=AUTH_ALLOWED_DOMAINS="$${AUTH_ALLOWED_DOMAINS:-}" --from-literal=ADMIN_EMAILS="$${ADMIN_EMAILS:-}" --from-literal=VISIT_HASH_SECRET="$${VISIT_HASH_SECRET:-}" --dry-run=client -o yaml | kubectl apply -f -
 > @if [ -n "$${SMTP_HOST:-}" ]; then \
->   kubectl -n $(KUBE_NS) create secret generic lasteverlm-smtp-seed \
+>   [ -n "$${SMTP_FROM_ADDRESS:-}" ] || { echo "SMTP_HOST is set but SMTP_FROM_ADDRESS is not; account refuses to start without it" >&2; exit 1; }; \
+>   kubectl -n $(KUBE_NS) create secret generic lasteverlm-smtp \
 >     --from-literal=SMTP_HOST="$$SMTP_HOST" --from-literal=SMTP_PORT="$${SMTP_PORT:-587}" \
->     --from-literal=SMTP_USER="$${SMTP_USER:-}" --from-literal=SMTP_PASSWORD="$${SMTP_PASSWORD:-}" \
->     --from-literal=SMTP_FROM="$${SMTP_FROM:-}" --dry-run=client -o yaml | kubectl apply -f -; \
-> else echo "SMTP_HOST not set, no lasteverlm-smtp-seed secret (optional)"; fi
+>     --from-literal=SMTP_USERNAME="$${SMTP_USERNAME:-}" --from-literal=SMTP_PASSWORD="$${SMTP_PASSWORD:-}" \
+>     --from-literal=SMTP_FROM_ADDRESS="$$SMTP_FROM_ADDRESS" --from-literal=SMTP_STARTTLS="$${SMTP_STARTTLS:-true}" \
+>     --dry-run=client -o yaml | kubectl apply -f -; \
+> else echo "SMTP_HOST not set, no lasteverlm-smtp secret (optional)"; fi
 
 db-trust: ## allow only the cluster nodes (IPv4; the API accepts no IPv6 yet) and this machine on the managed database; re-run after node changes
 > $(call require,VULTR_API_KEY)

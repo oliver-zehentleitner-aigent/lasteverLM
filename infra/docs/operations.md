@@ -21,7 +21,8 @@ the bucket is created with curl; nothing else is needed.
 | Domain, ACME e-mail, model names, `modelPrices` (JSON), embedding dimension, similarity floor, TTS model and voice, S3 endpoint | `chart/values-prod.yaml`, committed (`VALUES=<file>` for another deployment) | `make deploy`, `make check`, `make smoke` (default URL) |
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`) | make variables | `make deploy` |
 | `INFERENCE_API_KEY` | environment | `make secrets` |
-| `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET`, `SMTP_*` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
+| `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
+| `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` (required with a host), `SMTP_STARTTLS` (default `true`) | environment, optional | `make secrets` (account's mail configuration; without `SMTP_HOST` no Secret and no mail) |
 | `DEMO_TOKEN` | environment, for `make smoke` only; the cluster's value is generated, see below | `make smoke` |
 
 Generated, never typed: `APP_DB_PASSWORD`, `AUTH_JWT_SECRET` and
@@ -135,10 +136,17 @@ To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 | `lasteverlm-inference` | `INFERENCE_API_KEY` | ingest, rag |
 | `lasteverlm-auth` | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | account, ingest, rag |
 | `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | account |
-| `lasteverlm-smtp-seed` (optional) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | account |
+| `lasteverlm-smtp` (optional) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | account |
 
 Re-running `make secrets` updates the objects in place; pods pick the
 new values up on their next restart (`kubectl -n lasteverlm rollout restart deployment`).
+
+Mail works the same way: account reads its SMTP configuration from
+`lasteverlm-smtp`. Set the `SMTP_*` values in the env file, run
+`make secrets`, then `kubectl -n lasteverlm rollout restart
+deployment/account`; a change of server or password is the same
+rotation. Removing `SMTP_HOST` from the env file does not delete the
+Secret: `kubectl -n lasteverlm delete secret lasteverlm-smtp` does.
 
 Edge: ingress-nginx redirects HTTP to HTTPS and sends HSTS
 (`platform/ingress-nginx.values.yaml`); the Ingress additionally

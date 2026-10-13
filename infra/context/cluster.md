@@ -152,7 +152,7 @@ above.
 
 Secrets are split by what they unlock — `lasteverlm-db`,
 `lasteverlm-db-admin`, `lasteverlm-s3`, `lasteverlm-inference`,
-`lasteverlm-auth`, optional `lasteverlm-smtp-seed` — and each Deployment
+`lasteverlm-auth`, optional `lasteverlm-smtp` — and each Deployment
 mounts only the ones its service uses; non-secret settings sit in the
 ConfigMap `lasteverlm-config` that every API service gets. `make secrets`
 builds all of them from the OpenTofu outputs and the environment with
