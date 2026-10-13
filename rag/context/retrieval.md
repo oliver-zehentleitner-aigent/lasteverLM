@@ -51,3 +51,41 @@ elsewhere; without it the question is answered from the whole document.
 **Rejected alternative:** a lower floor for scoped questions, rejected
 because any floor can still drop every chunk of a short document for a
 question that resembles none of them.
+
+## Incident: an uploaded PDF was ready but never retrieved (resolved, cause not proven)
+
+**Id:** 54626e80-33da-49e5-8bfd-2a92673a654a
+**Type:** incident
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer's click-through, 2026-10-13, and his re-test on 0.7.1; diagnosis session the same day
+**Revisit when:** a ready source is again missing from retrieval, or the rows of the original notebook become available
+
+A notebook held two ready PDFs. Unscoped questions about the second one
+("was ist vnc?") were refused or answered from the first PDF only; the
+second was never among the retrieved passages, although a generated
+report summarised it in detail. On 0.7.1 the same questions retrieve it,
+reproducibly.
+
+What was checked: the same setup with text files on the demo account
+retrieved correctly, so German embeddings, the similarity floor and k
+were not the cause; the report's detail came from the source summary
+(written from the full extracted text), which proves extraction but not
+searchable chunks; the write path cannot produce a ready source without
+chunks, nor vectors of the wrong count, dimension or order. The live
+rows were never read (production reads were not permitted in that
+session), so the cause stays inferred. Two candidates fit: a worker that
+claimed the source before its stored object was complete, so chunks and
+embeddings were written from a missing or partial download (fixed by
+ingest's claim change, #182); or the per-library re-keying of chunks in
+the 0.5.0 source-library change, which rewrote how a notebook reaches
+its chunks.
+
+The lesson that stays: a source must not become ready unless its chunks
+carry usable embeddings. A vector with a zero norm or a non-finite
+component makes the cosine distance NaN, which the similarity floor
+drops without a trace. The guard belongs in core's embedder, which
+every service goes through: rejecting such a vector as a provider error
+makes ingest fail the source loudly and makes rag's question and output
+embeddings fail visibly, instead of a source sitting ready and
+unsearchable.
