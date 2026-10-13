@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import json
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 from lasteverlm_core import (
+    RATE_LIMIT_RULE_BOUNDS,
+    RATE_LIMIT_SETTINGS_KEY,
+    RULES_TTL_SECONDS,
     AccessLogEntry,
     AuthSettings,
     MemoryRateLimitStore,
     RateLimiter,
     RateLimitMiddleware,
+    RateLimitRules,
     RateLimitSettings,
     client_ip,
     issue_jwt,
@@ -224,3 +232,68 @@ async def test_ban_expires_after_ban_max_days() -> None:
     await store.ban("10.0.0.9", "test", T0)
     assert (await limiter.check("10.0.0.9", T0 + timedelta(days=90))).kind == "banned"
     assert (await limiter.check("10.0.0.9", T0 + timedelta(days=90, seconds=1))).kind == "allowed"
+
+
+# --- runtime rules ---------------------------------------------------------------
+
+RULES = {"per_minute": 1, "block_minutes": 5, "ban_after_strikes": 2, "strike_window_hours": 6}
+
+
+def test_rules_parse_and_bounds() -> None:
+    rules = RateLimitRules.parse(RULES)
+    assert rules == RateLimitRules(1, 5, 2, 6) and rules.as_json() == RULES
+    assert RateLimitRules.parse(json.dumps(RULES)) == rules
+    assert RateLimitRules.from_settings(SETTINGS) == RateLimitRules(3, 15, 3, 24)
+    assert RATE_LIMIT_SETTINGS_KEY == "ratelimit"
+    assert set(RATE_LIMIT_RULE_BOUNDS) == set(RULES)
+    for name, (low, high) in RATE_LIMIT_RULE_BOUNDS.items():
+        assert RateLimitRules.parse({**RULES, name: low}).as_json()[name] == low
+        assert RateLimitRules.parse({**RULES, name: high}).as_json()[name] == high
+        for bad in (low - 1, high + 1):
+            with pytest.raises(ValueError, match=f"{name} must be between"):
+                RateLimitRules.parse({**RULES, name: bad})
+        for bad_type in (True, 1.5, "3", None):
+            with pytest.raises(ValueError, match=f"{name} must be an integer"):
+                RateLimitRules.parse({**RULES, name: bad_type})
+    with pytest.raises(ValueError, match="exactly the fields"):
+        RateLimitRules.parse({k: v for k, v in RULES.items() if k != "per_minute"})
+    with pytest.raises(ValueError, match="exactly the fields"):
+        RateLimitRules.parse({**RULES, "ban_max_days": 1})
+    with pytest.raises(ValueError, match="must be an object"):
+        RateLimitRules.parse([1, 2, 3, 4])
+
+
+async def test_stored_rules_override_env_and_refresh_after_ttl() -> None:
+    store = MemoryRateLimitStore(overrides=RULES)
+    limiter = RateLimiter(store, SETTINGS)
+    await fill(store, "ip", 1, T0)
+    decision = await limiter.check("ip", T0)
+    assert decision.kind == "blocked" and decision.retry_after == 5 * 60  # stored values
+    assert limiter.rules == RateLimitRules(1, 5, 2, 6)
+    store.overrides = None
+    assert await limiter.current_rules(T0 + timedelta(seconds=RULES_TTL_SECONDS - 1)) == (
+        RateLimitRules(1, 5, 2, 6)  # cached within the TTL
+    )
+    later = T0 + timedelta(seconds=RULES_TTL_SECONDS)
+    assert await limiter.current_rules(later) == RateLimitRules.from_settings(SETTINGS)
+
+
+async def test_unusable_rules_fall_back_to_env_with_one_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    store = MemoryRateLimitStore(overrides={**RULES, "per_minute": 0})
+    limiter = RateLimiter(store, SETTINGS)
+    defaults = RateLimitRules.from_settings(SETTINGS)
+    with caplog.at_level(logging.WARNING, logger="lasteverlm_core.ratelimit"):
+        for i in range(3):
+            t = T0 + timedelta(seconds=i * RULES_TTL_SECONDS)
+            assert await limiter.current_rules(t) == defaults
+    assert len(caplog.records) == 1 and "per_minute must be between" in caplog.text
+
+    class Broken(MemoryRateLimitStore):
+        async def rule_overrides(self) -> Any:
+            raise RuntimeError('relation "settings" does not exist')
+
+    broken = RateLimiter(Broken(), SETTINGS)
+    assert await broken.current_rules(T0) == defaults
+    assert (await broken.check("ip", T0)).kind == "allowed"

@@ -138,6 +138,29 @@ peer address):
    (90): an older ban no longer refuses anything, and the purge later
    deletes it, lifted or not.
 
+### Runtime rules
+
+The four thresholds of rules 1 to 3 can be changed from the admin panel
+without a deploy. The env values are the defaults; a row in account's
+`settings` table with key `ratelimit` (`RATE_LIMIT_SETTINGS_KEY`)
+overrides them:
+
+```json
+{"per_minute": 120, "block_minutes": 15, "ban_after_strikes": 3, "strike_window_hours": 24}
+```
+
+All four fields, integers within `RATE_LIMIT_RULE_BOUNDS` (inclusive):
+`per_minute` 1–10000, `block_minutes` 1–1440, `ban_after_strikes`
+1–100, `strike_window_hours` 1–720. `RateLimitRules.parse(value)`
+validates (raising `ValueError` that names the field); account's PUT
+uses it, so the panel and the limiter accept exactly the same values.
+Every process re-reads the row through its store at most every
+`RULES_TTL_SECONDS` (30), so a change applies everywhere within half a
+minute. Without a row the env defaults apply; an unusable row (or an
+unreadable table) also means the env defaults, with one warning per
+distinct problem. `RateLimiter.rules` is what is in force.
+`BAN_MAX_DAYS` and `RETENTION_DAYS` govern the purge and stay env only.
+
 `AsyncPostgresRateLimitStore` takes `AsyncConnectionPool.connection`;
 `MemoryRateLimitStore` is for tests and for `make run-dev` without a
 database.

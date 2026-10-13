@@ -24,10 +24,12 @@ from __future__ import annotations
 import ipaddress
 import itertools
 import json
+import logging
 from collections.abc import Awaitable, Callable, Mapping, MutableMapping
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
 from typing import Any, Literal, Protocol, cast
 from uuid import UUID
 
@@ -44,6 +46,8 @@ Send = Callable[[Message], Awaitable[None]]
 ASGIApp = Callable[[Scope, Receive, Send], Awaitable[None]]
 
 UNKNOWN_IP = "0.0.0.0"
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -67,6 +71,62 @@ class RateLimitSettings:
             retention_days=env_int("RETENTION_DAYS", cls.retention_days, env),
             ban_max_days=env_int("BAN_MAX_DAYS", cls.ban_max_days, env),
         )
+
+
+# --- runtime rules ---------------------------------------------------------------
+# The four thresholds of the rule can be changed at runtime from the admin
+# panel: one row in account's `settings` table, key `ratelimit`, a jsonb
+# object with exactly these four integer fields within these bounds
+# (inclusive). Account's PUT validates with `RateLimitRules.parse`; the
+# limiter re-reads the row at most every `RULES_TTL_SECONDS` per process.
+# BAN_MAX_DAYS and RETENTION_DAYS govern the purge and stay env only.
+
+RATE_LIMIT_SETTINGS_KEY = "ratelimit"
+RULES_TTL_SECONDS = 30
+RATE_LIMIT_RULE_BOUNDS: Mapping[str, tuple[int, int]] = MappingProxyType(
+    {
+        "per_minute": (1, 10_000),
+        "block_minutes": (1, 1_440),
+        "ban_after_strikes": (1, 100),
+        "strike_window_hours": (1, 720),
+    }
+)
+RULES_SQL = "select value from settings where key = %(key)s"
+
+
+@dataclass(frozen=True)
+class RateLimitRules:
+    """The four runtime-editable thresholds; field names are the jsonb keys."""
+
+    per_minute: int
+    block_minutes: int
+    ban_after_strikes: int
+    strike_window_hours: int
+
+    @classmethod
+    def from_settings(cls, settings: RateLimitSettings) -> RateLimitRules:
+        return cls(**{name: getattr(settings, name) for name in RATE_LIMIT_RULE_BOUNDS})
+
+    @classmethod
+    def parse(cls, value: Any) -> RateLimitRules:
+        """Validate a stored or submitted object; `ValueError` names what is wrong."""
+        if isinstance(value, str | bytes):
+            value = json.loads(value)
+        if not isinstance(value, Mapping):
+            raise ValueError("rate-limit rules must be an object")
+        if set(value) != set(RATE_LIMIT_RULE_BOUNDS):
+            expected = ", ".join(RATE_LIMIT_RULE_BOUNDS)
+            raise ValueError(f"rate-limit rules need exactly the fields {expected}")
+        for name, (low, high) in RATE_LIMIT_RULE_BOUNDS.items():
+            field_value = value[name]
+            if isinstance(field_value, bool) or not isinstance(field_value, int):
+                raise ValueError(f"{name} must be an integer")
+            if not low <= field_value <= high:
+                raise ValueError(f"{name} must be between {low} and {high}")
+        return cls(**{name: value[name] for name in RATE_LIMIT_RULE_BOUNDS})
+
+    def as_json(self) -> dict[str, int]:
+        return {name: getattr(self, name) for name in RATE_LIMIT_RULE_BOUNDS}
 
 
 @dataclass(frozen=True)
@@ -117,6 +177,9 @@ class RateLimitStore(Protocol):
 
     async def ban(self, ip: str, reason: str, now: datetime) -> None: ...
     async def log(self, entry: AccessLogEntry) -> None: ...
+    async def rule_overrides(self) -> Any:
+        """The stored `ratelimit` settings value, or None without a row."""
+        ...
 
 
 class RateLimiter:
@@ -126,14 +189,42 @@ class RateLimiter:
         self._store = store
         self._settings = settings
         self._healthz_counter = itertools.count()
+        self._defaults = RateLimitRules.from_settings(settings)
+        self._rules = self._defaults
+        self._rules_read_at: datetime | None = None
+        self._warned: str | None = None
 
     @property
     def settings(self) -> RateLimitSettings:
+        """The env settings; the thresholds in force are `rules`."""
         return self._settings
 
+    @property
+    def rules(self) -> RateLimitRules:
+        return self._rules
+
+    async def current_rules(self, now: datetime) -> RateLimitRules:
+        """The stored rules, re-read at most every `RULES_TTL_SECONDS`; the env
+        defaults without a row, and with one warning when the row is unusable."""
+        read_at = self._rules_read_at
+        if read_at is not None and timedelta(0) <= now - read_at < _RULES_TTL:
+            return self._rules
+        self._rules_read_at = now  # concurrent requests keep the old rules meanwhile
+        try:
+            raw = await self._store.rule_overrides()
+            self._rules = self._defaults if raw is None else RateLimitRules.parse(raw)
+            self._warned = None
+        except Exception as exc:  # a malformed row or an unreadable table
+            problem = f"{type(exc).__name__}: {exc}"
+            if problem != self._warned:
+                log.warning("rate-limit rules unusable, using env defaults: %s", problem)
+                self._warned = problem
+            self._rules = self._defaults
+        return self._rules
+
     async def check(self, ip: str, now: datetime) -> Decision:
-        s = self._settings
-        if await self._store.is_banned(ip, now - timedelta(days=s.ban_max_days)):
+        s = await self.current_rules(now)
+        if await self._store.is_banned(ip, now - timedelta(days=self._settings.ban_max_days)):
             return BANNED
         until = await self._store.blocked_until(ip)
         if until is not None and until > now:
@@ -156,6 +247,9 @@ class RateLimiter:
         ):
             return
         await self._store.log(entry)
+
+
+_RULES_TTL = timedelta(seconds=RULES_TTL_SECONDS)
 
 
 def _retry_after(until: datetime, now: datetime) -> int:
@@ -387,6 +481,10 @@ class PostgresRateLimitStore:
         row = await self._query(REQUESTS_SINCE_SQL, {"ip": ip, "since": since}, True)
         return int(scalar(row, "requests") or 0)
 
+    async def rule_overrides(self) -> Any:
+        row = await self._query(RULES_SQL, {"key": RATE_LIMIT_SETTINGS_KEY}, True)
+        return scalar(row, "value")
+
     async def strike(
         self, ip: str, blocked_until: datetime, now: datetime, window_start: datetime
     ) -> int:
@@ -423,6 +521,10 @@ class AsyncPostgresRateLimitStore:
         row = await self._query(REQUESTS_SINCE_SQL, {"ip": ip, "since": since}, True)
         return int(scalar(row, "requests") or 0)
 
+    async def rule_overrides(self) -> Any:
+        row = await self._query(RULES_SQL, {"key": RATE_LIMIT_SETTINGS_KEY}, True)
+        return scalar(row, "value")
+
     async def strike(
         self, ip: str, blocked_until: datetime, now: datetime, window_start: datetime
     ) -> int:
@@ -447,6 +549,11 @@ class MemoryRateLimitStore:
     bans: dict[str, str] = field(default_factory=dict)
     # ip -> created_at; a ban without an entry (set directly in a test) counts as current
     banned_at: dict[str, datetime] = field(default_factory=dict)
+    # the `ratelimit` settings value as account would store it; None = no row
+    overrides: Any = None
+
+    async def rule_overrides(self) -> Any:
+        return self.overrides
 
     async def is_banned(self, ip: str, since: datetime) -> bool:
         return ip in self.bans and self.banned_at.get(ip, since) >= since
