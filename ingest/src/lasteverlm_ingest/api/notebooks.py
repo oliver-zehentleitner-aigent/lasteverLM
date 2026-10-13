@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, Response
 from lasteverlm_core import Notebook
 from pydantic import BaseModel, Field
 
-from lasteverlm_ingest.api.deps import owned_notebook, repository, worker_deps
+from lasteverlm_ingest.api.deps import owned_notebook, repository
 from lasteverlm_ingest.auth import CurrentUser
 
 
@@ -29,8 +29,8 @@ def create_notebook(request: Request, user: CurrentUser, body: NotebookCreate) -
 
 @router.delete("/notebooks/{notebook_id}", status_code=204)
 def delete_notebook(request: Request, user: CurrentUser, notebook_id: UUID) -> Response:
-    deps = worker_deps(request)
-    owned_notebook(deps.repository, user, notebook_id)
-    keys = deps.repository.delete_notebook(user, notebook_id)
-    deps.storage.delete(*keys)
+    """Its sources are detached and stay in the library."""
+    repo = repository(request)
+    owned_notebook(repo, user, notebook_id)
+    repo.delete_notebook(user, notebook_id)
     return Response(status_code=204)

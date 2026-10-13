@@ -16,7 +16,7 @@ import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import httpcore
 
@@ -55,6 +55,21 @@ def check_url(url: str) -> str:
     except ValueError:
         raise ValueError("URL has an invalid port") from None
     return parts.geturl()
+
+
+def normalize_url(url: str) -> str:
+    """The form two URLs are compared in for the library: scheme and host
+    lowercased, a default port and the fragment dropped, an empty path as
+    `/`; path and query are kept as they are."""
+    parts = urlsplit(check_url(url))
+    host = (parts.hostname or "").lower()
+    if ":" in host:
+        host = f"[{host}]"
+    port = parts.port
+    if port is not None and (parts.scheme, port) not in (("http", 80), ("https", 443)):
+        host = f"{host}:{port}"
+    path = parts.path or "/"
+    return urlunsplit((parts.scheme.lower(), host, path, parts.query, ""))
 
 
 class BlockedAddressError(LoaderError):

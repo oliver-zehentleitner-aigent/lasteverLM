@@ -30,8 +30,9 @@ def test_admin_stats_counts_across_users(client, repo, run_queue):
     run_queue()
     client.post(url, files={"file": ("c.txt", b"waiting", "text/plain")})
     other = repo.create_notebook(uuid4(), "someone else's")
-    repo.create_source(other.id, uuid4(), "d.txt", "text", "k", 10)
-    repo.claim_source("w", 600)
+    repo.add_source(other.id, "d.txt", "text", "k", 10)
+    repo.add_source(other.id, "report", "generated", None)  # rag's, never counted
+    repo.claim_library_source("w", 600)
 
     stats = client.get("/api/ingest/admin/stats").json()
     assert stats["sources"] == {"processing": 2, "ready": 1, "failed": 1}

@@ -88,11 +88,6 @@ def run_queue(repo, storage, embedder, summarizer):
     )
 
     def run() -> int:
-        pending = sum(
-            1
-            for s in repo.sources.values()
-            if s.status == "processing" and s.id not in repo.claimed
-        )
-        return run_worker(deps, threading.Event(), worker_id="test", max_jobs=pending)
+        return run_worker(deps, threading.Event(), worker_id="test", max_jobs=repo.pending())
 
     return run
