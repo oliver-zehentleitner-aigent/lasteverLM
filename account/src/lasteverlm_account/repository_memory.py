@@ -238,7 +238,7 @@ class MemoryRepository:
 
     async def stats(self, since: datetime, now: datetime) -> StatsRecord:
         return StatsRecord(
-            users=sum(1 for u in self.users if u != DEMO_USER_ID),
+            users=len(self.users),
             logins_since=sum(1 for r in self.logins if r.at >= since),
             vouchers_issued=len(self.vouchers),
             vouchers_redeemed=sum(1 for v in self.vouchers.values() if v.redeemed_at is not None),

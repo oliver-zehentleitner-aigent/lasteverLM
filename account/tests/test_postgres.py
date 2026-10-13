@@ -182,7 +182,7 @@ async def test_voucher_list_and_stats(repo: PostgresRepository) -> None:
     assert (await repo.list_vouchers(1))[0].id == used_id
 
     s = await repo.stats(now - timedelta(hours=24), now)
-    assert s.users == 2  # the demo user is not counted
+    assert s.users == 3  # admin, user and the seeded demo user, which also holds the seed credit
     assert s.logins_since == 1
     assert (s.vouchers_issued, s.vouchers_redeemed) == (2, 1)
     assert s.credits_granted_cents == 1000 + 300  # demo seed plus the redeemed voucher

@@ -9,6 +9,14 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `granted_cents` on each row of `GET /admin/users` (the user's ledger sum), so the "credits granted" tile can be broken down per user.
+
+### Changed
+
+- `GET /admin/stats` counts the seeded demo user in `users`, as `GET /admin/users` lists it and `credits_granted_cents` includes its seed; one rule for both.
+
 ## [0.4.0] - 2026-10-13
 
 ### Added

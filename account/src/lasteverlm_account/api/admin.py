@@ -15,7 +15,7 @@ from ..models import (
     AdminLogin,
     AdminLoginAttempt,
     AdminStats,
-    AdminUser,
+    AdminUserView,
     AdminVisit,
     AdminVoucher,
     Allowlist,
@@ -31,8 +31,8 @@ from .deps import AdminUserDep, Service
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-@router.get("/users", response_model=list[AdminUser])
-async def users(service: Service, _: AdminUserDep) -> list[AdminUser]:
+@router.get("/users", response_model=list[AdminUserView])
+async def users(service: Service, _: AdminUserDep) -> list[AdminUserView]:
     return await service.admin_users()
 
 

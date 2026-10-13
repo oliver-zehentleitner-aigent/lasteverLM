@@ -20,9 +20,11 @@ prefix `/api/account`. Changes to the contract are made there first.
 
 ## API, prefix `/api/account`
 
-`GET /admin/stats` is the admin overview: users (the demo user not counted), logins and
-usage cost of the last 24 h, vouchers issued/redeemed/open, credits granted (the ledger,
-the demo seed included), active blocks and bans. Usage cost comes from core's `usage`
+`GET /admin/stats` is the admin overview: users, logins and usage cost of the last
+24 h, vouchers issued/redeemed/open, credits granted (the ledger sum), active blocks
+and bans. The seeded demo user is a row in `GET /admin/users` and counts in both
+numbers: it holds and spends credit like anyone else, and `granted_cents` per user
+adds up to the tile this way. Usage cost comes from core's `usage`
 rows, which ingest and rag write.
 
 | Area | Endpoints |

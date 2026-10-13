@@ -188,6 +188,7 @@ def test_admin_users_shape(client: TestClient, mailer: FakeMailer) -> None:
         "last_login_at",
         "balance_cents",
         "usage_cents",
+        "granted_cents",
     }
     assert r.json()[0]["last_login_at"] is not None
 
@@ -258,7 +259,7 @@ def test_stats_overview(
     r = client.get("/api/account/admin/stats", headers=bearer(token))
     assert r.status_code == 200
     assert r.json() == {
-        "users": 2,  # admin and user; the seeded demo user does not count
+        "users": 2,  # admin and user (the memory repository has no demo row; a real one counts)
         "logins_24h": 1,
         "vouchers": {"issued": 3, "redeemed": 1, "open": 2},
         "credits_granted_cents": 300,  # the redeemed voucher; no demo seed in the memory repo

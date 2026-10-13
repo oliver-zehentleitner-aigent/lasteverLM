@@ -107,7 +107,7 @@ class VoucherRecord:
 class StatsRecord:
     """Counters for the admin overview; `since` is the 24 h window the caller passes."""
 
-    users: int  # real users, the seeded demo user not counted
+    users: int  # every row, the seeded demo user included (it holds and spends credit)
     logins_since: int
     vouchers_issued: int
     vouchers_redeemed: int

@@ -41,6 +41,13 @@ class VisitBody(BaseModel):
 # --- admin -------------------------------------------------------------------
 
 
+class AdminUserView(AdminUser):
+    """Core's AdminUser plus what the Users page shows per user: credits granted (the
+    sum of the user's ledger rows, vouchers and the demo seed alike)."""
+
+    granted_cents: int
+
+
 class Smtp(BaseModel):
     """The mail configuration in effect, read-only; the password is never returned.
     An empty ``host`` means SMTP is not configured."""
