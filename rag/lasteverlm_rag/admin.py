@@ -6,7 +6,7 @@ from typing import get_args
 
 from lasteverlm_core import OutputKind, OutputStatus
 
-from .models import AdminStats
+from .models import AdminStats, DailyStats
 from .store import Store
 from .worker import STALE_CLAIM_S
 
@@ -32,3 +32,20 @@ def admin_stats(store: Store) -> AdminStats:
             "shared": raw["shared"],
         }
     )
+
+
+def daily_stats(store: Store, days: int) -> DailyStats:
+    """Messages and outputs (total and by kind) per UTC day, oldest first."""
+    entries = []
+    for row in store.daily_stats(days):
+        by_kind = dict.fromkeys(get_args(OutputKind), 0)
+        by_kind.update(row["by_kind"])
+        entries.append(
+            {
+                "day": row["day"],
+                "messages": row["messages"],
+                "outputs": sum(by_kind.values()),
+                "outputs_by_kind": by_kind,
+            }
+        )
+    return DailyStats.model_validate({"days": entries})

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/rag/admin/stats/daily?days=30` for the admin charts: messages and outputs (total and by kind) per UTC day, every day present.
+
 ## [0.5.0] - 2026-10-13
 
 ### Changed

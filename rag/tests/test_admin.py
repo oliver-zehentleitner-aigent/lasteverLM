@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from lasteverlm_rag.admin import admin_stats
 
 from .conftest import (
@@ -67,3 +69,33 @@ def test_an_admin_without_balance_gets_402_like_everyone(settings):
     client = make_client(settings, store, FakeRetriever([]), FakeLLM())
     r = client.post(f"/api/rag/notebooks/{NOTEBOOK}/outputs", json={"kind": "report"}, headers=AUTH)
     assert (r.status_code, r.json()) == (402, {"error": "credit exhausted"})
+
+
+def test_daily_stats_have_every_day_and_kind(settings):
+    store = FakeStore(admins={OWNER})
+    today = datetime.now(UTC).date()
+    store.daily[(today - timedelta(days=1)).isoformat()] = (4, {"report": 2, "audio": 1})
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM())
+
+    days = client.get(f"{STATS}/daily?days=3", headers=AUTH).json()["days"]
+    assert [d["day"] for d in days] == [(today - timedelta(days=n)).isoformat() for n in (2, 1, 0)]
+    yesterday = days[1]
+    assert (yesterday["messages"], yesterday["outputs"]) == (4, 3)
+    assert yesterday["outputs_by_kind"] == {
+        "report": 2,
+        "quiz": 0,
+        "table": 0,
+        "mindmap": 0,
+        "infographic": 0,
+        "audio": 1,
+    }
+    assert days[2]["outputs"] == 0 and sum(days[2]["outputs_by_kind"].values()) == 0
+    assert len(client.get(f"{STATS}/daily", headers=AUTH).json()["days"]) == 30
+    for bad in ("0", "366", "x"):
+        assert client.get(f"{STATS}/daily?days={bad}", headers=AUTH).status_code == 422
+
+
+def test_daily_stats_are_admin_only(settings):
+    client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
+    assert client.get(f"{STATS}/daily").status_code == 401
+    assert client.get(f"{STATS}/daily", headers=AUTH).status_code == 403
