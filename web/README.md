@@ -70,7 +70,9 @@ docker run --rm -p 8080:8080 lasteverlm-web  # GET /healthz -> {"status":"ok"}
 
 The image serves `dist/` with nginx as a non-root user on port 8080;
 `/healthz` is answered by nginx, hashed assets are cached for a year,
-`index.html` is never cached, every app route falls back to it. In the
+`index.html` is never cached, every app route falls back to it, and
+every response carries `nosniff`, `no-referrer` and a no-framing
+policy. In the
 cluster, ingress routes `/` here and `/api/*` to the services (see the
 deployment section of the architecture).
 
