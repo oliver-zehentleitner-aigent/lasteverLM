@@ -4,8 +4,13 @@ controller:
   config:
     log-format-escape-json: "true"
     log-format-upstream: '{"time":"$time_iso8601","remote_addr":"$remote_addr","request_id":"$req_id","method":"$request_method","host":"$host","uri":"$uri","args":"$args","status":$status,"bytes_sent":$bytes_sent,"request_time":$request_time,"upstream":"$proxy_upstream_name","upstream_status":"$upstream_status","upstream_response_time":"$upstream_response_time","user_agent":"$http_user_agent","referer":"$http_referer","proto":"$server_protocol"}'
-    use-forwarded-headers: "false"   # the load balancer does not speak proxy protocol; first hop is the client
-    enable-real-ip: "true"
+    # The client address comes from the PROXY protocol header the Vultr load
+    # balancer (TCP, layer 4) puts in front of every connection, never from a
+    # request header: X-Forwarded-For and X-Real-IP are set by the client and
+    # are ignored. No enable-real-ip: with its default proxy-real-ip-cidr
+    # 0.0.0.0/0 it took $remote_addr from the client's own X-Forwarded-For.
+    use-proxy-protocol: "true"
+    use-forwarded-headers: "false"
     ssl-redirect: "true"
     force-ssl-redirect: "true"
     hsts: "true"
@@ -15,3 +20,10 @@ controller:
   replicaCount: 2
   service:
     type: LoadBalancer
+    annotations:
+      # The load balancer sends the PROXY protocol header; nginx expects it (above).
+      service.beta.kubernetes.io/vultr-loadbalancer-proxy-protocol: "true"
+      # The hostname annotation (the domain, set by `make platform`) keeps the
+      # load balancer IP out of the Service status: with the IP there, kube-proxy
+      # routes in-cluster requests to it straight to nginx without the header,
+      # and cert-manager's HTTP-01 self check would fail at renewal.
