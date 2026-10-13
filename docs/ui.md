@@ -37,11 +37,11 @@ is closed. After the wizard the notebook view opens.
 │  · notes.txt   ✓  │                                      │
 │  + add            │  (the selected document)             │
 ├───────────────────┤                                      │
-│ Create            │  ask about this · print · share      │
+│ Output format     │  ask about this · print · share      │
 │ [Report] [Quiz]   ├──────────────────────────────────────┤
 │ [Table] [Mindmap] │ [Chat 1 ×] [Chat 2 ×] [+]            │
 │ [Infographic]     │  question … answer with [1] [2]      │
-│ [Audio]           │  > ask your sources                  │
+│ [Audio]  [Create] │  > ask your sources                  │
 ├───────────────────┤                                      │
 │ Outputs           │                                      │
 │  · Report  ready  │                                      │
@@ -53,12 +53,17 @@ is closed. After the wizard the notebook view opens.
   with status and delete; the add button opens the wizard at step 1.
   Generated documents are not listed here, although the backend keeps
   each one as a source of kind `generated` so the chat can cite it.
-- **Create** (left, middle): the output kinds as tiles; a click creates
-  an output of that kind for the whole notebook.
+- **Output format** (left, middle): the output kinds as tiles. A click
+  (or Enter on a focused tile) only selects one, highlighted, and the
+  selection stays while the notebook is open; the **Create** button
+  below starts the job for the selected format over the whole notebook.
+  The button is disabled without a selection or while no source of the
+  notebook is ready, with a one-line hint saying which.
 - **Outputs** (left, bottom): the generated documents with kind, title
   and status; a click opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs
-  show a spinner and poll. Each kind has its own renderer. Three actions
+  show a spinner and poll. Each kind has its own renderer; the audio
+  player sits centred in the pane. Three actions
   per document: ask about this, print, share.
 - **Chat** (right, bottom): one tab per conversation of the notebook,
   "+" opens a new one, "×" closes one after a confirmation and deletes

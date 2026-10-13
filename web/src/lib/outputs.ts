@@ -65,3 +65,11 @@ export function tileNote(f: { description: string; available: boolean }): string
 export function uploadedSources(sources: readonly Source[]): Source[] {
   return sources.filter((s) => s.kind !== 'generated')
 }
+
+/** Why the Create button is disabled, as the hint under it, or null when
+ *  a job can start: a format must be picked and a source must be ready. */
+export function createBlocker(selected: OutputKind | null, hasReadySource: boolean): string | null {
+  if (!hasReadySource) return 'Add a source and wait until it is ready.'
+  if (!selected) return 'Pick a format above.'
+  return null
+}

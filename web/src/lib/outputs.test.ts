@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Source } from '../api/types'
-import { SOURCE_FORMS, tileNote, uploadedSources } from './outputs'
+import { SOURCE_FORMS, createBlocker, tileNote, uploadedSources } from './outputs'
 
 describe('tileNote', () => {
   it('shows the description of an available form', () => {
@@ -32,5 +32,17 @@ describe('uploadedSources', () => {
   it('drops generated documents and keeps every upload kind', () => {
     const list = [src('a', 'pdf'), src('b', 'generated'), src('c', 'text'), src('d', 'url'), src('e', 'image')]
     expect(uploadedSources(list).map((s) => s.id)).toEqual(['a', 'c', 'd', 'e'])
+  })
+})
+
+describe('createBlocker', () => {
+  it('asks for a ready source first, then for a format', () => {
+    expect(createBlocker(null, false)).toBe('Add a source and wait until it is ready.')
+    expect(createBlocker('report', false)).toBe('Add a source and wait until it is ready.')
+    expect(createBlocker(null, true)).toBe('Pick a format above.')
+  })
+
+  it('lets a job start with a format and a ready source', () => {
+    expect(createBlocker('quiz', true)).toBeNull()
   })
 })

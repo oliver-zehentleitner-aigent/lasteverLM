@@ -27,6 +27,14 @@ export function AudioView({ content, onExpired }: Props) {
     onExpired().then(setSrc, () => setFailed(true))
   }
 
-  if (failed) return <p className="error">The audio could not be loaded.</p>
-  return <audio controls preload="metadata" src={src} onError={onError} onLoadedMetadata={() => setRefreshed(false)} />
+  // one block, centred in the viewer by the stylesheet
+  return (
+    <div className="audio-view">
+      {failed ? (
+        <p className="error">The audio could not be loaded.</p>
+      ) : (
+        <audio controls preload="metadata" src={src} onError={onError} onLoadedMetadata={() => setRefreshed(false)} />
+      )}
+    </div>
+  )
 }
