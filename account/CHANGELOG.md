@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-13
+
 ### Added
 
 - Preference `trash_days` (1–365, null = 14): how long a deleted library entry stays in the trash before ingest purges it.
