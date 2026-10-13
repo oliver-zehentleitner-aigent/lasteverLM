@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Prompts treat text from the user's files as data: both system prompts say so, names are one bounded line, and marker-shaped text in sources and summaries is rewritten (`[2]` → `(2)`) so a source cannot forge a passage or a citation. The coverage warning logs a bounded name.
+- `Output.error` no longer carries provider, storage or internal exception messages (they can name endpoints or quote model output): rag's own reasons are shown as they are, everything else as a fixed text per class, with the detail in the log. A schema failure no longer quotes the validation error.
+
+### Fixed
+
+- A text-to-speech answer without audio (output or voice preview) is a provider failure instead of an empty MP3; its usage row is written before the check.
 
 ## [0.9.0] - 2026-10-13
 

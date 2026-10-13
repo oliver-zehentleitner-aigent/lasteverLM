@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
@@ -12,6 +13,8 @@ from pydantic import BaseModel, ValidationError
 from ..citations import defuse_markers, inline
 from ..models import GeneratedOutput, Passage, SourceSummary
 from . import CompleteFn
+
+log = logging.getLogger(__name__)
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
 
@@ -86,7 +89,9 @@ class JsonGenerator:
                 last_error = str(exc)[:500]
                 continue
             return self.to_output(document)
-        raise GenerationFailed(f"{self.kind}: model output did not match the schema: {last_error}")
+        # the validation detail (it quotes model output) goes to the log only
+        log.warning("%s: model output did not match the schema: %s", self.kind, last_error)
+        raise GenerationFailed(f"{self.kind}: the model's answer did not match the document format")
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         raise NotImplementedError

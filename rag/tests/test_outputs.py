@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from lasteverlm_core import ProviderError, StorageError
 
 from lasteverlm_rag.models import Passage
 from lasteverlm_rag.outputs import registry
@@ -9,6 +10,7 @@ from lasteverlm_rag.outputs.mindmap import MindmapGenerator
 from lasteverlm_rag.outputs.quiz import QuizGenerator
 from lasteverlm_rag.outputs.report import ReportGenerator
 from lasteverlm_rag.outputs.table import TableGenerator
+from lasteverlm_rag.service import public_error
 
 from .conftest import (
     AUTH,
@@ -125,10 +127,14 @@ def test_transient_failure_is_retried_and_the_third_attempt_fails_the_job(settin
     assert client.worker.run_once() == 0
     row = store.outputs[output_id]
     assert (row["status"], row["attempts"], row["claimed_by"]) == ("processing", 2, None)
-    assert row["error"] == "inference endpoint unreachable"
+    # the user sees a public text; the exception's own message stays in the log
+    assert row["error"] == "internal error while generating; the job is retried up to three times"
     assert client.worker.run_once() == 1
     out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
-    assert (out["status"], out["error"]) == ("failed", "inference endpoint unreachable")
+    assert (out["status"], out["error"]) == (
+        "failed",
+        "internal error while generating; the job is retried up to three times",
+    )
     assert store.outputs[output_id]["attempts"] == 3
     assert not [s for s in store.sources.values() if s["kind"] == "generated"]
 
@@ -144,7 +150,7 @@ def test_output_fails_cleanly_and_leaves_no_half_indexed_source(settings):
 
     # a schema failure is final on the first attempt: no retry burns more credit
     assert out["status"] == "failed"
-    assert out["error"].startswith("table: model output did not match the schema")
+    assert out["error"] == "table: the model's answer did not match the document format"
     assert store.outputs[out["id"]]["attempts"] == 1
     assert not [s for s in store.sources.values() if s["kind"] == "generated"]
 
@@ -158,7 +164,7 @@ def test_empty_model_content_is_retried_as_a_provider_failure(settings):
     assert client.worker.run_once() == 0  # two attempts this pass, both empty, released
     row = store.outputs[output_id]
     assert (row["status"], row["attempts"]) == ("processing", 2)
-    assert row["error"] == "report: the model returned no content"
+    assert row["error"] == "the model provider failed; the job is retried up to three times"
     assert client.worker.run_once() == 1  # third attempt gets content
     assert client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()["status"] == "ready"
 
@@ -228,7 +234,7 @@ def test_audio_retries_a_failed_synthesis_without_leaving_a_file(settings):
     output_id = client.post(OUTPUTS, json={"kind": "audio"}, headers=AUTH).json()["id"]
     client.worker.run_once()
     row = store.outputs[output_id]
-    assert row["status"] == "processing" and "speech request failed" in row["error"]
+    assert row["status"] == "processing" and row["error"].startswith("the model provider failed")
     assert objects.objects == {} and store.outputs[output_id]["source_id"] is None
 
 
@@ -383,3 +389,28 @@ def test_worker_pass_handles_all_runnable_jobs_and_stops(settings):
     assert client.worker.run_once() == 3
     assert client.worker.run_once() == 0
     assert all(o["status"] == "ready" for o in store.outputs.values())
+
+
+def test_audio_without_bytes_is_a_provider_failure_and_still_billed(settings):
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "a.txt", summary="s")
+    objects = FakeObjects()
+    client = make_client(
+        settings, store, FakeRetriever([]), FakeLLM(AUDIO), FakeTTS(silent=True), objects
+    )
+    output_id = client.post(OUTPUTS, json={"kind": "audio"}, headers=AUTH).json()["id"]
+    client.worker.run_once()
+    row = store.outputs[output_id]
+    assert row["status"] == "processing" and row["error"].startswith("the model provider failed")
+    assert objects.objects == {}
+    assert "tts" in [u.kind for _, _, u in store.usage]
+
+
+def test_public_error_shows_only_rags_own_texts():
+    assert public_error(GenerationFailed("quiz: x")) == "quiz: x"
+    leaky = ProviderError("completion request failed: 401 at https://inference.internal/v1")
+    assert "inference" not in public_error(leaky)
+    assert public_error(StorageError("bucket lasteverlm-prod: denied")).startswith(
+        "storing the audio"
+    )
+    assert public_error(KeyError("secret")).startswith("internal error")

@@ -125,6 +125,13 @@ indexes the result as a source of kind `generated` in the same notebook
 (chunked with core's token-window chunker, the same one ingest uses),
 so the chat can cite it; `Output.source_id` names that source. Deleting
 the output deletes the source and its stored files.
+`Output.error` is a public text: rag's own reasons (no ready source,
+none of the selected sources ready, an answer that did not match the
+document format, audio unavailable) as they are, otherwise a fixed text
+per class (model provider, storage, internal); the exception's own
+message, which can name endpoints or quote model output, goes to the log
+only. A text-to-speech answer without audio is a provider failure, billed
+like any other synthesis.
 
 The focus-query chunks are balanced across sources: every ready upload
 contributes its best two chunks whatever their score, the rest of the
