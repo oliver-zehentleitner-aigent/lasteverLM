@@ -86,18 +86,22 @@ a { color: var(--accent); }
 .error { color: var(--danger); margin: 0.4rem 0; }
 .notice { background: var(--accent-soft); padding: 0.5rem 0.75rem; border-radius: var(--radius); }
 
-input, textarea, button {
+input, textarea, select, button {
   font: inherit;
   color: inherit;
 }
-input, textarea {
+input, textarea, select {
   width: 100%;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
 }
-input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+/* one height for every single-line control, so selects and text fields
+   side by side line up (their labels too) */
+select, input:not([type='checkbox'], [type='radio'], [type='file']) { height: 2.3rem; }
+select { padding-right: 0.4rem; }
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 textarea { resize: vertical; }
 label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9em; color: var(--muted); }
 label.check { flex-direction: row; align-items: center; gap: 0.5rem; }
@@ -371,7 +375,8 @@ button.link.danger { color: var(--danger); }
 
 /* library page */
 .library { padding: 1rem 1.25rem; max-width: 72rem; margin: 0 auto; overflow: auto; }
-.library .filters { align-items: flex-end; flex-wrap: wrap; margin: 0.5rem 0 0.75rem; }
+.library .filters { display: grid; grid-template-columns: minmax(9rem, 12rem) minmax(0, 22rem); align-items: end; gap: 0.75rem; margin: 0.5rem 0 0.75rem; }
+@media (max-width: 520px) { .library .filters { grid-template-columns: minmax(0, 1fr); } }
 .library td.name { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .where-used { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; }
 .cite.removed { opacity: 0.65; text-decoration: line-through; text-decoration-thickness: 1px; }

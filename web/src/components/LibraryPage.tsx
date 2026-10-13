@@ -83,7 +83,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
       <p className="muted small">
         {t('lib.intro')}
       </p>
-      <div className="row filters">
+      <div className="filters">
         <label>
           {t('lib.kind')}
           <select value={filter.kind} onChange={(e) => setFilter({ ...filter, kind: e.target.value as LibraryFilter['kind'] })}>
@@ -124,7 +124,15 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                 <span className={`badge ${e.status}`}>{t(`status.${e.status}`)}</span>
                 {e.status === 'failed' && e.error && <span className="error small"> {e.error}</span>}
               </td>
-              <td>{e.size_bytes === null ? '—' : formatBytes(e.size_bytes)}</td>
+              <td>
+                {e.size_bytes === null ? (
+                  <span className="muted small" title={t('lib.sizeUnknownTitle')}>
+                    {t('lib.sizeUnknown')}
+                  </span>
+                ) : (
+                  formatBytes(e.size_bytes)
+                )}
+              </td>
               <td>{formatTime(e.created_at)}</td>
               <td>
                 {e.notebooks.length === 0 ? (
@@ -227,7 +235,15 @@ function TrashList({ onOpenSettings }: Pick<Props, 'onOpenSettings'>) {
                 {e.name} <DemoBadge demo={e.demo} />
               </td>
               <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
-              <td>{e.size_bytes === null ? '—' : formatBytes(e.size_bytes)}</td>
+              <td>
+                {e.size_bytes === null ? (
+                  <span className="muted small" title={t('lib.sizeUnknownTitle')}>
+                    {t('lib.sizeUnknown')}
+                  </span>
+                ) : (
+                  formatBytes(e.size_bytes)
+                )}
+              </td>
               <td>{formatTime(e.deleted_at)}</td>
               <td title={formatTime(e.purge_at)}>{purgeIn(e.purge_at)}</td>
               <td className="actions-cell">
