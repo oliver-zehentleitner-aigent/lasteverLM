@@ -22,7 +22,12 @@ from uuid import UUID
 from lasteverlm_core import Chunker, Embedder, ProviderError
 
 from lasteverlm_ingest.config import Settings
-from lasteverlm_ingest.loaders import LoaderError, LoaderRegistry, TransientLoaderError
+from lasteverlm_ingest.loaders import (
+    LoaderError,
+    LoaderRegistry,
+    ModelLoader,
+    TransientLoaderError,
+)
 from lasteverlm_ingest.repository import Repository, StoredSource
 from lasteverlm_ingest.storage import Storage, StorageError
 from lasteverlm_ingest.summarizer import Summarizer
@@ -94,7 +99,22 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
     if source.storage_path is None:
         raise ProcessingError(f"source kind {source.kind!r} has nothing to load yet")
     data = deps.storage.get(source.storage_path)
-    passages = deps.loaders.get(source.kind).load(data)
+    loader = deps.loaders.get(source.kind)
+    if isinstance(loader, ModelLoader):
+        # Reading this source is a model call of its own (images).
+        if repo.balance_cents(source.owner) <= 0:
+            raise ProcessingError(CREDIT_EXHAUSTED)
+        passages, usage = loader.load_with_usage(data)
+        repo.record_usage(
+            user_id=source.owner,
+            notebook_id=source.notebook_id,
+            kind=usage.kind,
+            model=usage.model,
+            tokens_in=usage.tokens_in,
+            tokens_out=usage.tokens_out,
+        )
+    else:
+        passages = loader.load(data)
     chunks = deps.chunker.chunk(passages)
     if not chunks:
         raise ProcessingError("no text to index")

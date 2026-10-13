@@ -39,7 +39,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/notebooks` | 201 | `{"title"}` |
 | DELETE | `/notebooks/{id}` | 204 | removes sources, chunks and stored files |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
-| POST | `/notebooks/{id}/sources` | 202 | multipart `file` (PDF, `.txt`, `.md`), or JSON `{"url"}` (`http`/`https`, no credentials in the URL) |
+| POST | `/notebooks/{id}/sources` | 202 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF), or JSON `{"url"}` (`http`/`https`, no credentials in the URL) |
 | DELETE | `/sources/{id}` | 204 | |
 | GET | `/healthz` | 200 | liveness and readiness probe |
 
@@ -102,6 +102,24 @@ the whole fetch at 30 seconds.
 A 4xx answer, a blocked address, an unsupported type or a body over the
 cap fail the source at once; a timeout, a refused connection, 429 or
 5xx are retried like any other transient failure.
+
+## Image sources
+
+An upload named `.png`, `.jpg`, `.jpeg`, `.webp` or `.gif` (or sent with
+that media type) is an image source. The API checks the file's first
+bytes and answers 415 when they are not one of those four formats; the
+stored object gets the media type from those bytes, not from the name.
+
+The worker reads the image with one call to `LLM_MODEL` (the platform's
+chat model takes images): it transcribes all legible text verbatim and
+then describes the image, charts and tables with their values, in the
+language of the text in the image. Because that call is billed, the
+image loader is a `ModelLoader`: the worker checks the credit before it
+and records its own `usage` row of kind `llm`, before the embedding and
+summary rows. The text is then chunked, embedded and summarized like any
+other source. A model refusing the image (HTTP 400) fails the source at
+once; other provider errors are retried. `IMAGE_MAX_TOKENS` (2000) caps
+the answer.
 
 ## Running the container locally
 

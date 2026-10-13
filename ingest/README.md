@@ -6,7 +6,7 @@
 
 The ingest service of [lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM),
 a NotebookLM-style assistant. It owns notebooks and sources: a source is
-uploaded (PDF, plain text) or given as a URL (web page, PDF or text
+uploaded (PDF, plain text, image) or given as a URL (web page, PDF or text
 behind a link) and stored by the API; worker pods claim it from the
 database, fetch and parse it, cut it into overlapping chunks, embed and
 write them, and ask the language model for a one-paragraph summary. The
@@ -42,6 +42,7 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `WORKER_POLL_SECONDS` | no | how often an idle worker looks for work, default 2 |
 | `CLAIM_TIMEOUT_SECONDS` | no | a claim older than this is taken over by another worker, default 600; after three attempts a source is `failed` |
 | `SUMMARY_INPUT_TOKENS`, `SUMMARY_MAX_TOKENS` | no | how much of a source the summary prompt sees (6000) and how long the answer may be (300) |
+| `IMAGE_MAX_TOKENS` | no | how long the model's transcription and description of an image source may be (2000) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware, defaults 120 / 15 / 3 / 24 / 100 |
 | `LOG_LEVEL` | no | default `INFO` |
 
