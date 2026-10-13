@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make web-csp-check`: runs the web image (built with `CSP_MODE=report` or given as `WEB_IMAGE`) and walks it in headless Chromium (Playwright image pinned by digest) against the live API with the demo token; lists every CSP violation, console error and failed response, with a canary violation that has to be reported (`scripts/web-csp-check.sh`, `scripts/csp/walk.mjs`).
 - `ci.yml`: the Postgres suites of core, account, ingest and rag run in CI, against a PostgreSQL 18 service container with pgvector (`pgvector/pgvector:0.8.7-pg18-trixie`, as in `compose.yaml`); a skipped test fails the step. Before, they ran only where a developer started them with Docker.
 - `tofu/.terraform.lock.hcl` is committed: provider version and checksums for Linux and macOS (amd64, arm64).
+- Unit tests for `scripts/dburls.py` (`tests/test_dburls.py`): the three derived URLs with their roles, databases, percent-encoded credentials and `sslmode=verify-full`, and no URL on stdout when an input is missing.
 
 ### Changed
 
