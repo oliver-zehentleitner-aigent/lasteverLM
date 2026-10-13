@@ -13,6 +13,8 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- `Output` and `SharedOutput` gain `options` (default `{}`): the resolved generation options (language, voice, speed) rag stores in `outputs.options`; older outputs validate with `{}`.
+- `TextToSpeech.synthesize(text, *, voice=None, speed=None)`: `OpenAICompatibleTextToSpeech` uses the call's voice or the constructor's and sends `speed` only when given (platform range 0.25 to 4). Calls with the text alone work as before.
 - Runtime rate-limit rules: the limiter overrides `per_minute`, `block_minutes`, `ban_after_strikes` and `strike_window_hours` from account's `settings` row `ratelimit` (jsonb), re-read at most every 30 s per process; env values stay the defaults, an unusable row falls back to them with one warning. `RateLimitRules` (`parse`, `from_settings`, `as_json`), `RATE_LIMIT_SETTINGS_KEY`, `RATE_LIMIT_RULE_BOUNDS`, `RULES_TTL_SECONDS`, `RULES_SQL`; `RateLimiter.rules` and `current_rules`; stores gain `rule_overrides`.
 
 ## [0.3.1] - 2026-10-13

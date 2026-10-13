@@ -227,7 +227,10 @@ protocols.
 returns the MP3 bytes of one `synthesize(text)` call. The voice
 defaults to `DEFAULT_TTS_VOICE` (`ryan`): the platform's voices are not
 the OpenAI names and `alloy` is rejected; it offers vivian, serena,
-uncle_fu, dylan, eric, ryan, aiden, ono_anna and sohee. A failed request
+uncle_fu, dylan, eric, ryan, aiden, ono_anna and sohee.
+`synthesize(text, voice=..., speed=...)` overrides the voice for one
+call and sends `speed` only when given (the platform takes 0.25 to 4;
+outside that range the 400 becomes a `ProviderError`). A failed request
 is a `ProviderError`; the caller records the usage (see Accounting).
 
 ## Object storage

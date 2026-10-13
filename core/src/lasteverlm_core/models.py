@@ -96,6 +96,9 @@ class Answer(BaseModel):
 
 
 class Output(_Row):
+    """A generated document. `options` holds the resolved generation options
+    (language, voice, speed) as rag stores them; older outputs carry `{}`."""
+
     id: UUID
     notebook_id: UUID
     kind: OutputKind
@@ -105,6 +108,7 @@ class Output(_Row):
     error: str | None = None
     share_token: str | None = None
     source_id: UUID | None = None
+    options: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
 
 
@@ -114,6 +118,7 @@ class SharedOutput(BaseModel):
     kind: OutputKind
     title: str
     content: dict[str, Any] | None = None
+    options: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
 
 

@@ -193,6 +193,19 @@ def test_tts_sends_the_platform_default_voice() -> None:
     assert requests == [{"model": "tts", "voice": "ryan", "input": "Hallo."}]
 
 
+def test_tts_voice_and_speed_per_call() -> None:
+    requests: list[dict[str, Any]] = []
+    tts = OpenAICompatibleTextToSpeech(speech_client(requests), "tts", voice="serena")
+    tts.synthesize("a", voice="eric", speed=1.5)
+    tts.synthesize("b", speed=0.5)
+    tts.synthesize("c")
+    assert requests == [
+        {"model": "tts", "voice": "eric", "input": "a", "speed": 1.5},
+        {"model": "tts", "voice": "serena", "input": "b", "speed": 0.5},
+        {"model": "tts", "voice": "serena", "input": "c"},
+    ]
+
+
 def test_tts_http_error_becomes_provider_error() -> None:
     tts = OpenAICompatibleTextToSpeech(speech_client([], status=400), "tts", voice="alloy")
     with pytest.raises(ProviderError, match="speech request failed"):
