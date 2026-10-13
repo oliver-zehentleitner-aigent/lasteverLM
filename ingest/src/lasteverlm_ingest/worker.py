@@ -19,10 +19,11 @@ import threading
 from dataclasses import dataclass
 from uuid import UUID
 
-from lasteverlm_core import Chunker, Embedder, ProviderError, Storage, StorageError
+from lasteverlm_core import Chunker, Embedder, ProviderError, Storage, StorageError, Usage
 
 from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.loaders import (
+    BilledLoaderError,
     LoaderError,
     LoaderRegistry,
     ModelLoader,
@@ -103,15 +104,12 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
         # Reading this source is a model call of its own (images).
         if repo.balance_cents(source.owner) <= 0:
             raise ProcessingError(CREDIT_EXHAUSTED)
-        passages, usage = loader.load_with_usage(data)
-        repo.record_usage(
-            user_id=source.owner,
-            notebook_id=source.notebook_id,
-            kind=usage.kind,
-            model=usage.model,
-            tokens_in=usage.tokens_in,
-            tokens_out=usage.tokens_out,
-        )
+        try:
+            passages, usage = loader.load_with_usage(data)
+        except BilledLoaderError as exc:
+            _record(repo, source, exc.usage)
+            raise
+        _record(repo, source, usage)
     else:
         passages = loader.load(data)
     chunks = deps.chunker.chunk(passages)
@@ -161,6 +159,17 @@ def _run(source_id: UUID, deps: WorkerDeps) -> None:
         tokens,
         summary.usage.tokens_in,
         summary.usage.tokens_out,
+    )
+
+
+def _record(repo: Repository, source: StoredSource, usage: Usage) -> None:
+    repo.record_usage(
+        user_id=source.owner,
+        notebook_id=source.notebook_id,
+        kind=usage.kind,
+        model=usage.model,
+        tokens_in=usage.tokens_in,
+        tokens_out=usage.tokens_out,
     )
 
 

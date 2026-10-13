@@ -118,7 +118,9 @@ image loader is a `ModelLoader`: the worker checks the credit before it
 and records its own `usage` row of kind `llm`, before the embedding and
 summary rows. The text is then chunked, embedded and summarized like any
 other source. A model refusing the image (HTTP 400) fails the source at
-once; other provider errors are retried. `IMAGE_MAX_TOKENS` (2000) caps
+once, and so does an empty answer (a blank image: "the image holds no
+readable content"), whose call is still recorded as usage; other
+provider errors are retried. `IMAGE_MAX_TOKENS` (2000) caps
 the answer.
 
 ## Running the container locally

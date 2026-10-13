@@ -16,7 +16,7 @@ from typing import Any
 from lasteverlm_core import CompletionResult, ProviderError, Usage, thinking_body
 from openai import APIError, BadRequestError
 
-from lasteverlm_ingest.loaders import LoaderError, Passage
+from lasteverlm_ingest.loaders import BilledLoaderError, LoaderError, Passage
 
 SYSTEM_PROMPT = (
     "You turn an image into text for a search index. First transcribe every "
@@ -89,5 +89,7 @@ class ImageLoader:
             finish_reason=response.choices[0].finish_reason,
         )
         if not result.text:
-            raise ProviderError("provider returned an empty image description")
+            # The model looked and found nothing (a blank image): asking
+            # again gives the same answer and bills it again.
+            raise BilledLoaderError("the image holds no readable content", result.usage)
         return [Passage(text=result.text)], result.usage
