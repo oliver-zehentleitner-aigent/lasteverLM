@@ -226,6 +226,10 @@ The embedder sends `dimensions=EMBEDDING_DIMENSION` on every call and
 raises `ProviderError` when a vector of another width comes back: the
 platform's embedding model is natively wider than pgvector can index,
 and the OpenAI `dimensions` parameter is how it is told the width.
+A vector with a NaN or infinite component, or a zero norm, is a
+`ProviderError` too: pgvector's cosine distance against it is NaN, the
+similarity floor would drop the chunk without a trace, and its source
+would stay `ready` while nothing in it can be found.
 
 The language model on the platform is a reasoning model. Left alone it
 spends the completion budget on thinking and returns empty content when
