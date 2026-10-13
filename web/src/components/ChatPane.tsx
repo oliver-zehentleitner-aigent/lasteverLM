@@ -3,6 +3,8 @@ import { rag } from '../api/rag'
 import type { Citation, Conversation, Message, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { isRemoved, splitCitations } from '../lib/citations'
+import { similarityLabel } from '../lib/provenance'
+import { ProvenancePanel } from './ProvenancePanel'
 import { activeAfterClose } from '../lib/conversations'
 
 interface Props {
@@ -195,13 +197,26 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, o
                   >
                     [{c.n}] {c.source_name}
                     {c.page != null && <span className="muted"> p. {c.page}</span>}
+                    {similarityLabel(c.similarity) && <span className="muted"> · {similarityLabel(c.similarity)}</span>}
                     {c.source_kind === 'generated' && <span className="muted"> · generated</span>}
                     {isRemoved(c.source_id, presentSources) && <span className="muted"> · source removed</span>}
                   </button>
                 ))}
               </footer>
             )}
-            {open?.messageId === m.id && m.citations && <Quote citation={m.citations.find((c) => c.n === open.n)} />}
+            {open?.messageId === m.id &&
+              (() => {
+                const c = m.citations?.find((x) => x.n === open.n)
+                return c ? (
+                  <ProvenancePanel
+                    key={c.n}
+                    citation={c}
+                    answer={m.content}
+                    removed={isRemoved(c.source_id, presentSources)}
+                    onOpenSource={onCitationSelected}
+                  />
+                ) : null
+              })()}
           </article>
         ))}
         {busy && <p className="muted">…</p>}
@@ -254,18 +269,5 @@ function AnswerText({ message, onCite, openN }: { message: Message; onCite: (c: 
         ),
       )}
     </p>
-  )
-}
-
-function Quote({ citation }: { citation: Citation | undefined }) {
-  if (!citation) return null
-  return (
-    <blockquote className="quote">
-      <cite>
-        {citation.source_name}
-        {citation.page != null && `, p. ${citation.page}`}
-      </cite>
-      {citation.quote}
-    </blockquote>
   )
 }

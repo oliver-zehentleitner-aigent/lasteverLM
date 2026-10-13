@@ -210,6 +210,34 @@ and theming and tooltips go through its own configuration objects.
 set of packages for the same charts, and visx is a toolkit of low-level
 primitives, close to the hand-rolled SVG the request ruled out.
 
+## The provenance panel marks the best-matching sentence, not an exact span
+
+**Id:** 77c5025b-1e4c-41f0-a41c-46db75cdcaf3
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request that citations visibly prove their origin, relayed by the family lead, 2026-10-13; rag's citation shape of the same day (the full chunk text, no span)
+**Revisit when:** rag returns the character span of the cited passage within the chunk
+
+The panel shows the whole cited chunk and marks one sentence in it: the
+one that shares the most words with the answer sentence carrying the
+marker (`highlightPassage` and `claimFor` in `src/lib/provenance.ts`).
+The panel says that the mark is the closest sentence, so it does not
+read as an exact quote.
+
+**Reason:** the citation carries the chunk, not the part of it the model
+used, so any mark is an inference; word overlap with the claim is cheap,
+deterministic and testable, and it is right in the common case where the
+answer restates a sentence of the source.
+
+**Rejected alternative:** no mark, only the chunk. Rejected because a
+chunk of several hundred words does not show at a glance where the
+statement comes from, which is what the panel is for.
+
+**Rejected alternative:** ask the model for the span. Rejected for now:
+it is a change in rag and costs tokens per answer; the revisit condition
+covers it.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4
