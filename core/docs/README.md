@@ -48,16 +48,52 @@ the other services only verify. Both schemes may be configured at once,
 so a development deployment can log in by mail and still run a recorded
 demo with the token.
 
+### Admin-only endpoints
+
+The token carries no admin claim. Whether a caller is an admin is read
+from `users.is_admin` (account's table) on every request, so granting or
+revoking it takes effect at once; `is_admin(conn, user_id)` and the async
+`ais_admin` do the lookup, and a user without a `users` row is no admin.
+`lasteverlm_core.web.admin_only` turns it into a FastAPI dependency: it
+resolves the caller with the service's own principal dependency (401
+stays there) and answers 403 `admin only` unless the lookup says admin.
+The service passes the lookup because only it knows its pool; a sync
+lookup runs in the thread pool, an async one is awaited:
+
+```python
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import Depends, Request
+from lasteverlm_core import is_admin
+from lasteverlm_core.web import admin_only
+
+
+def admin_lookup(request: Request, user_id: UUID) -> bool:
+    with request.app.state.pool.connection() as conn:
+        return is_admin(conn, user_id)
+
+
+AdminUser = Annotated[UUID, Depends(admin_only(current_user, admin_lookup))]
+```
+
+The module imports FastAPI, which core does not depend on (every service
+does; the `web` extra names it), so it is not re-exported from the
+package root.
+
 ## Accounting
 
-Before a model call: `balance_cents(conn, user_id) > 0`, otherwise 402
-`{"error": "credit exhausted"}`. After it: `record_usage(...)` with the
+Before a model call: `has_credit(conn, user_id)`, otherwise 402
+`{"error": "credit exhausted"}`. It is true for an admin whatever the
+balance, and for anyone else when `balance_cents > 0`; one query
+(`HAS_CREDIT_SQL`). Admins are still billed: their calls write `usage`
+rows like everyone's, so the admin panel shows what they cost. After it: `record_usage(...)` with the
 `Usage` the provider returned. `record_usage` prices the row and raises
 `UnpricedModelError` before touching the database when the model has no
 price; `require_prices` at startup makes that unreachable in a correctly
 configured deployment. The caller owns the transaction. The account
-service, which runs on an async pool, uses `abalance_cents` and
-`arecord_usage`; `BALANCE_SQL` and `USAGE_SQL` are exported for a report
+service, which runs on an async pool, uses `abalance_cents`,
+`ahas_credit` and `arecord_usage`; `BALANCE_SQL` and `USAGE_SQL` are exported for a report
 query that needs them inline.
 
 Speech synthesis is priced per input character, not per token. A `tts`

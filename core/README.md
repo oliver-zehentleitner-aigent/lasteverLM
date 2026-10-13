@@ -14,7 +14,8 @@ the three services share:
 | `lasteverlm_core.models` | the API models of the contract (`User`, `Notebook`, `Source`, `Citation`, `Message`, `Answer`, `Output`, `UsageRecord`, the kind and status literals (`usage.kind` includes `tts`), `DEMO_USER_ID`) |
 | `lasteverlm_core.auth` | `current_user(authorization, auth) -> Principal`: session JWT first, demo token second; `issue_jwt`, `verify_jwt`, `AuthSettings.from_env` |
 | `lasteverlm_core.pricing` | `MODEL_PRICES` parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
-| `lasteverlm_core.usage` | `record_usage`, `balance_cents` (sync psycopg) and `arecord_usage`, `abalance_cents` (async); the SQL as constants |
+| `lasteverlm_core.usage` | `record_usage`, `balance_cents`, `has_credit` (admins always have credit), `is_admin` (sync psycopg) and their async twins `arecord_usage`, `abalance_cents`, `ahas_credit`, `ais_admin`; the SQL as constants |
+| `lasteverlm_core.web` | `admin_only(current_user, lookup)`: FastAPI dependency answering 403 for non-admins; needs FastAPI (the `web` extra), not re-exported from the root |
 | `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge` with `PURGE_SQL` and `purge_params`, `lift_ban`; a ban holds until lifted, at most `BAN_MAX_DAYS` |
 | `lasteverlm_core.chunking` | `TokenWindowChunker` with `Passage` and `Chunk`: the token windows both ingest (sources) and rag (generated documents) embed; defaults 420/50 regex tokens, about 800 model tokens for German |
 | `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations; embeddings request `EMBEDDING_DIMENSION`, completions run with reasoning off unless asked (`thinking=True`); speech with the platform voice `ryan` by default |
