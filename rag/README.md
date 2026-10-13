@@ -23,6 +23,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
+| POST | `/api/rag/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview of a voice |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` |
 | GET | `/api/rag/outputs/{id}` | | `Output` |
 | DELETE | `/api/rag/outputs/{id}` | | 204 |
@@ -111,6 +112,16 @@ voices (`id`, `label`, `gender`, native `language`, from the Qwen3-TTS
 model card), the default voice, the speed range and which options each
 kind takes, so clients hardcode nothing; the language preference itself
 lives in account and the web sends it explicitly.
+
+**Voice previews.** `POST /api/rag/outputs/voice-sample` speaks one or
+two fixed sentences in the requested language (default `en`) with that
+voice and speed (default 1.0), validated against the same catalogue
+(422 otherwise). The file is stored at
+`samples/<voice>/<speed>/<language>.mp3`; the first request synthesizes
+it (one `tts` usage row for the caller, about one cent, 402 without
+credit), every later one, from any user, gets the stored file
+(`"cached": true`) without a model call. The URL is presigned for one
+hour. 503 when the deployment has no text-to-speech.
 
 `audio`: the model writes a spoken-word script (three to five minutes);
 the worker reads it with `TTS_MODEL` and `TTS_VOICE` in segments of at

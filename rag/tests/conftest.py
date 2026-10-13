@@ -30,6 +30,7 @@ from lasteverlm_rag.models import (
 )
 from lasteverlm_rag.outputs import registry
 from lasteverlm_rag.service import OutputService
+from lasteverlm_rag.voice_samples import VoiceSamples
 from lasteverlm_rag.worker import Worker
 
 DEMO_TOKEN = "demo-secret"
@@ -422,6 +423,9 @@ class FakeObjects:
     def get(self, key: str) -> bytes:
         return self.objects[key][0]
 
+    def exists(self, key: str) -> bool:
+        return key in self.objects
+
     def delete(self, *keys: str) -> None:
         for key in keys:
             self.objects.pop(key, None)
@@ -466,6 +470,7 @@ def make_client(
         generators=generators,
         output_service=outputs,
         rate_limit_store=MemoryRateLimitStore(),
+        voice_samples=VoiceSamples(store, tts, objects),
     )
     client = TestClient(app, raise_server_exceptions=False)
     client.worker = Worker(store, outputs, worker_id="test-worker")  # type: ignore[attr-defined]
