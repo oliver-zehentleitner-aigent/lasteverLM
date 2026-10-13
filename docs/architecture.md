@@ -192,7 +192,7 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 | GET | `/library/trash` | | `[TrashEntry]`: the entry plus `deleted_at` and `purge_at` |
 | POST | `/library/{id}/restore` | | 204, back in the library, not re-linked |
 | DELETE | `/library/{id}/purge` | | 204 at once, from the trash only (404 otherwise): chunks and object go |
-| GET | `/admin/stats` | admin only | `IngestStats` |
+| GET | `/admin/stats` | viewer or admin | `IngestStats` |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json

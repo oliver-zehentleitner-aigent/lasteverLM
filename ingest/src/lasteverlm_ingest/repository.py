@@ -19,9 +19,9 @@ from datetime import date, datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
-from lasteverlm_core import Chunk, ModelPrices, Notebook, Source, UsageKind, UsageRecord
+from lasteverlm_core import Chunk, ModelPrices, Notebook, Role, Source, UsageKind, UsageRecord
+from lasteverlm_core import admin_role as core_admin_role
 from lasteverlm_core import has_credit as core_has_credit
-from lasteverlm_core import is_admin as core_is_admin
 from lasteverlm_core import record_usage as core_record_usage
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -253,8 +253,9 @@ class Repository(Protocol):
         user alike, admins included (core's `has_credit`)."""
         ...
 
-    def is_admin(self, user_id: UUID) -> bool:
-        """`users.is_admin` (core's `is_admin`); false without a user row."""
+    def admin_role(self, user_id: UUID) -> Role:
+        """`users.role` (core's `admin_role`): "user", "viewer" or "admin";
+        "user" without a user row."""
         ...
 
     def admin_stats(self, stale_after_seconds: int) -> AdminStats:
@@ -436,7 +437,7 @@ class PostgresRepository:
     # Library sources in the library (not in the trash).
     _ACTIVE = f"{_LISTED} and l.deleted_at is null"
     # Days a deleted entry stays in the trash: account's per-user preference,
-    # read like core reads users.is_admin; 14 without a user row or a number.
+    # read like core reads users.role; 14 without a user row or a number.
     _TRASH_DAYS = (
         "greatest(0, coalesce((select case when jsonb_typeof(u.preferences -> 'trash_days')"
         " = 'number' then floor((u.preferences ->> 'trash_days')::numeric)::int end"
@@ -714,9 +715,9 @@ class PostgresRepository:
         with self._pool.connection() as conn:
             return core_has_credit(conn, user_id)
 
-    def is_admin(self, user_id: UUID) -> bool:
+    def admin_role(self, user_id: UUID) -> Role:
         with self._pool.connection() as conn:
-            return core_is_admin(conn, user_id)
+            return core_admin_role(conn, user_id)
 
     _STATS_SQL = f"""
     select count(*) filter (where status = 'processing'),
