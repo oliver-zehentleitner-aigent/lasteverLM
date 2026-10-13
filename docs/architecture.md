@@ -125,7 +125,8 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - Every service answers `GET /healthz` with `{"status", "version", "commit"}` from `APP_VERSION` and `APP_COMMIT` (the image tag and the full SHA, set by the chart; "unknown" when unset).
 - Magic link: `POST /api/account/auth/request-link` answers 202 for an address that may sign in and 403 `{"error", "code": "not_allowed"}` for any other, no mail in that case (`account/context/auth.md`); the mail carries `<PUBLIC_BASE_URL>/auth/callback?token=...` and the token itself for the paste form; the frontend exchanges the token at `GET /api/account/auth/callback?token=...` for `{jwt, user}`. Tokens are stored hashed, single use, 15 minutes.
 - Who may sign in: addresses in `ADMIN_EMAILS`, addresses on the allowlist (`settings` key `allowed_addresses`) and addresses whose domain is on it (`settings` key `allowed_domains`, seeded once from `AUTH_ALLOWED_DOMAINS`). Both lists are edited entry by entry in the admin panel. Not in any repository.
-- `is_admin`: the first user ever created, plus addresses in `ADMIN_EMAILS`.
+- Roles: `user`, `viewer`, `admin` (`users.role`). The first user ever created and addresses in `ADMIN_EMAILS` are admins; a user whose domain is in the allowlist's `viewer_domains` signs in as viewer; an admin changes roles in the panel. A viewer reads every admin endpoint of account, ingest and rag (core's `admin_read` dependency); every write stays admin only (`admin_only`). `is_admin` is kept in sync with the role for compatibility.
+- The JWT lives 24 hours (`JWT_TTL_DAYS`, default 1); sign-out is client-side; the secret must be at least 32 bytes.
 
 ## API contract v1
 
@@ -135,13 +136,14 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, pl
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/auth/request-link` | `{"email"}` | 202, or 403 `code: not_allowed` |
+| POST | `/auth/request-link` | `{"email"}` | 202, or 403 `code: not_allowed`, or 429 `code: too_many_links` (five links per address per hour) |
 | GET | `/auth/callback?token=` | | `{"jwt", "user": User}` |
 | GET | `/me` | | `User` |
 | GET, PUT | `/me/preferences` | PUT: any subset, `null` clears | `Preferences` |
 | POST | `/vouchers/redeem` | `{"code"}` | `User` |
 | POST | `/visits` | `{"path"}` | 204 |
-| GET | `/admin/users` | | `[AdminUser]` |
+| GET | `/admin/users` | | `[AdminUser]` (viewer or admin) |
+| PATCH | `/admin/users/{id}` | `{"role": "user"\|"viewer"\|"admin"}` | `AdminUser`; 409 for the last admin or the demo user |
 | GET | `/admin/logins?limit=` | | `[{"user_id","email","at"}]` |
 | GET | `/admin/visits?days=` | | `[{"day","path","visits","unique"}]` |
 | GET | `/admin/settings/smtp` | | `Smtp` (read-only, from the environment, never the password) |
@@ -162,11 +164,11 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, pl
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
-User:      {"id", "email", "is_admin", "balance_cents", "created_at", "preferences": Preferences}
+User:      {"id", "email", "role": "user"|"viewer"|"admin", "is_admin", "balance_cents", "created_at", "preferences": Preferences}
 Preferences: {"ui_language": "de"|"en"|null, "output_language": <code>|null, "audio_voice": <voice id>|null, "trash_days": 1..365|null}  -- null: not set; the web resolves defaults
 AdminUser: {"id", "email", "is_admin", "created_at", "last_login_at", "balance_cents", "usage_cents"}
 Smtp:      {"host", "port", "username", "from_address", "starttls"}   -- empty host: mail not configured
-Allowlist: {"allowed_domains": [], "allowed_addresses": []}
+Allowlist: {"allowed_domains": [], "allowed_addresses": [], "viewer_domains": []}   -- viewer_domains: users from these domains sign in as viewers
 AdminVoucher: {"id", "amount_cents", "created_by", "created_at", "redeemed_by", "redeemed_at", "status": "open|redeemed"}
 RateLimitRules: {"per_minute", "block_minutes", "ban_after_strikes", "strike_window_hours", "ban_max_days", "retention_days"}  -- the last two read-only
 SystemInfo: {"version", "commit", "cluster", "services": [{"name", "version", "commit", "healthy"}], "pods": [{"name", "service", "image_tag", "ready", "restarts", "node", "started_at"}], "deployments": [{"name", "replicas", "ready", "updated"}]}
@@ -325,7 +327,7 @@ ingress, never trusted from anywhere else):
 1. **Ingress**, coarse: ingress-nginx rate-limit annotations (requests
    per second with a burst) answer 503 before anything reaches a pod.
    Access log as JSON on the ingress.
-2. **Core middleware**, fine, loaded by every API service: a sliding
+2. **Core middleware**, fine, loaded by every API service (the client address comes from the PROXY protocol between the load balancer and ingress-nginx, which rewrites `X-Forwarded-For`; pods accept nothing but the ingress through NetworkPolicies; IPv6 clients are keyed by their /64; a database failure in the limiter fails closed with 500): a sliding
    window per IP in PostgreSQL (`ip_blocks`). Over the limit means 429
    and `blocked_until = now() + 15 minutes`, `strikes + 1`. The third
    strike within 24 hours writes an `ip_bans` row; a banned IP gets 403
@@ -368,6 +370,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
 | `DEMO_TOKEN` | all services; unset in production |
+| `JWT_TTL_DAYS` (1), `LLM_TIMEOUT_SECONDS` (60; the rag worker uses 180) | account, rag |
 | `PUBLIC_BASE_URL`, `AUTH_ALLOWED_DOMAINS` (seed only), `ADMIN_EMAILS`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | account |
 | `VISIT_HASH_SECRET` | account (shared by its replicas: daily visitor-hash salt = HMAC(secret, date); without it each process salts on its own) |
 | `API_BASE_URL` | web (build time) |
