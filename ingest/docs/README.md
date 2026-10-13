@@ -181,8 +181,8 @@ after the first failure and 15 after the second, so the next attempt
 follows promptly instead of after the claim timeout; the third failed
 attempt sets `failed` for good. The user sees the `error` either way. Credit is checked
 with core's `has_credit` before the upload is stored, before an image is
-read, before the embedding call and before the summary call; an admin
-always has credit, anyone else needs a positive balance. The API pods never process
+read, before the embedding call and before the summary call; every user needs
+a positive balance, admins included (core's rule). The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
 

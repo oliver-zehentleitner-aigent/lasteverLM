@@ -41,14 +41,14 @@ def test_admin_stats_counts_across_users(client, repo, run_queue):
     assert stats["source_bytes"] == len(pdf) + 3 + len(b"waiting") + 10
 
 
-def test_admins_are_never_out_of_credit(client, repo):
+def test_admins_need_credit_like_everyone(client, repo):
+    """core's rule: a positive balance for every user, admins included."""
     repo.default_balance = 0
     nb = client.post("/api/ingest/notebooks", json={"title": "x"}).json()["id"]
     url = f"/api/ingest/notebooks/{nb}/sources"
     files = {"file": ("a.txt", b"text", "text/plain")}
-    assert client.post(url, files=files).status_code == 402
     repo.admins.add(DEMO_USER_ID)
-    assert client.post(url, files=files).status_code == 202
+    assert client.post(url, files=files).status_code == 402
 
 
 def test_daily_stats_every_day_oldest_first(client, repo):
