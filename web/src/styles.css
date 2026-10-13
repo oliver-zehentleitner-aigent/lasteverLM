@@ -488,5 +488,14 @@ button.link.copy { font-size: 0.85em; }
 .pick { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) 8rem; align-items: center; gap: 0.5rem; min-height: 2.4rem; padding: 0.35rem 0.6rem; color: var(--fg); font-size: inherit; cursor: pointer; }
 .pick:hover, .pick.picked { background: var(--accent-soft); }
 .pick input { margin: 0; }
-.pick-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-name { display: flex; min-width: 0; }
 .pick-badges { display: flex; justify-content: flex-end; align-items: center; gap: 0.3rem; min-width: 0; }
+
+/* image names: a 2rem thumbnail in front, a medium preview on hover */
+.image-name { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.image-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thumb { flex: none; width: 2rem; height: 2rem; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); }
+.thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.name-cell { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.image-preview { position: fixed; z-index: 60; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); pointer-events: none; }
+.image-preview img { display: block; max-width: 312px; max-height: 312px; object-fit: contain; }

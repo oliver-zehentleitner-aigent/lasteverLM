@@ -10,6 +10,7 @@ import { filterLibrary, notInNotebook, shortUrl } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
+import { ImageName } from './ImageName'
 import { t, tn } from '../i18n'
 
 interface Props {
@@ -178,8 +179,8 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                           })
                         }
                       />
-                      <span className="pick-name" title={e.url ?? e.name}>
-                        {e.url ? shortUrl(e.url) : e.name}
+                      <span className="pick-name">
+                        <ImageName previewUrl={e.preview_url} label={e.url ? shortUrl(e.url) : e.name} title={e.url ?? e.name} />
                       </span>
                       <span className="pick-badges">
                         <DemoBadge demo={e.demo} />

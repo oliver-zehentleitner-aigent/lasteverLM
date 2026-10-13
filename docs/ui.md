@@ -21,7 +21,8 @@ Three steps, one question each, large tiles instead of a form.
 2. **How does it get in?** Only the ways that fit the type: drop or
    pick files (several at once), enter a URL, paste text; from the
    library, a list with one row per entry (checkbox, the name on one
-   line with an ellipsis, a URL shortened to host and path, the kind and
+   line with an ellipsis, images with a 2rem thumbnail in front, a URL
+   shortened to host and path, the kind and
    demo badges in a fixed slot on the right; the whole row toggles) and
    "n selected" next to the add button. For PDFs a
    **Capture** choice: Auto (text layer where present, the vision model
@@ -199,6 +200,13 @@ the date they are purged (after the trash days set in the settings,
 "delete for good" removes the file and its passages at once. Uploading
 the same file or URL again restores it too. Generated documents are not in the library;
 they live in their notebook.
+
+Image entries show a small square thumbnail in front of their name in
+the library, the trash and the wizard's picker, loaded lazily from the
+entry's `preview_url`. Hovering the thumbnail or the name, or focusing
+the thumbnail, shows a preview up to 320 px next to it, kept inside the
+window; leaving or Esc hides it. On touch a tap on the thumbnail opens
+it without ticking the row, a tap elsewhere closes it.
 
 A new account starts with four example sources in its library (a PDF,
 a Markdown glossary, an image and a Wikipedia page), marked "demo"
