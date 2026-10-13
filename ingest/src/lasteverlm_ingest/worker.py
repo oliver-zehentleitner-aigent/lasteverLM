@@ -22,7 +22,7 @@ from uuid import UUID
 from lasteverlm_core import Chunker, Embedder, ProviderError
 
 from lasteverlm_ingest.config import Settings
-from lasteverlm_ingest.loaders import LoaderError, LoaderRegistry
+from lasteverlm_ingest.loaders import LoaderError, LoaderRegistry, TransientLoaderError
 from lasteverlm_ingest.repository import Repository, StoredSource
 from lasteverlm_ingest.storage import Storage, StorageError
 from lasteverlm_ingest.summarizer import Summarizer
@@ -62,8 +62,8 @@ def process_source(source_id: UUID, deps: WorkerDeps) -> None:
         # Will not change on a retry: the source is failed at once.
         log.warning("source %s failed: %s", source_id, exc)
         repo.set_source_status(source_id, "failed", str(exc)[:_ERROR_MAX])
-    except (StorageError, ProviderError) as exc:
-        # May pass next time (a provider hiccup, the bucket).
+    except (StorageError, ProviderError, TransientLoaderError) as exc:
+        # May pass next time (a provider hiccup, the bucket, a web server).
         _retry_or_fail(source, str(exc)[:_ERROR_MAX], repo, exc)
     except Exception as exc:
         _retry_or_fail(source, "internal error while processing the source", repo, exc)

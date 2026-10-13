@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- URL sources: `POST /notebooks/{id}/sources` with `{"url"}` stores the URL, the worker fetches it and loads web pages (HTML text extraction), PDFs and plain text behind it. Every connection and redirect hop is checked against public addresses only.
+
 ## [0.1.0] - 2026-10-12
 
 ### Changed

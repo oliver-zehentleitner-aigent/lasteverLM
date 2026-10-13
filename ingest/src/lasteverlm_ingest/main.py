@@ -96,7 +96,7 @@ def build_worker_deps(
         settings=settings,
         repository=repository,
         storage=storage,
-        loaders=loaders or default_registry(),
+        loaders=loaders or default_registry(max_url_bytes=settings.max_upload_bytes),
         chunker=chunker or TokenWindowChunker(**settings.chunker_kwargs()),
         embedder=embedder,
         summarizer=summarizer,
