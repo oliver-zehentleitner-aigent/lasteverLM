@@ -11,7 +11,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from lasteverlm_core import DEMO_USER_ID, AuthSettings, User, issue_jwt, purge_params
+from lasteverlm_core import (
+    DEMO_USER_ID,
+    RATE_LIMIT_SETTINGS_KEY,
+    AuthSettings,
+    RateLimitRules,
+    RateLimitSettings,
+    User,
+    issue_jwt,
+    purge_params,
+)
 
 from .config import Settings
 from .mail import Mailer, MailError, magic_link_mail
@@ -27,6 +36,8 @@ from .models import (
     AdminVoucher,
     AllowKind,
     Allowlist,
+    RateLimitRulesUpdate,
+    RateLimitRulesView,
     Smtp,
     UsageCost,
     VoucherCounts,
@@ -105,10 +116,14 @@ class AccountService:
         *,
         clock: Callable[[], datetime] | None = None,
         salt: DailySalt | None = None,
+        rate_limit: RateLimitSettings | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
         self.mailer = mailer
+        # The env defaults of the rate-limit rule, shared with the middleware; the panel
+        # overrides the four runtime fields through the settings table (context/core.md).
+        self.rate_limit = rate_limit or RateLimitSettings()
         self.auth = AuthSettings(
             jwt_secret=settings.auth_jwt_secret, demo_token=settings.demo_token
         )
@@ -430,6 +445,39 @@ class AccountService:
             AdminLogin(user_id=r.user_id, email=r.email, at=r.at)
             for r in await self.repo.list_logins(limit)
         ]
+
+    async def ratelimit_rules(self) -> RateLimitRules:
+        """What core's middleware applies: the stored override, else the env defaults.
+        A malformed row counts as no override (the middleware does the same, and warns)."""
+        defaults = RateLimitRules.from_settings(self.rate_limit)
+        raw = await self.repo.get_setting(RATE_LIMIT_SETTINGS_KEY)
+        if raw is None:
+            return defaults
+        try:
+            return RateLimitRules.parse(raw)
+        except ValueError as exc:
+            log.warning("stored rate-limit rules unusable, showing env defaults: %s", exc)
+            return defaults
+
+    async def ratelimit_view(self) -> RateLimitRulesView:
+        rules = await self.ratelimit_rules()
+        return RateLimitRulesView(
+            **rules.as_json(),
+            ban_max_days=self.rate_limit.ban_max_days,
+            retention_days=self.rate_limit.retention_days,
+        )
+
+    async def update_ratelimit(self, update: RateLimitRulesUpdate) -> RateLimitRulesView:
+        try:
+            rules = RateLimitRules.parse(update.model_dump())  # core's bounds, one validator
+        except ValueError as exc:
+            raise AccountError(422, str(exc)) from exc
+        await self.repo.set_setting(RATE_LIMIT_SETTINGS_KEY, rules.as_json())
+        return await self.ratelimit_view()
+
+    async def reset_ratelimit(self) -> None:
+        """Back to the env defaults: the override row goes, the middleware notices within 30 s."""
+        await self.repo.delete_setting(RATE_LIMIT_SETTINGS_KEY)
 
     async def admin_login_attempts(self, limit: int) -> list[AdminLoginAttempt]:
         return [

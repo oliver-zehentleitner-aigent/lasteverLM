@@ -22,6 +22,8 @@ from ..models import (
     CreateVouchersBody,
     CreateVouchersResponse,
     DomainAdd,
+    RateLimitRulesUpdate,
+    RateLimitRulesView,
     Smtp,
 )
 from .deps import AdminUserDep, Service
@@ -72,6 +74,27 @@ async def get_smtp(service: Service, _: AdminUserDep) -> Smtp:
 async def test_smtp(service: Service, admin: AdminUserDep) -> JSONResponse:
     await service.send_test_mail(admin.email)
     return JSONResponse(status_code=202, content={"sent_to": admin.email})
+
+
+@router.get("/settings/ratelimit", response_model=RateLimitRulesView)
+async def get_ratelimit(service: Service, _: AdminUserDep) -> RateLimitRulesView:
+    """The rule in force; the last two fields are environment-only."""
+    return await service.ratelimit_view()
+
+
+@router.put("/settings/ratelimit", response_model=RateLimitRulesView)
+async def put_ratelimit(
+    body: RateLimitRulesUpdate, service: Service, _: AdminUserDep
+) -> RateLimitRulesView:
+    """Override the four runtime fields for every service; core's bounds apply (422)."""
+    return await service.update_ratelimit(body)
+
+
+@router.delete("/settings/ratelimit", status_code=204)
+async def reset_ratelimit(service: Service, _: AdminUserDep) -> Response:
+    """Drop the override, back to the environment defaults."""
+    await service.reset_ratelimit()
+    return Response(status_code=204)
 
 
 # The allowlist: who may sign in besides ADMIN_EMAILS. One GET for both lists, one
