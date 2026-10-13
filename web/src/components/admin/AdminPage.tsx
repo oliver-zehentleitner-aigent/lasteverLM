@@ -207,14 +207,26 @@ function Vouchers() {
 const loadVouchers = () => admin.listVouchers(VOUCHER_LIMIT)
 
 /** Issued vouchers, newest first; remounted after a create so the new ones
- *  appear. The codes are never listed: the server keeps only their hashes. */
+ *  appear. The codes are never listed: the server keeps only their hashes.
+ *  Open vouchers can be deleted; a redeemed one is history and has no button. */
 function VoucherList() {
-  const { data, error } = useLoad<Voucher[]>(loadVouchers, [])
+  const { data, setData, error } = useLoad<Voucher[]>(loadVouchers, [])
+  const { busy, error: actionError, run } = useAsync()
+
+  async function remove(v: Voucher) {
+    if (!confirm(`Delete the open voucher over ${formatCents(v.amount_cents)}? Its code stops working.`)) return
+    const ok = await run(async () => {
+      await admin.deleteVoucher(v.id)
+      return true
+    })
+    if (ok) setData((list) => list.filter((x) => x.id !== v.id))
+  }
+
   return (
     <>
-      {error && <p className="error">{error}</p>}
+      {(error ?? actionError) && <p className="error">{error ?? actionError}</p>}
       <Table
-        head={['Amount', 'Created by', 'Created', 'Status', 'Redeemed by', 'Redeemed']}
+        head={['Amount', 'Created by', 'Created', 'Status', 'Redeemed by', 'Redeemed', '']}
         rows={data.map((v) => [
           formatCents(v.amount_cents),
           v.created_by,
@@ -224,6 +236,13 @@ function VoucherList() {
           </span>,
           v.redeemed_by ?? '—',
           v.redeemed_at ? formatTime(v.redeemed_at) : '—',
+          v.status === 'open' ? (
+            <button key="delete" type="button" className="link danger" disabled={busy} onClick={() => void remove(v)}>
+              delete
+            </button>
+          ) : (
+            ''
+          ),
         ])}
       />
     </>

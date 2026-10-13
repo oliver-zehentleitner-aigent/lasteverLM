@@ -37,6 +37,8 @@ export interface AdminApi {
   createVouchers(amountCents: number, count: number): Promise<string[]>
   /** newest first, without codes */
   listVouchers(limit: number): Promise<Voucher[]>
+  /** open vouchers only; a redeemed one answers 409 */
+  deleteVoucher(id: string): Promise<void>
   /** rate limiting and blocking, read-only except for lifting a ban */
   listBlocks(): Promise<Block[]>
   listBans(includeLifted: boolean): Promise<Ban[]>
@@ -64,6 +66,7 @@ const httpAdmin: AdminApi = {
   createVouchers: (amount_cents, count) =>
     request<{ codes: string[] }>(`${A}/vouchers`, { method: 'POST', json: { amount_cents, count } }).then((r) => r.codes),
   listVouchers: (limit) => request<Voucher[]>(`${A}/vouchers?limit=${limit}`),
+  deleteVoucher: (id) => request<void>(`${A}/vouchers/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listBlocks: () => request<Block[]>(`${A}/blocks`),
   listBans: (includeLifted) => request<Ban[]>(`${A}/bans?include_lifted=${includeLifted}`),
   liftBan: (ip) => request<void>(`${A}/bans/${encodeURIComponent(ip)}`, { method: 'DELETE' }),
@@ -156,6 +159,11 @@ function mockAdmin(): AdminApi {
       return delay(codes)
     },
     listVouchers: (limit) => delay(vouchers.slice(0, limit)),
+    deleteVoucher: (id) => {
+      if (vouchers.some((v) => v.id === id && v.status === 'redeemed')) return Promise.reject(new Error('voucher already redeemed'))
+      vouchers = vouchers.filter((v) => v.id !== id)
+      return delay(undefined)
+    },
     listBlocks: () => delay([...blocks]),
     listBans: (includeLifted) => delay(bans.filter((b) => includeLifted || b.lifted_at === null)),
     liftBan: (ip) => {
