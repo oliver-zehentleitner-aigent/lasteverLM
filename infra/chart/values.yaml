@@ -53,13 +53,16 @@ pgCa:
 # `optionalSecrets` likewise but may be absent. `worker` adds a second
 # Deployment from the same image with the worker entrypoint. Every image sets a
 # numeric USER, which runAsNonRoot verifies; `runAsUser` is only needed for an
-# image that names its user instead.
+# image that names its user instead. `kubernetesRead` gives the API Deployment
+# its own ServiceAccount with get/list on this namespace's pods and deployments
+# (templates/rbac.yaml); the worker keeps the default one.
 apiPort: 8000
 services:
   account:
     replicas: 2
     secrets: [lasteverlm-db, lasteverlm-auth, lasteverlm-account]
     optionalSecrets: [lasteverlm-smtp]
+    kubernetesRead: true   # admin System page: lists pods and deployments
     resources:
       requests: {cpu: 50m, memory: 256Mi}
       limits: {memory: 1Gi}

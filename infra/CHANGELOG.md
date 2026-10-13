@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ServiceAccount `account` with a Role `account-kubernetes-read` (`get`/`list` on `pods` and `apps/deployments`, namespace only) and its RoleBinding; the `account` pods use it with `automountServiceAccountToken: true`, so the admin System page lists pods and deployments. Enabled per service with `kubernetesRead` in the values.
+
 ## [0.7.1] - 2026-10-13
 
 ### Added
