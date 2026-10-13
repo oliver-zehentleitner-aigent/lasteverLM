@@ -9,6 +9,15 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/ingest/admin/stats` (admins only, core's `admin_only`): sources by status, jobs pending/running/failed, total chunks and stored bytes.
+- Migration `0002_source_size.sql`: `sources.size_bytes`, written on every new source.
+
+### Changed
+
+- Credit checks use core's `has_credit`: admins are never out of credit, everyone else still gets 402 at zero balance.
+
 ## [0.2.1] - 2026-10-13
 
 ### Changed

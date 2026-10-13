@@ -12,9 +12,11 @@ The service owns `notebooks`, `sources` and `chunks`. Two values in
 `sources` are written by others: `kind = 'generated'` rows are created
 by the rag service when it indexes a finished output, and this service
 lists and deletes them like any other source but never loads them. The
-migration is
-[`db/migrations/0001_ingest.sql`](../db/migrations/0001_ingest.sql), plain
-SQL for psql, applied by infra's `make migrate` after infra's extensions
+migrations are
+[`db/migrations/0001_ingest.sql`](../db/migrations/0001_ingest.sql) and
+[`0002_source_size.sql`](../db/migrations/0002_source_size.sql)
+(`sources.size_bytes`, the stored object's size, for the admin
+statistics), plain SQL for psql, applied by infra's `make migrate` after infra's extensions
 migration and core's migration; the runner wraps each file in one
 transaction, so the file has no `begin`/`commit` of its own. An applied
 file is never edited; a change is a new numbered file. The embedding dimension
@@ -42,9 +44,25 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/notebooks/{id}/sources` | 202 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF), or JSON `{"url"}` (`http`/`https`, no credentials in the URL) |
 | DELETE | `/sources/{id}` | 204 | |
 | GET | `/healthz` | 200 | liveness and readiness probe |
+| GET | `/admin/stats` | 200 | admins only (403 otherwise): counts over all users, see below |
+
+`GET /admin/stats` answers
+
+```json
+{"sources": {"processing": 3, "ready": 120, "failed": 4},
+ "jobs": {"pending": 1, "running": 2, "failed": 4},
+ "chunks": 5821,
+ "source_bytes": 73400320}
+```
+
+`sources` counts rows by status. `jobs` splits the `processing` rows:
+`pending` waits for a worker (unclaimed, or its claim is older than
+`CLAIM_TIMEOUT_SECONDS`), `running` is claimed by a worker; `failed` is
+the failed sources. `source_bytes` sums `sources.size_bytes`; rows created
+before migration 0002 have no size and count 0. One read-only query.
 
 Errors are `{"error": "<message>"}`: 400 bad upload, 401 token, 402
-credit exhausted, 404 not yours or missing, 413 too large, 415
+credit exhausted, 403 admin only, 404 not yours or missing, 413 too large, 415
 unsupported type, 422 invalid body.
 
 ## Processing
@@ -73,9 +91,10 @@ sets `failed` at once. A failure that may pass next time (object
 storage, the embedding or summary request, an unexpected error) leaves
 the row `processing` with the error text, so the next worker takes it
 over after the claim timeout; the third failed attempt sets `failed` for
-good. The user sees the `error` either way. The credit balance is
-checked before the upload is stored, before the embedding call and
-before the summary call. The API pods never process
+good. The user sees the `error` either way. Credit is checked
+with core's `has_credit` before the upload is stored, before an image is
+read, before the embedding call and before the summary call; an admin
+always has credit, anyone else needs a positive balance. The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
 

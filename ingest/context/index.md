@@ -26,6 +26,7 @@ repository root's `context/`.
 ## A
 
 - [accounting.md](accounting.md) — why an embedding model without a price fails the start instead of being billed at zero
+- [admin.md](admin.md) — why the admin statistics read stored bytes from a size column instead of listing the bucket
 
 ## B
 

@@ -96,10 +96,10 @@ with a Service and probes on `GET /healthz`, and the worker
 after the current source on SIGTERM) — configuration from
 the `lasteverlm-config` ConfigMap and the `lasteverlm-db`,
 `lasteverlm-s3`, `lasteverlm-inference` and `lasteverlm-auth` Secrets.
-The migration
-`db/migrations/0001_ingest.sql` is applied by infra's `make migrate`.
+The migrations in
+`db/migrations/` are applied by infra's `make migrate`.
 
-Status: in development, nothing is deployed yet.
+Status: live at https://lasteverlm.zehentleitner.co since 0.1.0.
 
 ## License
 

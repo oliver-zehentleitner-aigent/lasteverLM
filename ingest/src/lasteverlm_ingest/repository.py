@@ -11,9 +11,10 @@ from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from lasteverlm_core import Chunk, ModelPrices, Notebook, Source, UsageRecord
-from lasteverlm_core import balance_cents as core_balance_cents
+from lasteverlm_core import has_credit as core_has_credit
+from lasteverlm_core import is_admin as core_is_admin
 from lasteverlm_core import record_usage as core_record_usage
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 
 class StoredSource(Source):
@@ -25,6 +26,7 @@ class StoredSource(Source):
     storage_path: str | None
     summary: str | None = None
     attempts: int = 0
+    size_bytes: int | None = None
 
 
 class Repository(Protocol):
@@ -42,7 +44,13 @@ class Repository(Protocol):
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]: ...
 
     def create_source(
-        self, notebook_id: UUID, source_id: UUID, name: str, kind: str, storage_path: str | None
+        self,
+        notebook_id: UUID,
+        source_id: UUID,
+        name: str,
+        kind: str,
+        storage_path: str | None,
+        size_bytes: int | None = None,
     ) -> StoredSource: ...
 
     def get_source(self, source_id: UUID) -> StoredSource | None: ...
@@ -75,9 +83,29 @@ class Repository(Protocol):
         """Price and write one `usage` row (core's `record_usage`)."""
         ...
 
-    def balance_cents(self, user_id: UUID) -> int:
-        """Credits minus usage for one user (core's `balance_cents`)."""
+    def has_credit(self, user_id: UUID) -> bool:
+        """May this user start a model call: an admin always, anyone else
+        with a positive balance (core's `has_credit`)."""
         ...
+
+    def is_admin(self, user_id: UUID) -> bool:
+        """`users.is_admin` (core's `is_admin`); false without a user row."""
+        ...
+
+    def admin_stats(self, stale_after_seconds: int) -> AdminStats:
+        """Counts over all users for the admin overview; read-only."""
+        ...
+
+
+class AdminStats(BaseModel):
+    """`GET /admin/stats`. A `processing` source is a pending job until a
+    worker claims it (or its claim is stale) and a running job while
+    claimed; `source_bytes` counts rows that stored their size."""
+
+    sources: dict[str, int]
+    jobs: dict[str, int]
+    chunks: int
+    source_bytes: int
 
 
 class PostgresRepository:
@@ -178,18 +206,26 @@ class PostgresRepository:
         return [StoredSource(**row) for row in rows]
 
     def create_source(
-        self, notebook_id: UUID, source_id: UUID, name: str, kind: str, storage_path: str | None
+        self,
+        notebook_id: UUID,
+        source_id: UUID,
+        name: str,
+        kind: str,
+        storage_path: str | None,
+        size_bytes: int | None = None,
     ) -> StoredSource:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
-                "insert into sources (id, notebook_id, name, kind, storage_path, status) "
-                "values (%(id)s, %(nb)s, %(name)s, %(kind)s, %(path)s, 'processing')",
+                "insert into sources"
+                " (id, notebook_id, name, kind, storage_path, size_bytes, status)"
+                " values (%(id)s, %(nb)s, %(name)s, %(kind)s, %(path)s, %(size)s, 'processing')",
                 {
                     "id": source_id,
                     "nb": notebook_id,
                     "name": name,
                     "kind": kind,
                     "path": storage_path,
+                    "size": size_bytes,
                 },
             )
         source = self.get_source(source_id)
@@ -289,6 +325,35 @@ class PostgresRepository:
                 prices=self._prices,
             )
 
-    def balance_cents(self, user_id: UUID) -> int:
+    def has_credit(self, user_id: UUID) -> bool:
         with self._pool.connection() as conn:
-            return core_balance_cents(conn, user_id)
+            return core_has_credit(conn, user_id)
+
+    def is_admin(self, user_id: UUID) -> bool:
+        with self._pool.connection() as conn:
+            return core_is_admin(conn, user_id)
+
+    _STATS_SQL = """
+    select count(*) filter (where status = 'processing'),
+           count(*) filter (where status = 'ready'),
+           count(*) filter (where status = 'failed'),
+           count(*) filter (where status = 'processing'
+                              and (claimed_at is null
+                                   or claimed_at < now() - make_interval(secs => %(stale)s))),
+           coalesce(sum(size_bytes), 0),
+           (select count(*) from chunks)
+      from sources
+    """
+
+    def admin_stats(self, stale_after_seconds: int) -> AdminStats:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._STATS_SQL, {"stale": stale_after_seconds})
+            row = cur.fetchone()
+        assert row is not None
+        processing, ready, failed, pending, size, chunks = (int(v) for v in row)
+        return AdminStats(
+            sources={"processing": processing, "ready": ready, "failed": failed},
+            jobs={"pending": pending, "running": processing - pending, "failed": failed},
+            chunks=chunks,
+            source_bytes=size,
+        )
