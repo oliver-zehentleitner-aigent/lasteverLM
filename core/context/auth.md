@@ -59,3 +59,31 @@ startup instead of in an incident.
 
 **Rejected alternative:** only in `from_env`. That would miss the one
 service that signs.
+
+## Reading the admin area is a second dependency, not a flag on admin_only
+
+**Id:** 476b9176-397d-4bf9-92d7-c93236486b1e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's request for read-only reviewer access, 2026-10-14, via the coordinator (either a write flag or a second dependency was acceptable); the account service's role model the same day
+**Revisit when:** a role with permissions other than "read everything" or "change everything" is needed
+
+Roles are `"user" | "viewer" | "admin"` from account's `users.role`
+(`admin_role` / `aadmin_role`; no row means "user"). `admin_read`
+admits viewers and admins and is what every admin GET uses. `admin_only`
+is unchanged and admits admins only, for everything that changes
+something. `users.is_admin` stays, derived as `role = 'admin'`. A viewer
+has no other privilege: credit and the services treat it as a user.
+
+**Reason:** the two names say at the route what the route allows, and the
+default for an existing route stays the strict one: no endpoint can
+become readable by viewers through a forgotten argument. `admin_only`
+callers need no change at all.
+
+**Rejected alternative:** `admin_only(..., write=False)`. A boolean at
+every call site, and leaving it out would decide the access level.
+
+**Rejected alternative:** a role claim in the JWT. A role change would
+only take effect at the next sign-in, which is the same reason the admin
+flag was never a claim.

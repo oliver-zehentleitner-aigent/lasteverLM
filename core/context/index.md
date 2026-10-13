@@ -24,7 +24,7 @@ repository root's `context/`.
 ## 9
 
 ## A
-- [auth.md](auth.md) — one resolver for session JWT and demo token, why both schemes may be active at once and why there is no audience claim; why a secret under 32 bytes is refused
+- [auth.md](auth.md) — one resolver for session JWT and demo token, why both schemes may be active at once and why there is no audience claim; why a secret under 32 bytes is refused; why read-only admin access is its own dependency
 
 ## B
 
