@@ -39,7 +39,7 @@ is closed. After the wizard the notebook view opens.
 ├───────────────────┤                                      │
 │ Create            │  ask about this · print · share      │
 │ [Report] [Quiz]   ├──────────────────────────────────────┤
-│ [Table] [Mindmap] │ Chat                                 │
+│ [Table] [Mindmap] │ [Chat 1 ×] [Chat 2 ×] [+]            │
 │ [Infographic]     │  question … answer with [1] [2]      │
 │ [Audio]           │  > ask your sources                  │
 └───────────────────┴──────────────────────────────────────┘
@@ -52,9 +52,13 @@ is closed. After the wizard the notebook view opens.
 - **Output viewer** (right, top): one tab per output, processing tabs
   show a spinner and poll. Each kind has its own renderer. Three actions
   per document: ask about this, print, share.
-- **Chat** (right, bottom): question, answer, citations as `[n]` that
-  open the cited passage; a citation into a generated document opens
-  that tab.
+- **Chat** (right, bottom): one tab per conversation of the notebook,
+  "+" opens a new one, "×" closes one after a confirmation and deletes
+  its messages; closing the last tab opens a fresh one, and a notebook
+  without conversations gets one when the chat opens, so a question
+  always goes to a conversation. In the active tab: question, answer,
+  citations as `[n]` that open the cited passage; a citation into a
+  generated document opens that tab.
 
 ## Viewer, print, share
 

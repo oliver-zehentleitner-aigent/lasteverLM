@@ -1,19 +1,31 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
-import type { Answer, Message, Output, OutputKind, SharedOutput } from './types'
+import type { Answer, Conversation, Message, Output, OutputKind, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
+const conv = (id: string) => `${RAG_PREFIX}/conversations/${encodeURIComponent(id)}`
 
 export const rag = {
-  /** `scope.output_id` restricts retrieval to one generated document ("ask about this"). */
-  ask: (notebookId: string, question: string, outputId?: string) =>
+  /** Every question belongs to a conversation; `scope.output_id` restricts
+   *  retrieval to one generated document ("ask about this"). */
+  ask: (notebookId: string, conversationId: string, question: string, outputId?: string) =>
     request<Answer>(`${nb(notebookId)}/ask`, {
       method: 'POST',
-      json: outputId ? { question, scope: { output_id: outputId } } : { question },
+      json: {
+        question,
+        conversation_id: conversationId,
+        ...(outputId ? { scope: { output_id: outputId } } : {}),
+      },
     }),
 
-  listMessages: (notebookId: string) => request<Message[]>(`${nb(notebookId)}/messages`),
+  /** oldest first; the server names a new one "Chat N" */
+  listConversations: (notebookId: string) => request<Conversation[]>(`${nb(notebookId)}/conversations`),
+  createConversation: (notebookId: string) =>
+    request<Conversation>(`${nb(notebookId)}/conversations`, { method: 'POST', json: {} }),
+  /** removes the conversation and its messages */
+  deleteConversation: (id: string) => request<void>(conv(id), { method: 'DELETE' }),
+  listMessages: (conversationId: string) => request<Message[]>(`${conv(conversationId)}/messages`),
 
   listOutputs: (notebookId: string) => request<Output[]>(`${nb(notebookId)}/outputs`),
   createOutput: (notebookId: string, kind: OutputKind) =>
