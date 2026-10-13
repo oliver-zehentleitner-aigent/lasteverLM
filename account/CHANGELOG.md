@@ -11,6 +11,10 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Preference `trash_days` (1–365, null = 14): how long a deleted library entry stays in the trash before ingest purges it.
+
+### Added
+
 - Per-user preferences `ui_language`, `output_language`, `audio_voice` (migration 0005, jsonb on `users`): `GET/PUT /me/preferences` (partial update, null clears), carried on `User` so the web has them at login; the shared demo user cannot change them.
 
 ### Added

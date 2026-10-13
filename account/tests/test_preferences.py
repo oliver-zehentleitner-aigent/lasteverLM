@@ -11,7 +11,7 @@ from lasteverlm_account.repository_memory import MemoryRepository
 from .conftest import DEMO_TOKEN, FakeMailer, bearer, login
 
 PREFS = "/api/account/me/preferences"
-UNSET = {"ui_language": None, "output_language": None, "audio_voice": None}
+UNSET = {"ui_language": None, "output_language": None, "audio_voice": None, "trash_days": None}
 
 
 def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMailer) -> None:
@@ -26,14 +26,18 @@ def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMa
         "ui_language": "de",
         "output_language": None,
         "audio_voice": "ryan",
+        "trash_days": None,
     }
 
     # absent keys are kept, a null clears
-    r = client.put(PREFS, json={"output_language": "en-US", "audio_voice": None}, headers=h)
+    r = client.put(
+        PREFS, json={"output_language": "en-US", "audio_voice": None, "trash_days": 30}, headers=h
+    )
     assert r.json()["preferences"] == {
         "ui_language": "de",
         "output_language": "en-US",
         "audio_voice": None,
+        "trash_days": 30,
     }
     assert client.get("/api/account/me", headers=h).json()["preferences"]["ui_language"] == "de"
     assert client.get(PREFS, headers=h).json()["output_language"] == "en-US"
@@ -47,6 +51,9 @@ def test_preferences_are_validated_by_shape(client: TestClient, mailer: FakeMail
         {"output_language": "not a language"},
         {"audio_voice": "Alloy!"},
         {"audio_voice": "x" * 65},
+        {"trash_days": 0},
+        {"trash_days": 366},
+        {"trash_days": "soon"},
     ):
         r = client.put(PREFS, json=body, headers=h)
         assert r.status_code == 422, body
@@ -72,6 +79,7 @@ def test_stored_values_that_no_longer_validate_read_as_unset(
         "ui_language": None,
         "output_language": None,
         "audio_voice": "ryan",
+        "trash_days": None,
     }
 
 
