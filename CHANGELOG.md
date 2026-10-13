@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
 ### Added
 
 - Docs site: `mkdocs.yml` and `docs/index.md`, built by `pages.yml` next to the Keep the Why dashboard exports; the README links the site and the live system.

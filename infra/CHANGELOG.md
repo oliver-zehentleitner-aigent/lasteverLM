@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
 ### Added
 
 - rag API and worker mount the `lasteverlm-s3` Secret (audio files go to the bucket); `TTS_VOICE` (default `ryan`) in the ConfigMap, from `make values` and the deploy workflow's repository variable.

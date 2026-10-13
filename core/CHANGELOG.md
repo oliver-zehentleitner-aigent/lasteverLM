@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
 ### Added
 
 - `lasteverlm_core.storage`: `S3Storage` with put, get, delete and `presigned_get(key, expires_s=3600)` (SigV4), `S3Settings.from_env`, `object_key`, the `Storage` protocol; moved from ingest so that ingest and rag share one S3 client. New dependency `boto3`.
