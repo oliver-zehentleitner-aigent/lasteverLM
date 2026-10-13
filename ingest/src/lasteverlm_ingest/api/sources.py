@@ -127,7 +127,9 @@ async def create_source(
 
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("multipart/form-data"):
-        form = await request.form()
+        # One file and at most the capture field; anything more is a 400
+        # before the parser spools it.
+        form = await request.form(max_files=1, max_fields=1)
         upload = form.get("file")
         if not isinstance(upload, UploadFile) or not upload.filename:
             raise HTTPException(status_code=400, detail="multipart field 'file' is required")
@@ -151,7 +153,11 @@ async def create_source(
             # The same bytes captured in another mode are another library source.
             dedupe_key += f":{capture}"
     elif content_type.startswith("application/json"):
-        body = SourceFromJson.model_validate(await request.json())
+        try:
+            payload = await request.json()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="body is not valid JSON") from None
+        body = SourceFromJson.model_validate(payload)
         if (body.url is None) == (body.library_id is None):
             raise HTTPException(status_code=400, detail="send exactly one of 'url', 'library_id'")
         if body.library_id is not None:
