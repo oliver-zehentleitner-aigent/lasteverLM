@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+from botocore.exceptions import ClientError
 
 from lasteverlm_core import (
     PRESIGN_SECONDS,
@@ -34,6 +35,7 @@ class StubClient:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.objects: dict[str, bytes] = {}
         self.fail = fail
+        self.head_error = "404"
 
     def _record(self, name: str, kwargs: dict[str, Any]) -> None:
         self.calls.append((name, kwargs))
@@ -47,6 +49,13 @@ class StubClient:
     def get_object(self, **kwargs: Any) -> dict[str, Any]:
         self._record("get_object", kwargs)
         return {"Body": io.BytesIO(self.objects[kwargs["Key"]])}
+
+    def head_object(self, **kwargs: Any) -> dict[str, Any]:
+        self._record("head_object", kwargs)
+        if kwargs["Key"] not in self.objects:
+            code = self.head_error
+            raise ClientError({"Error": {"Code": code, "Message": code}}, "HeadObject")
+        return {"ContentLength": len(self.objects[kwargs["Key"]])}
 
     def delete_objects(self, **kwargs: Any) -> None:
         self._record("delete_objects", kwargs)
@@ -140,3 +149,27 @@ def test_settings_from_env() -> None:
 
 def test_object_key() -> None:
     assert object_key("nb", "out", "audio.mp3") == "nb/out/audio.mp3"
+
+
+def test_exists_is_false_only_for_a_missing_key() -> None:
+    client = StubClient()
+    storage = S3Storage(SETTINGS, client=client)
+    storage.put("nb/voice/ryan.mp3", b"mp3", "audio/mpeg")
+    assert storage.exists("nb/voice/ryan.mp3") is True
+    assert storage.exists("nb/voice/eric.mp3") is False
+    assert client.calls[-1] == ("head_object", {"Bucket": "lasteverlm", "Key": "nb/voice/eric.mp3"})
+    client.head_error = "NoSuchKey"
+    assert storage.exists("nb/voice/eric.mp3") is False
+
+
+@pytest.mark.parametrize("code", ["403", "AccessDenied", "NoSuchBucket", "500"])
+def test_exists_raises_on_any_other_error(code: str) -> None:
+    client = StubClient()
+    client.head_error = code
+    with pytest.raises(StorageError, match="head failed"):
+        S3Storage(SETTINGS, client=client).exists("nb/voice/eric.mp3")
+
+
+def test_exists_raises_when_unreachable() -> None:
+    with pytest.raises(StorageError, match="head failed"):
+        S3Storage(SETTINGS, client=StubClient(fail=True)).exists("k")
