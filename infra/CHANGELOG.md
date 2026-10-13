@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- CPU requests lowered to measured use (APIs 50m, workers 100m, web 25m); autoscaler target 80 % instead of 70 %.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added

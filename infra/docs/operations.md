@@ -83,7 +83,7 @@ reaches the deployment through the load balancer address:
 | Deployments `account`, `ingest`, `rag` | API services, port 8000, `/healthz` probes, `envFrom` the ConfigMap and their Secrets |
 | Deployments `ingest-worker`, `rag-worker` | same image, command `lasteverlm-<service>-worker`, no Service, no port |
 | Deployment `web` | static frontend, port 8080 |
-| HorizontalPodAutoscalers | one per Deployment above, CPU based, minimum two replicas |
+| HorizontalPodAutoscalers | one per Deployment above, CPU based (80 % of the request), minimum two replicas |
 | Services | one per API service and web, port 80 |
 | Ingress `lasteverlm` | path routing `/api/account`, `/api/ingest`, `/api/rag`, `/`; TLS via cert-manager; per-IP rate limiting (`limit-rps`, burst multiplier, `limit-connections`) |
 | ClusterIssuer `letsencrypt` | ACME http01 |
