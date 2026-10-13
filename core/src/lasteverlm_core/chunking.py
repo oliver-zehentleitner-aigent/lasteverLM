@@ -38,6 +38,8 @@ class Chunk:
 
 
 class Chunker(Protocol):
+    """Splits parsed passages into the chunks that get embedded."""
+
     def chunk(self, passages: list[Passage]) -> list[Chunk]: ...
 
 

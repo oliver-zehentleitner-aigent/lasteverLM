@@ -48,17 +48,23 @@ class User(_Row):
 
 
 class AdminUser(User):
+    """A user as the admin overview lists it, with last login and total usage."""
+
     last_login_at: datetime | None = None
     usage_cents: int
 
 
 class Notebook(_Row):
+    """A notebook: the user's workspace that links library sources and holds chats."""
+
     id: UUID
     title: str
     created_at: datetime
 
 
 class Source(_Row):
+    """A source as linked into a notebook, with its processing status."""
+
     id: UUID
     notebook_id: UUID
     name: str
@@ -107,6 +113,8 @@ class ChunkView(BaseModel):
 
 
 class Message(_Row):
+    """One chat message; an assistant message carries its citations."""
+
     id: UUID
     role: MessageRole
     content: str
@@ -115,6 +123,8 @@ class Message(_Row):
 
 
 class Answer(BaseModel):
+    """What the ask endpoint returns: the stored message's id, text and citations."""
+
     message_id: UUID
     answer: str
     citations: list[Citation] = Field(default_factory=list)

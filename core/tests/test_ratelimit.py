@@ -192,8 +192,14 @@ async def test_middleware_ignores_non_http() -> None:
     async def app(scope: Any, receive: Any, send: Any) -> None:
         seen.append(scope["type"])
 
+    async def receive() -> dict[str, Any]:
+        return {"type": "lifespan.startup"}
+
+    async def send(message: Any) -> None:
+        pass
+
     mw = RateLimitMiddleware(app, RateLimiter(MemoryRateLimitStore(), SETTINGS), service="t")
-    await mw({"type": "lifespan"}, None, None)  # type: ignore[arg-type]
+    await mw({"type": "lifespan"}, receive, send)
     assert seen == ["lifespan"]
 
 

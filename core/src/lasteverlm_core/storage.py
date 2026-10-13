@@ -35,6 +35,8 @@ class StorageError(Exception):
 
 
 class Storage(Protocol):
+    """The object store callers are typed against; `S3Storage` implements it."""
+
     def put(self, key: str, data: bytes, content_type: str) -> None: ...
 
     def get(self, key: str) -> bytes: ...

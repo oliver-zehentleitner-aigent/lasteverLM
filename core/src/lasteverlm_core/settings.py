@@ -2,9 +2,9 @@
 
 Every service has its own settings object; what they share is how a
 missing or malformed value is reported (a `ConfigError` naming the
-variable, at startup) and the loaders for the values more than one
-service needs: the inference endpoint and the model prices. The
-authentication settings live in `auth.py` next to what uses them.
+variable, at startup) and the loader for the inference endpoint, which
+more than one service needs. The model prices load in `pricing.py`, the
+authentication settings in `auth.py`, each next to what uses them.
 """
 
 from __future__ import annotations
@@ -44,11 +44,6 @@ def env_int(name: str, default: int, env: Mapping[str, str] | None = None) -> in
         raise ConfigError(f"{name} must be an integer, got {raw!r}") from exc
 
 
-def load_model_prices(env: Mapping[str, str] | None = None) -> dict[str, ModelPrice]:
-    """`MODEL_PRICES` from the environment merged over the shipped defaults."""
-    return parse_model_prices(env_optional("MODEL_PRICES", env))
-
-
 @dataclass(frozen=True)
 class InferenceSettings:
     """The OpenAI-compatible inference endpoint ingest and rag talk to.
@@ -82,6 +77,3 @@ class InferenceSettings:
         if settings.embedding_dimension < 1:
             raise ConfigError("EMBEDDING_DIMENSION must be at least 1")
         return settings
-
-
-from .pricing import ModelPrice, parse_model_prices  # noqa: E402  (pricing imports ConfigError)

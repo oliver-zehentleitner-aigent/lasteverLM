@@ -17,7 +17,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .settings import ConfigError
+from .settings import ConfigError, env_optional
 
 
 class ModelPrice(BaseModel):
@@ -72,6 +72,11 @@ def parse_model_prices(
                 f"MODEL_PRICES[{model!r}] needs non-negative numeric 'in' and 'out': {exc}"
             ) from exc
     return prices
+
+
+def load_model_prices(env: Mapping[str, str] | None = None) -> dict[str, ModelPrice]:
+    """`MODEL_PRICES` from the environment merged over the shipped defaults."""
+    return parse_model_prices(env_optional("MODEL_PRICES", env))
 
 
 def require_prices(prices: ModelPrices, models: Iterable[str]) -> None:

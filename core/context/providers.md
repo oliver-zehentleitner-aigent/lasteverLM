@@ -41,3 +41,51 @@ family's own serving stack documents, so it is the one sent. A top-level
 **Rejected alternative:** let callers pass raw `extra_body`. Rejected
 because the provider's quirks then leak into three services; the
 interface stays `complete(system, user, max_tokens, thinking=)`.
+
+## An unusable embedding vector fails the call
+
+**Id:** 3310d44f-d79f-4da6-abdc-ad94e857529c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** rag's request after a ready PDF whose chunks never came back in retrieval, 2026-10-13 (cause not proven); pgvector's cosine distance against a zero or non-finite vector is NaN
+**Revisit when:** the platform is shown to return such vectors for a legitimate input class that should be indexed anyway
+
+`OpenAICompatibleEmbedder.embed` raises `ProviderError` when a vector
+has a NaN or infinite component or a zero norm, naming the input index.
+The check runs after the count and width checks, in pure Python.
+
+**Reason:** such a vector is stored without complaint but can never be
+found. Its cosine distance is NaN, the similarity floor drops it, and the
+source stays `ready` while nothing in it is searchable. An error makes
+ingest fail that source visibly and turns a bad query or output embedding
+in rag into a 502 or a retry. Any of those beats a silent gap.
+
+**Rejected alternative:** skip the bad vector and store the rest. The
+source would look complete with a hole in it, the same silence on a
+smaller scale.
+
+**Rejected alternative:** a check in SQL or in each service. Every
+service would need it; the embedder is the one place all vectors pass.
+
+## Speech speed is passed through, not range-checked in core
+
+**Id:** dde2dae8-3797-4896-95fc-f457b45593d8
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** live probe of the platform's speech endpoint by rag, 2026-10-13 (0.25 to 4 accepted, anything else a 400 "speed must be between 0.25 and 4"; 0.5 roughly doubles the audio, 2.0 halves it)
+**Revisit when:** a second speech provider with another range is added, or the platform's 400 stops naming the problem
+
+`synthesize(text, voice=, speed=)` sends `speed` only when a caller gives
+one and does not check its range. The platform's 400 arrives as a
+`ProviderError`.
+
+**Reason:** the range belongs to the provider and is enforced there, with
+a clear message. A copy in core would be one more number to keep in step.
+Leaving `speed` out when it is not given keeps the request of every
+existing caller byte-identical.
+
+**Rejected alternative:** clamp or validate 0.25 to 4 in core. Clamping
+would hide a caller's mistake; validating duplicates the platform's own
+check.

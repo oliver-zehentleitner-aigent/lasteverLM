@@ -13,14 +13,14 @@ the three services share:
 |---|---|
 | `lasteverlm_core.models` | the API models of the contract (`User`, `Notebook`, `Source`, `Citation`, `ChunkView`, `Message`, `Answer`, `Output`, `UsageRecord`, `Health` (the `/healthz` body with `APP_VERSION` / `APP_COMMIT`), the kind and status literals (`usage.kind` includes `tts`), `DEMO_USER_ID`) |
 | `lasteverlm_core.auth` | `current_user(authorization, auth) -> Principal`: session JWT first, demo token second; `issue_jwt`, `verify_jwt`, `AuthSettings.from_env` |
-| `lasteverlm_core.pricing` | `MODEL_PRICES` parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
+| `lasteverlm_core.pricing` | `load_model_prices` (`MODEL_PRICES` over the defaults), parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
 | `lasteverlm_core.usage` | `record_usage`, `balance_cents`, `has_credit` (balance above zero, admins included), `is_admin` (sync psycopg) and their async twins `arecord_usage`, `abalance_cents`, `ahas_credit`, `ais_admin`; the SQL as constants |
 | `lasteverlm_core.web` | `admin_only(current_user, lookup)`: FastAPI dependency answering 403 for non-admins; needs FastAPI (the `web` extra), not re-exported from the root |
 | `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge` with `PURGE_SQL` and `purge_params`, `lift_ban`; a ban holds until lifted, at most `BAN_MAX_DAYS`; the four thresholds overridable at runtime from account's `settings` row `ratelimit` (`RateLimitRules`, `RATE_LIMIT_RULE_BOUNDS`) |
 | `lasteverlm_core.chunking` | `TokenWindowChunker` with `Passage` and `Chunk`: the token windows both ingest (sources) and rag (generated documents) embed; defaults 420/50 regex tokens, about 800 model tokens for German |
 | `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations; embeddings request `EMBEDDING_DIMENSION`, completions run with reasoning off unless asked (`thinking=True`); speech with the platform voice `ryan` by default |
 | `lasteverlm_core.storage` | `S3Storage` (put, get, exists, delete, presigned GET with an expiry, default one hour) over `S3Settings.from_env`, `object_key`; the family's only S3 code |
-| `lasteverlm_core.settings` | `env_required`, `env_optional`, `env_int`, `InferenceSettings.from_env`, `load_model_prices`; every miss is a `ConfigError` at startup |
+| `lasteverlm_core.settings` | `env_required`, `env_optional`, `env_int`, `InferenceSettings.from_env`; every miss is a `ConfigError` at startup |
 | `db/migrations/` | `usage` (kinds `llm`, `embedding`, `tts`), `access_log`, `ip_blocks`, `ip_bans`; applied by infra after its own migrations and before the services' |
 
 The contract these implement is the family's
@@ -127,6 +127,9 @@ invalid value.
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3; with `STRIKE_WINDOW_HOURS` the defaults of the runtime rules the admin panel can override; outside the panel's bounds a `ConfigError` at startup, as is a `RETENTION_DAYS`, `BAN_MAX_DAYS` or `ACCESS_LOG_HEALTHZ_SAMPLE` below 1 |
 | `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |
 | `BAN_MAX_DAYS` | `RateLimitSettings.from_env` | default 90; a ban older than this has expired, and the purge deletes it |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | `S3Settings.from_env` | the object store; all four required where storage is used |
+| `S3_REGION` | `S3Settings.from_env` | default `us-east-1` |
+| `APP_VERSION`, `APP_COMMIT` | `Health.from_env` | the build `/healthz` reports; `"unknown"` when unset |
 
 ## Run locally
 

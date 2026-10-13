@@ -44,6 +44,8 @@ repository root's `context/`.
 
 ## H
 
+- [health.md](health.md) — why the build labels in /healthz default to unknown and why each service keeps its own route
+
 ## I
 
 ## J
@@ -61,7 +63,7 @@ repository root's `context/`.
 ## P
 - [packaging.md](packaging.md) — why services install core by path from the same checkout instead of a uv workspace, a lockfile or a published package
 - [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why the shipped default prices are empty
-- [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours
+- [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours; why an unusable embedding vector fails the call; why speech speed is passed through unchecked
 
 ## Q
 
@@ -69,7 +71,7 @@ repository root's `context/`.
 - [ratelimit.md](ratelimit.md) — why the window is counted over access_log excluding 429s, why the middleware is plain ASGI, why the last X-Forwarded-For entry is the client, and why an active ban survives the purge for at most ninety days; why the four thresholds are runtime settings in one database row re-read every thirty seconds
 
 ## S
-- [storage.md](storage.md) — why ingest and rag share one synchronous S3 client from core and why presigned URLs are signed with SigV4
+- [storage.md](storage.md) — why ingest and rag share one synchronous S3 client from core and why presigned URLs are signed with SigV4; why only a missing key reads as not there; why object_key rejects an unsafe name
 
 ## T
 
