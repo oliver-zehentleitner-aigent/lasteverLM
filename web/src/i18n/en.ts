@@ -425,7 +425,7 @@ export const en = {
   'theme.toggle': 'Theme: {theme} (click to change)',
   'set.theme': 'Theme',
   'set.themeSystem': 'Like the system',
-  'sys.noRole': 'Pod list not available: the account service has no read role for pods and deployments in the cluster; the operator adds one to the deployment.',
+  'sys.noRole': 'Pod list not available: the account service has no read role for pods and deployments in the cluster (see "The chart" in infra/docs/operations.md, kubernetesRead).',
   'wiz.selected': '{n} selected',
 } as const
 
