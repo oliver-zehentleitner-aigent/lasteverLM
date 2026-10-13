@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- Code is formatted with black (line length 100, family-wide decision); `make lint` runs `black --check` next to `ruff check`.
+
 ## [0.2.0] - 2026-10-13
 
 ### Changed

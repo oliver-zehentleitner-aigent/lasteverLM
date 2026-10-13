@@ -33,7 +33,7 @@ examples.
 
 ```bash
 cd account
-make check          # make install (uv sync), ruff check, ruff format --check, mypy, pytest
+make check          # make install (uv sync), ruff check, black --check, mypy, pytest
 make run-dev        # the API on in-memory storage, links on the console
 ```
 
