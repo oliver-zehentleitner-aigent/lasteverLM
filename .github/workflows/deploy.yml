@@ -33,6 +33,7 @@ jobs:
       MODEL_PRICES: ${{ vars.MODEL_PRICES }}
       SIMILARITY_FLOOR: ${{ vars.SIMILARITY_FLOOR }}
       TTS_MODEL: ${{ vars.TTS_MODEL }}
+      TTS_VOICE: ${{ vars.TTS_VOICE }}
       S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
     steps:
       # The secrets context is not available in a step `if`; the gate reads it from env.

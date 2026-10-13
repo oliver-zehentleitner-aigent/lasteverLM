@@ -128,6 +128,19 @@ class AccountService:
             self.settings.visit_retention_days,
             links,
         )
+        # Core's middleware writes these tables and never deletes; this service owns their
+        # retention (context/core.md). Active bans stay until an admin lifts them.
+        access, blocks, bans = await self.repo.purge_access_tables(
+            now - timedelta(days=self.settings.access_retention_days)
+        )
+        log.info(
+            "retention: core tables: removed %d access_log rows, %d stale blocks, "
+            "%d lifted bans older than %d days",
+            access,
+            blocks,
+            bans,
+            self.settings.access_retention_days,
+        )
         log.info(
             "visitor hash salt: %s",
             "shared across replicas (VISIT_HASH_SECRET)" if self._salt.shared else "per process",

@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from lasteverlm_core import MemoryRateLimitStore, RateLimitSettings
 
-from .conftest import FakeMailer, bearer, login
+from lasteverlm_account.repository import AccessRecord, BanRecord, BlockRecord
+from lasteverlm_account.repository_memory import MemoryRepository
+from lasteverlm_account.service import AccountService
+
+from .conftest import Clock, FakeMailer, bearer, login
 
 FORWARDED = {"X-Forwarded-For": "203.0.113.50"}
 
@@ -43,3 +49,20 @@ def test_over_the_limit_means_429_and_a_block(
     assert statuses[3:] == [429, 429]
     assert "203.0.113.50" in limiter_store.blocks
     assert client.get("/api/account/me").status_code == 401  # another address is unaffected
+
+
+@pytest.mark.anyio
+async def test_startup_purges_core_tables_but_keeps_active_bans(
+    service: AccountService, repo: MemoryRepository, clock: Clock
+) -> None:
+    old = clock.now - timedelta(days=31)
+    fresh = clock.now - timedelta(days=29)
+    for at in (old, fresh):
+        repo.access.append(AccessRecord(at, "203.0.113.1", "GET", "/", 200, None, "account"))
+        repo.blocks.append(BlockRecord("203.0.113.1", at, 1, at))
+        repo.ip_bans.append(BanRecord("203.0.113.1", "lifted", at, at))
+    repo.ip_bans.append(BanRecord("203.0.113.9", "active", old, None))
+    await service.startup()
+    assert [a.at for a in repo.access] == [fresh]
+    assert [b.updated_at for b in repo.blocks] == [fresh]
+    assert [(b.reason, b.lifted_at) for b in repo.ip_bans] == [("lifted", fresh), ("active", None)]

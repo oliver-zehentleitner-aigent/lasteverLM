@@ -34,7 +34,8 @@ bypasses `uv sync` and leaves `uv.lock` unaware of core.
 
 **Id:** dae69130-8e13-494d-af5d-fb265e1e749d
 **Type:** workaround
-**Status:** active
+**Status:** superseded
+**Superseded by:** none — core's scalar reads became row-factory independent (2026-10-13), the store takes the dict-row pool's connections directly and `tuple_connection` is gone
 **Evidence:** confirmed
 **Source:** fleet coordination, 2026-10-12
 **Revisit when:** core's scalar reads are row-factory independent (announced for the next core pull request)
@@ -56,3 +57,40 @@ pool and disappears without trace once core's fix lands.
 **Rejected alternative:** a second, tuple-row connection pool only for
 the middleware — rejected because it doubles the connection footprint of
 every account pod for a temporary mismatch.
+
+## The account service purges the tables core's middleware writes, at every start
+
+**Id:** 7d3f0c2e-6b1a-4e5f-9c84-2a7d51e0b6f3
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** fleet coordination, 2026-10-13
+**See:** privacy.md#retention-runs-at-service-start-not-on-a-schedule — 42e9906d-a613-4f17-896e-40484c1f125d — as of 2026-10-13
+**Revisit when:** a periodic job (CronJob or in-process scheduler) exists for retention, or pods run for weeks without a restart
+
+`AccountService.startup` runs core's three `PURGE_SQL` statements in one
+transaction, with `now - RETENTION_DAYS` as the cutoff: `access_log` rows,
+`ip_blocks` rows not updated since, `ip_bans` rows lifted before the
+cutoff. An active ban is never removed. The counts are logged.
+
+**Reason:** core's rate-limit middleware writes these tables on every
+request and never deletes; core's `purge` helper exists but, by core's
+own documentation, is run "by whoever owns the periodic job", and no one
+did — on the cluster the rows grew without bound, and the README promised
+30 days. Core confirmed that the account service is that owner: it is the
+only service that reads the tables (admin panel), it already purges its
+own visitor log at the same point, and infra plans no CronJob. The
+statements are imported from `lasteverlm_core.ratelimit` rather than
+copied so that the rule — which rows go, which bans stay — lives in one
+place; core treats the constant as stable.
+
+**Rejected alternatives:** an async `purge(AsyncConnection, ...)` in core —
+rejected by core as a contract change for no gain over the exported
+statements; a CronJob in infra — nobody planned or owns one; purging in
+the middleware — core decided against it (a request handler is the wrong
+place for a maintenance job).
+
+**Known limit:** purge-at-start runs only on restarts, so a long-running
+pod purges rarely; a periodic task is the follow-up (the `Revisit when`
+above). Whether a ban survives the purge at all is core's rule and still
+pending Oliver's confirmation in core's `context/ratelimit.md`.

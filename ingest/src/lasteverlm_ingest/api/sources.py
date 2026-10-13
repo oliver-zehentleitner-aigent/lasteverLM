@@ -11,6 +11,7 @@ from starlette.datastructures import UploadFile
 
 from lasteverlm_ingest.api.deps import owned_notebook, owned_source, repository, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
+from lasteverlm_ingest.loaders.url import check_url
 from lasteverlm_ingest.storage import StorageError, object_key
 from lasteverlm_ingest.worker import CREDIT_EXHAUSTED
 
@@ -18,7 +19,11 @@ router = APIRouter()
 
 _KIND_BY_SUFFIX = {".pdf": "pdf", ".txt": "text", ".md": "text", ".markdown": "text"}
 _KIND_BY_MEDIA_TYPE = {"application/pdf": "pdf", "text/plain": "text", "text/markdown": "text"}
-_CONTENT_TYPE = {"pdf": "application/pdf", "text": "text/plain; charset=utf-8"}
+_CONTENT_TYPE = {
+    "pdf": "application/pdf",
+    "text": "text/plain; charset=utf-8",
+    "url": "text/uri-list",
+}
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -67,10 +72,15 @@ async def create_source(request: Request, user: CurrentUser, notebook_id: UUID) 
             raise HTTPException(status_code=400, detail="file is empty")
         name = safe_name(upload.filename)
     elif content_type.startswith("application/json"):
-        SourceFromUrl.model_validate(await request.json())
-        # A url loader is a later module; until it is registered the
-        # contract shape is accepted and answered honestly.
-        raise HTTPException(status_code=501, detail="URL sources are not supported yet")
+        body = SourceFromUrl.model_validate(await request.json())
+        if "url" not in deps.loaders.kinds:
+            raise HTTPException(status_code=501, detail="URL sources are not supported yet")
+        try:
+            url = check_url(body.url)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        # Only the URL is stored; the worker fetches it (see loaders/url.py).
+        kind, data, name = "url", url.encode(), url[:200]
     else:
         raise HTTPException(
             status_code=415, detail="send multipart/form-data with 'file' or JSON with 'url'"
@@ -80,7 +90,7 @@ async def create_source(request: Request, user: CurrentUser, notebook_id: UUID) 
         raise HTTPException(status_code=402, detail=CREDIT_EXHAUSTED)
 
     source_id = uuid4()
-    key = object_key(notebook_id, source_id, name)
+    key = object_key(notebook_id, source_id, "url" if kind == "url" else name)
     source = repo.create_source(notebook_id, source_id, name, kind, key)
     try:
         deps.storage.put(key, data, _CONTENT_TYPE[kind])

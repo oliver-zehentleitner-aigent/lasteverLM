@@ -1,8 +1,8 @@
 """Source loaders: turn the raw bytes of a source into text passages.
 
 One loader per source kind, found through `LoaderRegistry`. The registry
-is the extension point for kinds that are not implemented yet (url,
-image): add a loader, register it under its kind, nothing else changes.
+is the extension point for new kinds: add a loader, register it under
+its kind, nothing else changes.
 """
 
 from __future__ import annotations
@@ -16,12 +16,18 @@ __all__ = [
     "LoaderRegistry",
     "Passage",
     "SourceLoader",
+    "TransientLoaderError",
     "default_registry",
 ]
 
 
 class LoaderError(Exception):
     """The source could not be read; the message is shown to the user."""
+
+
+class TransientLoaderError(Exception):
+    """Reading failed in a way that may pass on a later attempt (a
+    timeout, a server error); the message is shown to the user."""
 
 
 class SourceLoader(Protocol):
@@ -46,11 +52,16 @@ class LoaderRegistry:
         return frozenset(self._loaders)
 
 
-def default_registry() -> LoaderRegistry:
+def default_registry(*, max_url_bytes: int = 20 * 1024 * 1024) -> LoaderRegistry:
     from lasteverlm_ingest.loaders.pdf import PdfLoader
     from lasteverlm_ingest.loaders.text import TextLoader
+    from lasteverlm_ingest.loaders.url import Fetcher, UrlLoader
 
+    pdf, text = PdfLoader(), TextLoader()
     registry = LoaderRegistry()
-    registry.register("pdf", PdfLoader())
-    registry.register("text", TextLoader())
+    registry.register("pdf", pdf)
+    registry.register("text", text)
+    registry.register(
+        "url", UrlLoader(fetch=Fetcher(max_bytes=max_url_bytes).fetch, text=text, pdf=pdf)
+    )
     return registry

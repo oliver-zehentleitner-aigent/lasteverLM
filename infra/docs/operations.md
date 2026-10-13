@@ -21,7 +21,7 @@ the bucket is created with curl; nothing else is needed.
 | `DOMAIN`, `ACME_EMAIL` | environment | `make values` / `make deploy` |
 | `LLM_MODEL`, `EMBEDDING_MODEL`, `MODEL_PRICES` (JSON) | environment | `make values` / `make deploy` |
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`) | make variables | `make deploy` |
-| `EMBEDDING_DIMENSION`, `SIMILARITY_FLOOR`, `TTS_MODEL`, `INFERENCE_BASE_URL` | environment, optional | `make values` |
+| `EMBEDDING_DIMENSION`, `SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE` (default `ryan`), `INFERENCE_BASE_URL` | environment, optional | `make values` |
 | `INFERENCE_API_KEY` | environment | `make secrets` |
 | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET`, `SMTP_*` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
 | `DEMO_TOKEN` | environment, for `make smoke` only; the cluster's value is generated, see below | `make smoke` |
@@ -126,7 +126,7 @@ To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 | `lasteverlm-db-admin` | `DATABASE_URL` (admin role, application database) | migration Job only |
 | `lasteverlm-db-bootstrap` | `DATABASE_ADMIN_URL`, `APP_DB_PASSWORD` | bootstrap Job only |
 | ConfigMap `lasteverlm-pg-ca` | `pg-ca.crt` | every pod that opens a database connection, at `/etc/lasteverlm/pg-ca.crt` |
-| `lasteverlm-s3` | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest |
+| `lasteverlm-s3` | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest, rag (audio files) |
 | `lasteverlm-inference` | `INFERENCE_API_KEY` | ingest, rag |
 | `lasteverlm-auth` | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | account, ingest, rag |
 | `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | account |
@@ -163,7 +163,7 @@ Repository secrets for `deploy.yml`: `KUBECONFIG_B64` (the file
 `make kubeconfig` writes, base64), `DEMO_TOKEN` (optional). Repository
 variables: `DOMAIN`, `ACME_EMAIL`, `LLM_MODEL`, `EMBEDDING_MODEL`,
 `MODEL_PRICES`, `S3_ENDPOINT`, optional `EMBEDDING_DIMENSION`,
-`SIMILARITY_FLOOR`, `TTS_MODEL`. The workflow runs `make values` and
+`SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE`. The workflow runs `make values` and
 `make deploy` without a tofu state, which is why `S3_ENDPOINT` is a
 variable there.
 

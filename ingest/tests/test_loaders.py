@@ -66,6 +66,6 @@ def test_pdf_garbage_is_an_error():
 
 def test_registry_kinds_and_unknown_kind():
     registry = default_registry()
-    assert registry.kinds == {"pdf", "text"}
+    assert registry.kinds == {"pdf", "text", "url"}
     with pytest.raises(LoaderError, match="no loader"):
         LoaderRegistry().get("url")

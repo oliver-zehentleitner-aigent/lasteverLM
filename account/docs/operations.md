@@ -47,12 +47,17 @@ choose the address that is hashed.
 ## Retention and cleanup
 
 At every start the service deletes visitor-log rows older than
-`VISIT_RETENTION_DAYS` and expired magic links. Core's tables
-(`access_log`, `ip_blocks`, `ip_bans`) are purged by core's `purge`
-helper, which is not run by this service. There is no background
-scheduler; a deployment that runs for months without a restart keeps
-rows longer than the retention window. Restart the pod, or add a CronJob
-that restarts it, if that matters.
+`VISIT_RETENTION_DAYS`, expired magic links, and — with core's own
+`PURGE_SQL` statements, in one transaction — rows older than
+`RETENTION_DAYS` from the tables core's rate-limit middleware writes:
+`access_log` rows, `ip_blocks` rows not updated since, and `ip_bans`
+rows whose ban was lifted before the cutoff. An active ban is never
+purged. The startup log reports the counts (`retention: core tables: ...`).
+The middleware itself never deletes, and no CronJob does; this service is
+the only owner of that retention. There is no background scheduler, so a
+pod that runs for months without a restart keeps rows longer than the
+window. Restart the pod, or add a CronJob that restarts it, if that
+matters.
 
 ## Local run without PostgreSQL
 

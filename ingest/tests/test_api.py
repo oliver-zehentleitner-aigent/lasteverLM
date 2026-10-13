@@ -100,12 +100,34 @@ def test_unsupported_kind_and_size_limits(client):
     assert r.status_code == 400
 
 
-def test_url_source_is_not_implemented_yet(client):
+def test_url_source_stores_the_url_for_the_worker(client, storage):
     nb = _notebook(client)
-    r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"url": "https://example.org"})
-    assert r.status_code == 501
+    url = "https://example.org/a/page?x=1"
+    r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"url": url})
+    assert r.status_code == 202
+    body = r.json()
+    assert body["kind"] == "url" and body["name"] == url and body["status"] == "processing"
+    assert storage.objects == {f"{nb}/{body['id']}/url": url.encode()}
+
+
+def test_url_source_validation(client, storage):
+    nb = _notebook(client)
+    for bad in ("ftp://example.org/x", "example.org", "https://user:pw@example.org/", "http://"):
+        r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"url": bad})
+        assert r.status_code == 400, bad
     r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"nope": 1})
     assert r.status_code == 422
+    assert storage.objects == {}
+
+
+def test_url_to_an_internal_address_fails_in_the_worker(client, run_queue):
+    nb = _notebook(client)
+    r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"url": "http://127.0.0.1:5432/"})
+    assert r.status_code == 202
+    run_queue()
+    source = client.get(f"/api/ingest/notebooks/{nb}/sources").json()[0]
+    assert source["status"] == "failed"
+    assert "not a public address" in source["error"]
 
 
 def test_no_credit_is_402_before_anything_is_stored(client, repo, storage):
