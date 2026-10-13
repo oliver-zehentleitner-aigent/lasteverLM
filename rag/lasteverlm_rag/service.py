@@ -11,6 +11,8 @@ from __future__ import annotations
 import logging
 import re
 import secrets
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from lasteverlm_core import (
@@ -20,6 +22,7 @@ from lasteverlm_core import (
     ChunkView,
     CompletionResult,
     Embedder,
+    EmbeddingResult,
     Message,
     Output,
     OutputKind,
@@ -234,8 +237,7 @@ class RagService:
         require_credit(self._store, user_id)
         question = question.strip()
 
-        embedded = self._embedder.embed([question])
-        self._store.record_usage(user_id, notebook_id, embedded.usage)
+        embedded = embed_billed(self._store, self._embedder, user_id, notebook_id, [question])
         chunks = self._retrieve(notebook_id, embedded.vectors[0], source_id, selected)
         documents = self._store.notebook_documents(notebook_id)
 
@@ -244,12 +246,15 @@ class RagService:
             # list, so a question about the notebook itself can be answered.
             passages = number_passages(chunks)
             history = self._store.list_messages(conversation_id, last=HISTORY_MESSAGES)
-            completion = self._llm.complete(
+            completion = complete_billed(
+                self._store,
+                self._llm,
+                user_id,
+                notebook_id,
                 answer_system_prompt(documents, selected),
                 render_answer_prompt(question, passages, history),
                 ANSWER_MAX_TOKENS,
             )
-            self._store.record_usage(user_id, notebook_id, completion.usage)
             if not completion.text.strip():
                 # A reasoning model can spend the whole budget on thinking and return no
                 # content; that is a provider failure, never a stored (empty) answer.
@@ -533,8 +538,9 @@ class OutputService:
         if not summaries:
             raise GenerationFailed("the notebook has no ready source")
 
-        embedded = self._embedder.embed([generator.focus_query])
-        self._store.record_usage(user_id, row.notebook_id, embedded.usage)
+        embedded = embed_billed(
+            self._store, self._embedder, user_id, row.notebook_id, [generator.focus_query]
+        )
         chunks = balanced_chunks(
             self._retriever,
             row.notebook_id,
@@ -552,9 +558,16 @@ class OutputService:
             *,
             thinking: bool | None = None,
         ) -> CompletionResult:
-            result = self._llm.complete(system, user, max_tokens, thinking=thinking)
-            self._store.record_usage(user_id, row.notebook_id, result.usage)
-            return result
+            return complete_billed(
+                self._store,
+                self._llm,
+                user_id,
+                row.notebook_id,
+                system,
+                user,
+                max_tokens,
+                thinking=thinking,
+            )
 
         generated = generator.generate(
             complete,
@@ -580,8 +593,9 @@ class OutputService:
         source_id = self._store.create_generated_source(notebook_id, generated.title, summary)
         chunks = self._chunker.chunk_text(generated.index_text)
         if chunks:
-            embedded = self._embedder.embed([c.text for c in chunks])
-            self._store.record_usage(user_id, notebook_id, embedded.usage)
+            embedded = embed_billed(
+                self._store, self._embedder, user_id, notebook_id, [c.text for c in chunks]
+            )
             self._store.insert_chunks(source_id, chunks, embedded.vectors)
         self._store.set_source_status(source_id, "ready")
         return source_id
@@ -662,6 +676,46 @@ def check_sources(store: Store, notebook_id: str, source_ids: list[str] | None) 
         if source_id not in uploads:
             raise InvalidSources(source_id)
     return list(dict.fromkeys(source_ids))
+
+
+@contextmanager
+def _billed_on_failure(store: Store, user_id: str, notebook_id: str | None) -> Iterator[None]:
+    """A provider error raised after the provider answered carries the usage
+    it billed: record it, then let the error propagate."""
+    try:
+        yield
+    except ProviderError as exc:
+        if exc.usage is not None:
+            store.record_usage(user_id, notebook_id, exc.usage)
+        raise
+
+
+def embed_billed(
+    store: Store, embedder: Embedder, user_id: str, notebook_id: str | None, texts: list[str]
+) -> EmbeddingResult:
+    """Embed and write the usage row, also when the call fails after billing."""
+    with _billed_on_failure(store, user_id, notebook_id):
+        result = embedder.embed(texts)
+    store.record_usage(user_id, notebook_id, result.usage)
+    return result
+
+
+def complete_billed(
+    store: Store,
+    llm: LLM,
+    user_id: str,
+    notebook_id: str | None,
+    system: str,
+    user: str,
+    max_tokens: int | None = None,
+    *,
+    thinking: bool | None = None,
+) -> CompletionResult:
+    """Complete and write the usage row, also when the call fails after billing."""
+    with _billed_on_failure(store, user_id, notebook_id):
+        result = llm.complete(system, user, max_tokens, thinking=thinking)
+    store.record_usage(user_id, notebook_id, result.usage)
+    return result
 
 
 def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, Any]:

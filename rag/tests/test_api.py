@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from lasteverlm_core import DEMO_USER_ID, ConfigError, issue_jwt
+from lasteverlm_core import DEMO_USER_ID, ConfigError, ProviderError, Usage, issue_jwt
 
 from lasteverlm_rag.config import Settings
 from lasteverlm_rag.service import REFUSAL
@@ -393,3 +393,30 @@ def test_audio_settings_need_object_storage():
     }
     s = Settings.from_env({**env, **s3, "TTS_VOICE": "serena"})
     assert s.tts_voice == "serena" and s.s3 is not None and s.s3.bucket == "b"
+
+
+def test_a_provider_error_after_billing_still_writes_the_usage_row(settings):
+    class BilledButEmpty(FakeLLM):
+        def complete(self, system, user, max_tokens=None, *, thinking=None):
+            raise ProviderError("empty answer", usage=Usage("llm", "test-llm", 40, 900))
+
+    store = FakeStore()
+    client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), BilledButEmpty())
+    r = client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
+    assert r.status_code == 502
+    assert [(u.kind, u.tokens_in, u.tokens_out) for _, _, u in store.usage] == [
+        ("embedding", 7, 0),
+        ("llm", 40, 900),
+    ]
+    assert store.messages == []
+
+
+def test_a_provider_error_without_a_response_writes_no_usage_row(settings):
+    class Unreachable(FakeLLM):
+        def complete(self, system, user, max_tokens=None, *, thinking=None):
+            raise ProviderError("completion request failed")
+
+    store = FakeStore()
+    client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), Unreachable())
+    client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
+    assert [u.kind for _, _, u in store.usage] == ["embedding"]

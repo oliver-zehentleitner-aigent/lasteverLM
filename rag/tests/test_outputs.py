@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from lasteverlm_core import ProviderError, StorageError
+from lasteverlm_core import ProviderError, StorageError, Usage
 
 from lasteverlm_rag.models import Passage
 from lasteverlm_rag.outputs import registry
@@ -434,3 +434,19 @@ def test_a_failed_cleanup_does_not_mask_the_jobs_error(settings):
     client.worker.run_once()
     # the indexing error is what the row says, not the storage error of the cleanup
     assert store.outputs[output_id]["error"].startswith("internal error")
+
+
+def test_a_generation_billed_but_unusable_is_accounted_and_retried(settings):
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "a.txt", summary="s")
+
+    class BilledButEmpty(FakeLLM):
+        def complete(self, system, user, max_tokens=None, *, thinking=None):
+            raise ProviderError("empty answer", usage=Usage("llm", "test-llm", 300, 4000))
+
+    client = make_client(settings, store, FakeRetriever([]), BilledButEmpty())
+    output_id = client.post(OUTPUTS, json={"kind": "report"}, headers=AUTH).json()["id"]
+    client.worker.run_once()
+    assert store.outputs[output_id]["status"] == "processing"  # released for a retry
+    llm_rows = [(u.tokens_in, u.tokens_out) for _, _, u in store.usage if u.kind == "llm"]
+    assert llm_rows[0] == (300, 4000)
