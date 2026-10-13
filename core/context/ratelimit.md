@@ -111,14 +111,19 @@ telling the admin panel.
 **Status:** active
 **Evidence:** confirmed
 **Source:** the maintainer's decision on the ban retention rule, 2026-10-13
-**Revisit when:** bans need to outlive ninety days (repeat offenders), or the limiter should stop enforcing an expired ban before the next purge
+**Revisit when:** bans need to outlive ninety days (repeat offenders)
 
 A ban holds until an admin lifts it, but at most `BAN_MAX_DAYS` (default
-90). `PURGE_SQL` drops from `ip_bans` every row lifted before the
-retention cutoff (`RETENTION_DAYS`, 30, like `access_log` and
-`ip_blocks`) and every row created before `ban_cutoff`, lifted or not.
-Both cutoffs come from `purge_params`, so the account service, which
-runs the statements at start on its async pool, passes one dict.
+90). The limiter enforces the cap itself: `is_banned(ip, since)` counts
+only an unlifted ban created at or after `now - BAN_MAX_DAYS`, so an
+older ban stops refusing requests at the exact moment it expires. The
+purge is cleanup, not the rule: `PURGE_SQL` drops from `ip_bans` every
+row lifted before the retention cutoff (`RETENTION_DAYS`, 30, like
+`access_log` and `ip_blocks`) and every row created before
+`ban_cutoff`, lifted or not. Both cutoffs come from `purge_params`, so
+the account service, which runs the statements at start on its async
+pool, passes one dict. Until that purge runs, the admin panel's list may
+still show an expired ban.
 
 **Reason:** the architecture's two rules pulled apart for an active ban
 older than the retention period: "until an admin lifts it" would keep a
@@ -134,6 +139,6 @@ without a time limit.
 **Rejected alternative:** bans purged at `RETENTION_DAYS` like the other
 tables. Rejected: thirty days ends a ban too soon for a security measure.
 
-**Known limit:** the limiter does not age a ban itself; a ban past
-`BAN_MAX_DAYS` is enforced until the next purge, which runs when the
-account service starts.
+**Rejected alternative:** the purge alone ends a ban. Rejected because
+the purge runs when the account service starts, so a ban would outlive
+its ninety days by however long the service had been running.
