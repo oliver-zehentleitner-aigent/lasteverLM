@@ -252,7 +252,7 @@ class FakeStore:
     def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str:
         return self.add_source(notebook_id, name, "processing", summary, kind="generated")
 
-    def insert_chunks(self, source_id, notebook_id, chunks, embeddings) -> None:
+    def insert_chunks(self, source_id, chunks, embeddings) -> None:
         assert len(chunks) == len(embeddings)
         self.chunks[source_id] = list(zip(chunks, embeddings, strict=True))
 

@@ -402,7 +402,7 @@ class OutputService:
         if chunks:
             embedded = self._embedder.embed([c.text for c in chunks])
             self._store.record_usage(user_id, notebook_id, embedded.usage)
-            self._store.insert_chunks(source_id, notebook_id, chunks, embedded.vectors)
+            self._store.insert_chunks(source_id, chunks, embedded.vectors)
         self._store.set_source_status(source_id, "ready")
         return source_id
 
