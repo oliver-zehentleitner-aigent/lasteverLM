@@ -13,6 +13,7 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Changed
 
+- Architecture: retention of the rate-limit tables settled by the maintainer — access log, expired blocks and lifted bans go after `RETENTION_DAYS` (30), an active ban survives that purge and falls after `BAN_MAX_DAYS` (90) at the latest; the account service runs the purge at start.
 - Architecture: the audio output contract — `usage.kind` gains `tts` priced per input character, output files live at `<notebook_id>/<output_id>/<name>` in object storage, the stored `{"key"}` is served as a one-hour presigned URL on every read, the object-storage client moves into core, `TTS_VOICE` joins the configuration.
 
 ## [0.1.0] - 2026-10-12
