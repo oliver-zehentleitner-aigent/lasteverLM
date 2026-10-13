@@ -17,6 +17,7 @@ import os
 import signal
 import socket
 import threading
+import time
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -39,6 +40,8 @@ _ERROR_MAX = 500
 CREDIT_EXHAUSTED = "credit exhausted"
 # Family rule: after three attempts a job is failed with its last error.
 MAX_ATTEMPTS = 3
+# The trash is purged at worker start and then once an hour.
+PURGE_EVERY_SECONDS = 3600.0
 
 
 @dataclass(frozen=True)
@@ -181,21 +184,51 @@ def default_worker_id() -> str:
     return f"{socket.gethostname()}:{os.getpid()}"
 
 
+def purge_trash(deps: WorkerDeps) -> int:
+    """Delete the trashed library sources whose owner's retention has
+    elapsed, then their stored objects. Several workers may run it at once:
+    a row is deleted by exactly one of them."""
+    keys = deps.repository.purge_expired()
+    if keys:
+        try:
+            deps.storage.delete(*keys)
+        except StorageError as exc:
+            # The rows are gone; an object left behind is only storage.
+            log.warning("purged %d library source(s), objects not removed: %s", len(keys), exc)
+        log.info("purged %d library source(s) from the trash", len(keys))
+    return len(keys)
+
+
+def _purge(deps: WorkerDeps, every_seconds: float) -> float:
+    """Purge the trash; a failure is logged and waits for the next round.
+    Returns when the next purge is due."""
+    try:
+        purge_trash(deps)
+    except Exception:
+        log.exception("trash purge failed, next try in %.0f s", every_seconds)
+    return time.monotonic() + every_seconds
+
+
 def run_worker(
     deps: WorkerDeps,
     stop: threading.Event,
     *,
     worker_id: str | None = None,
     max_jobs: int | None = None,
+    purge_every_seconds: float = PURGE_EVERY_SECONDS,
 ) -> int:
     """Claim and process sources until `stop` is set (or `max_jobs` were
-    done). Returns the number of processed sources. A job in flight is
-    finished before the loop looks at `stop` again."""
+    done), purging the trash at start and every `purge_every_seconds`.
+    Returns the number of processed sources. A job in flight is finished
+    before the loop looks at `stop` again."""
     worker_id = worker_id or default_worker_id()
     settings = deps.settings
     done = 0
     log.info("worker %s started", worker_id)
+    next_purge = _purge(deps, purge_every_seconds)
     while not stop.is_set() and (max_jobs is None or done < max_jobs):
+        if time.monotonic() >= next_purge:
+            next_purge = _purge(deps, purge_every_seconds)
         source_id = deps.repository.claim_library_source(worker_id, settings.claim_timeout_seconds)
         if source_id is None:
             stop.wait(settings.worker_poll_seconds)

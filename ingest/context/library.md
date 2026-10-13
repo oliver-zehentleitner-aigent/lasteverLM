@@ -40,3 +40,37 @@ spares the API, rag's citations and web a breaking change.
 - Hashing the objects stored before the migration so old files
   deduplicate too: skipped, the demo ends in days and a pre-migration file
   processed once more costs one more embedding run.
+
+## Deleting from the library goes to a trash with per-user retention
+
+**Id:** 2e28a094-0219-4fe7-8d85-e1f9ba20517f
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's request through the fleet lead, 2026-10-13; the retention key agreed with the account service
+**Revisit when:** storage of trashed objects becomes a cost worth a quota, or users ask to empty the trash at once
+
+`DELETE /library/{id}` sets `deleted_at` and removes the entry from every
+notebook; its chunks and stored object stay. It can be restored (into
+no notebook) or purged at once; otherwise the workers purge it when the
+owner's `trash_days` (account's preference, default 14) has elapsed,
+at start and once an hour. Uploading its bytes or URL again restores it,
+so the dedupe key stays unique per user.
+
+**Reason:** deletion was final, and a misclick lost chunks whose
+embeddings and summary cost model calls. The trash makes a delete
+reversible for the cost of keeping rows and objects a while.
+
+The retention is read straight from `users.preferences` in the purge
+query, the way core reads `users.is_admin`: the purge is one batch
+statement over all users, and services do not call each other at
+runtime; the contract with account is the key name and its default.
+
+**Alternatives:**
+- No trash, a confirm dialog only: a confirm protects against the click,
+  not against the second thought a minute later.
+- Reading the retention through account's API: one call per owner per
+  purge and a runtime dependency between services, for a single number.
+- A second library row on re-upload of trashed bytes: two rows with one
+  dedupe key, or a key that is unique only outside the trash; restoring
+  is simpler and saves the processing.

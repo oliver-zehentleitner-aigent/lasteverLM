@@ -53,7 +53,10 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/sources/{id}` | 204 | detach: removes the source from this notebook, it stays in the library |
 | GET | `/library` | 200 | the caller's library, newest first, with where-used |
 | GET | `/library/{id}` | 200 | one library source |
-| DELETE | `/library/{id}` | 204 | removes it from every notebook, its chunks and its stored object |
+| DELETE | `/library/{id}` | 204 | to the trash: removed from every notebook, chunks and stored object kept |
+| GET | `/library/trash` | 200 | the caller's trash, most recently deleted first |
+| POST | `/library/{id}/restore` | 204 | back from the trash into the library, in no notebook |
+| DELETE | `/library/{id}/purge` | 204 | deletes a trashed entry now: chunks and stored object go |
 | GET | `/healthz` | 200 | liveness and readiness probe |
 | GET | `/admin/stats` | 200 | admins only (403 otherwise): counts over all users, see below |
 | GET | `/admin/stats/daily?days=30` | 200 | admins only: library sources created per day, see below |
@@ -70,6 +73,23 @@ library source's. A library entry is
 
 `size_bytes` is null for URLs, `url` is set only for them; an entry in
 no notebook has `"notebooks": []`.
+
+A trash entry is the same without `notebooks`, plus `deleted_at` and
+`purge_at`:
+
+```json
+{"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
+ "size_bytes": 2048, "url": null, "created_at": "…",
+ "deleted_at": "2026-10-13T18:00:00Z", "purge_at": "2026-10-27T18:00:00Z"}
+```
+
+`purge_at` is `deleted_at` plus the owner's `trash_days` (account's
+`users.preferences ->> 'trash_days'`, read directly at query time; absent,
+null or no user row means 14). Every worker purges expired entries at
+start and then once an hour (`PURGE_EVERY_SECONDS`): rows first, then
+their objects. A trashed entry is not processed, cannot be added to a
+notebook (404) and is not in `GET /library`; uploading its bytes or URL
+again restores it and links it, without processing it again.
 
 `GET /admin/stats` answers
 

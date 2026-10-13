@@ -8,7 +8,9 @@ A library source (`library_sources`) is what a user uploaded or entered
 once, processed once, owning the chunks. A source (`sources`) is its link
 into a notebook; the link id is the public source id. Library sources of
 kind `generated` belong to rag's outputs and are never listed: every
-library read goes through `_LISTED`.
+library read goes through `_LISTED`. A deleted library source sits in the
+trash (`deleted_at`, no links, chunks kept) until the owner's retention
+has elapsed and the worker purges it.
 """
 
 from __future__ import annotations
@@ -56,6 +58,7 @@ class LibrarySource(BaseModel):
     summary: str | None = None
     attempts: int = 0
     created_at: datetime
+    deleted_at: datetime | None = None
 
 
 class NotebookUse(BaseModel):
@@ -76,6 +79,21 @@ class LibraryEntry(BaseModel):
     url: str | None
     created_at: datetime
     notebooks: list[NotebookUse]
+
+
+class TrashEntry(BaseModel):
+    """`GET /library/trash`: a deleted library source and when it goes."""
+
+    id: UUID
+    name: str
+    kind: str
+    status: str
+    error: str | None
+    size_bytes: int | None
+    url: str | None
+    created_at: datetime
+    deleted_at: datetime
+    purge_at: datetime
 
 
 class NewLibrarySource(BaseModel):
@@ -133,9 +151,25 @@ class Repository(Protocol):
 
     def get_library_entry(self, owner: UUID, library_id: UUID) -> LibraryEntry | None: ...
 
-    def delete_library_source(self, owner: UUID, library_id: UUID) -> str | None:
-        """Delete from the library and every notebook (links and chunks
-        cascade); returns the storage key so the caller removes the object."""
+    def trash_library_source(self, owner: UUID, library_id: UUID) -> bool:
+        """Move to the trash: `deleted_at` set, removed from every notebook,
+        chunks and object kept. False when there is no such active entry."""
+        ...
+
+    def list_trash(self, owner: UUID) -> list[TrashEntry]: ...
+
+    def restore_library_source(self, owner: UUID, library_id: UUID) -> bool:
+        """Back from the trash into the library (in no notebook)."""
+        ...
+
+    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, str | None]:
+        """Delete a trashed entry now (chunks cascade); returns whether it
+        was in the trash and its storage key for the caller to remove."""
+        ...
+
+    def purge_expired(self) -> list[str]:
+        """Delete every trashed entry whose owner's retention has elapsed;
+        returns their storage keys."""
         ...
 
     # -- the worker ---------------------------------------------------------
@@ -154,7 +188,7 @@ class Repository(Protocol):
         """Claim one unprocessed library source for this worker and return
         its id, or None when the queue is empty. A claim older than
         `stale_after_seconds` counts as unprocessed again (its worker died).
-        Generated rows are rag's and never claimed."""
+        Generated rows are rag's and never claimed; trashed ones wait."""
         ...
 
     def set_library_summary(self, library_id: UUID, summary: str) -> None: ...
@@ -356,7 +390,16 @@ class PostgresRepository:
     _LISTED = "l.kind <> 'generated'"
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
-        "l.status, l.error, l.summary, l.attempts, l.created_at"
+        "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at"
+    )
+    # Library sources in the library (not in the trash).
+    _ACTIVE = f"{_LISTED} and l.deleted_at is null"
+    # Days a deleted entry stays in the trash: account's per-user preference,
+    # read like core reads users.is_admin; 14 without a user row or a number.
+    _TRASH_DAYS = (
+        "greatest(0, coalesce((select case when jsonb_typeof(u.preferences -> 'trash_days')"
+        " = 'number' then floor((u.preferences ->> 'trash_days')::numeric)::int end"
+        " from users u where u.id = l.owner), 14))"
     )
 
     def find_library_source(self, owner: UUID, dedupe_key: str) -> LibrarySource | None:
@@ -404,7 +447,7 @@ class PostgresRepository:
       from library_sources l
       left join sources s on s.library_source_id = l.id
       left join notebooks n on n.id = s.notebook_id
-     where l.owner = %(owner)s and {_LISTED} {{where}}
+     where l.owner = %(owner)s and {_ACTIVE} {{where}}
      group by l.id
      order by l.created_at desc, l.id
     """
@@ -420,13 +463,54 @@ class PostgresRepository:
         )
         return LibraryEntry(**row) if row else None
 
-    def delete_library_source(self, owner: UUID, library_id: UUID) -> str | None:
+    def trash_library_source(self, owner: UUID, library_id: UUID) -> bool:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                f"update library_sources l set deleted_at = now() "
+                f"where l.id = %(id)s and l.owner = %(owner)s and {self._ACTIVE}",
+                {"id": library_id, "owner": owner},
+            )
+            if cur.rowcount == 0:
+                return False
+            cur.execute("delete from sources where library_source_id = %(id)s", {"id": library_id})
+            return True
+
+    def list_trash(self, owner: UUID) -> list[TrashEntry]:
+        rows = self._all(
+            f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
+            f"l.deleted_at, l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
+            f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
+            f"and l.deleted_at is not null order by l.deleted_at desc, l.id",
+            {"owner": owner},
+        )
+        return [TrashEntry(**row) for row in rows]
+
+    def restore_library_source(self, owner: UUID, library_id: UUID) -> bool:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                f"update library_sources l set deleted_at = null "
+                f"where l.id = %(id)s and l.owner = %(owner)s and {self._LISTED} "
+                f"and l.deleted_at is not null",
+                {"id": library_id, "owner": owner},
+            )
+            return cur.rowcount > 0
+
+    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, str | None]:
         row = self._one(
             f"delete from library_sources l where l.id = %(id)s and l.owner = %(owner)s "
-            f"and {self._LISTED} returning l.storage_path",
+            f"and {self._LISTED} and l.deleted_at is not null returning l.storage_path",
             {"id": library_id, "owner": owner},
         )
-        return row["storage_path"] if row else None
+        return (row is not None, row["storage_path"] if row else None)
+
+    def purge_expired(self) -> list[str]:
+        rows = self._all(
+            f"delete from library_sources l where {self._LISTED} and l.deleted_at is not null "
+            f"and l.deleted_at + make_interval(days => {self._TRASH_DAYS}) <= now() "
+            f"returning l.storage_path",
+            {},
+        )
+        return [row["storage_path"] for row in rows if row["storage_path"]]
 
     # -- the worker ------------------------------------------------------------
 
@@ -462,7 +546,7 @@ class PostgresRepository:
        set claimed_at = now(), claimed_by = %(worker)s, attempts = attempts + 1
      where id = (
         select id from library_sources
-         where status = 'processing' and kind <> 'generated'
+         where status = 'processing' and kind <> 'generated' and deleted_at is null
            and (claimed_at is null or claimed_at < now() - make_interval(secs => %(stale)s))
          order by created_at
          for update skip locked
