@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `VOUCHER_DEFAULT_CENTS` in the ConfigMap (`config.voucherDefaultCents`, default 1000 as in account); production sets 500 (5 EUR).
+
 ## [0.2.1] - 2026-10-13
 
 ### Changed

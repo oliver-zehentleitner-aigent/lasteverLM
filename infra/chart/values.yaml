@@ -24,6 +24,7 @@ config:
   ttsVoice: ryan        # rag audio voice; the platform does not take the OpenAI names
   s3Endpoint: ""        # from `make secrets` / tofu outputs, or set here
   s3Bucket: lasteverlm-sources
+  voucherDefaultCents: 1000   # account: credit of a new voucher, in cents
 
 ingress:
   className: nginx

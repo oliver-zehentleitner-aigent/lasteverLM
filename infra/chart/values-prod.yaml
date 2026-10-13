@@ -18,5 +18,7 @@ config:
   similarityFloor: ""
   ttsModel: qwen3-tts-12hz-1.7b
   ttsVoice: ryan
+  # Credit of a new voucher in cents: 5 EUR.
+  voucherDefaultCents: 500
   # Vultr Object Storage, region ams1 (tofu output s3_endpoint).
   s3Endpoint: https://ams1.vultrobjects.com
