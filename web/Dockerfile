@@ -11,9 +11,9 @@ ARG API_BASE_URL=""
 ARG VITE_ADMIN_MOCK="false"
 ENV API_BASE_URL=$API_BASE_URL VITE_ADMIN_MOCK=$VITE_ADMIN_MOCK
 RUN npm run build
-# CSP: off (frame-ancestors only), report (full policy, Report-Only) or
-# enforce; the inline script's hash comes from this build's index.html
-ARG CSP="off"
+# CSP: enforce (the default), report (full policy, Report-Only) or off
+# (frame-ancestors only); the inline script's hash comes from this build's index.html
+ARG CSP="enforce"
 ARG CSP_MEDIA_SRC="https:"
 RUN node scripts/csp.mjs dist/index.html "$CSP" "$CSP_MEDIA_SRC" > /app/csp.conf
 

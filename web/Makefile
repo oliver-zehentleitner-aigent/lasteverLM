@@ -26,7 +26,7 @@ build: install
 	npm run build
 
 image:
-	cd .. && docker build -f web/Dockerfile --build-arg API_BASE_URL="$(API_BASE_URL)" --build-arg CSP="$(or $(CSP),off)" -t lasteverlm-web .
+	cd .. && docker build -f web/Dockerfile --build-arg API_BASE_URL="$(API_BASE_URL)" --build-arg CSP="$(or $(CSP),enforce)" -t lasteverlm-web .
 
 # Reachability of a deployment through its ingress: web and the three API
 # prefixes answer /healthz. No browser, nothing written. make e2e URL=https://host

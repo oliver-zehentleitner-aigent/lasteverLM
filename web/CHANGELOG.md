@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Source selection: a checkbox per source (all ticked by default, "all / none" in the header), remembered per notebook in this browser; the chat shows "3 of 5 sources" above the question and sends `source_ids`, Create sends them with the new document, and the outputs list and the viewer show "from 3 sources" with the names as tooltip (`Output.options.sources`). With none ticked, asking and Create are blocked with a hint.
-- Content-Security-Policy behind an image build switch: `CSP=off` (the default, `frame-ancestors` only as before), `report` (the full policy as Report-Only) or `enforce`; `scripts/csp.mjs` writes the nginx line with the sha256 of the inline theme script taken from the built `index.html`, so the hash cannot drift, and adds `API_BASE_URL`'s origin to `connect-src`.
+- Content-Security-Policy: the full policy is enforced (`default-src 'self'`, the inline theme script by hash, no inline scripts otherwise, `object-src 'none'`, `base-uri 'none'`), after a clean headless-browser run of the report mode against the live API; the image build arg `CSP` picks `enforce` (default), `report` (Report-Only) or `off` (`frame-ancestors` only, as before); `scripts/csp.mjs` writes the nginx line with the sha256 of the inline theme script taken from the built `index.html`, so the hash cannot drift, and adds `API_BASE_URL`'s origin to `connect-src`.
 
 ### Changed
 

@@ -36,7 +36,7 @@ Build-time only; the app holds no secrets.
 | `API_BASE_URL` | build | base URL of the API gateway; empty means same origin, the deployed case |
 | `VITE_ADMIN_MOCK` | build | `true` runs the admin page against an in-memory mock |
 | `VITE_DEV_PROXY` | dev server | forwards `/api/*` to this target so the app runs same-origin locally |
-| `CSP` | image build | `off` (default: `frame-ancestors 'none'` only), `report` (the full policy as `Content-Security-Policy-Report-Only`: the browser lists what it would block, blocks nothing) or `enforce`; written by `scripts/csp.mjs` with the sha256 of the inline theme script taken from the built `index.html` |
+| `CSP` | image build | `enforce` (default: the full policy), `report` (the full policy as `Content-Security-Policy-Report-Only`: the browser lists what it would block, blocks nothing) or `off` (`frame-ancestors 'none'` only); written by `scripts/csp.mjs` with the sha256 of the inline theme script taken from the built `index.html` |
 | `CSP_MEDIA_SRC` | image build | where images and audio may load from besides the app (presigned object-storage URLs); default `https:` |
 
 ## Run locally
@@ -74,7 +74,7 @@ ingress; it opens no browser and writes nothing.
 make build                                   # dist/
 make image API_BASE_URL=                     # = docker build -f web/Dockerfile . from the repository root
 docker run --rm -p 8080:8080 lasteverlm-web  # GET /healthz -> {"status":"ok"}
-docker build -f web/Dockerfile --build-arg CSP=report .   # the full policy, report only
+docker build -f web/Dockerfile --build-arg CSP=report .   # the full policy, report only (check: make web-csp-check in infra/)
 ```
 
 The image serves `dist/` with nginx as a non-root user on port 8080;
