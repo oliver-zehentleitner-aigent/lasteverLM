@@ -73,7 +73,7 @@ Roles are `"user" | "viewer" | "admin"` from account's `users.role`
 (`admin_role` / `aadmin_role`; no row means "user"). `admin_read`
 admits viewers and admins and is what every admin GET uses. `admin_only`
 is unchanged and admits admins only, for everything that changes
-something. `users.is_admin` stays, derived as `role = 'admin'`. A viewer
+something. `users.is_admin` stays, and account writes it together with the role, always `role = 'admin'`. A viewer
 has no other privilege: credit and the services treat it as a user.
 
 **Reason:** the two names say at the route what the route allows, and the
