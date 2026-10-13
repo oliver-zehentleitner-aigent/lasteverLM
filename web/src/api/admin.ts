@@ -6,6 +6,7 @@ import type {
   AccountStats,
   AccountUsage,
   AdminUser,
+  UserRole,
   LoginAttempt,
   AllowKind,
   Allowlist,
@@ -49,6 +50,8 @@ export interface AdminApi {
   getAllowlist(): Promise<Allowlist>
   /** one entry at a time; the server normalizes it and returns both lists */
   addAllowed(kind: AllowKind, value: string): Promise<Allowlist>
+  /** admin only; 409 for the last admin or the demo user */
+  setRole(userId: string, role: UserRole): Promise<AdminUser>
   removeAllowed(kind: AllowKind, value: string): Promise<void>
   /** Codes are shown once; the server stores only their hashes. */
   createVouchers(amountCents: number, count: number): Promise<string[]>
@@ -68,7 +71,9 @@ export interface AdminApi {
 }
 
 const A = `${ACCOUNT_PREFIX}/admin`
-const ALLOW_PATH: Record<AllowKind, string> = { domain: 'domains', address: 'addresses' }
+const ALLOW_PATH: Record<AllowKind, string> = { domain: 'domains', address: 'addresses', viewer: 'viewer-domains' }
+// the body names the value: {"domain"} for both domain lists, {"address"} for addresses
+const ALLOW_FIELD: Record<AllowKind, string> = { domain: 'domain', address: 'address', viewer: 'domain' }
 
 const httpAdmin: AdminApi = {
   accountStats: () => request<AccountStats>(`${A}/stats`),
@@ -79,6 +84,7 @@ const httpAdmin: AdminApi = {
   ingestDaily: (days) => request<{ days: IngestDay[] }>(`${INGEST_PREFIX}/admin/stats/daily?days=${days}`).then((r) => r.days),
   ragDaily: (days) => request<{ days: RagDay[] }>(`${RAG_PREFIX}/admin/stats/daily?days=${days}`).then((r) => r.days),
   listUsers: () => request<AdminUser[]>(`${A}/users`),
+  setRole: (userId, role) => request<AdminUser>(`${A}/users/${encodeURIComponent(userId)}`, { method: 'PATCH', json: { role } }),
   listLogins: (limit) => request<LoginEvent[]>(`${A}/logins?limit=${limit}`),
   listLoginAttempts: (limit) => request<LoginAttempt[]>(`${A}/login-attempts?limit=${limit}`),
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
@@ -87,7 +93,7 @@ const httpAdmin: AdminApi = {
   testSmtp: () => request<{ sent_to: string }>(`${A}/settings/smtp/test`, { method: 'POST' }),
   getAllowlist: () => request<Allowlist>(`${A}/settings/allowlist`),
   addAllowed: (kind, value) =>
-    request<Allowlist>(`${A}/settings/${ALLOW_PATH[kind]}`, { method: 'POST', json: { [kind]: value } }),
+    request<Allowlist>(`${A}/settings/${ALLOW_PATH[kind]}`, { method: 'POST', json: { [ALLOW_FIELD[kind]]: value } }),
   removeAllowed: (kind, value) =>
     request<void>(`${A}/settings/${ALLOW_PATH[kind]}/${encodeURIComponent(value)}`, { method: 'DELETE' }),
   createVouchers: (amount_cents, count) =>
@@ -124,9 +130,9 @@ function mockDays<T>(days: number, make: (i: number, wobble: (scale: number) => 
 function mockAdmin(): AdminApi {
   const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150))
   const users: AdminUser[] = [
-    { id: 'u1', email: 'admin@example.org', is_admin: true, balance_cents: 1250, usage_cents: 310, granted_cents: 1560, created_at: '2026-10-01T10:00:00Z', last_login_at: '2026-10-12T18:02:00Z' },
-    { id: 'u2', email: 'reader@example.org', is_admin: false, balance_cents: 0, usage_cents: 1000, granted_cents: 1000, created_at: '2026-10-05T08:00:00Z', last_login_at: '2026-10-11T09:40:00Z' },
-    { id: 'u3', email: 'new@example.org', is_admin: false, balance_cents: 1000, usage_cents: 0, granted_cents: 1000, created_at: '2026-10-12T17:00:00Z', last_login_at: null },
+    { id: 'u1', email: 'admin@example.org', is_admin: true, role: 'admin', balance_cents: 1250, usage_cents: 310, granted_cents: 1560, created_at: '2026-10-01T10:00:00Z', last_login_at: '2026-10-12T18:02:00Z' },
+    { id: 'u2', email: 'reader@example.org', is_admin: false, role: 'viewer', balance_cents: 0, usage_cents: 1000, granted_cents: 1000, created_at: '2026-10-05T08:00:00Z', last_login_at: '2026-10-11T09:40:00Z' },
+    { id: 'u3', email: 'new@example.org', is_admin: false, role: 'user', balance_cents: 1000, usage_cents: 0, granted_cents: 1000, created_at: '2026-10-12T17:00:00Z', last_login_at: null },
   ]
   const logins: LoginEvent[] = [
     { user_id: 'u1', email: 'admin@example.org', at: '2026-10-12T18:02:00Z' },
@@ -154,8 +160,8 @@ function mockAdmin(): AdminApi {
   const RULE_DEFAULTS: RateLimitRules = { per_minute: 120, block_minutes: 15, ban_after_strikes: 3, strike_window_hours: 24, ban_max_days: 90, retention_days: 30 }
   let rules = { ...RULE_DEFAULTS }
   const smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
-  let allow: Allowlist = { allowed_domains: ['example.org'], allowed_addresses: ['guest@partner.test'] }
-  const listKey = (kind: AllowKind) => (kind === 'domain' ? 'allowed_domains' : 'allowed_addresses')
+  let allow: Required<Allowlist> = { allowed_domains: ['example.org', 'review.example.org'], allowed_addresses: ['guest@partner.test'], viewer_domains: ['review.example.org'] }
+  const listKey = (kind: AllowKind) => (kind === 'domain' ? 'allowed_domains' : kind === 'viewer' ? 'viewer_domains' : 'allowed_addresses')
   let vouchers: Voucher[] = [
     { id: 'v2', amount_cents: 500, created_by: 'admin@example.org', created_at: '2026-10-12T17:30:00Z', redeemed_by: null, redeemed_at: null, status: 'open' },
     { id: 'v1', amount_cents: 1000, created_by: 'admin@example.org', created_at: '2026-10-10T09:00:00Z', redeemed_by: 'reader@example.org', redeemed_at: '2026-10-11T09:45:00Z', status: 'redeemed' },
@@ -220,6 +226,13 @@ function mockAdmin(): AdminApi {
         }),
       ),
     listUsers: () => delay([...users]),
+    setRole: (userId, role) => {
+      const u = users.find((x) => x.id === userId)
+      if (!u) return Promise.reject(new Error('unknown user'))
+      if (u.role === 'admin' && role !== 'admin' && users.filter((x) => x.role === 'admin').length === 1) return Promise.reject(new Error('the last admin cannot be demoted'))
+      Object.assign(u, { role, is_admin: role === 'admin' })
+      return delay({ ...u })
+    },
     listLogins: (limit) => delay(logins.slice(0, limit)),
     listLoginAttempts: (limit) => delay(attempts.slice(0, limit)),
     listVisits: () => delay([...visits]),

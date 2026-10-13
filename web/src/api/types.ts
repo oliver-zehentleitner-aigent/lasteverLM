@@ -209,10 +209,16 @@ export interface Preferences {
   theme?: 'system' | 'light' | 'dark' | null
 }
 
+/** user: the app only; viewer: reads the admin panel; admin: everything */
+export type UserRole = 'user' | 'viewer' | 'admin'
+
 export interface User {
   id: string
   email: string
+  /** equals role === 'admin' */
   is_admin: boolean
+  /** absent from an account service that predates roles */
+  role?: UserRole
   balance_cents: number
   created_at: string
   /** absent from services that predate preferences */
@@ -292,9 +298,13 @@ export interface AccessEntry {
 export interface Allowlist {
   allowed_domains: string[]
   allowed_addresses: string[]
+  /** a user from one of these (also allowed to sign in) starts as viewer;
+   *  absent from an account service that predates roles */
+  viewer_domains?: string[]
 }
 
-export type AllowKind = 'domain' | 'address'
+/** domain and address: who may sign in; viewer: domains whose new users are viewers */
+export type AllowKind = 'domain' | 'address' | 'viewer'
 
 // admin overview: one stats endpoint per service, every key always present
 

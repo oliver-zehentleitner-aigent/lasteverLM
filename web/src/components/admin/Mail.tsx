@@ -3,12 +3,14 @@ import { admin } from '../../api/admin'
 import type { Smtp } from '../../api/types'
 import { useAsync } from '../../hooks/useAsync'
 import { t } from '../../i18n'
+import { useCanWrite } from './canWrite'
 import { Section } from './shared'
 import { useLoad } from '../../hooks/useLoad'
 
 export function SmtpSettings() {
   const { data, error: loadError } = useLoad<Smtp | null>(admin.getSmtp, null)
   const { busy, error, run } = useAsync()
+  const canWrite = useCanWrite()
   const [sentTo, setSentTo] = useState<string | null>(null)
   const configured = data !== null && data.host !== ''
 
@@ -40,7 +42,7 @@ export function SmtpSettings() {
       {(loadError ?? error) && <p className="error">{loadError ?? error}</p>}
       {sentTo && <p className="muted">{t('adm.smtp.queued', { to: sentTo })}</p>}
       <div className="row">
-        <button type="button" className="secondary" disabled={busy || !configured} onClick={() => void test()}>
+        <button type="button" className="secondary" disabled={busy || !configured || !canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')} onClick={() => void test()}>
           {t('adm.smtp.test')}
         </button>
       </div>

@@ -5,6 +5,7 @@ import { useAsync } from '../../hooks/useAsync'
 import { formatTime } from '../../lib/format'
 import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
 import { t } from '../../i18n'
+import { useCanWrite } from './canWrite'
 import { Section, Table } from './shared'
 import { useLoad } from '../../hooks/useLoad'
 
@@ -27,6 +28,8 @@ export function RateLimit() {
   const [invalid, setInvalid] = useState<string | null>(null)
 
   const values = form ?? (data ? toForm(data) : null)
+
+  const canWrite = useCanWrite()
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -72,6 +75,7 @@ export function RateLimit() {
       )}
       {values && (
         <form className="grid2" onSubmit={save}>
+          <fieldset className="plain grid2 span2" disabled={!canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')}>
           {RULE_FIELDS.map((f) => (
             <label key={f.key}>
               {f.label()}
@@ -94,6 +98,7 @@ export function RateLimit() {
               {t('adm.rl.save')}
             </button>
           </div>
+          </fieldset>
           <p className="muted small">{t('adm.rl.applies')}</p>
         </form>
       )}
@@ -129,6 +134,8 @@ export function Bans() {
   const load = useCallback(() => admin.listBans(includeLifted), [includeLifted])
   const { data, setData, busy, error, run } = useLoad<Ban[]>(load, [])
 
+  const canWrite = useCanWrite()
+
   async function lift(ip: string) {
     if (!confirm(t('adm.liftConfirm', { ip }))) return
     const ok = await run(async () => {
@@ -153,7 +160,7 @@ export function Bans() {
           formatTime(b.created_at),
           b.lifted_at ? formatTime(b.lifted_at) : '',
           b.lifted_at ? '' : (
-            <button key="lift" type="button" className="link" disabled={busy} onClick={() => void lift(b.ip)}>
+            <button key="lift" type="button" className="link" disabled={busy || !canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')} onClick={() => void lift(b.ip)}>
               {t('adm.lift')}
             </button>
           ),

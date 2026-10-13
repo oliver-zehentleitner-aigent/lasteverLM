@@ -5,6 +5,7 @@ import { CopyButton } from '../CopyButton'
 import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
 import { t } from '../../i18n'
+import { useCanWrite } from './canWrite'
 import { Section, Table } from './shared'
 import { useLoad } from '../../hooks/useLoad'
 
@@ -16,6 +17,7 @@ export function Vouchers() {
   const [codes, setCodes] = useState<string[]>([])
   const [listVersion, setListVersion] = useState(0)
   const { busy, error, run } = useAsync()
+  const canWrite = useCanWrite()
 
   async function create(e: FormEvent) {
     e.preventDefault()
@@ -33,6 +35,7 @@ export function Vouchers() {
     <Section title={t('adm.vouchers')}>
       <div className="voucher-create">
         <form className="row" onSubmit={create}>
+          <fieldset className="plain row" disabled={!canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')}>
           <label>
             {t('adm.amountEur')}
             <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -44,6 +47,7 @@ export function Vouchers() {
           <button type="submit" disabled={busy}>
             {t('adm.create')}
           </button>
+          </fieldset>
         </form>
         {codes.length > 0 && <VoucherCodes codes={codes} />}
       </div>
@@ -88,6 +92,7 @@ const loadVouchers = () => admin.listVouchers(VOUCHER_LIMIT)
 function VoucherList() {
   const { data, setData, error } = useLoad<Voucher[]>(loadVouchers, [])
   const { busy, error: actionError, run } = useAsync()
+  const canWrite = useCanWrite()
 
   async function remove(v: Voucher) {
     if (!confirm(t('adm.voucherDeleteConfirm', { amount: formatCents(v.amount_cents) }))) return
@@ -121,7 +126,7 @@ function VoucherList() {
           v.redeemed_by ?? '—',
           v.redeemed_at ? formatTime(v.redeemed_at) : '—',
           v.status === 'open' ? (
-            <button key="delete" type="button" className="link danger" disabled={busy} onClick={() => void remove(v)}>
+            <button key="delete" type="button" className="link danger" disabled={busy || !canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')} onClick={() => void remove(v)}>
               {t('common.delete')}
             </button>
           ) : (
