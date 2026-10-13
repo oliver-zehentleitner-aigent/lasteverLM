@@ -70,7 +70,7 @@ repository root's `context/`.
 
 ## U
 
-- [url-sources.md](url-sources.md) — why the worker fetches URLs through a guard that connects to public addresses only
+- [url-sources.md](url-sources.md) — why the worker fetches URLs through a guard that connects to public addresses only, and why HTML text comes from the standard library parser
 
 ## V
 

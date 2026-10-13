@@ -34,3 +34,33 @@ use the existing retry classification.
   second layer, not instead.
 - Check the URL's host before fetching with a normal HTTP client: the
   client resolves again on connect, which is exactly the rebinding gap.
+
+## Web page text comes from the standard library's HTML parser
+
+**Id:** fbe8d9da-997c-4867-8c93-4e3d9e5f98f2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** service author's implementation decision, 2026-10-13; maintainer review in the pull request
+**Revisit when:** users report pages whose text arrives with menus, cookie banners or comments mixed in, or pages that render their content with JavaScript
+
+The HTML loader is a small `html.parser` subclass: it drops scripts,
+styles and page chrome (nav, header, footer, aside, forms), keeps only
+`<main>`/`<article>` when the page marks its content that way, and
+leads with the page title.
+
+**Reason:** no new dependency in an image that already carries the
+fetch path of untrusted input, and behaviour that fits on one screen
+and is fully tested. Pages that use semantic markup — most current
+sites, Wikipedia included — come out clean; on the first live check the
+German Wikipedia article on Vienna came out as article text without
+navigation.
+
+**Alternatives:**
+- An article-extraction library (trafilatura or a readability port):
+  better on old table layouts and comment sections, but several
+  transitive packages (lxml, date and URL parsers) to keep patched for
+  a gain the current pages do not need. The first candidate if the
+  revisit condition fires.
+- A headless browser for JavaScript-rendered pages: a browser in the
+  worker image is the wrong weight for this step.
