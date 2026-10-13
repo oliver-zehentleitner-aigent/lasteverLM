@@ -58,8 +58,8 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/library/{id}/restore` | 204 | back from the trash into the library, in no notebook |
 | DELETE | `/library/{id}/purge` | 204 | deletes a trashed entry now: chunks and stored object go |
 | GET | `/healthz` | 200 | liveness and readiness probe: core's `Health`, `{"status": "ok", "version", "commit"}` from `APP_VERSION`/`APP_COMMIT` (`"unknown"` when unset) |
-| GET | `/admin/stats` | 200 | admins only (403 otherwise): counts over all users, see below |
-| GET | `/admin/stats/daily?days=30` | 200 | admins only: library sources created per day, see below |
+| GET | `/admin/stats` | 200 | viewers and admins (core's `admin_read`; 403 `admin only` otherwise): counts over all users, see below |
+| GET | `/admin/stats/daily?days=30` | 200 | viewers and admins: library sources created per day, see below |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
 "created_at", "library_id", "capture", "demo", "preview_url"}`; name,

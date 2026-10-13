@@ -353,7 +353,6 @@ def test_claim_seed_only_once_and_only_for_an_empty_library(repo):
 def test_credit_and_usage(repo):
     rich, broke = _user(repo), _user(repo, cents=0)
     assert repo.has_credit(rich) and not repo.has_credit(broke)
-    assert not repo.is_admin(rich)
     record = repo.record_usage(rich, None, "llm", "llm", 1000, 1000)
     assert record.cost_cents > 0
 

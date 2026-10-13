@@ -62,7 +62,7 @@ embeddings and summary cost model calls. The trash makes a delete
 reversible for the cost of keeping rows and objects a while.
 
 The retention is read straight from `users.preferences` in the purge
-query, the way core reads `users.is_admin`: the purge is one batch
+query, the way core reads a user's role: the purge is one batch
 statement over all users, and services do not call each other at
 runtime; the contract with account is the key name and its default.
 

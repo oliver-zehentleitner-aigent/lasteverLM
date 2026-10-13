@@ -59,6 +59,7 @@ class InMemoryRepository:
         self.refreshed: list[UUID] = []
         self.default_balance = balance
         self.admins: set[UUID] = set()
+        self.viewers: set[UUID] = set()
         # account's users.preferences -> 'trash_days'; missing means 14
         self.trash_days: dict[UUID, int] = {}
         self.seeded: set[UUID] = set()
@@ -366,8 +367,10 @@ class InMemoryRepository:
         # core's rule: a positive balance, for every user alike (admins too).
         return self.balance_cents(user_id) > 0
 
-    def is_admin(self, user_id: UUID) -> bool:
-        return user_id in self.admins
+    def admin_role(self, user_id: UUID) -> str:
+        if user_id in self.admins:
+            return "admin"
+        return "viewer" if user_id in self.viewers else "user"
 
     def admin_stats(self, stale_after_seconds: int) -> AdminStats:
         listed = [lib for lib in self.library.values() if self._listed(lib)]

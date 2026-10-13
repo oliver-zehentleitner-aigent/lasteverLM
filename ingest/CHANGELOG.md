@@ -16,6 +16,7 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- `GET /admin/stats` and `GET /admin/stats/daily` admit viewers as well as admins (core's `admin_read` over `admin_role`): read-only admin access for reviewers. A viewer is an ordinary user everywhere else in ingest. Needs account's `users.role` column.
 - mypy runs in strict mode; the last `type: ignore` comments are gone (`record_usage` takes core's `UsageKind`, `ensure_seeded` core's `Storage`).
 - Dedupe keys are built in one place (`dedupe.py`) for uploads and the demo seeds.
 - PDFs of more than 2000 pages fail in every capture mode, also behind a URL, before any page is read ("PDF has N pages; at most 2000 are read"); the text layer of every page used to be extracted however many there were.

@@ -85,3 +85,12 @@ def test_daily_stats_every_day_oldest_first(client, repo):
     assert len(client.get("/api/ingest/admin/stats/daily").json()["days"]) == 30
     for bad in (0, 366, "x"):
         assert client.get(f"/api/ingest/admin/stats/daily?days={bad}").status_code == 422
+
+
+def test_viewers_read_the_stats_like_admins(client, repo):
+    """Read-only admin access: both stats endpoints admit viewers."""
+    for path in ("/api/ingest/admin/stats", "/api/ingest/admin/stats/daily?days=2"):
+        assert client.get(path).status_code == 403
+    repo.viewers.add(DEMO_USER_ID)
+    assert client.get("/api/ingest/admin/stats").json()["sources"]["ready"] == 0
+    assert len(client.get("/api/ingest/admin/stats/daily?days=2").json()["days"]) == 2
