@@ -57,3 +57,42 @@ oversight.
 **Rejected alternative:** Fernet encryption with a key from
 `AUTH_JWT_SECRET` — rejected because it reuses the session-token secret
 for a second purpose, so a leak of either exposes both.
+
+## The mail configuration comes from the environment only, shown read-only in the admin panel
+
+**Id:** 3a1628c3-2a18-4df6-a184-b5b03b26a74f
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-13
+**See:** admin-settings.md#the-smtp-password-is-stored-in-plain-text-in-the-settings-table — c132f8c9-0be7-4b06-a237-95c956521825 — as of 2026-10-13
+**Revisit when:** a monitoring that mails without the database is built (it must read the same `SMTP_*`), or the family introduces a secrets backend other than Kubernetes Secrets
+
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
+`SMTP_FROM_ADDRESS` and `SMTP_STARTTLS` are read once at start into
+`Settings.smtp`; the mailer uses that object. `GET /admin/settings/smtp`
+returns host, port, username, from address and starttls so an admin sees
+what is in effect, never the password; `PUT /admin/settings/smtp` no
+longer exists. The `settings` table holds no SMTP row; a row left from
+the time the admin panel stored it is deleted at every start.
+`AUTH_ALLOWED_DOMAINS` and `ADMIN_EMAILS` are untouched by this.
+
+**Reason:** two. Every other secret of the family lives in a Kubernetes
+Secret; the admin-entered SMTP password in `jsonb` was the one exception
+and needed a workaround entry of its own to explain why it was tolerable.
+And a later monitoring that mails when the database is unreachable needs
+the whole mail configuration without the database — a configuration
+stored *in* the database cannot serve that case by definition. Reading
+it from the environment removes the exception and keeps the door open
+for the monitoring, which is not built now.
+
+**Rejected alternative:** password in the Secret, the rest (host, port,
+user, from, starttls) still editable in the database — rejected because
+the monitoring mail needs all of it, not only the password, and a
+configuration split over two places needs a rule for which wins (the
+same problem the seed-once rule solved for the allowlist).
+
+**Consequence:** changing the mail server means changing the Secret and
+restarting the pods; the panel cannot do it. The seed names stay as they
+were, so `lasteverlm-smtp-seed` keeps its name although nothing is seeded
+any more.
