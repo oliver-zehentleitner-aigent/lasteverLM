@@ -46,7 +46,7 @@ Rules that hold everywhere:
 - **Services share the database, never each other's APIs.** The schema is the contract between them. There are no service-to-service HTTP calls.
 - **Every stage is an interface with one implementation.** New source kinds, chunkers, embedding or LLM providers, retrievers are added as modules, never by editing callers.
 - **Configuration from the environment only.** A service fails at startup when a required value is missing. Secrets never enter a repository.
-- **Every model call is accounted.** One `usage` row per LLM or embedding call, priced at write time. Zero balance means 402. Admins are exempt from the check.
+- **Every model call is accounted.** One `usage` row per LLM or embedding call, priced at write time. Zero balance means 402, for admins as well.
 - **Nothing is shipped but containers.** Python source goes into the image; no PyPI, no conda, no compiled artifacts. One image per service, tagged with the Git SHA and the release tag, in GitHub's container registry.
 - **Every process can run any number of times.** API pods hold no state; background work is claimed from PostgreSQL by worker pods; uploads live in object storage; sessions are JWTs.
 
@@ -112,7 +112,7 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - Core provides `record_usage(conn, user_id, notebook_id, service, kind, model, tokens_in, tokens_out)`, `balance_cents(conn, user_id)`, `has_credit(conn, user_id)` and `is_admin(conn, user_id)` (async twins with an `a` prefix), plus `lasteverlm_core.web.admin_only`, the FastAPI dependency behind every admin endpoint of ingest and rag. Services call these, never write `usage` by hand.
 - Core provides the object-storage client (`lasteverlm_core.storage`: put, get, delete, presigned GET with an expiry). Ingest and rag use it; no service carries its own S3 code.
 - A voucher is a single-use code; redeeming it writes one positive ledger row. Default amount `VOUCHER_DEFAULT_CENTS` (1000 in code, 500 in production). The code is stored hashed and shown once; the admin list never shows it.
-- Before any model call a service checks `has_credit`: an admin always has credit, anyone else needs `balance_cents > 0`, otherwise 402 `{"error": "credit exhausted"}` (`core/context/credit.md`).
+- Before any model call a service checks `has_credit`, i.e. `balance_cents > 0` for every user, admins included; otherwise 402 `{"error": "credit exhausted"}` (`core/context/credit.md`). The maintainer tests with vouchers like everyone else.
 
 ## Authentication
 

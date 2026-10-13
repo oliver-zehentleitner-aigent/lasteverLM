@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/architecture.md`: the credit check applies to admins as well; the exemption from 0.3.0 is reversed (maintainer decision).
+
 ## [0.3.0] - 2026-10-13
 
 ### Changed
