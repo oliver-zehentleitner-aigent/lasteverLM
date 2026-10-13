@@ -22,9 +22,11 @@ from lasteverlm_core import (
     OutputKind,
     ProviderError,
     SharedOutput,
+    Storage,
     TextToSpeech,
     TokenWindowChunker,
     Usage,
+    object_key,
 )
 
 from .citations import map_citations, number_passages
@@ -32,7 +34,7 @@ from .models import GeneratedOutput, OutputRow, Passage
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
 from .speech import split_for_speech
-from .store import ObjectStore, Retriever, Store
+from .store import Retriever, Store
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +57,7 @@ SCOPED_RETRIEVAL_K = 12
 MAX_ATTEMPTS = 3
 SUMMARY_MAX_CHARS = 500
 AUDIO_URL_EXPIRES_S = 3600
+AUDIO_FILE = "audio.mp3"
 
 
 class NotebookNotFound(Exception):
@@ -172,7 +175,7 @@ class OutputService:
         similarity_floor: float,
         chunker: TokenWindowChunker | None = None,
         tts: TextToSpeech | None = None,
-        objects: ObjectStore | None = None,
+        objects: Storage | None = None,
     ) -> None:
         self._store = store
         self._retriever = retriever
@@ -342,7 +345,7 @@ class OutputService:
             parts.append(self._tts.synthesize(segment))
             usage = Usage(kind="tts", model=self._tts.model, tokens_in=len(segment), tokens_out=0)
             self._store.record_usage(job.owner, job.notebook_id, usage)
-        key = f"{job.notebook_id}/{job.id}/audio.mp3"
+        key = object_key(job.notebook_id, job.id, AUDIO_FILE)
         # MP3 frames are self-contained: the segments concatenate into one stream
         self._objects.put(key, b"".join(parts), "audio/mpeg")
         return key
@@ -358,7 +361,7 @@ class OutputService:
     def _delete_objects(self, content: dict[str, Any] | None) -> None:
         key = (content or {}).get("key")
         if isinstance(key, str) and self._objects is not None:
-            self._objects.delete([key])
+            self._objects.delete(key)
 
     def _present(self, row: OutputRow) -> Output:
         output = to_output(row)

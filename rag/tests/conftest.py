@@ -311,11 +311,14 @@ class FakeObjects:
     def put(self, key: str, data: bytes, content_type: str) -> None:
         self.objects[key] = (data, content_type)
 
-    def delete(self, keys: list[str]) -> None:
+    def get(self, key: str) -> bytes:
+        return self.objects[key][0]
+
+    def delete(self, *keys: str) -> None:
         for key in keys:
             self.objects.pop(key, None)
 
-    def presigned_get(self, key: str, expires_s: int) -> str:
+    def presigned_get(self, key: str, expires_s: int = 3600) -> str:
         return f"https://objects.test/{key}?expires={expires_s}"
 
 

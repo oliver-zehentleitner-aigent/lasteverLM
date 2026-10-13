@@ -41,16 +41,6 @@ Pool = ConnectionPool[Connection[DictRow]]
 SERVICE_NAME: Literal["rag"] = "rag"
 
 
-class ObjectStore(Protocol):
-    """The object storage the audio output writes to (core's storage client)."""
-
-    def put(self, key: str, data: bytes, content_type: str) -> None: ...
-
-    def delete(self, keys: list[str]) -> None: ...
-
-    def presigned_get(self, key: str, expires_s: int) -> str: ...
-
-
 class Retriever(Protocol):
     def search(
         self,

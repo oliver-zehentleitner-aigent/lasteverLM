@@ -272,5 +272,21 @@ def test_settings_require_one_auth_scheme_and_sane_numbers():
         Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "RETRIEVAL_K": "0"})
     s = Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d"})
     assert s.inference.embedding_dimension == 1536
-    assert s.tts_model is None
+    assert s.tts_model is None and s.tts_voice == "ryan" and s.s3 is None
     assert s.auth.demo_token == "d" and s.auth.jwt_secret is None
+
+
+def test_audio_settings_need_object_storage():
+    prices = '{"test-llm": {"in": 1, "out": 1}, "test-embedding": {"in": 1, "out": 0}, '
+    prices += '"test-tts": {"in": 1, "out": 0}}'
+    env = {**BASE_ENV, "DEMO_TOKEN": "d", "MODEL_PRICES": prices, "TTS_MODEL": "test-tts"}
+    with pytest.raises(ConfigError, match="S3_ENDPOINT"):
+        Settings.from_env(env)
+    s3 = {
+        "S3_ENDPOINT": "https://objects.test",
+        "S3_BUCKET": "b",
+        "S3_ACCESS_KEY": "a",
+        "S3_SECRET_KEY": "s",
+    }
+    s = Settings.from_env({**env, **s3, "TTS_VOICE": "serena"})
+    assert s.tts_voice == "serena" and s.s3 is not None and s.s3.bucket == "b"

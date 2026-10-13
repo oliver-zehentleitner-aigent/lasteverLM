@@ -9,11 +9,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from lasteverlm_core import (
+    DEFAULT_TTS_VOICE,
     AuthSettings,
     ConfigError,
     InferenceSettings,
     ModelPrices,
     RateLimitSettings,
+    S3Settings,
     env_int,
     env_optional,
     env_required,
@@ -31,6 +33,7 @@ class Settings:
     model_prices: ModelPrices
     tts_model: str | None
     tts_voice: str
+    s3: S3Settings | None
     retrieval_k: int
     retrieval_include_generated: bool
     similarity_floor: float
@@ -56,7 +59,8 @@ class Settings:
             rate_limit=RateLimitSettings.from_env(env),
             model_prices=prices,
             tts_model=tts_model,
-            tts_voice=env_optional("TTS_VOICE", env) or "ryan",
+            tts_voice=env_optional("TTS_VOICE", env) or DEFAULT_TTS_VOICE,
+            s3=_s3(env, tts_model),
             retrieval_k=retrieval_k,
             retrieval_include_generated=_flag(
                 env.get("RETRIEVAL_INCLUDE_GENERATED", "false"), "RETRIEVAL_INCLUDE_GENERATED"
@@ -83,3 +87,13 @@ def _flag(raw: str, name: str) -> bool:
     if value in ("false", "0", "no", ""):
         return False
     raise ConfigError(f"{name} must be true or false, got {raw!r}")
+
+
+def _s3(env: Mapping[str, str], tts_model: str | None) -> S3Settings | None:
+    """Object storage holds the audio files: required once audio is enabled,
+    optional otherwise (an API without it cannot serve audio rows)."""
+    if env_optional("S3_ENDPOINT", env) is None:
+        if tts_model:
+            raise ConfigError("TTS_MODEL is set but S3_ENDPOINT is not: audio needs object storage")
+        return None
+    return S3Settings.from_env(env)

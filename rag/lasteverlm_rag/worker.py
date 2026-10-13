@@ -21,7 +21,13 @@ import time
 import uuid
 from collections.abc import Callable
 
-from lasteverlm_core import OpenAICompatibleEmbedder, OpenAICompatibleLLM, make_client
+from lasteverlm_core import (
+    OpenAICompatibleEmbedder,
+    OpenAICompatibleLLM,
+    OpenAICompatibleTextToSpeech,
+    S3Storage,
+    make_client,
+)
 
 from .config import Settings
 from .outputs import registry
@@ -96,6 +102,12 @@ def main() -> None:
         registry(tts_available=settings.tts_model is not None),
         settings.retrieval_k,
         settings.similarity_floor,
+        tts=(
+            OpenAICompatibleTextToSpeech(client, settings.tts_model, voice=settings.tts_voice)
+            if settings.tts_model
+            else None
+        ),
+        objects=S3Storage(settings.s3) if settings.s3 else None,
     )
     worker = Worker(store, outputs)
     for sig in (signal.SIGTERM, signal.SIGINT):
