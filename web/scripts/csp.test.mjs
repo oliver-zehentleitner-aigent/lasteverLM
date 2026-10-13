@@ -32,6 +32,11 @@ describe('nginxLines', () => {
     expect(lines).toContain("frame-ancestors 'none'")
   })
 
+  it('lets the app reach an API on another origin', () => {
+    expect(nginxLines('enforce', html, 'https:', 'https://api.example.org/base/')).toContain("connect-src 'self' https://api.example.org;")
+    expect(nginxLines('enforce', html, 'https:', '')).toContain("connect-src 'self';")
+  })
+
   it('refuses an unknown mode', () => {
     expect(() => nginxLines('on', html)).toThrow(/off, report, enforce/)
   })
