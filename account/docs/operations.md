@@ -51,8 +51,9 @@ At every start the service deletes visitor-log rows older than
 `PURGE_SQL` statements, in one transaction — rows older than
 `RETENTION_DAYS` from the tables core's rate-limit middleware writes:
 `access_log` rows, `ip_blocks` rows not updated since, and `ip_bans`
-rows whose ban was lifted before the cutoff. An active ban is never
-purged. The startup log reports the counts (`retention: core tables: ...`).
+rows whose ban was lifted before the cutoff, or whose ban is older than
+`BAN_MAX_DAYS` (90). An active ban stays until an admin lifts it, at most
+90 days. The startup log reports the counts (`retention: core tables: ...`).
 The middleware itself never deletes, and no CronJob does; this service is
 the only owner of that retention. There is no background scheduler, so a
 pod that runs for months without a restart keeps rows longer than the

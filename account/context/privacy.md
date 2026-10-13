@@ -41,9 +41,9 @@ with a hash it is a fingerprint. Only a coarse family (`chrome`,
 
 **Id:** ab6e5d29-6800-4400-91d7-30ed0674e483
 **Type:** decision
-**Status:** pending-confirmation
+**Status:** active
 **Evidence:** confirmed
-**Source:** first live deployment, 2026-10-12
+**Source:** first live deployment, 2026-10-12; confirmed by the maintainer 2026-10-13
 **See:** privacy.md#visitors-are-identified-by-a-hash-with-a-salt-that-lives-only-in-memory — 2c9f825d-7240-414c-849a-f607f0084a31 — as of 2026-10-12
 **Revisit when:** the service runs as a single replica for good, or the access log stops holding raw addresses
 

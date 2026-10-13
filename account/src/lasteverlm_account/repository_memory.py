@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any
@@ -218,12 +219,17 @@ class MemoryRepository:
     async def access_log(self, limit: int) -> list[AccessRecord]:
         return sorted(self.access, key=lambda a: a.at, reverse=True)[:limit]
 
-    async def purge_access_tables(self, cutoff: datetime) -> tuple[int, int, int]:
+    async def purge_access_tables(self, params: Mapping[str, datetime]) -> tuple[int, int, int]:
+        cutoff, ban_cutoff = params["cutoff"], params["ban_cutoff"]
         async with self._lock:
             before = len(self.access), len(self.blocks), len(self.ip_bans)
             self.access = [a for a in self.access if a.at >= cutoff]
             self.blocks = [b for b in self.blocks if b.updated_at >= cutoff]
-            self.ip_bans = [b for b in self.ip_bans if b.lifted_at is None or b.lifted_at >= cutoff]
+            self.ip_bans = [
+                b
+                for b in self.ip_bans
+                if (b.lifted_at is None or b.lifted_at >= cutoff) and b.created_at >= ban_cutoff
+            ]
             after = len(self.access), len(self.blocks), len(self.ip_bans)
             return before[0] - after[0], before[1] - after[1], before[2] - after[2]
 

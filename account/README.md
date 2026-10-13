@@ -61,7 +61,7 @@ comment.
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100 |
-| `RETENTION_DAYS` | no | days the access log, stale blocks and lifted bans are kept (core's name for it); this service purges them at every start, default 30 |
+| `RETENTION_DAYS`, `BAN_MAX_DAYS` | no | days the access log, stale blocks and lifted bans are kept, and how long a ban holds at most (core's names); this service purges at every start, defaults 30, 90 |
 
 Seeds are written to the `settings` table only when the key is missing;
 afterwards the admin panel owns the value.
@@ -150,8 +150,8 @@ tables hold the addresses they act on. Rate limiting, blocking and lifting
 a ban are impossible without the address itself. These rows are visible
 to admins only and are removed by this service at every start once older
 than `RETENTION_DAYS` (30), with core's own purge statements; an active
-ban stays until an admin lifts it. The visitor statistics above never
-use them.
+ban stays until an admin lifts it, at most `BAN_MAX_DAYS` (90). The
+visitor statistics above never use them.
 
 ## License
 

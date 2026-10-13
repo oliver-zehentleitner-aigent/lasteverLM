@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from lasteverlm_core import DEMO_USER_ID
+from lasteverlm_core import DEMO_USER_ID, purge_params
 
 from lasteverlm_account.repository_postgres import PostgresRepository
 
@@ -133,7 +133,11 @@ async def test_purge_access_tables_keeps_active_bans(repo: PostgresRepository) -
                 (f"203.0.113.{20 if at == old else 21}", at),
             )
         await conn.execute("insert into ip_bans (ip, reason) values ('203.0.113.9', 'active')")
-    assert await repo.purge_access_tables(now - timedelta(days=30)) == (1, 1, 1)
+        await conn.execute(
+            "insert into ip_bans (ip, reason, created_at) values ('203.0.113.8', 'expired', %s)",
+            (now - timedelta(days=91),),
+        )
+    assert await repo.purge_access_tables(purge_params(30, 90, now)) == (1, 1, 2)
     async with repo._pool.connection() as conn:
         cur = await conn.execute("select count(*) as n from access_log where service = 'test'")
         row = await cur.fetchone()

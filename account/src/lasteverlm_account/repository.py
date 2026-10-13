@@ -9,6 +9,7 @@ free of transaction handling.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Protocol
@@ -144,9 +145,10 @@ class Repository(Protocol):
         ...
 
     async def access_log(self, limit: int) -> list[AccessRecord]: ...
-    async def purge_access_tables(self, cutoff: datetime) -> tuple[int, int, int]:
-        """Core's retention rule: drop access_log rows, stale blocks and lifted bans older
-        than ``cutoff``; an active ban stays. Returns the three counts."""
+    async def purge_access_tables(self, params: Mapping[str, datetime]) -> tuple[int, int, int]:
+        """Core's retention rule with ``params`` from ``lasteverlm_core.purge_params``: drop
+        access_log rows, stale blocks and lifted bans older than ``cutoff``, and bans older
+        than ``ban_cutoff`` whether lifted or not. Returns the three counts."""
         ...
 
     # lifecycle --------------------------------------------------------------
