@@ -1,10 +1,10 @@
 import { ACCOUNT_PREFIX } from '../config'
 import { request } from './client'
-import type { User } from './types'
+import type { Preferences, User } from './types'
 
 export const account = {
-  /** Step one of the magic-link flow: the server mails a link and always
-   *  answers 202, so an unknown address is not distinguishable from a known one. */
+  /** Step one of the magic-link flow: 202 and a mail for an allowed address,
+   *  403 with code `not_allowed` for any other. */
   requestLink: (email: string) =>
     request<void>(`${ACCOUNT_PREFIX}/auth/request-link`, { method: 'POST', json: { email }, anonymous: true }),
 
@@ -16,6 +16,11 @@ export const account = {
     }),
 
   me: () => request<User>(`${ACCOUNT_PREFIX}/me`),
+
+  /** Any subset: a value sets, null clears, an absent key stays. Returns the
+   *  updated user; the shared demo user gets 403. */
+  savePreferences: (p: Partial<Preferences>) =>
+    request<User>(`${ACCOUNT_PREFIX}/me/preferences`, { method: 'PUT', json: p }),
 
   redeemVoucher: (code: string) => request<User>(`${ACCOUNT_PREFIX}/vouchers/redeem`, { method: 'POST', json: { code } }),
 

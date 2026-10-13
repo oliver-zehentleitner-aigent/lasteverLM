@@ -7,10 +7,12 @@ import { AdminPage } from './components/admin/AdminPage'
 import { AuthCallback } from './components/AuthCallback'
 import { Header } from './components/Header'
 import { LibraryPage } from './components/LibraryPage'
+import { SettingsPage } from './components/SettingsPage'
 import { LoginPage } from './components/LoginPage'
 import { SharePage } from './components/SharePage'
 import { VoucherDialog } from './components/VoucherDialog'
 import { Workspace } from './components/Workspace'
+import { MeContext } from './hooks/useMe'
 import { useRoute } from './hooks/useRoute'
 import { writeLastNotebook } from './lib/lastNotebook'
 
@@ -72,18 +74,22 @@ export default function App() {
 
   const me = session.me
   const adminPage = route.name === 'admin' && me?.is_admin ? route.page : null
+  const setMe = (u: User) => setSession({ state: 'in', me: u })
+  const headerRoute = adminPage ? 'admin' : route.name === 'library' || route.name === 'settings' ? route.name : 'home'
 
   return (
-    <>
+    <MeContext.Provider value={{ me, setMe }}>
       <Header
         me={me}
-        route={adminPage ? 'admin' : route.name === 'library' ? 'library' : 'home'}
+        route={headerRoute}
         onNavigate={navigate}
         onVoucher={() => setVoucher({ open: true, reason: 'manual' })}
         onLogout={logout}
       />
       {adminPage ? (
         <AdminPage page={adminPage} onNavigate={navigate} />
+      ) : route.name === 'settings' ? (
+        <SettingsPage />
       ) : route.name === 'library' ? (
         <LibraryPage
           onOpenNotebook={(id) => {
@@ -103,6 +109,6 @@ export default function App() {
           setVoucher((v) => ({ ...v, open: false }))
         }}
       />
-    </>
+    </MeContext.Provider>
   )
 }

@@ -1,6 +1,6 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
-import type { Answer, Chunk, Conversation, Message, Output, OutputKind, SharedOutput } from './types'
+import type { Answer, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -31,8 +31,15 @@ export const rag = {
   getChunk: (chunkId: string) => request<Chunk>(`${RAG_PREFIX}/chunks/${encodeURIComponent(chunkId)}`),
 
   listOutputs: (notebookId: string) => request<Output[]>(`${nb(notebookId)}/outputs`),
-  createOutput: (notebookId: string, kind: OutputKind) =>
-    request<Output>(`${nb(notebookId)}/outputs`, { method: 'POST', json: { kind } }),
+  /** `options` only with the keys the kind takes; missing ones fall back to defaults */
+  createOutput: (notebookId: string, kind: OutputKind, options?: OutputOptions) =>
+    request<Output>(`${nb(notebookId)}/outputs`, {
+      method: 'POST',
+      json: options && Object.keys(options).length > 0 ? { kind, options } : { kind },
+    }),
+
+  /** the choices per kind: languages, voices, speed */
+  outputOptions: () => request<OutputOptionsSpec>(`${RAG_PREFIX}/outputs/options`),
   getOutput: (id: string) => request<Output>(out(id)),
   deleteOutput: (id: string) => request<void>(out(id), { method: 'DELETE' }),
 

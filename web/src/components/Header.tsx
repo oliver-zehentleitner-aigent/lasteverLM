@@ -3,7 +3,7 @@ import { formatCents } from '../lib/format'
 
 interface Props {
   me: User | null
-  route: 'home' | 'library' | 'admin'
+  route: 'home' | 'library' | 'settings' | 'admin'
   onNavigate: (path: string) => void
   onVoucher: () => void
   onLogout: () => void
@@ -32,6 +32,16 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
           }}
         >
           Library
+        </a>
+        <a
+          href="/settings"
+          className={route === 'settings' ? 'active' : undefined}
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate('/settings')
+          }}
+        >
+          Settings
         </a>
         {me?.is_admin && (
           <a

@@ -68,6 +68,14 @@ is closed. After the wizard the notebook view opens.
   format over the whole notebook.
   The button is disabled without a selection or while no source of the
   notebook is ready, with a one-line hint on the left saying which.
+  Between the tiles and the button, the selected format's options as
+  rag's `GET /outputs/options` lists them per kind: language for every
+  kind ("same as the sources" or one of the listed languages), voice
+  (grouped female and male) and speed for audio. They start from the
+  user's preferences, else rag's defaults, and go into `options` of the
+  create request with only the keys the kind takes. The viewer and the
+  shared page show what a document was made with ("Deutsch · Ryan ·
+  1.25×").
 - **Outputs** (left, bottom): the generated documents with kind, title
   and status; a click opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs
@@ -127,6 +135,19 @@ is closed. After the wizard the notebook view opens.
 - **Ask about this**: switches the chat scope to the open document
   (`scope.output_id` on `/ask`); a chip above the input shows the scope
   and clears it.
+
+## Settings
+
+`/settings` (in the header next to Library): interface language
+(browser default, English, Deutsch), language of generated documents
+(same as the sources, or one of rag's languages) and the voice for
+audio (default, or one of rag's voices). Saved together with
+`PUT /api/account/me/preferences`; an empty choice clears the value.
+The preferred language and voice are preselected in the output options
+and used by the wizard, which has no option menus. The interface
+language is stored here and applied by the translation layer. The
+shared demo account cannot change settings (403, shown as the
+service's sentence).
 
 ## Library
 
