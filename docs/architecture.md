@@ -197,8 +197,8 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 
 ```json
 Notebook: {"id", "title", "created_at"}
-Source:   {"id", "notebook_id", "library_id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (images), "status", "error", "created_at"}
-LibraryEntry: {"id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (images), "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
+Source:   {"id", "notebook_id", "library_id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (image, PDF, text: presigned GET, 1 h; url: the URL), "status", "error", "created_at"}
+LibraryEntry: {"id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (image, PDF, text: presigned GET, 1 h; url: the URL), "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
 IngestStats: {"sources": {"processing", "ready", "failed"}, "jobs": {"pending", "running", "failed"}, "chunks", "source_bytes"}
 ```
 

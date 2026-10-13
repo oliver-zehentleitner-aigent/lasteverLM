@@ -152,6 +152,7 @@ class InMemoryRepository:
             library_id=lib.id,
             owner=lib.owner,
             storage_path=lib.storage_path,
+            url=lib.url,
             summary=lib.summary,
             attempts=lib.attempts,
             size_bytes=lib.size_bytes,

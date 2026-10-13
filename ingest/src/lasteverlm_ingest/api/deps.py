@@ -40,10 +40,20 @@ def owned_source(repo: Repository, user: UUID, source_id: UUID) -> StoredSource:
     return source
 
 
-def preview_url(storage: Storage, kind: str, storage_path: str | None) -> str | None:
-    """For an image, a presigned GET of the stored original (valid one hour),
-    so the frontend shows it in an `<img>` without a bearer header; None for
-    every other kind."""
-    if kind != "image" or not storage_path:
+# Kinds whose stored object the browser can open itself: the object carries
+# its content type (image/*, application/pdf, text/plain; charset=utf-8),
+# so an image shows in an <img>, a PDF in the browser's viewer, text as text.
+_STORED_PREVIEW = frozenset({"image", "pdf", "text"})
+
+
+def preview_url(
+    storage: Storage, kind: str, storage_path: str | None, url: str | None = None
+) -> str | None:
+    """Where the frontend opens a library source without a bearer header:
+    for an image, PDF or text a presigned GET of the stored original (valid
+    one hour), for a URL source the URL itself; None for generated rows."""
+    if kind == "url":
+        return url
+    if kind not in _STORED_PREVIEW or not storage_path:
         return None
     return storage.presigned_get(storage_path)

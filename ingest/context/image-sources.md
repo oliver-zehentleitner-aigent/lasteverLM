@@ -47,15 +47,19 @@ about seven seconds, so no client-side downscaling was added.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request through the coordinating agent, 2026-10-13: images in the library picker are chosen by seeing them, not by file name
+**Source:** maintainer request through the coordinating agent, 2026-10-13: images in the library picker are chosen by seeing them, not by file name; extended by the maintainer, 2026-10-14: the library opens PDFs, texts and URL sources too
 **Revisit when:** uploaded images grow large enough that loading the originals in a list is slow, or the bucket becomes reachable only through the API
 
 Every listing that names an image source (a notebook's sources, the
 library, the trash) carries `preview_url`: a presigned GET of the
 stored object, valid for an hour, signed when the list is served
-(`api/deps.py`, `preview_url`). Other kinds carry `null`. The object
-key itself stays out of the API (`storage_path` is excluded from the
-response models).
+(`api/deps.py`, `preview_url`). Since 2026-10-14 the same holds for PDF
+and text sources, so the library can open a document: the object was
+always stored with its type (`application/pdf`,
+`text/plain; charset=utf-8`), so the browser shows a PDF in its viewer
+and a text as text. A URL source carries its URL; a generated row
+`null`. The object key itself stays out of the API (`storage_path` is
+excluded from the response models).
 
 **Reason:** an `<img>` element cannot send the bearer token, and a
 presigned URL needs no further call to ingest; rag hands out its audio
