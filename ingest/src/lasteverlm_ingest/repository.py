@@ -249,8 +249,8 @@ class Repository(Protocol):
         ...
 
     def has_credit(self, user_id: UUID) -> bool:
-        """May this user start a model call: an admin always, anyone else
-        with a positive balance (core's `has_credit`)."""
+        """May this user start a model call: a positive balance, for every
+        user alike, admins included (core's `has_credit`)."""
         ...
 
     def is_admin(self, user_id: UUID) -> bool:

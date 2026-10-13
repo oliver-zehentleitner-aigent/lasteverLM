@@ -363,7 +363,8 @@ class InMemoryRepository:
         return credits - sum(u.cost_cents for u in self.usage if u.user_id == user_id)
 
     def has_credit(self, user_id: UUID) -> bool:
-        return self.is_admin(user_id) or self.balance_cents(user_id) > 0
+        # core's rule: a positive balance, for every user alike (admins too).
+        return self.balance_cents(user_id) > 0
 
     def is_admin(self, user_id: UUID) -> bool:
         return user_id in self.admins
