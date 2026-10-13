@@ -5,7 +5,7 @@ import { t } from '../i18n'
 import { versionLine } from '../lib/build'
 import { formatCents } from '../lib/format'
 import { useMe } from '../hooks/useMe'
-import { applyTheme, nextTheme, readStoredTheme, type Theme } from '../lib/theme'
+import { nextTheme, setTheme, useTheme, type Theme } from '../lib/theme'
 
 interface Props {
   me: User | null
@@ -40,12 +40,11 @@ const THEME_ICON: Record<Theme, string> = { system: '◐', light: '☀', dark: '
  *  browser and, when signed in, in the account (the shared demo account
  *  cannot store preferences; then it stays in this browser). */
 function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(readStoredTheme)
+  const theme = useTheme()
   const { me, setMe } = useMe()
   function cycle() {
     const next = nextTheme(theme)
     setTheme(next)
-    applyTheme(next)
     if (me) account.savePreferences({ theme: next }).then(setMe, () => {})
   }
   const name = t(`theme.${theme}`)

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Theme: the header toggle and the Settings page share one theme store; saving a theme in Settings now changes what the toggle shows and offers next (it kept its own state before), and saving "like the system" switches back to the system's setting at once (it stayed on the previous theme).
 - Admin System: instead of "nothing yet" under Pods and Deployments, the page says why: not running in a cluster, or (in a cluster with both lists empty) no read role for pods and deployments.
 
 ## [0.8.0] - 2026-10-13
