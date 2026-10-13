@@ -42,13 +42,21 @@ is closed. After the wizard the notebook view opens.
 │ [Table] [Mindmap] │ [Chat 1 ×] [Chat 2 ×] [+]            │
 │ [Infographic]     │  question … answer with [1] [2]      │
 │ [Audio]           │  > ask your sources                  │
+├───────────────────┤                                      │
+│ Outputs           │                                      │
+│  · Report  ready  │                                      │
+│  · Quiz    ready  │                                      │
 └───────────────────┴──────────────────────────────────────┘
 ```
 
-- **Sources** (left, top): list with status, delete, the add button
-  opens the wizard at step 1.
-- **Create** (left, bottom): the output kinds as tiles; a click creates
+- **Sources** (left, top): the uploads (PDF, text, web page, image)
+  with status and delete; the add button opens the wizard at step 1.
+  Generated documents are not listed here, although the backend keeps
+  each one as a source of kind `generated` so the chat can cite it.
+- **Create** (left, middle): the output kinds as tiles; a click creates
   an output of that kind for the whole notebook.
+- **Outputs** (left, bottom): the generated documents with kind, title
+  and status; a click opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs
   show a spinner and poll. Each kind has its own renderer. Three actions
   per document: ask about this, print, share.

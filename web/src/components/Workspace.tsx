@@ -4,8 +4,10 @@ import { rag } from '../api/rag'
 import type { Citation, Notebook, Output, OutputKind } from '../api/types'
 import { OUTPUT_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
+import { formFor } from '../lib/outputs'
 import { ChatPane } from './ChatPane'
 import { NotebookList } from './NotebookList'
+import { OutputsPane } from './OutputsPane'
 import { OutputTiles } from './OutputTiles'
 import { OutputViewer } from './OutputViewer'
 import { SourcesPane } from './SourcesPane'
@@ -116,11 +118,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
     if (!pending) return
     const t = setInterval(() => {
       rag.listOutputs(notebookId).then(
-        (list) => {
-          setOutputs(list)
-          // a document that just became ready is also a new generated source
-          if (list.some((o) => o.status === 'ready') ) setSourcesVersion((v) => v + 1)
-        },
+        (list) => setOutputs(list),
         () => {
           // a failed poll is retried on the next tick; user actions surface errors through run()
         },
@@ -128,6 +126,20 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
     }, OUTPUT_POLL_INTERVAL_MS)
     return () => clearInterval(t)
   }, [pending, notebookId])
+
+  function removeOutput(id: string) {
+    setOutputs((prev) => prev.filter((x) => x.id !== id))
+    if (scope?.id === id) setScope(null)
+  }
+
+  async function deleteOutput(o: Output) {
+    if (!confirm(`Delete "${o.title || formFor(o.kind).label}"?`)) return
+    const ok = await run(async () => {
+      await rag.deleteOutput(o.id)
+      return true
+    })
+    if (ok) removeOutput(o.id)
+  }
 
   async function createOutput(kind: OutputKind) {
     const created = await run(() => rag.createOutput(notebookId, kind))
@@ -138,15 +150,19 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   }
 
   /** A citation into a generated document opens that document's tab (the
-   *  output whose generated source it cites); any other citation highlights
-   *  the source in the list. */
+   *  output whose generated source it cites) and shows it in the Outputs
+   *  list; any other citation highlights the source in the Sources list. */
   const onCitation = useCallback(
     (c: Citation | null) => {
       setHighlight(c?.source_id ?? null)
       if (!c) return
       if (c.source_kind === 'generated') {
         const match = outputs.find((o) => o.source_id === c.source_id)
-        if (match) setSelectedOutput(match.id)
+        if (match) {
+          setSelectedOutput(match.id)
+          document.getElementById(`output-${match.id}`)?.scrollIntoView({ block: 'nearest' })
+        }
+        return
       }
       document.getElementById(`source-${c.source_id}`)?.scrollIntoView({ block: 'nearest' })
     },
@@ -158,6 +174,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
       <div className="column left no-print">
         <SourcesPane notebookId={notebookId} highlightedSourceId={highlight} version={sourcesVersion} onAdd={() => onWizard(true)} />
         <OutputTiles disabled={busy} onCreate={(k) => void createOutput(k)} />
+        <OutputsPane outputs={outputs} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
       </div>
       <div className="column right">
         <OutputViewer
@@ -165,11 +182,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
           selectedId={selectedOutput}
           onSelect={setSelectedOutput}
           onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
-          onDeleted={(id) => {
-            setOutputs((prev) => prev.filter((x) => x.id !== id))
-            setSourcesVersion((v) => v + 1)
-            if (scope?.id === id) setScope(null)
-          }}
+          onDeleted={removeOutput}
           onAskAbout={setScope}
           error={error}
         />

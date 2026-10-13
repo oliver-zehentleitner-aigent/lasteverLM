@@ -1,4 +1,4 @@
-import type { OutputKind, SourceKind } from '../api/types'
+import type { OutputKind, Source, SourceKind } from '../api/types'
 
 /** The output forms offered as tiles, in display order. `available: false`
  *  shows the tile disabled with "Soon." (see `tileNote`), so the shape of
@@ -57,4 +57,11 @@ export const SOURCE_FORMS: SourceForm[] = [
  *  form is not available yet. */
 export function tileNote(f: { description: string; available: boolean }): string {
   return f.available ? f.description : 'Soon.'
+}
+
+/** The sources a user added. A generated document is a source of kind
+ *  `generated` too, so the chat can cite it, but it is listed under
+ *  Outputs, not among the uploads. */
+export function uploadedSources(sources: readonly Source[]): Source[] {
+  return sources.filter((s) => s.kind !== 'generated')
 }

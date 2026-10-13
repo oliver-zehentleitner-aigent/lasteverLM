@@ -3,6 +3,7 @@ import { ingest } from '../api/ingest'
 import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
+import { uploadedSources } from '../lib/outputs'
 
 interface Props {
   notebookId: string
@@ -15,21 +16,21 @@ interface Props {
 /** Left column, top: the sources with status and delete; the add button
  *  opens the wizard. The list polls while any source is still processing
  *  (the contract has no push channel) and stops when everything is ready
- *  or failed. Generated documents appear here too, as sources of kind
- *  `generated`, because the chat can cite them. */
+ *  or failed. Only uploads are listed: generated documents are sources of
+ *  kind `generated` for the chat, but the Outputs list shows them. */
 export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd }: Props) {
   const [sources, setSources] = useState<Source[]>([])
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
-    void run(async () => setSources(await ingest.listSources(notebookId)))
+    void run(async () => setSources(uploadedSources(await ingest.listSources(notebookId))))
   }, [notebookId, version, run])
 
   const processing = sources.some((s) => s.status === 'processing')
   useEffect(() => {
     if (!processing) return
     const t = setInterval(() => {
-      ingest.listSources(notebookId).then(setSources, () => {
+      ingest.listSources(notebookId).then((list) => setSources(uploadedSources(list)), () => {
         // a failed poll is retried on the next tick; user actions surface errors through run()
       })
     }, SOURCE_POLL_INTERVAL_MS)
@@ -65,7 +66,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd }:
               <span className="name" title={s.name}>
                 {s.name}
               </span>
-              <span className={`badge ${s.status}`}>{s.kind === 'generated' ? 'generated' : s.status}</span>
+              <span className={`badge ${s.status}`}>{s.status}</span>
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
               {s.status === 'processing' && s.error && <span className="muted small">Retrying after: {s.error}</span>}
             </div>
