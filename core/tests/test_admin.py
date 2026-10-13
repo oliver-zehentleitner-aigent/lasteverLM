@@ -88,3 +88,7 @@ async def test_admin_only_with_sync_async_and_lambda_lookups() -> None:
         assert status == 403 and b"admin only" in body
         status, _ = await run_asgi(app, [])
         assert status == 401  # the service's own dependency still decides who
+
+
+def test_credit_check_ignores_the_admin_flag() -> None:
+    assert "is_admin" not in HAS_CREDIT_SQL and "users" not in HAS_CREDIT_SQL
