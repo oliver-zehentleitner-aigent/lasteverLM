@@ -12,6 +12,7 @@ preserves why it changed, in `context/`.
 ### Added
 
 - `make test-postgres`: the repository's SQL against a throwaway PostgreSQL with pgvector (`tests/test_postgres.py`): the library and its dedupe conflict, ownership on every owner-scoped call, the trash with the owner's retention, the queue (generated, trashed and backed-off rows, stale takeover, concurrent claims), the seed claim, credit and usage, the admin counts.
+- PDF and text sources carry `preview_url` like images (a presigned GET of the stored original, one hour; the object's type makes the browser show a PDF in its viewer and text as `text/plain; charset=utf-8`), and URL sources carry their URL, so the library can open a document; generated rows stay `null`.
 
 ### Changed
 

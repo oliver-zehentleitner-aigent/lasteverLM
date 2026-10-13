@@ -35,6 +35,7 @@ class StoredSource(Source):
     library_id: UUID
     owner: UUID
     storage_path: str | None
+    url: str | None = None
     summary: str | None = None
     attempts: int = 0
     size_bytes: int | None = None
@@ -380,7 +381,7 @@ class PostgresRepository:
 
     _SELECT_SOURCES = (
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
-        "l.id as library_id, l.owner, l.storage_path, l.summary, l.attempts, l.size_bytes, "
+        "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
         "l.capture, l.demo "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )

@@ -16,7 +16,9 @@ router = APIRouter()
 
 
 def _with_preview[E: (LibraryEntry, TrashEntry)](request: Request, entry: E) -> E:
-    entry.preview_url = preview_url(worker_deps(request).storage, entry.kind, entry.storage_path)
+    entry.preview_url = preview_url(
+        worker_deps(request).storage, entry.kind, entry.storage_path, entry.url
+    )
     return entry
 
 

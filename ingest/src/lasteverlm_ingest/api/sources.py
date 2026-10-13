@@ -89,7 +89,7 @@ def _capture(value: object) -> Capture:
 
 def _out(source: StoredSource, storage: Storage) -> LinkedSource:
     out = LinkedSource.model_validate(source, from_attributes=True)
-    out.preview_url = preview_url(storage, source.kind, source.storage_path)
+    out.preview_url = preview_url(storage, source.kind, source.storage_path, source.url)
     return out
 
 
