@@ -46,6 +46,8 @@ repository root's `context/`.
 
 ## I
 
+- [image-sources.md](image-sources.md) — why images are read by the platform's chat model through a billed loader in ingest, not OCR and not core
+
 ## J
 
 ## K
