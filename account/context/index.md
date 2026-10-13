@@ -33,7 +33,7 @@ repository root's `context/`.
 
 ## C
 
-- [core.md](core.md) — core installed from `../core` as a uv path source; the account service purges core's rate-limit tables at start; the superseded tuple-row detour
+- [core.md](core.md) — core installed from `../core` as a uv path source; the account service purges core's rate-limit tables at start; the superseded tuple-row detour; the rate-limit rule written by account and read by every service
 
 ## D
 

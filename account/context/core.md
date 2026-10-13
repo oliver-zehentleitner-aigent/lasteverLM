@@ -97,3 +97,40 @@ pod purges rarely; a periodic task is the follow-up (the `Revisit when`
 above). The ban rule itself (until lifted, at most `BAN_MAX_DAYS`) is
 core's and recorded in core's `context/ratelimit.md`; this service only
 applies it.
+
+## The rate-limit rule is written by account and read by every service through one settings row
+
+**Id:** 3822026d-dbc7-4cda-8dd9-4422c26db004
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** fleet coordination, 2026-10-13 (maintainer wanted the rule editable in the panel)
+**Revisit when:** a service other than account needs to write runtime settings, or the 30 s re-read proves too slow or too chatty
+
+`PUT /admin/settings/ratelimit` validates the four runtime fields with
+core's `RateLimitRules.parse` and stores `rules.as_json()` under core's
+`RATE_LIMIT_SETTINGS_KEY` in this service's `settings` table. Core's
+middleware in every service re-reads that row at most every 30 s and
+falls back to its env defaults without a row or with an unusable one.
+`DELETE` removes the row. `BAN_MAX_DAYS` and `RETENTION_DAYS` stay
+environment-only and are shown read-only.
+
+**Reason:** the thresholds must be the same in account, ingest and rag,
+and the maintainer wants them changeable without a rollout. The one
+place all three already share is the database, and the `settings` table
+is account's existing admin-editable store; core defines key, shape and
+bounds so that the writer and the readers cannot drift, and the bounds
+live in one validator instead of being copied into this service's models.
+Account owns the write because the admin panel is its API; core owns the
+read because the middleware is core's.
+
+**Rejected alternatives:** a core-owned table for runtime settings —
+rejected as a second settings store for four integers; validating the
+PUT with pydantic bounds in this service — rejected because core's
+`parse` is what the readers trust, and two validators would need to be
+kept equal; an immediate push to the other services — rejected because a
+30 s delay on a threshold change is harmless and needs no signalling.
+
+**Consequence:** `ban_max_days` and `retention_days` are not editable
+here because they drive the purge at service start, not the middleware's
+per-request decision; changing them is a deployment change.
