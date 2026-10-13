@@ -6,11 +6,13 @@ import type { User } from './api/types'
 import { AdminPage } from './components/admin/AdminPage'
 import { AuthCallback } from './components/AuthCallback'
 import { Header } from './components/Header'
+import { LibraryPage } from './components/LibraryPage'
 import { LoginPage } from './components/LoginPage'
 import { SharePage } from './components/SharePage'
 import { VoucherDialog } from './components/VoucherDialog'
 import { Workspace } from './components/Workspace'
 import { useRoute } from './hooks/useRoute'
+import { writeLastNotebook } from './lib/lastNotebook'
 
 type Session = { state: 'checking' } | { state: 'anonymous' } | { state: 'in'; me: User | null }
 
@@ -75,12 +77,23 @@ export default function App() {
     <>
       <Header
         me={me}
-        route={adminPage ? 'admin' : 'home'}
+        route={adminPage ? 'admin' : route.name === 'library' ? 'library' : 'home'}
         onNavigate={navigate}
         onVoucher={() => setVoucher({ open: true, reason: 'manual' })}
         onLogout={logout}
       />
-      {adminPage ? <AdminPage page={adminPage} onNavigate={navigate} /> : <Workspace />}
+      {adminPage ? (
+        <AdminPage page={adminPage} onNavigate={navigate} />
+      ) : route.name === 'library' ? (
+        <LibraryPage
+          onOpenNotebook={(id) => {
+            writeLastNotebook(id)
+            navigate('/')
+          }}
+        />
+      ) : (
+        <Workspace />
+      )}
       <VoucherDialog
         open={voucher.open}
         reason={voucher.reason}

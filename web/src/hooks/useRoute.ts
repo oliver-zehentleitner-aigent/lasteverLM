@@ -8,6 +8,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'auth-callback'; token: string }
   | { name: 'admin'; page: AdminPageId }
+  | { name: 'library' }
   | { name: 'shared'; token: string }
 
 /** Pure, so the route table is unit-tested without a browser. */
@@ -19,6 +20,7 @@ export function parseRoute(loc: Pick<Location, 'pathname' | 'search'>): Route {
     // an unknown admin page opens the overview rather than the workspace
     return { name: 'admin', page: adminPageFromPath(loc.pathname) ?? 'overview' }
   }
+  if (loc.pathname === '/library' || loc.pathname === '/library/') return { name: 'library' }
   const shared = /^\/s\/([^/]+)$/.exec(loc.pathname)
   if (shared) return { name: 'shared', token: decodeURIComponent(shared[1]) }
   return { name: 'home' }

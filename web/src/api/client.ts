@@ -32,6 +32,12 @@ interface RequestOptions {
  *  service's {"error"} text when there is one, otherwise a description
  *  of the status (an HTML page from the ingress is never shown as is). */
 export async function request<T>(url: string, opts: RequestOptions = {}): Promise<T> {
+  return (await requestWithStatus<T>(url, opts)).body
+}
+
+/** `request` plus the success status, for the few calls where 200 and 202
+ *  mean different things (a source that was already in the notebook). */
+export async function requestWithStatus<T>(url: string, opts: RequestOptions = {}): Promise<{ status: number; body: T }> {
   const headers: Record<string, string> = {}
   const token = getToken()
   if (token && !opts.anonymous) headers['Authorization'] = `Bearer ${token}`
@@ -54,14 +60,14 @@ export async function request<T>(url: string, opts: RequestOptions = {}): Promis
   if (res.status === 401) apiEvents.dispatchEvent(new Event(UNAUTHORIZED))
   if (res.status === 402) apiEvents.dispatchEvent(new Event(PAYMENT_REQUIRED))
 
-  if (res.status === 204) return undefined as T
+  if (res.status === 204) return { status: 204, body: undefined as T }
 
   const text = await res.text()
   if (!res.ok) throw new ApiError(res.status, failureMessage(res.status, text), serviceCode(text))
 
-  if (!text) return undefined as T
+  if (!text) return { status: res.status, body: undefined as T }
   try {
-    return JSON.parse(text) as T
+    return { status: res.status, body: JSON.parse(text) as T }
   } catch {
     throw new ApiError(res.status, 'The server answered with something that is not JSON.')
   }

@@ -60,7 +60,7 @@ curl http://localhost:8080/healthz
 nginx runs unprivileged on 8080, serves `dist/`, answers `/healthz`
 itself, caches hashed assets for a year and never caches `index.html`,
 so a new image is picked up on the next load. All app routes
-(`/`, `/admin` and its pages such as `/admin/users`, `/auth/callback`,
+(`/`, `/library`, `/admin` and its pages such as `/admin/users`, `/auth/callback`,
 `/s/<token>`) fall back to `index.html`.
 The security headers live in `security-headers.conf`, included in every
 location, because nginx drops server-level `add_header` lines in a

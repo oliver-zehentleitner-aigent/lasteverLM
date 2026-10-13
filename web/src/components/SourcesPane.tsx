@@ -11,8 +11,8 @@ interface Props {
   /** bumps when the wizard added sources, to reload the list */
   version: number
   onAdd: () => void
-  /** whether any upload is ready, for the Create button */
-  onReadyChange: (hasReady: boolean) => void
+  /** the uploads once loaded, for the Create button and removed citations */
+  onSourcesChange: (sources: Source[]) => void
 }
 
 /** Left column, top: the sources with status and delete; the add button
@@ -20,16 +20,21 @@ interface Props {
  *  (the contract has no push channel) and stops when everything is ready
  *  or failed. Only uploads are listed: generated documents are sources of
  *  kind `generated` for the chat, but the Outputs list shows them. */
-export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, onReadyChange }: Props) {
+export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, onSourcesChange }: Props) {
   const [sources, setSources] = useState<Source[]>([])
+  const [loaded, setLoaded] = useState(false)
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
-    void run(async () => setSources(uploadedSources(await ingest.listSources(notebookId))))
+    void run(async () => {
+      setSources(uploadedSources(await ingest.listSources(notebookId)))
+      setLoaded(true)
+    })
   }, [notebookId, version, run])
 
-  const hasReady = sources.some((s) => s.status === 'ready')
-  useEffect(() => onReadyChange(hasReady), [hasReady, onReadyChange])
+  useEffect(() => {
+    if (loaded) onSourcesChange(sources)
+  }, [loaded, sources, onSourcesChange])
 
   const processing = sources.some((s) => s.status === 'processing')
   useEffect(() => {
@@ -43,7 +48,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
   }, [processing, notebookId])
 
   async function remove(s: Source) {
-    if (!confirm(`Remove "${s.name}"?`)) return
+    if (!confirm(`Remove "${s.name}" from this notebook? It stays in your library.`)) return
     const ok = await run(async () => {
       await ingest.deleteSource(s.id)
       return true
@@ -75,7 +80,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
               {s.status === 'processing' && s.error && <span className="muted small">Retrying after: {s.error}</span>}
             </div>
-            <button type="button" className="icon" title="Remove source" onClick={() => void remove(s)}>
+            <button type="button" className="icon" title="Remove from this notebook" onClick={() => void remove(s)}>
               ×
             </button>
           </li>

@@ -7,6 +7,7 @@ describe('parseRoute', () => {
     expect(parseRoute({ pathname: '/admin', search: '' })).toEqual({ name: 'admin', page: 'overview' })
     expect(parseRoute({ pathname: '/auth/callback', search: '?token=abc' })).toEqual({ name: 'auth-callback', token: 'abc' })
     expect(parseRoute({ pathname: '/s/t%20k', search: '' })).toEqual({ name: 'shared', token: 't k' })
+    expect(parseRoute({ pathname: '/library', search: '' })).toEqual({ name: 'library' })
   })
   it('falls back to home for unknown paths and keeps a missing token empty', () => {
     expect(parseRoute({ pathname: '/nope', search: '' })).toEqual({ name: 'home' })

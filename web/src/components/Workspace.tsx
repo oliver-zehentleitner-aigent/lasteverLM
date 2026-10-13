@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
-import type { Citation, Notebook, Output, OutputKind } from '../api/types'
+import type { Citation, Notebook, Output, OutputKind, Source } from '../api/types'
 import { OUTPUT_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
 import { browserStorage, DEFAULT_VIEWER_RATIO, readRatio, writeRatio } from '../lib/layout'
+import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { formFor } from '../lib/outputs'
 import { ChatPane } from './ChatPane'
 import { Divider } from './Divider'
@@ -15,19 +16,11 @@ import { OutputViewer } from './OutputViewer'
 import { SourcesPane } from './SourcesPane'
 import { Wizard } from './Wizard'
 
-const LAST_NOTEBOOK_KEY = 'lasteverlm.notebook'
-
 /** The two-column screen. Left: sources, then the output forms as tiles.
  *  Right: the viewer with one tab per generated document, then the chat. */
 export function Workspace() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(LAST_NOTEBOOK_KEY)
-    } catch {
-      return null
-    }
-  })
+  const [selectedId, setSelectedId] = useState<string | null>(readLastNotebook)
   const [wizardFor, setWizardFor] = useState<string | null>(null)
   const { error, run } = useAsync()
 
@@ -40,11 +33,7 @@ export function Workspace() {
   }, [run])
 
   useEffect(() => {
-    try {
-      if (selectedId) localStorage.setItem(LAST_NOTEBOOK_KEY, selectedId)
-    } catch {
-      // storage unavailable; the first notebook is selected on the next load
-    }
+    if (selectedId) writeLastNotebook(selectedId)
   }, [selectedId])
 
   /** A new notebook goes straight into the wizard: it is empty otherwise. */
@@ -105,7 +94,10 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   const [sourcesVersion, setSourcesVersion] = useState(0)
   // the picked output format, kept while this notebook is open
   const [format, setFormat] = useState<OutputKind | null>(null)
-  const [hasReadySource, setHasReadySource] = useState(false)
+  // the uploads as last listed, null until the first list arrived
+  const [uploads, setUploads] = useState<Source[] | null>(null)
+  const [outputsLoaded, setOutputsLoaded] = useState(false)
+  const hasReadySource = uploads?.some((s) => s.status === 'ready') ?? false
   // viewer/chat split, remembered per browser; full view hides the chat behind a toggle
   const [ratio, setRatio] = useState(() => readRatio(browserStorage()))
   const [fullView, setFullView] = useState(false)
@@ -133,6 +125,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   const reloadOutputs = useCallback(async () => {
     const list = await rag.listOutputs(notebookId)
     setOutputs(list)
+    setOutputsLoaded(true)
     setSelectedOutput((cur) => (cur && list.some((o) => o.id === cur) ? cur : (list[0]?.id ?? null)))
   }, [notebookId])
 
@@ -176,6 +169,17 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
     }
   }
 
+  /** Every source a citation can still point to: the uploads and the
+   *  generated documents of this notebook; null while either is loading. */
+  const presentSources =
+    uploads && outputsLoaded
+      ? new Set([
+          // citations carry the notebook's link id (Source.id), never the library id
+          ...uploads.map((s) => s.id),
+          ...outputs.flatMap((o) => (o.source_id ? [o.source_id] : [])),
+        ])
+      : null
+
   /** A citation into a generated document opens that document's tab (the
    *  output whose generated source it cites) and shows it in the Outputs
    *  list; any other citation highlights the source in the Sources list. */
@@ -204,7 +208,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
           highlightedSourceId={highlight}
           version={sourcesVersion}
           onAdd={() => onWizard(true)}
-          onReadyChange={setHasReadySource}
+          onSourcesChange={setUploads}
         />
         <OutputTiles
           selected={format}
@@ -246,7 +250,13 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
           />
         )}
         <div className="no-print chat-wrap">
-          <ChatPane notebookId={notebookId} scope={scope} onClearScope={() => setScope(null)} onCitationSelected={onCitation} />
+          <ChatPane
+            notebookId={notebookId}
+            scope={scope}
+            presentSources={presentSources}
+            onClearScope={() => setScope(null)}
+            onCitationSelected={onCitation}
+          />
         </div>
       </div>
       {wizardOpen && (
