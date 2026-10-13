@@ -29,9 +29,10 @@ license, so switching back is a one-word change in the runbook.
 
 **Id:** a2760414-e8d9-4b37-ae4f-a62ffd57f658
 **Type:** constraint
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** provider source read on 2026-10-12 (`resource_vultr_kubernetes.go` exports no kubeconfig attribute)
+**Verification:** contradicted — on 2026-10-14 the state of the `vultr_kubernetes` resource holds `kube_config`, `client_certificate`, `client_key` and `cluster_ca_certificate` (provider 2.33.1, attribute names read, not values); the state also holds no database password, the database not being in the configuration
 **Revisit when:** the provider exports the kubeconfig again
 
 `make kubeconfig` fetches the cluster credentials with

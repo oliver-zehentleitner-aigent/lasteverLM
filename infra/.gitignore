@@ -3,7 +3,6 @@ build/
 
 # OpenTofu local state and inputs
 tofu/.terraform/
-tofu/.terraform.lock.hcl
 tofu/*.tfstate
 tofu/*.tfstate.*
 tofu/*.tfvars
