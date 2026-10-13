@@ -37,9 +37,14 @@ spec:
         app.kubernetes.io/name: migrate
     spec:
       restartPolicy: Never
+      automountServiceAccountToken: false
       containers:
         - name: migrate
           image: {{ .Values.migrations.image }}
+          securityContext:
+            {{- include "lasteverlm.securityContext" .Values.migrations | nindent 12 }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
           command: ["sh", "-c", "mkdir -p /work && tar xzf /in/migrations.tgz -C /work && sh /in/migrate.sh /work"]
           env:
             - name: DATABASE_URL
@@ -53,10 +58,17 @@ spec:
             - name: migrations
               mountPath: /in
               readOnly: true
+            - name: work
+              mountPath: /work
             {{- include "lasteverlm.pgCaVolumeMount" . | nindent 12 }}
+            {{- include "lasteverlm.tmpVolumeMount" . | nindent 12 }}
       volumes:
         - name: migrations
           configMap:
             name: lasteverlm-migrations
+        - name: work
+          emptyDir:
+            sizeLimit: 64Mi
         {{- include "lasteverlm.pgCaVolume" . | nindent 8 }}
+        {{- include "lasteverlm.tmpVolume" . | nindent 8 }}
 {{- end }}

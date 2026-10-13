@@ -24,6 +24,8 @@ spec:
       {{- if $svc.kubernetesRead }}
       serviceAccountName: {{ $name }}
       automountServiceAccountToken: true
+      {{- else }}
+      automountServiceAccountToken: false
       {{- end }}
       containers:
         - name: {{ $name }}
@@ -47,8 +49,10 @@ spec:
             {{- include "lasteverlm.securityContext" $svc | nindent 12 }}
           volumeMounts:
             {{- include "lasteverlm.pgCaVolumeMount" $ | nindent 12 }}
+            {{- include "lasteverlm.tmpVolumeMount" $ | nindent 12 }}
       volumes:
         {{- include "lasteverlm.pgCaVolume" $ | nindent 8 }}
+        {{- include "lasteverlm.tmpVolume" $ | nindent 8 }}
 ---
 apiVersion: v1
 kind: Service
@@ -91,6 +95,7 @@ spec:
         app.kubernetes.io/name: {{ $name }}-worker
         app.kubernetes.io/component: worker
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 120
       containers:
         - name: worker
@@ -106,8 +111,10 @@ spec:
             {{- include "lasteverlm.securityContext" $svc | nindent 12 }}
           volumeMounts:
             {{- include "lasteverlm.pgCaVolumeMount" $ | nindent 12 }}
+            {{- include "lasteverlm.tmpVolumeMount" $ | nindent 12 }}
       volumes:
         {{- include "lasteverlm.pgCaVolume" $ | nindent 8 }}
+        {{- include "lasteverlm.tmpVolume" $ | nindent 8 }}
 {{- if $svc.worker.hpa.enabled }}
 ---
 {{ include "lasteverlm.hpa" (dict "root" $ "name" (printf "%s-worker" $name) "hpa" $svc.worker.hpa) }}
