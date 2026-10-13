@@ -28,6 +28,7 @@ dev = [
   "pytest>=8",
   "httpx>=0.27",
   "ruff>=0.5",
+  "black>=24.4",
   "mypy>=1.10",
   "PyJWT>=2.8",
 ]
@@ -44,6 +45,10 @@ packages = ["src/lasteverlm_ingest"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
 
 [tool.ruff]
 line-length = 100

@@ -66,7 +66,7 @@ stay in `processing`.
 ## Test
 
 ```bash
-make check                     # make install, then ruff, ruff format --check, mypy, pytest
+make check                     # make install, then ruff check, black --check, mypy, pytest
 ```
 
 `make check` installs first, so it works on a fresh checkout and is what CI runs.

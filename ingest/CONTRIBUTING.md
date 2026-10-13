@@ -17,7 +17,7 @@ first; the implementation here follows once that is merged.
 ## Before opening a pull request
 
 ```bash
-ruff check . && ruff format --check .
+ruff check . && black --check .
 mypy
 pytest
 ```
@@ -34,7 +34,7 @@ database, a bucket or network access (see `tests/fakes.py`).
 
 ## Style
 
-Python 3.12+, type hints everywhere, `ruff` for linting and formatting,
+Python 3.12+, type hints everywhere, `ruff` for linting, `black` for formatting,
 `mypy` clean. Every stage of the pipeline is an interface with one
 implementation; a new source kind, chunker, embedder or storage is a new
 module, never an edit to its callers.
