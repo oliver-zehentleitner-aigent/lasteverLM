@@ -5,11 +5,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from lasteverlm_core import OutputKind, OutputStatus, SourceKind
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from .options import OutputOptions
 
@@ -26,6 +26,12 @@ class AskRequest(BaseModel):
 
 class ConversationCreate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class ConversationRename(BaseModel):
+    """A chat tab's new name, trimmed before the length check."""
+
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 
 
 class Conversation(BaseModel):

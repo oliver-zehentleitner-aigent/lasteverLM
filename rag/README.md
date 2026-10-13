@@ -18,6 +18,7 @@ this directory implements the `/api/rag` prefix.
 | POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?}` | `Answer` |
 | GET | `/api/rag/notebooks/{id}/conversations` | | `[Conversation]`, oldest first |
 | POST | `/api/rag/notebooks/{id}/conversations` | `{"title"?}` | 201 `Conversation`; title defaults to `Chat N` |
+| PATCH | `/api/rag/conversations/{id}` | `{"title"}` | `Conversation`; title trimmed, 1–80 chars, else 422 |
 | DELETE | `/api/rag/conversations/{id}` | | 204, the conversation and its messages |
 | GET | `/api/rag/conversations/{id}/messages` | | `[Message]`, oldest first |
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |

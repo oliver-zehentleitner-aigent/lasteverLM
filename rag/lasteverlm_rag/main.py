@@ -50,6 +50,7 @@ from .models import (
     AskRequest,
     Conversation,
     ConversationCreate,
+    ConversationRename,
     DailyStats,
     OutputCreate,
 )
@@ -206,6 +207,13 @@ def create_app(
         notebook_id: NotebookId, user: User, body: ConversationCreate | None = None
     ) -> Conversation:
         return rag.create_conversation(user, str(notebook_id), body.title if body else None)
+
+    @app.patch(f"{PREFIX}/conversations/{{conversation_id}}", response_model=Conversation)
+    def rename_conversation(
+        conversation_id: ConversationId, body: ConversationRename, user: User
+    ) -> Conversation:
+        """Renaming a chat tab."""
+        return rag.rename_conversation(user, str(conversation_id), body.title)
 
     @app.delete(f"{PREFIX}/conversations/{{conversation_id}}", status_code=204)
     def delete_conversation(conversation_id: ConversationId, user: User) -> Response:

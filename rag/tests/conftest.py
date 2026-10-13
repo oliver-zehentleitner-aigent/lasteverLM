@@ -141,6 +141,10 @@ class FakeStore:
     def create_conversation(self, notebook_id: str, title: str) -> ConversationRow:
         return self._add_conversation(notebook_id, title)
 
+    def rename_conversation(self, conversation_id: str, title: str) -> ConversationRow:
+        self.conversations[conversation_id]["title"] = title
+        return self._conversation(self.conversations[conversation_id])
+
     def delete_conversation(self, conversation_id: str) -> None:
         del self.conversations[conversation_id]
         self.messages = [m for m in self.messages if m["conversation_id"] != conversation_id]
