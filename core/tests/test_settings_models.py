@@ -8,9 +8,11 @@ import pytest
 from pydantic import ValidationError
 
 from lasteverlm_core import (
+    UNKNOWN_BUILD,
     ChunkView,
     Citation,
     ConfigError,
+    Health,
     InferenceSettings,
     Message,
     Output,
@@ -58,6 +60,17 @@ def test_output_options_default_to_empty() -> None:
     assert Output.model_validate({**row, "options": options}).options == options
     shared = SharedOutput(kind="audio", title="t", created_at=datetime(2026, 10, 13, tzinfo=UTC))
     assert shared.options == {}
+
+
+def test_health_reports_the_build_from_the_env() -> None:
+    env = {"APP_VERSION": "0.4.0", "APP_COMMIT": " 5e320ae "}
+    assert Health.from_env(env).model_dump() == {
+        "status": "ok",
+        "version": "0.4.0",
+        "commit": "5e320ae",
+    }
+    unset = Health.from_env({"APP_COMMIT": ""})
+    assert (unset.version, unset.commit) == (UNKNOWN_BUILD, "unknown")
 
 
 def test_models_serialize_ids_and_times_as_strings() -> None:
