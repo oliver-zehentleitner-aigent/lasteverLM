@@ -60,6 +60,7 @@ class Retriever(Protocol):
         floor: float,
         source_id: str | None = None,
         generated: bool = False,
+        source_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]: ...
 
 
@@ -153,8 +154,8 @@ class Store(Protocol):
 # each; the source id returned is the link's (the id this notebook knows).
 # Unscoped, it searches either the uploads or the generated documents
 # (``generated``), so the caller can bound how many paraphrases reach the
-# model. The floor is applied in SQL so a notebook with no
-# relevant chunk costs one round trip.
+# model; ``source_ids`` narrows it to the sources the user ticked. The floor
+# is applied in SQL so a notebook with no relevant chunk costs one round trip.
 _SEARCH_SQL = """
 select c.id::text as chunk_id, s.id::text as source_id, l.name as source_name,
        l.kind as source_kind, c.page, c.text, c.idx as chunk_index,
@@ -168,6 +169,7 @@ where s.notebook_id = %(notebook_id)s
   and l.status = 'ready'
   and (%(source_id)s::uuid is null or s.id = %(source_id)s::uuid)
   and (%(source_id)s::uuid is not null or (l.kind = 'generated') = %(generated)s)
+  and (%(source_ids)s::uuid[] is null or s.id = any(%(source_ids)s::uuid[]))
   and 1 - (c.embedding <=> %(embedding)s::vector) >= %(floor)s
 order by c.embedding <=> %(embedding)s::vector
 limit %(k)s
@@ -217,12 +219,14 @@ class PgVectorRetriever:
         floor: float,
         source_id: str | None = None,
         generated: bool = False,
+        source_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         params = {
             "notebook_id": notebook_id,
             "embedding": _vector_literal(embedding),
             "source_id": source_id,
             "generated": generated,
+            "source_ids": source_ids,
             "floor": floor,
             "k": k,
         }
@@ -476,14 +480,14 @@ class PostgresStore:
         one carries its output's kind."""
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "select l.name, l.kind, o.kind as output_kind from sources s "
+                "select s.id::text as id, l.name, l.kind, o.kind as output_kind from sources s "
                 "join library_sources l on l.id = s.library_source_id "
                 "left join outputs o on o.source_id = s.id "
                 "where s.notebook_id = %s and l.status = 'ready' "
                 "order by s.created_at, s.id",
                 (notebook_id,),
             ).fetchall()
-        return [NotebookDocument(r["name"], r["kind"], r["output_kind"]) for r in rows]
+        return [NotebookDocument(r["id"], r["name"], r["kind"], r["output_kind"]) for r in rows]
 
     def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str:
         """A hidden library row of kind 'generated' (owned by the notebook's owner,

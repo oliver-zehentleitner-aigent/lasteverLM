@@ -68,6 +68,8 @@ Rules:
   generated from them. A question about which documents the notebook holds is
   answered from that list, without a citation; what a document says comes from
   the passages only.
+- A document marked "not in scope" was deselected by the user: its content is
+  not searched. Asked about it, say that it is not selected.
 - A generated document restates the uploads: when an uploaded passage says the
   same as a generated one, cite the uploaded one.
 - Be concise. Plain text, no headings."""
@@ -85,6 +87,7 @@ _DOCUMENT_KINDS = {
     "mindmap": "mind map",
     "infographic": "infographic",
     "audio": "audio overview",
+    "generated": "document",
 }
 
 ANSWER_MAX_TOKENS = 1024
@@ -128,22 +131,33 @@ class OutputNotReady(Exception):
     """The output exists but has no generated source to ask about yet."""
 
 
+class InvalidSources(Exception):
+    """A selected source id is not an uploaded source of the notebook."""
+
+
 class InsufficientCredit(Exception):
     """The caller's balance is zero; no provider call is made."""
 
 
-def answer_system_prompt(documents: list[NotebookDocument]) -> str:
+def answer_system_prompt(
+    documents: list[NotebookDocument], selected: list[str] | None = None
+) -> str:
     """The answer rules plus the notebook's documents, so a question about the
-    notebook itself ("which documents can you see?") has something to go on."""
-    lines = [
-        (
-            f"- {_DOCUMENT_KINDS[d.output_kind or d.kind]} (generated): {d.name}"
-            if d.kind == "generated"
-            else f"- {_DOCUMENT_KINDS[d.kind]} (uploaded): {d.name}"
-        )
-        for d in documents
-    ]
+    notebook itself ("which documents can you see?") has something to go on.
+    With a selection, the uploads outside it are marked "not in scope"."""
+    lines = [f"- {_document_line(d, selected)}" for d in documents]
     return ANSWER_SYSTEM_PROMPT + "\n\nDocuments in this notebook:\n" + "\n".join(lines)
+
+
+def _document_line(document: NotebookDocument, selected: list[str] | None) -> str:
+    if document.kind == "generated":
+        return (
+            f"{_DOCUMENT_KINDS[document.output_kind or document.kind]} (generated): {document.name}"
+        )
+    origin = "uploaded"
+    if selected and document.source_id not in selected:
+        origin = "uploaded, not in scope"
+    return f"{_DOCUMENT_KINDS[document.kind]} ({origin}): {document.name}"
 
 
 def uploads_first(
@@ -205,18 +219,20 @@ class RagService:
         question: str,
         conversation_id: str,
         output_id: str | None = None,
+        source_ids: list[str] | None = None,
     ) -> Answer:
         require_notebook(self._store, user_id, notebook_id)
         conversation = self._owned_conversation(user_id, conversation_id)
         if conversation.notebook_id != notebook_id:
             raise ConversationNotFound(conversation_id)
         source_id = self._scope_source(user_id, notebook_id, output_id)
+        selected = check_sources(self._store, notebook_id, source_ids)
         require_credit(self._store, user_id)
         question = question.strip()
 
         embedded = self._embedder.embed([question])
         self._store.record_usage(user_id, notebook_id, embedded.usage)
-        chunks = self._retrieve(notebook_id, embedded.vectors[0], source_id)
+        chunks = self._retrieve(notebook_id, embedded.vectors[0], source_id, selected)
         documents = self._store.notebook_documents(notebook_id)
 
         if chunks or documents:
@@ -225,7 +241,7 @@ class RagService:
             passages = number_passages(chunks)
             history = self._store.list_messages(conversation_id, last=HISTORY_MESSAGES)
             completion = self._llm.complete(
-                answer_system_prompt(documents),
+                answer_system_prompt(documents, selected),
                 render_answer_prompt(question, passages, history),
                 ANSWER_MAX_TOKENS,
             )
@@ -253,13 +269,20 @@ class RagService:
         return Answer(message_id=stored.id, answer=answer, citations=citations)
 
     def _retrieve(
-        self, notebook_id: str, vector: list[float], source_id: str | None
+        self,
+        notebook_id: str,
+        vector: list[float],
+        source_id: str | None,
+        selected: list[str] | None = None,
     ) -> list[RetrievedChunk]:
+        # a scope ("ask about this") names one document and wins over the selection
         if source_id:
             return self._retriever.search(notebook_id, vector, SCOPED_RETRIEVAL_K, 0.0, source_id)
         # Unscoped: the uploads fill the k slots by score; a generated document
         # may take a few of them when it scores above the floor too.
-        uploads = self._retriever.search(notebook_id, vector, self._k, self._floor)
+        uploads = self._retriever.search(
+            notebook_id, vector, self._k, self._floor, source_ids=selected
+        )
         generated = (
             self._retriever.search(
                 notebook_id, vector, self._generated_slots, self._floor, generated=True
@@ -363,12 +386,17 @@ class OutputService:
         notebook_id: str,
         kind: OutputKind,
         options: OutputOptions | None = None,
+        source_ids: list[str] | None = None,
     ) -> Output:
         try:
             resolved = resolve(kind, options, self._default_voice)
         except ValueError as exc:
             raise InvalidOptions(str(exc)) from exc
         require_notebook(self._store, user_id, notebook_id)
+        selected = check_sources(self._store, notebook_id, source_ids)
+        if selected:
+            # stored with the options, so the viewer shows what it was made from
+            resolved["sources"] = selected
         require_credit(self._store, user_id)
         states = self._store.source_states(notebook_id)
         waiting = any(s.status == "processing" for s in states)
@@ -414,7 +442,8 @@ class OutputService:
                 "title": row.title,
                 "content": self._public_content(row.content),
                 "created_at": row.created_at,
-                "options": row.options,
+                # the source selection names the owner's link ids: not for strangers
+                "options": {k: v for k, v in row.options.items() if k != "sources"},
             }
         )
 
@@ -477,13 +506,24 @@ class OutputService:
         generator = self._generators[row.kind]
         notebook = self._store.get_notebook(row.notebook_id) or {}
         summaries = self._store.source_summaries(row.notebook_id)
+        selected = row.options.get("sources")
+        if selected:
+            summaries = [s for s in summaries if s.source_id in selected]
+            if not summaries:
+                raise GenerationFailed("none of the selected sources is ready")
         if not summaries:
             raise GenerationFailed("the notebook has no ready source")
 
         embedded = self._embedder.embed([generator.focus_query])
         self._store.record_usage(user_id, row.notebook_id, embedded.usage)
         chunks = balanced_chunks(
-            self._retriever, row.notebook_id, embedded.vectors[0], summaries, self._k, self._floor
+            self._retriever,
+            row.notebook_id,
+            embedded.vectors[0],
+            summaries,
+            self._k,
+            self._floor,
+            selected,
         )
 
         def complete(
@@ -577,13 +617,27 @@ def balanced_chunks(
     summaries: list[SourceSummary],
     k: int,
     floor: float,
+    selected: list[str] | None = None,
 ) -> list[RetrievedChunk]:
     """A generator's focus-query passages with every ready source represented:
     each source's best chunks regardless of the floor, the rest by score."""
     each, total = per_source_quota(len(summaries), k)
     per_source = [retriever.search(notebook_id, vector, each, 0.0, s.source_id) for s in summaries]
-    ranked = retriever.search(notebook_id, vector, total, floor)
+    # the rest by score, within the selection when there is one
+    ranked = retriever.search(notebook_id, vector, total, floor, source_ids=selected)
     return balance(per_source, ranked, total)
+
+
+def check_sources(store: Store, notebook_id: str, source_ids: list[str] | None) -> list[str] | None:
+    """The selection as link ids, or None for all sources. Every id must be an
+    uploaded source of this notebook; a generated document is not selectable."""
+    if not source_ids:
+        return None
+    uploads = {s.source_id for s in store.source_states(notebook_id) if s.kind != "generated"}
+    for source_id in source_ids:
+        if source_id not in uploads:
+            raise InvalidSources(source_id)
+    return list(dict.fromkeys(source_ids))
 
 
 def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, Any]:

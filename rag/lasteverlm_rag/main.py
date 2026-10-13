@@ -61,6 +61,7 @@ from .service import (
     ConversationNotFound,
     InsufficientCredit,
     InvalidOptions,
+    InvalidSources,
     NotebookNotFound,
     OutputNotFound,
     OutputNotReady,
@@ -192,7 +193,14 @@ def create_app(
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/ask", response_model=Answer)
     def ask(notebook_id: NotebookId, body: AskRequest, user: User) -> Answer:
         output_id = body.scope.output_id if body.scope else None
-        return rag.ask(user, str(notebook_id), body.question, str(body.conversation_id), output_id)
+        return rag.ask(
+            user,
+            str(notebook_id),
+            body.question,
+            str(body.conversation_id),
+            output_id,
+            [str(s) for s in body.source_ids or []],
+        )
 
     @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/conversations", response_model=list[Conversation])
     def list_conversations(notebook_id: NotebookId, user: User) -> list[Conversation]:
@@ -233,7 +241,9 @@ def create_app(
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=Output, status_code=202)
     def create_output(notebook_id: NotebookId, body: OutputCreate, user: User) -> Output:
         """Inserts the job; a worker (``lasteverlm_rag.worker``) picks it up."""
-        return outputs.create(user, str(notebook_id), body.kind, body.options)
+        return outputs.create(
+            user, str(notebook_id), body.kind, body.options, [str(s) for s in body.source_ids or []]
+        )
 
     @app.post(f"{PREFIX}/outputs/voice-sample")
     def voice_sample(body: VoiceSampleRequest, user: User) -> dict[str, Any]:
@@ -307,6 +317,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(InvalidOptions)
     async def invalid_options(_: Request, exc: InvalidOptions) -> JSONResponse:
         return error(422, f"options: {exc}")
+
+    @app.exception_handler(InvalidSources)
+    async def invalid_sources(_: Request, exc: InvalidSources) -> JSONResponse:
+        return error(422, f"source_ids: {exc} is not a source of this notebook")
 
     @app.exception_handler(ChunkNotFound)
     async def chunk_not_found(_: Request, exc: ChunkNotFound) -> JSONResponse:

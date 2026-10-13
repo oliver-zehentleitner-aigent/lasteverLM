@@ -528,3 +528,19 @@ def test_output_options_round_trip(store, notebook):
     assert row.options == chosen
     assert (store.get_output(row.id) or row).options == chosen
     assert store.create_output(notebook, "report", "processing").options == {}
+
+
+def test_search_narrowed_to_selected_sources(pool, notebook):
+    retriever = PgVectorRetriever(pool)
+    picked, other = add_source(pool, notebook, "ready"), add_source(pool, notebook, "ready")
+    with pool.connection() as conn:
+        for source, text in ((picked, "picked chunk"), (other, "other chunk")):
+            conn.execute(
+                "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                "values (%s, %s, 0, null, %s, '[1,0,0]')",
+                (str(uuid4()), library_id_of(pool, source), text),
+            )
+    every = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0)
+    assert sorted(h.text for h in every) == ["other chunk", "picked chunk"]
+    hits = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, source_ids=[picked])
+    assert [(h.text, h.source_id) for h in hits] == [("picked chunk", picked)]

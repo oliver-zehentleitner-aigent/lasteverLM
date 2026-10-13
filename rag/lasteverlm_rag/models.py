@@ -22,6 +22,8 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     conversation_id: UUID
     scope: AskScope | None = None
+    # the sources the user ticked; absent or empty means all
+    source_ids: list[UUID] | None = None
 
 
 class ConversationCreate(BaseModel):
@@ -67,6 +69,8 @@ class ConversationRow:
 class OutputCreate(BaseModel):
     kind: OutputKind
     options: OutputOptions | None = None
+    # the sources the document is made from; absent or empty means all
+    source_ids: list[UUID] | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +108,7 @@ class Passage:
 class NotebookDocument:
     """One ready document of a notebook as the chat lists it to the model."""
 
+    source_id: str
     name: str
     kind: SourceKind
     output_kind: OutputKind | None = None
