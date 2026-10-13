@@ -137,6 +137,7 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, pl
 | POST | `/auth/request-link` | `{"email"}` | 202, or 403 `code: not_allowed` |
 | GET | `/auth/callback?token=` | | `{"jwt", "user": User}` |
 | GET | `/me` | | `User` |
+| GET, PUT | `/me/preferences` | PUT: any subset, `null` clears | `Preferences` |
 | POST | `/vouchers/redeem` | `{"code"}` | `User` |
 | POST | `/visits` | `{"path"}` | 204 |
 | GET | `/admin/users` | | `[AdminUser]` |
@@ -159,7 +160,8 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, pl
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
-User:      {"id", "email", "is_admin", "balance_cents", "created_at"}
+User:      {"id", "email", "is_admin", "balance_cents", "created_at", "preferences": Preferences}
+Preferences: {"ui_language": "de"|"en"|null, "output_language": <code>|null, "audio_voice": <voice id>|null, "trash_days": 1..365|null}  -- null: not set; the web resolves defaults
 AdminUser: {"id", "email", "is_admin", "created_at", "last_login_at", "balance_cents", "usage_cents"}
 Smtp:      {"host", "port", "username", "from_address", "starttls"}   -- empty host: mail not configured
 Allowlist: {"allowed_domains": [], "allowed_addresses": []}
@@ -209,8 +211,10 @@ v1; the frontend polls `GET /sources`.
 | POST | `/notebooks/{id}/conversations` | `{"title"}?` (default "Chat N") | `Conversation` |
 | DELETE | `/conversations/{id}` | | 204, messages included (closing a chat tab) |
 | GET | `/conversations/{id}/messages` | | `[Message]` |
+| GET | `/chunks/{id}` | | `ChunkView` (the cited passage verbatim; 404 unless the caller owns it) |
 | POST | `/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?}` | `Answer`; 422 without a conversation |
-| POST | `/notebooks/{id}/outputs` | `{"kind"}` | 202 `Output` with status `waiting` or `processing` |
+| GET | `/outputs/options` | | `{"languages": [{"code","label"}], "audio": {"voices": [{"id","label","gender"}], "speeds": [], "default_voice"}}` |
+| POST | `/notebooks/{id}/outputs` | `{"kind", "options"?}` — options per kind: `{"language"}` for text kinds, `{"language", "voice", "speed"}` for audio; 422 outside the catalogue | 202 `Output` with status `waiting` or `processing` |
 | GET | `/notebooks/{id}/outputs` | | `[Output]` |
 | GET | `/outputs/{id}` | | `Output` |
 | DELETE | `/outputs/{id}` | | 204 |
@@ -225,7 +229,8 @@ Answer:   {"message_id", "answer", "citations": [Citation]}
 Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote" (verbatim chunk text), "similarity", "chunk_index", "chunk_count"}
 Conversation: {"id", "notebook_id", "title", "created_at"}
 Message:  {"id", "conversation_id", "role", "content", "citations", "created_at"}
-Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "share_token", "source_id", "created_at"}
+Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "share_token", "source_id", "options", "created_at"}
+ChunkView: {"chunk_id", "source_id", "source_name", "source_kind", "page", "text", "chunk_index", "chunk_count"}
 RagStats: {"notebooks": {"total"}, "messages": {"total", "last_24h"}, "outputs": {"by_kind": {<kind>: n}, "by_status": {<status>: n}},
            "jobs": {"pending", "running", "failed"}, "shared": {"outputs"}}
 ```

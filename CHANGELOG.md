@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/architecture.md`: user preferences (`/me/preferences`), output options per kind with the catalogue endpoint, the cited chunk endpoint and the ChunkView shape.
+
 ### Added
 
 - `docs/rag-pipeline.md`: the retrieval pipeline stage by stage (loaders, chunking, embeddings, pgvector, retrieval, answering and citations, generated documents) with the choice and the reason at each stage and what is left out on purpose; linked from the README, the docs home and the nav.
