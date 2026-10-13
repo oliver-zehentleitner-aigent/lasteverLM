@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-13
+
 ### Fixed
 
 - Uploads write the object to the bucket before the library row: a worker could claim the row first and fail with `NoSuchKey` (the v0.7.1 smoke failure). A failed upload now answers 503 and leaves no row.
