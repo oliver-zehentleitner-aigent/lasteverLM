@@ -60,3 +60,25 @@ export function modelSeries(usage: AccountUsage) {
 export function total<T>(rows: readonly T[], pick: (r: T) => number): number {
   return rows.reduce((a, r) => a + pick(r), 0)
 }
+
+/** The ranges the overview offers; the series are loaded for the longest. */
+export const RANGES = [7, 30] as const
+export type Range = (typeof RANGES)[number]
+
+/** 7 days when everything happened in the last week (a young deployment),
+ *  so the charts are not 23 empty days and a bar; 30 otherwise. `activity`
+ *  is one total per day, oldest first, today last. */
+export function defaultRange(activity: readonly number[]): Range {
+  const older = activity.slice(0, Math.max(0, activity.length - 7))
+  return older.some((v) => v > 0) ? 30 : 7
+}
+
+/** The last `n` days of a series loaded for a longer range. */
+export function lastDays<T>(rows: readonly T[], n: number): T[] {
+  return rows.slice(Math.max(0, rows.length - n))
+}
+
+/** Whether any row has a non-zero value in one of the keys. */
+export function hasData<T extends object>(rows: readonly T[], keys: readonly (keyof T)[]): boolean {
+  return rows.some((r) => keys.some((k) => Number(r[k]) > 0))
+}

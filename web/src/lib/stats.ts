@@ -1,81 +1,82 @@
-import type { AccountStats, IngestStats, OutputKind, RagStats } from '../api/types'
-import { language, t } from '../i18n'
+import type { AccountStats, IngestStats, RagStats, SystemInfo } from '../api/types'
+import { language, t, tn } from '../i18n'
 import { adminPath } from './adminPages'
-import { formatBytes, formatCents } from './format'
-import { formFor } from './outputs'
+import { known } from './build'
+import { formatCents } from './format'
 
-/** One number on the admin overview. `alert` marks a value that needs a
- *  look (failures, bans); `detail` is a short breakdown under it. */
-export interface StatTile {
+/** One number of the overview's KPI row: a value, a one-word label and an
+ *  optional muted detail. Never coloured; what needs action goes to the
+ *  attention strip. */
+export interface KpiTile {
+  key: string
   label: string
   value: string
   detail?: string
-  alert?: boolean
-  /** the admin page that explains the number, e.g. who got the credit */
-  href?: string
 }
 
 const n = (v: number) => v.toLocaleString(language())
+const DASH = '—'
 
-export function accountTiles(s: AccountStats): StatTile[] {
+/** The six KPI tiles. Each service's stats load on their own, so a
+ *  missing one shows a dash instead of holding the row back. */
+export function kpiTiles(a: AccountStats | null, i: IngestStats | null, r: RagStats | null): KpiTile[] {
+  const docsTotal = r ? Object.values(r.outputs.by_status).reduce((x, y) => x + y, 0) : null
+  const docsFailed = r?.outputs.by_status.failed ?? 0
   return [
-    { label: t('stat.users'), value: n(s.users) },
-    { label: t('stat.logins24h'), value: n(s.logins_24h) },
+    { key: 'users', label: t('kpi.users'), value: a ? n(a.users) : DASH },
+    { key: 'logins', label: t('kpi.logins24h'), value: a ? n(a.logins_24h) : DASH },
     {
-      label: t('stat.vouchersOpen'),
-      value: n(s.vouchers.open),
-      detail: t('stat.vouchersDetail', { issued: n(s.vouchers.issued), redeemed: n(s.vouchers.redeemed) }),
-      href: adminPath('credits'),
+      key: 'cost',
+      label: t('kpi.cost24h'),
+      value: a ? formatCents(a.usage_cost_cents.last_24h) : DASH,
+      detail: a ? t('kpi.costTotal', { value: formatCents(a.usage_cost_cents.total) }) : undefined,
     },
-    { label: t('stat.creditGranted'), value: formatCents(s.credits_granted_cents), href: adminPath('users') },
+    { key: 'vouchers', label: t('kpi.openVouchers'), value: a ? n(a.vouchers.open) : DASH },
     {
-      label: t('stat.usageCost'),
-      value: formatCents(s.usage_cost_cents.total),
-      detail: t('stat.in24h', { value: formatCents(s.usage_cost_cents.last_24h) }),
+      key: 'sources',
+      label: t('kpi.sources'),
+      value: i ? n(i.sources.ready) : DASH,
+      detail: i && i.sources.failed > 0 ? t('kpi.failed', { n: n(i.sources.failed) }) : undefined,
     },
-    { label: t('stat.blocksActive'), value: n(s.blocks_active), alert: s.blocks_active > 0 },
-    { label: t('stat.bansActive'), value: n(s.bans_active), alert: s.bans_active > 0 },
+    {
+      key: 'documents',
+      label: t('kpi.documents'),
+      value: docsTotal === null ? DASH : n(docsTotal),
+      detail: docsFailed > 0 ? t('kpi.failed', { n: n(docsFailed) }) : undefined,
+    },
   ]
 }
 
-export function ingestTiles(s: IngestStats): StatTile[] {
-  return [
-    {
-      label: t('stat.sourcesReady'),
-      value: n(s.sources.ready),
-      detail: t('stat.processing', { n: n(s.sources.processing) }),
-    },
-    { label: t('stat.sourcesFailed'), value: n(s.sources.failed), alert: s.sources.failed > 0 },
-    {
-      label: t('stat.ingestPending'),
-      value: n(s.jobs.pending),
-      detail: t('stat.running', { n: n(s.jobs.running) }),
-    },
-    { label: t('stat.chunks'), value: n(s.chunks) },
-    { label: t('stat.storedSources'), value: formatBytes(s.source_bytes) },
-  ]
+/** One line of the attention strip: something an admin can act on, with
+ *  the page where that happens. */
+export interface AttentionItem {
+  key: string
+  text: string
+  href: string
 }
 
-export function ragTiles(s: RagStats): StatTile[] {
-  const total = Object.values(s.outputs.by_status).reduce((a, b) => a + b, 0)
-  const kinds = (Object.entries(s.outputs.by_kind) as [OutputKind, number][])
-    .filter(([, count]) => count > 0)
-    .map(([kind, count]) => `${formFor(kind).label} ${n(count)}`)
-    .join(' · ')
-  return [
-    { label: t('stat.notebooks'), value: n(s.notebooks.total) },
-    {
-      label: t('stat.chatMessages'),
-      value: n(s.messages.total),
-      detail: t('stat.in24h', { value: n(s.messages.last_24h) }),
-    },
-    { label: t('stat.documents'), value: n(total), detail: kinds || undefined },
-    { label: t('stat.documentsFailed'), value: n(s.outputs.by_status.failed), alert: s.outputs.by_status.failed > 0 },
-    {
-      label: t('stat.documentPending'),
-      value: n(s.jobs.pending),
-      detail: t('stat.running', { n: n(s.jobs.running) }),
-    },
-    { label: t('stat.shared'), value: n(s.shared.outputs) },
-  ]
+/** Only what has a page to act on: bans and blocks (Security), services
+ *  down or without a reported version (System). Failed sources and
+ *  documents have no admin page, so they stay a detail on their tiles. */
+export function attentionItems(a: AccountStats | null, s: SystemInfo | null): AttentionItem[] {
+  const items: AttentionItem[] = []
+  if (a && a.bans_active > 0) items.push({ key: 'bans', text: tn('att.bans', a.bans_active), href: adminPath('security') })
+  if (a && a.blocks_active > 0) items.push({ key: 'blocks', text: tn('att.blocks', a.blocks_active), href: adminPath('security') })
+  for (const svc of s?.services ?? []) {
+    if (!svc.healthy) items.push({ key: `down-${svc.name}`, text: t('att.down', { name: svc.name }), href: adminPath('system') })
+  }
+  const unversioned = (s?.services ?? []).filter((svc) => svc.healthy && !known(svc.version)).length
+  if (unversioned > 0) items.push({ key: 'versions', text: tn('att.noVersion', unversioned), href: adminPath('system') })
+  return items
+}
+
+/** The overview's meta line: build and how many services are healthy. */
+export function systemMeta(s: SystemInfo): { build: string | null; health: string; dots: { name: string; healthy: boolean }[] } {
+  const v = known(s.version)
+  const c = known(s.commit)
+  const build = [v && `v${v}`, c && c.slice(0, 7)].filter(Boolean).join(' · ') || null
+  const ok = s.services.filter((x) => x.healthy).length
+  const total = s.services.length
+  const health = ok === total ? tn('meta.allHealthy', total) : t('meta.someHealthy', { ok, n: total })
+  return { build, health, dots: s.services.map((x) => ({ name: x.name, healthy: x.healthy })) }
 }

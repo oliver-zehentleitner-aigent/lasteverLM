@@ -77,10 +77,16 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
         count(await ingest.addUrl(notebookId, url.trim()))
         return true
       }
-      for (const f of files) count(await ingest.uploadFile(notebookId, f, capture))
+      // a file that went in leaves the list, so after a failure (a storage
+      // outage answers 503) only the rest is retried and stays selected
+      for (const f of files) {
+        count(await ingest.uploadFile(notebookId, f, capture))
+        setFiles((prev) => prev.filter((x) => x !== f))
+      }
       if (pasted.trim()) {
         const name = `${pasted.trim().split('\n')[0].slice(0, 40) || t('wiz.pastedName')}.txt`
         count(await ingest.uploadFile(notebookId, new File([pasted], name, { type: 'text/plain' })))
+        setPasted('')
       }
       return true
     })
@@ -252,6 +258,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
               </label>
             )}
             {busy && <p className="muted">{t('wiz.uploading', { n: uploaded })}</p>}
+            {error && !busy && files.length > 0 && <p className="muted small">{tn('wiz.retryLeft', files.length)}</p>}
             {error && <p className="error">{error}</p>}
             <div className="row">
               <button type="button" className="secondary" onClick={() => setStep(1)} disabled={busy}>

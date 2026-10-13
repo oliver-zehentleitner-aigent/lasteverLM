@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { account } from '../api/account'
 import type { Preferences } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
@@ -22,6 +22,14 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const { busy, error, run } = useAsync()
   const p = form ?? stored
+
+  // arriving from the trash's link (/settings#trash-days): show and focus that field
+  const trashDays = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (window.location.hash !== '#trash-days') return
+    trashDays.current?.scrollIntoView({ block: 'center' })
+    trashDays.current?.focus()
+  }, [])
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -115,6 +123,8 @@ export function SettingsPage() {
         <label>
           {t('set.trashDays')}
           <input
+            id="trash-days"
+            ref={trashDays}
             type="number"
             min={1}
             max={365}
