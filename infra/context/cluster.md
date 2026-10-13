@@ -259,7 +259,7 @@ single-replica window. Because the autoscaler's target is a percentage
 of the request, ingest at 29m against 50m would sit near 70 %; 80 %
 keeps that load from scaling out on its own.
 
-**Rejected alternatives:** a third node — 0/month for headroom that
+**Rejected alternatives:** a third node — 20 USD/month for headroom that
 measured use does not need; `maxSurge 0` / `maxUnavailable 1` —
 no cost, but each Deployment drops to one replica during a rollout;
 the VKE node-pool autoscaler (min 2, max 3) — deferred, not rejected: a
