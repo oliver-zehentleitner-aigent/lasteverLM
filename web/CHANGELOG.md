@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin Users: a "Granted" column (the user's ledger sum) next to used and balance; the overview's "Credit granted" tile links to the Users page and "Vouchers open" to Credits.
+
 ## [0.5.1] - 2026-10-13
 
 ### Fixed

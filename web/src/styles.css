@@ -334,3 +334,5 @@ button.link.danger { color: var(--danger); }
 .library td.name { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .where-used { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; }
 .cite.removed { opacity: 0.65; text-decoration: line-through; text-decoration-thickness: 1px; }
+a.stat.linked { text-decoration: none; color: inherit; }
+a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); }

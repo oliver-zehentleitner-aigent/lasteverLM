@@ -90,9 +90,9 @@ const httpAdmin: AdminApi = {
 function mockAdmin(): AdminApi {
   const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150))
   const users: AdminUser[] = [
-    { id: 'u1', email: 'admin@example.org', is_admin: true, balance_cents: 1250, usage_cents: 310, created_at: '2026-10-01T10:00:00Z', last_login_at: '2026-10-12T18:02:00Z' },
-    { id: 'u2', email: 'reader@example.org', is_admin: false, balance_cents: 0, usage_cents: 1000, created_at: '2026-10-05T08:00:00Z', last_login_at: '2026-10-11T09:40:00Z' },
-    { id: 'u3', email: 'new@example.org', is_admin: false, balance_cents: 1000, usage_cents: 0, created_at: '2026-10-12T17:00:00Z', last_login_at: null },
+    { id: 'u1', email: 'admin@example.org', is_admin: true, balance_cents: 1250, usage_cents: 310, granted_cents: 1560, created_at: '2026-10-01T10:00:00Z', last_login_at: '2026-10-12T18:02:00Z' },
+    { id: 'u2', email: 'reader@example.org', is_admin: false, balance_cents: 0, usage_cents: 1000, granted_cents: 1000, created_at: '2026-10-05T08:00:00Z', last_login_at: '2026-10-11T09:40:00Z' },
+    { id: 'u3', email: 'new@example.org', is_admin: false, balance_cents: 1000, usage_cents: 0, granted_cents: 1000, created_at: '2026-10-12T17:00:00Z', last_login_at: null },
   ]
   const logins: LoginEvent[] = [
     { user_id: 'u1', email: 'admin@example.org', at: '2026-10-12T18:02:00Z' },
