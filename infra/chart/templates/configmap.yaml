@@ -18,6 +18,7 @@ data:
   S3_ENDPOINT: {{ required "config.s3Endpoint is required" .Values.config.s3Endpoint | quote }}
   S3_BUCKET: {{ .Values.config.s3Bucket | quote }}
   VOUCHER_DEFAULT_CENTS: {{ .Values.config.voucherDefaultCents | quote }}
+  PDF_VISION_MAX_PAGES: {{ .Values.config.pdfVisionMaxPages | quote }}
   {{- with .Values.config.similarityFloor }}
   SIMILARITY_FLOOR: {{ . | quote }}
   {{- end }}
