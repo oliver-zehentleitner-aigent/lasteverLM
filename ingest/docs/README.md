@@ -62,25 +62,32 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | GET | `/admin/stats/daily?days=30` | 200 | admins only: library sources created per day, see below |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
-"created_at", "library_id"}`; name, kind, status and error are the
-library source's. A library entry is
+"created_at", "library_id", "capture", "demo", "preview_url"}`; name,
+kind, status, error, capture and demo are the library source's. A
+library entry is
 
 ```json
 {"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
- "size_bytes": 2048, "url": null, "created_at": "…",
+ "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "demo": false,
+ "preview_url": null,
  "notebooks": [{"id": "…", "title": "Thesis", "source_id": "…"}]}
 ```
 
 `size_bytes` is null for URLs, `url` is set only for them; an entry in
-no notebook has `"notebooks": []`.
+no notebook has `"notebooks": []`. `capture` is set for PDFs only (see
+PDF capture modes), `demo` marks the demo library. `preview_url` is set
+for images only: a presigned GET of the stored original, valid for one
+hour and signed anew on every listing, so the frontend shows it in an
+`<img>` without the bearer token; sources, library and trash entries all
+carry it. The object key itself is never returned.
 
 A trash entry is the same without `notebooks`, plus `deleted_at` and
 `purge_at`:
 
 ```json
 {"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
- "size_bytes": 2048, "url": null, "created_at": "…",
- "deleted_at": "2026-10-13T18:00:00Z", "purge_at": "2026-10-27T18:00:00Z"}
+ "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "demo": false,
+ "preview_url": null, "deleted_at": "2026-10-13T18:00:00Z", "purge_at": "2026-10-27T18:00:00Z"}
 ```
 
 `purge_at` is `deleted_at` plus the owner's `trash_days` (account's
