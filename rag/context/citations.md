@@ -74,3 +74,35 @@ costs the user no LLM tokens for a question the notebook cannot answer.
 instruct it to say "not in your sources". Rejected because the guarantee
 would then rest on the model following an instruction, and the call
 would still be billed.
+
+## A citation carries its provenance: verbatim chunk, score, position
+
+**Id:** 57be7052-39ad-445f-b382-63c09e1e0dfe
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request, relayed by the coordinator, 2026-10-13
+**Revisit when:** chunks are re-embedded or re-chunked in place (a stored score or position would then describe an older index)
+
+Every citation, in the answer and in the stored message, carries the
+verbatim text of the chunk the model was given (`quote`, no longer cut
+at 300 characters), the cosine similarity the search computed for that
+chunk and this question (`similarity`, three decimals), and the chunk's
+position in its source (`chunk_index`, `chunk_count`), next to
+`chunk_id` and `page`. `GET /api/rag/chunks/{chunk_id}` serves one chunk
+to its owner. Citations stored before the fields existed keep them null.
+
+**Reason:** a reviewer has to be able to check a claim against exactly
+what the model read and see how strongly retrieval matched it, without
+re-running the question. Storing the facts at answer time keeps them
+true for that answer even after the source is detached or re-processed;
+the chunk endpoint shows the passage without the answer around it. A
+trimmed quote could leave out the very sentence a claim rests on.
+
+**Rejected alternatives:** trusting the model's own statements about
+where something is ("page 3"), rejected because the model can misplace
+or invent a location and nothing would show it; recomputing the score
+when a citation is viewed, rejected because the index may have changed
+since the answer and the number would no longer describe what was
+retrieved; a separate `chunk_text` beside a short `quote`, rejected as
+two fields for one fact (the frontend trims for display).
