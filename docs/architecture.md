@@ -58,7 +58,7 @@ Rules that hold everywhere:
 | Database, vectors | Vultr Managed PostgreSQL | extension is named `vector`: `CREATE EXTENSION IF NOT EXISTS vector;` |
 | Uploads | Vultr Object Storage | S3-compatible, one bucket, accessed with boto3 |
 | LLM, embeddings | Vultr Serverless Inference | OpenAI-compatible, base URL `https://api.vultrinference.com/v1`, used through the OpenAI SDK so any compatible provider can replace it |
-| Mail | external SMTP | configured in the admin panel, stored in the database; not a Vultr service |
+| Mail | external SMTP | configured through the environment (`SMTP_*`, Kubernetes Secret `lasteverlm-smtp`), shown read-only in the admin panel; not a Vultr service |
 
 ## Data model (PostgreSQL)
 
@@ -73,7 +73,7 @@ users        (id, email unique, is_admin bool, created_at, last_login_at)
 magic_links  (id, user_email, token_hash, expires_at, used_at, created_at)
 vouchers     (id, code_hash unique, amount_cents, created_by, redeemed_by, redeemed_at, created_at)
 ledger       (id, user_id, amount_cents, reason, voucher_id, created_at)      -- credits only, positive
-settings     (key primary key, value jsonb, updated_at)                       -- smtp, allowed_domains
+settings     (key primary key, value jsonb, updated_at)                       -- allowed_domains
 login_log    (id, user_id, at)
 visit_log    (id, at, path, user_id null, ip_hash, ua_family)                 -- no raw IP, 30 days
 
@@ -139,7 +139,7 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx. 40
 | GET | `/admin/users` | | `[AdminUser]` |
 | GET | `/admin/logins?limit=` | | `[{"user_id","email","at"}]` |
 | GET | `/admin/visits?days=` | | `[{"day","path","visits","unique"}]` |
-| GET, PUT | `/admin/settings/smtp` | `Smtp` (password write-only) | `Smtp` without password |
+| GET | `/admin/settings/smtp` | | `Smtp` (read-only, from the environment, never the password) |
 | POST | `/admin/settings/smtp/test` | | 202 |
 | GET, PUT | `/admin/settings/domains` | `{"allowed_domains": []}` | same |
 | POST | `/admin/vouchers` | `{"amount_cents", "count"}` | `{"codes": []}` once |
@@ -148,7 +148,7 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx. 40
 ```json
 User:      {"id", "email", "is_admin", "balance_cents", "created_at"}
 AdminUser: {"id", "email", "is_admin", "created_at", "last_login_at", "balance_cents", "usage_cents"}
-Smtp:      {"host", "port", "username", "password", "from_address", "starttls"}
+Smtp:      {"host", "port", "username", "from_address", "starttls"}   -- empty host: mail not configured
 ```
 
 ### ingest, prefix `/api/ingest`
@@ -318,7 +318,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
 | `DEMO_TOKEN` | all services; unset in production |
-| `PUBLIC_BASE_URL`, `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `SMTP_*` (seed only) | account |
+| `PUBLIC_BASE_URL`, `AUTH_ALLOWED_DOMAINS` (seed only), `ADMIN_EMAILS`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | account |
 | `VISIT_HASH_SECRET` | account (shared by its replicas: daily visitor-hash salt = HMAC(secret, date); without it each process salts on its own) |
 | `API_BASE_URL` | web (build time) |
 
@@ -327,7 +327,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 - Images `ghcr.io/oliver-zehentleitner/lasteverlm-<service>:<git-sha>` and `:<tag>` for account, ingest, rag, web, built from `<service>/Dockerfile` with the repository root as build context so that `core/` can be copied in.
 - API services listen on 8000 and answer `GET /healthz` with `{"status": "ok"}` at the root (what Kubernetes probes) and under their prefix (what the ingress exposes); web serves on 8080, `GET /` is 200. Services receive the full request path including their prefix.
 - Containers run as non-root (`runAsNonRoot: true`); every Dockerfile sets a `USER`.
-- Configuration: ConfigMap `lasteverlm-config` (PUBLIC_BASE_URL, S3_ENDPOINT, S3_BUCKET, INFERENCE_BASE_URL, LLM_MODEL, EMBEDDING_MODEL, EMBEDDING_DIMENSION, SIMILARITY_FLOOR, MODEL_PRICES). Secrets per concern: `lasteverlm-db` (DATABASE_URL, app role, `sslmode=require`), `lasteverlm-s3` (ingest), `lasteverlm-inference` (ingest, rag), `lasteverlm-auth` (AUTH_JWT_SECRET, DEMO_TOKEN), `lasteverlm-account` (AUTH_ALLOWED_DOMAINS, ADMIN_EMAILS), optional `lasteverlm-smtp-seed`. Account gets neither S3 nor inference.
+- Configuration: ConfigMap `lasteverlm-config` (PUBLIC_BASE_URL, S3_ENDPOINT, S3_BUCKET, INFERENCE_BASE_URL, LLM_MODEL, EMBEDDING_MODEL, EMBEDDING_DIMENSION, SIMILARITY_FLOOR, MODEL_PRICES). Secrets per concern: `lasteverlm-db` (DATABASE_URL, app role, `sslmode=require`), `lasteverlm-s3` (ingest), `lasteverlm-inference` (ingest, rag), `lasteverlm-auth` (AUTH_JWT_SECRET, DEMO_TOKEN), `lasteverlm-account` (AUTH_ALLOWED_DOMAINS, ADMIN_EMAILS), optional `lasteverlm-smtp` (the mail configuration, read at start). Account gets neither S3 nor inference.
 - Migrations: each service keeps `<service>/db/migrations/NNNN_<topic>.sql`; `make migrate` applies infra, core, account, ingest, rag in that order, one transaction per file, version key `<service>/NNNN_<topic>` in `schema_migrations`, never edit an applied file. The psql variable `:EMBEDDING_DIMENSION` is passed on every run. `CREATE EXTENSION vector` is infra's own first migration; services never create extensions. A migration runs as the application role (`SET ROLE lasteverlm`, the admin connection is a member of it); it must not rely on superuser rights or on owning objects the application role does not own.
 
 ## Deployment

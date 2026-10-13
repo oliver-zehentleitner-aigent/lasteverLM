@@ -12,6 +12,7 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Changed
 
+- `docs/architecture.md`: the SMTP configuration comes from the environment (Secret `lasteverlm-smtp`) and is read-only in the admin panel; the settings table keeps only the allowlist.
 - README: the docs-site badge replaces the static Keep the Why badge; the live dashboard badge stays.
 - Python is formatted with black (line length 100) in every service; ruff keeps linting (`context/workflow.md`).
 
