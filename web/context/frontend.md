@@ -416,3 +416,31 @@ of that, and recharts has no shape for it.
 **Rejected alternative:** a diagram library with automatic layout
 (Mermaid and similar). Ruled out by the request; it would also add a
 large dependency for a picture whose layout never changes.
+
+## The source selection remembers the sources turned off, and never sends an empty list
+
+**Id:** 118cc0d6-ca60-4e41-b491-bb532ae5ba34
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request relayed by the family lead, 2026-10-14 (a checkbox per source, all on by default, remembered per notebook in the browser); rag's request shape (`source_ids`, absent or empty meaning all); what is stored and the empty case were this directory's call
+**Revisit when:** the selection is stored in the account instead of the browser, or rag gives an empty `source_ids` a meaning of its own
+
+The browser keeps, per notebook, the ids of the sources turned off, not
+the ones turned on. A request sends the ticked ids only when at least
+one source is off, and nothing while all are on. With every source off,
+the chat and Create are blocked with a hint instead of sending a request.
+
+**Reason:** "all on" is the default, so a source added later (in this
+tab, another browser or by the wizard) has to start ticked; a stored
+"on" list would leave it off silently. Blocking the empty case follows
+from the contract: rag reads an empty `source_ids` as all sources, so
+sending it would answer from everything while the list shows nothing
+ticked.
+
+**Rejected alternative:** storing the ticked ids. Rejected because every
+new source would start unticked until the user noticed.
+
+**Rejected alternative:** sending an empty list when nothing is ticked.
+Rejected for the reason above: the request would mean the opposite of
+what the screen shows.
