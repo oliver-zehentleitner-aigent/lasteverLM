@@ -18,7 +18,7 @@ the bucket is created with curl; nothing else is needed.
 | `TF_VAR_object_storage_tier_id` (or `tofu/terraform.tfvars`) | environment | `make up`; `vultr-cli object-storage tier list` shows the ids |
 | `DATABASE_ADMIN_URL` | environment; the managed instance's admin role, created by the maintainer | `make env` (derived URLs), `make db-bootstrap` |
 | `PGSSLROOTCERT` | environment, path to the instance's CA file | `make secrets` (ConfigMap `lasteverlm-pg-ca`) |
-| Domain, ACME e-mail, model names, `modelPrices` (JSON), embedding dimension, similarity floor, TTS model and voice, S3 endpoint | `chart/values-prod.yaml`, committed (`VALUES=<file>` for another deployment) | `make deploy`, `make check`, `make smoke` (default URL) |
+| Domain, ACME e-mail, model names, `modelPrices` (JSON), embedding dimension, similarity floor, TTS model and voice, S3 endpoint, voucher credit | `chart/values-prod.yaml`, committed (`VALUES=<file>` for another deployment) | `make deploy`, `make check`, `make smoke` (default URL) |
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`) | make variables | `make deploy` |
 | `INFERENCE_API_KEY` | environment | `make secrets` |
 | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
@@ -96,7 +96,7 @@ need `runAsUser` in its values, because `runAsNonRoot` cannot verify a
 name.
 `chart/values-prod.yaml` holds the deployment-specific part (domain,
 ACME e-mail, model names, prices, embedding dimension, TTS voice, S3
-endpoint), committed and changed by pull request; `make deploy` passes
+endpoint, voucher credit), committed and changed by pull request; `make deploy` passes
 it to Helm with the image tag and registry from `TAG` and `REGISTRY`.
 The chart fails the render when `modelPrices` is not valid JSON. After
 `make up` in a new region, put the `s3_endpoint` tofu output into the
