@@ -25,6 +25,7 @@ config:
   s3Endpoint: ""        # from `make secrets` / tofu outputs, or set here
   s3Bucket: lasteverlm-sources
   voucherDefaultCents: 1000   # account: credit of a new voucher, in cents
+  pdfVisionMaxPages: 100      # ingest worker: most pages of one PDF the vision model reads; more fail the source
 
 ingress:
   className: nginx
