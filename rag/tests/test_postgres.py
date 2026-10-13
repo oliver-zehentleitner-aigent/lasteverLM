@@ -131,15 +131,34 @@ def notebook(pool, user: str) -> str:
     return notebook_id
 
 
-def add_source(pool, notebook_id: str, status: str, kind: str = "pdf") -> str:
+def add_source(
+    pool, notebook_id: str, status: str, kind: str = "pdf", library_id: str | None = None
+) -> str:
+    """Link a library source into the notebook the way ingest does; a new
+    library row (owned by the notebook's owner) unless ``library_id`` is given.
+    Returns the link id, the public source id."""
     source_id = str(uuid4())
     with pool.connection() as conn:
+        if library_id is None:
+            library_id = str(uuid4())
+            conn.execute(
+                "insert into library_sources (id, owner, name, kind, status, summary) "
+                "select %s, owner, 's', %s, %s, 'summary' from notebooks where id = %s",
+                (library_id, kind, status, notebook_id),
+            )
         conn.execute(
-            "insert into sources (id, notebook_id, name, kind, status, summary) "
-            "values (%s, %s, 's', %s, %s, 'summary')",
-            (source_id, notebook_id, kind, status),
+            "insert into sources (id, notebook_id, library_source_id) values (%s, %s, %s)",
+            (source_id, notebook_id, library_id),
         )
     return source_id
+
+
+def library_id_of(pool, source_id: str) -> str:
+    with pool.connection() as conn:
+        row = conn.execute(
+            "select library_source_id::text as id from sources where id = %s", (source_id,)
+        ).fetchone()
+    return str(row["id"])
 
 
 # -- credit through core over the dict-row pool ----------------------------------
@@ -228,7 +247,10 @@ def test_claim_waits_for_sources_counts_attempts_and_takes_over_stale_claims(sto
     assert store.claim_output("w1", stale_after_s=600) is None  # an upload is still processing
 
     with pool.connection() as conn:
-        conn.execute("update sources set status = 'ready' where id = %s", (pending,))
+        conn.execute(
+            "update library_sources set status = 'ready' where id = %s",
+            (library_id_of(pool, pending),),
+        )
     job = store.claim_output("w1", stale_after_s=600)
     assert job is not None and (job.id, job.attempts, job.owner) == (row.id, 1, row.owner)
     assert store.claim_output("w2", stale_after_s=600) is None  # held by w1
@@ -277,14 +299,13 @@ def test_generated_source_chunks_and_scoped_search(store, pool, notebook):
     upload = add_source(pool, notebook, "ready")
     with pool.connection() as conn:
         conn.execute(
-            "insert into chunks (id, source_id, notebook_id, idx, page, text, embedding) "
-            "values (%s, %s, %s, 0, 3, 'upload chunk', '[1,0,0]')",
-            (str(uuid4()), upload, notebook),
+            "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+            "values (%s, %s, 0, 3, 'upload chunk', '[1,0,0]')",
+            (str(uuid4()), library_id_of(pool, upload)),
         )
     generated = store.create_generated_source(notebook, "Report", "summary")
     store.insert_chunks(
         generated,
-        notebook,
         [Chunk(0, None, "generated near"), Chunk(1, None, "generated far")],
         [[0.9, 0.1, 0.0], [0.0, 0.0, 1.0]],
     )
@@ -315,8 +336,49 @@ def test_generated_source_chunks_and_scoped_search(store, pool, notebook):
 
     store.delete_source(generated)
     with pool.connection() as conn:
-        left = conn.execute("select count(*) as n from chunks where source_id = %s", (generated,))
+        left = conn.execute(
+            "select (select count(*) from chunks where library_source_id = %(id)s) "
+            "+ (select count(*) from sources where id = %(id)s) "
+            "+ (select count(*) from library_sources where id = %(id)s) as n",
+            {"id": generated},
+        )
         assert left.fetchone()["n"] == 0
+    store.delete_source(upload)  # an upload is ingest's to delete: untouched
+    assert [s.source_id for s in store.source_summaries(notebook)] == [upload]
+
+
+def test_a_library_source_linked_into_two_notebooks_is_searched_from_both(store, pool, user):
+    retriever = PgVectorRetriever(pool)
+    notebooks = []
+    for title in ("first", "second"):
+        notebook_id = str(uuid4())
+        with pool.connection() as conn:
+            conn.execute(
+                "insert into notebooks (id, owner, title) values (%s, %s, %s)",
+                (notebook_id, user, title),
+            )
+        notebooks.append(notebook_id)
+    first = add_source(pool, notebooks[0], "ready")
+    library = library_id_of(pool, first)
+    second = add_source(pool, notebooks[1], "ready", library_id=library)
+    with pool.connection() as conn:
+        conn.execute(
+            "insert into chunks (id, library_source_id, idx, text, embedding) "
+            "values (%s, %s, 0, 'shared chunk', '[0,1,0]')",
+            (str(uuid4()), library),
+        )
+    hits = [retriever.search(nb, [0.0, 1.0, 0.0], k=8, floor=0.0) for nb in notebooks]
+    # one chunk, cited under the link id each notebook knows
+    assert [(h[0].text, h[0].source_id) for h in hits] == [
+        ("shared chunk", first),
+        ("shared chunk", second),
+    ]
+    assert hits[0][0].chunk_id == hits[1][0].chunk_id
+    # a notebook whose linked library source is still processing holds back its outputs
+    with pool.connection() as conn:
+        conn.execute("update library_sources set status = 'processing' where id = %s", (library,))
+    assert [s.status for s in store.source_states(notebooks[1])] == ["processing"]
+    assert retriever.search(notebooks[1], [0.0, 1.0, 0.0], k=8, floor=0.0) == []
 
 
 def test_admin_stats_counts_across_users(store, pool, notebook):

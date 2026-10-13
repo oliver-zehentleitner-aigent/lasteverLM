@@ -3,8 +3,10 @@
 Two interfaces with one PostgreSQL implementation each: ``Retriever`` for the
 pgvector similarity search, ``Store`` for everything else this service reads
 or writes: notebooks (read), messages, outputs, the generated sources and
-their chunks, usage, the credit check and the admin flag. ``notebooks``, ``sources`` and
-``chunks`` are ingest's tables; ``usage`` and ``ledger`` belong to core and
+their chunks, usage, the credit check and the admin flag. ``notebooks``,
+``library_sources``, ``sources`` (a library source linked into a notebook;
+its id is the public source id) and ``chunks`` (on the library source) are
+ingest's tables; ``usage`` and ``ledger`` belong to core and
 account; this module only reads and writes them.
 """
 
@@ -98,7 +100,8 @@ class Store(Protocol):
 
     def release_output(self, output_id: str, error: str | None = None) -> None: ...
 
-    # sources and chunks (ingest's tables; rag writes only kind 'generated')
+    # sources and chunks (ingest's tables; rag writes only kind 'generated').
+    # A generated source's link and its hidden library row share one id.
     def source_states(self, notebook_id: str) -> list[SourceState]: ...
 
     def source_summaries(self, notebook_id: str) -> list[SourceSummary]: ...
@@ -106,7 +109,7 @@ class Store(Protocol):
     def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str: ...
 
     def insert_chunks(
-        self, source_id: str, notebook_id: str, chunks: list[Chunk], embeddings: list[list[float]]
+        self, source_id: str, chunks: list[Chunk], embeddings: list[list[float]]
     ) -> None: ...
 
     def set_source_status(self, source_id: str, status: str, error: str | None = None) -> None: ...
@@ -125,19 +128,23 @@ class Store(Protocol):
 
 
 # Top-k by cosine distance inside one notebook, ready sources only, optionally
-# one source. Generated documents are left out unless asked for or scoped to:
-# they restate the uploads. The floor is applied in SQL so a notebook with no
+# one source. Chunks belong to the library source and are reached through the
+# notebook's links, so a file linked into several notebooks is searched from
+# each; the source id returned is the link's (the id this notebook knows).
+# Generated documents are left out unless asked for or scoped to: they
+# restate the uploads. The floor is applied in SQL so a notebook with no
 # relevant chunk costs one round trip.
 _SEARCH_SQL = """
-select c.id::text as chunk_id, s.id::text as source_id, s.name as source_name,
-       s.kind as source_kind, c.page, c.text,
+select c.id::text as chunk_id, s.id::text as source_id, l.name as source_name,
+       l.kind as source_kind, c.page, c.text,
        1 - (c.embedding <=> %(embedding)s::vector) as similarity
-from chunks c
-join sources s on s.id = c.source_id
-where c.notebook_id = %(notebook_id)s
-  and s.status = 'ready'
+from sources s
+join library_sources l on l.id = s.library_source_id
+join chunks c on c.library_source_id = l.id
+where s.notebook_id = %(notebook_id)s
+  and l.status = 'ready'
   and (%(source_id)s::uuid is null or s.id = %(source_id)s::uuid)
-  and (%(source_id)s::uuid is not null or %(include_generated)s or s.kind <> 'generated')
+  and (%(source_id)s::uuid is not null or %(include_generated)s or l.kind <> 'generated')
   and 1 - (c.embedding <=> %(embedding)s::vector) >= %(floor)s
 order by c.embedding <=> %(embedding)s::vector
 limit %(k)s
@@ -161,8 +168,8 @@ with job as (
     where x.status in ('waiting', 'processing')
       and (x.claimed_at is null or x.claimed_at < now() - make_interval(secs => %(stale)s))
       and not exists (
-          select 1 from sources s
-          where s.notebook_id = x.notebook_id and s.status = 'processing' and s.kind <> 'generated'
+          select 1 from sources s join library_sources l on l.id = s.library_source_id
+          where s.notebook_id = x.notebook_id and l.status = 'processing' and l.kind <> 'generated'
       )
     order by x.created_at, x.id
     for update skip locked
@@ -368,7 +375,9 @@ class PostgresStore:
     def source_states(self, notebook_id: str) -> list[SourceState]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "select id::text as id, kind, status from sources where notebook_id = %s",
+                "select s.id::text as id, l.kind, l.status from sources s "
+                "join library_sources l on l.id = s.library_source_id where s.notebook_id = %s "
+                "order by s.created_at, s.id",
                 (notebook_id,),
             ).fetchall()
         return [SourceState(r["id"], r["kind"], r["status"]) for r in rows]
@@ -376,34 +385,43 @@ class PostgresStore:
     def source_summaries(self, notebook_id: str) -> list[SourceSummary]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "select id::text as id, name, kind, summary from sources "
-                "where notebook_id = %s and status = 'ready' and kind <> 'generated' "
-                "order by created_at, id",
+                "select s.id::text as id, l.name, l.kind, l.summary from sources s "
+                "join library_sources l on l.id = s.library_source_id "
+                "where s.notebook_id = %s and l.status = 'ready' and l.kind <> 'generated' "
+                "order by s.created_at, s.id",
                 (notebook_id,),
             ).fetchall()
         return [SourceSummary(r["id"], r["name"], r["kind"], r["summary"] or "") for r in rows]
 
     def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str:
+        """A hidden library row of kind 'generated' (owned by the notebook's owner,
+        no file, never listed in the library) and its link into the notebook,
+        in one transaction and under one id."""
         source_id = _new_id()
-        with self._pool.connection() as conn:
+        with self._pool.connection() as conn, conn.transaction():
             conn.execute(
-                "insert into sources (id, notebook_id, name, kind, status, summary) "
-                "values (%s, %s, %s, 'generated', 'processing', %s)",
-                (source_id, notebook_id, name, summary),
+                "insert into library_sources (id, owner, name, kind, status, summary) "
+                "select %s, owner, %s, 'generated', 'processing', %s from notebooks where id = %s",
+                (source_id, name, summary, notebook_id),
+            )
+            conn.execute(
+                "insert into sources (id, notebook_id, library_source_id) values (%s, %s, %s)",
+                (source_id, notebook_id, source_id),
             )
         return source_id
 
     def insert_chunks(
-        self, source_id: str, notebook_id: str, chunks: list[Chunk], embeddings: list[list[float]]
+        self, source_id: str, chunks: list[Chunk], embeddings: list[list[float]]
     ) -> None:
+        """Chunks of a generated source, on its library row (same id as the link)."""
         if len(chunks) != len(embeddings):
             raise ValueError("one embedding per chunk")
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.executemany(
-                "insert into chunks (id, source_id, notebook_id, idx, page, text, embedding) "
-                "values (%s, %s, %s, %s, %s, %s, %s::vector)",
+                "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                "values (%s, %s, %s, %s, %s, %s::vector)",
                 [
-                    (_new_id(), source_id, notebook_id, c.idx, c.page, c.text, _vector_literal(e))
+                    (_new_id(), source_id, c.idx, c.page, c.text, _vector_literal(e))
                     for c, e in zip(chunks, embeddings, strict=True)
                 ],
             )
@@ -411,13 +429,20 @@ class PostgresStore:
     def set_source_status(self, source_id: str, status: str, error: str | None = None) -> None:
         with self._pool.connection() as conn:
             conn.execute(
-                "update sources set status = %s, error = %s where id = %s",
+                "update library_sources set status = %s, error = %s "
+                "where id = (select library_source_id from sources where id = %s)",
                 (status, error, source_id),
             )
 
     def delete_source(self, source_id: str) -> None:
+        """Delete a generated source: its library row goes, and with it (cascade)
+        the link and the chunks. Uploaded sources are ingest's to delete."""
         with self._pool.connection() as conn:
-            conn.execute("delete from sources where id = %s", (source_id,))
+            conn.execute(
+                "delete from library_sources l using sources s "
+                "where s.id = %s and l.id = s.library_source_id and l.kind = 'generated'",
+                (source_id,),
+            )
 
     # -- credit (core's helpers; usage rows are the only debit) -------------
 

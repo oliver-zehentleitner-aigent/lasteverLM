@@ -137,8 +137,16 @@ through `create_app`.
 `messages.conversation_id` and moves each notebook's existing messages
 into one conversation `Chat 1`. The migrations runner applies them after
 core, account and ingest. The
-service reads ingest's `notebooks`, `sources` and `chunks` and writes
-`sources` and `chunks` only for kind `generated`.
+service reads ingest's `notebooks`, `library_sources`, `sources` and
+`chunks`. A library source is a file, text, URL or image processed once
+for its owner; `sources` links it into a notebook, and the link's id is
+the source id the API and citations use. Chunks belong to the library
+source, so search goes notebook → links → library sources (status, kind,
+name, summary) → chunks. For a generated output rag writes a hidden
+library row of kind `generated` (never listed in the library) plus its
+link under one id, in one transaction, and the chunks on that row;
+deleting the output deletes the library row, and the link and chunks go
+with it.
 
 ## Deployment
 
