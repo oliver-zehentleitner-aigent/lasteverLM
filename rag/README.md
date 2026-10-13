@@ -72,8 +72,8 @@ core's `admin_only` over `users.is_admin`; anyone else gets 403.
 **Ask.** `answer` cites inline as single `[n]` markers, numbered 1..n in
 order of first appearance; `n` maps to an entry in `citations` (`source_id`, `source_name`, `source_kind`, `chunk_id`,
 `page`, `quote`, `similarity`, `chunk_index`, `chunk_count`). A citation
-carries its provenance: `quote` is the verbatim text of the chunk the
-model saw (never trimmed), `similarity` the cosine similarity the search
+carries its provenance: `quote` is the verbatim text of the chunk
+(never trimmed), `similarity` the cosine similarity the search
 gave that chunk for this question (3 decimals), `chunk_index` (0-based)
 and `chunk_count` its position in its source ("chunk 12 of 43"). The
 stored assistant message keeps the same fields; messages written before
@@ -81,6 +81,12 @@ they existed have them as `null`. `GET /api/rag/chunks/{chunk_id}`
 returns one chunk for its owner (`{"chunk_id", "source_id",
 "source_name", "source_kind", "page", "chunk_index", "chunk_count",
 "text"}`, 404 otherwise), so a reader can open the exact passage.
+Text from the user's files is data in every prompt: both system prompts
+say so, a name (file, document, notebook) is one line of at most 120
+characters, and marker-shaped text in sources and summaries (`[2]`,
+`[1, 3]`) reaches the model as `(2)`, `(1, 3)`, so a source cannot open a
+fake passage or pass for a citation; the stored chunk and the quote stay
+verbatim.
 Retrieval is top-k by cosine similarity over the
 notebook's ready sources with a similarity floor. An unscoped question
 searches the uploads and the generated documents separately: the uploads
