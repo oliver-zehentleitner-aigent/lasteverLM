@@ -53,7 +53,7 @@ make deploy        # helm upgrade --install: migrations hook, then every service
 make status
 ```
 
-`make` alone lists every target. `make deploy TAG=<git-sha>` rolls a
+`make` alone lists every target. `make deploy TAG=<full git sha>` rolls a
 specific image tag out; the release workflow does the same on a tag
 `v*`. `make check` runs the static checks and the unit tests;
 `make smoke URL=https://...` runs the end-to-end smoke test against a
