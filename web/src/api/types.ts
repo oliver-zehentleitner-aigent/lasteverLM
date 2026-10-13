@@ -152,8 +152,9 @@ export interface OutputOptionsSpec {
 }
 
 /** `GET /shared/{token}`: the document without ids, read-only. The service
- *  returns kind, title, content and created_at only; a shared document is
- *  always ready, so status and error are not part of the shape. */
+ *  returns kind, title, content, created_at and options (language, voice
+ *  and speed for the line under the title); a shared document is always
+ *  ready, so status and error are not part of the shape. */
 export type SharedOutput = Pick<Output, 'kind' | 'title' | 'content' | 'created_at' | 'options'>
 
 export interface ReportContent {
