@@ -4,6 +4,10 @@
 
 registry: ghcr.io/oliver-zehentleitner
 imageTag: latest
+# The build every /healthz reports (APP_VERSION, APP_COMMIT); `make deploy` sets
+# both, TAG and the full SHA of the checked-out commit. Empty = "unknown".
+appVersion: ""
+appCommit: ""
 imagePullPolicy: IfNotPresent
 
 # Public host and the ACME contact for Let's Encrypt. Both required for deploy.

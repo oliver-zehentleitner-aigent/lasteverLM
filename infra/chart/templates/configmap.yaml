@@ -19,6 +19,12 @@ data:
   S3_BUCKET: {{ .Values.config.s3Bucket | quote }}
   VOUCHER_DEFAULT_CENTS: {{ .Values.config.voucherDefaultCents | quote }}
   PDF_VISION_MAX_PAGES: {{ .Values.config.pdfVisionMaxPages | quote }}
+  {{- with .Values.appVersion }}
+  APP_VERSION: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.appCommit }}
+  APP_COMMIT: {{ . | quote }}
+  {{- end }}
   {{- with .Values.config.similarityFloor }}
   SIMILARITY_FLOOR: {{ . | quote }}
   {{- end }}
