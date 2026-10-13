@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- README and docs home: the tagline "Please explain this to me" opens the description instead of standing alone below it; the docs home lists its own address next to the live system and the code.
+
 ## [0.2.1] - 2026-10-13
 
 ### Security

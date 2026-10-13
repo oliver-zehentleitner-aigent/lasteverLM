@@ -1,13 +1,13 @@
 # lasteverLM
 
-A NotebookLM-style assistant: upload documents, ask questions, get
-answers with citations into the sources, and turn the sources into
-reports, quizzes, tables, mind maps, infographics and audio.
-
-*Please explain this to me.*
+**Please explain this to me.** A NotebookLM-style assistant: upload
+documents, ask questions, get answers with citations into the sources,
+and turn the sources into reports, quizzes, tables, mind maps,
+infographics and audio.
 
 - **Live:** [lasteverlm.zehentleitner.co](https://lasteverlm.zehentleitner.co) — login by magic link on an allowed domain.
 - **Code:** [github.com/oliver-zehentleitner/lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM) — one repository, six services.
+- **Docs:** [oliver-zehentleitner.github.io/lasteverLM](https://oliver-zehentleitner.github.io/lasteverLM/) — this site: architecture and API contract, user interface, walkthrough script, repository standard.
 - **Why:** [the Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/) — every decision with the alternatives it rejected, in the order it was taken.
 
 ## How it is built
