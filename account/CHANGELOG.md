@@ -11,8 +11,12 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
-- SMTP configuration comes from the environment only (`SMTP_*`, Secret `lasteverlm-smtp-seed`), read at start; `GET /admin/settings/smtp` shows it read-only, never the password. A `settings.smtp` row left from before is deleted at start so the old password does not linger.
+- SMTP configuration comes from the environment only (`SMTP_*`, Secret `lasteverlm-smtp`), read at start; `GET /admin/settings/smtp` shows it read-only, never the password. A `settings.smtp` row left from before is deleted at start so the old password does not linger.
 - Code is formatted with black (line length 100, family-wide decision); `make lint` runs `black --check` next to `ruff check`.
+
+### Fixed
+
+- Docs and context name the SMTP Secret `lasteverlm-smtp`, as infra calls it since the rename.
 
 ### Removed
 

@@ -97,6 +97,6 @@ configuration split over two places needs a rule for which wins (the
 same problem the seed-once rule solved for the allowlist).
 
 **Consequence:** changing the mail server means changing the Secret and
-restarting the pods; the panel cannot do it. The seed names stay as they
-were, so `lasteverlm-smtp-seed` keeps its name although nothing is seeded
-any more.
+restarting the pods; the panel cannot do it. The variable names stay as
+they were; the Secret is `lasteverlm-smtp`, renamed by infra on the same
+day because nothing is seeded any more.

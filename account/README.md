@@ -57,7 +57,7 @@ comment.
 | `DEMO_TOKEN` | no | shared demo token; unset in production (`lasteverlm-auth`) |
 | `ADMIN_EMAILS` | no | comma-separated admin addresses, may log in regardless of the allowlist (`lasteverlm-account`) |
 | `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist, first start only (`lasteverlm-account`) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | the mail configuration, read at start and shown read-only in the admin panel, never stored; without `SMTP_HOST` no sign-in mail can be sent (`lasteverlm-smtp-seed`) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | the mail configuration, read at start and shown read-only in the admin panel, never stored; without `SMTP_HOST` no sign-in mail can be sent (`lasteverlm-smtp`) |
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100 |
