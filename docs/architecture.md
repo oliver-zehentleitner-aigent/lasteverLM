@@ -198,8 +198,11 @@ v1; the frontend polls `GET /sources`.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/notebooks/{id}/ask` | `{"question", "scope": {"output_id"}?}` | `Answer` |
-| GET | `/notebooks/{id}/messages` | | `[Message]` |
+| GET | `/notebooks/{id}/conversations` | | `[Conversation]` |
+| POST | `/notebooks/{id}/conversations` | `{"title"}?` (default "Chat N") | `Conversation` |
+| DELETE | `/conversations/{id}` | | 204, messages included (closing a chat tab) |
+| GET | `/conversations/{id}/messages` | | `[Message]` |
+| POST | `/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?}` | `Answer`; 422 without a conversation |
 | POST | `/notebooks/{id}/outputs` | `{"kind"}` | 202 `Output` with status `waiting` or `processing` |
 | GET | `/notebooks/{id}/outputs` | | `[Output]` |
 | GET | `/outputs/{id}` | | `Output` |
@@ -213,7 +216,8 @@ v1; the frontend polls `GET /sources`.
 ```json
 Answer:   {"message_id", "answer", "citations": [Citation]}
 Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote"}
-Message:  {"id", "role", "content", "citations", "created_at"}
+Conversation: {"id", "notebook_id", "title", "created_at"}
+Message:  {"id", "conversation_id", "role", "content", "citations", "created_at"}
 Output:   {"id", "notebook_id", "kind", "title", "content", "status", "error", "share_token", "source_id", "created_at"}
 RagStats: {"notebooks": {"total"}, "messages": {"total", "last_24h"}, "outputs": {"by_kind": {<kind>: n}, "by_status": {<status>: n}},
            "jobs": {"pending", "running", "failed"}, "shared": {"outputs"}}
