@@ -11,11 +11,12 @@ from lasteverlm_ingest.worker import WorkerDeps
 
 
 def worker_deps(request: Request) -> WorkerDeps:
-    return request.app.state.worker
+    deps: WorkerDeps = request.app.state.worker
+    return deps
 
 
 def repository(request: Request) -> Repository:
-    return request.app.state.worker.repository
+    return worker_deps(request).repository
 
 
 def seed_if_new(request: Request, user: UUID) -> None:

@@ -8,7 +8,7 @@ the environment and a missing variable fails the start.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -128,7 +128,7 @@ def create_app(
         rate_limit_store = PostgresRateLimitStore(connect)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
         close = getattr(app.state.worker.repository, "close", None)
         if close:

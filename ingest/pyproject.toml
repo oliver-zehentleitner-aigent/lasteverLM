@@ -63,5 +63,5 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 packages = ["lasteverlm_ingest"]
+strict = true
 ignore_missing_imports = true
-check_untyped_defs = true
