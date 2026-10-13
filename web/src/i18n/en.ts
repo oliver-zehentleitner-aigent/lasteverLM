@@ -473,6 +473,23 @@ export const en = {
   'lib.open': 'open',
   'lib.openTitle': 'Open {name} in a new tab',
   'lib.openUnavailable': 'No preview of this entry yet',
+  'lib.bulkInNoNotebook': 'None of them is in a notebook.',
+  'lib.bulkDisappears.one': 'They disappear from this notebook: {names}.',
+  'lib.bulkDisappears.other': 'They disappear from these {n} notebooks: {names}.',
+  'lib.bulkTrashConfirm.one': 'Move {n} entry to the trash? {where} It stays restorable in the trash until it is purged.',
+  'lib.bulkTrashConfirm.other': 'Move {n} entries to the trash? {where} They stay restorable in the trash until they are purged.',
+  'lib.selectAll': 'all',
+  'lib.selectNone': 'none',
+  'lib.selectRow': 'Select {name}',
+  'lib.selected.one': '{n} selected',
+  'lib.selected.other': '{n} selected',
+  'lib.deleteN.one': 'Delete {n}',
+  'lib.deleteN.other': 'Delete {n}',
+  'lib.notebookFromN.one': 'New notebook from {n} source',
+  'lib.notebookFromN.other': 'New notebook from {n} sources',
+  'lib.notebookTitlePrompt': 'Title of the new notebook',
+  'lib.progressDelete': 'Moving to the trash: {done} of {total}',
+  'lib.progressAdd': 'Adding to the new notebook: {done} of {total}',
 } as const
 
 export type MessageKey = keyof typeof en

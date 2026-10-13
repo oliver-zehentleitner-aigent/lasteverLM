@@ -52,3 +52,19 @@ export function shortUrl(url: string): string {
     return url
   }
 }
+
+/** The confirmation for moving several entries to the trash, naming every
+ *  notebook they disappear from (each once). */
+export function bulkDeleteConfirmText(entries: Pick<LibraryEntry, 'notebooks'>[]): string {
+  const titles = [...new Set(entries.flatMap((e) => e.notebooks.map((n) => n.title)))]
+  const where = titles.length === 0 ? t('lib.bulkInNoNotebook') : tn('lib.bulkDisappears', titles.length, { names: titles.map((x) => `"${x}"`).join(', ') })
+  return tn('lib.bulkTrashConfirm', entries.length, { where })
+}
+
+/** The title a notebook made from a selection starts with: the first
+ *  entry's name, without a file extension. */
+export function notebookTitleFrom(entries: Pick<LibraryEntry, 'name' | 'kind'>[]): string {
+  const first = entries[0]
+  if (!first) return ''
+  return first.kind === 'url' ? first.name : first.name.replace(/\.[A-Za-z0-9]{1,5}$/, '')
+}
