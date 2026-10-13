@@ -102,14 +102,15 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - `outputs.kind`: `report` | `quiz` | `table` | `mindmap` | `infographic` | `audio`. `outputs.status`: `waiting` (sources still processing) | `processing` | `ready` | `failed`.
 - `claimed_at`, `claimed_by`, `attempts` on `sources` and `outputs` make those tables the job queues of the two workers (see Workers).
 - `chunks.embedding` dimension follows `EMBEDDING_DIMENSION`; the migration takes it as a parameter, default 1536.
-- `usage.kind`: `llm` | `embedding`. `usage.service`: `ingest` | `rag`.
+- `usage.kind`: `llm` | `embedding` | `tts`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
-- Storage object path: `<notebook_id>/<source_id>/<name>`.
+- Storage object path: `<notebook_id>/<source_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a source or an output deletes its objects.
 
 ## Credits and accounting
 
 - Prices per model live in config (`MODEL_PRICES`, JSON, cents per million tokens, in and out), with defaults in core. The writer of a usage row prices it: `cost_cents = ceil(tokens_in * price_in + tokens_out * price_out)`.
 - Core provides `record_usage(conn, user_id, notebook_id, service, kind, model, tokens_in, tokens_out)` and `balance_cents(conn, user_id)`. Services call these, never write `usage` by hand.
+- Core provides the object-storage client (`lasteverlm_core.storage`: put, get, delete, presigned GET with an expiry). Ingest and rag use it; no service carries its own S3 code.
 - A voucher is a single-use code; redeeming it writes one positive ledger row. Default amount 1000 cents.
 - Before any model call a service checks `balance_cents > 0`, otherwise 402 `{"error": "credit exhausted"}`.
 
@@ -249,7 +250,7 @@ per kind, each with a prompt, an output schema and a renderer in web.
 | `table` | `{"columns": [], "rows": [[]]}` | sortable table, CSV export |
 | `mindmap` | `{"root": {"label", "children": []}}` | markmap in the browser |
 | `infographic` | `{"headline", "facts": [{"label", "value"}], "sections": [{"title", "text"}]}` | card grid |
-| `audio` | `{"url"}` | audio player; only if the inference platform offers text-to-speech, otherwise the module stays prepared |
+| `audio` | `{"url"}` | audio player. The row stores `{"key"}` (the object key); every read (GET output, the list, `shared/{token}`) replaces it with a presigned GET URL valid for one hour, because an `<audio>` element cannot send a bearer header. The script is written by the LLM and synthesized in sentence-boundary segments by `TTS_MODEL` with `TTS_VOICE`; the MP3 frames are concatenated |
 
 How a generator gets its input: every source carries a `summary`
 written by ingest; the generator takes all summaries of the notebook
@@ -306,10 +307,10 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | Variable | Used by |
 |---|---|
 | `DATABASE_URL` | account, ingest, rag |
-| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest, rag (audio files) |
 | `INFERENCE_BASE_URL`, `INFERENCE_API_KEY` | ingest, rag |
 | `LLM_MODEL` | ingest (source summaries), rag |
-| `SIMILARITY_FLOOR`, `TTS_MODEL` (optional) | rag |
+| `SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE` (default `ryan`; the platform's voices are not the OpenAI names) | rag |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | ingest, rag (identical on both) |
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
@@ -358,6 +359,5 @@ tag from an unchanged SHA layer.
 | another LLM or embedding provider | one more provider module in core, selected by config | every service |
 | hybrid retrieval (full text + vector) | one more `Retriever` in rag | ingest, web |
 | another output kind | one more `OutputGenerator` in rag plus its renderer in web | ingest, account, the API |
-| audio outputs | the prepared `audio` generator once a text-to-speech endpoint exists | everything else |
 | more throughput | replicas on the HPA or the worker Deployments | code |
 | password or OAuth login | one more auth scheme in account and core's `current_user` | ingest, rag, web beyond the login page |
