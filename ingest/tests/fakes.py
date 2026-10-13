@@ -30,6 +30,7 @@ from lasteverlm_ingest.repository import (
     NewLibrarySource,
     NotebookUse,
     StoredSource,
+    TrashEntry,
 )
 
 
@@ -55,6 +56,8 @@ class InMemoryRepository:
         self.claimed: dict[UUID, str] = {}
         self.default_balance = balance
         self.admins: set[UUID] = set()
+        # account's users.preferences -> 'trash_days'; missing means 14
+        self.trash_days: dict[UUID, int] = {}
 
     # -- test helpers ----------------------------------------------------------
 
@@ -87,12 +90,22 @@ class InMemoryRepository:
         return sum(
             1
             for lib in self.library.values()
-            if lib.status == "processing" and lib.kind != "generated" and lib.id not in self.claimed
+            if lib.status == "processing" and self._active(lib) and lib.id not in self.claimed
         )
 
     @staticmethod
     def _listed(lib: LibrarySource) -> bool:
         return lib.kind != "generated"
+
+    def _active(self, lib: LibrarySource) -> bool:
+        return self._listed(lib) and lib.deleted_at is None
+
+    def _trashed(self, lib: LibrarySource) -> bool:
+        return self._listed(lib) and lib.deleted_at is not None
+
+    def _purge_at(self, lib: LibrarySource) -> datetime:
+        assert lib.deleted_at is not None
+        return lib.deleted_at + timedelta(days=max(0, self.trash_days.get(lib.owner, 14)))
 
     # -- notebooks -------------------------------------------------------------
 
@@ -206,21 +219,59 @@ class InMemoryRepository:
         )
 
     def list_library(self, owner: UUID) -> list[LibraryEntry]:
-        libs = [lib for lib in self.library.values() if lib.owner == owner and self._listed(lib)]
+        libs = [lib for lib in self.library.values() if lib.owner == owner and self._active(lib)]
         return [self._entry(lib) for lib in sorted(libs, key=lambda x: x.created_at, reverse=True)]
 
     def get_library_entry(self, owner: UUID, library_id: UUID) -> LibraryEntry | None:
         lib = self.library.get(library_id)
-        if lib is None or lib.owner != owner or not self._listed(lib):
+        if lib is None or lib.owner != owner or not self._active(lib):
             return None
         return self._entry(lib)
 
-    def delete_library_source(self, owner: UUID, library_id: UUID) -> str | None:
+    def trash_library_source(self, owner: UUID, library_id: UUID) -> bool:
         lib = self.library.get(library_id)
-        if lib is None or lib.owner != owner or not self._listed(lib):
-            return None
+        if lib is None or lib.owner != owner or not self._active(lib):
+            return False
+        self.library[library_id] = lib.model_copy(update={"deleted_at": datetime.now(UTC)})
+        for link_id, (_, lib_id, _) in list(self.links.items()):
+            if lib_id == library_id:
+                del self.links[link_id]
+        return True
+
+    def list_trash(self, owner: UUID) -> list[TrashEntry]:
+        libs = [lib for lib in self.library.values() if lib.owner == owner and self._trashed(lib)]
+        return [
+            TrashEntry(
+                **lib.model_dump(include=set(TrashEntry.model_fields) - {"purge_at"}),
+                purge_at=self._purge_at(lib),
+            )
+            for lib in sorted(libs, key=lambda x: x.deleted_at or x.created_at, reverse=True)
+        ]
+
+    def restore_library_source(self, owner: UUID, library_id: UUID) -> bool:
+        lib = self.library.get(library_id)
+        if lib is None or lib.owner != owner or not self._trashed(lib):
+            return False
+        self.library[library_id] = lib.model_copy(update={"deleted_at": None})
+        return True
+
+    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, str | None]:
+        lib = self.library.get(library_id)
+        if lib is None or lib.owner != owner or not self._trashed(lib):
+            return False, None
         self._delete_library(library_id)
-        return lib.storage_path
+        return True, lib.storage_path
+
+    def purge_expired(self) -> list[str]:
+        now = datetime.now(UTC)
+        gone = [
+            lib
+            for lib in self.library.values()
+            if self._trashed(lib) and self._purge_at(lib) <= now
+        ]
+        for lib in gone:
+            self._delete_library(lib.id)
+        return [lib.storage_path for lib in gone if lib.storage_path]
 
     def _delete_library(self, library_id: UUID) -> None:
         self.library.pop(library_id, None)
@@ -248,6 +299,7 @@ class InMemoryRepository:
             if (
                 lib.status == "processing"
                 and lib.kind != "generated"
+                and lib.deleted_at is None
                 and lib.id not in self.claimed
             ):
                 self.claimed[lib.id] = worker_id

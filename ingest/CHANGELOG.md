@@ -11,7 +11,12 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Library trash: `GET /library/trash` (with `deleted_at`, `purge_at`), `POST /library/{id}/restore`, `DELETE /library/{id}/purge`. Workers purge entries past the owner's `trash_days` (account preference, default 14) at start and once an hour. Migration `0005_library_trash.sql` adds `library_sources.deleted_at`.
 - `GET /api/ingest/admin/stats/daily?days=30` (admins only): library sources created per UTC day by kind, and how many of them failed, every day present, oldest first.
+
+### Changed
+
+- `DELETE /library/{id}` moves the entry to the trash: removed from every notebook, chunks and stored object kept until purged. Uploading the same bytes or URL again restores a trashed entry.
 
 ## [0.5.0] - 2026-10-13
 

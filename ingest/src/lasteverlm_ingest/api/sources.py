@@ -143,6 +143,9 @@ async def create_source(
 
     existing = repo.find_library_source(user, dedupe_key)
     if existing is not None:
+        if existing.deleted_at is not None:
+            # The same bytes again bring the trashed entry back.
+            repo.restore_library_source(user, existing.id)
         if existing.status == "failed":
             # Uploading again is the user's way to retry.
             repo.retry_library_source(existing.id)
