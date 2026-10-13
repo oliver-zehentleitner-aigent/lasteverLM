@@ -267,3 +267,37 @@ export interface RateLimitRules {
 }
 
 export type RateLimitUpdate = Pick<RateLimitRules, 'per_minute' | 'block_minutes' | 'ban_after_strikes' | 'strike_window_hours'>
+
+// admin statistics: daily series over the last N UTC days, oldest first,
+// today last, every day present with zeros
+
+export interface AccountDay {
+  day: string
+  logins: number
+  visits: number
+  usage_cost_cents: number
+  credits_granted_cents: number
+}
+
+export interface AccountUsage {
+  /** cost descending */
+  by_model: { model: string; kind: 'llm' | 'embedding' | 'tts'; calls: number; cost_cents: number }[]
+  /** top ten by usage, descending */
+  top_users: { email: string; usage_cents: number; balance_cents: number }[]
+}
+
+export interface IngestDay {
+  day: string
+  /** library sources created that day; generated documents not counted */
+  sources_created: number
+  by_kind: Record<Exclude<SourceKind, 'generated'>, number>
+  /** of that day's sources, the ones that are failed now */
+  failed: number
+}
+
+export interface RagDay {
+  day: string
+  messages: number
+  outputs: number
+  outputs_by_kind: Record<OutputKind, number>
+}
