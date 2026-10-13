@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/architecture.md`: voucher delete, sign-in attempts log, rate-limit thresholds editable at run time through the admin panel (settings key `ratelimit`, read by core every 30 s).
+
 ## [0.3.1] - 2026-10-13
 
 ### Changed
