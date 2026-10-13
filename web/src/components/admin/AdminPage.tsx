@@ -6,7 +6,7 @@ import { CopyButton } from '../CopyButton'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { ADMIN_PAGES, adminPath, type AdminPageId } from '../../lib/adminPages'
 import { useAsync } from '../../hooks/useAsync'
-import { known, shortCommit, versionLine } from '../../lib/build'
+import { clusterGap, known, shortCommit, versionLine } from '../../lib/build'
 import { formatCents, formatTime } from '../../lib/format'
 import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
 import { attentionItems, kpiTiles, systemMeta } from '../../lib/stats'
@@ -717,8 +717,9 @@ function SystemView() {
           </>
         )}
       </Section>
-      {data && !data.cluster && <p className="notice">{t('sys.noCluster')}</p>}
-      {data?.cluster && (
+      {data && clusterGap(data) === 'no-cluster' && <p className="notice">{t('sys.noCluster')}</p>}
+      {data && clusterGap(data) === 'no-role' && <p className="notice">{t('sys.noRole')}</p>}
+      {data && clusterGap(data) === null && (
         <>
           <Section title={t('sys.pods')}>
             <Table

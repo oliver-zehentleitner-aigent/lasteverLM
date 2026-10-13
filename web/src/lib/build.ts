@@ -18,3 +18,11 @@ export function versionLine(version: string | null | undefined, commit: string |
   if (!v && !c) return null
   return ['lasteverLM', v, c && `· ${c}`].filter(Boolean).join(' ')
 }
+
+/** Why the System page has no pod and deployment tables, or null when it
+ *  has them. In a cluster the account service is a pod itself, so empty
+ *  lists there mean the Kubernetes API could not be read (no read role). */
+export function clusterGap(s: { cluster: boolean; pods: unknown[]; deployments: unknown[] }): 'no-cluster' | 'no-role' | null {
+  if (!s.cluster) return 'no-cluster'
+  return s.pods.length === 0 && s.deployments.length === 0 ? 'no-role' : null
+}

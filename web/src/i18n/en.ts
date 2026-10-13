@@ -426,6 +426,7 @@ export const en = {
   'theme.toggle': 'Theme: {theme} (click to change)',
   'set.theme': 'Theme',
   'set.themeSystem': 'Like the system',
+  'sys.noRole': 'Pod list not available: the account service has no read role for pods and deployments in the cluster; the operator adds one to the deployment.',
 } as const
 
 export type MessageKey = keyof typeof en

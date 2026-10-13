@@ -251,7 +251,10 @@ deleted from the library) stays readable with its quote and is marked
   - **System** (`/admin/system`): per service a card with version,
     commit and health, then the cluster's pods (name, service, image
     tag, ready, restarts, node, started) and deployments (replicas,
-    ready, updated); a local run without a cluster says so instead. The
+    ready, updated); a local run without a cluster says so instead, and
+    in a cluster where both lists come back empty (the account service
+    is a pod itself, so the Kubernetes API was not readable) the page
+    says that the read role for pods and deployments is missing. The
     overview shows the build ("lasteverLM 0.6.1 · 5e320ae") under its
     heading, linked to this page.
 
