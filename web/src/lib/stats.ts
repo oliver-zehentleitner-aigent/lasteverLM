@@ -1,4 +1,5 @@
 import type { AccountStats, IngestStats, OutputKind, RagStats } from '../api/types'
+import { adminPath } from './adminPages'
 import { formatBytes, formatCents } from './format'
 import { formFor } from './outputs'
 
@@ -9,6 +10,8 @@ export interface StatTile {
   value: string
   detail?: string
   alert?: boolean
+  /** the admin page that explains the number, e.g. who got the credit */
+  href?: string
 }
 
 const n = (v: number) => v.toLocaleString()
@@ -21,8 +24,9 @@ export function accountTiles(s: AccountStats): StatTile[] {
       label: 'Vouchers open',
       value: n(s.vouchers.open),
       detail: `${n(s.vouchers.issued)} issued · ${n(s.vouchers.redeemed)} redeemed`,
+      href: adminPath('credits'),
     },
-    { label: 'Credit granted', value: formatCents(s.credits_granted_cents) },
+    { label: 'Credit granted', value: formatCents(s.credits_granted_cents), href: adminPath('users') },
     {
       label: 'Usage cost',
       value: formatCents(s.usage_cost_cents.total),

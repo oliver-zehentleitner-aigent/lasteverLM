@@ -15,8 +15,8 @@ const VOUCHER_LIMIT = 100
 
 /** The sections of each admin page. Only the open page is mounted, so a
  *  page loads its own data and nothing else. */
-const PAGE_SECTIONS: Record<AdminPageId, () => ReactNode> = {
-  overview: () => <Overview />,
+const PAGE_SECTIONS: Record<AdminPageId, (navigate: (path: string) => void) => ReactNode> = {
+  overview: (navigate) => <Overview onNavigate={navigate} />,
   users: () => (
     <>
       <Users />
@@ -67,7 +67,7 @@ export function AdminPage({ page, onNavigate }: Props) {
         ))}
       </nav>
       {ADMIN_MOCK && <p className="notice">Showing mock data: the build runs against an in-memory admin API.</p>}
-      {PAGE_SECTIONS[page]()}
+      {PAGE_SECTIONS[page](onNavigate)}
     </main>
   )
 }
@@ -127,12 +127,13 @@ function Users() {
     <Section title={`Users (${data.length})`}>
       {error && <p className="error">{error}</p>}
       <Table
-        head={['E-mail', 'Admin', 'Balance', 'Used', 'Last login', 'Since']}
+        head={['E-mail', 'Admin', 'Granted', 'Used', 'Balance', 'Last login', 'Since']}
         rows={data.map((u) => [
           u.email,
           u.is_admin ? 'yes' : '',
-          formatCents(u.balance_cents),
+          formatCents(u.granted_cents),
           formatCents(u.usage_cents),
+          formatCents(u.balance_cents),
           formatTime(u.last_login_at),
           formatTime(u.created_at),
         ])}
@@ -188,17 +189,24 @@ function Visits() {
 
 /** Numbers from the three services side by side. Each group loads on its
  *  own, so one service that is down shows its error and the rest stays. */
-function Overview() {
+function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
   return (
     <Section title="Overview">
-      <StatGroup title="Accounts" load={admin.accountStats} tiles={accountTiles} />
-      <StatGroup title="Sources" load={admin.ingestStats} tiles={ingestTiles} />
-      <StatGroup title="Notebooks and documents" load={admin.ragStats} tiles={ragTiles} />
+      <StatGroup title="Accounts" load={admin.accountStats} tiles={accountTiles} onNavigate={onNavigate} />
+      <StatGroup title="Sources" load={admin.ingestStats} tiles={ingestTiles} onNavigate={onNavigate} />
+      <StatGroup title="Notebooks and documents" load={admin.ragStats} tiles={ragTiles} onNavigate={onNavigate} />
     </Section>
   )
 }
 
-function StatGroup<T>({ title, load, tiles }: { title: string; load: () => Promise<T>; tiles: (s: T) => StatTile[] }) {
+interface StatGroupProps<T> {
+  title: string
+  load: () => Promise<T>
+  tiles: (s: T) => StatTile[]
+  onNavigate: (path: string) => void
+}
+
+function StatGroup<T>({ title, load, tiles, onNavigate }: StatGroupProps<T>) {
   const { data, busy, error } = useLoad<T | null>(load, null)
   return (
     <div className="stat-group">
@@ -207,13 +215,34 @@ function StatGroup<T>({ title, load, tiles }: { title: string; load: () => Promi
       {!data && !error && busy && <p className="muted small">Loading…</p>}
       {data && (
         <div className="stat-grid">
-          {tiles(data).map((t) => (
-            <div key={t.label} className={t.alert ? 'stat alert' : 'stat'}>
-              <span className="stat-value">{t.value}</span>
-              <span className="stat-label">{t.label}</span>
-              {t.detail && <span className="muted small">{t.detail}</span>}
-            </div>
-          ))}
+          {tiles(data).map((t) => {
+            const className = ['stat', t.alert ? 'alert' : '', t.href ? 'linked' : ''].join(' ').trim()
+            const body = (
+              <>
+                <span className="stat-value">{t.value}</span>
+                <span className="stat-label">{t.label}</span>
+                {t.detail && <span className="muted small">{t.detail}</span>}
+              </>
+            )
+            const href = t.href
+            return href ? (
+              <a
+                key={t.label}
+                href={href}
+                className={className}
+                onClick={(e) => {
+                  e.preventDefault()
+                  onNavigate(href)
+                }}
+              >
+                {body}
+              </a>
+            ) : (
+              <div key={t.label} className={className}>
+                {body}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

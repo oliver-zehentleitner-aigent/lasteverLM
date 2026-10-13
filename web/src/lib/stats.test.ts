@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { IngestStats, RagStats } from '../api/types'
+import type { AccountStats, IngestStats, RagStats } from '../api/types'
 import { formatBytes } from './format'
-import { ingestTiles, ragTiles, type StatTile } from './stats'
+import { accountTiles, ingestTiles, ragTiles, type StatTile } from './stats'
 
 const ingest: IngestStats = {
   sources: { processing: 3, ready: 120, failed: 4 },
@@ -45,5 +45,24 @@ describe('formatBytes', () => {
   it('keeps bytes whole and scales the rest', () => {
     expect(formatBytes(0)).toBe('0 B')
     expect(formatBytes(1536)).toBe('1.5 KB')
+  })
+})
+
+describe('account tiles', () => {
+  const account: AccountStats = {
+    users: 3,
+    logins_24h: 1,
+    vouchers: { issued: 2, redeemed: 1, open: 1 },
+    credits_granted_cents: 3000,
+    usage_cost_cents: { total: 1310, last_24h: 120 },
+    blocks_active: 0,
+    bans_active: 0,
+  }
+
+  it('link credit and vouchers to the pages that explain them', () => {
+    const tiles = accountTiles(account)
+    expect(byLabel(tiles, 'Credit granted')?.href).toBe('/admin/users')
+    expect(byLabel(tiles, 'Vouchers open')?.href).toBe('/admin/credits')
+    expect(byLabel(tiles, 'Users')?.href).toBeUndefined()
   })
 })

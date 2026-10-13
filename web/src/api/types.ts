@@ -143,6 +143,8 @@ export interface User {
 export interface AdminUser extends User {
   last_login_at: string | null
   usage_cents: number
+  /** the user's ledger sum: credit granted by seed and redeemed vouchers */
+  granted_cents: number
 }
 
 export interface LoginEvent {

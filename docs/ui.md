@@ -138,9 +138,11 @@ deleted from the library) stays readable with its quote and is marked
 - Admin (only for admins): pages under `/admin` with a sub-navigation;
   each page loads only its own data, every page has its own URL.
   - **Overview** (`/admin`): numbers from the three services' stats
-    endpoints, each group loading on its own.
-  - **Users** (`/admin/users`): users with last login and balance, the
-    login log, sign-in attempts (allowed or refused, with IP).
+    endpoints, each group loading on its own; "Credit granted" links to
+    Users (who got it), "Vouchers open" to Credits.
+  - **Users** (`/admin/users`): users with credit granted, used and
+    balance and their last login, the login log, sign-in attempts
+    (allowed or refused, with IP).
   - **Access** (`/admin/access`): allowed sign-in, domains and single
     addresses, one entry at a time.
   - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
