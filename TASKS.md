@@ -8,7 +8,6 @@ not ticked. Items that need the maintainer are marked **[maintainer]**.
 - **[maintainer]** Click through the live system over the domain: magic-link sign-in (first real mail through the SMTP Secret), PDF, URL and image sources, chat with citations, every output including audio and the mind map (katex 0.18 under it, not yet seen in a browser), share link, admin panel (SMTP read-only block and test button).
 - **[maintainer]** Vultr API access-control list: add the operator machine's new public address (`infra` gets 401 until then; Helm deploys are unaffected). Afterwards infra re-runs `make db-trust` to drop the old address.
 - **[maintainer]** Record the ten-minute tour (`docs/walkthrough.md`).
-- **[maintainer]** VNC finding: allow agent D's read-only query on the live rows, or provide `linux_-_VNC-Server.pdf` on the VM.
 - **[maintainer]** Check in a browser: audio centred in the viewer, the viewer/chat divider, the full view with Esc and ×.
 - **[maintainer]** Decide on the database admin password rotation at the end.
 
@@ -24,11 +23,11 @@ not ticked. Items that need the maintainer are marked **[maintainer]**.
 ## Agent C (`ingest/`)
 
 - Migration 0004 (contract step of the source library) in the release after the one that ships 0003: `library_source_id` not null, drop `chunks.notebook_id`/`chunks.source_id` and the moved `sources` columns.
-- Fail loud on a ready source whose chunks are not searchable (pending the VNC finding).
+- Migration 0004 stays as above; the upload race is fixed (#182).
 
 ## Agent D (`rag/`)
 
-- VNC finding: a ready PDF is never retrieved; waiting for the maintainer's read-only rows or the file.
+- Record the VNC incident as resolved (cause inferred: the upload race fixed in ingest #182, or the 0.5.0 remodel); add the embedder guard against zero-norm or non-finite vectors with agent G.
 
 ## Agent E (`web/`)
 
