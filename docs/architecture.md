@@ -285,14 +285,17 @@ ingress, never trusted from anywhere else):
    window per IP in PostgreSQL (`ip_blocks`). Over the limit means 429
    and `blocked_until = now() + 15 minutes`, `strikes + 1`. The third
    strike within 24 hours writes an `ip_bans` row; a banned IP gets 403
-   on everything until an admin lifts it. Every request writes one
-   `access_log` row (sampled to 1 in N for `/healthz`).
+   on everything until an admin lifts it, at most 90 days. Every request
+   writes one `access_log` row (sampled to 1 in N for `/healthz`).
 
 The limits are configuration (`RATE_LIMIT_PER_MINUTE`, default 120;
 `BLOCK_MINUTES`, 15; `BAN_AFTER_STRIKES`, 3). Blocks, bans and the
 access log are visible in the admin panel, bans can be lifted there.
-Raw IPs exist only in these three tables, for the security purpose, and
-are purged after 30 days; the visitor log keeps hashes.
+Raw IPs exist only in these three tables, for the security purpose.
+The access log, expired blocks and lifted bans are purged after
+`RETENTION_DAYS` (30); an active ban survives that purge and falls after
+`BAN_MAX_DAYS` (90) at the latest. The account service runs the purge at
+every start with core's statements. The visitor log keeps hashes.
 
 ## Model prices
 
