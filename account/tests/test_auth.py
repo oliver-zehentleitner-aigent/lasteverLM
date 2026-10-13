@@ -154,3 +154,13 @@ def test_every_link_request_is_logged_with_outcome_and_client_ip(
         ]
         == "admin@example.org"
     )
+
+
+def test_pasted_code_from_the_mail_signs_in(client: TestClient, mailer: FakeMailer) -> None:
+    r = client.post("/api/account/auth/request-link", json={"email": "alice@example.org"})
+    assert r.status_code == 202
+    body = mailer.sent[-1].body
+    code = body.split("Or paste this code on the sign-in page:")[1].split()[0]
+    assert code == mailer.sent[-1].token  # the code is the link's token
+    r = client.get("/api/account/auth/callback", params={"token": code})
+    assert r.status_code == 200 and r.json()["user"]["email"] == "alice@example.org"
