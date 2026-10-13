@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `make values` and `scripts/values.py`; deploy configuration no longer comes from the environment.
 
+### Fixed
+
+- `deploy.yml` checks out the commit `docker.yml` built (`workflow_run.head_sha`) instead of the tag name, which could be moved in between while secrets are in scope; `GITHUB_TOKEN` limited to `contents: read`.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added
