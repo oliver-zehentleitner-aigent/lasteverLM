@@ -7,7 +7,7 @@
 The rag service of lasteverLM: retrieval over one notebook's chunks,
 answers with citations mapped back to source and passage, the message
 history, and the generated documents (report, quiz, table, mind map,
-infographic; audio prepared). The API contract and the data model live
+infographic, audio). The API contract and the data model live
 in the repository root, [`docs/architecture.md`](../docs/architecture.md);
 this directory implements the `/api/rag` prefix.
 
@@ -48,8 +48,18 @@ summaries plus the chunks retrieved for the kind's focus query, and
 indexes the result as a source of kind `generated` in the same notebook
 (chunked with core's token-window chunker, the same one ingest uses),
 so the chat can cite it; `Output.source_id` names that source. Deleting
-the output deletes the source. `audio` is registered but fails with a
-clear error until the inference platform offers text-to-speech.
+the output deletes the source and its stored files.
+
+`audio`: the model writes a spoken-word script (three to five minutes);
+the worker reads it with `TTS_MODEL` and `TTS_VOICE` in segments of at
+most 1500 characters that end at a sentence, one `tts` usage row per
+segment priced per input character, and stores the joined MP3 at
+`<notebook_id>/<output_id>/audio.mp3` in object storage. The row keeps
+`{"key"}`; every read (the output, the list, the shared view) returns
+`{"url"}`, a presigned GET URL valid for one hour. The script is the
+indexed text, so the chat can cite what the audio says. Without
+`TTS_MODEL` an audio output fails at once with a clear error, before
+any model call.
 
 ## Configuration
 
@@ -64,7 +74,8 @@ missing or a configured model has no price.
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | yes / default 1536 | query and chunk embedding, requested at that width (`dimensions`); identical to the ingest service |
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
-| `TTS_MODEL` | no | enables the audio kind once the platform offers speech synthesis |
+| `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is one of the platform's (`vivian`, `serena`, `ryan`, ...), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million characters |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
 | `RETRIEVAL_K` | no | chunks per question, default 8 |
 | `RETRIEVAL_INCLUDE_GENERATED` | no | default `false`: an unscoped question is answered from the uploads only; generated documents are reached through `scope.output_id` |
 | `SIMILARITY_FLOOR` | no | minimum cosine similarity, default 0.3 |

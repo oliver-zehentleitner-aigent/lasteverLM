@@ -15,8 +15,10 @@ from .conftest import (
     NOTEBOOK,
     OTHER_NOTEBOOK,
     FakeLLM,
+    FakeObjects,
     FakeRetriever,
     FakeStore,
+    FakeTTS,
     chunk,
     make_client,
 )
@@ -167,14 +169,62 @@ def test_output_without_ready_sources_fails(settings):
     assert (out["status"], out["error"]) == ("failed", "the notebook has no ready source")
 
 
-def test_audio_is_registered_but_fails_until_tts_exists(settings):
+AUDIO = json.dumps(
+    {"title": "The sky, read aloud", "script": " ".join(f"Point {i} is told." for i in range(300))}
+)
+
+
+def test_audio_fails_without_tts_before_spending_tokens(settings):
     store = FakeStore()
     store.add_source(NOTEBOOK, "a.txt", summary="s")
-    client = make_client(settings, store, FakeRetriever([]), FakeLLM())
+    llm = FakeLLM(AUDIO)
+    client = make_client(settings, store, FakeRetriever([]), llm)
     r = client.post(OUTPUTS, json={"kind": "audio"}, headers=AUTH)
     client.worker.run_once()
     out = client.get(f"/api/rag/outputs/{r.json()['id']}", headers=AUTH).json()
     assert out["status"] == "failed" and "text-to-speech" in out["error"]
+    assert llm.calls == []
+
+
+def test_audio_is_synthesized_in_segments_stored_and_served_presigned(settings):
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "a.txt", summary="s")
+    tts, objects = FakeTTS(), FakeObjects()
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM(AUDIO), tts, objects)
+    output_id = client.post(OUTPUTS, json={"kind": "audio"}, headers=AUTH).json()["id"]
+    client.worker.run_once()
+
+    key = f"{NOTEBOOK}/{output_id}/audio.mp3"
+    assert store.outputs[output_id]["content"] == {"key": key}
+    data, content_type = objects.objects[key]
+    assert content_type == "audio/mpeg" and data.count(b"\xff\xf3") == len(tts.inputs) > 1
+    tts_rows = [u for _, _, u in store.usage if u.kind == "tts"]
+    assert [u.tokens_in for u in tts_rows] == [len(t) for t in tts.inputs]
+
+    out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
+    assert out["status"] == "ready" and out["title"] == "The sky, read aloud"
+    assert out["content"] == {"url": f"https://objects.test/{key}?expires=3600"}
+    listed = client.get(OUTPUTS, headers=AUTH).json()
+    assert listed[0]["content"] == out["content"]
+    token = client.post(f"/api/rag/outputs/{output_id}/share", headers=AUTH).json()["share_token"]
+    assert client.get(f"/api/rag/shared/{token}").json()["content"] == out["content"]
+
+    assert client.delete(f"/api/rag/outputs/{output_id}", headers=AUTH).status_code == 204
+    assert objects.objects == {}
+
+
+def test_audio_retries_a_failed_synthesis_without_leaving_a_file(settings):
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "a.txt", summary="s")
+    objects = FakeObjects()
+    client = make_client(
+        settings, store, FakeRetriever([]), FakeLLM(AUDIO), FakeTTS(fail=True), objects
+    )
+    output_id = client.post(OUTPUTS, json={"kind": "audio"}, headers=AUTH).json()["id"]
+    client.worker.run_once()
+    row = store.outputs[output_id]
+    assert row["status"] == "processing" and "speech request failed" in row["error"]
+    assert objects.objects == {} and store.outputs[output_id]["source_id"] is None
 
 
 def test_output_creation_needs_credit_and_a_known_kind(settings):

@@ -31,6 +31,7 @@ from lasteverlm_core import (
     RateLimiter,
     RateLimitMiddleware,
     RateLimitStore,
+    S3Storage,
     SharedOutput,
     current_user,
     make_client,
@@ -103,8 +104,16 @@ def create_app(
         settings.similarity_floor,
         include_generated=settings.retrieval_include_generated,
     )
+    # the API never synthesizes; it needs the object store to presign and delete audio files
     outputs = output_service or OutputService(
-        store, retriever, embedder, llm, generators, settings.retrieval_k, settings.similarity_floor
+        store,
+        retriever,
+        embedder,
+        llm,
+        generators,
+        settings.retrieval_k,
+        settings.similarity_floor,
+        objects=S3Storage(settings.s3) if settings.s3 else None,
     )
 
     app = FastAPI(title="lasteverLM rag", version=__version__, docs_url=None, redoc_url=None)

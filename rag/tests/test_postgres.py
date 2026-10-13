@@ -41,7 +41,9 @@ pytestmark = pytest.mark.postgres
 DATABASE_URL = os.environ.get("RAG_TEST_DATABASE_URL")
 REPO = Path(__file__).resolve().parents[2]
 DIMENSION = 3
-PRICES = parse_model_prices('{"llm": {"in": 100, "out": 300}, "emb": {"in": 10, "out": 0}}')
+PRICES = parse_model_prices(
+    '{"llm": {"in": 100, "out": 300}, "emb": {"in": 10, "out": 0}, "tts": {"in": 2000, "out": 0}}'
+)
 
 MIGRATION_DIRS = ["infra", "core", "account", "ingest", "rag"]
 
@@ -126,7 +128,8 @@ def test_balance_and_usage_over_dict_row_pool(store, user, notebook):
     assert store.balance_cents(user) == 1000
     store.record_usage(user, notebook, Usage("llm", "llm", 500_000, 100_000))  # 50 + 30 = 80
     store.record_usage(user, None, Usage("embedding", "emb", 1, 0))  # ceil(0.00001) = 1
-    assert store.balance_cents(user) == 1000 - 81
+    store.record_usage(user, notebook, Usage("tts", "tts", 1500, 0))  # 1500 chars: 3
+    assert store.balance_cents(user) == 1000 - 84
     assert store.get_notebook(notebook) == {"id": notebook, "owner": user, "title": "nb"}
 
 

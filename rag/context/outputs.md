@@ -99,7 +99,8 @@ broker, rejected as a second stateful component for a queue of this size.
 
 **Id:** 471b245e-a056-4680-ac70-ad8818489be8
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** b8b85840-a958-42e9-90b4-a9205d5b6f40
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12
 **Revisit when:** the inference platform offers a speech endpoint
@@ -112,3 +113,36 @@ this deployment" until `TTS_MODEL` is set and a speech endpoint exists.
 shown in the wizard) and the module prepared; a kind that is accepted
 and then produces nothing silently would be worse than one that fails
 with a reason the frontend can show.
+
+## Audio is read in sentence-boundary segments whose MP3 frames are concatenated
+
+**Id:** b8b85840-a958-42e9-90b4-a9205d5b6f40
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** family coordination, 2026-10-13; platform probe, 2026-10-13
+**Revisit when:** the platform documents an input limit or offers streaming or long-form speech
+
+The audio generator only writes the script (title plus spoken text,
+three to five minutes). The output service cuts the script into
+segments of at most 1500 characters, ending at a sentence end where
+possible, synthesizes each with `TTS_MODEL` and `TTS_VOICE`, writes one
+`tts` usage row per segment (input characters as `tokens_in`), and
+stores the segments' bytes joined as one MP3 at
+`<notebook_id>/<output_id>/audio.mp3`. The row keeps `{"key"}`; reads
+return a presigned URL. The script is also the output's index text.
+
+**Reason:** the probe against the platform (`qwen3-tts-12hz-1.7b`)
+returned MP3, 24 kHz mono at 64 kbps, at about ten seconds of synthesis
+per thousand characters, and documents no input limit. Segments keep
+each request short and bounded, and a failure costs one segment, not
+the script. MP3 is a stream of self-contained frames, so the segments
+concatenate without re-encoding and without an audio library in the
+image. Cutting at sentence ends keeps the joins at natural pauses.
+
+**Rejected alternatives:** one request for the whole script, rejected
+because the input limit is unknown and a five-minute script would be
+one fifty-second request with nothing to retry but all of it;
+re-encoding the joined audio, rejected because it adds a codec
+dependency for no audible gain.
+
