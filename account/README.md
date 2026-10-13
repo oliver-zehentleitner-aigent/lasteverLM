@@ -41,7 +41,7 @@ rows, which ingest and rag write.
 |---|---|
 | Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
 | Account | `GET /me` → `User` (with `preferences`), `GET /me/preferences`, `PUT /me/preferences` (partial, returns `User`; the demo user gets 403), `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
-| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the four runtime fields for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, no codes), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/system` (version, commit, every service's health, the namespace's pods and deployments), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
+| Admin | `GET /admin/users`, `PATCH /admin/users/{id}` `{role}` (409 for the last admin or the demo user), `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the four runtime fields for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses, viewer_domains}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}`, `POST /admin/settings/viewer-domains` `{domain}` / `DELETE /admin/settings/viewer-domains/{domain}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, no codes), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/system` (version, commit, every service's health, the namespace's pods and deployments), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans?ip=` (the key: an IPv4 address or an IPv6 /64 prefix; the path form `DELETE /admin/bans/{ip}` stays for IPv4 one release), `GET /admin/access?limit=` |
 | Health | `GET /healthz`, also at the server root for the Kubernetes probe |
 
@@ -58,6 +58,14 @@ whose domain is listed in `allowed_domains`, or an address in
 `ADMIN_EMAILS`. Both lists are edited in the admin panel one entry at a
 time; `AUTH_ALLOWED_DOMAINS` only seeds the domain list. With both lists
 empty nobody but the configured admins can sign in.
+
+Roles: every user is `user`, `viewer` or `admin` (`User.role`; `is_admin` equals
+`role == "admin"`). The role is set at first sign-in — `admin` for `ADMIN_EMAILS`
+and for the very first real user, `viewer` for a domain listed in
+`viewer_domains`, `user` otherwise — and changed by an admin with
+`PATCH /admin/users/{id}`. A viewer may call every `GET` under `/admin`; every
+write there is admin only (403). The last admin cannot step down and the demo
+user stays `user`.
 
 Rate limiting and blocking happen in `RateLimitMiddleware` from
 [`core/`](../core/), mounted as the outermost layer of this service as of

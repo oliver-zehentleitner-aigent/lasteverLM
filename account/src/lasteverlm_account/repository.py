@@ -23,6 +23,7 @@ class UserRecord:
     created_at: datetime
     last_login_at: datetime | None
     preferences: dict[str, Any] = field(default_factory=dict)  # the stored jsonb, as is
+    role: str = "user"  # 'user' | 'viewer' | 'admin'; is_admin is kept equal to role == 'admin'
 
 
 @dataclass(frozen=True)
@@ -165,13 +166,16 @@ class Repository(Protocol):
     # users ------------------------------------------------------------------
     async def get_user(self, user_id: uuid.UUID) -> UserRecord | None: ...
     async def get_user_by_email(self, email: str) -> UserRecord | None: ...
-    async def create_user(self, email: str, *, admin: bool, now: datetime) -> UserRecord:
-        """Create a user. The very first user ever created is an admin regardless of ``admin``."""
+    async def create_user(self, email: str, *, role: str, now: datetime) -> UserRecord:
+        """Create a user with ``role``; the very first real user is an admin regardless."""
         ...
 
-    async def ensure_user(
-        self, user_id: uuid.UUID, email: str, *, admin: bool, now: datetime
-    ) -> UserRecord: ...
+    async def set_role(self, user_id: uuid.UUID, role: str) -> bool:
+        """Change a user's role (and is_admin with it); False when the user does not exist."""
+        ...
+
+    async def count_admins(self) -> int: ...
+
     async def record_login(self, user_id: uuid.UUID, at: datetime) -> None: ...
     async def set_preferences(self, user_id: uuid.UUID, preferences: dict[str, Any]) -> None:
         """Replace the stored preferences object; the service merges before calling."""

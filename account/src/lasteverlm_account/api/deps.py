@@ -68,3 +68,19 @@ async def admin_user(service: Service, who: Annotated[Principal, Depends(princip
 
 
 AdminUserDep = Annotated[UserRecord, Depends(admin_user)]
+
+
+async def admin_reader(
+    service: Service, who: Annotated[Principal, Depends(principal)]
+) -> UserRecord:
+    """Read access to the admin panel: viewers and admins; every GET under /admin uses this,
+    every write keeps ``AdminUserDep``."""
+    if who.scheme == "demo":
+        raise HTTPException(status_code=403, detail="admin only")
+    try:
+        return await service.require_reader(who.user_id)
+    except AccountError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.message) from exc
+
+
+AdminReaderDep = Annotated[UserRecord, Depends(admin_reader)]

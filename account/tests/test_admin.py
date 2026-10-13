@@ -19,6 +19,9 @@ from .conftest import DEMO_TOKEN, Clock, FakeMailer, bearer, login
 
 ADMIN_ROUTES = [
     ("GET", "/api/account/admin/users", None),
+    ("PATCH", "/api/account/admin/users/00000000-0000-4000-8000-000000000099", {"role": "viewer"}),
+    ("POST", "/api/account/admin/settings/viewer-domains", {"domain": "x.test"}),
+    ("DELETE", "/api/account/admin/settings/viewer-domains/x.test", None),
     ("GET", "/api/account/admin/logins", None),
     ("GET", "/api/account/admin/login-attempts", None),
     ("GET", "/api/account/admin/visits", None),
@@ -71,7 +74,11 @@ def test_allowlist_entries_are_added_and_removed_one_at_a_time(
     token, _ = login(client, mailer, "admin@example.org")
     h = bearer(token)
     r = client.get("/api/account/admin/settings/allowlist", headers=h)
-    assert r.json() == {"allowed_domains": ["example.org"], "allowed_addresses": []}
+    assert r.json() == {
+        "allowed_domains": ["example.org"],
+        "allowed_addresses": [],
+        "viewer_domains": [],
+    }
 
     r = client.post(
         "/api/account/admin/settings/domains", json={"domain": " @Acme.TEST "}, headers=h
@@ -121,6 +128,7 @@ def test_allowlist_entries_are_added_and_removed_one_at_a_time(
     assert client.get("/api/account/admin/settings/domains", headers=h).json() == {
         "allowed_domains": ["example.org"],
         "allowed_addresses": [],
+        "viewer_domains": [],
     }
     assert (
         client.post("/api/account/auth/request-link", json={"email": "x@acme.test"}).status_code
@@ -193,6 +201,7 @@ def test_admin_users_shape(client: TestClient, mailer: FakeMailer) -> None:
         "balance_cents",
         "usage_cents",
         "granted_cents",
+        "role",
     }
     assert r.json()[0]["last_login_at"] is not None
 

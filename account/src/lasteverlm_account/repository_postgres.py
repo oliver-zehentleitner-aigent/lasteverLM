@@ -47,6 +47,7 @@ def _user(row: dict[str, Any]) -> UserRecord:
         created_at=row["created_at"],
         last_login_at=row["last_login_at"],
         preferences=dict(row.get("preferences") or {}),
+        role=str(row.get("role") or ("admin" if row["is_admin"] else "user")),
     )
 
 
@@ -111,17 +112,27 @@ class PostgresRepository:
             row = await cur.fetchone()
         return _user(row) if row else None
 
-    async def create_user(self, email: str, *, admin: bool, now: datetime) -> UserRecord:
-        # "First user ever becomes admin" as one statement: the subquery ignores the
-        # demo user the migration seeds. The unique index on email covers the race
-        # between two first logins of the same address.
+    async def create_user(self, email: str, *, role: str, now: datetime) -> UserRecord:
+        # "First real user becomes admin" as one statement: the subquery ignores the demo
+        # user the migration seeds. The unique index on email covers the race between two
+        # first logins of the same address. is_admin is written alongside role (core reads it).
         async with self._pool.connection() as conn:
             cur = await conn.execute(
-                """insert into users (id, email, is_admin, created_at)
-                   values (%s, %s, %s or not exists (select 1 from users where id <> %s), %s)
+                """with wanted as (
+                       select case when %(role)s = 'admin'
+                                     or not exists (select 1 from users where id <> %(demo)s)
+                                   then 'admin' else %(role)s end as role)
+                   insert into users (id, email, role, is_admin, created_at)
+                   select %(id)s, %(email)s, role, role = 'admin', %(now)s from wanted
                    on conflict (email) do nothing
                    returning *""",
-                (uuid.uuid4(), email, admin, DEMO_USER_ID, now),
+                {
+                    "id": uuid.uuid4(),
+                    "email": email,
+                    "role": role,
+                    "demo": DEMO_USER_ID,
+                    "now": now,
+                },
             )
             row = await cur.fetchone()
             if row is None:
@@ -130,19 +141,19 @@ class PostgresRepository:
         assert row is not None
         return _user(row)
 
-    async def ensure_user(
-        self, user_id: uuid.UUID, email: str, *, admin: bool, now: datetime
-    ) -> UserRecord:
+    async def set_role(self, user_id: uuid.UUID, role: str) -> bool:
         async with self._pool.connection() as conn:
-            await conn.execute(
-                """insert into users (id, email, is_admin, created_at) values (%s, %s, %s, %s)
-                   on conflict (id) do nothing""",
-                (user_id, email, admin, now),
+            cur = await conn.execute(
+                "update users set role = %s, is_admin = (%s = 'admin') where id = %s",
+                (role, role, user_id),
             )
-            cur = await conn.execute("select * from users where id = %s", (user_id,))
+            return cur.rowcount == 1
+
+    async def count_admins(self) -> int:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute("select count(*) as n from users where role = 'admin'")
             row = await cur.fetchone()
-        assert row is not None
-        return _user(row)
+        return int(row["n"]) if row else 0
 
     async def set_preferences(self, user_id: uuid.UUID, preferences: dict[str, Any]) -> None:
         async with self._pool.connection() as conn:

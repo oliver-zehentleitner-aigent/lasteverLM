@@ -100,8 +100,8 @@ async def test_concurrent_redeem_of_one_code_credits_exactly_once(
     service: AccountService, repo: MemoryRepository
 ) -> None:
     now = datetime.now(UTC)
-    admin = await repo.create_user("admin@example.org", admin=True, now=now)
-    users = [await repo.create_user(f"u{i}@example.org", admin=False, now=now) for i in range(10)]
+    admin = await repo.create_user("admin@example.org", role="admin", now=now)
+    users = [await repo.create_user(f"u{i}@example.org", role="user", now=now) for i in range(10)]
     code = generate_voucher_code()
     await repo.create_voucher(hash_secret(normalize_voucher_code(code)), 700, admin.id, now)
 

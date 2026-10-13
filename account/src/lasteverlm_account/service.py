@@ -43,6 +43,7 @@ from .models import (
     PreferencesUpdate,
     RateLimitRulesUpdate,
     RateLimitRulesView,
+    Role,
     Smtp,
     SystemDeployment,
     SystemInfo,
@@ -63,9 +64,11 @@ log = logging.getLogger("lasteverlm_account")
 SETTING_SMTP = "smtp"  # no longer written; a leftover row is deleted at start
 SETTING_DOMAINS = "allowed_domains"
 SETTING_ADDRESSES = "allowed_addresses"
+SETTING_VIEWER_DOMAINS = "viewer_domains"
 _SETTING_KEYS: dict[str, tuple[str, str]] = {  # kind -> (setting key, list key inside the value)
     "domain": (SETTING_DOMAINS, "allowed_domains"),
     "address": (SETTING_ADDRESSES, "allowed_addresses"),
+    "viewer": (SETTING_VIEWER_DOMAINS, "viewer_domains"),
 }
 _DOMAIN_RE = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
 
@@ -101,6 +104,10 @@ def _valid(key: str, value: Any) -> bool:
     return True
 
 
+def _role(user: UserRecord) -> Role:
+    return "admin" if user.role == "admin" else "viewer" if user.role == "viewer" else "user"
+
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
@@ -108,7 +115,7 @@ def normalize_email(email: str) -> str:
 def normalize_allow_value(kind: AllowKind, value: str) -> str:
     """Lower-cased, trimmed; a domain may be written with a leading ``@``. 422 on bad shape."""
     value = value.strip().lower()
-    if kind == "domain":
+    if kind in ("domain", "viewer"):
         value = value.lstrip("@")
         if not _DOMAIN_RE.match(value):
             raise AccountError(422, f"not a domain: {value!r}")
@@ -246,11 +253,25 @@ class AccountService:
     async def allowed_addresses(self) -> list[str]:
         return await self._list("address")
 
+    async def viewer_domains(self) -> list[str]:
+        return await self._list("viewer")
+
     async def allowlist(self) -> Allowlist:
         return Allowlist(
             allowed_domains=await self.allowed_domains(),
             allowed_addresses=await self.allowed_addresses(),
+            viewer_domains=await self.viewer_domains(),
         )
+
+    async def initial_role(self, email: str) -> Role:
+        """The role a first sign-in gets: admin from ADMIN_EMAILS, viewer from a listed
+        domain, user otherwise. The repository still turns the very first real user into
+        an admin."""
+        if email in self.settings.admin_emails:
+            return "admin"
+        if email.rsplit("@", 1)[-1] in await self.viewer_domains():
+            return "viewer"
+        return "user"
 
     async def add_allow_entry(self, kind: AllowKind, value: str) -> Allowlist:
         value = normalize_allow_value(kind, value)
@@ -326,9 +347,7 @@ class AccountService:
             raise AccountError(401, "invalid or expired link")
         user = await self.repo.get_user_by_email(email)
         if user is None:
-            user = await self.repo.create_user(
-                email, admin=email in self.settings.admin_emails, now=now
-            )
+            user = await self.repo.create_user(email, role=await self.initial_role(email), now=now)
         await self.repo.record_login(user.id, now)
         jwt_token = issue_jwt(
             user.id, self.settings.auth_jwt_secret, timedelta(days=self.settings.jwt_ttl_days), now
@@ -353,6 +372,7 @@ class AccountService:
             is_admin=user.is_admin,
             balance_cents=totals.balance_cents,
             created_at=user.created_at,
+            role=_role(user),
             preferences=self.preferences_of(user),
         )
 
@@ -407,9 +427,28 @@ class AccountService:
     # admin ------------------------------------------------------------------
     async def require_admin(self, user_id: uuid.UUID) -> UserRecord:
         user = await self.user(user_id)
-        if not user.is_admin or user.id == DEMO_USER_ID:
+        if user.role != "admin" or user.id == DEMO_USER_ID:
             raise AccountError(403, "admin only")
         return user
+
+    async def require_reader(self, user_id: uuid.UUID) -> UserRecord:
+        """Viewers and admins read the admin panel; the demo user is neither."""
+        user = await self.user(user_id)
+        if user.role not in ("viewer", "admin") or user.id == DEMO_USER_ID:
+            raise AccountError(403, "admin only")
+        return user
+
+    async def set_user_role(self, user_id: uuid.UUID, role: Role) -> AdminUserView:
+        user = await self.repo.get_user(user_id)
+        if user is None:
+            raise AccountError(404, "unknown user")
+        if user.id == DEMO_USER_ID:
+            raise AccountError(409, "the shared demo user keeps the user role")
+        if user.role == "admin" and role != "admin" and await self.repo.count_admins() <= 1:
+            raise AccountError(409, "the last admin keeps the admin role")
+        await self.repo.set_role(user.id, role)
+        rows = [u for u in await self.admin_users() if u.id == user.id]
+        return rows[0]
 
     def smtp_view(self) -> Smtp:
         """What is in effect, without the password; empty host when not configured."""
@@ -452,6 +491,7 @@ class AccountService:
                     balance_cents=t.balance_cents if t else 0,
                     usage_cents=t.usage_cents if t else 0,
                     granted_cents=t.credited_cents if t else 0,
+                    role=_role(user),
                 )
             )
         return result
