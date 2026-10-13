@@ -24,14 +24,15 @@ select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)
     as balance_cents
 """
 
-# Admins are exempt from the credit check. `users` is account's table; a
-# user without a row (only possible before account has written it) is no admin.
+# The admin flag gates the admin endpoints only, never the credit check.
+# `users` is account's table; a user without a row (only possible before
+# account has written it) is no admin.
 IS_ADMIN_SQL = """
 select coalesce((select is_admin from users where id = %(user_id)s), false) as is_admin
 """
+# The same rule for every user, admins included: a positive balance.
 HAS_CREDIT_SQL = """
-select coalesce((select is_admin from users where id = %(user_id)s), false)
-    or coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)s), 0)
+select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)s), 0)
      - coalesce((select sum(cost_cents) from usage where user_id = %(user_id)s), 0) > 0
     as has_credit
 """
@@ -121,8 +122,8 @@ def is_admin(conn: Connection, user_id: UUID) -> bool:
 
 
 def has_credit(conn: Connection, user_id: UUID) -> bool:
-    """May this user start a model call: an admin always, anyone else with a
-    positive balance. The check every service runs before a model call."""
+    """May this user start a model call: `balance_cents > 0`, for every user
+    alike. The check every service runs before a model call."""
     with conn.cursor() as cur:
         cur.execute(HAS_CREDIT_SQL, {"user_id": user_id})
         return bool(scalar(cur.fetchone(), "has_credit"))

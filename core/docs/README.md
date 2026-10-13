@@ -84,11 +84,10 @@ package root.
 ## Accounting
 
 Before a model call: `has_credit(conn, user_id)`, otherwise 402
-`{"error": "credit exhausted"}`. It is true for an admin whatever the
-balance, and for anyone else when `balance_cents > 0`; one query
-(`HAS_CREDIT_SQL`). Admins are still billed: their calls write `usage`
-rows like everyone's, so the admin panel shows what they cost. After it: `record_usage(...)` with the
-`Usage` the provider returned. `record_usage` prices the row and raises
+`{"error": "credit exhausted"}`. It is true when `balance_cents > 0`,
+for every user alike: admins top up with vouchers like everyone else, and
+the admin flag gates only the admin endpoints. After the call:
+`record_usage(...)` with the `Usage` the provider returned. `record_usage` prices the row and raises
 `UnpricedModelError` before touching the database when the model has no
 price; `require_prices` at startup makes that unreachable in a correctly
 configured deployment. The caller owns the transaction. The account

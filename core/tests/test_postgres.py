@@ -137,23 +137,25 @@ def test_tts_usage_is_priced_per_character(conn: psycopg.Connection[Any]) -> Non
         )
 
 
-def test_admin_has_credit_without_balance(dsn: str, conn: psycopg.Connection[Any]) -> None:
+def test_admins_need_credit_like_everyone(dsn: str, conn: psycopg.Connection[Any]) -> None:
     admin, user, stranger = uuid4(), uuid4(), uuid4()
     conn.execute("insert into users (id, is_admin) values (%s, true), (%s, false)", (admin, user))
     assert is_admin(conn, admin) is True
     assert is_admin(conn, user) is False
     assert is_admin(conn, stranger) is False  # no users row
-    assert has_credit(conn, admin) is True  # balance 0
+    assert has_credit(conn, admin) is False  # balance 0, no exemption
     assert has_credit(conn, user) is False
     assert has_credit(conn, stranger) is False
     credit(conn, user, 5)
     assert has_credit(conn, user) is True
     record_usage(conn, user, None, "rag", "llm", "llm", 1_000_000, 0, prices=PRICES)
     assert has_credit(conn, user) is False  # 5 - 30 < 0
-    record_usage(conn, admin, None, "rag", "llm", "llm", 1_000_000, 0, prices=PRICES)
-    assert has_credit(conn, admin) is True  # negative balance, still an admin
+    credit(conn, admin, 100)  # a voucher
+    assert has_credit(conn, admin) is True
+    record_usage(conn, admin, None, "rag", "llm", "llm", 4_000_000, 0, prices=PRICES)
+    assert has_credit(conn, admin) is False  # 100 - 120 < 0
     with psycopg.connect(dsn, row_factory=dict_row) as dconn:
-        assert has_credit(dconn, admin) is True and is_admin(dconn, user) is False
+        assert has_credit(dconn, admin) is False and is_admin(dconn, admin) is True
 
 
 async def test_async_admin_and_credit(dsn: str, conn: psycopg.Connection[Any]) -> None:
@@ -161,6 +163,8 @@ async def test_async_admin_and_credit(dsn: str, conn: psycopg.Connection[Any]) -
     conn.execute("insert into users (id, is_admin) values (%s, true)", (admin,))
     async with await psycopg.AsyncConnection.connect(dsn) as aconn:
         assert await ais_admin(aconn, admin) is True
+        assert await ahas_credit(aconn, admin) is False  # admins need credit too
+        credit(conn, admin, 1)
         assert await ahas_credit(aconn, admin) is True
         assert await ahas_credit(aconn, uuid4()) is False
 
