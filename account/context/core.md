@@ -34,7 +34,8 @@ bypasses `uv sync` and leaves `uv.lock` unaware of core.
 
 **Id:** dae69130-8e13-494d-af5d-fb265e1e749d
 **Type:** workaround
-**Status:** active
+**Status:** superseded
+**Superseded by:** none — core's scalar reads became row-factory independent (2026-10-13), the store takes the dict-row pool's connections directly and `tuple_connection` is gone
 **Evidence:** confirmed
 **Source:** fleet coordination, 2026-10-12
 **Revisit when:** core's scalar reads are row-factory independent (announced for the next core pull request)

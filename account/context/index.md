@@ -33,7 +33,7 @@ repository root's `context/`.
 
 ## C
 
-- [core.md](core.md) — core installed from `../core` as a uv path source, and the tuple-row connections core's rate-limit store needs for now
+- [core.md](core.md) — core installed from `../core` as a uv path source; the superseded tuple-row detour for core's rate-limit store
 
 ## D
 
