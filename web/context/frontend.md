@@ -306,6 +306,40 @@ strip, as requested. Not built: the stats carry no age, and pending
 without an age would flash on every normal upload; it needs ingest to
 report the oldest pending time.
 
+## Light and dark through tokens only, following the system by default
+
+**Id:** d3394545-e3bc-48fd-bae6-5243374ba47a
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request for a light and dark switch ("system" as default, every colour through the existing tokens), relayed by the family lead, 2026-10-13; the reasons below are this directory's
+**Revisit when:** a third theme (high contrast, say) is asked for, or a component needs a colour that is not a token
+
+Every colour of the app is a custom property in `styles.css`: the light
+values on `:root`, the dark ones under `:root[data-theme='dark']` and,
+for the system setting, the same values under `prefers-color-scheme:
+dark` for a root without `data-theme='light'`. Components never carry
+a colour of their own; the charts read the tokens as values (recharts
+writes SVG attributes) and read them again when the theme changes; the
+mind map maps markmap's variables to the tokens. A test parses the
+token blocks, checks that both dark blocks match, and computes the WCAG
+contrast of the pairs that carry text (4.5:1) or chart lines (3:1); it
+found white on the dark accent and four light colours below the line,
+which were changed.
+
+**Reason:** with tokens a theme is a set of values, not a hunt through
+components, and the contrast can be checked by a test instead of by eye.
+"system" as the default because most people have already chosen light
+or dark for their device, and the app should respect that until they
+choose otherwise for it.
+
+**Rejected alternative:** a theme class on the root with per-component
+dark rules. Rejected: every component would need two sets of colours,
+and the contrast test could not see them.
+
+**Rejected alternative:** light as the default. Rejected because it
+ignores the device setting the user already made.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4

@@ -197,6 +197,8 @@ export interface Preferences {
   trash_days?: number | null
   /** how PDFs are read by default; null is auto */
   pdf_capture?: 'auto' | 'text' | 'vision' | null
+  /** light, dark, or following the system; null is system */
+  theme?: 'system' | 'light' | 'dark' | null
 }
 
 export interface User {

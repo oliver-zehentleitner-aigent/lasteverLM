@@ -15,6 +15,7 @@ import { Workspace } from './components/Workspace'
 import { MeContext } from './hooks/useMe'
 import { useRoute } from './hooks/useRoute'
 import { writeLastNotebook } from './lib/lastNotebook'
+import { applyTheme, readStoredTheme } from './lib/theme'
 import { setLanguage, t } from './i18n'
 import { pickLanguage } from './i18n/translate'
 
@@ -32,6 +33,12 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang
   }, [lang])
+
+  // the account's theme follows the user across browsers; null keeps this browser's
+  const accountTheme = session.state === 'in' ? session.me?.preferences?.theme : null
+  useEffect(() => {
+    if (accountTheme && accountTheme !== readStoredTheme()) applyTheme(accountTheme)
+  }, [accountTheme])
 
   /** Load the account behind the stored token. A 401 is handled by the event
    *  below; any other failure keeps the session with an unknown account so
