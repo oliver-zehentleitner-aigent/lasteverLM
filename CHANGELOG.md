@@ -8,6 +8,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ### Changed
 
+- `docs/architecture.md`: `/admin/system` and the build in every `/healthz`, the voice preview endpoint, the demo library seeds, the token in the sign-in mail.
+
+### Changed
+
 - `docs/rag-pipeline.md` and `docs/architecture.md`: PDF capture modes text, vision and auto (vision for scanned pages, cost guard), the `capture` upload field and library field.
 
 ## [0.6.0] - 2026-10-13

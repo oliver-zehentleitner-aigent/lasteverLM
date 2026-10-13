@@ -107,7 +107,7 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - `usage.kind`: `llm` | `embedding` | `tts`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
 - Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
-- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
+- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. A new user's first library access seeds four demo sources (a PDF, a text, an image, a URL, one coherent fictional set) processed at the demo user's expense, flagged `demo` (`ingest/context/library.md`). Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
 
 ## Credits and accounting
 
@@ -122,7 +122,8 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - Bearer token on every request. Two schemes, resolved by one function in core, `current_user(authorization) -> User`:
   - JWT, HS256 with `AUTH_JWT_SECRET`, `sub` = user id, 7 days, issued by account after a magic link.
   - `DEMO_TOKEN` from config, resolves to the demo user `00000000-0000-4000-8000-000000000001`, seeded by account's migration with email `demo@localhost` and an initial ledger credit. Exists for development and recorded demos; unset in production.
-- Magic link: `POST /api/account/auth/request-link` answers 202 for an address that may sign in and 403 `{"error", "code": "not_allowed"}` for any other, no mail in that case (`account/context/auth.md`); the mail carries `<PUBLIC_BASE_URL>/auth/callback?token=...`; the frontend exchanges the token at `GET /api/account/auth/callback?token=...` for `{jwt, user}`. Tokens are stored hashed, single use, 15 minutes.
+- Every service answers `GET /healthz` with `{"status", "version", "commit"}` from `APP_VERSION` and `APP_COMMIT` (the image tag and the full SHA, set by the chart; "unknown" when unset).
+- Magic link: `POST /api/account/auth/request-link` answers 202 for an address that may sign in and 403 `{"error", "code": "not_allowed"}` for any other, no mail in that case (`account/context/auth.md`); the mail carries `<PUBLIC_BASE_URL>/auth/callback?token=...` and the token itself for the paste form; the frontend exchanges the token at `GET /api/account/auth/callback?token=...` for `{jwt, user}`. Tokens are stored hashed, single use, 15 minutes.
 - Who may sign in: addresses in `ADMIN_EMAILS`, addresses on the allowlist (`settings` key `allowed_addresses`) and addresses whose domain is on it (`settings` key `allowed_domains`, seeded once from `AUTH_ALLOWED_DOMAINS`). Both lists are edited entry by entry in the admin panel. Not in any repository.
 - `is_admin`: the first user ever created, plus addresses in `ADMIN_EMAILS`.
 
@@ -145,6 +146,7 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, pl
 | GET | `/admin/visits?days=` | | `[{"day","path","visits","unique"}]` |
 | GET | `/admin/settings/smtp` | | `Smtp` (read-only, from the environment, never the password) |
 | POST | `/admin/settings/smtp/test` | | 202 |
+| GET | `/admin/system` | | `SystemInfo`: version and commit of the build, every service's health and build, pods and deployments from the cluster API (`cluster: false` and empty lists outside a cluster or without the read role) |
 | GET | `/admin/settings/allowlist` | | `Allowlist` |
 | POST | `/admin/settings/domains` | `{"domain"}` | 201 `Allowlist`; 409 listed, 422 bad value |
 | DELETE | `/admin/settings/domains/{domain}` | | 204 |
@@ -167,6 +169,7 @@ Smtp:      {"host", "port", "username", "from_address", "starttls"}   -- empty h
 Allowlist: {"allowed_domains": [], "allowed_addresses": []}
 AdminVoucher: {"id", "amount_cents", "created_by", "created_at", "redeemed_by", "redeemed_at", "status": "open|redeemed"}
 RateLimitRules: {"per_minute", "block_minutes", "ban_after_strikes", "strike_window_hours", "ban_max_days", "retention_days"}  -- the last two read-only
+SystemInfo: {"version", "commit", "cluster", "services": [{"name", "version", "commit", "healthy"}], "pods": [{"name", "service", "image_tag", "ready", "restarts", "node", "started_at"}], "deployments": [{"name", "replicas", "ready", "updated"}]}
 AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}, "credits_granted_cents",
                "usage_cost_cents": {"total", "last_24h"}, "blocks_active", "bans_active"}
 ```
@@ -193,7 +196,7 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 ```json
 Notebook: {"id", "title", "created_at"}
 Source:   {"id", "notebook_id", "library_id", "name", "kind", "status", "error", "created_at"}
-LibraryEntry: {"id", "name", "kind", "capture" (PDFs), "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
+LibraryEntry: {"id", "name", "kind", "capture" (PDFs), "demo", "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
 IngestStats: {"sources": {"processing", "ready", "failed"}, "jobs": {"pending", "running", "failed"}, "chunks", "source_bytes"}
 ```
 
@@ -216,6 +219,7 @@ v1; the frontend polls `GET /sources`.
 | GET | `/conversations/{id}/messages` | | `[Message]` |
 | GET | `/chunks/{id}` | | `ChunkView` (the cited passage verbatim; 404 unless the caller owns it) |
 | POST | `/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?}` | `Answer`; 422 without a conversation |
+| POST | `/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview, synthesized once per voice/speed/language and then served from storage (one `tts` usage row for the first caller, 402 without credit, 503 without TTS) |
 | GET | `/outputs/options` | | `{"languages": [{"code","label"}], "audio": {"voices": [{"id","label","gender"}], "speeds": [], "default_voice"}}` |
 | POST | `/notebooks/{id}/outputs` | `{"kind", "options"?}` — options per kind: `{"language"}` for text kinds, `{"language", "voice", "speed"}` for audio; 422 outside the catalogue | 202 `Output` with status `waiting` or `processing` |
 | GET | `/notebooks/{id}/outputs` | | `[Output]` |
