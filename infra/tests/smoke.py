@@ -3,14 +3,16 @@
 
 Logs in with the demo token, creates a notebook, uploads a text source,
 waits until it is ready, opens a conversation, asks a question in it and
-asserts that the answer cites the source. Works against a local stack or the live cluster;
+asserts that the answer cites the source. The text carries a run id, so
+ingest's per-user library (deduplicated by content) takes a new source
+through the whole pipeline every time. Works against a local stack or the live cluster;
 needs only the Python standard library.
 
     python3 tests/smoke.py https://lasteverlm.example.com --token "$DEMO_TOKEN"
 
 Exit code 0 when every step passed, 1 on a failed assertion, 2 on a
-transport error (connection refused, timeout). The notebook is deleted
-at the end unless --keep is given.
+transport error (connection refused, timeout). The notebook and the
+library source are deleted at the end unless --keep is given.
 """
 
 from __future__ import annotations
@@ -33,6 +35,12 @@ SOURCE_TEXT = (
     "Zeltavia's national dish is smoked eel with juniper. "
     "The country joined the Northern Trade League in 1987.\n"
 )
+
+
+def source_text(run_id: str) -> str:
+    return SOURCE_TEXT + f"\nThis copy was written for smoke run {run_id}.\n"
+
+
 QUESTION = "What is the capital of Zeltavia and on which river does it lie?"
 MARKER = re.compile(r"\[(\d+)\]")
 
@@ -130,20 +138,24 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
     if me["balance_cents"] <= 0:
         raise SmokeFailure(f"demo user has no credit: balance_cents={me['balance_cents']}")
 
-    step("create a notebook")
+    run_id = f"{time.strftime('%Y-%m-%d %H:%M:%S')} {uuid.uuid4().hex[:8]}"
+    step(f"create a notebook (run {run_id})")
     notebook = client.json(
-        "POST",
-        "/api/ingest/notebooks",
-        {"title": f"smoke {time.strftime('%Y-%m-%d %H:%M:%S')}"},
-        expect=(201,),
+        "POST", "/api/ingest/notebooks", {"title": f"smoke {run_id}"}, expect=(201,)
     )
     notebook_id = notebook["id"]
+    library_id = None
     try:
         step("upload a text source")
         source = client.upload(
-            f"/api/ingest/notebooks/{notebook_id}/sources", "zeltavia.txt", SOURCE_TEXT.encode()
+            f"/api/ingest/notebooks/{notebook_id}/sources",
+            "zeltavia.txt",
+            source_text(run_id).encode(),
         )
         source_id = source["id"]
+        library_id = source.get("library_id")
+        if not library_id:
+            raise SmokeFailure(f"upload answered without a library_id: {source}")
         if source.get("status") != "processing":
             raise SmokeFailure(
                 f"upload answered with status {source.get('status')!r}, expected 'processing'"
@@ -208,10 +220,17 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
             raise SmokeFailure(f"message history does not end with user, assistant: {roles}")
     finally:
         if keep:
-            print(f"  keeping notebook {notebook_id}")
+            print(f"  keeping notebook {notebook_id} and library source {library_id}")
         else:
-            step("delete the notebook (its conversations go with it)")
-            client.request("DELETE", f"/api/ingest/notebooks/{notebook_id}", expect=(204,))
+            try:
+                step("delete the notebook (its conversations go with it)")
+                client.request("DELETE", f"/api/ingest/notebooks/{notebook_id}", expect=(204,))
+            finally:
+                # The library source outlives the notebook; without this the demo
+                # user's library grows by one entry per run.
+                if library_id:
+                    step("delete the library source")
+                    client.request("DELETE", f"/api/ingest/library/{library_id}", expect=(204,))
 
 
 def main(argv: list[str] | None = None) -> int:

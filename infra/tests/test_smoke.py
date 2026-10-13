@@ -7,6 +7,7 @@ to walk through; it is not a test of any service. Run with
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import re
@@ -92,18 +93,24 @@ class Stub(BaseHTTPRequestHandler):
                 "multipart/form-data"
             ), "multipart expected"
             assert b'name="file"' in body and b"Zeltavia" in body, "file part missing"
+            # Like ingest's library: the same bytes again are linked, already ready.
+            content = body.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n--", 1)[0]
+            digest = hashlib.sha256(content).hexdigest()
+            known = store["library"].get(digest)
             src = {
                 "id": str(uuid.uuid4()),
                 "notebook_id": m.group(1),
+                "library_id": known or str(uuid.uuid4()),
                 "name": "zeltavia.txt",
                 "kind": "text",
-                "status": "processing",
+                "status": "ready" if known else "processing",
                 "error": None,
                 "created_at": "now",
                 "polls": 0,
             }
+            store["library"][digest] = src["library_id"]
             store["sources"].setdefault(m.group(1), []).append(src)
-            return self._send(202, {k: v for k, v in src.items() if k != "polls"})
+            return self._send(200 if known else 202, {k: v for k, v in src.items() if k != "polls"})
         m = re.fullmatch(r"/api/rag/notebooks/([^/]+)/conversations", self.path)
         if m:
             assert not body, "the smoke test opens a conversation with an empty body"
@@ -170,9 +177,14 @@ class Stub(BaseHTTPRequestHandler):
     def do_DELETE(self):
         if not self._authed():
             return
+        store = self.server.store
         m = re.fullmatch(r"/api/ingest/notebooks/([^/]+)", self.path)
-        if m and self.server.store["notebooks"].pop(m.group(1), None):
-            self.server.store["deleted"].append(m.group(1))
+        if m and store["notebooks"].pop(m.group(1), None):
+            store["deleted"].append(m.group(1))
+            return self._send(204)
+        m = re.fullmatch(r"/api/ingest/library/([^/]+)", self.path)
+        if m and m.group(1) in store["library"].values():
+            store["library"] = {k: v for k, v in store["library"].items() if v != m.group(1)}
             return self._send(204)
         self._send(404, {"error": "not found"})
 
@@ -184,6 +196,7 @@ class SmokeTest(unittest.TestCase):
             "notebooks": {},
             "sources": {},
             "conversations": {},
+            "library": {},
             "messages": {},
             "deleted": [],
         }
@@ -207,11 +220,21 @@ class SmokeTest(unittest.TestCase):
         self.assertIn("OK:", out)
         self.assertEqual(len(self.server.store["deleted"]), 1)
         self.assertEqual(self.server.store["notebooks"], {})
+        self.assertEqual(self.server.store["library"], {}, "the library source must go too")
+
+    def test_every_run_uploads_new_content(self):
+        # With --keep the library keeps the first run's bytes; a second run with
+        # the same text would be linked as ready at once and fail.
+        self.assertEqual(self._run("--keep")[0], 0)
+        code, out, err = self._run()
+        self.assertEqual(code, 0, out + err)
+        self.assertEqual(len(self.server.store["library"]), 1)
 
     def test_keep_leaves_the_notebook(self):
         code, _, _ = self._run("--keep")
         self.assertEqual(code, 0)
         self.assertEqual(self.server.store["deleted"], [])
+        self.assertEqual(len(self.server.store["library"]), 1)
 
     def test_missing_citation_fails(self):
         self.server.mode = "no-citation"
@@ -219,6 +242,7 @@ class SmokeTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("no citations", err)
         self.assertEqual(len(self.server.store["deleted"]), 1, "cleanup must run on failure")
+        self.assertEqual(self.server.store["library"], {})
 
     def test_failed_source_fails(self):
         self.server.mode = "fail-source"
