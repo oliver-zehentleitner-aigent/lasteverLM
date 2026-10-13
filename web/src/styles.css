@@ -363,3 +363,10 @@ a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); 
 .top-users th, .top-users td { text-align: left; padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--line); }
 .top-users th { color: var(--muted); font-weight: 500; }
 .top-users td.name { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* chat height presets at the right end of the chat tab bar */
+.tab-tools { margin-left: auto; display: flex; align-items: center; }
+.presets { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.preset { background: none; border: none; color: var(--muted); padding: 0.15rem 0.45rem; font-size: 0.8em; }
+.preset + .preset { border-left: 1px solid var(--line); }
+.preset.active { color: var(--fg); background: var(--accent-soft); }
+@media (max-width: 900px) { .presets { display: none; } }

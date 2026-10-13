@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_VIEWER_RATIO, MAX_VIEWER_RATIO, MIN_VIEWER_RATIO, clampRatio, ratioFromPointer, readRatio, writeRatio } from './layout'
+import {
+  DEFAULT_VIEWER_RATIO,
+  MAX_VIEWER_RATIO,
+  MIN_VIEWER_RATIO,
+  activePreset,
+  clampRatio,
+  presetRatio,
+  ratioFromPointer,
+  readRatio,
+  writeRatio,
+} from './layout'
 
 function memory() {
   const m = new Map<string, string>()
@@ -42,5 +52,19 @@ describe('viewer ratio', () => {
     }
     expect(readRatio(broken)).toBe(DEFAULT_VIEWER_RATIO)
     expect(() => writeRatio(broken, 0.6)).not.toThrow()
+  })
+})
+
+describe('chat presets', () => {
+  it('map the chat share to a viewer ratio inside the bounds', () => {
+    expect(presetRatio(0.15)).toBeCloseTo(0.85)
+    expect(presetRatio(0.3)).toBeCloseTo(0.7)
+    expect(presetRatio(0.45)).toBeCloseTo(0.55)
+  })
+
+  it('highlight the preset the ratio matches, none after a drag', () => {
+    expect(activePreset(presetRatio(0.3))).toBe('2x')
+    expect(activePreset(0.62)).toBeNull()
+    expect(activePreset(DEFAULT_VIEWER_RATIO)).toBeNull()
   })
 })

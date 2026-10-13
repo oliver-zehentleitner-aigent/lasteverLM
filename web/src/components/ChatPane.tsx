@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { rag } from '../api/rag'
 import type { Citation, Conversation, Message, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
@@ -13,6 +13,8 @@ interface Props {
   presentSources: ReadonlySet<string> | null
   onClearScope: () => void
   onCitationSelected: (c: Citation | null) => void
+  /** controls at the right end of the tab bar (the chat height presets) */
+  tools?: ReactNode
 }
 
 /** A notebook without conversations gets its first one when the chat opens,
@@ -32,7 +34,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected }: Props) {
+export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected, tools }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const { busy, error, run } = useAsync()
@@ -97,6 +99,7 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
         <button type="button" className="icon" title="New chat" disabled={busy} onClick={() => void add()}>
           +
         </button>
+        {tools && <span className="tab-tools">{tools}</span>}
       </div>
       {error && <p className="error">{error}</p>}
       {active && (

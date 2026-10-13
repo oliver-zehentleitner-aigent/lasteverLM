@@ -4,7 +4,7 @@ import { rag } from '../api/rag'
 import type { Citation, Notebook, Output, OutputKind, Source } from '../api/types'
 import { OUTPUT_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
-import { browserStorage, DEFAULT_VIEWER_RATIO, readRatio, writeRatio } from '../lib/layout'
+import { CHAT_PRESETS, activePreset, browserStorage, DEFAULT_VIEWER_RATIO, presetRatio, readRatio, writeRatio } from '../lib/layout'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { formFor } from '../lib/outputs'
 import { ChatPane } from './ChatPane'
@@ -256,6 +256,28 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
             presentSources={presentSources}
             onClearScope={() => setScope(null)}
             onCitationSelected={onCitation}
+            tools={
+              fullView ? undefined : (
+                <span className="presets" role="group" aria-label="Chat height">
+                  {CHAT_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      className={activePreset(ratio) === p.label ? 'preset active' : 'preset'}
+                      aria-pressed={activePreset(ratio) === p.label}
+                      title={`Chat at ${Math.round(p.chat * 100)} % of the column`}
+                      onClick={() => {
+                        const r = presetRatio(p.chat)
+                        setRatio(r)
+                        writeRatio(browserStorage(), r)
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </span>
+              )
+            }
           />
         </div>
       </div>
