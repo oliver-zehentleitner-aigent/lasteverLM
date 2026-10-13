@@ -17,6 +17,7 @@ from lasteverlm_core import (
     InferenceSettings,
     ModelPrices,
     RateLimitSettings,
+    S3Settings,
     UnpricedModelError,
     load_model_prices,
     require_prices,
@@ -29,11 +30,7 @@ __all__ = ["ConfigError", "Settings"]
 @dataclass(frozen=True)
 class Settings:
     database_url: str
-    s3_endpoint: str
-    s3_bucket: str
-    s3_access_key: str
-    s3_secret_key: str
-    s3_region: str
+    s3: S3Settings
     inference: InferenceSettings
     auth: AuthSettings
     rate_limit: RateLimitSettings
@@ -85,11 +82,7 @@ class Settings:
             raise ConfigError(f"MODEL_PRICES: {exc}") from exc
         return cls(
             database_url=env_required("DATABASE_URL", env),
-            s3_endpoint=env_required("S3_ENDPOINT", env),
-            s3_bucket=env_required("S3_BUCKET", env),
-            s3_access_key=env_required("S3_ACCESS_KEY", env),
-            s3_secret_key=env_required("S3_SECRET_KEY", env),
-            s3_region=env_optional("S3_REGION", env) or "us-east-1",
+            s3=S3Settings.from_env(env),
             inference=inference,
             auth=AuthSettings.from_env(env),
             rate_limit=RateLimitSettings.from_env(env),

@@ -19,7 +19,7 @@ import threading
 from dataclasses import dataclass
 from uuid import UUID
 
-from lasteverlm_core import Chunker, Embedder, ProviderError
+from lasteverlm_core import Chunker, Embedder, ProviderError, Storage, StorageError
 
 from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.loaders import (
@@ -29,7 +29,6 @@ from lasteverlm_ingest.loaders import (
     TransientLoaderError,
 )
 from lasteverlm_ingest.repository import Repository, StoredSource
-from lasteverlm_ingest.storage import Storage, StorageError
 from lasteverlm_ingest.summarizer import Summarizer
 
 log = logging.getLogger(__name__)

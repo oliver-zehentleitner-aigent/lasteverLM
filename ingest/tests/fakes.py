@@ -148,9 +148,12 @@ class InMemoryStorage:
     def get(self, key: str) -> bytes:
         return self.objects[key]
 
-    def delete(self, keys: list[str]) -> None:
+    def delete(self, *keys: str) -> None:
         for key in keys:
             self.objects.pop(key, None)
+
+    def presigned_get(self, key: str, expires_s: int = 3600) -> str:
+        return f"https://storage.test/{key}?expires={expires_s}"
 
 
 class FakeEmbedder:
