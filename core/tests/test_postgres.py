@@ -233,8 +233,9 @@ async def test_dict_row_pool_and_async_pool(dsn: str, conn: psycopg.Connection[A
         assert await astore.is_banned(ip) is True
 
 
-def test_purge_keeps_active_bans(conn: psycopg.Connection[Any]) -> None:
+def test_purge_keeps_active_bans_up_to_ban_max_days(conn: psycopg.Connection[Any]) -> None:
     old, fresh = T0 - timedelta(days=40), T0 - timedelta(days=1)
+    ancient = T0 - timedelta(days=91)
     log = (
         "insert into access_log (at, ip, path, method, status, service) "
         "values (%s, %s, '/', 'GET', 200, 't')"
@@ -248,7 +249,8 @@ def test_purge_keeps_active_bans(conn: psycopg.Connection[Any]) -> None:
     conn.execute(ban, ("10.0.0.3", "active", old, None))
     conn.execute(ban, ("10.0.0.4", "lifted long ago", old, old))
     conn.execute(ban, ("10.0.0.5", "lifted recently", old, fresh))
-    purge(conn, retention_days=30, now=T0)
+    conn.execute(ban, ("10.0.0.6", "active past ban_max_days", ancient, None))
+    purge(conn, retention_days=30, ban_max_days=90, now=T0)
     assert conn.execute("select count(*) from access_log").fetchone() == (1,)
     assert conn.execute("select host(ip) from ip_blocks").fetchall() == [("10.0.0.2",)]
     bans = conn.execute("select host(ip) from ip_bans order by ip").fetchall()

@@ -12,11 +12,13 @@ preserves why it changed, in `context/`.
 ### Added
 
 - `lasteverlm_core.storage`: `S3Storage` with put, get, delete and `presigned_get(key, expires_s=3600)` (SigV4), `S3Settings.from_env`, `object_key`, the `Storage` protocol; moved from ingest so that ingest and rag share one S3 client. New dependency `boto3`.
+- `purge_params(retention_days, ban_max_days)` and the package-level export of `PURGE_SQL`, so an async caller runs the purge statements with the same parameters as `purge`.
 - Usage kind `tts`, priced per input character (`tokens_in` = characters, `tokens_out` = 0); migration `0003_core_usage_tts.sql` widens the check on `usage.kind`.
 
 ### Changed
 
 - `OpenAICompatibleTextToSpeech` defaults to the platform voice `ryan` (`DEFAULT_TTS_VOICE`); the OpenAI name `alloy` is rejected by the platform.
+- An active ban holds until an admin lifts it, for at most `BAN_MAX_DAYS` (default 90): the purge drops older bans, lifted or not. `PURGE_SQL` takes `cutoff` and `ban_cutoff`; `purge` gains `ban_max_days`.
 
 ## [0.1.0] - 2026-10-12
 

@@ -15,7 +15,7 @@ the three services share:
 | `lasteverlm_core.auth` | `current_user(authorization, auth) -> Principal`: session JWT first, demo token second; `issue_jwt`, `verify_jwt`, `AuthSettings.from_env` |
 | `lasteverlm_core.pricing` | `MODEL_PRICES` parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
 | `lasteverlm_core.usage` | `record_usage`, `balance_cents` (sync psycopg) and `arecord_usage`, `abalance_cents` (async); the SQL as constants |
-| `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge`, `lift_ban` |
+| `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules, three stores (PostgreSQL sync, async, memory), `purge` with `PURGE_SQL` and `purge_params`, `lift_ban`; a ban holds until lifted, at most `BAN_MAX_DAYS` |
 | `lasteverlm_core.chunking` | `TokenWindowChunker` with `Passage` and `Chunk`: the token windows both ingest (sources) and rag (generated documents) embed; defaults 420/50 regex tokens, about 800 model tokens for German |
 | `lasteverlm_core.providers` | `Embedder`, `LLM`, `TextToSpeech` interfaces and their OpenAI-compatible implementations; embeddings request `EMBEDDING_DIMENSION`, completions run with reasoning off unless asked (`thinking=True`); speech with the platform voice `ryan` by default |
 | `lasteverlm_core.storage` | `S3Storage` (put, get, delete, presigned GET with an expiry, default one hour) over `S3Settings.from_env`, `object_key`; the family's only S3 code |
@@ -125,6 +125,7 @@ invalid value.
 | `MODEL_PRICES` | `load_model_prices` | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`, merged over the defaults in `pricing.py` (empty until the platform's models are known, so every deployment sets it) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3 |
 | `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |
+| `BAN_MAX_DAYS` | `RateLimitSettings.from_env` | default 90; the purge drops an active ban older than this |
 
 ## Run locally
 

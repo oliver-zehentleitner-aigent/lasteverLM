@@ -11,11 +11,12 @@ share one view of a client:
 - `ip_blocks`: over the limit means 429 for `BLOCK_MINUTES` and one
   strike; strikes reset after `STRIKE_WINDOW_HOURS` of quiet.
 - `ip_bans`: the `BAN_AFTER_STRIKES`th strike within the window. 403 on
-  everything until an admin lifts the ban.
+  everything until an admin lifts the ban, for at most `BAN_MAX_DAYS`.
 
 The rules are in `RateLimiter`, pure over a `RateLimitStore`; the
 middleware only adapts ASGI to them. Raw IPs exist only here, for this
-purpose, and `purge` removes them after `RETENTION_DAYS`.
+purpose, and `purge` removes them after `RETENTION_DAYS` (an active ban
+after `BAN_MAX_DAYS`).
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ class RateLimitSettings:
     strike_window_hours: int = 24
     healthz_sample: int = 100
     retention_days: int = 30
+    ban_max_days: int = 90
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> RateLimitSettings:
@@ -63,6 +65,7 @@ class RateLimitSettings:
             strike_window_hours=env_int("STRIKE_WINDOW_HOURS", cls.strike_window_hours, env),
             healthz_sample=env_int("ACCESS_LOG_HEALTHZ_SAMPLE", cls.healthz_sample, env),
             retention_days=env_int("RETENTION_DAYS", cls.retention_days, env),
+            ban_max_days=env_int("BAN_MAX_DAYS", cls.ban_max_days, env),
         )
 
 
@@ -299,21 +302,40 @@ ACCESS_LOG_SQL = """
 insert into access_log (at, ip, path, method, status, user_id, service)
 values (%(at)s, %(ip)s, %(path)s, %(method)s, %(status)s, %(user_id)s, %(service)s)
 """
-# Raw IPs are kept for the security purpose only. An active ban stays until
-# an admin lifts it; everything else older than the cutoff goes.
+# Raw IPs are kept for the security purpose only. Everything older than
+# `cutoff` goes, except an active ban: it stays until an admin lifts it, but
+# no longer than `ban_cutoff`. Every statement takes `purge_params(...)`.
 PURGE_SQL = (
     "delete from access_log where at < %(cutoff)s",
     "delete from ip_blocks where updated_at < %(cutoff)s",
-    "delete from ip_bans where lifted_at is not null and lifted_at < %(cutoff)s",
+    "delete from ip_bans"
+    " where (lifted_at is not null and lifted_at < %(cutoff)s) or created_at < %(ban_cutoff)s",
 )
 
 
-def purge(conn: Connection, retention_days: int = 30, now: datetime | None = None) -> None:
-    """Remove rows older than `retention_days` from the three tables. The caller commits."""
-    cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
+def purge_params(
+    retention_days: int = 30, ban_max_days: int = 90, now: datetime | None = None
+) -> dict[str, datetime]:
+    """The parameters of every `PURGE_SQL` statement: `cutoff` and `ban_cutoff`."""
+    now = now or datetime.now(UTC)
+    return {
+        "cutoff": now - timedelta(days=retention_days),
+        "ban_cutoff": now - timedelta(days=ban_max_days),
+    }
+
+
+def purge(
+    conn: Connection,
+    retention_days: int = 30,
+    ban_max_days: int = 90,
+    now: datetime | None = None,
+) -> None:
+    """Remove rows older than `retention_days` from the three tables, and active
+    bans older than `ban_max_days`. The caller commits."""
+    params = purge_params(retention_days, ban_max_days, now)
     with conn.cursor() as cur:
         for statement in PURGE_SQL:
-            cur.execute(statement, {"cutoff": cutoff})
+            cur.execute(statement, params)
 
 
 def lift_ban(conn: Connection, ip: str) -> None:
