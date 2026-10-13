@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `deploy.yml` checks out the commit `docker.yml` built (`workflow_run.head_sha`) instead of the tag name, which could be moved in between while secrets are in scope; `GITHUB_TOKEN` limited to `contents: read`.
+- `make secrets` writes the SMTP Secret with the names account reads (`SMTP_USERNAME`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` instead of `SMTP_USER`, `SMTP_FROM`) and fails loud on `SMTP_HOST` without `SMTP_FROM_ADDRESS`; the Secret is renamed `lasteverlm-smtp-seed` → `lasteverlm-smtp`, mounted into account as before.
 
 ## [0.2.0] - 2026-10-13
 
