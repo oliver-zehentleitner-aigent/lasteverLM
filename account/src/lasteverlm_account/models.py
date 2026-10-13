@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from lasteverlm_core import AdminUser, User
 from pydantic import BaseModel, Field, StringConstraints
@@ -52,8 +52,22 @@ class Smtp(BaseModel):
     starttls: bool
 
 
-class DomainSettings(BaseModel):
+AllowKind = Literal["domain", "address"]
+
+
+class Allowlist(BaseModel):
+    """Who may sign in besides ADMIN_EMAILS: listed domains and listed single addresses."""
+
     allowed_domains: list[str]
+    allowed_addresses: list[str]
+
+
+class DomainAdd(BaseModel):
+    domain: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)]
+
+
+class AddressAdd(BaseModel):
+    address: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=254)]
 
 
 class AdminLogin(BaseModel):

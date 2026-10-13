@@ -22,15 +22,24 @@ prefix `/api/account`. Changes to the contract are made there first.
 
 | Area | Endpoints |
 |---|---|
-| Login | `POST /auth/request-link` (always 202), `GET /auth/callback?token=` → `{jwt, user}` |
+| Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
 | Account | `GET /me`, `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
-| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT /admin/settings/domains`, `POST /admin/vouchers` |
+| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `POST /admin/vouchers` |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans/{ip}`, `GET /admin/access?limit=` |
 | Health | `GET /healthz`, also at the server root for the Kubernetes probe |
 
-Errors are `{"error": "<message>"}`: 401 unauthenticated, 403 not
-admin, 404 unknown or used voucher or no active ban, 409 SMTP not
-configured, 422 bad request, 502 mail could not be sent.
+Errors are `{"error": "<message>"}`, with a stable `"code"` where a client
+has to tell refusals apart (today only `not_allowed`): 401 unauthenticated,
+403 not admin or an address without access, 404 unknown or used voucher,
+no active ban or allowlist entry not listed, 409 SMTP not configured or
+allowlist entry already listed, 422 bad request or malformed entry, 502
+mail could not be sent.
+
+Who may sign in: an address listed in `allowed_addresses`, an address
+whose domain is listed in `allowed_domains`, or an address in
+`ADMIN_EMAILS`. Both lists are edited in the admin panel one entry at a
+time; `AUTH_ALLOWED_DOMAINS` only seeds the domain list. With both lists
+empty nobody but the configured admins can sign in.
 
 Rate limiting and blocking happen in `RateLimitMiddleware` from
 [`core/`](../core/), mounted as the outermost layer of this service as of
@@ -63,7 +72,7 @@ comment.
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100 |
 | `RETENTION_DAYS`, `BAN_MAX_DAYS` | no | days the access log, stale blocks and lifted bans are kept, and how long a ban holds at most (core's names); this service purges at every start, defaults 30, 90 |
 
-The allowlist seed is written to the `settings` table only when the key is
+The domain-list seed is written to the `settings` table only when the key is
 missing; afterwards the admin panel owns the value. SMTP is never stored.
 
 ## Run locally

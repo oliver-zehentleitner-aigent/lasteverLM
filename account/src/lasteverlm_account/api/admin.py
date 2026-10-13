@@ -6,15 +6,17 @@ from fastapi import APIRouter, Path, Query, Response
 from fastapi.responses import JSONResponse
 
 from ..models import (
+    AddressAdd,
     AdminAccess,
     AdminBan,
     AdminBlock,
     AdminLogin,
     AdminUser,
     AdminVisit,
+    Allowlist,
     CreateVouchersBody,
     CreateVouchersResponse,
-    DomainSettings,
+    DomainAdd,
     Smtp,
 )
 from .deps import AdminUserDep, Service
@@ -53,14 +55,35 @@ async def test_smtp(service: Service, admin: AdminUserDep) -> JSONResponse:
     return JSONResponse(status_code=202, content={"sent_to": admin.email})
 
 
-@router.get("/settings/domains", response_model=DomainSettings)
-async def get_domains(service: Service, _: AdminUserDep) -> DomainSettings:
-    return DomainSettings(allowed_domains=await service.allowed_domains())
+# The allowlist: who may sign in besides ADMIN_EMAILS. One GET for both lists, one
+# POST/DELETE per entry (0.3.0; the whole-list PUT is gone).
+@router.get("/settings/allowlist", response_model=Allowlist)
+@router.get("/settings/domains", response_model=Allowlist)
+@router.get("/settings/addresses", response_model=Allowlist)
+async def allowlist(service: Service, _: AdminUserDep) -> Allowlist:
+    return await service.allowlist()
 
 
-@router.put("/settings/domains", response_model=DomainSettings)
-async def put_domains(body: DomainSettings, service: Service, _: AdminUserDep) -> DomainSettings:
-    return DomainSettings(allowed_domains=await service.set_allowed_domains(body.allowed_domains))
+@router.post("/settings/domains", response_model=Allowlist, status_code=201)
+async def add_domain(body: DomainAdd, service: Service, _: AdminUserDep) -> Allowlist:
+    return await service.add_allow_entry("domain", body.domain)
+
+
+@router.delete("/settings/domains/{domain}", status_code=204)
+async def remove_domain(domain: str, service: Service, _: AdminUserDep) -> Response:
+    await service.remove_allow_entry("domain", domain)
+    return Response(status_code=204)
+
+
+@router.post("/settings/addresses", response_model=Allowlist, status_code=201)
+async def add_address(body: AddressAdd, service: Service, _: AdminUserDep) -> Allowlist:
+    return await service.add_allow_entry("address", body.address)
+
+
+@router.delete("/settings/addresses/{address}", status_code=204)
+async def remove_address(address: str, service: Service, _: AdminUserDep) -> Response:
+    await service.remove_allow_entry("address", address)
+    return Response(status_code=204)
 
 
 @router.post("/vouchers", response_model=CreateVouchersResponse, status_code=201)
