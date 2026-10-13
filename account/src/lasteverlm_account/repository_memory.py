@@ -13,7 +13,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 
 from lasteverlm_core import DEMO_USER_ID
@@ -23,10 +23,13 @@ from .repository import (
     BanRecord,
     BlockRecord,
     CreditTotals,
+    DailyStatsRecord,
     LoginAttemptRecord,
     LoginRecord,
+    ModelUsageRecord,
     StatsRecord,
     UserRecord,
+    UserUsageRecord,
     VisitRecord,
     VisitSummary,
     VoucherRecord,
@@ -57,6 +60,8 @@ class _Usage:
     user_id: uuid.UUID
     cost_cents: int
     created_at: datetime
+    model: str = "model"
+    kind: str = "llm"
 
 
 @dataclass
@@ -248,6 +253,39 @@ class MemoryRepository:
             blocks_active=sum(1 for b in self.blocks if b.blocked_until > now),
             bans_active=sum(1 for b in self.ip_bans if b.lifted_at is None),
         )
+
+    async def daily_stats(self, since: datetime) -> list[DailyStatsRecord]:
+        days: dict[date, list[int]] = defaultdict(lambda: [0, 0, 0, 0])
+        for r in self.logins:
+            if r.at >= since:
+                days[r.at.astimezone(UTC).date()][0] += 1
+        for v in self.visits:
+            if v.at >= since:
+                days[v.at.astimezone(UTC).date()][1] += 1
+        for u in self.usage:
+            if u.created_at >= since:
+                days[u.created_at.astimezone(UTC).date()][2] += u.cost_cents
+        for e in self.ledger:
+            if e.created_at >= since:
+                days[e.created_at.astimezone(UTC).date()][3] += e.amount_cents
+        return [DailyStatsRecord(d, *days[d]) for d in sorted(days)]
+
+    async def usage_by_model(self) -> list[ModelUsageRecord]:
+        groups: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
+        for u in self.usage:
+            groups[(u.model, u.kind)][0] += 1
+            groups[(u.model, u.kind)][1] += u.cost_cents
+        rows = [ModelUsageRecord(m, k, calls, cost) for (m, k), (calls, cost) in groups.items()]
+        return sorted(rows, key=lambda r: (-r.cost_cents, r.model, r.kind))
+
+    async def top_users_by_usage(self, limit: int) -> list[UserUsageRecord]:
+        totals = await self.all_credit_totals()
+        rows = [
+            UserUsageRecord(self.users[u].email, t.usage_cents, t.balance_cents)
+            for u, t in totals.items()
+            if t.usage_cents > 0
+        ]
+        return sorted(rows, key=lambda r: (-r.usage_cents, r.email))[:limit]
 
     # visits -----------------------------------------------------------------
     async def add_visit(self, visit: VisitRecord) -> None:

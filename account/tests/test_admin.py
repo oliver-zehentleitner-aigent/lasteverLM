@@ -35,6 +35,8 @@ ADMIN_ROUTES = [
     ("GET", "/api/account/admin/vouchers", None),
     ("DELETE", "/api/account/admin/vouchers/00000000-0000-4000-8000-000000000099", None),
     ("GET", "/api/account/admin/stats", None),
+    ("GET", "/api/account/admin/stats/daily", None),
+    ("GET", "/api/account/admin/stats/usage", None),
     ("GET", "/api/account/admin/blocks", None),
     ("GET", "/api/account/admin/bans", None),
     ("DELETE", "/api/account/admin/bans/203.0.113.1", None),
@@ -307,3 +309,82 @@ def test_ratelimit_rules_are_env_defaults_until_overridden(
     assert client.delete(url, headers=h).status_code == 204
     assert RATE_LIMIT_SETTINGS_KEY not in repo.settings
     assert client.get(url, headers=h).json() == defaults
+
+
+def test_daily_stats_have_every_day_oldest_first(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository, clock: Clock
+) -> None:
+    from lasteverlm_account.repository import VisitRecord
+    from lasteverlm_account.repository_memory import _Usage
+
+    clock.advance(days=-2)
+    token, _ = login(client, mailer, "admin@example.org")  # one login two days ago
+    codes = client.post(
+        "/api/account/admin/vouchers", json={"amount_cents": 400}, headers=bearer(token)
+    ).json()["codes"]
+    clock.advance(days=2)
+    user_token, user = login(client, mailer, "user@example.org")  # one login today
+    client.post("/api/account/vouchers/redeem", json={"code": codes[0]}, headers=bearer(user_token))
+    today = clock.now
+    repo.visits.append(VisitRecord(today - timedelta(days=1), "/", None, "h", "other"))
+    repo.visits.append(VisitRecord(today - timedelta(days=1, hours=2), "/x", None, "h2", "other"))
+    repo.usage.append(_Usage(uuid.UUID(user["id"]), 70, today))
+    repo.usage.append(_Usage(uuid.UUID(user["id"]), 5, today - timedelta(days=40)))  # outside
+
+    r = client.get("/api/account/admin/stats/daily?days=3", headers=bearer(token))
+    assert r.status_code == 200
+    days = r.json()["days"]
+    assert [d["day"] for d in days] == [
+        (today - timedelta(days=2)).date().isoformat(),
+        (today - timedelta(days=1)).date().isoformat(),
+        today.date().isoformat(),
+    ]
+    assert days[0] == {
+        "day": days[0]["day"],
+        "logins": 1,
+        "visits": 0,
+        "usage_cost_cents": 0,
+        "credits_granted_cents": 0,
+    }
+    assert (days[1]["logins"], days[1]["visits"]) == (0, 2)
+    assert (days[2]["logins"], days[2]["usage_cost_cents"], days[2]["credits_granted_cents"]) == (
+        1,
+        70,
+        400,
+    )
+    assert (
+        len(client.get("/api/account/admin/stats/daily", headers=bearer(token)).json()["days"])
+        == 30
+    )
+
+
+def test_usage_stats_by_model_and_top_users(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository, clock: Clock
+) -> None:
+    from lasteverlm_account.repository_memory import _Usage
+
+    token, admin = login(client, mailer, "admin@example.org")
+    _, user = login(client, mailer, "user@example.org")
+    code = client.post(
+        "/api/account/admin/vouchers", json={"amount_cents": 1000}, headers=bearer(token)
+    ).json()["codes"][0]
+    u, a = uuid.UUID(user["id"]), uuid.UUID(admin["id"])
+    client.post("/api/account/vouchers/redeem", json={"code": code}, headers=bearer(token))
+    repo.usage.append(_Usage(u, 300, clock.now, "big-llm", "llm"))
+    repo.usage.append(_Usage(u, 100, clock.now, "big-llm", "llm"))
+    repo.usage.append(_Usage(a, 50, clock.now, "embed", "embedding"))
+    repo.usage.append(_Usage(a, 5, clock.now, "tts-1", "tts"))
+
+    r = client.get("/api/account/admin/stats/usage", headers=bearer(token))
+    assert r.status_code == 200
+    assert r.json() == {
+        "by_model": [
+            {"model": "big-llm", "kind": "llm", "calls": 2, "cost_cents": 400},
+            {"model": "embed", "kind": "embedding", "calls": 1, "cost_cents": 50},
+            {"model": "tts-1", "kind": "tts", "calls": 1, "cost_cents": 5},
+        ],
+        "top_users": [
+            {"email": "user@example.org", "usage_cents": 400, "balance_cents": -400},
+            {"email": "admin@example.org", "usage_cents": 55, "balance_cents": 945},
+        ],
+    }

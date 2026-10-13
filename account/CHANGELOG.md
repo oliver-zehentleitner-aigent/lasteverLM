@@ -11,6 +11,10 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Chart data for the admin overview: `GET /admin/stats/daily?days=` (logins, visits, usage cost and credits granted per UTC day, every day present, zeros included, oldest first) and `GET /admin/stats/usage` (core's usage rows by model and kind, the ten users with the highest usage).
+
+### Added
+
 - `granted_cents` on each row of `GET /admin/users` (the user's ledger sum), so the "credits granted" tile can be broken down per user.
 
 ### Changed

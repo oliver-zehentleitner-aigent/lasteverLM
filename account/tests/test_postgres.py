@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from lasteverlm_core import DEMO_USER_ID, purge_params
 
-from lasteverlm_account.repository import CreditTotals, LoginAttemptRecord
+from lasteverlm_account.repository import CreditTotals, LoginAttemptRecord, VisitRecord
 from lasteverlm_account.repository_postgres import PostgresRepository
 
 DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
@@ -231,3 +231,39 @@ async def test_ratelimit_override_is_what_core_store_reads(repo: PostgresReposit
     await repo.set_setting(RATE_LIMIT_SETTINGS_KEY, rules.as_json())
     assert RateLimitRules.parse(await store.rule_overrides()) == rules
     await repo.delete_setting(RATE_LIMIT_SETTINGS_KEY)
+
+
+async def test_daily_and_usage_stats(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    today = now.astimezone(UTC).date()
+    admin = await repo.create_user("stats-admin@pg.test", admin=True, now=now)
+    user = await repo.create_user("stats-user@pg.test", admin=False, now=now)
+    await repo.record_login(user.id, now)
+    await repo.add_visit(VisitRecord(now, "/", None, "h", "other"))
+    await repo.add_visit(VisitRecord(now - timedelta(days=1), "/", None, "h", "other"))
+    await repo.create_voucher("hash-stats", 250, admin.id, now)
+    assert await repo.redeem_voucher("hash-stats", user.id, now) == 250
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from usage")
+        await conn.execute(
+            """insert into usage (user_id, service, kind, model, cost_cents, created_at) values
+               (%s, 'rag', 'llm', 'big', 30, %s), (%s, 'rag', 'llm', 'big', 10, %s),
+               (%s, 'ingest', 'embedding', 'emb', 4, %s)""",
+            (user.id, now, user.id, now, admin.id, now),
+        )
+
+    days = {d.day: d for d in await repo.daily_stats(now - timedelta(days=2))}
+    assert days[today].logins >= 1 and days[today].visits >= 1
+    assert days[today].usage_cost_cents == 44 and days[today].credits_granted_cents >= 250
+    assert (today - timedelta(days=1)) in days
+
+    models = await repo.usage_by_model()
+    assert [(m.model, m.kind, m.calls, m.cost_cents) for m in models] == [
+        ("big", "llm", 2, 40),
+        ("emb", "embedding", 1, 4),
+    ]
+    top = await repo.top_users_by_usage(10)
+    assert [(t.email, t.usage_cents, t.balance_cents) for t in top][:2] == [
+        ("stats-user@pg.test", 40, 210),
+        ("stats-admin@pg.test", 4, -4),
+    ]
