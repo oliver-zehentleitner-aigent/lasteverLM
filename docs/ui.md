@@ -64,9 +64,9 @@ is closed. After the wizard the notebook view opens.
 - **Output format** (left, middle): the output kinds as tiles. A click
   (or Enter on a focused tile) only selects one, highlighted, and the
   selection stays while the notebook is open; the **Create** button
-  below starts the job for the selected format over the whole notebook.
+  at the right edge below the tiles starts the job for the selected format over the whole notebook.
   The button is disabled without a selection or while no source of the
-  notebook is ready, with a one-line hint saying which.
+  notebook is ready, with a one-line hint on the left saying which.
 - **Outputs** (left, bottom): the generated documents with kind, title
   and status; a click opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs

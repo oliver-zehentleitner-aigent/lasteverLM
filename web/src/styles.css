@@ -300,6 +300,8 @@ button.link.danger { color: var(--danger); }
 
 /* output format: Create button under the tiles */
 .tiles .create-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; flex-wrap: wrap; }
+/* hint on the left, the button at the right edge of the tile block */
+.tiles .create-row button { margin-left: auto; }
 
 /* audio: the player sits in the middle of the viewer, both ways */
 .viewer-body:has(> .audio-view) { display: flex; flex-direction: column; }

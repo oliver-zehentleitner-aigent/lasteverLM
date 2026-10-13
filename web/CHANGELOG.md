@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mind map: the SVG fills its container instead of a fixed 60vh, and markmap re-fits on every size change of it (full view, divider, window resize) on the next frame; labels use the theme's text colour at normal weight instead of markmap's dark grey, which was unreadable on the dark theme.
 - Shared page: as tall as the window; the mind map and the table get the full width (the mind map was clipped and zoomed in a 56rem column), reading kinds stay in a centred column, the audio player is centred.
 
+### Changed
+
+- Output format: the Create button sits at the right edge under the tiles, the hint on its left.
+
 ## [0.5.0] - 2026-10-13
 
 ### Added
