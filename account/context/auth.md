@@ -27,7 +27,7 @@ the token logic that must match core's byte for byte; the token format
 (HS256, `sub` = user id, issuer `lasteverlm`, 7 days) is fixed in the
 family's `docs/architecture.md`, which is what both copies implement.
 
-## Addresses in `ADMIN_EMAILS` bypass the domain allowlist; an empty allowlist denies everyone else
+## Addresses in `ADMIN_EMAILS` bypass the allowlist; an empty allowlist denies everyone else
 
 **Id:** 5bef96eb-4ba1-498e-b26f-ca77f8a56fff
 **Type:** decision
@@ -35,10 +35,16 @@ family's `docs/architecture.md`, which is what both copies implement.
 **Evidence:** confirmed
 **Source:** implementation, 2026-10-12
 
-`is_allowed()` accepts an address when its domain is in the
-`allowed_domains` setting *or* when the address itself is listed in
-`ADMIN_EMAILS`. With no domains configured and no admin addresses,
-nobody can request a link.
+`is_allowed()` accepts an address when it is listed in
+`allowed_addresses`, when its domain is in `allowed_domains`, *or* when
+the address itself is listed in `ADMIN_EMAILS`. With both lists empty and
+no admin addresses, nobody can request a link.
+
+Extended on 2026-10-13: the allowlist gained single addresses next to
+domains (maintainer decision — a partner may be one person, not a whole
+domain). Both lists are edited one entry at a time in the admin panel;
+only the domain list has an environment seed. The fail-closed rule below
+now reads "both lists empty".
 
 **Reason:** the allowlist lives in the database and is edited through the
 admin panel, so on a fresh deployment there is a bootstrapping gap: the
@@ -113,7 +119,7 @@ yet, breaking the balance join.
 **Status:** active
 **Evidence:** confirmed
 **Source:** maintainer decision, 2026-10-13
-**See:** auth.md#addresses-in-admin_emails-bypass-the-domain-allowlist-an-empty-allowlist-denies-everyone-else — 5bef96eb-4ba1-498e-b26f-ca77f8a56fff — as of 2026-10-13
+**See:** auth.md#addresses-in-admin_emails-bypass-the-allowlist-an-empty-allowlist-denies-everyone-else — 5bef96eb-4ba1-498e-b26f-ca77f8a56fff — as of 2026-10-13
 **Revisit when:** the allowlist stops being a handful of known partner domains and addresses, or the service is exposed to a public audience
 
 `POST /auth/request-link` answers 202 for an address that may sign in and
