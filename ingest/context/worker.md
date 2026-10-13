@@ -41,7 +41,7 @@ with its own reconnect handling, for a latency gain nobody would see; the
 loop is one function and can switch to it if the revisit condition
 triggers. A heartbeat column instead of the timeout was not seriously in
 contention: a job is bounded by the upload cap, so a fixed timeout is
-enough and one write per job cheaper than one per heartbeat.
+enough and one write per job cheaper than one per heartbeat. (Vision capture since made jobs longer than the timeout; since 2026-10-14 the job refreshes its claim with every model call instead: e3b21110-c7ed-4f74-afba-fb60ae41df3e.)
 
 ## The request handler stores the file; the worker starts from a source id
 
@@ -169,3 +169,33 @@ held for failures that return; this applies it to the ones that do not.
   billing and status writes; larger than an audit fix.
 - Leaving the claim as it was: the queue's only failure mode with no
   end.
+
+## A job in progress refreshes its claim with every model call
+
+**Id:** e3b21110-c7ed-4f74-afba-fb60ae41df3e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security and quality audit of the service, 2026-10-14, requested by the maintainer; derived from the vision PDF timings measured live on 2026-10-13 (about 515 input and 960 output tokens per page), not observed as a double takeover
+**Revisit when:** a single model call can take longer than `CLAIM_TIMEOUT_SECONDS`, or jobs get a time limit of their own
+
+Every answered call a model loader bills (an image, a PDF page) and
+every embedding batch moves the row's `claimed_at` to now
+(`refresh_claim`). The stale-claim rule is unchanged; it now measures
+time since the job last made progress, not since it started.
+
+**Reason:** the earlier rejection of a heartbeat (in
+4f6e16de-3395-4ae3-ae7b-95ba0d08aa13) assumed a job is bounded by the
+upload cap. Vision capture broke that: a PDF of 100 pages is 25 rounds of
+four parallel calls, each round as long as its slowest page, which can
+exceed the 600-second timeout. A second worker would then take the row
+over while the first is still reading, and every page would be read and
+billed twice. The refresh rides on calls the job makes anyway, so it
+costs one indexed update per call instead of a timer.
+
+**Alternatives:**
+- A longer `CLAIM_TIMEOUT_SECONDS`: delays the recovery of a source
+  whose worker really died by the same amount, for every source.
+- A separate heartbeat thread: refreshes even while the job is hung,
+  which would keep a hung job's claim alive forever and defeat the
+  stalled-attempt rule.
