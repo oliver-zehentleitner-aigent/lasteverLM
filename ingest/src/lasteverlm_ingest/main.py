@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from lasteverlm_core import (
@@ -30,6 +30,7 @@ from lasteverlm_core import (
     make_client,
 )
 from pydantic import ValidationError
+from starlette.exceptions import HTTPException
 
 from lasteverlm_ingest import __version__
 from lasteverlm_ingest.api import health, router
@@ -149,9 +150,13 @@ def create_app(
         auth=settings.auth,
     )
 
+    # Starlette's class, so routing errors (404, 405) and the form parser's
+    # 400 get the same shape as the app's own.
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
-        return JSONResponse({"error": str(exc.detail)}, status_code=exc.status_code)
+        return JSONResponse(
+            {"error": str(exc.detail)}, status_code=exc.status_code, headers=exc.headers
+        )
 
     @app.exception_handler(RequestValidationError)
     @app.exception_handler(ValidationError)

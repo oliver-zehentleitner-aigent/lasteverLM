@@ -17,6 +17,9 @@ preserves why it changed, in `context/`.
 
 - A source whose worker died or hung on every attempt was taken over by the next worker after each claim timeout, without end. The claim now fails a stale row that has had three attempts ("processing did not finish in 3 attempts").
 - A job that ran longer than the claim timeout (a vision PDF of many pages) could be taken over by a second worker while still running, reading and billing every page twice. The worker now refreshes its claim with every answered model call and every embedding batch.
+- A multipart upload accepts one file and at most the `capture` field; more answer 400 before the parser spools them (the default allowed 1000 of each).
+- A JSON body that does not parse answers 400 `body is not valid JSON` instead of 500.
+- Routing errors (404 for an unknown path, 405) and the form parser's 400 use the `{"error"}` shape instead of Starlette's `{"detail"}`, and keep their headers (`Allow`).
 
 ## [0.9.0] - 2026-10-13
 
