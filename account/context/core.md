@@ -64,14 +64,16 @@ every account pod for a temporary mismatch.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-13
+**Source:** fleet coordination, 2026-10-13; ban cap confirmed by the maintainer 2026-10-13
 **See:** privacy.md#retention-runs-at-service-start-not-on-a-schedule — 42e9906d-a613-4f17-896e-40484c1f125d — as of 2026-10-13
 **Revisit when:** a periodic job (CronJob or in-process scheduler) exists for retention, or pods run for weeks without a restart
 
 `AccountService.startup` runs core's three `PURGE_SQL` statements in one
-transaction, with `now - RETENTION_DAYS` as the cutoff: `access_log` rows,
-`ip_blocks` rows not updated since, `ip_bans` rows lifted before the
-cutoff. An active ban is never removed. The counts are logged.
+transaction with core's `purge_params(RETENTION_DAYS, BAN_MAX_DAYS)`:
+`access_log` rows and `ip_blocks` rows not updated since the retention
+cutoff go, `ip_bans` rows go once lifted before that cutoff or once older
+than `BAN_MAX_DAYS` (90). A ban holds until an admin lifts it, at most 90
+days — the maintainer's decision of 2026-10-13. The counts are logged.
 
 **Reason:** core's rate-limit middleware writes these tables on every
 request and never deletes; core's `purge` helper exists but, by core's
@@ -92,5 +94,6 @@ place for a maintenance job).
 
 **Known limit:** purge-at-start runs only on restarts, so a long-running
 pod purges rarely; a periodic task is the follow-up (the `Revisit when`
-above). Whether a ban survives the purge at all is core's rule and still
-pending Oliver's confirmation in core's `context/ratelimit.md`.
+above). The ban rule itself (until lifted, at most `BAN_MAX_DAYS`) is
+core's and recorded in core's `context/ratelimit.md`; this service only
+applies it.
