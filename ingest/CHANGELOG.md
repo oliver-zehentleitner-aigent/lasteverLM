@@ -19,6 +19,7 @@ preserves why it changed, in `context/`.
 - mypy runs in strict mode; the last `type: ignore` comments are gone (`record_usage` takes core's `UsageKind`, `ensure_seeded` core's `Storage`).
 - Dedupe keys are built in one place (`dedupe.py`) for uploads and the demo seeds.
 - PDFs of more than 2000 pages fail in every capture mode, also behind a URL, before any page is read ("PDF has N pages; at most 2000 are read"); the text layer of every page used to be extracted however many there were.
+- The Dockerfile pins `python:3.13-slim` by digest (the multi-arch index) for both stages, through one `PYTHON_IMAGE` build argument; the comment says how to refresh it.
 
 ### Fixed
 
