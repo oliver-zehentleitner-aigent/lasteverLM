@@ -139,6 +139,30 @@ Edge: ingress-nginx redirects HTTP to HTTPS and sends HSTS
 (`platform/ingress-nginx.values.yaml`); the Ingress additionally
 carries `force-ssl-redirect`.
 
+## TLS certificate
+
+cert-manager issues the certificate through the ClusterIssuer
+`letsencrypt` (ACME HTTP-01, solved through the nginx ingress class,
+contact `ACME_EMAIL`). The Ingress names the secret `lasteverlm-tls`;
+cert-manager creates the Certificate from it, and the order stays
+pending until `DOMAIN` resolves to the load balancer, then completes on
+its own. For lasteverlm.zehentleitner.co that happened on 2026-10-13:
+Certificate `lasteverlm-tls` Ready, issuer Let's Encrypt `YR2`, SAN
+`lasteverlm.zehentleitner.co` only, valid 07:01 UTC (09:01 CEST) to
+2027-01-11, renewal scheduled by cert-manager for 2026-12-12 (30 days
+before expiry). Checked from outside: `http://` answers 308 to
+`https://`, `https://` answers 200 with
+`Strict-Transport-Security: max-age=31536000`.
+
+```sh
+kubectl -n lasteverlm get certificate,certificaterequest,order   # Ready / valid
+kubectl -n lasteverlm describe certificate lasteverlm-tls         # events, renewal time
+```
+
+A Certificate that stays not Ready: `kubectl -n lasteverlm get
+challenge` shows the pending HTTP-01 challenge and why (usually DNS not
+pointing at the load balancer yet, or port 80 not reachable).
+
 ## Platform versions
 
 Pinned in the `Makefile`: ingress-nginx chart 4.15.1 (controller
