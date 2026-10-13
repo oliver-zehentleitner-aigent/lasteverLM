@@ -429,6 +429,8 @@ export const en = {
   'wiz.selected': '{n} selected',
   'lib.sizeUnknown': 'unknown',
   'lib.sizeUnknownTitle': 'Added before sizes were recorded',
+  'chat.renameHint': 'Double-click or F2 to rename',
+  'chat.renameLabel': 'Chat name',
 } as const
 
 export type MessageKey = keyof typeof en

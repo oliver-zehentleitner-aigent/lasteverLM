@@ -21,7 +21,7 @@ export const UNAUTHORIZED = 'unauthorized'
 export const PAYMENT_REQUIRED = 'payment-required'
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE' | 'PUT'
+  method?: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH'
   json?: unknown
   form?: FormData
   /** Skip the Bearer header, for the login endpoints and the share page. */

@@ -6,7 +6,7 @@ import { useTabStrip } from '../hooks/useTabStrip'
 import { isRemoved, splitCitations } from '../lib/citations'
 import { similarityLabel } from '../lib/provenance'
 import { ProvenancePanel } from './ProvenancePanel'
-import { activeAfterClose } from '../lib/conversations'
+import { activeAfterClose, renamedTitle } from '../lib/conversations'
 import { t } from '../i18n'
 
 interface Props {
@@ -43,6 +43,8 @@ function createFirst(notebookId: string): Promise<Conversation> {
 export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected, tools, suggestion }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  // inline rename of a tab: which one, and the text being typed
+  const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null)
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
@@ -88,6 +90,19 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
   }
 
   const active = conversations.find((c) => c.id === activeId) ?? null
+
+  /** Saves the edited title (Enter or leaving the field); an empty or
+   *  unchanged one keeps the old title. Shown at once, put back on error. */
+  async function commitRename() {
+    if (!editing) return
+    const c = conversations.find((x) => x.id === editing.id)
+    setEditing(null)
+    const title = c ? renamedTitle(editing.draft, c.title) : null
+    if (!c || !title) return
+    setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, title } : x)))
+    const saved = await run(() => rag.renameConversation(c.id, title))
+    setConversations((prev) => prev.map((x) => (x.id === c.id ? (saved ?? c) : x)))
+  }
   const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
     conversations.map((c) => c.id),
     activeId,
@@ -101,17 +116,45 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
         <div className="tab-scroll" role="tablist" aria-label={t('chat.chats')} ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
           {conversations.map((c) => (
             <span key={c.id} className={c.id === activeId ? 'tab active' : 'tab'}>
-              <button
-                type="button"
-                role="tab"
-                data-tab-id={c.id}
-                tabIndex={c.id === activeId ? 0 : -1}
-                className="tab-label"
-                aria-selected={c.id === activeId}
-                onClick={() => select(c.id)}
-              >
-                {c.title}
-              </button>
+              {editing?.id === c.id ? (
+                <input
+                  className="tab-edit"
+                  aria-label={t('chat.renameLabel')}
+                  value={editing.draft}
+                  size={Math.max(editing.draft.length, 4)}
+                  maxLength={80}
+                  autoFocus
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setEditing({ id: c.id, draft: e.target.value })}
+                  onBlur={() => void commitRename()}
+                  onKeyDown={(e) => {
+                    // the field's keys move its caret, not the tab selection
+                    e.stopPropagation()
+                    if (e.key === 'Enter') void commitRename()
+                    if (e.key === 'Escape') setEditing(null)
+                  }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  role="tab"
+                  data-tab-id={c.id}
+                  tabIndex={c.id === activeId ? 0 : -1}
+                  className="tab-label"
+                  aria-selected={c.id === activeId}
+                  title={t('chat.renameHint')}
+                  onClick={() => select(c.id)}
+                  onDoubleClick={() => setEditing({ id: c.id, draft: c.title })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'F2') {
+                      e.preventDefault()
+                      setEditing({ id: c.id, draft: c.title })
+                    }
+                  }}
+                >
+                  {c.title}
+                </button>
+              )}
               <button type="button" className="icon" title={t('chat.close')} disabled={busy} onClick={() => void close(c)}>
                 ×
               </button>

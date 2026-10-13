@@ -499,3 +499,5 @@ button.link.copy { font-size: 0.85em; }
 .name-cell { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
 .image-preview { position: fixed; z-index: 60; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); pointer-events: none; }
 .image-preview img { display: block; max-width: 312px; max-height: 312px; object-fit: contain; }
+/* inline rename of a chat tab: as wide as its text */
+.tab-edit { width: auto; height: auto; min-width: 4ch; padding: 0.15rem 0.35rem; font-size: inherit; }

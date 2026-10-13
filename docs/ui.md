@@ -132,8 +132,10 @@ is closed. After the wizard the notebook view opens.
   full view; × leaves it as well. Leaving returns to the two panes with
   the split as it was, and the focus goes back to the full-view
   button.
-- **Chat** (right, bottom): one tab per conversation of the notebook,
-  "+" opens a new one, "×" closes one after a confirmation and deletes
+- **Chat** (right, bottom): one tab per conversation of the notebook
+  ("Chat N" by default; a double-click or F2 renames a tab in place,
+  Enter or leaving the field saves, Esc cancels, an empty name keeps the
+  old one), "+" opens a new one, "×" closes one after a confirmation and deletes
   its messages; closing the last tab opens a fresh one, and a notebook
   without conversations gets one when the chat opens, so a question
   always goes to a conversation. In the active tab: question, answer,

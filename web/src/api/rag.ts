@@ -23,6 +23,8 @@ export const rag = {
   listConversations: (notebookId: string) => request<Conversation[]>(`${nb(notebookId)}/conversations`),
   createConversation: (notebookId: string) =>
     request<Conversation>(`${nb(notebookId)}/conversations`, { method: 'POST', json: {} }),
+  /** a new title for a chat tab */
+  renameConversation: (id: string, title: string) => request<Conversation>(conv(id), { method: 'PATCH', json: { title } }),
   /** removes the conversation and its messages */
   deleteConversation: (id: string) => request<void>(conv(id), { method: 'DELETE' }),
   listMessages: (conversationId: string) => request<Message[]>(`${conv(conversationId)}/messages`),
