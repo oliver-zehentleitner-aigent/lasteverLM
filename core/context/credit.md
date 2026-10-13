@@ -4,7 +4,8 @@
 
 **Id:** c2f224e9-769b-490e-9642-f1914d22c112
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 0eed252c-cde9-420d-bdbc-6d0596b72810
 **Evidence:** confirmed
 **Source:** the maintainer's product rule, 2026-10-13 ("admins have unlimited credit"; admin-only endpoints in ingest and rag)
 **Revisit when:** admins stop being only the maintainer's own accounts, or a non-admin needs unlimited credit
@@ -38,3 +39,28 @@ distorts the balance the admin panel shows.
 **Rejected alternative:** an admin claim in the session JWT. Rejected
 because a token lives seven days, so revoking admin rights would wait
 for the token to expire.
+
+## One credit rule for every user, admins included
+
+**Id:** 0eed252c-cde9-420d-bdbc-6d0596b72810
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's reversal of the admin exemption, 2026-10-13
+**Revisit when:** an account needs to run without a balance (a load test, an internal batch job)
+
+`has_credit` and `ahas_credit` are `balance_cents > 0` for every user;
+`HAS_CREDIT_SQL` no longer reads `users`. Admins top up with vouchers
+like anyone else. `is_admin`, `ais_admin` and `admin_only` stay as
+built: the admin flag, read from `users` per request, gates the admin
+endpoints (the panel, the stats endpoints) and nothing else.
+
+**Reason:** the maintainer wants to exercise the voucher path himself,
+so his own testing goes through the same credit check and redemption
+every user meets; an exemption would hide a broken top-up from exactly
+the person most likely to notice it. One rule for every user also keeps
+the flag's meaning narrow: admin is about the panel, not about money.
+
+**Rejected alternative:** admins exempt from the credit check (the
+previous entry, briefly built and merged). Rejected by the maintainer
+for the reason above.

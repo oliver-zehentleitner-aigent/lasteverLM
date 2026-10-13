@@ -31,7 +31,7 @@ repository root's `context/`.
 ## C
 
 - [chunking.md](chunking.md) — why the token-window chunker lives in core with regex tokens and serves both parsed sources and generated documents; why its window is 420 regex tokens after measuring German text
-- [credit.md](credit.md) — why admins pass the credit check whatever their balance, why the admin flag is read from users on every request instead of a JWT claim, and why core now reads account's users table
+- [credit.md](credit.md) — why the credit check is the same positive balance for every user, admins included (an earlier admin exemption, superseded), and why the admin flag is read from users on every request instead of a JWT claim
 
 ## D
 - [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys; why the SQL is tested against a throwaway container with a two-column ledger
