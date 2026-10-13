@@ -67,3 +67,25 @@ smaller scale.
 
 **Rejected alternative:** a check in SQL or in each service. Every
 service would need it; the embedder is the one place all vectors pass.
+
+## Speech speed is passed through, not range-checked in core
+
+**Id:** dde2dae8-3797-4896-95fc-f457b45593d8
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** live probe of the platform's speech endpoint by rag, 2026-10-13 (0.25 to 4 accepted, anything else a 400 "speed must be between 0.25 and 4"; 0.5 roughly doubles the audio, 2.0 halves it)
+**Revisit when:** a second speech provider with another range is added, or the platform's 400 stops naming the problem
+
+`synthesize(text, voice=, speed=)` sends `speed` only when a caller gives
+one and does not check its range. The platform's 400 arrives as a
+`ProviderError`.
+
+**Reason:** the range belongs to the provider and is enforced there, with
+a clear message. A copy in core would be one more number to keep in step.
+Leaving `speed` out when it is not given keeps the request of every
+existing caller byte-identical.
+
+**Rejected alternative:** clamp or validate 0.25 to 4 in core. Clamping
+would hide a caller's mistake; validating duplicates the platform's own
+check.
