@@ -38,6 +38,9 @@ log = logging.getLogger("lasteverlm_rag.worker")
 
 POLL_INTERVAL_S = 2.0
 STALE_CLAIM_S = 10 * 60
+# Seconds per model request in the worker; a 4000-token document can take
+# longer than the 60 s the API keeps for a chat answer.
+WORKER_LLM_TIMEOUT_S = 180
 
 
 class Worker:
@@ -89,7 +92,12 @@ def main() -> None:
     logging.basicConfig(level=settings.log_level)
     pool = make_pool(settings.database_url)
     store = PostgresStore(pool, settings.model_prices)
-    client = make_client(settings.inference)
+    # a document is one long completion: give it more than the API's default,
+    # unless LLM_TIMEOUT_SECONDS already asks for more
+    client = make_client(
+        settings.inference,
+        timeout=max(settings.inference.llm_timeout_seconds, WORKER_LLM_TIMEOUT_S),
+    )
     outputs = OutputService(
         store,
         PgVectorRetriever(pool),

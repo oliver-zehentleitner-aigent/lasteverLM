@@ -11,16 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Source selection: `source_ids` on `/ask` and on `POST .../outputs` (link ids of the notebook's uploads; absent or empty means all, any other id is a 422). Chat retrieves only from the selected uploads and its document list marks the others `not in scope`; an output is generated from the selected sources only and records them as `options.sources`.
 
+### Changed
+
+- The worker gives each inference request at least 180 s (`LLM_TIMEOUT_SECONDS` from core, default 60, can raise it); the API keeps the configured value.
+
+### Fixed
+
+- A model or embedding call that the provider billed but that still failed (an empty answer, an unusable vector) writes its usage row before the error propagates, in chat, generation and indexing.
+- An output with a source selection waits only for the selected sources to finish processing, not for every upload of the notebook.
+- A failure while cleaning up after a failed generation attempt (removing the generated source or the audio file) is logged on its own and no longer replaces the attempt's error.
+- A text-to-speech answer without audio (output or voice preview) is a provider failure instead of an empty MP3; its usage row is written before the check.
+
 ### Security
 
 - Prompts treat text from the user's files as data: both system prompts say so, names are one bounded line, and marker-shaped text in sources and summaries is rewritten (`[2]` → `(2)`) so a source cannot forge a passage or a citation. The coverage warning logs a bounded name.
 - `Output.error` no longer carries provider, storage or internal exception messages (they can name endpoints or quote model output): rag's own reasons are shown as they are, everything else as a fixed text per class, with the detail in the log. A schema failure no longer quotes the validation error.
-
-### Fixed
-
-- An output with a source selection waits only for the selected sources to finish processing, not for every upload of the notebook.
-- A failure while cleaning up after a failed generation attempt (removing the generated source or the audio file) is logged on its own and no longer replaces the attempt's error.
-- A text-to-speech answer without audio (output or voice preview) is a provider failure instead of an empty MP3; its usage row is written before the check.
 
 ## [0.9.0] - 2026-10-13
 
