@@ -19,6 +19,7 @@ workflows. Each service is a directory with its own `context/`:
 
 - [Docs site](https://oliver-zehentleitner.github.io/lasteverLM/) and [live system](https://lasteverlm.zehentleitner.co)
 - [Architecture and API contract](docs/architecture.md)
+- [The RAG pipeline](docs/rag-pipeline.md) — loaders, chunking, embeddings, pgvector, retrieval, citations, and why each was chosen
 - [User interface](docs/ui.md)
 - [Repository standard](docs/repository-standard.md)
 - [Walkthrough script](docs/walkthrough.md) — the ten-minute recorded tour

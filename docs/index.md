@@ -29,7 +29,8 @@ PostgreSQL is the only state and also the job queue for the workers.
 | `web/` | wizard, two-column notebook view, viewer, login, credits, admin panel |
 
 The contract between the services is [Architecture and API
-contract](architecture.md); the screens are in [User
+contract](architecture.md); how a question becomes a cited answer is
+[The RAG pipeline](rag-pipeline.md); the screens are in [User
 interface](ui.md); what every directory must carry is the [Repository
 standard](repository-standard.md). The [walkthrough script](walkthrough.md)
 is the ten-minute recorded tour.
