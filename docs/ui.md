@@ -80,6 +80,13 @@ is closed. After the wizard the notebook view opens.
   library. Deleting a notebook detaches its sources the same way.
   Generated documents are not listed here, although the backend keeps
   each one as a source of kind `generated` so the chat can cite it.
+  Each row has a checkbox: the chat and new documents use only the
+  ticked sources. All are ticked by default, "all / none" sits in the
+  header from two sources on, and the browser remembers per notebook
+  which ones are off (so a source added later starts ticked). With none
+  ticked, the chat and Create say to tick one; a question or a
+  document then sends `source_ids` (the ticked link ids) and none while
+  all are ticked.
 - **Output format** (left, middle): the output kinds as tiles, always
   three by two (Report, Quiz, Data table / Mindmap, Infographic,
   Audio) at a fixed 8rem width; the column starts at, and cannot be
@@ -107,12 +114,15 @@ is closed. After the wizard the notebook view opens.
   the kind and the status in fixed slots, the title between them, and
   below the title when it was made ("14 min ago", the date and time as
   tooltip; the absolute time once it is older than a day) with its
-  language code and, for audio, the voice. A sort control above the
+  language code and, for audio, the voice, and "from 3 sources" when it
+  was made from a selection (`Output.options.sources`; the names as
+  tooltip, a removed source counted as removed). A sort control above the
   list: newest first (the default, since a kind is often made again
   from the same sources), oldest first, by kind, by language, by
   status. From six documents on, kind chips filter the list. A click
   opens the document's tab, × deletes it.
-- **Output viewer** (right, top): one tab per output, processing tabs
+- **Output viewer** (right, top): one tab per output (its header shows
+  "from 3 sources" when it was made from a selection), processing tabs
   show a spinner and poll; the pane says "Generating…" with a small
   ASCII figure walking beside it (decorative, still under reduced
   motion). Each kind has its own renderer; the audio
@@ -154,7 +164,9 @@ is closed. After the wizard the notebook view opens.
   old one), "+" opens a new one, "×" closes one after a confirmation and deletes
   its messages; closing the last tab opens a fresh one, and a notebook
   without conversations gets one when the chat opens, so a question
-  always goes to a conversation. In the active tab: question, answer,
+  always goes to a conversation. With not all sources ticked, a muted
+  "3 of 5 sources" line sits above the question field; a question about
+  one document ("ask about this") ignores the selection. In the active tab: question, answer,
   citations as `[n]` that open the cited passage; a citation into a
   generated document opens that tab.
 

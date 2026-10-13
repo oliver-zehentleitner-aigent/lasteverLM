@@ -539,3 +539,10 @@ button.link.copy { font-size: 0.85em; }
 .arch-line { fill: none; stroke: var(--muted); stroke-width: 1.2; }
 .arch-line.soft { stroke-dasharray: 3 3; }
 .arch-head { fill: var(--muted); }
+
+/* source selection: a checkbox per row, all/none in the header, an off row muted */
+.source-check { flex: none; margin: 0 0.15rem 0 0.2rem; }
+.sources .list li.off .item { opacity: 0.55; }
+.source-all { display: inline-flex; align-items: center; gap: 0.3rem; margin-left: auto; margin-right: 0.5rem; }
+.source-all button.link:disabled { color: var(--muted); cursor: default; }
+.source-count { margin: 0.25rem 0; }

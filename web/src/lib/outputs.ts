@@ -74,7 +74,8 @@ export function uploadedSources(sources: readonly Source[]): Source[] {
 
 /** Why the Create button is disabled, as the hint under it, or null when
  *  a job can start: a format must be picked and a source must be ready. */
-export function createBlocker(selected: OutputKind | null, hasReadySource: boolean): string | null {
+export function createBlocker(selected: OutputKind | null, hasReadySource: boolean, noneSelected = false): string | null {
+  if (noneSelected) return t('create.needSelected')
   if (!hasReadySource) return t('create.needSource')
   if (!selected) return t('create.needFormat')
   return null

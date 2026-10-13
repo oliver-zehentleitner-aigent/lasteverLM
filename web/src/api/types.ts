@@ -136,9 +136,12 @@ export interface OutputOptions {
   language?: string
   voice?: string
   speed?: number
+  /** in a response only: the source ids the document was made from,
+   *  absent when all sources were used (the request sends `source_ids`) */
+  sources?: string[]
 }
 
-export type OutputOption = keyof OutputOptions
+export type OutputOption = Exclude<keyof OutputOptions, 'sources'>
 
 /** `GET /api/rag/outputs/options`: the choices per kind. */
 export interface OutputOptionsSpec {
