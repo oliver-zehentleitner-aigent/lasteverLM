@@ -57,3 +57,28 @@ That is what makes a broken bucket look like an empty cache.
 
 **Rejected alternative:** `get` and catching the miss. That downloads the
 whole object just to learn that it exists.
+
+## object_key rejects an unsafe name instead of cleaning it
+
+**Id:** 889932cd-6ceb-4ab1-b95d-23c3c3bcd755
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security audit of core, 2026-10-14
+**Revisit when:** a caller legitimately needs a nested name below its owner's prefix
+
+`object_key` takes two UUIDs and one plain name segment and raises
+`ValueError` for anything else: an empty name, `/` or `\`, `.` or
+`..`, control characters, more than 255 characters.
+
+**Reason:** the key decides whose data an object is (`<user_id>/…` for an
+upload, `<notebook_id>/…` for an output). A name with a slash or `..`
+could reach into another prefix wherever an S3 implementation or a proxy
+normalises paths. Cleaning the name is the caller's job, where the
+original filename is known and shown to the user (ingest's `safe_name`).
+Core only guarantees the shape, and a caller that skips its own cleaning
+fails at once instead of writing somewhere unexpected.
+
+**Rejected alternative:** sanitise the name inside `object_key`. Two
+places would then decide what a name becomes, and the stored key would
+silently differ from the name the caller recorded.

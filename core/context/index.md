@@ -69,7 +69,7 @@ repository root's `context/`.
 - [ratelimit.md](ratelimit.md) — why the window is counted over access_log excluding 429s, why the middleware is plain ASGI, why the last X-Forwarded-For entry is the client, and why an active ban survives the purge for at most ninety days; why the four thresholds are runtime settings in one database row re-read every thirty seconds
 
 ## S
-- [storage.md](storage.md) — why ingest and rag share one synchronous S3 client from core and why presigned URLs are signed with SigV4; why only a missing key reads as not there
+- [storage.md](storage.md) — why ingest and rag share one synchronous S3 client from core and why presigned URLs are signed with SigV4; why only a missing key reads as not there; why object_key rejects an unsafe name
 
 ## T
 
