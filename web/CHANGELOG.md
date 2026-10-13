@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Source selection: a checkbox per source (all ticked by default, "all / none" in the header), remembered per notebook in this browser; the chat shows "3 of 5 sources" above the question and sends `source_ids`, Create sends them with the new document, and the outputs list and the viewer show "from 3 sources" with the names as tooltip (`Output.options.sources`). With none ticked, asking and Create are blocked with a hint.
+
 ### Changed
 
 - Wizard: opened from an existing notebook it ends after the sources (two steps, with a note and "Done" when some were in the notebook already); the output step is for a new notebook only and has a "Skip" button instead of "Just chat".

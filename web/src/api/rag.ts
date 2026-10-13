@@ -8,14 +8,16 @@ const conv = (id: string) => `${RAG_PREFIX}/conversations/${encodeURIComponent(i
 
 export const rag = {
   /** Every question belongs to a conversation; `scope.output_id` restricts
-   *  retrieval to one generated document ("ask about this"). */
-  ask: (notebookId: string, conversationId: string, question: string, outputId?: string) =>
+   *  retrieval to one generated document ("ask about this"), `source_ids`
+   *  to the selected sources (left out when all are selected). */
+  ask: (notebookId: string, conversationId: string, question: string, outputId?: string, sourceIds?: string[]) =>
     request<Answer>(`${nb(notebookId)}/ask`, {
       method: 'POST',
       json: {
         question,
         conversation_id: conversationId,
         ...(outputId ? { scope: { output_id: outputId } } : {}),
+        ...(sourceIds ? { source_ids: sourceIds } : {}),
       },
     }),
 
@@ -33,11 +35,17 @@ export const rag = {
   getChunk: (chunkId: string) => request<Chunk>(`${RAG_PREFIX}/chunks/${encodeURIComponent(chunkId)}`),
 
   listOutputs: (notebookId: string) => request<Output[]>(`${nb(notebookId)}/outputs`),
-  /** `options` only with the keys the kind takes; missing ones fall back to defaults */
-  createOutput: (notebookId: string, kind: OutputKind, options?: OutputOptions) =>
+  /** `options` only with the keys the kind takes; missing ones fall back to
+   *  defaults. `sourceIds` limits the document to the selected sources
+   *  (left out when all are selected). */
+  createOutput: (notebookId: string, kind: OutputKind, options?: OutputOptions, sourceIds?: string[]) =>
     request<Output>(`${nb(notebookId)}/outputs`, {
       method: 'POST',
-      json: options && Object.keys(options).length > 0 ? { kind, options } : { kind },
+      json: {
+        kind,
+        ...(options && Object.keys(options).length > 0 ? { options } : {}),
+        ...(sourceIds ? { source_ids: sourceIds } : {}),
+      },
     }),
 
   /** A short fixed sentence pair spoken by a voice: synthesized once per

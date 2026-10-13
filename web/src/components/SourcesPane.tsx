@@ -13,6 +13,11 @@ interface Props {
   /** bumps when the wizard added sources, to reload the list */
   version: number
   onAdd: () => void
+  /** the sources turned off for the chat and new documents */
+  excluded: ReadonlySet<string>
+  onToggle: (id: string) => void
+  /** all on (true) or all off (false) */
+  onAll: (on: boolean) => void
   /** the uploads once loaded, for the Create button and removed citations */
   onSourcesChange: (sources: Source[]) => void
 }
@@ -22,7 +27,7 @@ interface Props {
  *  (the contract has no push channel) and stops when everything is ready
  *  or failed. Only uploads are listed: generated documents are sources of
  *  kind `generated` for the chat, but the Outputs list shows them. */
-export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, onSourcesChange }: Props) {
+export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, excluded, onToggle, onAll, onSourcesChange }: Props) {
   const [sources, setSources] = useState<Source[]>([])
   const [loaded, setLoaded] = useState(false)
   const { busy, error, run } = useAsync()
@@ -62,6 +67,17 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
     <section className="pane sources">
       <div className="row head">
         <h2>{t('sources.title')}</h2>
+        {sources.length > 1 && (
+          <span className="source-all">
+            <button type="button" className="link small" onClick={() => onAll(true)} disabled={excluded.size === 0}>
+              {t('sources.selectAll')}
+            </button>
+            <span className="muted small">/</span>
+            <button type="button" className="link small" onClick={() => onAll(false)} disabled={sources.every((s) => excluded.has(s.id))}>
+              {t('sources.selectNone')}
+            </button>
+          </span>
+        )}
         <button type="button" className="secondary small" onClick={onAdd}>
           {t('sources.add')}
         </button>
@@ -72,8 +88,16 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
           <li
             key={s.id}
             id={`source-${s.id}`}
-            className={[s.id === highlightedSourceId ? 'highlight' : '', `status-${s.status}`].join(' ')}
+            className={[s.id === highlightedSourceId ? 'highlight' : '', `status-${s.status}`, excluded.has(s.id) ? 'off' : ''].join(' ')}
           >
+            <input
+              type="checkbox"
+              className="source-check"
+              checked={!excluded.has(s.id)}
+              onChange={() => onToggle(s.id)}
+              aria-label={t('sources.use', { name: s.name })}
+              title={t('sources.useTitle')}
+            />
             <div className="item">
               <span className="name" title={s.name}>
                 {s.name}

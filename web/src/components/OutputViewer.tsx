@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { rag } from '../api/rag'
-import type { AudioContent, Output } from '../api/types'
+import type { AudioContent, Output, Source } from '../api/types'
+import { MadeFrom } from './MadeFrom'
 import { useAsync } from '../hooks/useAsync'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { formatTime } from '../lib/format'
@@ -13,6 +14,8 @@ import { t } from '../i18n'
 
 interface Props {
   outputs: Output[]
+  /** the notebook's uploads, to name what a document was made from */
+  sources: Source[] | null
   selectedId: string | null
   onSelect: (id: string) => void
   onChanged: (o: Output) => void
@@ -36,6 +39,7 @@ const PASSAGE_BLOCKS = 'p, li, td, th, h1, h2, h3, h4, dt, dd, blockquote'
  *  the actions per document: ask about this, print, share, full view. */
 export function OutputViewer({
   outputs,
+  sources,
   selectedId,
   onSelect,
   onChanged,
@@ -160,6 +164,11 @@ export function OutputViewer({
               <span className="badge">{formFor(selected.kind).label}</span>
               <span className="muted small">{formatTime(selected.created_at)}</span>
               {made && <span className="muted small" title={t('viewer.madeWith')}>{made}</span>}
+              {selected.options?.sources?.length ? (
+                <span className="muted small">
+                  <MadeFrom ids={selected.options.sources} sources={sources} />
+                </span>
+              ) : null}
               <span className="actions no-print">
                 <button type="button" className="link" disabled={selected.status !== 'ready'} onClick={() => onAskAbout(selected)}>
                   {t('viewer.askAbout')}

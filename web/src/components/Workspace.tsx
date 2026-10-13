@@ -22,6 +22,7 @@ import { DEMO_QUESTION } from '../lib/demo'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
+import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
 import { ChatPane } from './ChatPane'
 import { ColumnDivider } from './ColumnDivider'
 import { Divider } from './Divider'
@@ -134,7 +135,14 @@ function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   // the uploads as last listed, null until the first list arrived
   const [uploads, setUploads] = useState<Source[] | null>(null)
   const [outputsLoaded, setOutputsLoaded] = useState(false)
-  const hasReadySource = uploads?.some((s) => s.status === 'ready') ?? false
+  // the sources turned off for the chat and new documents, remembered per notebook
+  const [excluded, setExcluded] = useState(() => readExcluded(browserStorage(), notebookId))
+  const changeExcluded = (next: Set<string>) => {
+    setExcluded(next)
+    writeExcluded(browserStorage(), notebookId, next)
+  }
+  const picked = selection(uploads?.map((s) => s.id) ?? [], excluded)
+  const hasReadySource = uploads?.some((s) => s.status === 'ready' && !excluded.has(s.id)) ?? false
   // viewer/chat split, remembered per browser; full view hides the chat behind a toggle
   const [ratio, setRatio] = useState(() => readRatio(browserStorage()))
   const [fullView, setFullView] = useState(false)
@@ -202,7 +210,7 @@ function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   }
 
   async function createOutput(kind: OutputKind, options: OutputOptions) {
-    const created = await run(() => rag.createOutput(notebookId, kind, options))
+    const created = await run(() => rag.createOutput(notebookId, kind, options, picked.sourceIds))
     if (created) {
       setOutputs((prev) => [created, ...prev])
       setSelectedOutput(created.id)
@@ -267,16 +275,20 @@ function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
           highlightedSourceId={highlight}
           version={sourcesVersion}
           onAdd={() => onWizard(true)}
+          excluded={excluded}
+          onToggle={(id) => changeExcluded(toggled(excluded, id))}
+          onAll={(on) => changeExcluded(on ? new Set() : new Set(uploads?.map((s) => s.id) ?? []))}
           onSourcesChange={setUploads}
         />
         <OutputTiles
           selected={format}
           hasReadySource={hasReadySource}
+          noneSelected={picked.total > 0 && picked.selected === 0}
           busy={busy}
           onSelect={setFormat}
           onCreate={(k, o) => void createOutput(k, o)}
         />
-        <OutputsPane outputs={outputs} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
+        <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
       </div>
       <ColumnDivider
         label={t('ws.resizeLeft')}
@@ -296,6 +308,7 @@ function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
       />
       <div className="column right" ref={rightColumn}>
         <OutputViewer
+          sources={uploads}
           outputs={outputs}
           selectedId={selectedOutput}
           onSelect={setSelectedOutput}
@@ -330,6 +343,7 @@ function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             notebookId={notebookId}
             scope={scope}
             presentSources={presentSources}
+            sources={picked}
             suggestion={uploads?.some((s) => s.demo) ? DEMO_QUESTION : undefined}
             onClearScope={() => setScope(null)}
             onCitationSelected={onCitation}

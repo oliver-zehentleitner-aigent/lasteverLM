@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { Output, OutputKind } from '../api/types'
+import type { Output, OutputKind, Source } from '../api/types'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { t } from '../i18n'
 import { formatTime } from '../lib/format'
+import { MadeFrom } from './MadeFrom'
 import { FILTER_FROM, SORTS, kindLabel, kindsPresent, optionsBrief, sortOutputs, whenLabel, type Sort } from '../lib/outputsList'
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   selectedId: string | null
   onOpen: (id: string) => void
   onDelete: (o: Output) => void
+  /** the notebook's uploads, to name what a document was made from */
+  sources: Source[] | null
 }
 
 /** Left column, under the output formats: the generated documents. Each row
@@ -17,7 +20,7 @@ interface Props {
  *  it was made (relative within a day) with its language and voice, since a
  *  kind is often made again from the same sources. A sort control, and
  *  kind chips once the list is long. A click opens the tab; × deletes. */
-export function OutputsPane({ outputs, selectedId, onOpen, onDelete }: Props) {
+export function OutputsPane({ outputs, selectedId, onOpen, onDelete, sources }: Props) {
   const [sort, setSort] = useState<Sort>('newest')
   const [kind, setKind] = useState<OutputKind | 'all'>('all')
   const spec = useOutputOptions()
@@ -74,6 +77,12 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete }: Props) {
                     {whenLabel(o.created_at, now)}
                   </time>
                   {brief && ` · ${brief}`}
+                  {o.options?.sources?.length ? (
+                    <>
+                      {' · '}
+                      <MadeFrom ids={o.options.sources} sources={sources} />
+                    </>
+                  ) : null}
                 </span>
               </button>
               <button type="button" className="icon" title={t('outputs.delete')} onClick={() => onDelete(o)}>

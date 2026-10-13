@@ -459,6 +459,17 @@ export const en = {
   'wiz.skip': 'Skip',
   'wiz.added': 'Added',
   'common.done': 'Done',
+  'sources.selectAll': 'all',
+  'sources.selectNone': 'none',
+  'sources.use': 'Use {name} in the chat and new documents',
+  'sources.useTitle': 'Used in the chat and for new documents',
+  'chat.sourcesOf': '{n} of {total} sources',
+  'chat.noSources': 'No source selected: tick at least one in the list.',
+  'create.needSelected': 'Select at least one source.',
+  'madeFrom.n.one': 'from {n} source',
+  'madeFrom.n.other': 'from {n} sources',
+  'madeFrom.removed.one': '{n} removed since',
+  'madeFrom.removed.other': '{n} removed since',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { rag } from '../api/rag'
 import type { Citation, Conversation, Message, Output } from '../api/types'
+import type { Selection } from '../lib/sourceSelection'
 import { useAsync } from '../hooks/useAsync'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { isRemoved, splitCitations } from '../lib/citations'
@@ -15,6 +16,9 @@ interface Props {
   scope: Output | null
   /** sources a citation can still point to; others show as removed */
   presentSources: ReadonlySet<string> | null
+  /** the sources selected in the list; a question goes to those only,
+   *  unless it is about one document */
+  sources: Selection
   onClearScope: () => void
   onCitationSelected: (c: Citation | null) => void
   /** "open in source" / "open document" in the provenance panel */
@@ -42,7 +46,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected, onOpenSource, tools, suggestion }: Props) {
+export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools, suggestion }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // inline rename of a tab: which one, and the text being typed
@@ -176,6 +180,7 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
           conversationId={active.id}
           scope={scope}
           presentSources={presentSources}
+          sources={sources}
           suggestion={suggestion}
           onClearScope={onClearScope}
           onCitationSelected={onCitationSelected}
@@ -194,7 +199,7 @@ interface ConversationProps extends Props {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-function ConversationView({ notebookId, conversationId, scope, presentSources, suggestion, onClearScope, onCitationSelected, onOpenSource }: ConversationProps) {
+function ConversationView({ notebookId, conversationId, scope, presentSources, sources, suggestion, onClearScope, onCitationSelected, onOpenSource }: ConversationProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
@@ -214,16 +219,20 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, s
     if (scope) input.current?.focus()
   }, [scope])
 
+  // every source turned off: nothing to answer from, unless the question is about one document
+  const blocked = !scope && sources.total > 0 && sources.selected === 0
+
   async function ask(e: FormEvent) {
     e.preventDefault()
     const q = question.trim()
-    if (!q) return
+    if (!q || blocked) return
     setQuestion('')
     setMessages((prev) => [
       ...prev,
       { id: `local-${Date.now()}`, role: 'user', content: q, citations: null, created_at: new Date().toISOString() },
     ])
-    const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id))
+    // a question about one document is scoped by it; the selection is for the notebook
+    const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id, scope ? undefined : sources.sourceIds))
     if (answer) {
       setMessages((prev) => [
         ...prev,
@@ -316,6 +325,11 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, s
           </span>
         </div>
       )}
+      {!scope && sources.selected < sources.total && (
+        <p className="muted small source-count">
+          {sources.selected === 0 ? t('chat.noSources') : t('chat.sourcesOf', { n: sources.selected, total: sources.total })}
+        </p>
+      )}
       <form className="ask row" onSubmit={ask}>
         <input
           ref={input}
@@ -325,7 +339,7 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, s
           disabled={busy}
           autoFocus
         />
-        <button type="submit" disabled={busy || !question.trim()}>
+        <button type="submit" disabled={busy || blocked || !question.trim()}>
           {t('chat.ask')}
         </button>
       </form>
