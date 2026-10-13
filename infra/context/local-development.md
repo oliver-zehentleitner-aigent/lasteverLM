@@ -56,3 +56,29 @@ contradicts the contract that migrations are applied once, outside the
 services; the web container's own dev proxy (`VITE_DEV_PROXY`) in
 place of a gateway — covers only the front end's requests, not the
 API paths a test or curl sends.
+
+## Local-only credentials are written into compose.yaml
+
+**Id:** f18fc8da-3a11-4d86-af73-59cd3b418528
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Revisit when:** the compose file is used for anything reachable from another machine
+
+The database passwords, the storage keys, the JWT secret, the demo
+token and the visitor hash secret in `compose.yaml` are fixed,
+readable values such as `local-dev-password`. They are not secrets
+and are not used anywhere else: the deployment never reads this file,
+`make secrets` generates its own values with `openssl rand`, and
+every published port binds to 127.0.0.1.
+
+**Reason:** `make local-up` should work from a clean checkout with a
+single value from outside (`INFERENCE_API_KEY`, which costs money and
+therefore cannot have a default). Names that say "local" and "dev"
+make a copy into a real configuration easy to spot.
+
+**Rejected alternatives:** generating them on first run into a local
+env file — one more step and one more file to explain for values that
+protect nothing outside the developer's machine; requiring them all in
+the shell environment — the same, and a reason for developers to reuse
+production values.
