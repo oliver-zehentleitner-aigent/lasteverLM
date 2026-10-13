@@ -5,10 +5,21 @@ from lasteverlm_core import DEMO_USER_ID
 from tests.test_loaders import minimal_pdf
 
 
-def test_healthz_needs_no_token_and_answers_on_both_paths(client):
+def test_healthz_needs_no_token_and_answers_on_both_paths(client, monkeypatch):
+    monkeypatch.delenv("APP_VERSION", raising=False)
+    monkeypatch.delenv("APP_COMMIT", raising=False)
     del client.headers["Authorization"]
-    assert client.get("/api/ingest/healthz").json() == {"status": "ok"}
-    assert client.get("/healthz").json() == {"status": "ok"}
+    unknown = {"status": "ok", "version": "unknown", "commit": "unknown"}
+    assert client.get("/api/ingest/healthz").json() == unknown
+    assert client.get("/healthz").json() == unknown
+
+
+def test_healthz_reports_the_build(client, monkeypatch):
+    monkeypatch.setenv("APP_VERSION", "v0.6.0")
+    monkeypatch.setenv("APP_COMMIT", "abc1234")
+    build = {"status": "ok", "version": "v0.6.0", "commit": "abc1234"}
+    assert client.get("/healthz").json() == build
+    assert client.get("/api/ingest/healthz").json() == build
 
 
 def test_missing_or_wrong_token(client):
