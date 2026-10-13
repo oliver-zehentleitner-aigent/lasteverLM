@@ -251,3 +251,31 @@ afterwards, rejected as several model calls per output and a merge step
 that loses the cross-source structure; failing or retrying an output
 that misses a source, rejected because the name-word check gives false
 positives and a retry would charge the user again for the same input.
+
+## A shared output is a capability URL; the token in the path reaches access logs
+
+**Id:** d1dbeb71-399f-46c7-a4e7-980ef38c8836
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** share implementation, 2026-10-12; infrastructure security audit, 2026-10-14
+**Revisit when:** access logs are kept longer or shipped to a third party, or a shared output may hold content that must not outlive a revocation in a log
+
+Sharing an output creates a token (`secrets.token_urlsafe(24)`, 192
+bits); anyone holding `/s/<token>` (web) or `/api/rag/shared/<token>`
+(API) can read that one output, read only, without an account. The
+token is part of the URL path, so it is written to the ingress access
+log for every view. Query arguments are no longer logged (infra), but a
+path is. This is a known property, kept without a change.
+
+**Reason:** a capability URL is the sharing design: the link is the
+permission, so it can be pasted anywhere and opened without a login.
+What limits a token found in a log: it opens one output only, read
+only, and shows no ids of the owner; `DELETE /outputs/{id}/share`
+revokes it at once (the lookup then answers 404); 192 bits cannot be
+guessed; the access logs are rotated, so a token does not stay there.
+
+**Rejected alternatives:** unknown; no other transport for the token
+(a header, a URL fragment read by the page) was weighed when sharing
+was built.
+
