@@ -36,3 +36,26 @@ the family consumes tokens for more than one audience; the claim would
 have been a constant that two services must keep equal for no benefit.
 Issuer verification stays, because a token from another HS256 system
 with a leaked secret should still fail.
+
+## A session secret shorter than 32 bytes is refused
+
+**Id:** dd3ccf4e-52f4-4601-ba95-d06e1e7eed9d
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security audit of core, 2026-10-14, confirmed by the coordinator; RFC 7518 section 3.2 (an HS256 key at least as long as the hash output)
+**Revisit when:** the token algorithm changes from HS256
+
+`AuthSettings` raises `ConfigError` when `jwt_secret` is shorter than
+`MIN_JWT_SECRET_BYTES` (32). The check is in the dataclass itself, not
+only in `from_env`, because the account service, which issues the tokens,
+builds its settings without `from_env`.
+
+**Reason:** with HS256, the secret is everything that protects a session.
+A short secret can be brute-forced offline from any token, and the
+result is a valid session for any user. The deployment's generated secret
+is 64 characters long, so the check only stops a hand-set short one, at
+startup instead of in an incident.
+
+**Rejected alternative:** only in `from_env`. That would miss the one
+service that signs.
