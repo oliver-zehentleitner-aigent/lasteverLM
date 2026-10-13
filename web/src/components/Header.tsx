@@ -5,7 +5,7 @@ import { t } from '../i18n'
 import { versionLine } from '../lib/build'
 import { formatCents } from '../lib/format'
 import { useMe } from '../hooks/useMe'
-import { nextTheme, setTheme, useTheme, type Theme } from '../lib/theme'
+import { setTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVersion } from '../lib/theme'
 
 interface Props {
   me: User | null
@@ -34,23 +34,23 @@ function useBuild(): string | null {
   return line
 }
 
-const THEME_ICON: Record<Theme, string> = { system: '◐', light: '☀', dark: '☾' }
-
-/** Cycles system, light, dark; applies at once and keeps the choice in this
- *  browser and, when signed in, in the account (the shared demo account
- *  cannot store preferences; then it stays in this browser). */
+/** Switches between light and dark, starting from what is on screen; the
+ *  icon shows what a click gives. "system" is left to the settings page.
+ *  Kept in this browser and, when signed in, in the account (the shared
+ *  demo account cannot store preferences; then it stays in this browser). */
 function ThemeToggle() {
   const theme = useTheme()
+  useThemeVersion()
   const { me, setMe } = useMe()
-  function cycle() {
-    const next = nextTheme(theme)
+  const next = toggledTheme(theme, systemPrefersDark())
+  function toggle() {
     setTheme(next)
     if (me) account.savePreferences({ theme: next }).then(setMe, () => {})
   }
-  const name = t(`theme.${theme}`)
+  const label = next === 'dark' ? t('theme.toDark') : t('theme.toLight')
   return (
-    <button type="button" className="icon theme-toggle" title={t('theme.toggle', { theme: name })} aria-label={t('theme.toggle', { theme: name })} onClick={cycle}>
-      {THEME_ICON[theme]}
+    <button type="button" className="icon theme-toggle" title={label} aria-label={label} onClick={toggle}>
+      {next === 'dark' ? '☾' : '☀'}
     </button>
   )
 }

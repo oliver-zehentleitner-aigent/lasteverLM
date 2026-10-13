@@ -419,10 +419,8 @@ export const en = {
   'lib.trashIntro.after': ', then they are purged. A restored source is in no notebook; add it again from the library. Uploading the same file again restores it as well.',
   'wiz.retryLeft.one': '{n} file is still to upload; try again.',
   'wiz.retryLeft.other': '{n} files are still to upload; try again.',
-  'theme.system': 'System',
   'theme.light': 'Light',
   'theme.dark': 'Dark',
-  'theme.toggle': 'Theme: {theme} (click to change)',
   'set.theme': 'Theme',
   'set.themeSystem': 'Like the system',
   'sys.noRole': 'Pod list not available: the account service has no read role for pods and deployments in the cluster (see "The chart" in infra/docs/operations.md, kubernetesRead).',
@@ -437,6 +435,16 @@ export const en = {
   'map.zoomOut': 'Zoom out (−)',
   'map.label': 'Mind map; drag to pan, scroll to zoom, 0 to fit',
   'prov.openDoc': 'open document',
+  'outputs.sort': 'Sort',
+  'sort.newest': 'Newest first',
+  'sort.oldest': 'Oldest first',
+  'sort.kind': 'By kind',
+  'sort.language': 'By language',
+  'sort.status': 'By status',
+  'outputs.filter': 'Show kind',
+  'outputs.all': 'All',
+  'theme.toDark': 'Switch to dark',
+  'theme.toLight': 'Switch to light',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A small ASCII figure walks beside "Generating…" while a document is processing: monospace frames every 250 ms on a fixed-width track in the muted colour, aria-hidden, still when the system asks for reduced motion.
+
+### Changed
+
+- Outputs list: rows in a grid with the kind and the status in fixed slots and, under the title, when the document was made (relative within a day, absolute after, the exact time as tooltip) with its language and, for audio, its voice; a sort control (newest first by default, oldest, kind, language, status) and kind chips from six documents on.
+- Theme toggle in the header: light and dark only, starting from the theme on screen, its icon showing what a click gives; "system" is chosen in Settings.
+
 ## [0.9.0] - 2026-10-13
 
 ### Added

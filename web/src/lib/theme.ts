@@ -56,9 +56,16 @@ export function effectiveTheme(theme: Theme, systemDark: boolean): 'light' | 'da
   return theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
 }
 
-/** The header toggle's order. */
-export function nextTheme(t: Theme): Theme {
-  return t === 'system' ? 'light' : t === 'light' ? 'dark' : 'system'
+/** What the header toggle sets: always the opposite of what is on screen,
+ *  so from "system" it turns into an explicit light or dark. "system" itself
+ *  is only chosen on the settings page. */
+export function toggledTheme(theme: Theme, systemDark: boolean): 'light' | 'dark' {
+  return effectiveTheme(theme, systemDark) === 'dark' ? 'light' : 'dark'
+}
+
+/** Whether the operating system asks for dark right now. */
+export function systemPrefersDark(): boolean {
+  return typeof window !== 'undefined' && (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
 }
 
 /** The current choice, re-rendering on every change. */
