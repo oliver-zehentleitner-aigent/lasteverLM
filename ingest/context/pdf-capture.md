@@ -43,3 +43,29 @@ instead of overspending it.
   images.
 - One dedupe key per content regardless of mode: a second upload in
   another mode would silently return the first mode's chunks.
+
+## A PDF of more than 2000 pages is not read at all
+
+**Id:** ed97ff40-9590-4220-951a-17f613db28ef
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security and quality audit, 2026-10-14; the number decided by the maintainer through the coordinating agent
+**Revisit when:** users upload legitimate documents longer than 2000 pages, or jobs get a time limit of their own
+
+Every capture mode starts by extracting the text layer of every page, so
+a PDF's page count bounds the worker time it takes; within the 20 MB
+upload cap a file can hold far more tiny pages than any real document.
+Above 2000 pages the source fails before any page is read, with the cap
+in the message, the way the vision cap of 100 pages fails.
+
+**Reason:** without a cap, worker time per source was bounded only by
+the file size; the stalled-attempt rule would end a source that hangs a
+worker, but only after three claim timeouts. 2000 pages is beyond any
+book a user would reasonably add, so the cap costs no real use.
+
+**Alternatives:**
+- No cap, relying on the claim timeout and the stalled-attempt rule:
+  half an hour of three workers per hostile file.
+- A setting like `PDF_VISION_MAX_PAGES`: no deployment has a reason to
+  differ yet; a constant can become one when one does.
