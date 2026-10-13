@@ -8,8 +8,8 @@ The account service of [lasteverLM](../README.md), a NotebookLM-style
 assistant, in the `account/` directory of the one repository. It owns who may use the system and what they
 may spend: passwordless magic-link login restricted to allowed e-mail
 domains, session tokens the other services verify, prepaid credits via
-single-use vouchers, the admin panel backend (SMTP and domain settings,
-users, logins, vouchers) and a visitor log that stores no personal data.
+single-use vouchers, the admin panel backend (domain settings, the mail
+configuration read-only, users, logins, vouchers) and a visitor log that stores no personal data.
 
 The API contract this service implements is
 [`docs/architecture.md`](../docs/architecture.md) at the repository root,
@@ -24,7 +24,7 @@ prefix `/api/account`. Changes to the contract are made there first.
 |---|---|
 | Login | `POST /auth/request-link` (always 202), `GET /auth/callback?token=` → `{jwt, user}` |
 | Account | `GET /me`, `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
-| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/visits?days=`, `GET/PUT /admin/settings/smtp`, `POST /admin/settings/smtp/test`, `GET/PUT /admin/settings/domains`, `POST /admin/vouchers` |
+| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT /admin/settings/domains`, `POST /admin/vouchers` |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans/{ip}`, `GET /admin/access?limit=` |
 | Health | `GET /healthz`, also at the server root for the Kubernetes probe |
 
@@ -57,14 +57,14 @@ comment.
 | `DEMO_TOKEN` | no | shared demo token; unset in production (`lasteverlm-auth`) |
 | `ADMIN_EMAILS` | no | comma-separated admin addresses, may log in regardless of the allowlist (`lasteverlm-account`) |
 | `AUTH_ALLOWED_DOMAINS` | no | seed for the allowlist, first start only (`lasteverlm-account`) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | seed for the SMTP settings, first start only (`lasteverlm-smtp-seed`) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | the mail configuration, read at start and shown read-only in the admin panel, never stored; without `SMTP_HOST` no sign-in mail can be sent (`lasteverlm-smtp-seed`) |
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100 |
 | `RETENTION_DAYS`, `BAN_MAX_DAYS` | no | days the access log, stale blocks and lifted bans are kept, and how long a ban holds at most (core's names); this service purges at every start, defaults 30, 90 |
 
-Seeds are written to the `settings` table only when the key is missing;
-afterwards the admin panel owns the value.
+The allowlist seed is written to the `settings` table only when the key is
+missing; afterwards the admin panel owns the value. SMTP is never stored.
 
 ## Run locally
 

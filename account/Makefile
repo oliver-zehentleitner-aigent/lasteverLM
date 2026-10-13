@@ -22,7 +22,7 @@ test:
 
 check: install lint types test
 
-# Production entrypoint: PostgreSQL from DATABASE_URL, SMTP from the settings table.
+# Production entrypoint: PostgreSQL from DATABASE_URL, SMTP from SMTP_*.
 run:
 	$(VENV)/bin/uvicorn --factory lasteverlm_account.main:create_app --host 0.0.0.0 --port $${PORT:-8000}
 

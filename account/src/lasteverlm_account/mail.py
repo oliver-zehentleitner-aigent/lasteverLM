@@ -1,14 +1,14 @@
-"""Outgoing mail over SMTP. The configuration lives in the ``settings`` table (key
-``smtp``) and is edited by an admin through the API; the environment only seeds it.
+"""Outgoing mail over SMTP. The configuration comes from the environment (``SMTP_*``),
+is read once at start and is never stored; the admin panel shows it read-only.
 """
 
 from __future__ import annotations
 
 import asyncio
 import smtplib
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from email.message import EmailMessage
-from typing import Any, Protocol
+from typing import Protocol
 
 
 class MailError(RuntimeError):
@@ -23,20 +23,6 @@ class SmtpConfig:
     password: str
     from_address: str
     starttls: bool
-
-    @classmethod
-    def from_setting(cls, value: dict[str, Any]) -> SmtpConfig:
-        return cls(
-            host=str(value.get("host", "")),
-            port=int(value.get("port", 587)),
-            username=str(value.get("username", "")),
-            password=str(value.get("password", "")),
-            from_address=str(value.get("from_address", "")),
-            starttls=bool(value.get("starttls", True)),
-        )
-
-    def to_setting(self) -> dict[str, Any]:
-        return asdict(self)
 
     @property
     def configured(self) -> bool:

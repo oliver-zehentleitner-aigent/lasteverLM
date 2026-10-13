@@ -42,22 +42,14 @@ class VisitBody(BaseModel):
 
 
 class Smtp(BaseModel):
-    """Read shape: the password is write-only and never returned."""
+    """The mail configuration in effect, read-only; the password is never returned.
+    An empty ``host`` means SMTP is not configured."""
 
     host: str
     port: int
     username: str
     from_address: str
     starttls: bool
-
-
-class SmtpUpdate(BaseModel):
-    host: str = Field(min_length=1)
-    port: int = Field(ge=1, le=65535)
-    username: str = ""
-    password: str | None = None  # omitted or null keeps the stored password
-    from_address: Email
-    starttls: bool = True
 
 
 class DomainSettings(BaseModel):

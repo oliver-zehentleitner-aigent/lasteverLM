@@ -22,13 +22,13 @@ src/lasteverlm_account/
 ├── main.py                app factory (uvicorn --factory); wires settings, repository, mailer,
 │                          core's RateLimitMiddleware; error format
 ├── dev.py                 `make run-dev`: the API on in-memory storage, links on the console
-├── config.py              Settings from the environment (SMTP_* and AUTH_ALLOWED_DOMAINS are seeds only)
+├── config.py              Settings from the environment (SMTP_* read at start; AUTH_ALLOWED_DOMAINS is a seed only)
 ├── models.py              API schemas; User and AdminUser come from lasteverlm_core
 ├── service.py             business rules: login, allowlist, credits, admin, visits
 ├── repository.py          storage interface and records
-├── repository_postgres.py PostgreSQL (psycopg 3, plain SQL); tuple-row connections for core's store
+├── repository_postgres.py PostgreSQL (psycopg 3, plain SQL); its pool also serves core's rate-limit store
 ├── repository_memory.py   in-memory, for tests and local runs
-├── mail.py                SMTP mailer, config from the settings table
+├── mail.py                SMTP mailer, config from Settings
 ├── privacy.py             visitor hashing, daily salt, user-agent family, client IP
 └── api/                   routers: auth, account (me, redeem, visits), admin, deps
 db/migrations/             numbered SQL, applied by infra's make migrate after core's

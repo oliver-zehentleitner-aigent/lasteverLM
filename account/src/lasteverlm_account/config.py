@@ -1,9 +1,9 @@
 """Configuration from the environment. Fails at startup when a required value is missing.
 
-Secrets never live in the repository. The ``SMTP_*`` and ``AUTH_ALLOWED_DOMAINS``
-variables are *seed values only*: they populate the ``settings`` table on first
-start and are ignored once a row exists, because an admin edits them through the
-API afterwards.
+Secrets never live in the repository. ``SMTP_*`` is the mail configuration, read
+once at start and shown read-only in the admin panel. ``AUTH_ALLOWED_DOMAINS`` is a
+*seed value only*: it populates the ``settings`` table on first start and is ignored
+once a row exists, because an admin edits the allowlist through the API afterwards.
 """
 
 from __future__ import annotations
@@ -11,19 +11,11 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from .mail import SmtpConfig
+
 
 class ConfigError(RuntimeError):
     """A required environment variable is missing or invalid."""
-
-
-@dataclass(frozen=True)
-class SmtpSeed:
-    host: str
-    port: int
-    username: str
-    password: str
-    from_address: str
-    starttls: bool
 
 
 @dataclass(frozen=True)
@@ -34,7 +26,7 @@ class Settings:
     demo_token: str | None
     admin_emails: frozenset[str] = field(default_factory=frozenset)
     allowed_domains_seed: tuple[str, ...] = ()
-    smtp_seed: SmtpSeed | None = None
+    smtp: SmtpConfig | None = None  # None: no SMTP_HOST, sign-in mails cannot be sent
     magic_link_ttl_minutes: int = 15
     jwt_ttl_days: int = 7
     voucher_default_cents: int = 1000
@@ -56,8 +48,8 @@ class Settings:
             return value
 
         smtp_host = env.get("SMTP_HOST", "").strip()
-        smtp_seed = (
-            SmtpSeed(
+        smtp = (
+            SmtpConfig(
                 host=smtp_host,
                 port=_positive_int(env.get("SMTP_PORT", "587"), "SMTP_PORT"),
                 username=env.get("SMTP_USERNAME", "").strip(),
@@ -76,7 +68,7 @@ class Settings:
             demo_token=env.get("DEMO_TOKEN", "").strip() or None,
             admin_emails=frozenset(_csv_lower(env.get("ADMIN_EMAILS", ""))),
             allowed_domains_seed=tuple(_csv_lower(env.get("AUTH_ALLOWED_DOMAINS", ""))),
-            smtp_seed=smtp_seed,
+            smtp=smtp,
             magic_link_ttl_minutes=_positive_int(
                 env.get("MAGIC_LINK_TTL_MINUTES", "15"), "MAGIC_LINK_TTL_MINUTES"
             ),

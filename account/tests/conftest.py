@@ -16,7 +16,7 @@ from lasteverlm_account.config import Settings
 from lasteverlm_account.mail import SmtpConfig
 from lasteverlm_account.main import create_app
 from lasteverlm_account.repository_memory import MemoryRepository
-from lasteverlm_account.service import SETTING_SMTP, AccountService
+from lasteverlm_account.service import AccountService
 
 ADMIN_EMAIL = "root@example.org"
 ALLOWED_DOMAIN = "example.org"
@@ -76,6 +76,7 @@ def settings() -> Settings:
         demo_token=DEMO_TOKEN,
         admin_emails=frozenset({ADMIN_EMAIL}),
         allowed_domains_seed=(ALLOWED_DOMAIN,),
+        smtp=SmtpConfig("smtp.test", 587, "", "", "noreply@lasteverlm.test", True),
     )
 
 
@@ -127,10 +128,6 @@ def client(
         rate_limit_store=limiter_store,
         rate_limit_settings=rate_limit_settings,
     )
-    # Seed SMTP so link mails can be "sent"; the service would otherwise log and skip.
-    repo.settings[SETTING_SMTP] = SmtpConfig(
-        "smtp.test", 587, "", "", "noreply@lasteverlm.test", True
-    ).to_setting()
     with TestClient(app) as c:
         c.app.state.service._clock = clock  # type: ignore[attr-defined]
         yield c
