@@ -48,6 +48,9 @@ _ERROR_MAX = 500
 CREDIT_EXHAUSTED = "credit exhausted"
 # Family rule: after three attempts a job is failed with its last error.
 MAX_ATTEMPTS = 3
+# Backoff after a transient failure: 5 s after the first, 15 s after the second.
+RETRY_BASE_SECONDS = 5.0
+RETRY_FACTOR = 3.0
 # The trash is purged at worker start and then once an hour.
 PURGE_EVERY_SECONDS = 3600.0
 
@@ -86,22 +89,30 @@ def process_source(library_id: UUID, deps: WorkerDeps) -> None:
         _retry_or_fail(source, "internal error while processing the source", repo, exc)
 
 
+def retry_delay(attempt: int) -> float:
+    """Seconds before the next attempt after `attempt` failed: 5, 15, 45 …"""
+    return RETRY_BASE_SECONDS * RETRY_FACTOR ** max(0, attempt - 1)
+
+
 def _retry_or_fail(source: LibrarySource, message: str, repo: Repository, exc: Exception) -> None:
-    """A transient failure keeps the row `processing` with the error, so
-    the stale-claim timeout hands it to the next worker; the third failed
-    attempt fails it for good."""
+    """A transient failure keeps the row `processing` with the error and
+    releases the claim with a short backoff, so the next attempt follows
+    within seconds instead of waiting for the stale-claim timeout; the third
+    failed attempt fails it for good."""
     if source.attempts >= MAX_ATTEMPTS:
         log.warning("source %s failed after %d attempts: %s", source.id, source.attempts, exc)
         repo.set_library_status(source.id, "failed", message)
     else:
+        delay = retry_delay(source.attempts)
         log.warning(
-            "source %s attempt %d/%d failed, will be retried: %s",
+            "source %s attempt %d/%d failed, retried in %.0f s: %s",
             source.id,
             source.attempts,
             MAX_ATTEMPTS,
+            delay,
             exc,
         )
-        repo.set_library_status(source.id, "processing", message)
+        repo.release_for_retry(source.id, message, delay)
 
 
 def _run(source: LibrarySource, deps: WorkerDeps) -> None:

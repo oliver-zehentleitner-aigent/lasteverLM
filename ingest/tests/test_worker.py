@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from lasteverlm_core import TokenWindowChunker
@@ -101,14 +102,19 @@ def test_unexpected_exception_is_hidden_and_retried_until_the_third_attempt():
     repo, storage = InMemoryRepository(), InMemoryStorage()
     sid = add_source(repo, storage, b"some text")
     d = deps(repo, storage, Boom())
-    for attempt in (1, 2):
-        repo.claim_library_source("w", 600)
+    for attempt, delay in ((1, 5), (2, 15)):
+        assert repo.claim_library_source("w", 600) == sid
         process_source(sid, d)
         source = repo.library[sid]
         assert source.status == "processing" and source.attempts == attempt
         assert source.error == "internal error while processing the source"
-        repo.claimed.clear()  # the stale-claim timeout elapsed
-    repo.claim_library_source("w", 600)
+        # The claim is released with a backoff, not held until the stale timeout.
+        assert sid not in repo.claimed
+        wait = (repo.retry_at[sid] - datetime.now(UTC)).total_seconds()
+        assert delay - 1 < wait <= delay
+        assert repo.claim_library_source("w", 600) is None  # not before the backoff
+        repo.retry_at[sid] = datetime.now(UTC)  # the backoff elapsed
+    assert repo.claim_library_source("w", 600) == sid
     process_source(sid, d)
     source = repo.library[sid]
     assert source.status == "failed" and source.attempts == 3

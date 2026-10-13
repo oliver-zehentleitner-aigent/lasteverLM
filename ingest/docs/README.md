@@ -131,10 +131,15 @@ and host lowercased, default port and fragment dropped, path and query
 kept). Found, it only links it into the notebook — nothing is stored or
 processed again, and a failed one is put back into the queue, since
 uploading again is how a user retries. Not found, it checks the caller's
-credit, writes the library source with `status: processing`, uploads the
-file to the bucket at `<owner>/<library_id>/<name>` (objects from before
-migration 0003 keep their `<notebook_id>/<source_id>/<name>` keys), links
-it and returns. For a URL the stored object is the URL itself
+credit, uploads the file to the bucket at `<owner>/<library_id>/<name>`
+(objects from before migration 0003 keep their
+`<notebook_id>/<source_id>/<name>` keys), and only then writes the library
+source with `status: processing`, links it and returns. The order matters:
+a `processing` row is claimable the moment it exists, so a worker must
+never find one whose object is not there yet (v0.7.1 did, and failed with
+`NoSuchKey`). A failed upload answers 503 and leaves no row; when a
+concurrent upload of the same bytes inserted its row first, this one is
+linked to it and its own object is deleted. For a URL the stored object is the URL itself
 (`<owner>/<library_id>/url`) and the name is the URL; the API opens no
 connection to it. The library source is now in the queue: the queue is
 the `library_sources` table, a `processing` row that no worker holds;
@@ -155,9 +160,11 @@ Usage rows name the notebook the library source was first added to. A failure
 that a retry cannot change (unreadable file, no text, credit exhausted)
 sets `failed` at once. A failure that may pass next time (object
 storage, the embedding or summary request, an unexpected error) leaves
-the row `processing` with the error text, so the next worker takes it
-over after the claim timeout; the third failed attempt sets `failed` for
-good. The user sees the `error` either way. Credit is checked
+the row `processing` with the error text and releases the claim with a
+backoff (`retry_at`, migration 0008): no worker takes it for 5 seconds
+after the first failure and 15 after the second, so the next attempt
+follows promptly instead of after the claim timeout; the third failed
+attempt sets `failed` for good. The user sees the `error` either way. Credit is checked
 with core's `has_credit` before the upload is stored, before an image is
 read, before the embedding call and before the summary call; an admin
 always has credit, anyone else needs a positive balance. The API pods never process
