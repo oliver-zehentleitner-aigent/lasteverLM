@@ -257,7 +257,6 @@ export const en = {
   'adm.no': 'no',
   'adm.users': 'Users ({n})',
   'adm.col.email': 'E-mail',
-  'adm.col.admin': 'Admin',
   'adm.col.granted': 'Granted',
   'adm.col.used': 'Used',
   'adm.col.balance': 'Balance',
@@ -490,6 +489,17 @@ export const en = {
   'lib.notebookTitlePrompt': 'Title of the new notebook',
   'lib.progressDelete': 'Moving to the trash: {done} of {total}',
   'lib.progressAdd': 'Adding to the new notebook: {done} of {total}',
+  'adm.readOnly': 'read-only',
+  'adm.readOnlyTitle': 'Your role is viewer: you can see everything here, changes need an admin.',
+  'adm.col.role': 'Role',
+  'adm.role.user': 'user',
+  'adm.role.viewer': 'viewer',
+  'adm.role.admin': 'admin',
+  'adm.roleOf': 'Role of {email}',
+  'adm.roleConfirm': 'Make {email} {role}?',
+  'adm.viewerDomains': 'Viewer domains',
+  'adm.viewerDomainsHint': 'A new user from one of these domains starts as viewer: the admin panel, read-only. The domain must also be allowed to sign in above; existing users keep their role.',
+  'adm.removeViewerDomain': 'Remove {v} from the viewer domains?',
 } as const
 
 export type MessageKey = keyof typeof en

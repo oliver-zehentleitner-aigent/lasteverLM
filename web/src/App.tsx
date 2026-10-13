@@ -3,6 +3,7 @@ import { account } from './api/account'
 import { PAYMENT_REQUIRED, UNAUTHORIZED, apiEvents } from './api/client'
 import { getToken, setToken } from './api/token'
 import type { User } from './api/types'
+import { canSeeAdmin, canWriteAdmin } from './lib/roles'
 import { AdminPage } from './components/admin/AdminPage'
 import { AuthCallback } from './components/AuthCallback'
 import { Header } from './components/Header'
@@ -90,7 +91,7 @@ export default function App() {
   if (session.state === 'checking') return <main className="login"><p className="muted">{t('common.loading')}</p></main>
 
   const me = session.me
-  const adminPage = route.name === 'admin' && me?.is_admin ? route.page : null
+  const adminPage = route.name === 'admin' && canSeeAdmin(me) ? route.page : null
   const setMe = (u: User) => setSession({ state: 'in', me: u })
   const headerRoute = adminPage ? 'admin' : route.name === 'library' || route.name === 'settings' ? route.name : 'home'
 
@@ -104,7 +105,7 @@ export default function App() {
         onLogout={logout}
       />
       {adminPage ? (
-        <AdminPage page={adminPage} onNavigate={navigate} />
+        <AdminPage page={adminPage} canWrite={canWriteAdmin(me)} onNavigate={navigate} />
       ) : route.name === 'settings' ? (
         <SettingsPage />
       ) : route.name === 'library' ? (

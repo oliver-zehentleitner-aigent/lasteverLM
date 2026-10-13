@@ -277,8 +277,15 @@ deleted from the library) stays readable with its quote and is marked
   and no mail goes out.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
-- Admin (only for admins): pages under `/admin` with a sub-navigation;
-  each page loads only its own data, every page has its own URL.
+- Admin (for the roles `admin` and `viewer`): pages under `/admin` with
+  a sub-navigation; each page loads only its own data, every page has
+  its own URL. A **viewer** reads everything: the heading carries a
+  "read-only" badge, and every write control (voucher create and
+  delete, allow-list add and remove, viewer domains, rate-limit save and
+  reset, lifting a ban, the SMTP test, role changes) is disabled with a
+  tooltip saying changes need an admin; the server answers a viewer's
+  writes with 403 as well. Without a `role` from the account service
+  the role follows `is_admin`.
   - **Overview** (`/admin`): the heading with one muted meta line,
     "v0.7.1 · b44f38a · 3 services healthy" with a status dot per
     service, linked to System. One row of six equal tiles, a number and
@@ -298,11 +305,15 @@ deleted from the library) stays readable with its quote and is marked
     (donut) next to cost by model (all time), the top users (all time)
     across both columns. A chart without data in the range is not
     drawn; one quiet line names those ("No data yet: …").
-  - **Users** (`/admin/users`): users with credit granted, used and
-    balance and their last login, the login log, sign-in attempts
+  - **Users** (`/admin/users`): users with their role (for an admin a
+    select: user, viewer, admin, after a confirmation, `PATCH
+    /api/account/admin/users/{id}`; the service's refusal for the last
+    admin or the demo user is shown as its sentence), credit granted,
+    used and balance and their last login, the login log, sign-in attempts
     (allowed or refused, with IP).
   - **Access** (`/admin/access`): allowed sign-in, domains and single
-    addresses, one entry at a time.
+    addresses, one entry at a time; below, the **viewer domains**: a new
+    user from one of them (also allowed to sign in) starts as viewer.
   - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
     that shows the codes once as chips with a copy button each ("copy
     all" for several; without the clipboard API the text is selected

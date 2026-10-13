@@ -3,10 +3,11 @@ import { admin } from '../../api/admin'
 import type { AllowKind, Allowlist } from '../../api/types'
 import { useAsync } from '../../hooks/useAsync'
 import { t } from '../../i18n'
+import { useCanWrite } from './canWrite'
 import { Section } from './shared'
 import { useLoad } from '../../hooks/useLoad'
 
-const EMPTY_ALLOWLIST: Allowlist = { allowed_domains: [], allowed_addresses: [] }
+const EMPTY_ALLOWLIST: Allowlist = { allowed_domains: [], allowed_addresses: [], viewer_domains: [] }
 
 /** Two lists edited one entry at a time; every change answers with both
  *  lists as stored (normalized, sorted), which replaces the local copy. */
@@ -30,6 +31,8 @@ export function AllowedSignIn() {
           onChange={setData}
         />
       </div>
+      <p className="muted small">{t('adm.viewerDomainsHint')}</p>
+      <AllowList kind="viewer" title={t('adm.viewerDomains')} placeholder="review.example.org" values={data.viewer_domains ?? []} onChange={setData} />
     </Section>
   )
 }
@@ -45,6 +48,7 @@ interface AllowListProps {
 function AllowList({ kind, title, placeholder, values, onChange }: AllowListProps) {
   const [value, setValue] = useState('')
   const { busy, error, run } = useAsync()
+  const canWrite = useCanWrite()
 
   async function add(e: FormEvent) {
     e.preventDefault()
@@ -57,7 +61,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
   }
 
   async function remove(v: string) {
-    if (!confirm(t(kind === 'domain' ? 'adm.removeAllowedDomain' : 'adm.removeAllowedAddress', { v }))) return
+    if (!confirm(t(kind === 'domain' ? 'adm.removeAllowedDomain' : kind === 'viewer' ? 'adm.removeViewerDomain' : 'adm.removeAllowedAddress', { v }))) return
     const ok = await run(async () => {
       await admin.removeAllowed(kind, v)
       return true
@@ -72,7 +76,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
         {values.map((v) => (
           <li key={v}>
             <span className="item">{v}</span>
-            <button type="button" className="icon" title={t('adm.remove', { v })} disabled={busy} onClick={() => void remove(v)}>
+            <button type="button" className="icon" title={canWrite ? t('adm.remove', { v }) : t('adm.readOnlyTitle')} disabled={busy || !canWrite} onClick={() => void remove(v)}>
               ×
             </button>
           </li>
@@ -80,6 +84,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
         {values.length === 0 && <li className="muted small">{t('adm.none')}</li>}
       </ul>
       <form className="row" onSubmit={add}>
+        <fieldset className="plain row" disabled={!canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')}>
         <input
           type={kind === 'address' ? 'email' : 'text'}
           value={value}
@@ -91,6 +96,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
         <button type="submit" disabled={busy || !value.trim()}>
           {t('common.add')}
         </button>
+        </fieldset>
       </form>
       {error && <p className="error">{error}</p>}
     </div>

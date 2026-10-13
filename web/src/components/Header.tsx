@@ -4,6 +4,7 @@ import type { User } from '../api/types'
 import { t } from '../i18n'
 import { versionLine } from '../lib/build'
 import { formatCents } from '../lib/format'
+import { canSeeAdmin } from '../lib/roles'
 import { useMe } from '../hooks/useMe'
 import { setTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVersion } from '../lib/theme'
 
@@ -91,7 +92,7 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         >
           {t('header.settings')}
         </a>
-        {me?.is_admin && (
+        {canSeeAdmin(me) && (
           <a
             href="/admin"
             className={route === 'admin' ? 'active' : undefined}
