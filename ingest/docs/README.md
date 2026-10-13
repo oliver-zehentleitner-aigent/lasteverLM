@@ -263,7 +263,9 @@ Failures name the mode: a PDF without any text in `text` mode fails
 with a hint to upload it with `auto` or `vision`; a PDF whose pages all
 come back empty fails with "PDF holds no readable content (capture mode
 …)"; more than `PDF_VISION_MAX_PAGES` (100) pages for the model fail
-before any call; `vision` or `auto` without a vision model configured
+before any call; a PDF of more than 2000 pages fails in every mode,
+also behind a URL ("PDF has N pages; at most 2000 are read",
+`loaders/pdf.py`, `MAX_PAGES`), before any page is read; `vision` or `auto` without a vision model configured
 fail with "capture mode … needs a vision model".
 
 ## Demo library

@@ -69,3 +69,12 @@ def test_registry_kinds_and_unknown_kind():
     assert registry.kinds == {"pdf", "text", "url"}
     with pytest.raises(LoaderError, match="no loader"):
         LoaderRegistry().get("url")
+
+
+def test_pdf_over_the_page_cap_fails_naming_the_cap(monkeypatch):
+    from lasteverlm_ingest.loaders import pdf
+
+    monkeypatch.setattr(pdf, "MAX_PAGES", 2)
+    with pytest.raises(LoaderError, match="PDF has 3 pages; at most 2 are read"):
+        PdfLoader().load(minimal_pdf(["one", "two", "three"]))
+    assert len(PdfLoader().load(minimal_pdf(["one", "two"]))) == 2
