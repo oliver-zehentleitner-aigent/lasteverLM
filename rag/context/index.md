@@ -59,7 +59,7 @@ repository root's `context/`.
 
 ## O
 
-- [outputs.md](outputs.md) — generated documents: what a generator sees, why a ready output becomes a generated source, the outputs table as the worker's job queue, and why audio fails visibly
+- [outputs.md](outputs.md) — generated documents: what a generator sees, why a ready output becomes a generated source, the outputs table as the worker's job queue, and how audio is synthesized and stored
 
 ## P
 
