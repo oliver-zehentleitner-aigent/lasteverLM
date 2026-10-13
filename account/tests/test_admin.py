@@ -1,15 +1,18 @@
-"""Admin gate, settings round-trips, write-only SMTP password, test mail."""
+"""Admin gate, domain settings round-trip, read-only SMTP view, test mail."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 from lasteverlm_core import DEMO_USER_ID
 
+from lasteverlm_account.config import Settings
 from lasteverlm_account.repository import UserRecord
 from lasteverlm_account.repository_memory import MemoryRepository
-from lasteverlm_account.service import SETTING_SMTP
+from lasteverlm_account.service import SETTING_SMTP, AccountError, AccountService
 
 from .conftest import DEMO_TOKEN, FakeMailer, bearer, login
 
@@ -64,33 +67,32 @@ def test_domains_roundtrip_normalizes(client: TestClient, mailer: FakeMailer) ->
     assert mailer.sent[-1].to == "x@acme.test"
 
 
-def test_smtp_password_is_write_only_and_kept_when_omitted(
-    client: TestClient, mailer: FakeMailer, repo: MemoryRepository
+def test_smtp_is_read_only_and_shows_the_environment_without_password(
+    client: TestClient, mailer: FakeMailer
 ) -> None:
     token, _ = login(client, mailer, "admin@example.org")
-    body = {
-        "host": "mail.test",
-        "port": 465,
-        "username": "u",
-        "password": "s3cret",
-        "from_address": "noreply@mail.test",
-        "starttls": False,
-    }
-    r = client.put("/api/account/admin/settings/smtp", json=body, headers=bearer(token))
-    assert r.status_code == 200
-    assert "password" not in r.json()
-    assert r.json() == {k: v for k, v in body.items() if k != "password"}
-    assert "s3cret" not in r.text
-
     r = client.get("/api/account/admin/settings/smtp", headers=bearer(token))
-    assert "password" not in r.json() and "s3cret" not in r.text
+    assert r.status_code == 200
+    assert r.json() == {
+        "host": "smtp.test",
+        "port": 587,
+        "username": "",
+        "from_address": "noreply@lasteverlm.test",
+        "starttls": True,
+    }
+    assert "password" not in r.text
+    # the configuration is not editable through the API any more
+    r = client.put("/api/account/admin/settings/smtp", json={"host": "x"}, headers=bearer(token))
+    assert r.status_code == 405
 
-    # update without password keeps the stored one
-    body.pop("password")
-    body["port"] = 587
-    client.put("/api/account/admin/settings/smtp", json=body, headers=bearer(token))
-    assert repo.settings[SETTING_SMTP]["password"] == "s3cret"
-    assert repo.settings[SETTING_SMTP]["port"] == 587
+
+@pytest.mark.anyio
+async def test_startup_removes_a_stored_smtp_row(
+    service: AccountService, repo: MemoryRepository
+) -> None:
+    repo.settings[SETTING_SMTP] = {"host": "old.test", "password": "old-secret"}
+    await service.startup()
+    assert SETTING_SMTP not in repo.settings
 
 
 def test_smtp_test_mail_goes_to_the_admin(client: TestClient, mailer: FakeMailer) -> None:
@@ -106,13 +108,15 @@ def test_smtp_test_mail_goes_to_the_admin(client: TestClient, mailer: FakeMailer
     assert r.json()["error"].startswith("SMTP delivery failed")
 
 
-def test_smtp_test_without_configuration_is_409(
-    client: TestClient, mailer: FakeMailer, repo: MemoryRepository
+@pytest.mark.anyio
+async def test_smtp_test_without_configuration_is_409(
+    settings: Settings, repo: MemoryRepository, mailer: FakeMailer
 ) -> None:
-    token, _ = login(client, mailer, "admin@example.org")
-    del repo.settings[SETTING_SMTP]
-    r = client.post("/api/account/admin/settings/smtp/test", headers=bearer(token))
-    assert r.status_code == 409
+    service = AccountService(replace(settings, smtp=None), repo, mailer)
+    with pytest.raises(AccountError) as exc:
+        await service.send_test_mail("admin@example.org")
+    assert exc.value.status == 409
+    assert mailer.sent == []
 
 
 def test_admin_users_shape(client: TestClient, mailer: FakeMailer) -> None:

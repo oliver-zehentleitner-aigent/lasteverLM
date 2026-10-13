@@ -87,6 +87,10 @@ class MemoryRepository:
             self.settings[key] = dict(value)
             return True
 
+    async def delete_setting(self, key: str) -> bool:
+        async with self._lock:
+            return self.settings.pop(key, None) is not None
+
     # users ------------------------------------------------------------------
     async def get_user(self, user_id: uuid.UUID) -> UserRecord | None:
         return self.users.get(user_id)

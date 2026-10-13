@@ -146,3 +146,10 @@ async def test_purge_access_tables_keeps_active_bans(repo: PostgresRepository) -
         "203.0.113.11"
     ]
     assert sorted(b.reason for b in await repo.bans(include_lifted=True)) == ["active", "lifted"]
+
+
+async def test_delete_setting_reports_whether_a_row_went(repo: PostgresRepository) -> None:
+    await repo.set_setting("smtp", {"host": "old.test", "password": "old"})
+    assert await repo.delete_setting("smtp") is True
+    assert await repo.delete_setting("smtp") is False
+    assert await repo.get_setting("smtp") is None

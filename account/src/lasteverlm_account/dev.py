@@ -1,4 +1,4 @@
-"""Development entrypoint: the full API on in-memory storage, no PostgreSQL, no SMTP.
+"""Development entrypoint: the full API on in-memory storage, no PostgreSQL, no mail server.
 
 ``make run-dev`` starts it. Sign-in links are printed to the console instead of
 mailed; ``admin@example.org`` is allowed and becomes admin, the demo user exists
@@ -18,7 +18,6 @@ from .mail import SmtpConfig
 from .main import create_app
 from .repository import UserRecord
 from .repository_memory import MemoryRepository
-from .service import SETTING_SMTP
 
 DEV_SETTINGS = Settings(
     database_url="memory://",
@@ -27,6 +26,7 @@ DEV_SETTINGS = Settings(
     demo_token="demo",
     admin_emails=frozenset({"admin@example.org"}),
     allowed_domains_seed=("example.org",),
+    smtp=SmtpConfig("console", 25, "", "", "noreply@localhost", False),
 )
 
 
@@ -42,9 +42,6 @@ def _seeded_repository() -> MemoryRepository:
     repo.users[DEMO_USER_ID] = UserRecord(
         DEMO_USER_ID, DEMO_USER_EMAIL, False, datetime.now(UTC), None
     )
-    repo.settings[SETTING_SMTP] = SmtpConfig(
-        "console", 25, "", "", "noreply@localhost", False
-    ).to_setting()
     return repo
 
 

@@ -16,7 +16,6 @@ from ..models import (
     CreateVouchersResponse,
     DomainSettings,
     Smtp,
-    SmtpUpdate,
 )
 from .deps import AdminUserDep, Service
 
@@ -44,12 +43,8 @@ async def visits(
 
 @router.get("/settings/smtp", response_model=Smtp)
 async def get_smtp(service: Service, _: AdminUserDep) -> Smtp:
-    return await service.smtp_view()
-
-
-@router.put("/settings/smtp", response_model=Smtp)
-async def put_smtp(body: SmtpUpdate, service: Service, _: AdminUserDep) -> Smtp:
-    return await service.update_smtp(body)
+    """Read-only: the configuration comes from the environment (``SMTP_*``)."""
+    return service.smtp_view()
 
 
 @router.post("/settings/smtp/test", status_code=202)

@@ -25,7 +25,7 @@ repository root's `context/`.
 
 ## A
 
-- [admin-settings.md](admin-settings.md) — environment values seed the settings table once (an empty allowlist is re-seeded), and why the SMTP password is stored in plain text for now
+- [admin-settings.md](admin-settings.md) — the allowlist seed is applied once (an empty one is re-seeded); SMTP comes from the environment only, shown read-only (the plain-text password workaround is superseded)
 
 - [auth.md](auth.md) — the former core mirror in `contracts.py` (superseded), admin addresses bypassing the allowlist, shape-only e-mail validation, the demo user's special status
 

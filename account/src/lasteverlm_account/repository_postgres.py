@@ -86,6 +86,11 @@ class PostgresRepository:
             )
             return cur.rowcount == 1
 
+    async def delete_setting(self, key: str) -> bool:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute("delete from settings where key = %s", (key,))
+            return cur.rowcount == 1
+
     # users ------------------------------------------------------------------
     async def get_user(self, user_id: uuid.UUID) -> UserRecord | None:
         async with self._pool.connection() as conn:

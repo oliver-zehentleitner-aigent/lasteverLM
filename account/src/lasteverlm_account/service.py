@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from lasteverlm_core import DEMO_USER_ID, AuthSettings, User, issue_jwt, purge_params
 
 from .config import Settings
-from .mail import Mailer, MailError, SmtpConfig, magic_link_mail
+from .mail import Mailer, MailError, magic_link_mail
 from .models import (
     AdminAccess,
     AdminBan,
@@ -22,14 +22,13 @@ from .models import (
     AdminUser,
     AdminVisit,
     Smtp,
-    SmtpUpdate,
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
 from .repository import Repository, UserRecord, VisitRecord
 
 log = logging.getLogger("lasteverlm_account")
 
-SETTING_SMTP = "smtp"
+SETTING_SMTP = "smtp"  # no longer written; a leftover row is deleted at start
 SETTING_DOMAINS = "allowed_domains"
 
 _VOUCHER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I
@@ -106,14 +105,21 @@ class AccountService:
             )
         else:
             log.info("settings: allowed_domains present (%d)", len(await self.allowed_domains()))
-        if self.settings.smtp_seed is not None:
-            seeded = await self.repo.set_setting_if_missing(
-                SETTING_SMTP, SmtpConfig(**self.settings.smtp_seed.__dict__).to_setting()
-            )
-            log.info("settings: smtp %s", "seeded from SMTP_*" if seeded else "present")
+        # SMTP comes from the environment (context/admin-settings.md); a row from the time
+        # the admin panel stored it, password included, must not linger in the database.
+        if await self.repo.delete_setting(SETTING_SMTP):
+            log.info("settings: removed the stored smtp row, SMTP comes from the environment")
+        smtp = self.settings.smtp
+        if smtp is None:
+            log.warning("smtp: not configured (SMTP_HOST unset), sign-in links cannot be mailed")
         else:
             log.info(
-                "settings: smtp %s", "present" if await self.smtp_config() else "not configured"
+                "smtp: %s:%d, from %s, starttls %s, %s",
+                smtp.host,
+                smtp.port,
+                smtp.from_address,
+                "on" if smtp.starttls else "off",
+                "with login" if smtp.username else "no login",
             )
         if not self.settings.admin_emails and not await self.allowed_domains():
             log.warning("nobody can log in: ADMIN_EMAILS is empty and allowed_domains is empty")
@@ -180,7 +186,7 @@ class AccountService:
         return PendingMail(to=email, subject=subject, body=body)
 
     async def deliver(self, mail: PendingMail) -> None:
-        config = await self.smtp_config()
+        config = self.settings.smtp
         if config is None:
             log.error("cannot send mail: SMTP is not configured")
             return
@@ -257,15 +263,9 @@ class AccountService:
             raise AccountError(403, "admin only")
         return user
 
-    async def smtp_config(self) -> SmtpConfig | None:
-        value = await self.repo.get_setting(SETTING_SMTP)
-        if value is None:
-            return None
-        config = SmtpConfig.from_setting(value)
-        return config if config.configured else None
-
-    async def smtp_view(self) -> Smtp:
-        config = await self.smtp_config()
+    def smtp_view(self) -> Smtp:
+        """What is in effect, without the password; empty host when not configured."""
+        config = self.settings.smtp
         if config is None:
             return Smtp(host="", port=587, username="", from_address="", starttls=True)
         return Smtp(
@@ -276,24 +276,8 @@ class AccountService:
             starttls=config.starttls,
         )
 
-    async def update_smtp(self, update: SmtpUpdate) -> Smtp:
-        current = await self.smtp_config()
-        password = update.password
-        if password is None:
-            password = current.password if current else ""
-        config = SmtpConfig(
-            host=update.host,
-            port=update.port,
-            username=update.username,
-            password=password,
-            from_address=str(update.from_address),
-            starttls=update.starttls,
-        )
-        await self.repo.set_setting(SETTING_SMTP, config.to_setting())
-        return await self.smtp_view()
-
     async def send_test_mail(self, to: str) -> None:
-        config = await self.smtp_config()
+        config = self.settings.smtp
         if config is None:
             raise AccountError(409, "SMTP is not configured")
         try:
