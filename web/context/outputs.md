@@ -80,3 +80,31 @@ edited titles), and it is one field on a row rag already owns.
 **Rejected alternative:** an `output_id` on the citation. Rejected by
 the family lead as a change to a shape three services read, for the same
 information the output row can carry.
+
+## "Open document" finds the cited passage by shared words, not by an offset
+
+**Id:** 5d273729-62b8-4f7a-8b4b-ee44f27a6a0c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request relayed by the family lead, 2026-10-13 (open the generated document, scroll to and flash the matching text, in a mind map the node matching the chunk's first line); how the passage is found was this directory's call
+**Revisit when:** a citation into a generated document carries a position in its Markdown, or a browser run shows the wrong block flashing
+
+For a citation into a generated document, "open document" opens its
+tab and then looks for the passage in what is rendered: the text blocks
+of the document (paragraphs, list items, table cells, headings, quotes)
+are compared with the chunk's text, and the block sharing the most
+words is scrolled to the middle and flashed (at least two shared words,
+or all words of a short label; ties go to the shorter block). In a mind
+map the node whose label matches the chunk's first line is flashed after
+a fit. Without a real match only the tab opens.
+
+**Reason:** a citation carries the chunk's text, not a position, and
+even a position in the Markdown would not survive rendering into HTML,
+a table or a markmap. The overlap uses the same word splitting as the
+provenance panel's best-matching sentence, so the two agree on what
+"the passage" is.
+
+**Rejected alternative:** an exact substring search of the chunk in the
+page. Rejected because chunk boundaries cut through blocks and the
+rendered text drops the Markdown marks, so an exact match rarely exists.
