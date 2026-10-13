@@ -23,6 +23,7 @@ from lasteverlm_core import (
     AuthError,
     ChunkView,
     Embedder,
+    Health,
     Message,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
@@ -180,10 +181,12 @@ def create_app(
     # 401 from the principal, 403 "admin only" from core for everyone else
     AdminUser = Annotated[uuid.UUID, Depends(admin_only(principal, admin_lookup))]  # noqa: N806
 
-    @app.get("/healthz")
-    @app.get(f"{PREFIX}/healthz")
-    def healthz() -> dict[str, str]:
-        return {"status": "ok"}
+    health = Health.from_env()  # the build is fixed for the life of the process
+
+    @app.get("/healthz", response_model=Health)
+    @app.get(f"{PREFIX}/healthz", response_model=Health)
+    def healthz() -> Health:
+        return health
 
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/ask", response_model=Answer)
     def ask(notebook_id: NotebookId, body: AskRequest, user: User) -> Answer:

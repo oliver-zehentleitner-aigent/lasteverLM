@@ -32,7 +32,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
 | GET | `/api/rag/admin/stats` | admins only | `AdminStats`, see below |
 | GET | `/api/rag/admin/stats/daily?days=` | admins only; `days` 1–365, default 30 | `DailyStats`, see below |
-| GET | `/healthz`, `/api/rag/healthz` | no auth | `{"status": "ok"}` |
+| GET | `/healthz`, `/api/rag/healthz` | no auth | core's `Health`: `{"status": "ok", "version", "commit"}` |
 
 Every other endpoint takes `Authorization: Bearer <token>`. Errors are
 `{"error": "<message>"}`: 401 unauthenticated, 402 credit exhausted,
@@ -154,6 +154,7 @@ missing or a configured model has no price.
 | `SIMILARITY_FLOOR` | no | minimum cosine similarity, default 0.3 |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, ... | no | core's rate-limit middleware, defaults 120 / 15 / 3; see `core/README.md` |
 | `LOG_LEVEL` | no | default `INFO` |
+| `APP_VERSION`, `APP_COMMIT` | no | the build reported on `/healthz`; `unknown` when unset |
 
 Auth, inference, prices and rate limiting are loaded by `lasteverlm_core`;
 only the rest is rag's own. Before any model call the service runs core's credit

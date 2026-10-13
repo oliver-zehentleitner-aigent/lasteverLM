@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `/healthz` answers core's `Health` (`status`, `version`, `commit` from `APP_VERSION` / `APP_COMMIT`), so the admin system view shows rag's build.
+
 ## [0.7.0] - 2026-10-13
 
 ### Added
