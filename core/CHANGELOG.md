@@ -9,6 +9,15 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `lasteverlm_core.storage`: `S3Storage` with put, get, delete and `presigned_get(key, expires_s=3600)` (SigV4), `S3Settings.from_env`, `object_key`, the `Storage` protocol; moved from ingest so that ingest and rag share one S3 client. New dependency `boto3`.
+- Usage kind `tts`, priced per input character (`tokens_in` = characters, `tokens_out` = 0); migration `0003_core_usage_tts.sql` widens the check on `usage.kind`.
+
+### Changed
+
+- `OpenAICompatibleTextToSpeech` defaults to the platform voice `ryan` (`DEFAULT_TTS_VOICE`); the OpenAI name `alloy` is rejected by the platform.
+
 ## [0.1.0] - 2026-10-12
 
 ### Added

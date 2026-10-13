@@ -11,6 +11,7 @@ from .base import (
 )
 from .openai_compat import (
     DEFAULT_MAX_TOKENS,
+    DEFAULT_TTS_VOICE,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
     OpenAICompatibleTextToSpeech,
@@ -20,6 +21,7 @@ from .openai_compat import (
 
 __all__ = [
     "DEFAULT_MAX_TOKENS",
+    "DEFAULT_TTS_VOICE",
     "LLM",
     "CompletionResult",
     "Embedder",

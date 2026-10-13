@@ -2,7 +2,8 @@
 
 What the account, ingest and rag services share: the API models, the
 bearer-token resolution, usage accounting and model prices, the provider
-interfaces, and the environment helpers that load the shared settings.
+interfaces, the object-storage client, and the environment helpers that
+load the shared settings.
 Everything here is importable from the package root; the submodules are
 the documentation of what belongs together.
 """
@@ -54,6 +55,7 @@ from .pricing import (
 )
 from .providers import (
     DEFAULT_MAX_TOKENS,
+    DEFAULT_TTS_VOICE,
     LLM,
     CompletionResult,
     Embedder,
@@ -89,6 +91,14 @@ from .settings import (
     env_required,
     load_model_prices,
 )
+from .storage import (
+    PRESIGN_SECONDS,
+    S3Settings,
+    S3Storage,
+    Storage,
+    StorageError,
+    object_key,
+)
 from .usage import (
     BALANCE_SQL,
     USAGE_SQL,
@@ -105,12 +115,14 @@ __all__ = [
     "BALANCE_SQL",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_MODEL_PRICES",
+    "DEFAULT_TTS_VOICE",
     "DEMO_USER_EMAIL",
     "DEMO_USER_ID",
     "JWT_ALGORITHM",
     "JWT_ISSUER",
     "JWT_TTL",
     "LLM",
+    "PRESIGN_SECONDS",
     "TOKEN",
     "USAGE_SQL",
     "AccessLogEntry",
@@ -148,10 +160,14 @@ __all__ = [
     "RateLimitSettings",
     "RateLimitStore",
     "RateLimiter",
+    "S3Settings",
+    "S3Storage",
     "SharedOutput",
     "Source",
     "SourceKind",
     "SourceStatus",
+    "Storage",
+    "StorageError",
     "TextToSpeech",
     "TokenClaims",
     "TokenWindowChunker",
@@ -175,6 +191,7 @@ __all__ = [
     "lift_ban",
     "load_model_prices",
     "make_client",
+    "object_key",
     "parse_model_prices",
     "purge",
     "record_usage",

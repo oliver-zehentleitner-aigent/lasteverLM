@@ -23,7 +23,7 @@ SourceKind = Literal["pdf", "text", "url", "image", "generated"]
 SourceStatus = Literal["processing", "ready", "failed"]
 OutputKind = Literal["report", "quiz", "table", "mindmap", "infographic", "audio"]
 OutputStatus = Literal["waiting", "processing", "ready", "failed"]
-UsageKind = Literal["llm", "embedding"]
+UsageKind = Literal["llm", "embedding", "tts"]
 UsageService = Literal["ingest", "rag"]
 MessageRole = Literal["user", "assistant"]
 

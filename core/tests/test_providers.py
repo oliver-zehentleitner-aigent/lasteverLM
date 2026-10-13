@@ -13,8 +13,10 @@ import pytest
 from openai import OpenAI
 
 from lasteverlm_core import (
+    DEFAULT_TTS_VOICE,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
+    OpenAICompatibleTextToSpeech,
     ProviderError,
     thinking_body,
 )
@@ -166,3 +168,32 @@ def test_llm_http_error_becomes_provider_error() -> None:
         OpenAICompatibleLLM(client, "llm").complete("s", "u")
     with pytest.raises(ProviderError, match="embedding request failed"):
         OpenAICompatibleEmbedder(client, "embed", 4).embed(["a"])
+
+
+def speech_client(requests: list[dict[str, Any]], status: int = 200) -> OpenAI:
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        if status != 200:
+            return httpx.Response(status, json={"error": {"message": "Unknown voice"}})
+        return httpx.Response(200, content=b"\xff\xf3mp3", headers={"content-type": "audio/mpeg"})
+
+    return OpenAI(
+        base_url="http://fake/v1",
+        api_key="test",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        max_retries=0,
+    )
+
+
+def test_tts_sends_the_platform_default_voice() -> None:
+    requests: list[dict[str, Any]] = []
+    tts = OpenAICompatibleTextToSpeech(speech_client(requests), "tts")
+    assert tts.synthesize("Hallo.") == b"\xff\xf3mp3"
+    assert DEFAULT_TTS_VOICE == "ryan" and tts.voice == "ryan"
+    assert requests == [{"model": "tts", "voice": "ryan", "input": "Hallo."}]
+
+
+def test_tts_http_error_becomes_provider_error() -> None:
+    tts = OpenAICompatibleTextToSpeech(speech_client([], status=400), "tts", voice="alloy")
+    with pytest.raises(ProviderError, match="speech request failed"):
+        tts.synthesize("Hallo.")
