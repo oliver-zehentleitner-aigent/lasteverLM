@@ -1,6 +1,6 @@
 # AGENTS.md
 
-lasteverLM is a NotebookLM-style assistant: upload documents, ask
+lasteverLM is a NotebookLM-style assistant: provide documents, ask
 questions, get cited answers, turn sources into documents. This is one
 repository for the whole system. The root is the umbrella: architecture,
 family-wide reasoning, task board, workflows. Each directory below is a

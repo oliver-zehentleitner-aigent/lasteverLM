@@ -1,5 +1,5 @@
 site_name: lasteverLM
-site_description: "A NotebookLM-style assistant: upload documents, ask questions, get cited answers. One repository, six services, everything on Vultr."
+site_description: "A NotebookLM-style assistant: provide documents, ask questions, get cited answers. One repository, six services, everything on Vultr."
 site_url: https://oliver-zehentleitner.github.io/lasteverLM/
 repo_url: https://github.com/oliver-zehentleitner/lasteverLM
 repo_name: oliver-zehentleitner/lasteverLM

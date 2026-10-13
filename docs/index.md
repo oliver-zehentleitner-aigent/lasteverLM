@@ -1,6 +1,6 @@
 # lasteverLM
 
-**Please explain this to me.** A NotebookLM-style assistant: upload
+**Please explain this to me.** A NotebookLM-style assistant: provide
 documents, ask questions, get answers with citations into the sources,
 and turn the sources into reports, quizzes, tables, mind maps,
 infographics and audio.
