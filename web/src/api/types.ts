@@ -38,6 +38,14 @@ export interface Answer {
   citations: Citation[]
 }
 
+/** One chat of a notebook, shown as a tab; messages belong to exactly one. */
+export interface Conversation {
+  id: string
+  notebook_id: string
+  title: string
+  created_at: string
+}
+
 export interface Message {
   id: string
   role: Role

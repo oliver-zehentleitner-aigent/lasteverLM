@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { rag } from '../api/rag'
-import type { Citation, Message, Output } from '../api/types'
+import type { Citation, Conversation, Message, Output } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { splitCitations } from '../lib/citations'
+import { activeAfterClose } from '../lib/conversations'
 
 interface Props {
   notebookId: string
@@ -12,11 +13,113 @@ interface Props {
   onCitationSelected: (c: Citation | null) => void
 }
 
-/** Right column, bottom: the conversation of one notebook. Each assistant
- *  message renders its [n] markers as buttons; a click shows the quote
- *  under the message and tells the parent which source to highlight (or
- *  which output tab to open, for a citation into a generated document). */
+/** A notebook without conversations gets its first one when the chat opens,
+ *  so a question always has a conversation to go to. Concurrent calls for
+ *  one notebook share the request, so a double mount (React's development
+ *  mode) does not create two. */
+const firstConversation = new Map<string, Promise<Conversation>>()
+function createFirst(notebookId: string): Promise<Conversation> {
+  let p = firstConversation.get(notebookId)
+  if (!p) {
+    p = rag.createConversation(notebookId).finally(() => firstConversation.delete(notebookId))
+    firstConversation.set(notebookId, p)
+  }
+  return p
+}
+
+/** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
+ *  one, "×" deletes one with its messages after a confirmation; the last
+ *  tab closed is replaced by a fresh one, so there is always a chat. */
 export function ChatPane({ notebookId, scope, onClearScope, onCitationSelected }: Props) {
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const { busy, error, run } = useAsync()
+
+  useEffect(() => {
+    void run(async () => {
+      const list = await rag.listConversations(notebookId)
+      const shown = list.length > 0 ? list : [await createFirst(notebookId)]
+      setConversations(shown)
+      setActiveId(shown[shown.length - 1].id)
+    })
+  }, [notebookId, run])
+
+  function select(id: string) {
+    setActiveId(id)
+    onCitationSelected(null)
+  }
+
+  async function add() {
+    const created = await run(() => rag.createConversation(notebookId))
+    if (created) {
+      setConversations((prev) => [...prev, created])
+      select(created.id)
+    }
+  }
+
+  async function close(c: Conversation) {
+    if (!confirm('Close this chat? Its messages are deleted.')) return
+    const next = await run(async () => {
+      await rag.deleteConversation(c.id)
+      const nextId = activeAfterClose(
+        conversations.map((x) => x.id),
+        c.id,
+        activeId,
+      )
+      const rest = conversations.filter((x) => x.id !== c.id)
+      if (nextId) return { list: rest, active: nextId }
+      const fresh = await rag.createConversation(notebookId)
+      return { list: [fresh], active: fresh.id }
+    })
+    if (next) {
+      setConversations(next.list)
+      if (next.active !== activeId) select(next.active)
+    }
+  }
+
+  const active = conversations.find((c) => c.id === activeId) ?? null
+
+  return (
+    <section className="pane chat">
+      <div className="tabs chat-tabs" role="tablist" aria-label="Chats">
+        {conversations.map((c) => (
+          <span key={c.id} className={c.id === activeId ? 'tab active' : 'tab'}>
+            <button type="button" role="tab" className="tab-label" aria-selected={c.id === activeId} onClick={() => select(c.id)}>
+              {c.title}
+            </button>
+            <button type="button" className="icon" title="Close this chat" disabled={busy} onClick={() => void close(c)}>
+              ×
+            </button>
+          </span>
+        ))}
+        <button type="button" className="icon" title="New chat" disabled={busy} onClick={() => void add()}>
+          +
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {active && (
+        <ConversationView
+          key={active.id}
+          notebookId={notebookId}
+          conversationId={active.id}
+          scope={scope}
+          onClearScope={onClearScope}
+          onCitationSelected={onCitationSelected}
+        />
+      )}
+    </section>
+  )
+}
+
+interface ConversationProps extends Props {
+  conversationId: string
+}
+
+/** One conversation: its history, the question field, and the [n] markers
+ *  of each answer as buttons; a click shows the quote under the message and
+ *  tells the parent which source to highlight (or which output tab to open,
+ *  for a citation into a generated document). */
+function ConversationView({ notebookId, conversationId, scope, onClearScope, onCitationSelected }: ConversationProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
@@ -25,8 +128,8 @@ export function ChatPane({ notebookId, scope, onClearScope, onCitationSelected }
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    void run(async () => setMessages(await rag.listMessages(notebookId)))
-  }, [notebookId, run])
+    void run(async () => setMessages(await rag.listMessages(conversationId)))
+  }, [conversationId, run])
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end' })
@@ -45,7 +148,7 @@ export function ChatPane({ notebookId, scope, onClearScope, onCitationSelected }
       ...prev,
       { id: `local-${Date.now()}`, role: 'user', content: q, citations: null, created_at: new Date().toISOString() },
     ])
-    const answer = await run(() => rag.ask(notebookId, q, scope?.id))
+    const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id))
     if (answer) {
       setMessages((prev) => [
         ...prev,
@@ -67,8 +170,7 @@ export function ChatPane({ notebookId, scope, onClearScope, onCitationSelected }
   }
 
   return (
-    <section className="pane chat">
-      <h2>Chat</h2>
+    <>
       <div className="messages">
         {messages.map((m) => (
           <article key={m.id} className={`msg ${m.role}`}>
@@ -121,7 +223,7 @@ export function ChatPane({ notebookId, scope, onClearScope, onCitationSelected }
           Ask
         </button>
       </form>
-    </section>
+    </>
   )
 }
 
