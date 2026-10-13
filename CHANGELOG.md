@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-13
+
 ### Security
 
 - `ci.yml` and `ktw-lint.yml` limit the `GITHUB_TOKEN` to read access (CodeQL `actions/missing-workflow-permissions`).
