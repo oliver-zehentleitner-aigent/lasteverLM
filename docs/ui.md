@@ -71,8 +71,9 @@ is closed. After the wizard the notebook view opens.
   and status; a click opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs
   show a spinner and poll. Each kind has its own renderer; the audio
-  player sits centred in the pane. Actions per document: ask about
-  this, print, share, full view.
+  player sits centred in the pane, and the mind map fills the pane and
+  re-fits whenever its size changes (full view, divider, window).
+  Actions per document: ask about this, print, share, full view.
 - **Divider** between viewer and chat: drag it (or arrow keys when it
   has focus) to change the split; the split is remembered per browser,
   a double-click (or Home) resets it to half and half. Hidden on narrow
@@ -104,6 +105,9 @@ is closed. After the wizard the notebook view opens.
 - **Share**: creates a share token and shows the link `/s/<token>`; the
   page renders the document read-only without login and records a
   visit. Revoke from the same place.
+  The shared page is as tall as the window: report, quiz and
+  infographic sit in a centred reading column, the mind map and the
+  table use the full width, the audio player is centred.
 - **Ask about this**: switches the chat scope to the open document
   (`scope.output_id` on `/ask`); a chip above the input shows the scope
   and clears it.
