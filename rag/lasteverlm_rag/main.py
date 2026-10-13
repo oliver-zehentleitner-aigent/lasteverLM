@@ -26,6 +26,7 @@ from lasteverlm_core import (
     Message,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
+    OpenAICompatibleTextToSpeech,
     Output,
     OutputKind,
     PostgresRateLimitStore,
@@ -72,6 +73,7 @@ from .store import (
     core_connect,
     make_pool,
 )
+from .voice_samples import SpeechUnavailable, VoiceSampleRequest, VoiceSamples
 
 PREFIX = "/api/rag"
 
@@ -93,6 +95,7 @@ def create_app(
     generators: dict[OutputKind, OutputGenerator] | None = None,
     output_service: OutputService | None = None,
     rate_limit_store: RateLimitStore | None = None,
+    voice_samples: VoiceSamples | None = None,
 ) -> FastAPI:
     """Build the app. Dependencies can be injected for tests; otherwise they come from settings."""
     settings = settings or Settings.from_env()
@@ -122,7 +125,8 @@ def create_app(
         settings.similarity_floor,
         include_generated=settings.retrieval_include_generated,
     )
-    # the API never synthesizes; it needs the object store to presign and delete audio files
+    objects = S3Storage(settings.s3) if settings.s3 else None
+    # outputs are synthesized by the worker; the API presigns and deletes their files
     outputs = output_service or OutputService(
         store,
         retriever,
@@ -131,8 +135,20 @@ def create_app(
         generators,
         settings.retrieval_k,
         settings.similarity_floor,
-        objects=S3Storage(settings.s3) if settings.s3 else None,
+        objects=objects,
         default_voice=settings.tts_voice,
+    )
+    # the one synthesis the API does itself: short, cached voice previews
+    samples = voice_samples or VoiceSamples(
+        store,
+        (
+            OpenAICompatibleTextToSpeech(
+                make_client(settings.inference), settings.tts_model, voice=settings.tts_voice
+            )
+            if settings.tts_model
+            else None
+        ),
+        objects,
     )
 
     app = FastAPI(title="lasteverLM rag", version=__version__, docs_url=None, redoc_url=None)
@@ -208,6 +224,15 @@ def create_app(
         """Inserts the job; a worker (``lasteverlm_rag.worker``) picks it up."""
         return outputs.create(user, str(notebook_id), body.kind, body.options)
 
+    @app.post(f"{PREFIX}/outputs/voice-sample")
+    def voice_sample(body: VoiceSampleRequest, user: User) -> dict[str, Any]:
+        """A short preview of a voice; synthesized once per voice, speed and
+        language, then served from storage."""
+        try:
+            return samples.sample(user, body)
+        except ValueError as exc:
+            raise InvalidOptions(str(exc)) from exc
+
     @app.get(f"{PREFIX}/outputs/options")
     def output_options(_: User) -> dict[str, Any]:
         """The options catalogue per kind: languages, voices, speeds."""
@@ -263,6 +288,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
         return error(exc.status_code, str(exc.detail))
+
+    @app.exception_handler(SpeechUnavailable)
+    async def speech_unavailable(_: Request, exc: SpeechUnavailable) -> JSONResponse:
+        return error(503, "text-to-speech is not available")
 
     @app.exception_handler(InvalidOptions)
     async def invalid_options(_: Request, exc: InvalidOptions) -> JSONResponse:

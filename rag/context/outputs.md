@@ -182,3 +182,36 @@ generation; silently ignoring unknown or misplaced options, rejected
 because a client bug would produce a document in the wrong language
 without any sign; the full 0.25–4 speed range in the UI, rejected
 because the extremes are not usable for listening.
+
+## Voice previews are cached under a key derived from the request
+
+**Id:** 84738122-4e67-4aa0-96ec-e45e56f41120
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request, relayed by the coordinator, 2026-10-13; live synthesis of the sample texts, 2026-10-13
+**Revisit when:** the platform's voices change their sound (a new model version), or the sample texts change
+
+A preview is a fixed sentence pair per language spoken by one voice at
+one speed. It is stored at `samples/<voice>/<speed>/<language>.mp3`; a
+request first checks whether that object exists and only synthesizes
+when it does not. The first requester pays one `tts` usage row (45 to
+80 characters, one cent); every later request for the same combination,
+from any user, is served from storage without a model call or charge.
+
+**Reason:** previews are the same bytes for everyone, so a key built
+from the request alone makes the cache need no table, no lookup and no
+invalidation logic: the object either exists or not. Users click
+through voices repeatedly in Settings and in the options panel; without
+the cache each click would be a paid model call and a one-to-two-second
+wait. The existence check fails loud on storage errors instead of
+treating them as "not cached", so a broken bucket cannot turn into
+repeated paid syntheses.
+
+**Rejected alternatives:** synthesizing on every request, rejected for
+cost and latency; pre-generating all combinations at deploy time,
+rejected because nine voices by four speeds by ten languages are 360
+files nobody may ever play; shipping recorded samples in the image,
+rejected because they would drift from what the configured model really
+sounds like; a database table of generated samples, rejected as a
+second record of what the object store already knows.

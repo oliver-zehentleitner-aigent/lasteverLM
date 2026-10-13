@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `POST /api/rag/outputs/voice-sample`: a short preview of a voice at a speed and in a language, synthesized once and then served from storage.
+
 ## [0.6.0] - 2026-10-13
 
 ### Added
