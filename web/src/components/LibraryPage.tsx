@@ -5,12 +5,12 @@ import type { LibraryEntry, TrashEntry } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
-import { deleteConfirmText, filterLibrary, purgeIn, type LibraryFilter } from '../lib/library'
+import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter } from '../lib/library'
 import { openTarget } from '../lib/openEntry'
 import { SOURCE_FORMS } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { ImageName } from './ImageName'
-import { t } from '../i18n'
+import { t, tn } from '../i18n'
 
 interface Props {
   onOpenNotebook: (id: string) => void
@@ -51,6 +51,9 @@ export function LibraryPage({ onOpenNotebook, onOpenSettings }: Props) {
 function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   const [entries, setEntries] = useState<LibraryEntry[]>([])
   const [filter, setFilter] = useState<LibraryFilter>({ kind: 'all', query: '' })
+  // ticked rows, kept across filtering; actions apply to those still listed
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [progress, setProgress] = useState<{ kind: 'delete' | 'add'; done: number; total: number } | null>(null)
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
@@ -79,6 +82,62 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   }
 
   const shown = filterLibrary(entries, filter)
+  const selected = entries.filter((e) => picked.has(e.id))
+  const toggle = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  /** One DELETE per entry, in order; after a failure the rest stays ticked. */
+  async function removeSelected() {
+    if (selected.length === 0 || !confirm(bulkDeleteConfirmText(selected))) return
+    await run(async () => {
+      let done = 0
+      setProgress({ kind: 'delete', done, total: selected.length })
+      try {
+        for (const e of selected) {
+          await ingest.deleteLibraryEntry(e.id)
+          done += 1
+          setProgress({ kind: 'delete', done, total: selected.length })
+          setEntries((prev) => prev.filter((x) => x.id !== e.id))
+          setPicked((prev) => {
+            const next = new Set(prev)
+            next.delete(e.id)
+            return next
+          })
+        }
+      } finally {
+        setProgress(null)
+      }
+    })
+  }
+
+  /** A notebook named after the first entry (editable), the entries added
+   *  to it one by one, then opened. */
+  async function notebookFromSelected() {
+    if (selected.length === 0) return
+    const title = prompt(t('lib.notebookTitlePrompt'), notebookTitleFrom(selected))?.trim()
+    if (!title) return
+    const id = await run(async () => {
+      const nb = await ingest.createNotebook(title)
+      let done = 0
+      setProgress({ kind: 'add', done, total: selected.length })
+      try {
+        for (const e of selected) {
+          await ingest.addFromLibrary(nb.id, e.id)
+          done += 1
+          setProgress({ kind: 'add', done, total: selected.length })
+        }
+      } finally {
+        setProgress(null)
+      }
+      return nb.id
+    })
+    if (id) onOpenNotebook(id)
+  }
 
   return (
     <>
@@ -103,9 +162,31 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
         </label>
       </div>
       {error && <p className="error">{error}</p>}
+      {selected.length > 0 && (
+        <div className="selection-bar" role="region" aria-label={tn('lib.selected', selected.length)}>
+          <span className="muted small">{progress ? t(progress.kind === 'delete' ? 'lib.progressDelete' : 'lib.progressAdd', { done: progress.done, total: progress.total }) : tn('lib.selected', selected.length)}</span>
+          <button type="button" className="secondary" disabled={busy} onClick={() => void notebookFromSelected()}>
+            {tn('lib.notebookFromN', selected.length)}
+          </button>
+          <button type="button" className="danger" disabled={busy} onClick={() => void removeSelected()}>
+            {tn('lib.deleteN', selected.length)}
+          </button>
+        </div>
+      )}
       <table>
         <thead>
           <tr>
+            <th className="pick-col">
+              <span className="pick-all">
+                <button type="button" className="link small" disabled={shown.length === 0 || shown.every((e) => picked.has(e.id))} onClick={() => setPicked((prev) => new Set([...prev, ...shown.map((e) => e.id)]))}>
+                  {t('lib.selectAll')}
+                </button>
+                /
+                <button type="button" className="link small" disabled={!shown.some((e) => picked.has(e.id))} onClick={() => setPicked((prev) => new Set([...prev].filter((id) => !shown.some((e) => e.id === id))))}>
+                  {t('lib.selectNone')}
+                </button>
+              </span>
+            </th>
             <th>{t('lib.name')}</th>
             <th>{t('lib.kind')}</th>
             <th>{t('lib.status')}</th>
@@ -119,7 +200,10 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
           {shown.map((e) => {
             const href = openTarget(e)
             return (
-              <tr key={e.id}>
+              <tr key={e.id} className={picked.has(e.id) ? 'picked' : undefined}>
+                <td className="pick-col">
+                  <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} aria-label={t('lib.selectRow', { name: e.name })} />
+                </td>
                 <td className="name">
                   <span className="name-cell">
                     {href ? (
@@ -186,7 +270,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
           })}
           {shown.length === 0 && !busy && (
             <tr>
-              <td className="muted" colSpan={7}>
+              <td className="muted" colSpan={8}>
                 {entries.length === 0 ? t('lib.empty') : t('lib.noMatch')}
               </td>
             </tr>

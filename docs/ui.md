@@ -232,6 +232,14 @@ name itself) shows the entry in a new tab: a web page at its address,
 an upload (PDF, text, image) through its presigned `preview_url`; an
 image also keeps the hover preview below. Only `http(s)` addresses are
 linked, and without a preview the action is disabled with a note.
+Each row has a checkbox ("all / none" in the column header acts on the
+rows the filter shows; ticks survive a filter change). With rows
+ticked a bar above the table offers **New notebook from n sources** (a
+title prompt, preset with the first entry's name without its extension;
+the notebook is created, each entry added from the library one by one,
+then the notebook opens) and **Delete n** (one confirmation naming every
+notebook the entries leave, then one delete per entry with "n of m" in
+the bar; after a failure the rest stays ticked).
 Delete moves the entry to the
 trash, out of every notebook, after a confirmation that names those
 notebooks. The **Trash** view next to it lists deleted entries with

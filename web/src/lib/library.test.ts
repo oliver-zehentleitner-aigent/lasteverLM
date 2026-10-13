@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibraryEntry } from '../api/types'
-import { deleteConfirmText, filterLibrary, notInNotebook, purgeIn, shortUrl } from './library'
+import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, purgeIn, shortUrl } from './library'
 
 const entry = (id: string, kind: LibraryEntry['kind'], name: string, notebooks: LibraryEntry['notebooks'] = [], url: string | null = null): LibraryEntry => ({
   id,
@@ -46,6 +46,29 @@ describe('deleteConfirmText', () => {
     )
     expect(deleteConfirmText(list[0])).toContain('It disappears from this notebook: "Thesis".')
     expect(deleteConfirmText(list[1])).toContain('It is not in any notebook.')
+  })
+})
+
+describe('bulkDeleteConfirmText', () => {
+  it('counts the entries and names each notebook once', () => {
+    const text = bulkDeleteConfirmText([list[0], list[2]])
+    expect(text).toContain('Move 2 entries to the trash?')
+    expect(text).toContain('They disappear from these 2 notebooks: "Thesis", "Rivers".')
+  })
+
+  it('says when none of them is in a notebook', () => {
+    expect(bulkDeleteConfirmText([list[1]])).toContain('None of them is in a notebook.')
+  })
+})
+
+describe('notebookTitleFrom', () => {
+  it('takes the first name without its extension', () => {
+    expect(notebookTitleFrom([{ name: 'linux_-_vi.pdf', kind: 'pdf' }, { name: 'b.txt', kind: 'text' }])).toBe('linux_-_vi')
+  })
+
+  it('keeps a web page title whole and is empty for no entries', () => {
+    expect(notebookTitleFrom([{ name: 'Danube - Wikipedia', kind: 'url' }])).toBe('Danube - Wikipedia')
+    expect(notebookTitleFrom([])).toBe('')
   })
 })
 
