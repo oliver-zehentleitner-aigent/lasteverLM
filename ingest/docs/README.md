@@ -56,6 +56,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/library/{id}` | 204 | removes it from every notebook, its chunks and its stored object |
 | GET | `/healthz` | 200 | liveness and readiness probe |
 | GET | `/admin/stats` | 200 | admins only (403 otherwise): counts over all users, see below |
+| GET | `/admin/stats/daily?days=30` | 200 | admins only: library sources created per day, see below |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
 "created_at", "library_id"}`; name, kind, status and error are the
@@ -84,6 +85,19 @@ no notebook has `"notebooks": []`.
 `CLAIM_TIMEOUT_SECONDS`), `running` is claimed by a worker; `failed` is
 the failed ones. `source_bytes` sums `library_sources.size_bytes`; rows
 created before migration 0002 have no size and count 0. One read-only query.
+
+`GET /admin/stats/daily?days=N` (1–365, default 30) answers one entry
+per UTC day for the last N days including today, oldest first, days
+without sources included:
+
+```json
+{"days": [{"day": "2026-10-13", "sources_created": 3,
+           "by_kind": {"pdf": 1, "text": 0, "url": 1, "image": 1}, "failed": 1}]}
+```
+
+It counts library sources by their creation day (generated ones
+excluded); `failed` is how many of that day's are failed now. One
+read-only query.
 
 Errors are `{"error": "<message>"}`: 400 bad upload, 401 token, 402
 credit exhausted, 403 admin only, 404 not yours or missing, 413 too large, 415

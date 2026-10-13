@@ -13,7 +13,7 @@ library read goes through `_LISTED`.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
@@ -188,6 +188,11 @@ class Repository(Protocol):
         """Counts over all users for the admin overview; read-only."""
         ...
 
+    def admin_daily(self, days: int) -> list[DailyStats]:
+        """One entry per UTC day for the last `days` days including today,
+        oldest first, days without sources included; read-only."""
+        ...
+
 
 class AdminStats(BaseModel):
     """`GET /admin/stats` over library sources (generated ones excluded). A
@@ -199,6 +204,19 @@ class AdminStats(BaseModel):
     jobs: dict[str, int]
     chunks: int
     source_bytes: int
+
+
+KINDS = ("pdf", "text", "url", "image")
+
+
+class DailyStats(BaseModel):
+    """`GET /admin/stats/daily`: library sources created that day (UTC),
+    generated ones excluded; `failed` counts those of them now failed."""
+
+    day: date
+    sources_created: int
+    by_kind: dict[str, int]
+    failed: int
 
 
 class PostgresRepository:
@@ -544,3 +562,31 @@ class PostgresRepository:
             chunks=chunks,
             source_bytes=size,
         )
+
+    _DAILY_SQL = f"""
+    select d.day::date as day,
+           count(l.id) as sources_created,
+           count(l.id) filter (where l.kind = 'pdf') as pdf,
+           count(l.id) filter (where l.kind = 'text') as text,
+           count(l.id) filter (where l.kind = 'url') as url,
+           count(l.id) filter (where l.kind = 'image') as image,
+           count(l.id) filter (where l.status = 'failed') as failed
+      from generate_series((now() at time zone 'utc')::date - (%(days)s - 1),
+                           (now() at time zone 'utc')::date, interval '1 day') as d(day)
+      left join library_sources l
+        on (l.created_at at time zone 'utc')::date = d.day::date and {_LISTED}
+     group by d.day
+     order by d.day
+    """
+
+    def admin_daily(self, days: int) -> list[DailyStats]:
+        rows = self._all(self._DAILY_SQL, {"days": days})
+        return [
+            DailyStats(
+                day=row["day"],
+                sources_created=row["sources_created"],
+                by_kind={kind: row[kind] for kind in KINDS},
+                failed=row["failed"],
+            )
+            for row in rows
+        ]
