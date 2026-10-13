@@ -5,39 +5,36 @@ not ticked. Items that need the maintainer are marked **[maintainer]**.
 
 ## Maintainer
 
-- **[maintainer]** Repository secrets and variables for `deploy.yml` (needs admin): `KUBECONFIG_B64`, `DEMO_TOKEN`; variables `DOMAIN`, `ACME_EMAIL`, `LLM_MODEL`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `MODEL_PRICES`, `S3_ENDPOINT` (see `infra/docs/operations.md`). Until then infra deploys from the machine.
-- **[maintainer]** SMTP password in the admin panel; rotate the database admin password.
-- **[maintainer]** Confirm the three pending-confirmation entries: uploads-only retrieval (`rag/context/retrieval.md`), a ban stays until an admin lifts it (`core/context/ratelimit.md`), the shared visitor salt (`account/context/privacy.md`).
+- **[maintainer]** Click through the live system over the domain: magic-link sign-in (first real mail through the SMTP Secret), PDF, URL and image sources, chat with citations, every output including audio and the mind map (katex 0.18 under it, not yet seen in a browser), share link, admin panel (SMTP read-only block and test button).
+- **[maintainer]** Vultr API access-control list: add the operator machine's new public address (`infra` gets 401 until then; Helm deploys are unaffected). Afterwards infra re-runs `make db-trust` to drop the old address.
+- **[maintainer]** Record the ten-minute tour (`docs/walkthrough.md`).
+- **[maintainer]** Decide on the database admin password rotation at the end.
 
 ## Agent A (root)
 
 - Review and merge every pull request in the family until the prototype is accepted; keep `docs/architecture.md` the truth.
-- Tag v0.2.0 once the audio end-to-end run on the cluster is green and the audio tile is on.
+- Final report for the maintainer: agents, working time, model, tokens (`marketing` statistics script, rerun at the end).
 
 ## Agent B (`infra/`)
 
-- Deploy `45ba0fa` (core/0003 migration, audio, URL and image sources, web tiles); report pods, HPAs and the smoke test.
-- `deploy.yml` first real run once the maintainer has set the repository secrets.
+- `make db-trust` once the Vultr API answers again; VKE autoscaler stays deferred until the database's VPC attachment.
 
 ## Agent C (`ingest/`)
 
-- Nothing open. Available for findings from the live run.
+- Nothing open. Available for findings from the maintainer's click-through.
 
 ## Agent D (`rag/`)
 
-- Audio end-to-end on the cluster after the deploy: create, ready, presigned URL plays, shared view, delete removes the object.
-- Confirmations from the maintainer on `context/retrieval.md` (uploads-only retrieval) once they arrive.
+- Nothing open. Available for findings from the maintainer's click-through.
 
 ## Agent E (`web/`)
 
-- Flip the audio tile (`available: true` in `web/src/lib/outputs.ts`) on D's green.
-- Click through URL and image sources over the real domain; findings as a PR.
-- Polish after the maintainer's own click-through.
+- Polish after the maintainer's click-through.
 
 ## Agent F (`account/`)
 
-- Confirmation from the maintainer on `context/privacy.md` (shared visitor salt) once it arrives.
+- Nothing open. Available for findings from the maintainer's click-through (sign-in mail, admin panel).
 
 ## Agent G (`core/`)
 
-- Standby; confirmation from the maintainer on `context/ratelimit.md` (a ban survives the purge) once it arrives.
+- Standby.
