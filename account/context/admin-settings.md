@@ -36,7 +36,8 @@ empty as well, which the startup log warns about.
 
 **Id:** c132f8c9-0be7-4b06-a237-95c956521825
 **Type:** workaround
-**Status:** active
+**Status:** superseded
+**Superseded by:** 3a1628c3-2a18-4df6-a184-b5b03b26a74f
 **Evidence:** confirmed
 **Source:** implementation, 2026-10-12
 **Revisit when:** the family settles how services get an encryption key, or the database is shared with anything outside the cluster
