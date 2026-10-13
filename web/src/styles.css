@@ -252,3 +252,8 @@ button.link.danger { color: var(--danger); }
   .datatable tr, .report tr { break-inside: avoid; }
   a[href]::after { content: ""; }
 }
+
+/* read-only key/value block (admin SMTP) */
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0 0 0.75rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }

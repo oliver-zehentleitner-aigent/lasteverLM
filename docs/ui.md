@@ -79,7 +79,8 @@ is closed. After the wizard the notebook view opens.
   dialog. A 402 anywhere opens the same dialog.
 - Admin (only for admins, one page with sections): users with last
   login and balance, login log, visitor log aggregated per day and
-  path, SMTP settings with a test button, allowed domains, voucher
+  path, SMTP settings read-only (they come from the deployment) with a
+  test button, allowed domains, voucher
   creation that shows the codes once.
 
 ## Language

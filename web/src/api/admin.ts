@@ -10,8 +10,7 @@ export interface AdminApi {
   listLogins(limit: number): Promise<LoginEvent[]>
   listVisits(days: number): Promise<VisitBucket[]>
   getSmtp(): Promise<Smtp>
-  saveSmtp(s: Smtp): Promise<Smtp>
-  testSmtp(): Promise<void>
+  testSmtp(): Promise<{ sent_to: string }>
   getAllowedDomains(): Promise<string[]>
   saveAllowedDomains(domains: string[]): Promise<string[]>
   /** Codes are shown once; the server stores only their hashes. */
@@ -31,8 +30,7 @@ const httpAdmin: AdminApi = {
   listLogins: (limit) => request<LoginEvent[]>(`${A}/logins?limit=${limit}`),
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
   getSmtp: () => request<Smtp>(`${A}/settings/smtp`),
-  saveSmtp: (s) => request<Smtp>(`${A}/settings/smtp`, { method: 'PUT', json: s }),
-  testSmtp: () => request<void>(`${A}/settings/smtp/test`, { method: 'POST' }),
+  testSmtp: () => request<{ sent_to: string }>(`${A}/settings/smtp/test`, { method: 'POST' }),
   getAllowedDomains: () => request<Domains>(`${A}/settings/domains`).then((d) => d.allowed_domains),
   saveAllowedDomains: (allowed_domains) =>
     request<Domains>(`${A}/settings/domains`, { method: 'PUT', json: { allowed_domains } }).then((d) => d.allowed_domains),
@@ -70,7 +68,7 @@ function mockAdmin(): AdminApi {
     { at: '2026-10-12T20:16:00Z', ip: '203.0.113.7', method: 'POST', path: '/api/account/auth/request-link', status: 429, user_id: null, service: 'account' },
     { at: '2026-10-12T20:15:30Z', ip: '198.51.100.9', method: 'POST', path: '/api/rag/notebooks/n1/ask', status: 200, user_id: 'u1', service: 'rag' },
   ]
-  let smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
+  const smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
   let domains = ['example.org']
 
   return {
@@ -78,11 +76,7 @@ function mockAdmin(): AdminApi {
     listLogins: (limit) => delay(logins.slice(0, limit)),
     listVisits: () => delay([...visits]),
     getSmtp: () => delay({ ...smtp }),
-    saveSmtp: (s) => {
-      smtp = { ...s, password: undefined }
-      return delay({ ...smtp })
-    },
-    testSmtp: () => delay(undefined),
+    testSmtp: () => delay({ sent_to: 'admin@example.org' }),
     getAllowedDomains: () => delay([...domains]),
     saveAllowedDomains: (d) => {
       domains = [...d]

@@ -194,76 +194,44 @@ function AllowedDomains() {
   )
 }
 
-const EMPTY_SMTP: Smtp = { host: '', port: 587, username: '', from_address: '', starttls: true }
-
 function SmtpSettings() {
-  const { data, setData, busy, error, run } = useLoad<Smtp>(admin.getSmtp, EMPTY_SMTP)
-  const [form, setForm] = useState<Smtp | null>(null)
-  const [tested, setTested] = useState(false)
-  const f = form ?? data
-  const set = (patch: Partial<Smtp>) => setForm({ ...f, ...patch })
-
-  async function save(e: FormEvent) {
-    e.preventDefault()
-    const saved = await run(() => admin.saveSmtp(f))
-    if (saved) {
-      setData(saved)
-      setForm(null)
-    }
-  }
+  const { data, error: loadError } = useLoad<Smtp | null>(admin.getSmtp, null)
+  const { busy, error, run } = useAsync()
+  const [sentTo, setSentTo] = useState<string | null>(null)
+  const configured = data !== null && data.host !== ''
 
   async function test() {
-    setTested(false)
-    const ok = await run(async () => {
-      await admin.testSmtp()
-      return true
-    })
-    if (ok) setTested(true)
+    setSentTo(null)
+    const r = await run(() => admin.testSmtp())
+    if (r) setSentTo(r.sent_to)
   }
 
   return (
     <Section title="SMTP (sign-in mails)">
-      <form className="grid2" onSubmit={save}>
-        <label>
-          Host
-          <input value={f.host} onChange={(e) => set({ host: e.target.value })} />
-        </label>
-        <label>
-          Port
-          <input type="number" value={f.port} onChange={(e) => set({ port: Number(e.target.value) })} />
-        </label>
-        <label>
-          Username
-          <input value={f.username} onChange={(e) => set({ username: e.target.value })} autoComplete="off" />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={f.password ?? ''}
-            placeholder="unchanged"
-            onChange={(e) => set({ password: e.target.value })}
-            autoComplete="new-password"
-          />
-        </label>
-        <label>
-          From address
-          <input type="email" value={f.from_address} onChange={(e) => set({ from_address: e.target.value })} />
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={f.starttls} onChange={(e) => set({ starttls: e.target.checked })} /> STARTTLS
-        </label>
-        {error && <p className="error">{error}</p>}
-        {tested && <p className="muted">Test mail queued.</p>}
-        <div className="row">
-          <button type="button" className="secondary" disabled={busy || form !== null} onClick={() => void test()}>
-            Send test mail
-          </button>
-          <button type="submit" disabled={busy || form === null}>
-            Save SMTP settings
-          </button>
-        </div>
-      </form>
+      <p className="muted small">Configured in the deployment (Secret lasteverlm-smtp, set by the operator); changing it needs a redeploy.</p>
+      {data && configured ? (
+        <dl className="kv">
+          <dt>Host</dt>
+          <dd>{data.host}</dd>
+          <dt>Port</dt>
+          <dd>{data.port}</dd>
+          <dt>Username</dt>
+          <dd>{data.username || '—'}</dd>
+          <dt>From address</dt>
+          <dd>{data.from_address}</dd>
+          <dt>STARTTLS</dt>
+          <dd>{data.starttls ? 'yes' : 'no'}</dd>
+        </dl>
+      ) : (
+        data && <p>Not configured: sign-in mails cannot be sent.</p>
+      )}
+      {(loadError ?? error) && <p className="error">{loadError ?? error}</p>}
+      {sentTo && <p className="muted">Test mail queued for {sentTo}.</p>}
+      <div className="row">
+        <button type="button" className="secondary" disabled={busy || !configured} onClick={() => void test()}>
+          Send test mail
+        </button>
+      </div>
     </Section>
   )
 }
