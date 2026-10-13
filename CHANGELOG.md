@@ -6,6 +6,11 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- README: the docs-site badge replaces the static Keep the Why badge; the live dashboard badge stays.
+- Python is formatted with black (line length 100) in every service; ruff keeps linting (`context/workflow.md`).
+
 ## [0.2.0] - 2026-10-13
 
 ### Added

@@ -1,6 +1,6 @@
 # lasteverLM
 
-[![Keep the Why](https://keepthewhy.com/assets/badge.svg)](https://keepthewhy.com) [![Keep the Why · live](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/badge-entries.svg)](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/) [![ci](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml) [![ktw-lint](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml)
+[![Read the Docs](https://img.shields.io/badge/read-%20docs-yellow)](https://oliver-zehentleitner.github.io/lasteverLM/) [![Keep the Why · live](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/badge-entries.svg)](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/) [![ci](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml) [![ktw-lint](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml)
 
 A NotebookLM-style assistant: upload documents, ask questions, get cited answers.
 
