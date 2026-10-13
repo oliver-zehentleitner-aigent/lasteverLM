@@ -35,6 +35,10 @@ MAX_EDGE_PX = 2000
 JPEG_QUALITY = 85
 # Model calls in flight at once; usage is billed as each batch returns.
 PARALLEL_PAGES = 4
+# Most pages of a PDF read at all, in any mode: the text layer of every
+# page is extracted, which costs worker time a 20 MB file of tiny pages
+# could stretch without end. The vision cap (PDF_VISION_MAX_PAGES) is lower.
+MAX_PAGES = 2000
 
 
 def text_pages(data: bytes) -> list[str]:
@@ -43,6 +47,8 @@ def text_pages(data: bytes) -> list[str]:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
             raise LoaderError("PDF is encrypted")
+        if len(reader.pages) > MAX_PAGES:
+            raise LoaderError(f"PDF has {len(reader.pages)} pages; at most {MAX_PAGES} are read")
         return [(page.extract_text() or "").strip() for page in reader.pages]
     except PyPdfError as exc:
         raise LoaderError(f"PDF could not be read: {exc}") from exc

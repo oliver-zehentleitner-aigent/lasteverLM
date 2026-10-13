@@ -65,7 +65,7 @@ repository root's `context/`.
 
 ## P
 
-- [pdf-capture.md](pdf-capture.md) — why PDFs have text, vision and auto capture, what each costs, and why pypdfium2 renders one page at a time
+- [pdf-capture.md](pdf-capture.md) — why PDFs have text, vision and auto capture, what each costs, and why pypdfium2 renders one page at a time; why a PDF over 2000 pages is not read
 
 ## Q
 
