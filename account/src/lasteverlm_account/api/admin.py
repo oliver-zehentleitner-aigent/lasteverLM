@@ -190,10 +190,21 @@ async def bans(
     return await service.admin_bans(include_lifted)
 
 
-@router.delete("/bans/{ip}", status_code=204)
+@router.delete("/bans", status_code=204)
 async def lift_ban(
+    service: Service, _: AdminUserDep, ip: str = Query(min_length=1, max_length=64)
+) -> Response:
+    """Lift the ban on a key: an IPv4 address or an IPv6 /64 prefix such as
+    ``2001:db8:1:2::/64`` — the slash is why the key travels as a query parameter."""
+    await service.lift_ban(ip)
+    return Response(status_code=204)
+
+
+@router.delete("/bans/{ip}", status_code=204, deprecated=True)
+async def lift_ban_by_path(
     service: Service, _: AdminUserDep, ip: str = Path(min_length=1, max_length=64)
 ) -> Response:
+    """IPv4 keys only (a prefix would not fit a path segment); use ``DELETE /bans?ip=``."""
     await service.lift_ban(ip)
     return Response(status_code=204)
 

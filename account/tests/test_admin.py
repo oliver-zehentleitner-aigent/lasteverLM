@@ -41,6 +41,7 @@ ADMIN_ROUTES = [
     ("GET", "/api/account/admin/blocks", None),
     ("GET", "/api/account/admin/bans", None),
     ("DELETE", "/api/account/admin/bans/203.0.113.1", None),
+    ("DELETE", "/api/account/admin/bans?ip=2001:db8:1:2::/64", None),
     ("GET", "/api/account/admin/access", None),
 ]
 
@@ -238,14 +239,13 @@ def test_stats_overview(
     from lasteverlm_account.repository import BanRecord, BlockRecord
     from lasteverlm_account.repository_memory import _Usage
 
-    # The admin logs in two days before the user, so only one login falls into the 24 h window.
-    # (The clock moves backwards first: a token issued in the real future would be immature.)
-    clock.advance(days=-2)
+    # The admin's login is backdated two days, so only one login falls into the 24 h window.
+    # (Not via the clock: a one-day token issued two days ago would already be expired.)
     token, admin = login(client, mailer, "admin@example.org")
+    repo.logins[0] = replace(repo.logins[0], at=clock.now - timedelta(days=2))
     codes = client.post(
         "/api/account/admin/vouchers", json={"amount_cents": 300, "count": 3}, headers=bearer(token)
     ).json()["codes"]
-    clock.advance(days=2)
     user_token, user = login(client, mailer, "user@example.org")
     r = client.post(
         "/api/account/vouchers/redeem", json={"code": codes[0]}, headers=bearer(user_token)
@@ -318,12 +318,11 @@ def test_daily_stats_have_every_day_oldest_first(
     from lasteverlm_account.repository import VisitRecord
     from lasteverlm_account.repository_memory import _Usage
 
-    clock.advance(days=-2)
-    token, _ = login(client, mailer, "admin@example.org")  # one login two days ago
+    token, _ = login(client, mailer, "admin@example.org")
+    repo.logins[0] = replace(repo.logins[0], at=clock.now - timedelta(days=2))  # two days ago
     codes = client.post(
         "/api/account/admin/vouchers", json={"amount_cents": 400}, headers=bearer(token)
     ).json()["codes"]
-    clock.advance(days=2)
     user_token, user = login(client, mailer, "user@example.org")  # one login today
     client.post("/api/account/vouchers/redeem", json={"code": codes[0]}, headers=bearer(user_token))
     today = clock.now

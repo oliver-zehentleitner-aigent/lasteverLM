@@ -31,7 +31,7 @@ class Settings:
     smtp: SmtpConfig | None = None  # None: no SMTP_HOST, sign-in mails cannot be sent
     magic_link_ttl_minutes: int = 15
     link_quota_per_hour: int = 5  # sign-in links per address per hour, then 429
-    jwt_ttl_days: int = 7
+    jwt_ttl_days: int = 1  # sign-out is client-side; a token lives at most this long
     voucher_default_cents: int = 1000
     visit_retention_days: int = 30
     access_retention_days: int = 30  # core's RETENTION_DAYS, for the tables its middleware writes
@@ -87,7 +87,7 @@ class Settings:
             link_quota_per_hour=_positive_int(
                 env.get("LINK_QUOTA_PER_HOUR", "5"), "LINK_QUOTA_PER_HOUR"
             ),
-            jwt_ttl_days=_positive_int(env.get("JWT_TTL_DAYS", "7"), "JWT_TTL_DAYS"),
+            jwt_ttl_days=_positive_int(env.get("JWT_TTL_DAYS", "1"), "JWT_TTL_DAYS"),
             voucher_default_cents=_positive_int(
                 env.get("VOUCHER_DEFAULT_CENTS", "1000"), "VOUCHER_DEFAULT_CENTS"
             ),

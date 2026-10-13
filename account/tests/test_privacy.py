@@ -104,7 +104,7 @@ def test_admin_visits_aggregates_per_day_and_path(
     r = client.get(ADMIN_VISITS, params={"days": 7}, headers=bearer(token))
     assert r.status_code == 200
     rows = {row["path"]: row for row in r.json()}
-    assert rows["/"] == {"day": "2026-10-12", "path": "/", "visits": 3, "unique": 2}
+    assert rows["/"] == {"day": clock.now.date().isoformat(), "path": "/", "visits": 3, "unique": 2}
     assert rows["/about"]["visits"] == 1 and rows["/about"]["unique"] == 1
     assert set(rows["/"]) == {"day", "path", "visits", "unique"}
 

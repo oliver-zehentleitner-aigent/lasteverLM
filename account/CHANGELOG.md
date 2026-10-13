@@ -15,6 +15,11 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- Session tokens live one day by default (`JWT_TTL_DAYS=1`, was 7); sign-out is client-side, SECURITY.md says so.
+- Lifting a ban: `DELETE /admin/bans?ip=<key>` takes the key as a query parameter because IPv6 bans are keyed by a /64 prefix, which carries a slash; the path form stays for IPv4 one release, deprecated.
+
+### Changed
+
 - The client address for visits and sign-in attempts is resolved by core's `client_ip`, the same way the rate-limit middleware does; a malformed `X-Forwarded-For` becomes `0.0.0.0` instead of a failed insert.
 - `output_language` is capped at 35 characters, the callback token at 512; the OpenAPI version is `APP_VERSION`.
 
