@@ -442,7 +442,8 @@ class OutputService:
                 "title": row.title,
                 "content": self._public_content(row.content),
                 "created_at": row.created_at,
-                "options": row.options,
+                # the source selection names the owner's link ids: not for strangers
+                "options": {k: v for k, v in row.options.items() if k != "sources"},
             }
         )
 

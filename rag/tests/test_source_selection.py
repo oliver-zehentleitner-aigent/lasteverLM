@@ -124,3 +124,15 @@ def test_an_output_whose_selected_sources_are_gone_fails_visibly(settings):
     client.worker.run_once()
     out = client.get(f"/api/rag/outputs/{r.json()['id']}", headers=AUTH).json()
     assert (out["status"], out["error"]) == ("failed", "none of the selected sources is ready")
+
+
+def test_the_shared_view_does_not_reveal_the_selected_source_ids(settings):
+    store, _, vnc, retriever = notebook_with_two_pdfs()
+    client = make_client(settings, store, retriever, FakeLLM(REPORT))
+    body = {"kind": "report", "options": {"language": "de"}, "source_ids": [vnc]}
+    output_id = client.post(OUTPUTS, json=body, headers=AUTH).json()["id"]
+    client.worker.run_once()
+    token = client.post(f"/api/rag/outputs/{output_id}/share", headers=AUTH).json()["share_token"]
+    shared = client.get(f"/api/rag/shared/{token}").json()
+    assert shared["options"] == {"language": "de"}
+    assert vnc not in str(shared)

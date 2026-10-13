@@ -106,7 +106,8 @@ answered. A `scope.output_id` wins over the selection. On an output the
 selection is stored as `options.sources` (the ids, deduplicated) and the
 generator reads only those sources' summaries and chunks, balanced over
 the selection; if none of them is ready when the job runs, the output
-fails with `none of the selected sources is ready`.
+fails with `none of the selected sources is ready`. The shared view
+(`/shared/{token}`) leaves `options.sources` out: it names the owner's ids.
 
 **Outputs.** `POST /outputs` inserts the job and answers at once. The
 worker entrypoint (`lasteverlm-rag-worker`) claims jobs from the
