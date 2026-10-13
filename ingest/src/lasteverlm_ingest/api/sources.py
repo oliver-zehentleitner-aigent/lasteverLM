@@ -7,13 +7,14 @@ from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from lasteverlm_core import Source, StorageError, object_key
+from lasteverlm_core import Source, Storage, StorageError, object_key
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
 from lasteverlm_ingest.api.deps import (
     owned_notebook,
     owned_source,
+    preview_url,
     repository,
     seed_if_new,
     worker_deps,
@@ -22,8 +23,8 @@ from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
 from lasteverlm_ingest.loaders.url import check_url, normalize_url
-from lasteverlm_ingest.repository import NewLibrarySource, Repository, StoredSource
-from lasteverlm_ingest.worker import CREDIT_EXHAUSTED
+from lasteverlm_ingest.repository import NewLibrarySource, StoredSource
+from lasteverlm_ingest.worker import CREDIT_EXHAUSTED, WorkerDeps
 
 router = APIRouter()
 
@@ -71,6 +72,7 @@ class LinkedSource(Source):
     library_id: UUID
     capture: str | None = None
     demo: bool = False
+    preview_url: str | None = None
 
 
 def _capture(value: object) -> Capture:
@@ -85,8 +87,10 @@ def _capture(value: object) -> Capture:
     return value  # type: ignore[return-value]
 
 
-def _out(source: StoredSource) -> LinkedSource:
-    return LinkedSource.model_validate(source, from_attributes=True)
+def _out(source: StoredSource, storage: Storage) -> LinkedSource:
+    out = LinkedSource.model_validate(source, from_attributes=True)
+    out.preview_url = preview_url(storage, source.kind, source.storage_path)
+    return out
 
 
 def detect_kind(filename: str, media_type: str | None) -> str | None:
@@ -103,9 +107,9 @@ def safe_name(filename: str) -> str:
 
 @router.get("/notebooks/{notebook_id}/sources", response_model=list[LinkedSource])
 def list_sources(request: Request, user: CurrentUser, notebook_id: UUID) -> list[LinkedSource]:
-    repo = repository(request)
-    owned_notebook(repo, user, notebook_id)
-    return [_out(s) for s in repo.list_sources(notebook_id)]
+    deps = worker_deps(request)
+    owned_notebook(deps.repository, user, notebook_id)
+    return [_out(s, deps.storage) for s in deps.repository.list_sources(notebook_id)]
 
 
 @router.post("/notebooks/{notebook_id}/sources", response_model=LinkedSource, status_code=202)
@@ -154,7 +158,7 @@ async def create_source(
             entry = repo.get_library_entry(user, body.library_id)
             if entry is None:
                 raise HTTPException(status_code=404, detail="library source not found")
-            return _link(repo, response, notebook_id, entry.id)
+            return _link(deps, response, notebook_id, entry.id)
         assert body.url is not None
         if "url" not in deps.loaders.kinds:
             raise HTTPException(status_code=501, detail="URL sources are not supported yet")
@@ -179,7 +183,7 @@ async def create_source(
         if existing.status == "failed":
             # Uploading again is the user's way to retry.
             repo.retry_library_source(existing.id)
-        return _link(repo, response, notebook_id, existing.id)
+        return _link(deps, response, notebook_id, existing.id)
 
     # Only a new library source costs anything (its processing).
     if not repo.has_credit(user):
@@ -214,16 +218,16 @@ async def create_source(
             deps.storage.delete(key)
     # Nothing else happens here: the library source is in the queue, a
     # worker claims it (see worker.run_worker).
-    return _link(repo, response, notebook_id, created.id)
+    return _link(deps, response, notebook_id, created.id)
 
 
 def _link(
-    repo: Repository, response: Response, notebook_id: UUID, library_id: UUID
+    deps: WorkerDeps, response: Response, notebook_id: UUID, library_id: UUID
 ) -> LinkedSource:
-    source, new = repo.link_source(notebook_id, library_id)
+    source, new = deps.repository.link_source(notebook_id, library_id)
     if not new:
         response.status_code = 200
-    return _out(source)
+    return _out(source, deps.storage)
 
 
 @router.delete("/sources/{source_id}", status_code=204)

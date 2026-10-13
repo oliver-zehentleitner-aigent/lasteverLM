@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Image sources carry `preview_url`, a presigned GET of the stored original valid for one hour, on the notebook's source list, the library and the trash, so the frontend shows the image instead of its file name; `null` for every other kind.
+
 ## [0.7.2] - 2026-10-13
 
 ### Fixed

@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import HTTPException, Request
-from lasteverlm_core import Notebook
+from lasteverlm_core import Notebook, Storage
 
 from lasteverlm_ingest.repository import Repository, StoredSource
 from lasteverlm_ingest.seeds import ensure_seeded
@@ -37,3 +37,12 @@ def owned_source(repo: Repository, user: UUID, source_id: UUID) -> StoredSource:
     if source is None or source.owner != user:
         raise HTTPException(status_code=404, detail="source not found")
     return source
+
+
+def preview_url(storage: Storage, kind: str, storage_path: str | None) -> str | None:
+    """For an image, a presigned GET of the stored original (valid one hour),
+    so the frontend shows it in an `<img>` without a bearer header; None for
+    every other kind."""
+    if kind != "image" or not storage_path:
+        return None
+    return storage.presigned_get(storage_path)

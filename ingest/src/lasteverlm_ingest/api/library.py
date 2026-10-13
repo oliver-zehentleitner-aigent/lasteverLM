@@ -8,11 +8,16 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from lasteverlm_ingest.api.deps import repository, seed_if_new, worker_deps
+from lasteverlm_ingest.api.deps import preview_url, repository, seed_if_new, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.repository import LibraryEntry, TrashEntry
 
 router = APIRouter()
+
+
+def _with_preview[E: (LibraryEntry, TrashEntry)](request: Request, entry: E) -> E:
+    entry.preview_url = preview_url(worker_deps(request).storage, entry.kind, entry.storage_path)
+    return entry
 
 
 def _not_found() -> HTTPException:
@@ -23,13 +28,13 @@ def _not_found() -> HTTPException:
 def list_library(request: Request, user: CurrentUser) -> list[LibraryEntry]:
     """A new user's first look at the library seeds the demo sources."""
     seed_if_new(request, user)
-    return repository(request).list_library(user)
+    return [_with_preview(request, e) for e in repository(request).list_library(user)]
 
 
 # Before /library/{library_id}, which would take "trash" for an id.
 @router.get("/library/trash", response_model=list[TrashEntry])
 def list_trash(request: Request, user: CurrentUser) -> list[TrashEntry]:
-    return repository(request).list_trash(user)
+    return [_with_preview(request, e) for e in repository(request).list_trash(user)]
 
 
 @router.get("/library/{library_id}", response_model=LibraryEntry)
@@ -37,7 +42,7 @@ def get_library_entry(request: Request, user: CurrentUser, library_id: UUID) -> 
     entry = repository(request).get_library_entry(user, library_id)
     if entry is None:
         raise _not_found()
-    return entry
+    return _with_preview(request, entry)
 
 
 @router.delete("/library/{library_id}", status_code=204)

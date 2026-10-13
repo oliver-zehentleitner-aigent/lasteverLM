@@ -79,6 +79,7 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
         "library_id",
         "capture",
         "demo",
+        "preview_url",
     }
     assert body["capture"] is None  # only PDFs have a capture mode
     # The API only stored the file and queued the library source.

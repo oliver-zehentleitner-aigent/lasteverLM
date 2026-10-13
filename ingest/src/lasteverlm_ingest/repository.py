@@ -23,7 +23,7 @@ from lasteverlm_core import Chunk, ModelPrices, Notebook, Source, UsageRecord
 from lasteverlm_core import has_credit as core_has_credit
 from lasteverlm_core import is_admin as core_is_admin
 from lasteverlm_core import record_usage as core_record_usage
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StoredSource(Source):
@@ -85,6 +85,9 @@ class LibraryEntry(BaseModel):
     capture: str | None = None
     demo: bool = False
     notebooks: list[NotebookUse]
+    # Set by the API for images: a presigned GET of the stored object.
+    preview_url: str | None = None
+    storage_path: str | None = Field(default=None, exclude=True)
 
 
 class TrashEntry(BaseModel):
@@ -102,6 +105,8 @@ class TrashEntry(BaseModel):
     purge_at: datetime
     capture: str | None = None
     demo: bool = False
+    preview_url: str | None = None
+    storage_path: str | None = Field(default=None, exclude=True)
 
 
 class NewLibrarySource(BaseModel):
@@ -485,7 +490,7 @@ class PostgresRepository:
 
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
-           l.capture, l.demo,
+           l.capture, l.demo, l.storage_path,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -523,7 +528,7 @@ class PostgresRepository:
     def list_trash(self, owner: UUID) -> list[TrashEntry]:
         rows = self._all(
             f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
-            f"l.capture, l.demo, l.deleted_at, "
+            f"l.capture, l.demo, l.storage_path, l.deleted_at, "
             f"l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
             f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
             f"and l.deleted_at is not null order by l.deleted_at desc, l.id",
