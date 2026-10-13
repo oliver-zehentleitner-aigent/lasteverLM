@@ -40,6 +40,7 @@ def test_full_login_flow_issues_jwt_and_creates_user(
         "output_language": None,
         "audio_voice": None,
         "trash_days": None,
+        "pdf_capture": None,
     }
 
 

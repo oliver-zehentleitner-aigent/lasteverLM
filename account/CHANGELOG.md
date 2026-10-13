@@ -13,6 +13,7 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Preference `pdf_capture` (auto|text|vision, null = auto): the default capture mode for PDF uploads; the web sends the resolved value per upload.
 - Preference `trash_days` (1–365, null = 14): how long a deleted library entry stays in the trash before ingest purges it.
 
 ### Added
