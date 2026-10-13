@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-13
+
 ### Added
 
 - `GET /api/ingest/admin/stats` (admins only, core's `admin_only`): sources by status, jobs pending/running/failed, total chunks and stored bytes.
