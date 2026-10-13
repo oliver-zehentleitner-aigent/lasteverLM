@@ -1,38 +1,19 @@
-from types import SimpleNamespace
-
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 from lasteverlm_core import DEMO_USER_ID, MemoryRateLimitStore, ProviderError
 from openai import APIConnectionError, BadRequestError
 
-from lasteverlm_ingest.loaders import BilledLoaderError, LoaderError, default_registry
-from lasteverlm_ingest.loaders.image import ImageLoader, sniff_image_type
+from lasteverlm_ingest.loaders import LoaderError, default_registry
+from lasteverlm_ingest.loaders.image import ImageLoader, VisionReader, sniff_image_type
 from lasteverlm_ingest.main import create_app
 from lasteverlm_ingest.worker import process_source
 from tests.conftest import DEMO_TOKEN, make_settings
+from tests.fakes import FakeChat
 from tests.test_worker import USER, deps
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 REQUEST = httpx.Request("POST", "https://inference.test/v1/chat/completions")
-
-
-class FakeChat:
-    def __init__(self, answer: str = "Umsatz 4,2 Mio\n\nA bar chart.", error=None) -> None:
-        self.answer, self.error = answer, error
-        self.calls: list[dict] = []
-        self.chat = SimpleNamespace(completions=self)
-
-    def create(self, **kwargs):
-        self.calls.append(kwargs)
-        if self.error:
-            raise self.error
-        return SimpleNamespace(
-            choices=[
-                SimpleNamespace(message=SimpleNamespace(content=self.answer), finish_reason="stop")
-            ],
-            usage=SimpleNamespace(prompt_tokens=202, completion_tokens=40),
-        )
 
 
 @pytest.mark.parametrize(
@@ -50,10 +31,15 @@ def test_sniff_image_type(data, media_type):
     assert sniff_image_type(data) == media_type
 
 
+def _loader(fake, model="fake-llm", **kwargs) -> ImageLoader:
+    return ImageLoader(VisionReader(fake, model, **kwargs))
+
+
 def test_image_becomes_one_passage_and_its_usage():
-    fake = FakeChat()
-    passages, usage = ImageLoader(fake, "fake-llm", max_tokens=99).load_with_usage(PNG)
+    fake, billed = FakeChat(), []
+    passages = _loader(fake, max_tokens=99).load_billed(PNG, billed.append)
     assert [p.text for p in passages] == ["Umsatz 4,2 Mio\n\nA bar chart."]
+    [usage] = billed
     assert (usage.kind, usage.model, usage.tokens_in, usage.tokens_out) == (
         "llm",
         "fake-llm",
@@ -67,21 +53,24 @@ def test_image_becomes_one_passage_and_its_usage():
 
 
 def test_image_failures_are_classified():
+    billed: list = []
     with pytest.raises(LoaderError, match="not a PNG"):
-        ImageLoader(FakeChat(), "m").load_with_usage(b"plain text")
+        _loader(FakeChat()).load_billed(b"plain text", billed.append)
     refused = BadRequestError("bad image", response=httpx.Response(400, request=REQUEST), body=None)
     with pytest.raises(LoaderError, match="could not read the image"):
-        ImageLoader(FakeChat(error=refused), "m").load_with_usage(PNG)
+        _loader(FakeChat(error=refused)).load_billed(PNG, billed.append)
     with pytest.raises(ProviderError):
-        ImageLoader(FakeChat(error=APIConnectionError(request=REQUEST)), "m").load_with_usage(PNG)
-    with pytest.raises(BilledLoaderError, match="no readable content") as caught:
-        ImageLoader(FakeChat(answer=" "), "m").load_with_usage(PNG)
-    assert (caught.value.usage.tokens_in, caught.value.usage.tokens_out) == (202, 40)
+        _loader(FakeChat(error=APIConnectionError(request=REQUEST))).load_billed(PNG, billed.append)
+    assert billed == []
+    # An empty answer is the model's answer: billed, then failed for good.
+    with pytest.raises(LoaderError, match="no readable content"):
+        _loader(FakeChat(answer=" ")).load_billed(PNG, billed.append)
+    assert [(u.tokens_in, u.tokens_out) for u in billed] == [(202, 40)]
 
 
 def _image_deps(repo, storage, embedder, fake):
     d = deps(repo, storage, embedder)
-    loaders = default_registry(image=ImageLoader(fake, "fake-llm"))
+    loaders = default_registry(vision=VisionReader(fake, "fake-llm"))
     return d.__class__(**{**d.__dict__, "loaders": loaders})
 
 
@@ -129,7 +118,7 @@ def test_image_upload(repo, storage, embedder, summarizer):
         storage=storage,
         embedder=embedder,
         summarizer=summarizer,
-        loaders=default_registry(image=ImageLoader(FakeChat(), "fake-llm")),
+        loaders=default_registry(vision=VisionReader(FakeChat(), "fake-llm")),
     )
     with TestClient(app) as client:
         client.headers["Authorization"] = f"Bearer {DEMO_TOKEN}"

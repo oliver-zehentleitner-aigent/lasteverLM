@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import math
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from lasteverlm_core import (
@@ -150,6 +151,7 @@ class InMemoryRepository:
             summary=lib.summary,
             attempts=lib.attempts,
             size_bytes=lib.size_bytes,
+            capture=lib.capture,
         )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
@@ -212,6 +214,7 @@ class InMemoryRepository:
             size_bytes=lib.size_bytes,
             url=lib.url,
             created_at=lib.created_at,
+            capture=lib.capture,
             notebooks=[
                 NotebookUse(id=nb, title=self.notebooks[nb][1].title, source_id=link_id)
                 for _, link_id, nb in uses
@@ -375,6 +378,27 @@ class InMemoryRepository:
                 )
             )
         return out
+
+
+class FakeChat:
+    """The OpenAI client's chat.completions as far as the vision reader uses
+    it: one fixed answer (or error) per call, every request recorded."""
+
+    def __init__(self, answer: str = "Umsatz 4,2 Mio\n\nA bar chart.", error=None) -> None:
+        self.answer, self.error = answer, error
+        self.calls: list[dict] = []
+        self.chat = SimpleNamespace(completions=self)
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error:
+            raise self.error
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content=self.answer), finish_reason="stop")
+            ],
+            usage=SimpleNamespace(prompt_tokens=202, completion_tokens=40),
+        )
 
 
 class InMemoryStorage:

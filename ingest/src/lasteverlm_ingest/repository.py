@@ -38,6 +38,7 @@ class StoredSource(Source):
     summary: str | None = None
     attempts: int = 0
     size_bytes: int | None = None
+    capture: str | None = None
 
 
 class LibrarySource(BaseModel):
@@ -59,6 +60,7 @@ class LibrarySource(BaseModel):
     attempts: int = 0
     created_at: datetime
     deleted_at: datetime | None = None
+    capture: str | None = None
 
 
 class NotebookUse(BaseModel):
@@ -78,6 +80,7 @@ class LibraryEntry(BaseModel):
     size_bytes: int | None
     url: str | None
     created_at: datetime
+    capture: str | None = None
     notebooks: list[NotebookUse]
 
 
@@ -94,6 +97,7 @@ class TrashEntry(BaseModel):
     created_at: datetime
     deleted_at: datetime
     purge_at: datetime
+    capture: str | None = None
 
 
 class NewLibrarySource(BaseModel):
@@ -105,6 +109,7 @@ class NewLibrarySource(BaseModel):
     url: str | None
     size_bytes: int | None
     storage_path: str
+    capture: str | None = None
 
 
 class Repository(Protocol):
@@ -342,7 +347,8 @@ class PostgresRepository:
 
     _SELECT_SOURCES = (
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
-        "l.id as library_id, l.owner, l.storage_path, l.summary, l.attempts, l.size_bytes "
+        "l.id as library_id, l.owner, l.storage_path, l.summary, l.attempts, l.size_bytes, "
+        "l.capture "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -390,7 +396,7 @@ class PostgresRepository:
     _LISTED = "l.kind <> 'generated'"
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
-        "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at"
+        "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture"
     )
     # Library sources in the library (not in the trash).
     _ACTIVE = f"{_LISTED} and l.deleted_at is null"
@@ -413,8 +419,8 @@ class PostgresRepository:
     def create_library_source(self, new: NewLibrarySource) -> LibrarySource:
         self._one(
             "insert into library_sources (id, owner, name, kind, dedupe_key, url, size_bytes, "
-            "storage_path, status) values (%(id)s, %(owner)s, %(name)s, %(kind)s, %(key)s, "
-            "%(url)s, %(size)s, %(path)s, 'processing') "
+            "storage_path, capture, status) values (%(id)s, %(owner)s, %(name)s, %(kind)s, "
+            "%(key)s, %(url)s, %(size)s, %(path)s, %(capture)s, 'processing') "
             "on conflict (owner, dedupe_key) where dedupe_key is not null do nothing returning id",
             {
                 "id": new.id,
@@ -425,6 +431,7 @@ class PostgresRepository:
                 "url": new.url,
                 "size": new.size_bytes,
                 "path": new.storage_path,
+                "capture": new.capture,
             },
         )
         found = self.find_library_source(new.owner, new.dedupe_key)
@@ -441,6 +448,7 @@ class PostgresRepository:
 
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
+           l.capture,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -478,7 +486,8 @@ class PostgresRepository:
     def list_trash(self, owner: UUID) -> list[TrashEntry]:
         rows = self._all(
             f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
-            f"l.deleted_at, l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
+            f"l.capture, l.deleted_at, "
+            f"l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
             f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
             f"and l.deleted_at is not null order by l.deleted_at desc, l.id",
             {"owner": owner},

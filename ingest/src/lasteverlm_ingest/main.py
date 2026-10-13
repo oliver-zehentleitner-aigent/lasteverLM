@@ -35,7 +35,7 @@ from lasteverlm_ingest import __version__
 from lasteverlm_ingest.api import health, router
 from lasteverlm_ingest.config import ConfigError, Settings
 from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
-from lasteverlm_ingest.loaders.image import ImageLoader
+from lasteverlm_ingest.loaders.image import VisionReader
 from lasteverlm_ingest.repository import PostgresRepository, Repository
 from lasteverlm_ingest.summarizer import LLMSummarizer, Summarizer
 from lasteverlm_ingest.worker import WorkerDeps
@@ -98,9 +98,10 @@ def build_worker_deps(
         loaders=loaders
         or default_registry(
             max_url_bytes=settings.max_upload_bytes,
-            image=ImageLoader(
+            vision=VisionReader(
                 client, settings.inference.llm_model, max_tokens=settings.image_max_tokens
             ),
+            pdf_vision_max_pages=settings.pdf_vision_max_pages,
         ),
         chunker=chunker or TokenWindowChunker(**settings.chunker_kwargs()),
         embedder=embedder,

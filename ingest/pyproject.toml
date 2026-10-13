@@ -20,6 +20,8 @@ dependencies = [
   "pgvector>=0.3",
   "numpy>=1.26",
   "pypdf>=4.2",
+  "pypdfium2>=4.30",
+  "pillow>=10.4",
   "httpcore>=1.0",
 ]
 

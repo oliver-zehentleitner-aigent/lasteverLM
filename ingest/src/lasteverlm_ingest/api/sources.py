@@ -13,6 +13,7 @@ from starlette.datastructures import UploadFile
 from lasteverlm_ingest.api.deps import owned_notebook, owned_source, repository, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.loaders.image import sniff_image_type
+from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
 from lasteverlm_ingest.loaders.url import check_url, normalize_url
 from lasteverlm_ingest.repository import NewLibrarySource, Repository, StoredSource
 from lasteverlm_ingest.worker import CREDIT_EXHAUSTED
@@ -52,12 +53,28 @@ class SourceFromJson(BaseModel):
 
     url: str | None = Field(default=None, min_length=1, max_length=2048)
     library_id: UUID | None = None
+    # Accepted for symmetry with uploads; a URL or a library source has no
+    # capture choice (a PDF behind a URL is read by its text layer).
+    capture: str | None = None
 
 
 class LinkedSource(Source):
     """A source in a notebook, with the library source it links."""
 
     library_id: UUID
+    capture: str | None = None
+
+
+def _capture(value: object) -> Capture:
+    """The upload's capture mode; absent means `auto` (web sends the
+    user's preference explicitly)."""
+    if value is None or value == "":
+        return DEFAULT_CAPTURE
+    if value not in CAPTURE_MODES:
+        raise HTTPException(
+            status_code=400, detail=f"capture must be one of {', '.join(CAPTURE_MODES)}"
+        )
+    return value  # type: ignore[return-value]
 
 
 def _out(source: StoredSource) -> LinkedSource:
@@ -115,7 +132,11 @@ async def create_source(
             raise HTTPException(status_code=415, detail="not a PNG, JPEG, WebP or GIF image")
         name = safe_name(upload.filename)
         url = None
+        capture: Capture | None = _capture(form.get("capture")) if kind == "pdf" else None
         dedupe_key = "sha256:" + hashlib.sha256(data).hexdigest()
+        if capture is not None:
+            # The same bytes captured in another mode are another library source.
+            dedupe_key += f":{capture}"
     elif content_type.startswith("application/json"):
         body = SourceFromJson.model_validate(await request.json())
         if (body.url is None) == (body.library_id is None):
@@ -134,7 +155,7 @@ async def create_source(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
         # Only the URL is stored; the worker fetches it (see loaders/url.py).
-        kind, data, name = "url", url.encode(), url[:200]
+        kind, data, name, capture = "url", url.encode(), url[:200], None
     else:
         raise HTTPException(
             status_code=415,
@@ -167,6 +188,7 @@ async def create_source(
             url=url,
             size_bytes=None if kind == "url" else len(data),
             storage_path=key,
+            capture=capture,
         )
     )
     if created.id == library_id:
