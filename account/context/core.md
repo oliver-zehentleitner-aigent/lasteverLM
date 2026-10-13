@@ -65,7 +65,7 @@ every account pod for a temporary mismatch.
 **Status:** active
 **Evidence:** confirmed
 **Source:** fleet coordination, 2026-10-13
-**See:** privacy.md#retention-runs-at-service-start-not-on-a-schedule — 42e9906d — as of 2026-10-13
+**See:** privacy.md#retention-runs-at-service-start-not-on-a-schedule — 42e9906d-a613-4f17-896e-40484c1f125d — as of 2026-10-13
 **Revisit when:** a periodic job (CronJob or in-process scheduler) exists for retention, or pods run for weeks without a restart
 
 `AccountService.startup` runs core's three `PURGE_SQL` statements in one
