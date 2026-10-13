@@ -6,6 +6,7 @@ from fastapi import HTTPException, Request
 from lasteverlm_core import Notebook
 
 from lasteverlm_ingest.repository import Repository, StoredSource
+from lasteverlm_ingest.seeds import ensure_seeded
 from lasteverlm_ingest.worker import WorkerDeps
 
 
@@ -15,6 +16,13 @@ def worker_deps(request: Request) -> WorkerDeps:
 
 def repository(request: Request) -> Repository:
     return request.app.state.worker.repository
+
+
+def seed_if_new(request: Request, user: UUID) -> None:
+    """The demo library on the owner's first library access or upload."""
+    deps = worker_deps(request)
+    if deps.settings.seed_demo_library:
+        ensure_seeded(deps.repository, deps.storage, user)
 
 
 def owned_notebook(repo: Repository, user: UUID, notebook_id: UUID) -> Notebook:

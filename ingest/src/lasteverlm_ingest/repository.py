@@ -39,6 +39,7 @@ class StoredSource(Source):
     attempts: int = 0
     size_bytes: int | None = None
     capture: str | None = None
+    demo: bool = False
 
 
 class LibrarySource(BaseModel):
@@ -61,6 +62,7 @@ class LibrarySource(BaseModel):
     created_at: datetime
     deleted_at: datetime | None = None
     capture: str | None = None
+    demo: bool = False
 
 
 class NotebookUse(BaseModel):
@@ -81,6 +83,7 @@ class LibraryEntry(BaseModel):
     url: str | None
     created_at: datetime
     capture: str | None = None
+    demo: bool = False
     notebooks: list[NotebookUse]
 
 
@@ -98,6 +101,7 @@ class TrashEntry(BaseModel):
     deleted_at: datetime
     purge_at: datetime
     capture: str | None = None
+    demo: bool = False
 
 
 class NewLibrarySource(BaseModel):
@@ -110,6 +114,7 @@ class NewLibrarySource(BaseModel):
     size_bytes: int | None
     storage_path: str
     capture: str | None = None
+    demo: bool = False
 
 
 class Repository(Protocol):
@@ -150,6 +155,12 @@ class Repository(Protocol):
 
     def retry_library_source(self, library_id: UUID) -> None:
         """A failed library source uploaded again: back to `processing`."""
+        ...
+
+    def claim_seed(self, owner: UUID) -> bool:
+        """Mark the owner as considered for the demo library; True only the
+        first time and only when the owner has no library source yet (in
+        the library or the trash), i.e. when the caller should seed."""
         ...
 
     def list_library(self, owner: UUID) -> list[LibraryEntry]: ...
@@ -348,7 +359,7 @@ class PostgresRepository:
     _SELECT_SOURCES = (
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
         "l.id as library_id, l.owner, l.storage_path, l.summary, l.attempts, l.size_bytes, "
-        "l.capture "
+        "l.capture, l.demo "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -396,7 +407,8 @@ class PostgresRepository:
     _LISTED = "l.kind <> 'generated'"
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
-        "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture"
+        "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
+        "l.demo"
     )
     # Library sources in the library (not in the trash).
     _ACTIVE = f"{_LISTED} and l.deleted_at is null"
@@ -419,8 +431,9 @@ class PostgresRepository:
     def create_library_source(self, new: NewLibrarySource) -> LibrarySource:
         self._one(
             "insert into library_sources (id, owner, name, kind, dedupe_key, url, size_bytes, "
-            "storage_path, capture, status) values (%(id)s, %(owner)s, %(name)s, %(kind)s, "
-            "%(key)s, %(url)s, %(size)s, %(path)s, %(capture)s, 'processing') "
+            "storage_path, capture, demo, status) values (%(id)s, %(owner)s, %(name)s, "
+            "%(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(capture)s, %(demo)s, "
+            "'processing') "
             "on conflict (owner, dedupe_key) where dedupe_key is not null do nothing returning id",
             {
                 "id": new.id,
@@ -432,6 +445,7 @@ class PostgresRepository:
                 "size": new.size_bytes,
                 "path": new.storage_path,
                 "capture": new.capture,
+                "demo": new.demo,
             },
         )
         found = self.find_library_source(new.owner, new.dedupe_key)
@@ -446,9 +460,26 @@ class PostgresRepository:
                 {"id": library_id},
             )
 
+    def claim_seed(self, owner: UUID) -> bool:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "insert into library_seeds (owner) values (%(owner)s) "
+                "on conflict (owner) do nothing returning owner",
+                {"owner": owner},
+            )
+            if cur.fetchone() is None:
+                return False
+            cur.execute(
+                f"select exists (select 1 from library_sources l "
+                f"where l.owner = %(owner)s and {self._LISTED})",
+                {"owner": owner},
+            )
+            row = cur.fetchone()
+            return not (row and row[0])
+
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
-           l.capture,
+           l.capture, l.demo,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -486,7 +517,7 @@ class PostgresRepository:
     def list_trash(self, owner: UUID) -> list[TrashEntry]:
         rows = self._all(
             f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
-            f"l.capture, l.deleted_at, "
+            f"l.capture, l.demo, l.deleted_at, "
             f"l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
             f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
             f"and l.deleted_at is not null order by l.deleted_at desc, l.id",

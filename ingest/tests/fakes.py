@@ -59,6 +59,7 @@ class InMemoryRepository:
         self.admins: set[UUID] = set()
         # account's users.preferences -> 'trash_days'; missing means 14
         self.trash_days: dict[UUID, int] = {}
+        self.seeded: set[UUID] = set()
 
     # -- test helpers ----------------------------------------------------------
 
@@ -152,6 +153,7 @@ class InMemoryRepository:
             attempts=lib.attempts,
             size_bytes=lib.size_bytes,
             capture=lib.capture,
+            demo=lib.demo,
         )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
@@ -191,6 +193,12 @@ class InMemoryRepository:
         self.library[lib.id] = lib
         return lib
 
+    def claim_seed(self, owner: UUID) -> bool:
+        if owner in self.seeded:
+            return False
+        self.seeded.add(owner)
+        return not any(lib.owner == owner and self._listed(lib) for lib in self.library.values())
+
     def retry_library_source(self, library_id: UUID) -> None:
         lib = self.library[library_id]
         if lib.status == "failed":
@@ -215,6 +223,7 @@ class InMemoryRepository:
             url=lib.url,
             created_at=lib.created_at,
             capture=lib.capture,
+            demo=lib.demo,
             notebooks=[
                 NotebookUse(id=nb, title=self.notebooks[nb][1].title, source_id=link_id)
                 for _, link_id, nb in uses

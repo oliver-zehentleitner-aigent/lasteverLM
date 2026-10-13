@@ -23,6 +23,7 @@ src/lasteverlm_ingest/
 ├── repository.py    all PostgreSQL access (notebooks, library, source links, chunks, queue claim, usage via core)
 ├── worker.py        claim loop and pipeline: load → parse → chunk → embed → summarize → ready
 ├── summarizer.py    one-paragraph summary per source on core's LLM interface
+├── seeds.py         the demo library every new user starts with (files in demo/, built by ../../demo/build.py)
 ├── loaders/         pdf, text, url (html), image → passages, behind a registry
 └── api/             routers: notebooks, sources, library, admin, health
 db/migrations/       notebooks, sources, chunks (plain SQL for psql)

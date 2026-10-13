@@ -73,6 +73,8 @@ repository root's `context/`.
 
 ## S
 
+- [seeds.md](seeds.md) — why every new user gets a demo library, paid for by the demo user and marked in an ingest-owned table
+
 ## T
 
 ## U

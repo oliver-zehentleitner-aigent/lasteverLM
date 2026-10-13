@@ -21,7 +21,15 @@ import time
 from dataclasses import dataclass
 from uuid import UUID
 
-from lasteverlm_core import Chunker, Embedder, ProviderError, Storage, StorageError, Usage
+from lasteverlm_core import (
+    DEMO_USER_ID,
+    Chunker,
+    Embedder,
+    ProviderError,
+    Storage,
+    StorageError,
+    Usage,
+)
 
 from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.loaders import (
@@ -112,12 +120,12 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         # Reading this source takes model calls of its own (images, PDF
         # pages): each one is recorded as it returns, and the next one is
         # only made while the owner still has credit.
-        if not repo.has_credit(source.owner):
+        if not _has_credit(repo, source):
             raise ProcessingError(CREDIT_EXHAUSTED)
 
         def bill(usage: Usage) -> None:
             _record(repo, source, notebook_id, usage)
-            if not repo.has_credit(source.owner):
+            if not _has_credit(repo, source):
                 raise ProcessingError(CREDIT_EXHAUSTED)
 
         passages = loader.load_billed(data, bill)
@@ -126,7 +134,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     chunks = deps.chunker.chunk(passages)
     if not chunks:
         raise ProcessingError("no text to index")
-    if not repo.has_credit(source.owner):
+    if not _has_credit(repo, source):
         raise ProcessingError(CREDIT_EXHAUSTED)
 
     vectors: list[list[float]] = []
@@ -139,7 +147,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
 
     repo.replace_chunks(source_id, chunks, vectors)
     repo.record_usage(
-        user_id=source.owner,
+        user_id=_payer(source),
         notebook_id=notebook_id,
         kind="embedding",
         model=deps.embedder.model,
@@ -150,11 +158,11 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     # The summary is its own model call, so it gets its own credit check
     # and its own usage row. Without a summary the source is not usable by
     # the output generators, so a failure here fails the source.
-    if not repo.has_credit(source.owner):
+    if not _has_credit(repo, source):
         raise ProcessingError(CREDIT_EXHAUSTED)
     summary = deps.summarizer.summarize(source.name, passages)
     repo.record_usage(
-        user_id=source.owner,
+        user_id=_payer(source),
         notebook_id=notebook_id,
         kind=summary.usage.kind,
         model=summary.usage.model,
@@ -173,11 +181,21 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     )
 
 
+def _payer(source: LibrarySource) -> UUID:
+    """Who pays for processing: the owner, or the demo user for the demo
+    library every new user is seeded with (a new user has no credit)."""
+    return DEMO_USER_ID if source.demo else source.owner
+
+
+def _has_credit(repo: Repository, source: LibrarySource) -> bool:
+    return source.demo or repo.has_credit(source.owner)
+
+
 def _record(
     repo: Repository, source: LibrarySource, notebook_id: UUID | None, usage: Usage
 ) -> None:
     repo.record_usage(
-        user_id=source.owner,
+        user_id=_payer(source),
         notebook_id=notebook_id,
         kind=usage.kind,
         model=usage.model,
