@@ -1,9 +1,10 @@
 # ingress-nginx chart values. JSON access log so the lines are machine-readable
 # (one object per request: time, client, method, path, status, bytes, upstream time).
+# No query string: the magic-link callback carries its sign-in token as ?token=.
 controller:
   config:
     log-format-escape-json: "true"
-    log-format-upstream: '{"time":"$time_iso8601","remote_addr":"$remote_addr","request_id":"$req_id","method":"$request_method","host":"$host","uri":"$uri","args":"$args","status":$status,"bytes_sent":$bytes_sent,"request_time":$request_time,"upstream":"$proxy_upstream_name","upstream_status":"$upstream_status","upstream_response_time":"$upstream_response_time","user_agent":"$http_user_agent","referer":"$http_referer","proto":"$server_protocol"}'
+    log-format-upstream: '{"time":"$time_iso8601","remote_addr":"$remote_addr","request_id":"$req_id","method":"$request_method","host":"$host","uri":"$uri","status":$status,"bytes_sent":$bytes_sent,"request_time":$request_time,"upstream":"$proxy_upstream_name","upstream_status":"$upstream_status","upstream_response_time":"$upstream_response_time","user_agent":"$http_user_agent","referer":"$http_referer","proto":"$server_protocol"}'
     # The client address comes from the PROXY protocol header the Vultr load
     # balancer (TCP, layer 4) puts in front of every connection, never from a
     # request header: X-Forwarded-For and X-Real-IP are set by the client and

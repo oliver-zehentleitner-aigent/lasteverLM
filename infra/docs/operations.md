@@ -169,7 +169,9 @@ Secret: `kubectl -n lasteverlm delete secret lasteverlm-smtp` does.
 
 Edge: ingress-nginx redirects HTTP to HTTPS and sends HSTS
 (`platform/ingress-nginx.values.yaml`); the Ingress additionally
-carries `force-ssl-redirect`.
+carries `force-ssl-redirect`. Its access log is one JSON object per
+request with the path but without the query string, which for the
+magic-link callback is the sign-in token.
 
 Client address: the Vultr load balancer forwards TCP (layer 4) and
 puts a PROXY protocol header in front of every connection
