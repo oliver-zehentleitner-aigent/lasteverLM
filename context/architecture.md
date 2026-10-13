@@ -416,3 +416,34 @@ megabytes; a rag-local copy of the S3 class now and consolidation later
 owner of core is free this morning. A fourth usage kind instead of
 reusing `tokens_in` for characters was not considered worth a schema
 column: the unit is named by the kind.
+
+## Fail loud: a wrong or missing value stops the process, nothing falls back silently
+
+**Id:** 3e37d3d9-bf02-413e-ac38-9e4e51a7ab3f
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's standing rule for all of his projects, restated for this family 2026-10-13
+
+A service that finds its configuration wrong or incomplete refuses to
+start and names the value. A loader that extracts no text fails the
+source instead of marking it ready. A runbook target that is handed an
+inconsistent environment stops before it writes anything. A provider
+answer that cannot be used (an empty description, a vector that is not
+finite) is an error that is recorded and surfaced, not a value that is
+quietly replaced. The only sanctioned fallback is a documented default
+for a value that is genuinely optional, and that default is in the
+code, not in a catch block.
+
+**Reason:** a silent fallback moves the failure to the place where it
+is hardest to see, the user's result: a source that is "ready" without
+usable embeddings answers every question with "no information", and
+the operator sees a healthy system. Loud failure costs one restart or
+one failed upload and is found in the log in minutes.
+
+**Rejected alternative:** degrade gracefully, serve what is available
+and log a warning. Rejected because warnings in a pod log are read by
+nobody until a user complains, and because every service in this
+family has at least two replicas behind a load balancer, where a
+partially working pod is indistinguishable from a working one.
+
