@@ -4,7 +4,7 @@
 
 **Id:** 77df75c3-cd3c-45bb-8250-6e8968e3e488
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12; implementation session, 2026-10-12
 **Revisit when:** lasteverlm-core ships balance and usage helpers, or pricing moves out of the writer
