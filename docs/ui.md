@@ -108,7 +108,9 @@ is closed. After the wizard the notebook view opens.
   status. From six documents on, kind chips filter the list. A click
   opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs
-  show a spinner and poll. Each kind has its own renderer; the audio
+  show a spinner and poll; the pane says "Generating…" with a small
+  ASCII figure walking beside it (decorative, still under reduced
+  motion). Each kind has its own renderer; the audio
   player sits centred in the pane, and the mind map fills the pane and
   re-fits whenever its size changes (full view, divider, window). A
   small bar on the map's top right zooms in (+), out (−) and fits it

@@ -9,6 +9,7 @@ import type {
   TableContent,
 } from '../../api/types'
 import { AudioView } from './AudioView'
+import { Walker } from './Walker'
 import { InfographicView } from './InfographicView'
 import { MindmapView } from './MindmapView'
 import { QuizView } from './QuizView'
@@ -33,7 +34,12 @@ interface Props {
  *  and for a shared one alike, which is why it takes fields, not an Output. */
 export function OutputContent({ kind, title, status, error, content, onExpired, locate }: Props) {
   if (status === 'waiting') return <p className="muted">{t('content.waiting')}</p>
-  if (status === 'processing') return <p className="muted">{t('content.generating')}</p>
+  if (status === 'processing')
+    return (
+      <p className="muted">
+        {t('content.generating')} <Walker />
+      </p>
+    )
   if (status === 'failed') return <p className="error">{error ?? t('content.failed')}</p>
   if (content === null || content === undefined) return <p className="muted">{t('content.none')}</p>
   switch (kind) {

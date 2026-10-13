@@ -524,3 +524,6 @@ button.link.copy { font-size: 0.85em; }
 .out-status { justify-content: flex-end; }
 .out-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .out-meta { grid-column: 2 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the figure next to "Generating…": monospace on a fixed track, muted */
+.walker { display: inline-block; vertical-align: baseline; white-space: pre; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.95em; color: var(--muted); overflow: hidden; }
