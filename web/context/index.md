@@ -67,6 +67,8 @@ repository root's `context/`.
 
 ## S
 
+- [security.md](security.md) — response headers of the web image and why the Content-Security-Policy is limited to frame-ancestors until a browser run
+
 ## T
 
 ## U
