@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Source selection: `source_ids` on `/ask` and on `POST .../outputs` (link ids of the notebook's uploads; absent or empty means all, any other id is a 422). Chat retrieves only from the selected uploads and its document list marks the others `not in scope`; an output is generated from the selected sources only and records them as `options.sources`.
 
+### Security
+
+- Prompts treat text from the user's files as data: both system prompts say so, names are one bounded line, and marker-shaped text in sources and summaries is rewritten (`[2]` → `(2)`) so a source cannot forge a passage or a citation. The coverage warning logs a bounded name.
+
 ## [0.9.0] - 2026-10-13
 
 ### Added

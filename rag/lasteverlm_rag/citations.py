@@ -1,4 +1,5 @@
-"""Pure citation logic: number passages for the prompt, map ``[n]`` markers back to sources.
+"""Pure citation logic: number passages for the prompt, map ``[n]`` markers back to sources,
+and keep marker-shaped text of the user's files out of prompts.
 
 No I/O here; this is the part covered by unit tests with a mocked LLM.
 """
@@ -15,6 +16,27 @@ SIMILARITY_DECIMALS = 3
 
 # One bracket group: "[1]", "[1, 2]", "[ 3 ]". Several groups in a row are matched one by one.
 _MARKER_GROUP = re.compile(r"\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]")
+# A name (file, document, notebook) in a prompt is one line of bounded length.
+NAME_MAX_CHARS = 120
+
+
+def strip_markers(text: str) -> str:
+    """Remove every marker group, with the space before it."""
+    return re.sub(r"\s*" + _MARKER_GROUP.pattern, "", text)
+
+
+def defuse_markers(text: str) -> str:
+    """Rewrite marker-shaped text ("[2]", "[1, 3]") as "(2)", "(1, 3)": text
+    from a source cannot then pass for a citation of another passage."""
+    return _MARKER_GROUP.sub(lambda m: f"({m.group(1)})", text)
+
+
+def inline(name: str, limit: int = NAME_MAX_CHARS) -> str:
+    """A name from the user's files as it goes into a prompt or a log line:
+    one line (no newline can start a fake rule or passage), markers defused,
+    cut to ``limit`` characters."""
+    flat = " ".join(defuse_markers(name).split())
+    return flat if len(flat) <= limit else flat[: limit - 1] + "…"
 
 
 def number_passages(chunks: list[RetrievedChunk]) -> list[Passage]:
