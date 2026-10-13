@@ -69,6 +69,44 @@ designed (every ready source retrievable, generated included), rejected
 for the circularity above, kept reachable by the configuration switch in
 case the maintainer prefers it.
 
+## The user's source selection narrows chat and generation, by link id, per request
+
+**Id:** fb02e210-b924-46d1-85d1-861b9f8ae11d
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer's walkthrough, 2026-10-13 (the notebook model of ticking which sources are active); coordinator decision the same day
+**Revisit when:** generated documents become selectable in the sources list, or the selection has to persist across sessions or devices
+
+`/ask` and `POST .../outputs` take optional `source_ids`; absent or empty
+means all. They are link ids (the `sources.id` of this notebook), and only
+uploads qualify; anything else is a 422. On `/ask` the uploads search is
+filtered to the selection, the generated slots are not, and the document
+list in the system prompt keeps every document but marks deselected
+uploads `not in scope`. An output stores the selection in
+`options.sources` and is generated from those sources' summaries and
+chunks only, balanced over the selection.
+
+**Reason:** the maintainer expects the user to decide which sources chat
+and generation use (confirmed). Link ids, because they are the ids the
+notebook's API hands out and the rest of rag already speaks: citations,
+retrieval results and the generated-document scope are all link ids,
+while the library id behind a link is shared by every notebook the file
+is linked into (inferred, this entry's own reasoning). Generated
+documents keep their slots because the sources list never shows them, so
+a selection cannot include them; marking deselected uploads instead of
+hiding them lets the chat explain why it does not see a document. The
+selection travels with each request, so rag holds no selection state and
+a stored output says what it was made from.
+
+**Rejected alternatives:** library ids (they would need mapping back to
+this notebook's link for every citation); filtering the generated slots
+by the selection too (no generated id could ever be selected, so
+generated documents would vanish from every filtered chat); leaving
+deselected documents out of the document list (the chat would deny
+documents the user can see). Whether a persisted selection (a flag on
+the link) was considered is unknown.
+
 ## A scoped question retrieves without a similarity floor and with a larger k
 
 **Id:** 0208ab91-804b-4d29-b35e-43bd89695b7c
