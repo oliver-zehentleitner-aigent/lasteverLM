@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- black is the formatter (`[tool.black]`, line length 100, `black --check` in `make lint`); ruff stays the linter. No code changed: ruff's format output was already black-compatible.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added

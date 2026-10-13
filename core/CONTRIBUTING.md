@@ -22,7 +22,7 @@ make check
 ```
 
 It installs the environment first (`make install`, idempotent), then
-ruff (lint and format), mypy in strict mode and pytest must pass. New
+ruff (lint), black (format), mypy in strict mode and pytest must pass. New
 logic comes with tests; the tests run without a database, network or
 inference key (see `tests/conftest.py` for the fake connections). A
 change to a SQL statement or a migration also runs `make test-postgres`,
@@ -37,7 +37,7 @@ which needs Docker.
 
 ## Style
 
-Python 3.12+, type hints everywhere, `ruff` for linting and formatting,
+Python 3.12+, type hints everywhere, `ruff` for linting, `black` for formatting,
 `mypy --strict` clean. Core depends on as little as possible: Pydantic,
 PyJWT, the OpenAI SDK and anyio. No database driver: the PostgreSQL
 helpers take the caller's psycopg connection and type it structurally.
