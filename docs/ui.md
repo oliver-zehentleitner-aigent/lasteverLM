@@ -14,15 +14,16 @@ space.
 
 Three steps, one question each, large tiles instead of a form.
 
-1. **What goes in?** Tiles: PDF, Text, Web page, Image. In v1 PDF and
-   Text are active; Web page and Image are shown greyed with "soon", so
-   the extension points are visible.
+1. **What goes in?** Tiles: PDF, Text, Web page, Image, all active. A
+   kind that is not available yet is shown greyed with "Soon.", so the
+   extension points stay visible.
 2. **How does it get in?** Only the ways that fit the type: drop or
    pick files (several at once), enter a URL, paste text.
 3. **What should come out of it?** Tiles of the output kinds, multiple
    selection, "just chat" is allowed. Done.
 
-Step 2 calls `POST /api/ingest/notebooks/{id}/sources` per file. Step 3
+Step 2 calls `POST /api/ingest/notebooks/{id}/sources` per file, or once
+with `{"url"}` for a web page. Step 3
 calls `POST /api/rag/notebooks/{id}/outputs` per selected kind; rag
 waits for the sources itself, so the wizard works even when the browser
 is closed. After the wizard the notebook view opens.

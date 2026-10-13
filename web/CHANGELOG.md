@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Security headers on every response of the web image: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` (a share link's token never leaves in a referrer), `X-Frame-Options: DENY` and `frame-ancestors 'none'`.
+- Audio player that keeps its URL across output polls and fetches a fresh presigned URL once when the old one has expired; the audio tile itself stays disabled until the rag generator is live.
+
+### Changed
+
+- Wizard: Web page (enter a URL) and Image (PNG, JPEG, WebP, GIF) are active source types.
+- Disabled tiles show "Soon." from one place instead of in their descriptions, so enabling a form is a one-line change.
 
 ## [0.1.0] - 2026-10-12
 

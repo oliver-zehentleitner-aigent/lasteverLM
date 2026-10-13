@@ -1,5 +1,5 @@
 import type { OutputKind } from '../api/types'
-import { OUTPUT_FORMS } from '../lib/outputs'
+import { OUTPUT_FORMS, tileNote } from '../lib/outputs'
 
 interface Props {
   disabled: boolean
@@ -19,11 +19,11 @@ export function OutputTiles({ disabled, onCreate }: Props) {
             type="button"
             className="tile"
             disabled={disabled || !f.available}
-            title={f.description}
+            title={tileNote(f)}
             onClick={() => onCreate(f.kind)}
           >
             <strong>{f.label}</strong>
-            <span className="muted small">{f.description}</span>
+            <span className="muted small">{tileNote(f)}</span>
           </button>
         ))}
       </div>

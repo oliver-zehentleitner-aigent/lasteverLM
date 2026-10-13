@@ -3,7 +3,7 @@ import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
 import type { OutputKind, SourceKind } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
-import { OUTPUT_FORMS, SOURCE_FORMS, type SourceForm } from '../lib/outputs'
+import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
 
 interface Props {
   notebookId: string
@@ -96,7 +96,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                   }}
                 >
                   <strong>{f.label}</strong>
-                  <span className="muted small">{f.description}</span>
+                  <span className="muted small">{tileNote(f)}</span>
                 </button>
               ))}
             </div>
@@ -175,7 +175,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                   }
                 >
                   <strong>{f.label}</strong>
-                  <span className="muted small">{f.description}</span>
+                  <span className="muted small">{tileNote(f)}</span>
                 </button>
               ))}
             </div>
