@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Smoke test under ingest's per-user library: the uploaded text carries a run id, so every run takes a new source through the pipeline instead of being linked as already ready (the v0.5.1 deploy's smoke step failed on that), and the cleanup deletes the library source after the notebook.
+
 ## [0.4.1] - 2026-10-13
 
 ### Fixed
