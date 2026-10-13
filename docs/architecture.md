@@ -148,6 +148,10 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, pl
 | DELETE | `/admin/settings/addresses/{address}` | | 204 |
 | POST | `/admin/vouchers` | `{"amount_cents", "count"}` | `{"codes": []}` once |
 | GET | `/admin/vouchers?limit=` | | `[AdminVoucher]`, newest first |
+| DELETE | `/admin/vouchers/{id}` | | 204 open; 409 redeemed |
+| GET | `/admin/login-attempts?limit=` | | `[{"at","email","ip","outcome": "allowed|refused"}]`, newest first, kept `RETENTION_DAYS` |
+| GET, PUT | `/admin/settings/ratelimit` | PUT: `{"per_minute","block_minutes","ban_after_strikes","strike_window_hours"}` | `RateLimitRules` |
+| DELETE | `/admin/settings/ratelimit` | | 204, back to the environment defaults |
 | GET | `/admin/stats` | | `AccountStats` |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
@@ -157,6 +161,7 @@ AdminUser: {"id", "email", "is_admin", "created_at", "last_login_at", "balance_c
 Smtp:      {"host", "port", "username", "from_address", "starttls"}   -- empty host: mail not configured
 Allowlist: {"allowed_domains": [], "allowed_addresses": []}
 AdminVoucher: {"id", "amount_cents", "created_by", "created_at", "redeemed_by", "redeemed_at", "status": "open|redeemed"}
+RateLimitRules: {"per_minute", "block_minutes", "ban_after_strikes", "strike_window_hours", "ban_max_days", "retention_days"}  -- the last two read-only
 AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}, "credits_granted_cents",
                "usage_cost_cents": {"total", "last_24h"}, "blocks_active", "bans_active"}
 ```
@@ -303,10 +308,16 @@ ingress, never trusted from anywhere else):
    on everything until an admin lifts it, at most 90 days. Every request
    writes one `access_log` row (sampled to 1 in N for `/healthz`).
 
-The limits are configuration (`RATE_LIMIT_PER_MINUTE`, default 120;
-`BLOCK_MINUTES`, 15; `BAN_AFTER_STRIKES`, 3). Blocks, bans and the
-access log are visible in the admin panel, bans can be lifted there.
-Raw IPs exist only in these three tables, for the security purpose.
+The rule's four thresholds (requests per minute, block minutes, strikes
+to a ban, strike window) have their defaults in configuration
+(`RATE_LIMIT_PER_MINUTE` 120, `BLOCK_MINUTES` 15, `BAN_AFTER_STRIKES` 3,
+`STRIKE_WINDOW_HOURS`) and can be overridden at run time: the admin
+panel writes them to the `settings` table (key `ratelimit`), and core's
+middleware in every service re-reads that row at most every 30 seconds
+(`core/context/ratelimit.md`). Blocks, bans, the access log and the
+sign-in attempts (e-mail, IP, allowed or refused) are visible in the
+admin panel; bans can be lifted there.
+Raw IPs exist only in these tables and in `login_attempts`, for the security purpose.
 The access log, expired blocks and lifted bans are purged after
 `RETENTION_DAYS` (30); an active ban survives that purge and falls after
 `BAN_MAX_DAYS` (90) at the latest. The account service runs the purge at
