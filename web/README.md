@@ -16,7 +16,7 @@ repository; see the [root README](../README.md) for the whole system.
 - **Sign in** with a magic link sent by mail, or with an access token for development.
 - **Wizard** for adding sources in three steps: what goes in (PDF, Text, Web page, Image), how it gets in (drop or pick files, paste text, enter a URL), what should come out (any number of document kinds, or just chat).
 - **Notebook view** in two columns. Left: sources with status and delete, and the output kinds as tiles. Right: a viewer with one tab per generated document, and the chat with `[n]` citations that open the cited passage.
-- **Documents**: report (Markdown), quiz (interactive, with reveal), data table (sortable, CSV export), mind map (markmap), infographic (card grid); audio is prepared and disabled (one `available` flag in `src/lib/outputs.ts`; the player re-fetches its presigned URL once it expires). Per document: ask about this (scopes the chat), print (report and table), share (read-only link `/s/<token>`, revocable).
+- **Documents**: report (Markdown), quiz (interactive, with reveal), data table (sortable, CSV export), mind map (markmap), infographic (card grid), audio (player that re-fetches its presigned URL once it expires). Per document: ask about this (scopes the chat), print (report and table), share (read-only link `/s/<token>`, revocable).
 - **Credit**: balance in the header, voucher dialog; a 402 anywhere opens it.
 - **Admin** page for admins: users, login log, visits per day and path, voucher creation (codes shown once), allowed sign-in domains, SMTP settings with a test button, rate-limit blocks, bans (with lift), raw access log.
 
