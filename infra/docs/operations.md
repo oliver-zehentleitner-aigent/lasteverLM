@@ -42,11 +42,11 @@ make up          # VKE cluster and Object Storage (AUTO_APPROVE=1 skips the plan
 make kubeconfig  # build/kubeconfig; the Makefile exports KUBECONFIG for every target
 make bucket      # sources bucket (private; the keys live only in the lasteverlm-s3 Secret)
 make db-trust    # the managed database accepts only the node addresses and this machine
-make platform    # ingress-nginx + cert-manager + metrics-server; prints the load balancer IP
+make platform    # ingress-nginx + cert-manager + metrics-server; prints the load balancer id
 ```
 
-Point the domain in `chart/values-prod.yaml` at the printed IP (an A
-record), then:
+Point the domain in `chart/values-prod.yaml` at the load balancer's IP
+(an A record; `vultr-cli load-balancer get <id>` shows it), then:
 
 ```sh
 make db-bootstrap  # once: application role, database, pgvector (runs make secrets first)
@@ -157,6 +157,25 @@ Secret: `kubectl -n lasteverlm delete secret lasteverlm-smtp` does.
 Edge: ingress-nginx redirects HTTP to HTTPS and sends HSTS
 (`platform/ingress-nginx.values.yaml`); the Ingress additionally
 carries `force-ssl-redirect`.
+
+Client address: the Vultr load balancer forwards TCP (layer 4) and
+puts a PROXY protocol header in front of every connection
+(`vultr-loadbalancer-proxy-protocol`); nginx reads the address from it
+(`use-proxy-protocol`) and passes it on as `X-Forwarded-For` and
+`X-Real-IP`, replacing whatever the client sent. That address is what
+the edge rate limits count, what core's rate limiter, blocks and bans
+see, and what the access log shows. `make platform` also sets the
+`vultr-loadbalancer-hostname` annotation to the domain, so the Service
+status carries a hostname instead of the IP and in-cluster requests to
+the domain (cert-manager's HTTP-01 self check) go through the load
+balancer rather than straight to nginx without the header. Both sides
+change together in `make platform`; requests fail for the seconds until
+the load balancer has applied the annotation. The platform is not part
+of a tag deploy: a change in `platform/` is rolled out by `make
+platform`. Check after a change: a request with a forged header,
+`curl -H 'X-Forwarded-For: 203.0.113.9' https://<domain>/healthz`, must
+appear in `kubectl -n ingress-nginx logs deploy/ingress-nginx-controller`
+with the caller's real address.
 
 ## TLS certificate
 

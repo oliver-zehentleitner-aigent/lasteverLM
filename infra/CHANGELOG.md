@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- The client address no longer comes from a request header: ingress-nginx took `$remote_addr` from the client's own `X-Forwarded-For` (`enable-real-ip` with the default trusted range `0.0.0.0/0`), so core's rate limiter, blocks, bans and the login log trusted an address any client could set; without the header every request carried a node address. The load balancer now sends the PROXY protocol header and nginx reads the address from it (`use-proxy-protocol`); `make platform` sets the load balancer hostname annotation so in-cluster requests keep going through the load balancer. Rolled out with `make platform`, not with a tag.
+
 ## [0.8.2] - 2026-10-13
 
 ### Added

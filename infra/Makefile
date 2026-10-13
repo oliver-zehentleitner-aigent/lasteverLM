@@ -92,18 +92,20 @@ bucket: $(CLUSTER_ENV) ## create the sources bucket (one signed S3 PUT; 200 or 4
 
 # Cluster --------------------------------------------------------------------------
 
-platform: ## ingress-nginx (JSON access log), cert-manager, metrics-server; pinned chart versions
+platform: ## ingress-nginx (JSON access log, PROXY protocol), cert-manager, metrics-server; pinned chart versions
+> $(call require,DOMAIN_FROM_VALUES)
 > helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx >/dev/null 2>&1 || true
 > helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
 > helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ >/dev/null 2>&1 || true
 > helm repo update >/dev/null
 > helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --version $(INGRESS_NGINX_CHART) \
->   -n ingress-nginx --create-namespace -f platform/ingress-nginx.values.yaml --wait --timeout 5m
+>   -n ingress-nginx --create-namespace -f platform/ingress-nginx.values.yaml --wait --timeout 5m \
+>   --set-string 'controller.service.annotations.service\.beta\.kubernetes\.io/vultr-loadbalancer-hostname=$(DOMAIN_FROM_VALUES)'
 > helm upgrade --install cert-manager jetstack/cert-manager --version $(CERT_MANAGER_CHART) \
 >   -n cert-manager --create-namespace -f platform/cert-manager.values.yaml --wait --timeout 5m
 > helm upgrade --install metrics-server metrics-server/metrics-server --version $(METRICS_SERVER_CHART) \
 >   -n kube-system -f platform/metrics-server.values.yaml --wait --timeout 5m
-> @echo "ingress IP (point DOMAIN at it):" && kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}{"\n"}'
+> @echo "load balancer id (vultr-cli load-balancer get <id> shows the IP to point the domain at):" && kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/vultr-loadbalancer-id}{"\n"}'
 
 secrets: env ## create the Secrets and the CA ConfigMap from cluster.env and the environment; re-run after a password rotation
 > $(call require,INFERENCE_API_KEY)
