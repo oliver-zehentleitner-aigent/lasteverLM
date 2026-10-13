@@ -179,3 +179,30 @@ for the re-run of migration 0001; a separate `roles` table — rejected
 as a join for one word; letting a viewer also redeem admin-only data
 such as the voucher codes — rejected, read-only means the GET routes and
 nothing else, and the plain codes are never listed anyway.
+
+## Session tokens live one day; sign-out is client-side, there is no denylist
+
+**Id:** 4489400f-db4c-4aa4-b032-06da9ecec8fb
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-14
+**Revisit when:** a session must be revoked at once (a lost device, an offboarding) and rotating the shared secret is too blunt
+
+`JWT_TTL_DAYS` defaults to 1 (was 7). The web drops the token on
+sign-out; the service keeps no session list and cannot revoke a single
+token before it expires. Revoking everything at once means rotating
+`AUTH_JWT_SECRET` in all services.
+
+**Reason:** a stateless token is what lets ingest and rag verify a
+session without asking account; a denylist would put a database lookup
+into every request of every service, in core, for a token that now lives
+a day. A magic link is cheap to request again, so the short lifetime
+costs the user one click a day and buys the same bound a denylist would,
+one day later at most.
+
+**Rejected alternatives:** a token denylist checked by core on every
+request — rejected as the lookup above, a contract change for all
+services; a per-user token generation counter — the right tool if
+immediate revocation is ever required, also a core contract change,
+deferred until asked for.
