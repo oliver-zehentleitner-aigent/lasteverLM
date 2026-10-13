@@ -125,3 +125,39 @@ and wants one formatter dialect across them, not one per project.
 **Rejected alternative:** `ruff format`, which the services used until
 then. It is black-compatible and one tool fewer, but a second
 formatter in the maintainer's tool chain for no gain.
+
+## Before the handover, every directory passes one audit against a shared checklist
+
+**Id:** 171b4a92-a146-4b75-bb0a-30e3bf696bd0
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer instruction on the evening of 2026-10-13 ("full security and quality check, no technical debt"); agent A's checklist the same night
+
+On the night before the maintainer's final walkthrough, every owner
+audits its own directory against one checklist written by agent A:
+security (authorisation on every route, input bounds, injection
+surfaces, secrets, trust boundaries, timeouts, error texts), quality
+(dead code, duplicates, strict typing, test gaps for everything shipped
+that day, lint), and documentation (README, context entries with their
+superseded chains, CHANGELOG sections). Findings are fixed in small pull
+requests; what an owner leaves is reported with a reason and decided by
+agent A or the maintainer. Cross-directory findings go to the owner of
+the cause, never to whoever found them.
+
+**Reason:** two days of parallel feature work by seven sessions leave
+debt that no single reviewer saw whole: each pull request was reviewed
+against its own diff, not against the system. One pass by the people
+who know each directory, under one checklist, finds what the per-PR
+review structurally cannot (the night found an X-Forwarded-For trust
+hole at the ingress, a mind map XSS, a retry path that could bill a page
+twice, and an upload race). Doing it before the walkthrough means the
+maintainer tests the hardened system, not the one with the debt.
+
+**Rejected alternatives:** ship and audit after the handover, rejected
+because the reviewers would see the debt; one external or automated
+review of the whole repository instead of owner audits, rejected because
+the owners carry the context that makes a finding a fix in an hour, and
+the automated scanners (CodeQL, Dependabot) already run and were clean
+while the real findings were logic and configuration.
+
