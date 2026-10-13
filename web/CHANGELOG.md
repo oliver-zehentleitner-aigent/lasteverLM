@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin page: allowed sign-in as two lists, domains and single addresses, each with add and remove per entry; the hint states that with both empty no one but the configured admins can sign in.
+- `ApiError.code`: the service's machine-readable `code` next to `error`, when it sends one.
+
+### Changed
+
+- Login page: a refused address (403 `not_allowed`) shows "This address has no access to lasteverLM." instead of the "check your mail" step; the tagline reads "Provide documents, ask questions, get cited answers."
+
+### Removed
+
+- Admin page: the whole-list domain editor and its `PUT /admin/settings/domains`, gone in account.
+
 ## [0.2.1] - 2026-10-13
 
 ### Changed
