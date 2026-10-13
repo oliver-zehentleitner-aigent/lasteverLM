@@ -71,6 +71,8 @@ repository root's `context/`.
 
 - [storage.md](storage.md) — one repository interface with PostgreSQL and in-memory implementations, atomic operations as single calls
 
+- [system.md](system.md) — the admin System page reads the Kubernetes API from account over plain HTTPS with the pod's ServiceAccount
+
 ## T
 
 ## U
