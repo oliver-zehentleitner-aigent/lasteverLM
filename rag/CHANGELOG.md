@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-13
+
+### Changed
+
+- Formatting is black's (line length 100); `make lint` runs `black --check` and keeps `ruff check` for linting.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added
@@ -16,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Deleting an output also deletes its stored files.
-- Formatting is black's (line length 100); `make lint` runs `black --check` and keeps `ruff check` for linting.
 
 ## [0.1.0] - 2026-10-12
 

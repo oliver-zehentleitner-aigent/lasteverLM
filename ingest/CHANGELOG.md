@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-13
+
 ### Changed
 
 - Formatting is checked with `black` (line length 100) instead of `ruff format`; `ruff check` stays the linter.
