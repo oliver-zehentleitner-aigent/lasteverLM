@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
 import type { Citation, Notebook, Output, OutputKind } from '../api/types'
 import { OUTPUT_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
+import { browserStorage, DEFAULT_VIEWER_RATIO, readRatio, writeRatio } from '../lib/layout'
 import { formFor } from '../lib/outputs'
 import { ChatPane } from './ChatPane'
+import { Divider } from './Divider'
 import { NotebookList } from './NotebookList'
 import { OutputsPane } from './OutputsPane'
 import { OutputTiles } from './OutputTiles'
@@ -104,6 +106,28 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   // the picked output format, kept while this notebook is open
   const [format, setFormat] = useState<OutputKind | null>(null)
   const [hasReadySource, setHasReadySource] = useState(false)
+  // viewer/chat split, remembered per browser; full view hides the chat behind a toggle
+  const [ratio, setRatio] = useState(() => readRatio(browserStorage()))
+  const [fullView, setFullView] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
+  const rightColumn = useRef<HTMLDivElement>(null)
+
+  const leaveFullView = useCallback(() => {
+    setFullView(false)
+    setChatOpen(false)
+  }, [])
+
+  // Esc closes the chat of the full view first, then the full view itself
+  useEffect(() => {
+    if (!fullView) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (chatOpen) setChatOpen(false)
+      else leaveFullView()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fullView, chatOpen, leaveFullView])
   const { busy, error, run } = useAsync()
 
   const reloadOutputs = useCallback(async () => {
@@ -173,7 +197,7 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   )
 
   return (
-    <div className="columns">
+    <div className={['columns', fullView ? 'full' : '', fullView && chatOpen ? 'chat-open' : ''].join(' ').trim()}>
       <div className="column left no-print">
         <SourcesPane
           notebookId={notebookId}
@@ -191,16 +215,36 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
         />
         <OutputsPane outputs={outputs} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
       </div>
-      <div className="column right">
+      <div className="column right" ref={rightColumn}>
         <OutputViewer
           outputs={outputs}
           selectedId={selectedOutput}
           onSelect={setSelectedOutput}
           onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
           onDeleted={removeOutput}
-          onAskAbout={setScope}
+          onAskAbout={(o) => {
+            setScope(o)
+            if (fullView) setChatOpen(true)
+          }}
           error={error}
+          fullView={fullView}
+          onFullView={(on) => (on ? setFullView(true) : leaveFullView())}
+          chatOpen={chatOpen}
+          onToggleChat={() => setChatOpen((v) => !v)}
+          style={fullView ? undefined : { flexBasis: `${ratio * 100}%` }}
         />
+        {!fullView && (
+          <Divider
+            ratio={ratio}
+            container={() => rightColumn.current}
+            onChange={setRatio}
+            onCommit={(r) => writeRatio(browserStorage(), r)}
+            onReset={() => {
+              setRatio(DEFAULT_VIEWER_RATIO)
+              writeRatio(browserStorage(), null)
+            }}
+          />
+        )}
         <div className="no-print chat-wrap">
           <ChatPane notebookId={notebookId} scope={scope} onClearScope={() => setScope(null)} onCitationSelected={onCitation} />
         </div>

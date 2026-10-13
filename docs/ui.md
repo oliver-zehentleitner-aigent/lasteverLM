@@ -63,8 +63,20 @@ is closed. After the wizard the notebook view opens.
   and status; a click opens the document's tab, × deletes it.
 - **Output viewer** (right, top): one tab per output, processing tabs
   show a spinner and poll. Each kind has its own renderer; the audio
-  player sits centred in the pane. Three actions
-  per document: ask about this, print, share.
+  player sits centred in the pane. Actions per document: ask about
+  this, print, share, full view.
+- **Divider** between viewer and chat: drag it (or arrow keys when it
+  has focus) to change the split; the split is remembered per browser,
+  a double-click (or Home) resets it to half and half. Hidden on narrow
+  screens, where the columns stack.
+- **Full view**: the open document over the whole window, for tall or
+  wide documents such as the mind map; the viewer's tabs stay, so
+  another document is one click away. The chat is behind a "chat"
+  toggle in the bar at the top right and opens in the lower part;
+  "ask about this" opens it too. Esc closes that chat first, then the
+  full view; × leaves it as well. Leaving returns to the two panes with
+  the split as it was, and the focus goes back to the full-view
+  button.
 - **Chat** (right, bottom): one tab per conversation of the notebook,
   "+" opens a new one, "×" closes one after a confirmation and deletes
   its messages; closing the last tab opens a fresh one, and a notebook

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Divider between document viewer and chat: drag or arrow keys to change the split, remembered per browser (localStorage, guarded), double-click or Home to reset.
+- Full view for the open document: over the whole window, the viewer's tabs kept, the chat behind a "chat" toggle (also opened by "ask about this"); Esc closes the chat first, then the full view, × leaves too, and the focus returns to the full-view button.
+
 ### Changed
 
 - Notebook view: the tiles are "Output format"; a click (or Enter) only selects a format, highlighted and kept while the notebook is open, and a Create button below starts the job. Create is disabled without a selection or without a ready source, with a hint saying which.
