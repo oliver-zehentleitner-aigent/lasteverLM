@@ -24,9 +24,10 @@ from lasteverlm_core import (
     ModelPrices,
     OutputKind,
     OutputStatus,
+    Role,
     Usage,
+    admin_role,
     has_credit,
-    is_admin,
     record_usage,
 )
 from lasteverlm_core.usage import Connection as CoreConnection
@@ -143,7 +144,7 @@ class Store(Protocol):
     # credit
     def has_credit(self, user_id: str) -> bool: ...
 
-    def is_admin(self, user_id: str) -> bool: ...
+    def admin_role(self, user_id: str) -> Role: ...
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None: ...
 
@@ -599,9 +600,9 @@ class PostgresStore:
         with self._pool.connection() as conn:
             return has_credit(core_connection(conn), uuid.UUID(user_id))
 
-    def is_admin(self, user_id: str) -> bool:
+    def admin_role(self, user_id: str) -> Role:
         with self._pool.connection() as conn:
-            return is_admin(core_connection(conn), uuid.UUID(user_id))
+            return admin_role(core_connection(conn), uuid.UUID(user_id))
 
     def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
         with self._pool.connection() as conn:

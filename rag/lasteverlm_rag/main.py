@@ -35,12 +35,13 @@ from lasteverlm_core import (
     RateLimiter,
     RateLimitMiddleware,
     RateLimitStore,
+    Role,
     S3Storage,
     SharedOutput,
     current_user,
     make_client,
 )
-from lasteverlm_core.web import admin_only
+from lasteverlm_core.web import admin_read
 
 from . import __version__
 from .admin import admin_stats, daily_stats
@@ -176,12 +177,13 @@ def create_app(
     def principal(authorization: Annotated[str | None, Header()] = None) -> uuid.UUID:
         return uuid.UUID(user_id(authorization))
 
-    def admin_lookup(_: Request, uid: uuid.UUID) -> bool:
+    def role_lookup(_: Request, uid: uuid.UUID) -> Role:
         assert store is not None
-        return store.is_admin(str(uid))
+        return store.admin_role(str(uid))
 
-    # 401 from the principal, 403 "admin only" from core for everyone else
-    AdminUser = Annotated[uuid.UUID, Depends(admin_only(principal, admin_lookup))]  # noqa: N806
+    # rag's admin endpoints only read: viewers and admins pass, 401 from the
+    # principal, 403 "admin only" from core for a plain user
+    AdminReader = Annotated[uuid.UUID, Depends(admin_read(principal, role_lookup))]  # noqa: N806
 
     health = Health.from_env()  # the build is fixed for the life of the process
 
@@ -286,13 +288,13 @@ def create_app(
         return outputs.shared(token)
 
     @app.get(f"{PREFIX}/admin/stats", response_model=AdminStats)
-    def stats(_: AdminUser) -> AdminStats:
+    def stats(_: AdminReader) -> AdminStats:
         assert store is not None
         return admin_stats(store)
 
     @app.get(f"{PREFIX}/admin/stats/daily", response_model=DailyStats)
     def stats_daily(
-        _: AdminUser, days: Annotated[int, Query(ge=1, le=MAX_DAILY_DAYS)] = 30
+        _: AdminReader, days: Annotated[int, Query(ge=1, le=MAX_DAILY_DAYS)] = 30
     ) -> DailyStats:
         assert store is not None
         return daily_stats(store, days)

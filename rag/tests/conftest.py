@@ -15,6 +15,7 @@ from lasteverlm_core import (
     OutputKind,
     OutputStatus,
     ProviderError,
+    Role,
     Usage,
 )
 from lasteverlm_core.chunking import Chunk
@@ -91,9 +92,15 @@ def chunk(
 class FakeStore:
     """In-memory stand-in for PostgresStore with the same contract."""
 
-    def __init__(self, balance: int = 100, admins: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        balance: int = 100,
+        admins: set[str] | None = None,
+        viewers: set[str] | None = None,
+    ) -> None:
         self.balance = balance
         self.admins = admins or set()
+        self.viewers = viewers or set()
         self.messages: list[dict[str, Any]] = []
         self.usage: list[tuple[str, str | None, Usage]] = []
         self.notebooks = {
@@ -300,8 +307,10 @@ class FakeStore:
     def has_credit(self, user_id: str) -> bool:
         return self.balance > 0
 
-    def is_admin(self, user_id: str) -> bool:
-        return user_id in self.admins
+    def admin_role(self, user_id: str) -> Role:
+        if user_id in self.admins:
+            return "admin"
+        return "viewer" if user_id in self.viewers else "user"
 
     def get_chunk(self, chunk_id: str, user_id: str) -> dict[str, Any] | None:
         owner, row = self.chunk_rows.get(chunk_id, (None, None))
