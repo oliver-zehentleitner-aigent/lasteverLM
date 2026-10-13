@@ -147,7 +147,10 @@ generated rows are rag's and never claimed. Worker processes (`lasteverlm-ingest
 of them) claim one row at a time with `UPDATE ... WHERE id = (SELECT ...
 FOR UPDATE SKIP LOCKED)`, oldest first, writing `claimed_at` and
 `claimed_by`; a claim older than `CLAIM_TIMEOUT_SECONDS` is treated as
-abandoned and taken over. An idle worker polls every
+abandoned and taken over, unless the row has had three attempts: then
+the claim fails it ("processing did not finish in 3 attempts"), so a
+source that kills or hangs its worker does not take every worker in
+turn. An idle worker polls every
 `WORKER_POLL_SECONDS`. The pipeline
 (`lasteverlm_ingest.worker.process_source`) loads the file from the
 bucket, parses it, chunks it, embeds the chunks in batches, writes them
