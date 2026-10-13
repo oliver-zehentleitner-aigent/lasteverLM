@@ -24,7 +24,7 @@ repository root's `context/`.
 ## 9
 
 ## A
-- [auth.md](auth.md) — one resolver for session JWT and demo token, why both schemes may be active at once and why there is no audience claim
+- [auth.md](auth.md) — one resolver for session JWT and demo token, why both schemes may be active at once and why there is no audience claim; why a secret under 32 bytes is refused
 
 ## B
 
@@ -63,12 +63,12 @@ repository root's `context/`.
 ## P
 - [packaging.md](packaging.md) — why services install core by path from the same checkout instead of a uv workspace, a lockfile or a published package
 - [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why the shipped default prices are empty
-- [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours; why an unusable embedding vector fails the call; why speech speed is passed through unchecked
+- [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours; why an unusable embedding vector fails the call; why speech speed is passed through unchecked; why a response without usage is an error
 
 ## Q
 
 ## R
-- [ratelimit.md](ratelimit.md) — why the window is counted over access_log excluding 429s, why the middleware is plain ASGI, why the last X-Forwarded-For entry is the client, and why an active ban survives the purge for at most ninety days; why the four thresholds are runtime settings in one database row re-read every thirty seconds
+- [ratelimit.md](ratelimit.md) — why the window is counted over access_log excluding 429s, why the middleware is plain ASGI, why the last X-Forwarded-For entry is the client, and why an active ban survives the purge for at most ninety days; why the four thresholds are runtime settings in one database row re-read every thirty seconds; why IPv6 is keyed per /64; why the limiter fails closed
 
 ## S
 - [storage.md](storage.md) — why ingest and rag share one synchronous S3 client from core and why presigned URLs are signed with SigV4; why only a missing key reads as not there; why object_key rejects an unsafe name

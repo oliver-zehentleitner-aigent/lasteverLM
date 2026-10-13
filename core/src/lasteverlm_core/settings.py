@@ -60,6 +60,7 @@ class InferenceSettings:
     llm_max_tokens: int
     embedding_model: str
     embedding_dimension: int
+    llm_timeout_seconds: int = 60
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> InferenceSettings:
@@ -71,9 +72,12 @@ class InferenceSettings:
             llm_max_tokens=env_int("LLM_MAX_TOKENS", 1024, env),
             embedding_model=env_required("EMBEDDING_MODEL", env),
             embedding_dimension=env_int("EMBEDDING_DIMENSION", 1536, env),
+            llm_timeout_seconds=env_int("LLM_TIMEOUT_SECONDS", 60, env),
         )
         if settings.llm_max_tokens < 1:
             raise ConfigError("LLM_MAX_TOKENS must be at least 1")
         if settings.embedding_dimension < 1:
             raise ConfigError("EMBEDDING_DIMENSION must be at least 1")
+        if settings.llm_timeout_seconds < 1:
+            raise ConfigError("LLM_TIMEOUT_SECONDS must be at least 1")
         return settings

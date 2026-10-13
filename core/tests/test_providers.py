@@ -14,10 +14,13 @@ from openai import OpenAI
 
 from lasteverlm_core import (
     DEFAULT_TTS_VOICE,
+    InferenceSettings,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
     OpenAICompatibleTextToSpeech,
     ProviderError,
+    Usage,
+    make_client,
     thinking_body,
 )
 
@@ -161,8 +164,42 @@ def test_llm_thinking_per_call_and_per_instance() -> None:
 def test_llm_empty_answer_without_thinking_is_an_error() -> None:
     server = FakeServer()
     server.responses.append(completion("", finish="length"))
-    with pytest.raises(ProviderError, match="empty answer.*length"):
+    with pytest.raises(ProviderError, match="empty answer.*length") as caught:
         OpenAICompatibleLLM(server.client(), "llm").complete("s", "u", 40)
+    # billed all the same: the caller records this before re-raising
+    usage = caught.value.usage
+    assert usage is not None and (usage.kind, usage.tokens_in, usage.tokens_out) == ("llm", 11, 5)
+
+
+def test_a_response_without_usage_is_an_error_not_a_free_call() -> None:
+    server = FakeServer()
+    no_usage = completion("Vienna.")
+    del no_usage["usage"]
+    server.responses.append(no_usage)
+    with pytest.raises(ProviderError, match="language model llm reported no usage") as caught:
+        OpenAICompatibleLLM(server.client(), "llm").complete("s", "u")
+    assert caught.value.usage is None
+    vectors = embeddings([1.0, 0.0, 0.0, 0.0])
+    del vectors["usage"]
+    server.responses.append(vectors)
+    with pytest.raises(ProviderError, match="embedding model embed reported no usage"):
+        OpenAICompatibleEmbedder(server.client(), "embed", 4).embed(["a"])
+
+
+def test_a_rejected_vector_carries_the_billed_usage() -> None:
+    server = FakeServer()
+    server.responses.append(embeddings([0.0, 0.0, 0.0, 0.0], tokens=7))
+    with pytest.raises(ProviderError, match="zero norm") as caught:
+        OpenAICompatibleEmbedder(server.client(), "embed", 4).embed(["a"])
+    assert caught.value.usage == Usage("embedding", "embed", 7, 0)
+
+
+def test_make_client_takes_the_timeout_from_the_settings() -> None:
+    env = {"INFERENCE_API_KEY": "k", "LLM_MODEL": "l", "EMBEDDING_MODEL": "e"}
+    settings = InferenceSettings.from_env({**env, "LLM_TIMEOUT_SECONDS": "180"})
+    assert make_client(settings).timeout == 180
+    assert make_client(settings, timeout=5).timeout == 5
+    assert make_client(InferenceSettings.from_env(env)).timeout == 60
 
 
 def test_llm_empty_answer_with_thinking_is_returned_for_the_caller_to_judge() -> None:

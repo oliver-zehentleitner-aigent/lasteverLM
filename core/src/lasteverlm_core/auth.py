@@ -27,6 +27,8 @@ from .settings import ConfigError, env_optional
 JWT_ALGORITHM = "HS256"
 JWT_ISSUER = "lasteverlm"
 JWT_TTL = timedelta(days=7)
+# RFC 7518, 3.2: an HS256 key must be at least as long as the hash output.
+MIN_JWT_SECRET_BYTES = 32
 
 AuthScheme = Literal["jwt", "demo"]
 
@@ -52,10 +54,16 @@ class Principal:
 
 @dataclass(frozen=True)
 class AuthSettings:
-    """`AUTH_JWT_SECRET` and `DEMO_TOKEN`; at least one is required."""
+    """`AUTH_JWT_SECRET` and `DEMO_TOKEN`; at least one is required, and a
+    secret shorter than `MIN_JWT_SECRET_BYTES` is a `ConfigError`."""
 
     jwt_secret: str | None
     demo_token: str | None
+
+    def __post_init__(self) -> None:
+        # Here, not only in from_env: account builds its settings itself.
+        if self.jwt_secret is not None and len(self.jwt_secret.encode()) < MIN_JWT_SECRET_BYTES:
+            raise ConfigError(f"AUTH_JWT_SECRET must be at least {MIN_JWT_SECRET_BYTES} bytes")
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AuthSettings:

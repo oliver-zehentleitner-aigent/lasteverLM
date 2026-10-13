@@ -23,6 +23,7 @@ from .conftest import (
 
 ASK = f"/api/rag/notebooks/{NOTEBOOK}/ask"
 MESSAGES = f"/api/rag/conversations/{CONVERSATION}/messages"
+JWT_SECRET = "jwt-secret-long-enough-for-hs256-0123"
 
 
 def test_healthz_needs_no_auth_and_reports_the_build(settings, monkeypatch):
@@ -335,9 +336,9 @@ def test_session_jwt_from_the_account_service_is_accepted(settings):
     store = FakeStore()
     user = uuid.uuid4()
     store.notebooks[NOTEBOOK]["owner"] = str(user)
-    s = Settings.from_env({**BASE_ENV, "AUTH_JWT_SECRET": "jwt-secret", "DEMO_TOKEN": "demo"})
+    s = Settings.from_env({**BASE_ENV, "AUTH_JWT_SECRET": JWT_SECRET, "DEMO_TOKEN": "demo"})
     client = make_client(s, store, FakeRetriever([]), FakeLLM())
-    token = issue_jwt(user, "jwt-secret")
+    token = issue_jwt(user, JWT_SECRET)
 
     assert client.get(MESSAGES, headers={"Authorization": f"Bearer {token}"}).status_code == 200
     # the demo user does not own this notebook any more

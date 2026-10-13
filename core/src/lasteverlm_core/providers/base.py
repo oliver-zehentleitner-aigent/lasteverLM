@@ -1,8 +1,9 @@
 """The provider interfaces every service codes against.
 
 Each call reports its token usage so the caller can write the `usage`
-row; a provider that does not report usage is accounted at zero tokens
-and the caller sees that in the result. Another provider is one more
+row. A response without usage is a `ProviderError`, never a free call,
+and an error raised after a response arrived carries that response's
+usage, so the caller records what was billed before it re-raises. Another provider is one more
 module implementing these protocols, selected by configuration; callers
 do not change.
 """
@@ -16,7 +17,16 @@ from ..models import UsageKind
 
 
 class ProviderError(Exception):
-    """The provider request failed or returned something unusable."""
+    """The provider request failed or returned something unusable.
+
+    `usage` is set when the provider answered and billed the call (an
+    empty answer, an unusable vector): the caller records it, then lets
+    the error propagate. It is `None` when no usable response came back.
+    """
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage
 
 
 @dataclass(frozen=True)

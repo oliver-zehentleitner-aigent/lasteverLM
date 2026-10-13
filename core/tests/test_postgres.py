@@ -45,6 +45,7 @@ from lasteverlm_core import (
     has_credit,
     is_admin,
     lift_ban,
+    limit_key,
     parse_model_prices,
     purge,
     record_usage,
@@ -235,6 +236,22 @@ async def test_store_block_strike_ban_lift(
         "select lifted_at is not null from ip_bans where ip = %s", (ip,)
     ).fetchone() == (True,)
     assert (await limiter.check(ip, t + timedelta(days=5))).kind == "allowed"
+
+
+async def test_ipv6_64_key_is_logged_banned_and_lifted(
+    pool: ConnectionPool, conn: psycopg.Connection[Any]
+) -> None:
+    key = limit_key("2001:db8:1:2::7")
+    store = PostgresRateLimitStore(pool.connection)
+    limiter = RateLimiter(store, SETTINGS)
+    await store.log(entry(key, T0))
+    assert await store.requests_since(key, T0 - timedelta(minutes=1)) == 1
+    await store.ban(key, "test", T0)
+    assert (await limiter.check(limit_key("2001:db8:1:2::9"), T0)).kind == "banned"
+    assert (await limiter.check(limit_key("2001:db8:1:3::9"), T0)).kind == "allowed"
+    assert conn.execute("select ip::text from ip_bans").fetchone() == ("2001:db8:1:2::/64",)
+    lift_ban(conn, key)
+    assert (await limiter.check(key, T0)).kind == "allowed"
 
 
 async def test_store_strikes_restart_after_quiet_window(pool: ConnectionPool) -> None:

@@ -25,13 +25,18 @@ from .base import CompletionResult, EmbeddingResult, ProviderError, Usage
 DEFAULT_MAX_TOKENS = 1024
 
 
-def make_client(settings: InferenceSettings, timeout: float = 60.0, max_retries: int = 2) -> OpenAI:
-    """The SDK client every provider shares: one timeout and retry policy for the family."""
+def make_client(
+    settings: InferenceSettings, timeout: float | None = None, max_retries: int = 2
+) -> OpenAI:
+    """The SDK client every provider shares: one timeout and retry policy for the family.
 
+    `timeout` (seconds per request) defaults to `settings.llm_timeout_seconds`
+    (`LLM_TIMEOUT_SECONDS`, 60); a worker with long generations passes more.
+    """
     return OpenAI(
         base_url=settings.base_url,
         api_key=settings.api_key,
-        timeout=timeout,
+        timeout=settings.llm_timeout_seconds if timeout is None else timeout,
         max_retries=max_retries,
     )
 
@@ -71,14 +76,20 @@ class OpenAICompatibleEmbedder:
             )
         except APIError as exc:
             raise ProviderError(f"embedding request failed: {exc}") from exc
+        if response.usage is None:
+            raise ProviderError(f"embedding model {self._model} reported no usage")
+        usage = Usage("embedding", self._model, response.usage.prompt_tokens, 0)
         vectors = [item.embedding for item in sorted(response.data, key=lambda d: d.index)]
         if len(vectors) != len(texts):
-            raise ProviderError(f"provider returned {len(vectors)} vectors for {len(texts)} inputs")
+            raise ProviderError(
+                f"provider returned {len(vectors)} vectors for {len(texts)} inputs", usage
+            )
         for i, vector in enumerate(vectors):
             if len(vector) != self._dimension:
                 raise ProviderError(
                     f"embedding model {self._model} returned {len(vector)} dimensions "
-                    f"although {self._dimension} were requested (EMBEDDING_DIMENSION)"
+                    f"although {self._dimension} were requested (EMBEDDING_DIMENSION)",
+                    usage,
                 )
             # Cosine distance against such a vector is NaN in pgvector: the
             # similarity floor drops the chunk silently and its source stays
@@ -86,15 +97,16 @@ class OpenAICompatibleEmbedder:
             if not all(math.isfinite(x) for x in vector):
                 raise ProviderError(
                     f"embedding model {self._model} returned an unusable vector "
-                    f"(non-finite component) for input {i}"
+                    f"(non-finite component) for input {i}",
+                    usage,
                 )
             if sum(x * x for x in vector) == 0.0:
                 raise ProviderError(
                     f"embedding model {self._model} returned an unusable vector "
-                    f"(zero norm) for input {i}"
+                    f"(zero norm) for input {i}",
+                    usage,
                 )
-        tokens = response.usage.prompt_tokens if response.usage else 0
-        return EmbeddingResult(vectors, Usage("embedding", self._model, tokens, 0))
+        return EmbeddingResult(vectors, usage)
 
 
 class OpenAICompatibleLLM:
@@ -146,26 +158,22 @@ class OpenAICompatibleLLM:
             )
         except APIError as exc:
             raise ProviderError(f"completion request failed: {exc}") from exc
+        if response.usage is None:
+            raise ProviderError(f"language model {self._model} reported no usage")
+        usage = Usage(
+            "llm", self._model, response.usage.prompt_tokens, response.usage.completion_tokens
+        )
         if not response.choices:
-            raise ProviderError("provider returned no choices")
+            raise ProviderError("provider returned no choices", usage)
         choice = response.choices[0]
         text = (choice.message.content or "").strip()
-        usage = response.usage
-        result = CompletionResult(
-            text,
-            Usage(
-                "llm",
-                self._model,
-                usage.prompt_tokens if usage else 0,
-                usage.completion_tokens if usage else 0,
-            ),
-            finish_reason=choice.finish_reason,
-        )
         if not text and not think:
+            # billed all the same: the caller records `usage` before re-raising
             raise ProviderError(
-                f"provider returned an empty answer (finish_reason={choice.finish_reason!r})"
+                f"provider returned an empty answer (finish_reason={choice.finish_reason!r})",
+                usage,
             )
-        return result
+        return CompletionResult(text, usage, finish_reason=choice.finish_reason)
 
 
 DEFAULT_TTS_VOICE = "ryan"

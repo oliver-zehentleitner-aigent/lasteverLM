@@ -213,3 +213,59 @@ Counting trusted hops from the right with a configured proxy count:
 correct for chains, but there is one proxy, and a count is one more
 value to get wrong. The peer address without the header: always the
 ingress pod, so every client would share one key.
+
+## IPv6 clients are limited, blocked and banned per /64
+
+**Id:** 1187889d-0b47-448b-a3ce-e1d19bfa37fd
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security audit of core, 2026-10-14; the coordinator's decision on the finding, the same night
+**Revisit when:** abuse arrives from whole /48s, or legitimate users behind one /64 (a shared network) get blocked together
+
+The rules count, block and ban under `limit_key(ip)`: an IPv4 address
+as it is, an IPv6 address as its /64 network (`2001:db8:1:2::/64`).
+`access_log`, `ip_blocks` and `ip_bans` hold that key. The admin panel
+shows it and lifts a ban with it, through a query parameter because of
+the slash in it.
+
+**Reason:** an IPv6 subscriber is normally given a whole /64 and can use
+any of its 2^64 addresses, so a per-address key let one client step out
+of every block and ban by changing its address. The /64 is the smallest
+unit one subscriber controls, which is the same thing a single IPv4
+address is for an IPv4 client.
+
+**Rejected alternative:** per address, as before. Trivial to evade.
+
+**Rejected alternative:** a /48 or /56. That would catch the rotating
+client, but it would also put a provider's other customers under the
+same block.
+
+**Rejected alternative:** storing the full address and matching the prefix
+in SQL (`ip <<= network`). It keeps more personal data than the rules
+need, and every query would change for the same effect.
+
+## The limiter fails closed
+
+**Id:** de1310c3-187c-43b1-a9ee-143b5a648398
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinator's answer to the core audit, 2026-10-14 ("failing closed is intended")
+**Revisit when:** the rate-limit tables move off the main database, or an outage of them is shown to take down requests that the database would not have blocked anyway
+
+When the store cannot answer (the database is down, a query fails),
+`RateLimiter.check` raises and the request ends in a 500. The middleware
+does not let it through unchecked. A failed access-log write raises
+after the response has gone out, so it shows in the logs, not to the
+client.
+
+**Reason:** the limiter is a security control, and letting requests
+through while it is blind would make an outage an open door for exactly
+the clients it exists to stop. Every API service needs the same database
+for its real work anyway, so the cases where the limiter fails alone,
+while the request could still have succeeded, are rare and short.
+
+**Rejected alternative:** fail open, allowing and logging a warning.
+Availability looks better on paper, but a banned client gets in for as
+long as the database is unwell.

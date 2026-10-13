@@ -132,7 +132,7 @@ def test_chunk_view_round_trips() -> None:
     assert ChunkView.model_validate(json.loads(view.model_dump_json())) == view
 
 
-@pytest.mark.parametrize("name", ["LLM_MAX_TOKENS", "EMBEDDING_DIMENSION"])
+@pytest.mark.parametrize("name", ["LLM_MAX_TOKENS", "EMBEDDING_DIMENSION", "LLM_TIMEOUT_SECONDS"])
 def test_inference_widths_below_one_fail_at_startup(name: str) -> None:
     env = {"INFERENCE_API_KEY": "k", "LLM_MODEL": "l", "EMBEDDING_MODEL": "e", name: "0"}
     with pytest.raises(ConfigError, match=f"{name} must be at least 1"):
