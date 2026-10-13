@@ -465,3 +465,33 @@ leaving `actions/*` on major tags — the same risk class with fewer
 owners, and a mixed rule is easier to get wrong; adding Dependabot for
 the pins in the same change — it opens pull requests on its own, which
 is the maintainer's call, so it is proposed separately.
+
+## CI runs the Postgres suites against a PostgreSQL 18 service container, not through the directories' Docker targets
+
+**Id:** 30aca51a-5d54-4a6f-8e87-da589f31476e
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** audit finding relayed by the family coordinator, 2026-10-14 (the suites never ran in CI); image choice confirmed by the coordinator the same night; the reasons are drawn here
+**Revisit when:** the managed instance moves to another major version, or a directory's suite needs more than one empty database
+
+The `python` job of `ci.yml` has a `pgvector/pgvector:0.8.7-pg18-trixie`
+service container per matrix entry. After `make check` it runs the
+directory's `tests/test_postgres.py` with the connection string in the
+variable that directory reads, and fails when a test is skipped.
+
+**Reason:** the suites test the SQL the services run in production
+(migrations, atomic updates, vector queries) and were only run by hand.
+A service container is ready (health check) before the first step and
+is discarded with the job, so every suite starts on an empty database.
+PostgreSQL 18 because production runs 18; the directories' own targets
+default to a 17 image. The skip check exists because every suite skips
+itself without its variable, which would turn a renamed variable into
+a green run.
+
+**Rejected alternatives:** calling each directory's `make test-postgres`
+with Docker on the runner — the targets start their own container, so
+the CI image choice would be a per-directory override, and their
+`DOCKER ?= sg docker -c` default does not work on a runner;
+`pgvector/pgvector:pg17` as first proposed — a different major than
+production.
