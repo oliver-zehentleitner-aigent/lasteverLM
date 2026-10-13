@@ -117,6 +117,7 @@ async def run_asgi(
         "type": "http",
         "method": "GET",
         "path": path,
+        "query_string": b"",
         "headers": headers,
         "client": ("10.0.0.5", 1),
     }

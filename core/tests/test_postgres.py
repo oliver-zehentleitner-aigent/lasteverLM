@@ -1,12 +1,13 @@
-"""The SQL paths against a real PostgreSQL: usage accounting, the rate-limit
-stores, purge and lift_ban. Everything else in the suite runs against fakes;
-this file is what `make test-postgres` runs against a throwaway pgvector
-container and skips without `CORE_TEST_DATABASE_URL`.
+"""The SQL paths against a real PostgreSQL: usage accounting, the admin and
+credit checks, the rate-limit stores, purge and lift_ban. Everything else in
+the suite runs against fakes; this file is what `make test-postgres` runs
+against a throwaway pgvector container and skips without
+`CORE_TEST_DATABASE_URL`.
 
 The database is empty: core's own migrations are applied here, and the
-`ledger` table that `BALANCE_SQL` reads is created as the two columns the
-account service's migration gives it, because core's tests cannot depend on
-another service's migration files.
+`ledger` and `users` tables that `BALANCE_SQL` and `HAS_CREDIT_SQL` read
+are created as the columns the account service's migration gives them,
+because core's tests cannot depend on another service's migration files.
 """
 
 from __future__ import annotations
@@ -34,8 +35,12 @@ from lasteverlm_core import (
     RateLimitSettings,
     UnpricedModelError,
     abalance_cents,
+    ahas_credit,
+    ais_admin,
     arecord_usage,
     balance_cents,
+    has_credit,
+    is_admin,
     lift_ban,
     parse_model_prices,
     purge,
@@ -50,7 +55,11 @@ MIGRATIONS = sorted((Path(__file__).parent.parent / "db" / "migrations").glob("*
 LEDGER_MIRROR = (
     "create table if not exists ledger (user_id uuid not null, amount_cents integer not null)"
 )
-TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger")
+USERS_MIRROR = (
+    "create table if not exists users"
+    " (id uuid primary key, is_admin boolean not null default false)"
+)
+TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger", "users")
 PRICES = parse_model_prices('{"llm": {"in": 30, "out": 150}, "tts": {"in": 2000, "out": 0}}')
 T0 = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 SETTINGS = RateLimitSettings(per_minute=3, block_minutes=15, ban_after_strikes=3)
@@ -66,6 +75,7 @@ def dsn() -> str:
         try:
             with psycopg.connect(value, connect_timeout=2) as conn, conn.cursor() as cur:
                 cur.execute(LEDGER_MIRROR)
+                cur.execute(USERS_MIRROR)
                 for path in MIGRATIONS:
                     cur.execute(path.read_text())
             return value
@@ -125,6 +135,34 @@ def test_tts_usage_is_priced_per_character(conn: psycopg.Connection[Any]) -> Non
             " values (%s, 'rag', 'speech', 'tts', 1, 0, 0)",
             (user,),
         )
+
+
+def test_admin_has_credit_without_balance(dsn: str, conn: psycopg.Connection[Any]) -> None:
+    admin, user, stranger = uuid4(), uuid4(), uuid4()
+    conn.execute("insert into users (id, is_admin) values (%s, true), (%s, false)", (admin, user))
+    assert is_admin(conn, admin) is True
+    assert is_admin(conn, user) is False
+    assert is_admin(conn, stranger) is False  # no users row
+    assert has_credit(conn, admin) is True  # balance 0
+    assert has_credit(conn, user) is False
+    assert has_credit(conn, stranger) is False
+    credit(conn, user, 5)
+    assert has_credit(conn, user) is True
+    record_usage(conn, user, None, "rag", "llm", "llm", 1_000_000, 0, prices=PRICES)
+    assert has_credit(conn, user) is False  # 5 - 30 < 0
+    record_usage(conn, admin, None, "rag", "llm", "llm", 1_000_000, 0, prices=PRICES)
+    assert has_credit(conn, admin) is True  # negative balance, still an admin
+    with psycopg.connect(dsn, row_factory=dict_row) as dconn:
+        assert has_credit(dconn, admin) is True and is_admin(dconn, user) is False
+
+
+async def test_async_admin_and_credit(dsn: str, conn: psycopg.Connection[Any]) -> None:
+    admin = uuid4()
+    conn.execute("insert into users (id, is_admin) values (%s, true)", (admin,))
+    async with await psycopg.AsyncConnection.connect(dsn) as aconn:
+        assert await ais_admin(aconn, admin) is True
+        assert await ahas_credit(aconn, admin) is True
+        assert await ahas_credit(aconn, uuid4()) is False
 
 
 def test_balance_on_a_dict_row_connection(dsn: str, conn: psycopg.Connection[Any]) -> None:

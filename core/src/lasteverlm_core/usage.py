@@ -24,6 +24,18 @@ select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)
     as balance_cents
 """
 
+# Admins are exempt from the credit check. `users` is account's table; a
+# user without a row (only possible before account has written it) is no admin.
+IS_ADMIN_SQL = """
+select coalesce((select is_admin from users where id = %(user_id)s), false) as is_admin
+"""
+HAS_CREDIT_SQL = """
+select coalesce((select is_admin from users where id = %(user_id)s), false)
+    or coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)s), 0)
+     - coalesce((select sum(cost_cents) from usage where user_id = %(user_id)s), 0) > 0
+    as has_credit
+"""
+
 USAGE_SQL = """
 insert into usage (user_id, notebook_id, service, kind, model, tokens_in, tokens_out, cost_cents)
 values (%(user_id)s, %(notebook_id)s, %(service)s, %(kind)s, %(model)s,
@@ -101,6 +113,21 @@ def balance_cents(conn: Connection, user_id: UUID) -> int:
         return _balance(cur.fetchone())
 
 
+def is_admin(conn: Connection, user_id: UUID) -> bool:
+    """`users.is_admin` for one user; false when the user has no row."""
+    with conn.cursor() as cur:
+        cur.execute(IS_ADMIN_SQL, {"user_id": user_id})
+        return bool(scalar(cur.fetchone(), "is_admin"))
+
+
+def has_credit(conn: Connection, user_id: UUID) -> bool:
+    """May this user start a model call: an admin always, anyone else with a
+    positive balance. The check every service runs before a model call."""
+    with conn.cursor() as cur:
+        cur.execute(HAS_CREDIT_SQL, {"user_id": user_id})
+        return bool(scalar(cur.fetchone(), "has_credit"))
+
+
 def record_usage(
     conn: Connection,
     user_id: UUID,
@@ -129,6 +156,20 @@ async def abalance_cents(conn: AsyncConnection, user_id: UUID) -> int:
     async with conn.cursor() as cur:
         await cur.execute(BALANCE_SQL, {"user_id": user_id})
         return _balance(await cur.fetchone())
+
+
+async def ais_admin(conn: AsyncConnection, user_id: UUID) -> bool:
+    """`is_admin` for an async psycopg connection."""
+    async with conn.cursor() as cur:
+        await cur.execute(IS_ADMIN_SQL, {"user_id": user_id})
+        return bool(scalar(await cur.fetchone(), "is_admin"))
+
+
+async def ahas_credit(conn: AsyncConnection, user_id: UUID) -> bool:
+    """`has_credit` for an async psycopg connection."""
+    async with conn.cursor() as cur:
+        await cur.execute(HAS_CREDIT_SQL, {"user_id": user_id})
+        return bool(scalar(await cur.fetchone(), "has_credit"))
 
 
 async def arecord_usage(

@@ -39,7 +39,8 @@ which needs Docker.
 
 Python 3.12+, type hints everywhere, `ruff` for linting, `black` for formatting,
 `mypy --strict` clean. Core depends on as little as possible: Pydantic,
-PyJWT, the OpenAI SDK and anyio. No database driver: the PostgreSQL
+PyJWT, the OpenAI SDK, anyio and boto3; FastAPI only for `web.py`, as
+the `web` extra. No database driver: the PostgreSQL
 helpers take the caller's psycopg connection and type it structurally.
 Every provider is an interface with one implementation; another provider
 is a new module, never an edit to its callers.

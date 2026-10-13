@@ -9,6 +9,12 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `has_credit` / `ahas_credit`: the pre-call check, true for an admin whatever the balance and for anyone else with `balance_cents > 0`; replaces `balance_cents(...) <= 0` in the services. Admins are still billed.
+- `is_admin` / `ais_admin`: `users.is_admin` per request (no JWT claim); a user without a row is no admin. `HAS_CREDIT_SQL`, `IS_ADMIN_SQL` exported.
+- `lasteverlm_core.web.admin_only(current_user, lookup)`: FastAPI dependency for admin-only endpoints, 403 `admin only` for non-admins; the `web` extra names FastAPI.
+
 ## [0.2.1] - 2026-10-13
 
 ### Changed
