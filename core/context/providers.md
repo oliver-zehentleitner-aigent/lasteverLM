@@ -89,3 +89,33 @@ existing caller byte-identical.
 **Rejected alternative:** clamp or validate 0.25 to 4 in core. Clamping
 would hide a caller's mistake; validating duplicates the platform's own
 check.
+
+## A response without usage is an error, and a billed failure carries its usage
+
+**Id:** 4f4b0bfc-d12e-4f25-a3ce-4e96e1810132
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinator's decision on the core audit, 2026-10-14 (fail loud, per the family rule); rag's audit finding that an empty answer was billed but never recorded
+**Revisit when:** a provider is added that legitimately reports no usage, or billing moves to the provider's own invoice data
+
+When the embeddings or completions response has no `usage`, the call is a
+`ProviderError`. It used to be accounted at zero tokens. `ProviderError`
+has a `usage` field: when the provider answered and billed the call but
+the answer is unusable (empty with thinking off, a bad vector, a wrong
+count), the error carries that usage. The caller records it and then
+lets the error propagate.
+
+**Reason:** a missing usage block turned a paid call into a free one
+without any trace, which is the silent failure the family rule forbids.
+And an empty answer was raised before anyone could see what it had cost,
+so the platform billed tokens that never reached the ledger. Carrying
+the usage on the error keeps one exception type and leaves recording to
+the caller, who owns the transaction.
+
+**Rejected alternative:** zero tokens and a warning. The balance would
+still be wrong, only in the logs.
+
+**Rejected alternative:** record the usage inside the provider. Core's
+providers know no connection, and the caller's transaction would no
+longer decide what gets written.
