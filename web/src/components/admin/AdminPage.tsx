@@ -298,6 +298,7 @@ function Bans() {
 
   return (
     <Section title="Bans">
+      <p className="muted small">An active ban stays until an admin lifts it, at most 90 days.</p>
       <label className="check">
         <input type="checkbox" checked={includeLifted} onChange={(e) => setIncludeLifted(e.target.checked)} /> Show lifted bans too
       </label>

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Admin page: the bans section states how long a ban holds (until lifted, at most 90 days).
 - Wizard: Web page (enter a URL) and Image (PNG, JPEG, WebP, GIF) are active source types.
 - Disabled tiles show "Soon." from one place instead of in their descriptions, so enabling a form is a one-line change.
 
