@@ -23,10 +23,11 @@ from lasteverlm_core import (
     client_ip,
     issue_jwt,
     lift_ban,
+    limit_key,
     purge,
     purge_params,
 )
-from lasteverlm_core.ratelimit import PURGE_SQL
+from lasteverlm_core.ratelimit import PURGE_SQL, UNKNOWN_IP
 
 from .conftest import FakeConnection
 
@@ -132,7 +133,7 @@ def test_client_ip_prefers_forwarded_header_when_trusted() -> None:
 
 
 async def run_asgi(
-    app: Any, headers: list[tuple[bytes, bytes]], path: str = "/x"
+    app: Any, headers: list[tuple[bytes, bytes]], path: str = "/x", client: str = "10.0.0.5"
 ) -> tuple[int, bytes]:
     scope = {
         "type": "http",
@@ -140,7 +141,7 @@ async def run_asgi(
         "path": path,
         "query_string": b"",
         "headers": headers,
-        "client": ("10.0.0.5", 1),
+        "client": (client, 1),
     }
     sent: list[dict[str, Any]] = []
 
@@ -333,3 +334,22 @@ async def test_unusable_rules_fall_back_to_env_with_one_warning(
     broken = RateLimiter(Broken(), SETTINGS)
     assert await broken.current_rules(T0) == defaults
     assert (await broken.check("ip", T0)).kind == "allowed"
+
+
+def test_limit_key_groups_ipv6_by_64_and_keeps_ipv4() -> None:
+    assert limit_key("203.0.113.9") == "203.0.113.9"
+    assert limit_key("2001:db8:1:2:aaaa:bbbb:cccc:dddd") == "2001:db8:1:2::/64"
+    assert limit_key("2001:db8:1:2::1") == limit_key("2001:db8:1:2:ffff::9")
+    assert limit_key("2001:db8:1:3::1") == "2001:db8:1:3::/64"
+    assert limit_key(UNKNOWN_IP) == UNKNOWN_IP
+
+
+async def test_addresses_of_one_ipv6_64_share_one_limit() -> None:
+    store = MemoryRateLimitStore()
+    app = RateLimitMiddleware(ok_app, RateLimiter(store, SETTINGS), service="t", clock=lambda: T0)
+    for host in ("2001:db8:1:2::1", "2001:db8:1:2::2", "2001:db8:1:2::3"):
+        assert (await run_asgi(app, [], client=host))[0] == 204
+    # a fourth address in the same /64 is the same client
+    assert (await run_asgi(app, [], client="2001:db8:1:2::4"))[0] == 429
+    assert (await run_asgi(app, [], client="2001:db8:1:3::1"))[0] == 204
+    assert {e.ip for e in store.entries} == {"2001:db8:1:2::/64", "2001:db8:1:3::/64"}

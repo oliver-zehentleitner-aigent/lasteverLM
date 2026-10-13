@@ -150,7 +150,11 @@ Rules, all per client IP. With `trust_forwarded` (the default; account
 names it `TRUST_PROXY_HEADERS`) that is the last `X-Forwarded-For`
 entry, the one the ingress wrote; earlier entries come from the client
 and are never read. Without it, the peer address. An IPv4-mapped IPv6
-address counts as its IPv4 address, an IPv6 zone is dropped.
+address counts as its IPv4 address, an IPv6 zone is dropped. The rules
+count, block and ban under `limit_key(ip)`: an IPv4 address as is, an
+IPv6 address as its /64 (`2001:db8:1:2::/64`), because one subscriber
+holds a whole /64. `access_log`, `ip_blocks` and `ip_bans` store that
+key, and `lift_ban` takes it as the admin panel shows it.
 
 1. More than `RATE_LIMIT_PER_MINUTE` logged requests in the last minute
    (the limiter's own 429s not counted): 429 for `BLOCK_MINUTES`, one strike.

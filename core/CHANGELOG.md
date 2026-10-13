@@ -11,6 +11,7 @@ preserves why it changed, in `context/`.
 
 ### Security
 
+- The rate limiter keys IPv6 clients by their /64 (`limit_key`, e.g. `2001:db8:1:2::/64`) for the window, blocks and bans; IPv4 stays per address. A client could otherwise step out of every block and ban by picking another address in its own /64. `access_log`, `ip_blocks` and `ip_bans` hold the key, and `lift_ban` takes it as shown.
 - `object_key` requires UUID ids and one plain name segment (no `/` or `\`, not `.` or `..`, no control characters, at most 255 characters) and raises `ValueError` otherwise, so no caller can build a key outside its owner's prefix.
 - `presigned_get` refuses an expiry above seven days (`PRESIGN_MAX_SECONDS`, the SigV4 limit) as well as one below a second.
 - `UsageRecord` caps `tokens_in`, `tokens_out` and `cost_cents` at the `integer` columns' maximum, so an absurd price or count fails as a named `ValidationError` before the insert.

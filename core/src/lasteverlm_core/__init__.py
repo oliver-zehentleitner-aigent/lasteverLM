@@ -91,6 +91,7 @@ from .ratelimit import (
     RateLimitStore,
     client_ip,
     lift_ban,
+    limit_key,
     purge,
     purge_params,
 )
@@ -220,6 +221,7 @@ __all__ = [
     "is_admin",
     "issue_jwt",
     "lift_ban",
+    "limit_key",
     "load_model_prices",
     "make_client",
     "object_key",

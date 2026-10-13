@@ -322,9 +322,27 @@ def client_ip(scope: Scope, trust_forwarded: bool = True) -> str:
     return str(address)
 
 
+IPV6_PREFIX = 64
+
+
+def limit_key(ip: str) -> str:
+    """The key the rules count, block and ban under: an IPv4 address as is,
+    an IPv6 address as its /64 network (`2001:db8:1:2::/64`).
+
+    One IPv6 subscriber usually holds a whole /64 and can pick any address
+    in it, so a per-address key would let it step out of every block and
+    ban. `ip` is what `client_ip` returned.
+    """
+    address = ipaddress.ip_address(ip)
+    if isinstance(address, ipaddress.IPv4Address):
+        return str(address)
+    return str(ipaddress.IPv6Network((address, IPV6_PREFIX), strict=False))
+
+
 class RateLimitMiddleware:
     """Pure ASGI middleware: `check` before the app, `record` after it.
 
+    The client is keyed with `limit_key` for the rules and the log alike.
     `service` names the writer in `access_log`. With `auth`, the row
     carries the user the bearer token resolves to; an invalid token is
     logged as anonymous and left for the app to reject.
@@ -352,7 +370,7 @@ class RateLimitMiddleware:
             await self._app(scope, receive, send)
             return
         now = self._clock()
-        ip = client_ip(scope, self._trust_forwarded)
+        ip = limit_key(client_ip(scope, self._trust_forwarded))
         decision = await self._limiter.check(ip, now)
         status = decision.status
         if decision.kind == "allowed":
