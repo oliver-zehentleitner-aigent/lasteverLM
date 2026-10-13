@@ -275,7 +275,7 @@ class FakeStore:
     def notebook_documents(self, notebook_id: str) -> list[NotebookDocument]:
         output_kinds = {o["source_id"]: o["kind"] for o in self.outputs.values()}
         return [
-            NotebookDocument(s["name"], s["kind"], output_kinds.get(s["id"]))
+            NotebookDocument(s["id"], s["name"], s["kind"], output_kinds.get(s["id"]))
             for s in self.sources.values()
             if s["notebook_id"] == notebook_id and s["status"] == "ready"
         ]
@@ -355,7 +355,7 @@ class FakeRetriever:
         self.calls: list[dict[str, Any]] = []
 
     def search(
-        self, notebook_id, embedding, k, floor, source_id=None, generated=False
+        self, notebook_id, embedding, k, floor, source_id=None, generated=False, source_ids=None
     ) -> list[RetrievedChunk]:
         self.calls.append(
             {
@@ -364,6 +364,7 @@ class FakeRetriever:
                 "floor": floor,
                 "source_id": source_id,
                 "generated": generated,
+                "source_ids": source_ids,
             }
         )
         hits = [c for c in self.chunks if c.similarity >= floor]
@@ -371,6 +372,8 @@ class FakeRetriever:
             hits = [c for c in hits if c.source_id == source_id]
         else:
             hits = [c for c in hits if (c.source_kind == "generated") == generated]
+        if source_ids is not None:
+            hits = [c for c in hits if c.source_id in source_ids]
         return hits[:k]
 
 

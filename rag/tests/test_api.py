@@ -89,6 +89,7 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
         "floor": 0.5,
         "source_id": None,
         "generated": False,
+        "source_ids": None,
     }
     # both messages stored, the assistant one carries the citations
     assert [m["role"] for m in store.messages] == ["user", "assistant"]

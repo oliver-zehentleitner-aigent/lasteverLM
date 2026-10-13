@@ -15,14 +15,14 @@ this directory implements the `/api/rag` prefix.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?}` | `Answer` |
+| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?, "source_ids"?}` | `Answer` |
 | GET | `/api/rag/notebooks/{id}/conversations` | | `[Conversation]`, oldest first |
 | POST | `/api/rag/notebooks/{id}/conversations` | `{"title"?}` | 201 `Conversation`; title defaults to `Chat N` |
 | PATCH | `/api/rag/conversations/{id}` | `{"title"}` | `Conversation`; title trimmed, 1–80 chars, else 422 |
 | DELETE | `/api/rag/conversations/{id}` | | 204, the conversation and its messages |
 | GET | `/api/rag/conversations/{id}/messages` | | `[Message]`, oldest first |
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
-| POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?}` | 202 `Output`, status `waiting` or `processing` |
+| POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
 | POST | `/api/rag/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview of a voice |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` |
@@ -93,6 +93,20 @@ no passage matches; only a notebook without any ready document gets the
 fixed refusal without a model call. `scope.output_id` restricts retrieval
 to one generated document, without a similarity floor and with a larger
 k, since the scope bounds the context.
+
+**Source selection.** `source_ids` on `ask` and on `POST .../outputs` are
+the sources the user ticked: link ids (the `id` of ingest's `Source` in
+this notebook), uploads only. Absent or empty means all; an id that is not
+an uploaded source of the notebook is a 422 (`source_ids: <id> is not a
+source of this notebook`). On `ask` the uploads search is filtered to the
+selection; the generated slots are unchanged, and the document list in
+the system prompt still names every document but marks the uploads
+outside the selection `not in scope`, so "why don't you see X" is
+answered. A `scope.output_id` wins over the selection. On an output the
+selection is stored as `options.sources` (the ids, deduplicated) and the
+generator reads only those sources' summaries and chunks, balanced over
+the selection; if none of them is ready when the job runs, the output
+fails with `none of the selected sources is ready`.
 
 **Outputs.** `POST /outputs` inserts the job and answers at once. The
 worker entrypoint (`lasteverlm-rag-worker`) claims jobs from the
