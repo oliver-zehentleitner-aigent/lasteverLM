@@ -54,7 +54,7 @@ def create_app(
         repo = repository
     if rate_limit_store is None:
         rate_limit_store = (
-            AsyncPostgresRateLimitStore(postgres.tuple_connection)
+            AsyncPostgresRateLimitStore(postgres.connection)
             if postgres is not None
             else MemoryRateLimitStore()
         )
