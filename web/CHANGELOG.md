@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-14
+
 ### Added
 
 - Library multi-select: a checkbox per row with "all / none" for the rows shown, and a bar for the selection with "New notebook from n sources" (title prompt preset with the first name; created, filled entry by entry, opened) and "Delete n" (one confirmation naming every notebook affected, one delete per entry with progress, the rest kept ticked after a failure).

@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-14
+
 ### Added
 
 - Read-only admin access: `Role` (`"user" | "viewer" | "admin"`, `ROLES`), `ROLE_SQL`, `admin_role` / `aadmin_role` reading account's `users.role` (no row is `"user"`), and `lasteverlm_core.web.admin_read(current_user, role_lookup)`, which admits viewers and admins with 403 `admin only` for everyone else. `admin_only` is unchanged and stays admin-only for writes.
