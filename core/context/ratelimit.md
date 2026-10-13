@@ -213,3 +213,34 @@ Counting trusted hops from the right with a configured proxy count:
 correct for chains, but there is one proxy, and a count is one more
 value to get wrong. The peer address without the header: always the
 ingress pod, so every client would share one key.
+
+## IPv6 clients are limited, blocked and banned per /64
+
+**Id:** 1187889d-0b47-448b-a3ce-e1d19bfa37fd
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security audit of core, 2026-10-14; the coordinator's decision on the finding, the same night
+**Revisit when:** abuse arrives from whole /48s, or legitimate users behind one /64 (a shared network) get blocked together
+
+The rules count, block and ban under `limit_key(ip)`: an IPv4 address
+as it is, an IPv6 address as its /64 network (`2001:db8:1:2::/64`).
+`access_log`, `ip_blocks` and `ip_bans` hold that key. The admin panel
+shows it and lifts a ban with it, through a query parameter because of
+the slash in it.
+
+**Reason:** an IPv6 subscriber is normally given a whole /64 and can use
+any of its 2^64 addresses, so a per-address key let one client step out
+of every block and ban by changing its address. The /64 is the smallest
+unit one subscriber controls, which is the same thing a single IPv4
+address is for an IPv4 client.
+
+**Rejected alternative:** per address, as before. Trivial to evade.
+
+**Rejected alternative:** a /48 or /56. That would catch the rotating
+client, but it would also put a provider's other customers under the
+same block.
+
+**Rejected alternative:** storing the full address and matching the prefix
+in SQL (`ip <<= network`). It keeps more personal data than the rules
+need, and every query would change for the same effect.
