@@ -380,3 +380,39 @@ three-day build.
 **Rejected alternatives:** Supabase self-hosted (above); CloudNativePG
 with a pgvector image as the lighter in-cluster path, not needed once
 the managed instance existed.
+
+## Audio files are served through presigned URLs; the storage client lives in core
+
+**Id:** 0694e89f-e85a-4d0d-89f7-5cce8a3dc589
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** rag's text-to-speech probe on the inference platform, 2026-10-13; coordinator decision the same morning
+
+An audio output is an MP3 in object storage at
+`<notebook_id>/<output_id>/audio.mp3`. The output row stores the object
+key; every read of the output (single, list, shared link) replaces it
+with a presigned GET URL that expires after one hour. The S3 client
+moves from ingest into core (`lasteverlm_core.storage`, with a presign
+call) so rag does not grow a second one. Text-to-speech is priced per
+input character through a third `usage.kind`, `tts`, with the
+character count in `tokens_in`.
+
+**Reason:** the browser's `<audio>` element fetches its source on its own
+and cannot send the bearer token, so an authenticated download through
+the API would need a token in the URL or a cookie, both new auth paths.
+A presigned URL keeps the API contract (`{"url"}`) and the share page
+unchanged, and object storage serves the bytes instead of a rag pod. One
+storage client in core follows the rule that shared behaviour lives in
+core; ingest switches to it when its owner has time, which is not on the
+audio path.
+
+**Rejected alternatives:** streaming the file through the rag API with
+a short-lived download token — rejected as a second auth scheme for one
+output kind; storing the MP3 in PostgreSQL as bytea — rejected because
+uploads already live in object storage and the row would carry
+megabytes; a rag-local copy of the S3 class now and consolidation later
+— rejected because the core module is a move, not new code, and the
+owner of core is free this morning. A fourth usage kind instead of
+reusing `tokens_in` for characters was not considered worth a schema
+column: the unit is named by the kind.
