@@ -11,7 +11,7 @@ the three services share:
 
 | Module | What |
 |---|---|
-| `lasteverlm_core.models` | the API models of the contract (`User`, `Notebook`, `Source`, `Citation`, `ChunkView`, `Message`, `Answer`, `Output`, `UsageRecord`, the kind and status literals (`usage.kind` includes `tts`), `DEMO_USER_ID`) |
+| `lasteverlm_core.models` | the API models of the contract (`User`, `Notebook`, `Source`, `Citation`, `ChunkView`, `Message`, `Answer`, `Output`, `UsageRecord`, `Health` (the `/healthz` body with `APP_VERSION` / `APP_COMMIT`), the kind and status literals (`usage.kind` includes `tts`), `DEMO_USER_ID`) |
 | `lasteverlm_core.auth` | `current_user(authorization, auth) -> Principal`: session JWT first, demo token second; `issue_jwt`, `verify_jwt`, `AuthSettings.from_env` |
 | `lasteverlm_core.pricing` | `MODEL_PRICES` parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call |
 | `lasteverlm_core.usage` | `record_usage`, `balance_cents`, `has_credit` (balance above zero, admins included), `is_admin` (sync psycopg) and their async twins `arecord_usage`, `abalance_cents`, `ahas_credit`, `ais_admin`; the SQL as constants |

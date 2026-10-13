@@ -8,11 +8,14 @@ only casts at its own boundary.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from .settings import env_optional
 
 # The user every caller of DEMO_TOKEN resolves to. Seeded by the account
 # service's migration; fixed so all services agree on whose rows these are.
@@ -142,6 +145,30 @@ class SharedOutput(BaseModel):
     content: dict[str, Any] | None = None
     options: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
+
+
+UNKNOWN_BUILD = "unknown"
+
+
+class Health(BaseModel):
+    """What every service answers on `GET /healthz`: liveness plus the build
+    it runs, so the admin system view can collect the versions per service.
+
+    `version` and `commit` come from `APP_VERSION` and `APP_COMMIT` (the
+    ConfigMap sets both); a value that is unset or blank is `"unknown"`, so
+    a probe never fails over a missing label.
+    """
+
+    status: Literal["ok"] = "ok"
+    version: str = UNKNOWN_BUILD
+    commit: str = UNKNOWN_BUILD
+
+    @classmethod
+    def from_env(cls, env: Mapping[str, str] | None = None) -> Health:
+        return cls(
+            version=env_optional("APP_VERSION", env) or UNKNOWN_BUILD,
+            commit=env_optional("APP_COMMIT", env) or UNKNOWN_BUILD,
+        )
 
 
 class UsageRecord(BaseModel):

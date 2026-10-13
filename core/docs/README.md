@@ -26,6 +26,26 @@ except ConfigError as exc:
 Every loader takes an optional `env` mapping, which is how tests pass
 their own environment instead of patching `os.environ`.
 
+## Health
+
+Every service answers `GET /healthz` (at the root for the probe, under
+its prefix for the ingress) with `Health`, which also names the build:
+
+```python
+from lasteverlm_core import Health
+
+health = Health.from_env()  # APP_VERSION, APP_COMMIT; "unknown" when unset
+
+
+@app.get("/healthz", response_model=Health)
+def healthz() -> Health:
+    return health
+```
+
+The two values come from the ConfigMap and do not change while the
+process runs, so reading them once at startup is enough. A missing value
+is `"unknown"`, never an error: a probe must not fail over a label.
+
 ## Authentication
 
 ```python
