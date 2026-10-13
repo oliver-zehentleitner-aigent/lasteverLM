@@ -41,7 +41,7 @@ export KUBECONFIG := $(BUILD)/kubeconfig
 # $(call require,VAR) fails loud when VAR is unset or empty.
 require = $(if $(strip $($(1))),,$(error $(1) is not set))
 
-.PHONY: tag-check help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations deploy package status down check test smoke local-up local-down local-reset local-smoke
+.PHONY: tag-check help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations deploy package status down check test smoke web-csp-check local-up local-down local-reset local-smoke
 
 help: ## list targets
 > @grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s $$'\t'
@@ -188,6 +188,15 @@ check: test ## static checks and unit tests: tofu, helm lint + template with VAL
 
 test: ## unit tests (the smoke test against an in-process stub)
 > python3 -m unittest discover -s tests
+
+# Headless Chromium for web-csp-check, pinned by digest; the npm package matches the image.
+PLAYWRIGHT_VERSION := 1.63.0
+PLAYWRIGHT_IMAGE   := mcr.microsoft.com/playwright:v$(PLAYWRIGHT_VERSION)-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+
+web-csp-check: ## walk the web image in headless Chromium against URL, list every CSP violation (Docker, DEMO_TOKEN; WEB_IMAGE=<image> or a build with CSP_MODE=report)
+> $(call require,URL)
+> $(call require,DEMO_TOKEN)
+> API_URL=$(URL) REPO_ROOT=$(REPO_ROOT) PLAYWRIGHT_IMAGE=$(PLAYWRIGHT_IMAGE) PLAYWRIGHT_VERSION=$(PLAYWRIGHT_VERSION) sh scripts/web-csp-check.sh
 
 smoke: ## end-to-end smoke test against URL (default https://<domain in VALUES>; token from DEMO_TOKEN; SMOKE_ARGS="--host d --insecure" before DNS exists)
 > $(call require,URL)
