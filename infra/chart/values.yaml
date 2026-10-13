@@ -57,6 +57,9 @@ pgCa:
 # its own ServiceAccount with get/list on this namespace's pods and deployments
 # (templates/rbac.yaml); the worker keeps the default one.
 apiPort: 8000
+# Every container runs with a read-only root filesystem; /tmp is an emptyDir
+# of at most this size (the pod is evicted above it).
+tmpSizeLimit: 256Mi
 services:
   account:
     replicas: 2
@@ -110,9 +113,15 @@ web:
 
 # Migrations run as a pre-install/pre-upgrade hook Job when
 # files/migrations.tgz exists in the chart (written by `make migrations`).
+# The image is pinned by digest; uid 70 is the image's postgres user, which
+# the image names instead of a number.
 migrations:
   enabled: true
-  image: postgres:18-alpine
+  image: postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+  runAsUser: 70
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 256Mi}
   adminSecret: lasteverlm-db-admin
   backoffLimit: 0
   activeDeadlineSeconds: 600

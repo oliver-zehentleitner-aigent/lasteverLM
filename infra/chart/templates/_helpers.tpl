@@ -10,12 +10,28 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 
 {{- define "lasteverlm.securityContext" -}}
 allowPrivilegeEscalation: false
+readOnlyRootFilesystem: true
 runAsNonRoot: true
 {{- with .runAsUser }}
 runAsUser: {{ . }}
 {{- end }}
 capabilities:
   drop: ["ALL"]
+seccompProfile:
+  type: RuntimeDefault
+{{- end }}
+
+{{- /* The only writable path of a read-only container: /tmp, an emptyDir on
+     the node's disk with a size limit (uploads above 1 MB spool there). */}}
+{{- define "lasteverlm.tmpVolumeMount" -}}
+- name: tmp
+  mountPath: /tmp
+{{- end }}
+
+{{- define "lasteverlm.tmpVolume" -}}
+- name: tmp
+  emptyDir:
+    sizeLimit: {{ .Values.tmpSizeLimit }}
 {{- end }}
 
 {{- define "lasteverlm.envFrom" -}}

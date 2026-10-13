@@ -94,7 +94,14 @@ Values: `chart/values.yaml` holds the defaults (replicas, autoscaler
 bounds, resources, rate limits, which Secrets each service mounts).
 Every image sets a numeric `USER`; an image that names its user would
 need `runAsUser` in its values, because `runAsNonRoot` cannot verify a
-name. `kubernetesRead: true` on a service (only `account`) renders its
+name. Every container runs with `readOnlyRootFilesystem`, no
+privilege escalation, all capabilities dropped and the `RuntimeDefault`
+seccomp profile; `/tmp` is the only writable path, an `emptyDir` of
+`tmpSizeLimit` (256 MiB; a pod above it is evicted). Only `account`
+mounts a ServiceAccount token, every other pod has
+`automountServiceAccountToken: false`. The migration Job runs the
+`postgres` image pinned by digest as its `postgres` user (uid 70), with
+its own resources. `kubernetesRead: true` on a service (only `account`) renders its
 ServiceAccount, Role and RoleBinding from `templates/rbac.yaml`; without
 them the System page still loads, with empty pod and deployment lists.
 Check the grant after a deploy:

@@ -368,3 +368,36 @@ between nginx switching and the load balancer applying the annotation.
 Without the hostname annotation, kube-proxy sends in-cluster requests to
 the load balancer IP straight to nginx without the header, and
 cert-manager's HTTP-01 self check fails at the next renewal.
+
+## Containers run with a read-only root filesystem, /tmp as a size-limited emptyDir, and digest-pinned Job images
+
+**Id:** 9dbb3d60-c8c8-41e7-b480-723195c58c9d
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** infra security audit requested by the maintainer through the family coordinator, 2026-10-14; read-only behaviour tested on the local stack the same night; the reasons are drawn here
+**Revisit when:** a service needs to write outside /tmp (a cache, a model download), an upload larger than the /tmp limit has to be buffered, or the postgres image gets a numeric USER
+
+Every container (API services, workers, web, the migration Job, the
+bootstrap Job) sets `readOnlyRootFilesystem`, the `RuntimeDefault`
+seccomp profile, no privilege escalation and no capabilities. `/tmp` is
+an `emptyDir` limited to `tmpSizeLimit` (256 MiB), the migration Job
+unpacks into its own `emptyDir` `/work`. The `postgres` image of both
+Jobs is pinned by digest and runs as uid 70, its `postgres` user.
+
+**Reason:** a process that is taken over cannot replace code or drop a
+tool into the image's filesystem, and the syscalls outside the
+container runtime's default profile are gone. The services write only
+what Starlette spools for an upload above 1 MB, which goes to the
+temporary directory; the local stack ran `make local-smoke` with every
+service read-only and only `/tmp` writable, and the migration and
+bootstrap scripts ran as uid 70 on a read-only root. The size limit
+makes a runaway temp file evict its own pod instead of filling the
+node's disk. The Jobs ran `postgres:18-alpine` as root under a moving
+tag; the migration Job holds the admin connection string, so it gets the
+most fixed image and the least privilege.
+
+**Rejected alternatives:** `/tmp` as a memory-backed `emptyDir` — counts
+against the pod's memory limit, and an upload spool would compete with
+the worker's PDF rendering; leaving the Jobs on the moving tag — a
+silent image change in the one container that runs DDL as admin.
