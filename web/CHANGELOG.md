@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-13
+
 ### Added
 
 - Output options under the format tiles, from rag's `GET /outputs/options`: language for every kind, voice (grouped female and male) and speed for audio; preset from the user's preferences, sent as `options` with only the keys the kind takes. The wizard uses the preferences too. The viewer and the shared page show what a document was made with.

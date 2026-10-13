@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-13
+
 ### Changed
 
 - `docs/architecture.md`: the library trash (delete moves to the trash, restore, purge, per-user `trash_days`).
