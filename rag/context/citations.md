@@ -57,7 +57,8 @@ with both shapes and the gaps were visible to the reader.
 
 **Id:** 3587324b-e1f0-43bc-816b-ecf70f03aaf0
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 909d8abe-2e00-40b5-bddb-d07c455ebb6c
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12; implementation session, 2026-10-12
 **Revisit when:** the similarity floor proves too coarse to tell "nothing relevant" from "weakly relevant"
@@ -74,6 +75,32 @@ costs the user no LLM tokens for a question the notebook cannot answer.
 instruct it to say "not in your sources". Rejected because the guarantee
 would then rest on the model following an instruction, and the call
 would still be billed.
+
+## No matching passage: the model still answers from the document list; only an empty notebook is refused
+
+**Id:** 909d8abe-2e00-40b5-bddb-d07c455ebb6c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer's click-through, 2026-10-13; coordinator decision the same day
+**Revisit when:** unmatched questions are answered from model knowledge despite the rules, or their cost becomes noticeable
+
+When no chunk passes the similarity floor, the model is still called,
+with an empty passage list and the notebook's document list in the
+system prompt (see "The chat knows the notebook's documents" in
+`retrieval.md`). The fixed sentence without a model call remains only
+for a notebook with no ready document.
+
+**Reason:** a question about the notebook itself ("which documents can
+you see", "the mind map you made") matches no chunk, so the refusal
+answered it wrongly. The cost is one billed LLM call for a question the
+notebook cannot answer, accepted; that an answer never comes from model
+knowledge now rests on the prompt rules for this case, no longer on
+construction.
+
+**Rejected alternative:** keeping the refusal for every unmatched
+question (the superseded entry), rejected because meta questions about
+the notebook's documents could then never be answered.
 
 ## A citation carries its provenance: verbatim chunk, score, position
 
