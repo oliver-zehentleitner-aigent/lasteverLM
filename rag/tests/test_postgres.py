@@ -480,3 +480,33 @@ def test_daily_stats_count_per_utc_day(store, pool, notebook):
     assert today["messages"] - before[today["day"]]["messages"] == 1
     assert first["messages"] - before[first["day"]]["messages"] == 1
     assert (gained(today, "report"), gained(today, "audio"), gained(today, "quiz")) == (1, 1, 0)
+
+
+def test_search_and_chunk_view_carry_the_position_in_the_source(store, pool, user, notebook):
+    retriever = PgVectorRetriever(pool)
+    upload = add_source(pool, notebook, "ready")
+    library = library_id_of(pool, upload)
+    ids = [str(uuid4()) for _ in range(3)]
+    with pool.connection() as conn:
+        for idx, (chunk_id, vector) in enumerate(
+            zip(ids, ("[1,0,0]", "[0,1,0]", "[0,0,1]"), strict=True)
+        ):
+            conn.execute(
+                "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                "values (%s, %s, %s, %s, %s, %s)",
+                (chunk_id, library, idx, idx + 1, f" text {idx}\n", vector),
+            )
+    (hit,) = retriever.search(notebook, [0.0, 1.0, 0.0], k=1, floor=0.0)
+    assert (hit.chunk_id, hit.chunk_index, hit.chunk_count) == (ids[1], 1, 3)
+
+    view = store.get_chunk(ids[1], user)
+    assert view is not None
+    assert (view["source_id"], view["chunk_index"], view["chunk_count"], view["page"]) == (
+        upload,
+        1,
+        3,
+        2,
+    )
+    assert view["text"] == " text 1\n"  # verbatim
+    assert store.get_chunk(ids[1], str(uuid4())) is None  # not the owner
+    assert store.get_chunk(str(uuid4()), user) is None

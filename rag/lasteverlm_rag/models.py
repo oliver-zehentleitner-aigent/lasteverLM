@@ -71,6 +71,8 @@ class RetrievedChunk:
     page: int | None
     text: str
     similarity: float
+    chunk_index: int | None = None
+    chunk_count: int | None = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,9 @@ class Passage:
     source_kind: SourceKind
     page: int | None
     text: str
+    similarity: float | None = None
+    chunk_index: int | None = None
+    chunk_count: int | None = None
 
 
 @dataclass(frozen=True)

@@ -33,7 +33,12 @@ def test_healthz_needs_no_auth_at_root_and_under_prefix(settings):
 
 def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings):
     store = FakeStore()
-    retriever = FakeRetriever([chunk(1, "The sky is blue.", page=2), chunk(2, "Grass is green.")])
+    retriever = FakeRetriever(
+        [
+            chunk(1, "The sky is blue.", page=2, similarity=0.81234, chunk_index=4, chunk_count=9),
+            chunk(2, "Grass is green."),
+        ]
+    )
     llm = FakeLLM("The sky is blue [1]. Grass is green [2].")
     client = make_client(settings, store, retriever, llm)
 
@@ -53,10 +58,13 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
         "chunk_id": CHUNK_1,
         "page": 2,
         "quote": "The sky is blue.",
-        "similarity": None,
-        "chunk_index": None,
-        "chunk_count": None,
+        "similarity": 0.812,
+        "chunk_index": 4,
+        "chunk_count": 9,
     }
+    # the persisted assistant message carries the same provenance
+    assert store.messages[1]["citations"][0]["similarity"] == 0.812
+    assert store.messages[1]["citations"][0]["chunk_count"] == 9
     # the question was stripped and the LLM saw the numbered passages
     assert llm.calls[0][1].endswith("Question: colors?")
     assert "[1] (doc1.pdf, page 2)" in llm.calls[0][1]

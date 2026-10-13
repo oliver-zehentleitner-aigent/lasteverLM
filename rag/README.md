@@ -20,6 +20,7 @@ this directory implements the `/api/rag` prefix.
 | POST | `/api/rag/notebooks/{id}/conversations` | `{"title"?}` | 201 `Conversation`; title defaults to `Chat N` |
 | DELETE | `/api/rag/conversations/{id}` | | 204, the conversation and its messages |
 | GET | `/api/rag/conversations/{id}/messages` | | `[Message]`, oldest first |
+| GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind"}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` |
 | GET | `/api/rag/outputs/{id}` | | `Output` |
@@ -67,7 +68,17 @@ core's `admin_only` over `users.is_admin`; anyone else gets 403.
 
 **Ask.** `answer` cites inline as single `[n]` markers, numbered 1..n in
 order of first appearance; `n` maps to an entry in `citations` (`source_id`, `source_name`, `source_kind`, `chunk_id`,
-`page`, `quote`). Retrieval is top-k by cosine similarity over the
+`page`, `quote`, `similarity`, `chunk_index`, `chunk_count`). A citation
+carries its provenance: `quote` is the verbatim text of the chunk the
+model saw (never trimmed), `similarity` the cosine similarity the search
+gave that chunk for this question (3 decimals), `chunk_index` (0-based)
+and `chunk_count` its position in its source ("chunk 12 of 43"). The
+stored assistant message keeps the same fields; messages written before
+they existed have them as `null`. `GET /api/rag/chunks/{chunk_id}`
+returns one chunk for its owner (`{"chunk_id", "source_id",
+"source_name", "source_kind", "page", "chunk_index", "chunk_count",
+"text"}`, 404 otherwise), so a reader can open the exact passage.
+Retrieval is top-k by cosine similarity over the
 notebook's ready sources with a similarity floor; if nothing passes it,
 the answer is a fixed refusal with empty citations and the model is not
 called. An unscoped question retrieves from the uploaded sources only;

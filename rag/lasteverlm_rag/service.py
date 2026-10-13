@@ -16,6 +16,7 @@ from typing import Any
 from lasteverlm_core import (
     LLM,
     Answer,
+    ChunkView,
     CompletionResult,
     Embedder,
     Message,
@@ -76,6 +77,10 @@ class NotebookNotFound(Exception):
 
 class OutputNotFound(Exception):
     """No output with that id belongs to the caller."""
+
+
+class ChunkNotFound(Exception):
+    """No chunk with that id in a source of the caller's."""
 
 
 class ConversationNotFound(Exception):
@@ -205,6 +210,12 @@ class RagService:
     def delete_conversation(self, user_id: str, conversation_id: str) -> None:
         self._owned_conversation(user_id, conversation_id)
         self._store.delete_conversation(conversation_id)
+
+    def chunk(self, user_id: str, chunk_id: str) -> ChunkView:
+        row = self._store.get_chunk(chunk_id, user_id)
+        if row is None:
+            raise ChunkNotFound(chunk_id)
+        return ChunkView.model_validate(row)
 
     def messages(self, user_id: str, conversation_id: str) -> list[Message]:
         self._owned_conversation(user_id, conversation_id)

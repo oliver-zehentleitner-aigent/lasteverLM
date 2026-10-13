@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Citations carry their provenance: `similarity` (the chunk's score for the question), `chunk_index` and `chunk_count`; persisted messages keep them.
+- `GET /api/rag/chunks/{chunk_id}`: the exact chunk behind a citation, for its owner.
 - `GET /api/rag/admin/stats/daily?days=30` for the admin charts: messages and outputs (total and by kind) per UTC day, every day present.
+
+### Changed
+
+- A citation's `quote` is the verbatim chunk text; it was cut at 300 characters before.
 
 ## [0.5.0] - 2026-10-13
 

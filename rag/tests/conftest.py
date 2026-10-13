@@ -65,7 +65,13 @@ SOURCE_1, CHUNK_1 = source_uuid(1), chunk_uuid(1)
 
 
 def chunk(
-    i: int, text: str, page: int | None = None, similarity: float = 0.9, source_kind: str = "pdf"
+    i: int,
+    text: str,
+    page: int | None = None,
+    similarity: float = 0.9,
+    source_kind: str = "pdf",
+    chunk_index: int | None = None,
+    chunk_count: int | None = None,
 ) -> RetrievedChunk:
     return RetrievedChunk(
         chunk_id=chunk_uuid(i),
@@ -75,6 +81,8 @@ def chunk(
         page=page,
         text=text,
         similarity=similarity,
+        chunk_index=chunk_index,
+        chunk_count=chunk_count,
     )
 
 
@@ -95,6 +103,7 @@ class FakeStore:
         self.outputs: dict[str, dict[str, Any]] = {}
         self.conversations: dict[str, dict[str, Any]] = {}
         self.daily: dict[str, tuple[int, dict[str, int]]] = {}
+        self.chunk_rows: dict[str, tuple[str, dict[str, Any]]] = {}
         self._add_conversation(NOTEBOOK, "Chat 1", CONVERSATION)
 
     def _add_conversation(
@@ -270,6 +279,10 @@ class FakeStore:
 
     def is_admin(self, user_id: str) -> bool:
         return user_id in self.admins
+
+    def get_chunk(self, chunk_id: str, user_id: str) -> dict[str, Any] | None:
+        owner, row = self.chunk_rows.get(chunk_id, (None, None))
+        return row if owner == user_id else None
 
     def daily_stats(self, days: int) -> list[dict[str, Any]]:
         """Rows as the SQL returns them; tests set ``daily`` to what a day holds."""
