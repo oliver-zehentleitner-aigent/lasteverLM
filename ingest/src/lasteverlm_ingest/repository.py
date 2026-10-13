@@ -122,6 +122,11 @@ class NewLibrarySource(BaseModel):
     demo: bool = False
 
 
+# Family rule: after three attempts a job is failed with its last error.
+MAX_ATTEMPTS = 3
+STALLED = f"processing did not finish in {MAX_ATTEMPTS} attempts (the worker stopped or hung)"
+
+
 class Repository(Protocol):
     def list_notebooks(self, owner: UUID) -> list[Notebook]: ...
 
@@ -213,7 +218,9 @@ class Repository(Protocol):
     def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
         """Claim one unprocessed library source for this worker and return
         its id, or None when the queue is empty. A claim older than
-        `stale_after_seconds` counts as unprocessed again (its worker died).
+        `stale_after_seconds` counts as unprocessed again (its worker died),
+        unless it has had MAX_ATTEMPTS: then it is failed, so a source that
+        kills or hangs its worker cannot take every worker in turn.
         Generated rows are rag's and never claimed; trashed ones wait."""
         ...
 
@@ -600,6 +607,7 @@ class PostgresRepository:
          where status = 'processing' and kind <> 'generated' and deleted_at is null
            and (retry_at is null or retry_at <= now())
            and (claimed_at is null or claimed_at < now() - make_interval(secs => %(stale)s))
+           and attempts < %(max)s
          order by created_at
          for update skip locked
          limit 1)
@@ -614,9 +622,25 @@ class PostgresRepository:
                 {"error": error, "delay": delay_seconds, "id": library_id},
             )
 
+    # A stale claim on a row that has had every attempt: its worker died or
+    # hung each time, so the row is failed instead of handed out again.
+    _FAIL_STALLED_SQL = """
+    update library_sources
+       set status = 'failed', error = %(error)s, claimed_at = null, claimed_by = null
+     where status = 'processing' and kind <> 'generated' and attempts >= %(max)s
+       and claimed_at < now() - make_interval(secs => %(stale)s)
+    """
+
     def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
+        params = {
+            "worker": worker_id,
+            "stale": stale_after_seconds,
+            "max": MAX_ATTEMPTS,
+            "error": STALLED,
+        }
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(self._CLAIM_SQL, {"worker": worker_id, "stale": stale_after_seconds})
+            cur.execute(self._FAIL_STALLED_SQL, params)
+            cur.execute(self._CLAIM_SQL, params)
             row = cur.fetchone()
             return row[0] if row else None
 

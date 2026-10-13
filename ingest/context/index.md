@@ -85,7 +85,7 @@ repository root's `context/`.
 
 ## W
 
-- [worker.md](worker.md) — polling and stale-claim takeover on the database queue, why the request handler stores the file, and why a failed summary fails the source, and why a transient failure is retried after seconds
+- [worker.md](worker.md) — polling and stale-claim takeover on the database queue, why the request handler stores the file, and why a failed summary fails the source, why a transient failure is retried after seconds, and why a source that stalled every attempt is failed by the claim
 
 ## X
 

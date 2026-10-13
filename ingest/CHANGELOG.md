@@ -13,6 +13,10 @@ preserves why it changed, in `context/`.
 
 - `make test-postgres`: the repository's SQL against a throwaway PostgreSQL with pgvector (`tests/test_postgres.py`): the library and its dedupe conflict, ownership on every owner-scoped call, the trash with the owner's retention, the queue (generated, trashed and backed-off rows, stale takeover, concurrent claims), the seed claim, credit and usage, the admin counts.
 
+### Fixed
+
+- A source whose worker died or hung on every attempt was taken over by the next worker after each claim timeout, without end. The claim now fails a stale row that has had three attempts ("processing did not finish in 3 attempts").
+
 ## [0.9.0] - 2026-10-13
 
 ### Added

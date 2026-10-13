@@ -31,7 +31,7 @@ embedding or summary request, anything unexpected — leaves the row
 `processing` with the error, so the stale-claim timeout hands it to the
 next worker; the third attempt that fails ends it as `failed`, the
 family's rule (since 2026-10-13 the next attempt follows within
-seconds instead of after the stale-claim timeout: b53c94f0-b1e7-47ca-bc17-59b8fd3b967b). Retrying everything three times was the alternative;
+seconds instead of after the stale-claim timeout: b53c94f0-b1e7-47ca-bc17-59b8fd3b967b); since 2026-10-14 a row whose worker died or hung on every attempt is failed by the claim: 094ed85d-4934-4809-b9ad-b6871eb38c37). Retrying everything three times was the alternative;
 rejected because a bad PDF would then sit at `processing` for half an
 hour before the user learns it is unreadable.
 
@@ -139,3 +139,33 @@ backoff gives it seconds, not minutes.
 - Set `claimed_at` into the past so the stale rule fires early: no new
   column, but it hides a retry inside the crash-recovery rule and makes
   `claimed_at` mean two things.
+
+## A source that stalled every attempt is failed, not taken over again
+
+**Id:** 094ed85d-4934-4809-b9ad-b6871eb38c37
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** security and quality audit of the service, 2026-10-14, requested by the maintainer; the failure mode was found in the code, not observed live
+**Revisit when:** jobs get a time limit of their own (a subprocess or a per-job deadline), which would end a hung job before its claim goes stale
+
+The claim first fails every `processing` row whose claim is stale and
+that has had `MAX_ATTEMPTS` claims, then claims among the rows with
+fewer. The error says the processing did not finish in that many
+attempts.
+
+**Reason:** the stale takeover (4f6e16de-3395-4ae3-ae7b-95ba0d08aa13)
+counted attempts but never acted on them: only a job that returned could
+fail its row. A source that kills its worker (out of memory in a
+renderer) or hangs it (a parser loop) would be taken by the next worker
+after every claim timeout, without end, and with several such sources
+every worker would be stuck in turn. The rule for three attempts already
+held for failures that return; this applies it to the ones that do not.
+
+**Alternatives:**
+- A per-job time limit (the job in a subprocess, killed at a deadline):
+  would also end a hung job early instead of after three claim
+  timeouts, but needs the pipeline to run in a child process with its
+  billing and status writes; larger than an audit fix.
+- Leaving the claim as it was: the queue's only failure mode with no
+  end.

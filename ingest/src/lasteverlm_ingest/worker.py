@@ -39,15 +39,13 @@ from lasteverlm_ingest.loaders import (
     TransientLoaderError,
     loader_key,
 )
-from lasteverlm_ingest.repository import LibrarySource, Repository
+from lasteverlm_ingest.repository import MAX_ATTEMPTS, LibrarySource, Repository
 from lasteverlm_ingest.summarizer import Summarizer
 
 log = logging.getLogger(__name__)
 
 _ERROR_MAX = 500
 CREDIT_EXHAUSTED = "credit exhausted"
-# Family rule: after three attempts a job is failed with its last error.
-MAX_ATTEMPTS = 3
 # Backoff after a transient failure: 5 s after the first, 15 s after the second.
 RETRY_BASE_SECONDS = 5.0
 RETRY_FACTOR = 3.0

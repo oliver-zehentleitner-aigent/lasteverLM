@@ -26,7 +26,7 @@ import psycopg
 import pytest
 from lasteverlm_core import Chunk, parse_model_prices
 
-from lasteverlm_ingest.repository import NewLibrarySource, PostgresRepository
+from lasteverlm_ingest.repository import STALLED, NewLibrarySource, PostgresRepository
 
 pytestmark = pytest.mark.postgres
 
@@ -268,6 +268,29 @@ def test_a_stale_claim_is_taken_over_and_counts_an_attempt(repo):
     assert entry.id in _claim_all(repo, stale=1)
     source = repo.get_library_source(entry.id)
     assert source is not None and source.attempts == 2
+
+
+def test_a_row_that_stalled_every_attempt_is_failed_not_handed_out_again(repo):
+    """A source that kills or hangs its worker would otherwise take every
+    worker in turn, once per claim timeout, forever."""
+    _claim_all(repo)
+    entry = _library(repo, _user(repo))
+    for attempt in (1, 2, 3):
+        time.sleep(1.1)
+        assert entry.id in _claim_all(repo, stale=1)
+        source = repo.get_library_source(entry.id)
+        assert source is not None and source.attempts == attempt
+    time.sleep(1.1)
+    assert entry.id not in _claim_all(repo, stale=1)
+    source = repo.get_library_source(entry.id)
+    assert source is not None and (source.status, source.error) == ("failed", STALLED)
+    # A third attempt still in time is left alone.
+    held = _library(repo, _user(repo))
+    _execute(repo, "update library_sources set attempts = 2 where id = %s", (held.id,))
+    assert held.id in _claim_all(repo)
+    assert held.id not in _claim_all(repo)
+    source = repo.get_library_source(held.id)
+    assert source is not None and source.status == "processing" and source.attempts == 3
 
 
 def test_concurrent_workers_never_claim_the_same_row(repo):
