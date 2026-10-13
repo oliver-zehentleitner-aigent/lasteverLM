@@ -179,6 +179,8 @@ async def test_store_block_strike_ban_lift(
         await store.log(entry(ip, t))
     assert (await limiter.check(ip, t)).kind == "banned"
     assert (await limiter.check(ip, t + timedelta(days=5))).kind == "banned"
+    assert (await limiter.check(ip, t + timedelta(days=90))).kind == "banned"
+    assert (await limiter.check(ip, t + timedelta(days=91))).kind == "allowed"  # expired
     assert (await limiter.check("203.0.113.8", t)).kind == "allowed"
 
     lift_ban(conn, ip)
@@ -220,7 +222,7 @@ async def test_dict_row_pool_and_async_pool(dsn: str, conn: psycopg.Connection[A
         await store.log(entry(ip, T0))
         assert await store.requests_since(ip, T0 - timedelta(minutes=1)) == 1
         assert await store.blocked_until(ip) is None
-        assert await store.is_banned(ip) is False
+        assert await store.is_banned(ip, T0) is False
         assert await store.strike(ip, T0, T0, T0 - timedelta(hours=24)) == 1
     async with AsyncConnectionPool(
         dsn, min_size=1, max_size=1, kwargs={"row_factory": dict_row}, open=False
@@ -229,8 +231,9 @@ async def test_dict_row_pool_and_async_pool(dsn: str, conn: psycopg.Connection[A
         await astore.log(entry(ip, T0))
         assert await astore.requests_since(ip, T0 - timedelta(minutes=1)) == 2
         assert await astore.blocked_until(ip) == T0
-        await astore.ban(ip, "test")
-        assert await astore.is_banned(ip) is True
+        await astore.ban(ip, "test", T0)
+        assert await astore.is_banned(ip, T0) is True
+        assert await astore.is_banned(ip, T0 + timedelta(seconds=1)) is False
 
 
 def test_purge_keeps_active_bans_up_to_ban_max_days(conn: psycopg.Connection[Any]) -> None:

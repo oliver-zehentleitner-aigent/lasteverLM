@@ -18,7 +18,7 @@ preserves why it changed, in `context/`.
 ### Changed
 
 - `OpenAICompatibleTextToSpeech` defaults to the platform voice `ryan` (`DEFAULT_TTS_VOICE`); the OpenAI name `alloy` is rejected by the platform.
-- An active ban holds until an admin lifts it, for at most `BAN_MAX_DAYS` (default 90): the purge drops older bans, lifted or not. `PURGE_SQL` takes `cutoff` and `ban_cutoff`; `purge` gains `ban_max_days`.
+- An active ban holds until an admin lifts it, for at most `BAN_MAX_DAYS` (default 90): the limiter treats an older ban as expired and the purge deletes it, lifted or not. `PURGE_SQL` takes `cutoff` and `ban_cutoff`; `purge` gains `ban_max_days`. The store methods take the limiter's clock: `is_banned(ip, since)`, `ban(ip, reason, now)`.
 
 ## [0.1.0] - 2026-10-12
 

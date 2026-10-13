@@ -125,7 +125,7 @@ invalid value.
 | `MODEL_PRICES` | `load_model_prices` | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`, merged over the defaults in `pricing.py` (empty until the platform's models are known, so every deployment sets it) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES` | `RateLimitSettings.from_env` | defaults 120, 15, 3 |
 | `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE`, `RETENTION_DAYS` | `RateLimitSettings.from_env` | defaults 24, 100 (one `/healthz` row in a hundred is logged), 30 |
-| `BAN_MAX_DAYS` | `RateLimitSettings.from_env` | default 90; the purge drops an active ban older than this |
+| `BAN_MAX_DAYS` | `RateLimitSettings.from_env` | default 90; a ban older than this has expired, and the purge deletes it |
 
 ## Run locally
 

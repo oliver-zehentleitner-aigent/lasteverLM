@@ -100,7 +100,8 @@ peer address):
    of the previous; after a quiet window the count restarts at one.
 3. The `BAN_AFTER_STRIKES`th strike bans: 403 on everything until the
    admin panel calls `lift_ban(conn, ip)`, for at most `BAN_MAX_DAYS`
-   (90): the purge drops a ban older than that, lifted or not.
+   (90): an older ban no longer refuses anything, and the purge later
+   deletes it, lifted or not.
 
 `AsyncPostgresRateLimitStore` takes `AsyncConnectionPool.connection`;
 `MemoryRateLimitStore` is for tests and for `make run-dev` without a
@@ -123,9 +124,9 @@ async with conn.cursor() as cur:
 Every statement takes the same two parameters: `cutoff` (now minus
 `RETENTION_DAYS`) for `access_log`, `ip_blocks` and lifted bans, and
 `ban_cutoff` (now minus `BAN_MAX_DAYS`) for bans nobody lifted. A sync
-caller uses `purge(conn, retention_days, ban_max_days)`. The limiter
-itself does not age bans: a ban past `BAN_MAX_DAYS` holds until the next
-purge removes it.
+caller uses `purge(conn, retention_days, ban_max_days)`. The purge is
+cleanup only: the limiter already treats a ban past `BAN_MAX_DAYS` as
+expired, so an admin list may show such a ban until the next purge.
 
 ## Providers
 

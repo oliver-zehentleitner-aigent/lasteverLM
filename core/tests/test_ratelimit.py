@@ -159,7 +159,7 @@ async def test_middleware_logs_passes_and_blocks() -> None:
     assert status == 429 and b"too many requests" in body
     assert store.entries[-1].status == 429 and store.entries[-1].user_id is None
 
-    await store.ban("10.0.0.5", "test")
+    await store.ban("10.0.0.5", "test", T0)
     status, body = await run_asgi(app, [])
     assert status == 403 and b"banned" in body
 
@@ -205,7 +205,7 @@ async def test_postgres_store_reads_tuple_and_dict_rows() -> None:
             yield conn
 
         store = PostgresRateLimitStore(connect)
-        assert await store.is_banned("ip") is True
+        assert await store.is_banned("ip", T0) is True
         assert await store.blocked_until("ip") == T0
         assert await store.requests_since("ip", T0) == 5
         assert await store.strike("ip", T0, T0, T0) == 2
@@ -215,3 +215,11 @@ def test_settings_from_env_reads_ban_max_days() -> None:
     assert RateLimitSettings.from_env({}).ban_max_days == 90
     settings = RateLimitSettings.from_env({"BAN_MAX_DAYS": "14", "RETENTION_DAYS": "7"})
     assert (settings.retention_days, settings.ban_max_days) == (7, 14)
+
+
+async def test_ban_expires_after_ban_max_days() -> None:
+    store = MemoryRateLimitStore()
+    limiter = RateLimiter(store, SETTINGS)
+    await store.ban("10.0.0.9", "test", T0)
+    assert (await limiter.check("10.0.0.9", T0 + timedelta(days=90))).kind == "banned"
+    assert (await limiter.check("10.0.0.9", T0 + timedelta(days=90, seconds=1))).kind == "allowed"
