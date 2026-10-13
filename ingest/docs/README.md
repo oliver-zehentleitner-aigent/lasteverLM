@@ -201,7 +201,9 @@ metadata endpoint, carrier-grade NAT, multicast or reserved ranges,
 IPv4-mapped IPv6 included), and the socket connects to the address that
 was checked. Redirects are followed by hand, at most five, and each hop
 goes through the same check. The body is capped at `MAX_UPLOAD_BYTES`,
-the whole fetch at 30 seconds.
+the whole fetch at 30 seconds, the DNS lookup included (it runs in a
+small thread pool, since the resolver has no timeout of its own; a lookup
+that does not answer in time is a transient failure).
 
 A 4xx answer, a blocked address, an unsupported type or a body over the
 cap fail the source at once; a timeout, a refused connection, 429 or
