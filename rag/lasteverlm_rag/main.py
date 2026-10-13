@@ -125,7 +125,7 @@ def create_app(
         llm,
         settings.retrieval_k,
         settings.similarity_floor,
-        include_generated=settings.retrieval_include_generated,
+        generated_slots=settings.retrieval_generated_slots,
     )
     objects = S3Storage(settings.s3) if settings.s3 else None
     # outputs are synthesized by the worker; the API presigns and deletes their files

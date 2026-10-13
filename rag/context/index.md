@@ -73,7 +73,7 @@ repository root's `context/`.
 
 ## R
 
-- [retrieval.md](retrieval.md) — why an unscoped question is answered from the uploads only (pending the maintainer's confirmation), and why a scoped one runs without a similarity floor; incident: a ready PDF that never retrieved, and the unusable-vector guard
+- [retrieval.md](retrieval.md) — why the chat lists the notebook's documents and gives generated chunks at most a few slots after the uploads (supersedes uploads-only), and why a scoped question runs without a similarity floor; incident: a ready PDF that never retrieved, and the unusable-vector guard
 
 ## S
 

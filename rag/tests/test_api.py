@@ -88,7 +88,7 @@ def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings)
         "k": 3,
         "floor": 0.5,
         "source_id": None,
-        "include_generated": False,
+        "generated": False,
     }
     # both messages stored, the assistant one carries the citations
     assert [m["role"] for m in store.messages] == ["user", "assistant"]
@@ -193,31 +193,73 @@ def test_scoped_summary_question_is_answered_even_when_nothing_matches_strongly(
     )
 
 
-def test_unscoped_ask_leaves_generated_documents_out_unless_configured(settings):
-    hits = [
-        chunk(1, "from the pdf", similarity=0.8),
-        chunk(2, "from a report", source_kind="generated"),
+def test_unscoped_ask_lists_uploads_first_and_caps_generated_chunks(settings):
+    report = [
+        chunk(10 + i, f"report part {i}", similarity=0.95 - i / 100, source_kind="generated")
+        for i in range(4)
     ]
+    hits = [chunk(1, "pdf one", similarity=0.6), chunk(2, "pdf two", similarity=0.5), *report]
     retriever = FakeRetriever(hits)
-    client = make_client(settings, FakeStore(), retriever, FakeLLM("Only the upload [1]."))
+    llm = FakeLLM("Both [1] [3].")
+    on = Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "demo-secret", "RETRIEVAL_K": "3"})
+    client = make_client(on, FakeStore(), retriever, llm)
     body = client.post(
         ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH
     ).json()
-    assert [c["source_kind"] for c in body["citations"]] == ["pdf"]
-    assert retriever.calls[0]["include_generated"] is False
+    # one search per kind; the generated one asks for its two slots only
+    assert [(c["generated"], c["k"]) for c in retriever.calls] == [(False, 3), (True, 2)]
+    # the two best report chunks outscore the weaker pdf, but the upload comes first
+    prompt = llm.calls[0][1]
+    assert prompt.index("pdf one") < prompt.index("report part 0") < prompt.index("report part 1")
+    assert "pdf two" not in prompt and "report part 2" not in prompt
+    assert [c["source_kind"] for c in body["citations"]] == ["pdf", "generated"]
 
-    on = Settings.from_env(
-        {**BASE_ENV, "DEMO_TOKEN": "demo-secret", "RETRIEVAL_INCLUDE_GENERATED": "true"}
+    # below the floor a generated chunk takes no slot
+    weak = [
+        chunk(1, "pdf", similarity=0.6),
+        chunk(9, "weak report", similarity=0.2, source_kind="generated"),
+    ]
+    llm = FakeLLM("Only [1].")
+    make_client(on, FakeStore(), FakeRetriever(weak), llm).post(
+        ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH
+    )
+    assert "weak report" not in llm.calls[0][1]
+
+    off = Settings.from_env(
+        {**BASE_ENV, "DEMO_TOKEN": "demo-secret", "RETRIEVAL_GENERATED_SLOTS": "0"}
     )
     retriever = FakeRetriever(hits)
-    client = make_client(on, FakeStore(), retriever, FakeLLM("Both [1] [2]."))
-    body = client.post(
+    make_client(off, FakeStore(), retriever, FakeLLM("x [1].")).post(
         ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH
+    )
+    assert [c["generated"] for c in retriever.calls] == [False]
+    with pytest.raises(ConfigError, match="RETRIEVAL_GENERATED_SLOTS"):
+        Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "RETRIEVAL_GENERATED_SLOTS": "-1"})
+
+
+def test_the_model_sees_the_notebooks_documents_even_when_nothing_matches(settings):
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "vi.pdf")
+    store.add_source(NOTEBOOK, "notes.txt", status="processing", kind="text")
+    mindmap = store.add_source(NOTEBOOK, "Linux Tools", kind="generated")
+    row = store.create_output(NOTEBOOK, "mindmap", "processing")
+    store.update_output(row.id, status="ready", source_id=mindmap)
+    llm = FakeLLM("A PDF and a mind map.")
+    client = make_client(settings, store, FakeRetriever([]), llm)
+
+    body = client.post(
+        ASK,
+        json={"conversation_id": CONVERSATION, "question": "Which documents can you see?"},
+        headers=AUTH,
     ).json()
-    assert [c["source_kind"] for c in body["citations"]] == ["pdf", "generated"]
-    assert retriever.calls[0]["include_generated"] is True
-    with pytest.raises(ConfigError, match="RETRIEVAL_INCLUDE_GENERATED"):
-        Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "RETRIEVAL_INCLUDE_GENERATED": "maybe"})
+
+    assert body == {**body, "answer": "A PDF and a mind map.", "citations": []}
+    system, prompt = llm.calls[0][0], llm.calls[0][1]
+    assert system.endswith(
+        "Documents in this notebook:\n- PDF (uploaded): vi.pdf\n"
+        "- mind map (generated): Linux Tools"
+    )
+    assert "(no passage matched the question)" in prompt
 
 
 def test_ask_scope_errors(settings):

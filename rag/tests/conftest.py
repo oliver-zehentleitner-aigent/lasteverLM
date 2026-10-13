@@ -23,6 +23,7 @@ from lasteverlm_rag.config import Settings
 from lasteverlm_rag.main import create_app
 from lasteverlm_rag.models import (
     ConversationRow,
+    NotebookDocument,
     OutputRow,
     RetrievedChunk,
     SourceState,
@@ -271,6 +272,14 @@ class FakeStore:
             and s["kind"] != "generated"
         ]
 
+    def notebook_documents(self, notebook_id: str) -> list[NotebookDocument]:
+        output_kinds = {o["source_id"]: o["kind"] for o in self.outputs.values()}
+        return [
+            NotebookDocument(s["name"], s["kind"], output_kinds.get(s["id"]))
+            for s in self.sources.values()
+            if s["notebook_id"] == notebook_id and s["status"] == "ready"
+        ]
+
     def create_generated_source(self, notebook_id: str, name: str, summary: str) -> str:
         return self.add_source(notebook_id, name, "processing", summary, kind="generated")
 
@@ -346,7 +355,7 @@ class FakeRetriever:
         self.calls: list[dict[str, Any]] = []
 
     def search(
-        self, notebook_id, embedding, k, floor, source_id=None, include_generated=False
+        self, notebook_id, embedding, k, floor, source_id=None, generated=False
     ) -> list[RetrievedChunk]:
         self.calls.append(
             {
@@ -354,14 +363,14 @@ class FakeRetriever:
                 "k": k,
                 "floor": floor,
                 "source_id": source_id,
-                "include_generated": include_generated,
+                "generated": generated,
             }
         )
         hits = [c for c in self.chunks if c.similarity >= floor]
         if source_id is not None:
             hits = [c for c in hits if c.source_id == source_id]
-        elif not include_generated:
-            hits = [c for c in hits if c.source_kind != "generated"]
+        else:
+            hits = [c for c in hits if (c.source_kind == "generated") == generated]
         return hits[:k]
 
 

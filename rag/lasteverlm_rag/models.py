@@ -101,6 +101,15 @@ class Passage:
 
 
 @dataclass(frozen=True)
+class NotebookDocument:
+    """One ready document of a notebook as the chat lists it to the model."""
+
+    name: str
+    kind: SourceKind
+    output_kind: OutputKind | None = None
+
+
+@dataclass(frozen=True)
 class SourceSummary:
     """What a generator sees of one source: its name and the summary ingest wrote."""
 

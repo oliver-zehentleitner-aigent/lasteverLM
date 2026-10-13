@@ -1,10 +1,49 @@
 # Retrieval
 
+## The chat knows the notebook's documents; generated chunks get bounded slots after the uploads
+
+**Id:** a5d7a975-c0da-4ee4-91a9-d8a01adcecc1
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer's click-through, 2026-10-13 (the chat said it saw two PDFs and no mind map in a notebook with three generated documents); coordinator decision the same day
+**Revisit when:** generated chunks again crowd out the uploads in citations, or generated documents carry content not derived from the uploads (e.g. user notes)
+
+Two changes to an unscoped `/ask`. The system prompt lists the
+notebook's ready documents by kind and title, uploads and generated, and
+the model is called with that list even when no passage passes the
+floor; only a notebook without a ready document gets the fixed refusal
+without a model call. Retrieval searches the uploads and the generated
+documents separately: the uploads fill the k slots by score, generated
+chunks above the floor may take at most `RETRIEVAL_GENERATED_SLOTS`
+(default 2) of them, replacing weaker uploads only, and the passages
+list the uploads first. `scope.output_id` stays the way to focus on one
+generated document.
+
+**Reason:** the maintainer expects the chat to know the notebook's own
+documents: a meta question ("which documents can you see", "the mind
+map you made") was answered as if the generated documents did not
+exist. The concern behind uploads-only still holds (a general question
+answered with citations into a paraphrase instead of the passage it
+came from); the slot cap keeps paraphrases a minority of the passages,
+and the ordering plus a prompt rule to prefer the uploaded passage when
+both say the same make the original the one cited. Calling the model
+without passages trades the guarantee that an unmatched question never
+reaches the model for answering questions about the notebook itself;
+the rules still forbid facts from outside the passages.
+
+**Rejected alternatives:** full inclusion (every ready source in one
+top-k, as first designed), rejected because in the first live run four
+of five citations went to generated documents; uploads-only (the
+superseded entry), rejected because the chat then denies documents the
+user can see in the notebook.
+
 ## An unscoped question is answered from the uploads; generated documents only on scope
 
 **Id:** e7257950-3682-403f-8794-a2edd5331ad3
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** a5d7a975-c0da-4ee4-91a9-d8a01adcecc1
 **Evidence:** confirmed
 **Source:** first live run on the platform, 2026-10-12; coordinator decision the same evening; confirmed by the maintainer 2026-10-13
 **Revisit when:** generated documents carry content that is not derived from the uploads (e.g. user notes), or the maintainer decides otherwise

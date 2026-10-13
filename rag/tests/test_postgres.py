@@ -318,18 +318,26 @@ def test_generated_source_chunks_and_scoped_search(store, pool, notebook):
     assert [h.text for h in before] == ["upload chunk"]
     store.set_source_status(generated, "ready")
 
-    # unscoped: uploads only by default; generated documents on request
+    # unscoped: the uploads, or with ``generated`` the generated documents only
     assert [h.text for h in retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0)] == [
         "upload chunk"
     ]
-    hits = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, include_generated=True)
-    assert [(h.text, h.source_kind, h.page) for h in hits][:2] == [
-        ("upload chunk", "pdf", 3),
+    hits = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, generated=True)
+    assert [(h.text, h.source_kind, h.page) for h in hits] == [
         ("generated near", "generated", None),
+        ("generated far", "generated", None),
     ]
-    assert hits[0].similarity == pytest.approx(1.0) and hits[-1].similarity == pytest.approx(0.0)
-    floored = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.5, include_generated=True)
-    assert [h.text for h in floored] == ["upload chunk", "generated near"]
+    assert hits[-1].similarity == pytest.approx(0.0)
+    floored = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.5, generated=True)
+    assert [h.text for h in floored] == ["generated near"]
+
+    # the chat's document list: both, the generated one with its output's kind
+    output = store.create_output(notebook, "mindmap", "processing")
+    store.update_output(output.id, status="ready", source_id=generated)
+    assert [(d.name, d.kind, d.output_kind) for d in store.notebook_documents(notebook)] == [
+        ("s", "pdf", None),
+        ("Report", "generated", "mindmap"),
+    ]
     scoped = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, source_id=generated)
     assert [h.text for h in scoped] == ["generated near", "generated far"]
     assert retriever.search(str(uuid4()), [1.0, 0.0, 0.0], k=8, floor=0.0) == []
