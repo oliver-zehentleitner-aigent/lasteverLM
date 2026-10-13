@@ -4,9 +4,9 @@
 
 **Id:** e7257950-3682-403f-8794-a2edd5331ad3
 **Type:** decision
-**Status:** pending-confirmation
+**Status:** active
 **Evidence:** confirmed
-**Source:** first live run on the platform, 2026-10-12; coordinator decision the same evening, maintainer's confirmation outstanding
+**Source:** first live run on the platform, 2026-10-12; coordinator decision the same evening; confirmed by the maintainer 2026-10-13
 **Revisit when:** generated documents carry content that is not derived from the uploads (e.g. user notes), or the maintainer decides otherwise
 
 `/ask` without `scope.output_id` retrieves from sources of kind `pdf`,
