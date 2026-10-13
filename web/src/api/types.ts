@@ -47,7 +47,26 @@ export interface Citation {
   source_kind: SourceKind
   chunk_id: string
   page: number | null
+  /** the full verbatim chunk text (trimmed to 300 characters before) */
   quote: string
+  /** cosine similarity to the question, 3 decimals; null on older messages */
+  similarity?: number | null
+  /** 0-based position among the source's chunks; null on older messages */
+  chunk_index?: number | null
+  chunk_count?: number | null
+}
+
+/** `GET /api/rag/chunks/{id}`: one chunk with its position, for citations
+ *  written before they carried it. */
+export interface Chunk {
+  chunk_id: string
+  source_id: string
+  source_name: string
+  source_kind: SourceKind
+  page: number | null
+  chunk_index: number
+  chunk_count: number
+  text: string
 }
 
 export interface Answer {

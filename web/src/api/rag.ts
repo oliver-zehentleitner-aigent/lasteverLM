@@ -1,6 +1,6 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
-import type { Answer, Conversation, Message, Output, OutputKind, SharedOutput } from './types'
+import type { Answer, Chunk, Conversation, Message, Output, OutputKind, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -26,6 +26,9 @@ export const rag = {
   /** removes the conversation and its messages */
   deleteConversation: (id: string) => request<void>(conv(id), { method: 'DELETE' }),
   listMessages: (conversationId: string) => request<Message[]>(`${conv(conversationId)}/messages`),
+
+  /** owner only, 404 otherwise */
+  getChunk: (chunkId: string) => request<Chunk>(`${RAG_PREFIX}/chunks/${encodeURIComponent(chunkId)}`),
 
   listOutputs: (notebookId: string) => request<Output[]>(`${nb(notebookId)}/outputs`),
   createOutput: (notebookId: string, kind: OutputKind) =>

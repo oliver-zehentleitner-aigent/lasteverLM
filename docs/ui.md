@@ -100,6 +100,18 @@ is closed. After the wizard the notebook view opens.
 
 ## Viewer, print, share
 
+- **Provenance**: a click on `[n]` (in the answer or in the citation list
+  under it) opens a panel under the answer: source name and kind, page,
+  "chunk 12 of 43", the similarity of that chunk to the question as a
+  number and a bar, and the chunk text verbatim, with the sentence that
+  shares the most words with the cited statement marked (a best guess:
+  the backend sends no span). "open in source" highlights the source in
+  the list, or opens a generated document's tab. The citation list shows
+  page and similarity inline, e.g. `[1] linux_-_vi.pdf p. 2 · 0.71`.
+  Citations from before this carry no position or similarity; the panel
+  completes the position and the full text from `GET /api/rag/chunks/{id}`
+  when the chunk still exists. Shared documents carry no citations, so
+  the shared page has no panel.
 - **Viewer**: a clean document view with title, date, the sources it was
   made from. Report as Markdown, quiz interactive with reveal, table
   sortable with CSV export, mind map with markmap, infographic as a
