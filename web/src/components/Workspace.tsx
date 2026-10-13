@@ -1,13 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
 import type { Citation, Notebook, Output, OutputKind, OutputOptions, Source } from '../api/types'
 import { OUTPUT_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
-import { CHAT_PRESETS, activePreset, browserStorage, DEFAULT_VIEWER_RATIO, presetRatio, readRatio, writeRatio } from '../lib/layout'
+import {
+  CHAT_PRESETS,
+  activePreset,
+  browserStorage,
+  DEFAULT_VIEWER_RATIO,
+  LEFT_WIDTH,
+  MIN_RIGHT_WIDTH,
+  presetRatio,
+  readRatio,
+  readWidth,
+  SIDEBAR_WIDTH,
+  writeRatio,
+  writeWidth,
+} from '../lib/layout'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { formFor } from '../lib/outputs'
 import { ChatPane } from './ChatPane'
+import { ColumnDivider } from './ColumnDivider'
 import { Divider } from './Divider'
 import { NotebookList } from './NotebookList'
 import { OutputsPane } from './OutputsPane'
@@ -22,6 +36,9 @@ export function Workspace() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(readLastNotebook)
   const [wizardFor, setWizardFor] = useState<string | null>(null)
+  // the notebook list's width, remembered per browser; null is the stylesheet's
+  const [sidebarWidth, setSidebarWidth] = useState(() => readWidth(browserStorage(), SIDEBAR_WIDTH.key, SIDEBAR_WIDTH.min, SIDEBAR_WIDTH.max))
+  const workspaceRef = useRef<HTMLElement>(null)
   const { error, run } = useAsync()
 
   useEffect(() => {
@@ -61,11 +78,24 @@ export function Workspace() {
   }
 
   return (
-    <main className="workspace">
+    <main className="workspace" ref={workspaceRef} style={sidebarWidth === null ? undefined : ({ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties)}>
       <aside className="sidebar no-print">
         <NotebookList notebooks={notebooks} selectedId={selectedId} onSelect={setSelectedId} onCreate={create} onDelete={remove} />
         {error && <p className="error">{error}</p>}
       </aside>
+      <ColumnDivider
+        label="Resize the notebook list"
+        width={sidebarWidth}
+        min={SIDEBAR_WIDTH.min}
+        max={() => SIDEBAR_WIDTH.max}
+        origin={() => workspaceRef.current?.getBoundingClientRect().left ?? 0}
+        onChange={setSidebarWidth}
+        onCommit={(px) => writeWidth(browserStorage(), SIDEBAR_WIDTH.key, px)}
+        onReset={() => {
+          setSidebarWidth(null)
+          writeWidth(browserStorage(), SIDEBAR_WIDTH.key, null)
+        }}
+      />
       {selectedId ? (
         <NotebookView key={selectedId} notebookId={selectedId} wizardOpen={wizardFor === selectedId} onWizard={(open) => setWizardFor(open ? selectedId : null)} />
       ) : (
@@ -103,6 +133,9 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   const [fullView, setFullView] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const rightColumn = useRef<HTMLDivElement>(null)
+  // the left column's width (sources, formats, outputs), remembered per browser
+  const [leftWidth, setLeftWidth] = useState(() => readWidth(browserStorage(), LEFT_WIDTH.key, LEFT_WIDTH.min, LEFT_WIDTH.max))
+  const columnsRef = useRef<HTMLDivElement>(null)
 
   const leaveFullView = useCallback(() => {
     setFullView(false)
@@ -201,7 +234,11 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
   )
 
   return (
-    <div className={['columns', fullView ? 'full' : '', fullView && chatOpen ? 'chat-open' : ''].join(' ').trim()}>
+    <div
+      ref={columnsRef}
+      className={['columns', fullView ? 'full' : '', fullView && chatOpen ? 'chat-open' : ''].join(' ').trim()}
+      style={leftWidth === null ? undefined : ({ '--left-w': `${leftWidth}px` } as CSSProperties)}
+    >
       <div className="column left no-print">
         <SourcesPane
           notebookId={notebookId}
@@ -219,6 +256,22 @@ function NotebookView({ notebookId, wizardOpen, onWizard }: ViewProps) {
         />
         <OutputsPane outputs={outputs} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
       </div>
+      <ColumnDivider
+        label="Resize sources and documents"
+        width={leftWidth}
+        min={LEFT_WIDTH.min}
+        max={() => {
+          const total = columnsRef.current?.getBoundingClientRect().width ?? 0
+          return Math.max(LEFT_WIDTH.min, Math.min(LEFT_WIDTH.max, total - MIN_RIGHT_WIDTH))
+        }}
+        origin={() => columnsRef.current?.getBoundingClientRect().left ?? 0}
+        onChange={setLeftWidth}
+        onCommit={(px) => writeWidth(browserStorage(), LEFT_WIDTH.key, px)}
+        onReset={() => {
+          setLeftWidth(null)
+          writeWidth(browserStorage(), LEFT_WIDTH.key, null)
+        }}
+      />
       <div className="column right" ref={rightColumn}>
         <OutputViewer
           outputs={outputs}

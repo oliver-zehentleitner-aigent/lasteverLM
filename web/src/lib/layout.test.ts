@@ -5,10 +5,13 @@ import {
   MIN_VIEWER_RATIO,
   activePreset,
   clampRatio,
+  clampWidth,
   presetRatio,
   ratioFromPointer,
   readRatio,
+  readWidth,
   writeRatio,
+  writeWidth,
 } from './layout'
 
 function memory() {
@@ -66,5 +69,19 @@ describe('chat presets', () => {
     expect(activePreset(presetRatio(0.3))).toBe('2x')
     expect(activePreset(0.62)).toBeNull()
     expect(activePreset(DEFAULT_VIEWER_RATIO)).toBeNull()
+  })
+})
+
+describe('column widths', () => {
+  it('clamps, remembers and resets to the default', () => {
+    expect(clampWidth(100, 160, 420)).toBe(160)
+    const s = memory()
+    expect(readWidth(s, 'w', 160, 420)).toBeNull()
+    writeWidth(s, 'w', 300.4)
+    expect(readWidth(s, 'w', 160, 420)).toBe(300)
+    writeWidth(s, 'w', 999)
+    expect(readWidth(s, 'w', 160, 420)).toBe(420)
+    writeWidth(s, 'w', null)
+    expect(readWidth(s, 'w', 160, 420)).toBeNull()
   })
 })

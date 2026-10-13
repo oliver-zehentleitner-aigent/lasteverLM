@@ -61,3 +61,34 @@ export function presetRatio(chat: number): number {
 export function activePreset(ratio: number): (typeof CHAT_PRESETS)[number]['label'] | null {
   return CHAT_PRESETS.find((p) => Math.abs(presetRatio(p.chat) - ratio) < 0.005)?.label ?? null
 }
+
+/** Column widths in pixels between the notebook list, the left and the
+ *  right column; null means the stylesheet's default. */
+export const SIDEBAR_WIDTH = { key: 'lasteverlm.sidebarWidth', min: 160, max: 420 }
+export const LEFT_WIDTH = { key: 'lasteverlm.leftWidth', min: 240, max: 720 }
+/** what the right column keeps at least while the left one is dragged */
+export const MIN_RIGHT_WIDTH = 360
+
+export function clampWidth(px: number, min: number, max: number): number {
+  return Math.round(Math.min(max, Math.max(min, px)))
+}
+
+export function readWidth(storage: Pick<Storage, 'getItem'> | undefined, key: string, min: number, max: number): number | null {
+  try {
+    const v = storage?.getItem(key)
+    if (v === null || v === undefined) return null
+    const n = Number(v)
+    return Number.isFinite(n) ? clampWidth(n, min, max) : null
+  } catch {
+    return null
+  }
+}
+
+export function writeWidth(storage: Pick<Storage, 'setItem' | 'removeItem'> | undefined, key: string, px: number | null): void {
+  try {
+    if (px === null) storage?.removeItem(key)
+    else storage?.setItem(key, String(Math.round(px)))
+  } catch {
+    // not remembered; the layout still works
+  }
+}

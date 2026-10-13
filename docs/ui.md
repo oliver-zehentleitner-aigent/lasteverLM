@@ -83,6 +83,17 @@ is closed. After the wizard the notebook view opens.
   player sits centred in the pane, and the mind map fills the pane and
   re-fits whenever its size changes (full view, divider, window).
   Actions per document: ask about this, print, share, full view.
+- **Column dividers** between the notebook list, the left column and
+  the right column: drag them (or arrow keys when focused) to change the
+  widths, remembered per browser in pixels; a double-click (or Home)
+  returns to the default. The notebook list stays between 160 and 420
+  px, the left column between 240 and 720 px, and the right column
+  keeps at least 360 px. Hidden on narrow screens.
+- **Tab bars** (documents and chats) scroll sideways when the tabs do
+  not fit: the active tab is scrolled into view, a mouse wheel scrolls
+  the bar, and the arrow keys, Home and End move between tabs (only the
+  active tab is in the Tab order). In the chat bar only the tabs
+  scroll; "+" and the height presets stay in place.
 - **Divider** between viewer and chat: drag it (or arrow keys when it
   has focus) to change the split; the split is remembered per browser,
   a double-click (or Home) resets it to half and half. Three presets
