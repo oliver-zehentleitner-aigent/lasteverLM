@@ -116,6 +116,42 @@ class CreateVouchersResponse(BaseModel):
     codes: list[str]  # shown exactly once; only their hashes are stored
 
 
+class AdminVoucher(BaseModel):
+    """A voucher in the admin list. The code is not here: only its hash is stored, and the
+    plain code was shown once, at creation."""
+
+    id: uuid.UUID
+    amount_cents: int
+    created_by: str
+    created_at: datetime
+    redeemed_by: str | None
+    redeemed_at: datetime | None
+    status: Literal["open", "redeemed"]
+
+
+class VoucherCounts(BaseModel):
+    issued: int
+    redeemed: int
+    open: int
+
+
+class UsageCost(BaseModel):
+    total: int
+    last_24h: int
+
+
+class AdminStats(BaseModel):
+    """The admin overview. Usage comes from core's `usage` rows, written by ingest and rag."""
+
+    users: int
+    logins_24h: int
+    vouchers: VoucherCounts
+    credits_granted_cents: int
+    usage_cost_cents: UsageCost
+    blocks_active: int
+    bans_active: int
+
+
 class Health(BaseModel):
     status: str = "ok"
 

@@ -20,11 +20,15 @@ from .models import (
     AdminBan,
     AdminBlock,
     AdminLogin,
+    AdminStats,
     AdminUser,
     AdminVisit,
+    AdminVoucher,
     AllowKind,
     Allowlist,
     Smtp,
+    UsageCost,
+    VoucherCounts,
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
 from .repository import Repository, UserRecord, VisitRecord
@@ -368,6 +372,39 @@ class AccountService:
                 )
             )
         return result
+
+    async def admin_vouchers(self, limit: int) -> list[AdminVoucher]:
+        return [
+            AdminVoucher(
+                id=v.id,
+                amount_cents=v.amount_cents,
+                created_by=v.created_by,
+                created_at=v.created_at,
+                redeemed_by=v.redeemed_by,
+                redeemed_at=v.redeemed_at,
+                status="redeemed" if v.redeemed_at is not None else "open",
+            )
+            for v in await self.repo.list_vouchers(limit)
+        ]
+
+    async def admin_stats(self) -> AdminStats:
+        now = self.now()
+        s = await self.repo.stats(now - timedelta(hours=24), now)
+        return AdminStats(
+            users=s.users,
+            logins_24h=s.logins_since,
+            vouchers=VoucherCounts(
+                issued=s.vouchers_issued,
+                redeemed=s.vouchers_redeemed,
+                open=s.vouchers_issued - s.vouchers_redeemed,
+            ),
+            credits_granted_cents=s.credits_granted_cents,
+            usage_cost_cents=UsageCost(
+                total=s.usage_cost_cents_total, last_24h=s.usage_cost_cents_since
+            ),
+            blocks_active=s.blocks_active,
+            bans_active=s.bans_active,
+        )
 
     async def admin_logins(self, limit: int) -> list[AdminLogin]:
         return [

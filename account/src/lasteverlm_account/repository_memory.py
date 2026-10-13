@@ -24,9 +24,11 @@ from .repository import (
     BlockRecord,
     CreditTotals,
     LoginRecord,
+    StatsRecord,
     UserRecord,
     VisitRecord,
     VisitSummary,
+    VoucherRecord,
 )
 
 
@@ -48,6 +50,15 @@ class _Voucher:
 
 
 @dataclass
+class _Usage:
+    """A row of core's `usage` table as ingest/rag write it; tests fill this directly."""
+
+    user_id: uuid.UUID
+    cost_cents: int
+    created_at: datetime
+
+
+@dataclass
 class _Ledger:
     user_id: uuid.UUID
     amount_cents: int
@@ -64,7 +75,7 @@ class MemoryRepository:
     magic_links: dict[str, _MagicLink] = field(default_factory=dict)
     vouchers: dict[str, _Voucher] = field(default_factory=dict)
     ledger: list[_Ledger] = field(default_factory=list)
-    usage_cost_cents: dict[uuid.UUID, int] = field(default_factory=lambda: defaultdict(int))
+    usage: list[_Usage] = field(default_factory=list)
     visits: list[VisitRecord] = field(default_factory=list)
     blocks: list[BlockRecord] = field(default_factory=list)
     ip_bans: list[BanRecord] = field(default_factory=list)
@@ -174,10 +185,41 @@ class MemoryRepository:
 
     async def credit_totals(self, user_id: uuid.UUID) -> CreditTotals:
         credited = sum(e.amount_cents for e in self.ledger if e.user_id == user_id)
-        return CreditTotals(credited, self.usage_cost_cents.get(user_id, 0))
+        spent = sum(u.cost_cents for u in self.usage if u.user_id == user_id)
+        return CreditTotals(credited, spent)
 
     async def all_credit_totals(self) -> dict[uuid.UUID, CreditTotals]:
         return {u: await self.credit_totals(u) for u in self.users}
+
+    def _email(self, user_id: uuid.UUID | None) -> str | None:
+        return self.users[user_id].email if user_id in self.users else None
+
+    async def list_vouchers(self, limit: int) -> list[VoucherRecord]:
+        rows = sorted(self.vouchers.values(), key=lambda v: v.created_at, reverse=True)[:limit]
+        return [
+            VoucherRecord(
+                v.id,
+                v.amount_cents,
+                self._email(v.created_by) or "",
+                v.created_at,
+                self._email(v.redeemed_by),
+                v.redeemed_at,
+            )
+            for v in rows
+        ]
+
+    async def stats(self, since: datetime, now: datetime) -> StatsRecord:
+        return StatsRecord(
+            users=sum(1 for u in self.users if u != DEMO_USER_ID),
+            logins_since=sum(1 for r in self.logins if r.at >= since),
+            vouchers_issued=len(self.vouchers),
+            vouchers_redeemed=sum(1 for v in self.vouchers.values() if v.redeemed_at is not None),
+            credits_granted_cents=sum(e.amount_cents for e in self.ledger),
+            usage_cost_cents_total=sum(u.cost_cents for u in self.usage),
+            usage_cost_cents_since=sum(u.cost_cents for u in self.usage if u.created_at >= since),
+            blocks_active=sum(1 for b in self.blocks if b.blocked_until > now),
+            bans_active=sum(1 for b in self.ip_bans if b.lifted_at is None),
+        )
 
     # visits -----------------------------------------------------------------
     async def add_visit(self, visit: VisitRecord) -> None:

@@ -11,8 +11,10 @@ from ..models import (
     AdminBan,
     AdminBlock,
     AdminLogin,
+    AdminStats,
     AdminUser,
     AdminVisit,
+    AdminVoucher,
     Allowlist,
     CreateVouchersBody,
     CreateVouchersResponse,
@@ -27,6 +29,12 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @router.get("/users", response_model=list[AdminUser])
 async def users(service: Service, _: AdminUserDep) -> list[AdminUser]:
     return await service.admin_users()
+
+
+@router.get("/stats", response_model=AdminStats)
+async def stats(service: Service, _: AdminUserDep) -> AdminStats:
+    """One overview: users, logins and usage cost of the last 24 h, vouchers, blocks, bans."""
+    return await service.admin_stats()
 
 
 @router.get("/logins", response_model=list[AdminLogin])
@@ -84,6 +92,14 @@ async def add_address(body: AddressAdd, service: Service, _: AdminUserDep) -> Al
 async def remove_address(address: str, service: Service, _: AdminUserDep) -> Response:
     await service.remove_allow_entry("address", address)
     return Response(status_code=204)
+
+
+@router.get("/vouchers", response_model=list[AdminVoucher])
+async def vouchers(
+    service: Service, _: AdminUserDep, limit: int = Query(default=100, ge=1, le=1000)
+) -> list[AdminVoucher]:
+    """Newest first. The code is never listed: only its hash is stored."""
+    return await service.admin_vouchers(limit)
 
 
 @router.post("/vouchers", response_model=CreateVouchersResponse, status_code=201)

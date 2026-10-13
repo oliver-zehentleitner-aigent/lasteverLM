@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from lasteverlm_account.repository_memory import MemoryRepository
+from lasteverlm_account.repository_memory import MemoryRepository, _Usage
 from lasteverlm_account.service import (
     AccountError,
     AccountService,
@@ -18,7 +18,7 @@ from lasteverlm_account.service import (
     normalize_voucher_code,
 )
 
-from .conftest import FakeMailer, bearer, login
+from .conftest import Clock, FakeMailer, bearer, login
 
 REDEEM = "/api/account/vouchers/redeem"
 VOUCHERS = "/api/account/admin/vouchers"
@@ -79,7 +79,7 @@ def test_unknown_or_empty_code(client: TestClient, mailer: FakeMailer) -> None:
 
 
 def test_balance_is_ledger_minus_usage(
-    client: TestClient, mailer: FakeMailer, repo: MemoryRepository
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository, clock: Clock
 ) -> None:
     token, user = login(client, mailer, "user@example.org")
     user_id = uuid.UUID(user["id"])
@@ -87,7 +87,7 @@ def test_balance_is_ledger_minus_usage(
         "codes"
     ][0]
     client.post(REDEEM, json={"code": code}, headers=bearer(token))
-    repo.usage_cost_cents[user_id] = 350  # written by ingest/rag in the real system
+    repo.usage.append(_Usage(user_id, 350, clock.now))  # written by ingest/rag in the real system
 
     assert client.get("/api/account/me", headers=bearer(token)).json()["balance_cents"] == 650
     users = client.get("/api/account/admin/users", headers=bearer(token)).json()

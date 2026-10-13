@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +15,7 @@ from lasteverlm_account.repository import UserRecord
 from lasteverlm_account.repository_memory import MemoryRepository
 from lasteverlm_account.service import SETTING_SMTP, AccountError, AccountService
 
-from .conftest import DEMO_TOKEN, FakeMailer, bearer, login
+from .conftest import DEMO_TOKEN, Clock, FakeMailer, bearer, login
 
 ADMIN_ROUTES = [
     ("GET", "/api/account/admin/users", None),
@@ -27,6 +28,8 @@ ADMIN_ROUTES = [
     ("POST", "/api/account/admin/settings/addresses", {"address": "a@x.test"}),
     ("DELETE", "/api/account/admin/settings/addresses/a@x.test", None),
     ("POST", "/api/account/admin/vouchers", {}),
+    ("GET", "/api/account/admin/vouchers", None),
+    ("GET", "/api/account/admin/stats", None),
     ("GET", "/api/account/admin/blocks", None),
     ("GET", "/api/account/admin/bans", None),
     ("DELETE", "/api/account/admin/bans/203.0.113.1", None),
@@ -182,3 +185,79 @@ def test_admin_users_shape(client: TestClient, mailer: FakeMailer) -> None:
         "usage_cents",
     }
     assert r.json()[0]["last_login_at"] is not None
+
+
+def test_voucher_list_has_no_codes_and_shows_who_redeemed(
+    client: TestClient, mailer: FakeMailer, clock: Clock
+) -> None:
+    token, admin = login(client, mailer, "admin@example.org")
+    codes = client.post(
+        "/api/account/admin/vouchers", json={"amount_cents": 500, "count": 2}, headers=bearer(token)
+    ).json()["codes"]
+    clock.advance(minutes=1)
+    user_token, user = login(client, mailer, "user@example.org")
+    client.post("/api/account/vouchers/redeem", json={"code": codes[0]}, headers=bearer(user_token))
+
+    r = client.get("/api/account/admin/vouchers", headers=bearer(token))
+    assert r.status_code == 200
+    rows = r.json()
+    assert len(rows) == 2
+    assert set(rows[0]) == {
+        "id",
+        "amount_cents",
+        "created_by",
+        "created_at",
+        "redeemed_by",
+        "redeemed_at",
+        "status",
+    }
+    for code in codes:
+        assert code not in r.text
+    by_status = {row["status"]: row for row in rows}
+    assert by_status["redeemed"]["redeemed_by"] == "user@example.org"
+    assert by_status["redeemed"]["redeemed_at"] is not None
+    assert by_status["open"]["redeemed_by"] is None and by_status["open"]["redeemed_at"] is None
+    assert all(
+        row["created_by"] == "admin@example.org" and row["amount_cents"] == 500 for row in rows
+    )
+    assert client.get("/api/account/admin/vouchers?limit=1", headers=bearer(token)).json()[0]["id"]
+
+
+def test_stats_overview(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository, clock: Clock
+) -> None:
+    from lasteverlm_account.repository import BanRecord, BlockRecord
+    from lasteverlm_account.repository_memory import _Usage
+
+    # The admin logs in two days before the user, so only one login falls into the 24 h window.
+    # (The clock moves backwards first: a token issued in the real future would be immature.)
+    clock.advance(days=-2)
+    token, admin = login(client, mailer, "admin@example.org")
+    codes = client.post(
+        "/api/account/admin/vouchers", json={"amount_cents": 300, "count": 3}, headers=bearer(token)
+    ).json()["codes"]
+    clock.advance(days=2)
+    user_token, user = login(client, mailer, "user@example.org")
+    r = client.post(
+        "/api/account/vouchers/redeem", json={"code": codes[0]}, headers=bearer(user_token)
+    )
+    assert r.status_code == 200, r.text
+    user_id = uuid.UUID(user["id"])
+    repo.usage.append(_Usage(user_id, 120, clock.now - timedelta(hours=30)))
+    repo.usage.append(_Usage(user_id, 80, clock.now - timedelta(hours=1)))
+    repo.blocks.append(BlockRecord("203.0.113.1", clock.now + timedelta(minutes=5), 1, clock.now))
+    repo.blocks.append(BlockRecord("203.0.113.2", clock.now - timedelta(minutes=5), 1, clock.now))
+    repo.ip_bans.append(BanRecord("203.0.113.3", "x", clock.now, None))
+    repo.ip_bans.append(BanRecord("203.0.113.4", "x", clock.now, clock.now))
+
+    r = client.get("/api/account/admin/stats", headers=bearer(token))
+    assert r.status_code == 200
+    assert r.json() == {
+        "users": 2,  # admin and user; the seeded demo user does not count
+        "logins_24h": 1,
+        "vouchers": {"issued": 3, "redeemed": 1, "open": 2},
+        "credits_granted_cents": 300,  # the redeemed voucher; no demo seed in the memory repo
+        "usage_cost_cents": {"total": 200, "last_24h": 80},
+        "blocks_active": 1,
+        "bans_active": 1,
+    }
