@@ -103,7 +103,9 @@ is closed. After the wizard the notebook view opens.
 - **Output viewer** (right, top): one tab per output, processing tabs
   show a spinner and poll. Each kind has its own renderer; the audio
   player sits centred in the pane, and the mind map fills the pane and
-  re-fits whenever its size changes (full view, divider, window).
+  re-fits whenever its size changes (full view, divider, window). A
+  small bar on the map's top right zooms in (+), out (−) and fits it
+  again (⤢); with the map focused, the keys +, − and 0 do the same.
   Actions per document: ask about this, print, share, full view.
 - **Column dividers** between the notebook list, the left column and
   the right column: drag them (or arrow keys when focused) to change the
