@@ -26,6 +26,8 @@ DEFAULT_MAX_TOKENS = 1024
 
 
 def make_client(settings: InferenceSettings, timeout: float = 60.0, max_retries: int = 2) -> OpenAI:
+    """The SDK client every provider shares: one timeout and retry policy for the family."""
+
     return OpenAI(
         base_url=settings.base_url,
         api_key=settings.api_key,
@@ -45,6 +47,8 @@ def thinking_body(enabled: bool) -> dict[str, Any]:
 
 
 class OpenAICompatibleEmbedder:
+    """Embeddings over `/embeddings`, always asking for `dimension`; bad vectors are errors."""
+
     def __init__(self, client: OpenAI, model: str, dimension: int) -> None:
         self._client = client
         self._model = model

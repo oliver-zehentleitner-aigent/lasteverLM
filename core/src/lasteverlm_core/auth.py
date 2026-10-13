@@ -36,6 +36,8 @@ class AuthError(Exception):
 
 
 class TokenClaims(BaseModel):
+    """The claims of a verified session token that callers use."""
+
     sub: UUID
     exp: datetime
 

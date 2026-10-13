@@ -17,6 +17,11 @@ preserves why it changed, in `context/`.
 - `client_ip` takes the last `X-Forwarded-For` entry (the one the ingress wrote), not the first, which the client controls: a forged header could escape blocks and bans and get another address banned. Repeated header lines count as one list. IPv4-mapped IPv6 addresses are keyed as IPv4, an IPv6 zone is dropped.
 - `RateLimitSettings.from_env` holds the four rule thresholds to `RATE_LIMIT_RULE_BOUNDS` and `RETENTION_DAYS`, `BAN_MAX_DAYS`, `ACCESS_LOG_HEALTHZ_SAMPLE` to at least 1, failing with `ConfigError` at startup (`RATE_LIMIT_PER_MINUTE=0` blocked every request).
 
+### Changed
+
+- `load_model_prices` lives in `pricing.py` next to what it parses; the package-root import is unchanged, `lasteverlm_core.settings.load_model_prices` is gone (no service imported it from there). It removes the late import with `noqa: E402` that settings needed to reach pricing.
+- Docstrings on the public classes that had none (results, provider and storage protocols, the row models, `make_client`); the test's last `type: ignore` replaced by real ASGI callables.
+
 ### Fixed
 
 - `OpenAICompatibleTextToSpeech.synthesize` raises `ProviderError` on an empty audio body instead of returning zero bytes.

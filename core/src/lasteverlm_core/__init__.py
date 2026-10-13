@@ -53,6 +53,7 @@ from .pricing import (
     ModelPrices,
     UnpricedModelError,
     cost_cents,
+    load_model_prices,
     parse_model_prices,
     require_prices,
 )
@@ -99,7 +100,6 @@ from .settings import (
     env_int,
     env_optional,
     env_required,
-    load_model_prices,
 )
 from .storage import (
     PRESIGN_SECONDS,

@@ -31,12 +31,16 @@ class Usage:
 
 @dataclass(frozen=True)
 class EmbeddingResult:
+    """One vector per input, in input order, and the usage to record."""
+
     vectors: list[list[float]]
     usage: Usage
 
 
 @dataclass(frozen=True)
 class CompletionResult:
+    """The answer text, the usage to record and why the model stopped."""
+
     text: str
     usage: Usage
     # "stop" when the model finished, "length" when max_tokens cut it off.
@@ -44,6 +48,8 @@ class CompletionResult:
 
 
 class Embedder(Protocol):
+    """Turns texts into vectors of `dimension` floats; services are typed against this."""
+
     @property
     def model(self) -> str: ...
 
@@ -54,6 +60,8 @@ class Embedder(Protocol):
 
 
 class LLM(Protocol):
+    """One system plus one user message in, one completion out."""
+
     @property
     def model(self) -> str: ...
 
@@ -68,6 +76,8 @@ class LLM(Protocol):
 
 
 class TextToSpeech(Protocol):
+    """Text in, MP3 bytes out; usage is the caller's to record (per character)."""
+
     @property
     def model(self) -> str: ...
 

@@ -156,6 +156,8 @@ class RateLimitRules:
 
 @dataclass(frozen=True)
 class AccessLogEntry:
+    """One `access_log` row: who called what, when, and with which status."""
+
     at: datetime
     ip: str
     path: str
