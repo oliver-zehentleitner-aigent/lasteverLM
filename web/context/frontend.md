@@ -99,6 +99,35 @@ lead's proposal and not confirmed in the contract yet; the client and the
 viewer are built to the proposal, the per-kind renderers wait for the
 confirmation (`src/components/outputs/OutputContent.tsx`).
 
+## Generated documents are listed under Outputs, not among the sources
+
+**Id:** 96a281ad-62e4-421e-b7f7-455077b79075
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer feedback after the 0.4.0 click-through, relayed by the family lead, 2026-10-13
+**Revisit when:** generated documents stop being sources of kind `generated` in the backend, or a notebook holds so many documents that the left column needs another shape
+
+The left column has three parts: the uploaded sources (PDF, text, web
+page, image), the output forms as tiles, and a list of the generated
+documents with kind, title and status. The backend is unchanged: every
+ready document is still a source of kind `generated`, so the chat cites
+it and "ask about this" scopes to it; the web filters that kind out of
+the Sources list (`uploadedSources` in `src/lib/outputs.ts`).
+
+**Reason:** documents shown as sources read as if they were uploads, and
+the maintainer found that confusing in the click-through. What the user
+added and what was generated from it are different things and get
+different lists.
+
+**Rejected alternative:** keep generated documents in the Sources list
+with a "generated" badge, as before. Rejected because the badge did not
+make the difference clear enough.
+
+**Rejected alternative:** stop registering documents as sources in the
+backend. Rejected because citations into documents and the scoped ask
+rely on it, and the confusion is one of display only.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4

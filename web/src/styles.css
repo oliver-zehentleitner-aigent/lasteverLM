@@ -100,7 +100,8 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .columns.empty { display: flex; align-items: center; justify-content: center; }
 .column { display: flex; flex-direction: column; min-height: 0; }
 .column.left { border-right: 1px solid var(--line); }
-.column.left .sources { flex: 1; min-height: 0; }
+.column.left .sources, .column.left .outputs { flex: 1; min-height: 0; }
+.column.left .outputs { border-top: 1px solid var(--line); }
 .column.right .viewer { flex: 1 1 50%; min-height: 0; border-bottom: 1px solid var(--line); }
 .column.right .chat { flex: 1 1 50%; min-height: 0; }
 .pane { display: flex; flex-direction: column; padding: 0.75rem 1rem; min-height: 0; }
@@ -109,8 +110,8 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .list li.selected { background: var(--accent-soft); }
 .list li.highlight { background: var(--accent-soft); outline: 1px solid var(--accent); }
 .sources .add { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
-.sources .item { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.3rem 0.4rem; min-width: 0; }
-.sources .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.sources .item, .outputs .item { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.3rem 0.4rem; min-width: 0; }
+.sources .name, .outputs .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .badge { font-size: 0.75em; padding: 0.05rem 0.4rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .badge.ready { color: var(--ok); border-color: var(--ok); }
 .badge.processing { color: var(--warn); border-color: var(--warn); }

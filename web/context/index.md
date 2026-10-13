@@ -35,7 +35,7 @@ repository root's `context/`.
 
 ## F
 
-- [frontend.md](frontend.md) — two-column layout with output tabs, no router or UI framework, 401/402 as app-level events, readable messages for every failure, admin panel behind one interface with a build-time mock
+- [frontend.md](frontend.md) — two-column layout with output tabs, generated documents listed under Outputs instead of Sources, no router or UI framework, 401/402 as app-level events, readable messages for every failure, admin panel behind one interface with a build-time mock
 
 ## G
 
