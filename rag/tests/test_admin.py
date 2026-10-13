@@ -52,16 +52,26 @@ def test_stats_have_every_key_and_count_jobs_by_claim():
     assert stats["shared"] == {"outputs": 1}
 
 
-def test_stats_endpoint_is_admin_only(settings):
+def test_stats_are_read_by_viewers_and_admins_only(settings):
     client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
     assert client.get(STATS).status_code == 401
-    r = client.get(STATS, headers=AUTH)
-    assert (r.status_code, r.json()) == (403, {"error": "admin only"})
+    for path in (STATS, f"{STATS}/daily"):
+        r = client.get(path, headers=AUTH)
+        assert (r.status_code, r.json()) == (403, {"error": "admin only"})
 
-    client = make_client(settings, FakeStore(admins={OWNER}), FakeRetriever([]), FakeLLM())
-    r = client.get(STATS, headers=AUTH)
-    assert r.status_code == 200
-    assert set(r.json()) == {"notebooks", "messages", "outputs", "jobs", "shared"}
+    for store in (FakeStore(admins={OWNER}), FakeStore(viewers={OWNER})):
+        client = make_client(settings, store, FakeRetriever([]), FakeLLM())
+        r = client.get(STATS, headers=AUTH)
+        assert r.status_code == 200
+        assert set(r.json()) == {"notebooks", "messages", "outputs", "jobs", "shared"}
+        assert client.get(f"{STATS}/daily", headers=AUTH).status_code == 200
+
+
+def test_a_viewer_is_a_user_everywhere_else(settings):
+    store = FakeStore(balance=0, viewers={OWNER})
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM())
+    r = client.post(f"/api/rag/notebooks/{NOTEBOOK}/outputs", json={"kind": "report"}, headers=AUTH)
+    assert (r.status_code, r.json()) == (402, {"error": "credit exhausted"})
 
 
 def test_an_admin_without_balance_gets_402_like_everyone(settings):

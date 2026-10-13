@@ -66,8 +66,10 @@ account's visitor log (`/admin/visits`, path `/s/`).
 one entry per UTC day for the last `days` days, oldest first and ending
 today, every day and every kind present; `messages` counts questions and
 answers written that day, `outputs` the outputs created that day in any
-status. One query, read only. The admin check is
-core's `admin_only` over `users.is_admin`; anyone else gets 403.
+status. One query, read only. Both only read, so
+the check is core's `admin_read` over `users.role` (`admin_role`):
+admins and viewers pass, anyone else gets 403 `admin only`. A viewer is a
+plain user everywhere else in rag, credit included.
 
 **Ask.** `answer` cites inline as single `[n]` markers, numbered 1..n in
 order of first appearance; `n` maps to an entry in `citations` (`source_id`, `source_name`, `source_kind`, `chunk_id`,

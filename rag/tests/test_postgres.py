@@ -169,7 +169,7 @@ def test_credit_admin_and_usage_over_dict_row_pool(store, pool, user, notebook):
         with pool.connection() as conn:
             return balance_cents(core_connection(conn), UUID(user))
 
-    assert store.has_credit(user) and not store.is_admin(user)
+    assert store.has_credit(user) and store.admin_role(user) == "user"
     store.record_usage(user, notebook, Usage("llm", "llm", 500_000, 100_000))  # 50 + 30 = 80
     store.record_usage(user, None, Usage("embedding", "emb", 1, 0))  # ceil(0.00001) = 1
     store.record_usage(user, notebook, Usage("tts", "tts", 1500, 0))  # 1500 chars: 3
@@ -177,9 +177,12 @@ def test_credit_admin_and_usage_over_dict_row_pool(store, pool, user, notebook):
     store.record_usage(user, None, Usage("llm", "llm", 10_000_000, 0))  # 1000: below zero
     assert not store.has_credit(user)
     with pool.connection() as conn:
-        conn.execute("update users set is_admin = true where id = %s", (user,))
-    assert store.is_admin(user) and not store.has_credit(user)  # admins need credit too
-    assert not store.is_admin(str(uuid4()))  # no users row: not an admin
+        conn.execute("update users set role = 'viewer' where id = %s", (user,))
+    assert store.admin_role(user) == "viewer"
+    with pool.connection() as conn:
+        conn.execute("update users set role = 'admin' where id = %s", (user,))
+    assert store.admin_role(user) == "admin" and not store.has_credit(user)  # admins pay too
+    assert store.admin_role(str(uuid4())) == "user"  # no users row: a plain user
     assert store.get_notebook(notebook) == {"id": notebook, "owner": user, "title": "nb"}
 
 

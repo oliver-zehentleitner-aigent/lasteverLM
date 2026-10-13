@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `GET /api/rag/admin/stats` and `/admin/stats/daily` admit viewers as well as admins (core's `admin_read` over `users.role`); a viewer is a plain user everywhere else.
 - The worker gives each inference request at least 180 s (`LLM_TIMEOUT_SECONDS` from core, default 60, can raise it); the API keeps the configured value.
 
 ### Fixed
