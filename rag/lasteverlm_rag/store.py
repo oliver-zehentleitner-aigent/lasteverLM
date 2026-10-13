@@ -33,7 +33,7 @@ from psycopg.rows import DictRow, TupleRow, dict_row, tuple_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from .models import OutputRow, RetrievedChunk, SourceState, SourceSummary
+from .models import ConversationRow, OutputRow, RetrievedChunk, SourceState, SourceSummary
 
 log = logging.getLogger(__name__)
 
@@ -58,11 +58,24 @@ class Store(Protocol):
     # notebooks (ingest's table, read only)
     def get_notebook(self, notebook_id: str) -> dict[str, Any] | None: ...
 
-    # messages
-    def list_messages(self, notebook_id: str) -> list[Message]: ...
+    # conversations and their messages
+    def list_conversations(self, notebook_id: str) -> list[ConversationRow]: ...
+
+    def get_conversation(self, conversation_id: str) -> ConversationRow | None: ...
+
+    def create_conversation(self, notebook_id: str, title: str) -> ConversationRow: ...
+
+    def delete_conversation(self, conversation_id: str) -> None: ...
+
+    def list_messages(self, conversation_id: str, last: int | None = None) -> list[Message]: ...
 
     def insert_message(
-        self, notebook_id: str, role: str, content: str, citations: list[dict[str, Any]] | None
+        self,
+        notebook_id: str,
+        conversation_id: str,
+        role: str,
+        content: str,
+        citations: list[dict[str, Any]] | None,
     ) -> Message: ...
 
     # outputs
@@ -199,6 +212,13 @@ class PgVectorRetriever:
         ]
 
 
+_CONVERSATION_COLUMNS = (
+    "c.id::text as id, c.notebook_id::text as notebook_id, n.owner::text as owner, "
+    "c.title, c.created_at"
+)
+_CONVERSATION_FROM = "from conversations c join notebooks n on n.id = c.notebook_id"
+
+
 class PostgresStore:
     def __init__(self, pool: Pool, prices: ModelPrices) -> None:
         self._pool = pool
@@ -216,24 +236,63 @@ class PostgresStore:
 
     # -- messages ---------------------------------------------------------
 
-    def list_messages(self, notebook_id: str) -> list[Message]:
+    def list_conversations(self, notebook_id: str) -> list[ConversationRow]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "select id::text as id, role, content, citations, created_at "
-                "from messages where notebook_id = %s order by created_at, id",
+                f"select {_CONVERSATION_COLUMNS} {_CONVERSATION_FROM} "
+                "where c.notebook_id = %s order by c.created_at, c.id",
                 (notebook_id,),
+            ).fetchall()
+        return [ConversationRow(**r) for r in rows]
+
+    def get_conversation(self, conversation_id: str) -> ConversationRow | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                f"select {_CONVERSATION_COLUMNS} {_CONVERSATION_FROM} where c.id = %s",
+                (conversation_id,),
+            ).fetchone()
+        return ConversationRow(**row) if row else None
+
+    def create_conversation(self, notebook_id: str, title: str) -> ConversationRow:
+        conversation_id = _new_id()
+        with self._pool.connection() as conn:
+            conn.execute(
+                "insert into conversations (id, notebook_id, title) values (%s, %s, %s)",
+                (conversation_id, notebook_id, title),
+            )
+        row = self.get_conversation(conversation_id)
+        assert row is not None
+        return row
+
+    def delete_conversation(self, conversation_id: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute("delete from conversations where id = %s", (conversation_id,))
+
+    def list_messages(self, conversation_id: str, last: int | None = None) -> list[Message]:
+        """Oldest first; with ``last``, only the newest ``last`` messages."""
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select * from (select id::text as id, role, content, citations, created_at "
+                "from messages where conversation_id = %s "
+                "order by created_at desc, id desc limit %s) m order by created_at, id",
+                (conversation_id, last),
             ).fetchall()
         return [_to_message(r) for r in rows]
 
     def insert_message(
-        self, notebook_id: str, role: str, content: str, citations: list[dict[str, Any]] | None
+        self,
+        notebook_id: str,
+        conversation_id: str,
+        role: str,
+        content: str,
+        citations: list[dict[str, Any]] | None,
     ) -> Message:
         with self._pool.connection() as conn:
             row = conn.execute(
-                "insert into messages (id, notebook_id, role, content, citations) "
-                "values (%s, %s, %s, %s, %s) "
+                "insert into messages (id, notebook_id, conversation_id, role, content, citations) "
+                "values (%s, %s, %s, %s, %s, %s) "
                 "returning id::text as id, role, content, citations, created_at",
-                (_new_id(), notebook_id, role, content, _jsonb(citations)),
+                (_new_id(), notebook_id, conversation_id, role, content, _jsonb(citations)),
             ).fetchone()
         assert row is not None
         return _to_message(row)

@@ -5,8 +5,8 @@
 [![Keep the Why](https://img.shields.io/badge/Keep_the_Why-context%2F-2b6cb0)](https://keepthewhy.com)
 
 The rag service of lasteverLM: retrieval over one notebook's chunks,
-answers with citations mapped back to source and passage, the message
-history, and the generated documents (report, quiz, table, mind map,
+answers with citations mapped back to source and passage, the chat
+conversations, and the generated documents (report, quiz, table, mind map,
 infographic, audio). The API contract and the data model live
 in the repository root, [`docs/architecture.md`](../docs/architecture.md);
 this directory implements the `/api/rag` prefix.
@@ -15,8 +15,11 @@ this directory implements the `/api/rag` prefix.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "scope": {"output_id"}?}` | `Answer` |
-| GET | `/api/rag/notebooks/{id}/messages` | | `[Message]` |
+| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?}` | `Answer` |
+| GET | `/api/rag/notebooks/{id}/conversations` | | `[Conversation]`, oldest first |
+| POST | `/api/rag/notebooks/{id}/conversations` | `{"title"?}` | 201 `Conversation`; title defaults to `Chat N` |
+| DELETE | `/api/rag/conversations/{id}` | | 204, the conversation and its messages |
+| GET | `/api/rag/conversations/{id}/messages` | | `[Message]`, oldest first |
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind"}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` |
 | GET | `/api/rag/outputs/{id}` | | `Output` |
@@ -30,7 +33,18 @@ this directory implements the `/api/rag` prefix.
 Every other endpoint takes `Authorization: Bearer <token>`. Errors are
 `{"error": "<message>"}`: 401 unauthenticated, 402 credit exhausted,
 403 admin only, 404 not yours or missing, 409 asking about an output that
-is not ready.
+is not ready, 422 an invalid body (an ask without `conversation_id`).
+
+**Conversations.** A notebook has any number of conversations, one per
+chat tab: `{"id", "notebook_id", "title", "created_at"}`. Every message
+belongs to one; closing a tab is `DELETE`, which removes its messages
+too. A new conversation without a title is `Chat N`, one above the
+highest `Chat n` still open. `ask` requires `conversation_id` (no default
+conversation); both messages are written into it, a scoped question
+(`scope.output_id`) included. The model sees the newest six messages of
+that conversation (each cut to 1000 characters, citation markers
+removed) to resolve what a follow-up refers to; the answer still comes
+from the retrieved passages only, and retrieval uses the question alone.
 
 **Admin overview.** `GET /api/rag/admin/stats` counts across all users,
 read only, with every key present (zeros included):
@@ -98,8 +112,8 @@ missing or a configured model has no price.
 
 Auth, inference, prices and rate limiting are loaded by `lasteverlm_core`;
 only the rest is rag's own. Before any model call the service runs core's credit
-check (`has_credit`: an admin always, anyone else with a positive balance of ledger
-credits minus priced usage) and answers 402 otherwise. Every
+check (`has_credit`: a positive balance of ledger credits minus priced usage, for
+admins as for everyone else) and answers 402 otherwise. Every
 embedding and LLM call writes one priced row to the `usage` table.
 
 ## Run locally
@@ -118,8 +132,11 @@ through `create_app`.
 
 ## Database
 
-`db/migrations/0001_rag.sql` creates `messages` and `outputs`. The
-migrations runner applies it after core, account and ingest. The
+`db/migrations/0001_rag.sql` creates `messages` and `outputs`;
+`0002_rag_conversations.sql` adds `conversations` and
+`messages.conversation_id` and moves each notebook's existing messages
+into one conversation `Chat 1`. The migrations runner applies them after
+core, account and ingest. The
 service reads ingest's `notebooks`, `sources` and `chunks` and writes
 `sources` and `chunks` only for kind `generated`.
 

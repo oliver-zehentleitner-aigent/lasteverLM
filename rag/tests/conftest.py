@@ -22,6 +22,7 @@ from lasteverlm_core.chunking import Chunk
 from lasteverlm_rag.config import Settings
 from lasteverlm_rag.main import create_app
 from lasteverlm_rag.models import (
+    ConversationRow,
     OutputRow,
     RetrievedChunk,
     SourceState,
@@ -35,6 +36,7 @@ DEMO_TOKEN = "demo-secret"
 OWNER = str(DEMO_USER_ID)
 NOTEBOOK = str(uuid.uuid4())
 OTHER_NOTEBOOK = str(uuid.uuid4())
+CONVERSATION = str(uuid.uuid4())
 AUTH = {"Authorization": f"Bearer {DEMO_TOKEN}"}
 PRICES = '{"test-llm": {"in": 100, "out": 300}, "test-embedding": {"in": 10, "out": 0}}'
 
@@ -91,19 +93,56 @@ class FakeStore:
         self.sources: dict[str, dict[str, Any]] = {}
         self.chunks: dict[str, list[tuple[Chunk, list[float]]]] = {}
         self.outputs: dict[str, dict[str, Any]] = {}
+        self.conversations: dict[str, dict[str, Any]] = {}
+        self._add_conversation(NOTEBOOK, "Chat 1", CONVERSATION)
+
+    def _add_conversation(
+        self, notebook_id: str, title: str, conversation_id: str | None = None
+    ) -> ConversationRow:
+        row = {
+            "id": conversation_id or str(uuid.uuid4()),
+            "notebook_id": notebook_id,
+            "title": title,
+            "created_at": f"2026-01-01T00:{len(self.conversations) % 60:02d}:00Z",
+        }
+        self.conversations[row["id"]] = row
+        return self._conversation(row)
+
+    def _conversation(self, row: dict[str, Any]) -> ConversationRow:
+        return ConversationRow(owner=self.notebooks[row["notebook_id"]]["owner"], **row)
 
     # notebooks
     def get_notebook(self, notebook_id: str) -> dict[str, Any] | None:
         return self.notebooks.get(notebook_id)
 
-    # messages
-    def list_messages(self, notebook_id: str) -> list[Message]:
-        return [self._message(m) for m in self.messages if m["notebook_id"] == notebook_id]
+    # conversations and messages
+    def list_conversations(self, notebook_id: str) -> list[ConversationRow]:
+        return [
+            self._conversation(c)
+            for c in self.conversations.values()
+            if c["notebook_id"] == notebook_id
+        ]
 
-    def insert_message(self, notebook_id, role, content, citations) -> Message:
+    def get_conversation(self, conversation_id: str) -> ConversationRow | None:
+        row = self.conversations.get(conversation_id)
+        return self._conversation(row) if row else None
+
+    def create_conversation(self, notebook_id: str, title: str) -> ConversationRow:
+        return self._add_conversation(notebook_id, title)
+
+    def delete_conversation(self, conversation_id: str) -> None:
+        del self.conversations[conversation_id]
+        self.messages = [m for m in self.messages if m["conversation_id"] != conversation_id]
+
+    def list_messages(self, conversation_id: str, last: int | None = None) -> list[Message]:
+        rows = [m for m in self.messages if m["conversation_id"] == conversation_id]
+        return [self._message(m) for m in (rows[-last:] if last else rows)]
+
+    def insert_message(self, notebook_id, conversation_id, role, content, citations) -> Message:
         row = {
             "id": str(uuid.uuid4()),
             "notebook_id": notebook_id,
+            "conversation_id": conversation_id,
             "role": role,
             "content": content,
             "citations": citations,
@@ -226,7 +265,7 @@ class FakeStore:
 
     # credit
     def has_credit(self, user_id: str) -> bool:
-        return user_id in self.admins or self.balance > 0
+        return self.balance > 0
 
     def is_admin(self, user_id: str) -> bool:
         return user_id in self.admins

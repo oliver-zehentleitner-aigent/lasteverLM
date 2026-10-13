@@ -4,7 +4,9 @@ API models (Answer, Citation, Message, Output, SharedOutput) come from core."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from lasteverlm_core import OutputKind, OutputStatus, SourceKind
 from pydantic import BaseModel, Field
@@ -16,7 +18,42 @@ class AskScope(BaseModel):
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
+    conversation_id: UUID
     scope: AskScope | None = None
+
+
+class ConversationCreate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class Conversation(BaseModel):
+    """One chat tab of a notebook; every message belongs to exactly one."""
+
+    id: UUID
+    notebook_id: UUID
+    title: str
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class ConversationRow:
+    """The ``conversations`` row plus the notebook owner, for the ownership check."""
+
+    id: str
+    notebook_id: str
+    owner: str
+    title: str
+    created_at: Any
+
+    def to_api(self) -> Conversation:
+        return Conversation.model_validate(
+            {
+                "id": self.id,
+                "notebook_id": self.notebook_id,
+                "title": self.title,
+                "created_at": self.created_at,
+            }
+        )
 
 
 class OutputCreate(BaseModel):

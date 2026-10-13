@@ -41,9 +41,10 @@ from lasteverlm_core.web import admin_only
 from . import __version__
 from .admin import admin_stats
 from .config import Settings
-from .models import AdminStats, AskRequest, OutputCreate
+from .models import AdminStats, AskRequest, Conversation, ConversationCreate, OutputCreate
 from .outputs import OutputGenerator, registry
 from .service import (
+    ConversationNotFound,
     InsufficientCredit,
     NotebookNotFound,
     OutputNotFound,
@@ -66,6 +67,7 @@ log = logging.getLogger("lasteverlm_rag")
 
 NotebookId = Annotated[uuid.UUID, Path()]
 OutputId = Annotated[uuid.UUID, Path()]
+ConversationId = Annotated[uuid.UUID, Path()]
 
 
 def create_app(
@@ -155,11 +157,31 @@ def create_app(
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/ask", response_model=Answer)
     def ask(notebook_id: NotebookId, body: AskRequest, user: User) -> Answer:
         output_id = body.scope.output_id if body.scope else None
-        return rag.ask(user, str(notebook_id), body.question, output_id)
+        return rag.ask(user, str(notebook_id), body.question, str(body.conversation_id), output_id)
 
-    @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/messages", response_model=list[Message])
-    def messages(notebook_id: NotebookId, user: User) -> list[Message]:
-        return rag.messages(user, str(notebook_id))
+    @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/conversations", response_model=list[Conversation])
+    def list_conversations(notebook_id: NotebookId, user: User) -> list[Conversation]:
+        return rag.conversations(user, str(notebook_id))
+
+    @app.post(
+        f"{PREFIX}/notebooks/{{notebook_id}}/conversations",
+        response_model=Conversation,
+        status_code=201,
+    )
+    def create_conversation(
+        notebook_id: NotebookId, user: User, body: ConversationCreate | None = None
+    ) -> Conversation:
+        return rag.create_conversation(user, str(notebook_id), body.title if body else None)
+
+    @app.delete(f"{PREFIX}/conversations/{{conversation_id}}", status_code=204)
+    def delete_conversation(conversation_id: ConversationId, user: User) -> Response:
+        """Closing a chat tab: the conversation and its messages are gone."""
+        rag.delete_conversation(user, str(conversation_id))
+        return Response(status_code=204)
+
+    @app.get(f"{PREFIX}/conversations/{{conversation_id}}/messages", response_model=list[Message])
+    def messages(conversation_id: ConversationId, user: User) -> list[Message]:
+        return rag.messages(user, str(conversation_id))
 
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=Output, status_code=202)
     def create_output(notebook_id: NotebookId, body: OutputCreate, user: User) -> Output:
@@ -209,6 +231,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
         return error(exc.status_code, str(exc.detail))
+
+    @app.exception_handler(ConversationNotFound)
+    async def conversation_not_found(_: Request, exc: ConversationNotFound) -> JSONResponse:
+        return error(404, "conversation not found")
 
     @app.exception_handler(NotebookNotFound)
     async def notebook_not_found(_: Request, exc: NotebookNotFound) -> JSONResponse:

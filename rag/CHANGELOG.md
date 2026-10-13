@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Conversations: several chats per notebook (`GET`/`POST /api/rag/notebooks/{id}/conversations`, `DELETE /api/rag/conversations/{id}`, `GET /api/rag/conversations/{id}/messages`); migration `0002_rag_conversations.sql` moves existing history into `Chat 1`.
+- The model sees the newest six messages of the conversation, so a follow-up question can refer to an earlier turn.
+
+### Changed
+
+- `POST .../ask` requires `conversation_id` (422 without it); `GET /api/rag/notebooks/{id}/messages` is removed in favour of the per-conversation list.
+- Admins need credit like every user again (core's `has_credit` dropped the admin exemption); README and tests follow.
+
 ## [0.3.0] - 2026-10-13
 
 ### Added

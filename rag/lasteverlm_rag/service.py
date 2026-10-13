@@ -9,6 +9,7 @@ generates, and indexes the result as a generated source so chat can cite it.
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from typing import Any
 
@@ -30,7 +31,7 @@ from lasteverlm_core import (
 )
 
 from .citations import map_citations, number_passages
-from .models import GeneratedOutput, OutputRow, Passage
+from .models import Conversation, ConversationRow, GeneratedOutput, OutputRow, Passage
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
 from .speech import split_for_speech
@@ -48,6 +49,8 @@ Rules:
 - Cite every claim with the passage number in square brackets, like [2] or [1, 3].
 - Cite only numbers that exist in the passages.
 - If the passages do not contain the answer, say so in one sentence and do not guess.
+- Earlier turns of the conversation, when given, only tell you what the question
+  refers to; facts and citations come from the passages alone.
 - Be concise. Plain text, no headings."""
 
 ANSWER_MAX_TOKENS = 1024
@@ -56,6 +59,13 @@ ANSWER_MAX_TOKENS = 1024
 SCOPED_RETRIEVAL_K = 12
 MAX_ATTEMPTS = 3
 SUMMARY_MAX_CHARS = 500
+# The model sees the newest turns of the conversation, each cut to a bound, so a
+# follow-up ("and how do I install it?") can be resolved without a long chat
+# filling the context window.
+HISTORY_MESSAGES = 6
+HISTORY_MESSAGE_CHARS = 1000
+DEFAULT_TITLE = re.compile(r"^Chat (\d+)$")
+_MARKERS = re.compile(r"\s*\[\d+(?:\s*,\s*\d+)*\]")
 AUDIO_URL_EXPIRES_S = 3600
 AUDIO_FILE = "audio.mp3"
 
@@ -68,6 +78,10 @@ class OutputNotFound(Exception):
     """No output with that id belongs to the caller."""
 
 
+class ConversationNotFound(Exception):
+    """No conversation with that id belongs to the caller (in that notebook)."""
+
+
 class OutputNotReady(Exception):
     """The output exists but has no generated source to ask about yet."""
 
@@ -76,12 +90,23 @@ class InsufficientCredit(Exception):
     """The caller's balance is zero; no provider call is made."""
 
 
-def render_answer_prompt(question: str, passages: list[Passage]) -> str:
+def render_answer_prompt(
+    question: str, passages: list[Passage], history: list[Message] | None = None
+) -> str:
     blocks = []
     for p in passages:
         where = f"{p.source_name}, page {p.page}" if p.page is not None else p.source_name
         blocks.append(f"[{p.n}] ({where})\n{p.text}")
-    return "Passages:\n\n" + "\n\n".join(blocks) + f"\n\nQuestion: {question}"
+    prompt = "Passages:\n\n" + "\n\n".join(blocks) + f"\n\nQuestion: {question}"
+    if not history:
+        return prompt
+    # earlier answers lose their markers: their numbers point at other passages
+    turns = [
+        f"{'User' if m.role == 'user' else 'Assistant'}: "
+        f"{_MARKERS.sub('', m.content)[:HISTORY_MESSAGE_CHARS]}"
+        for m in history
+    ]
+    return "Conversation so far:\n\n" + "\n".join(turns) + "\n\n" + prompt
 
 
 class RagService:
@@ -104,9 +129,17 @@ class RagService:
         self._include_generated = include_generated
 
     def ask(
-        self, user_id: str, notebook_id: str, question: str, output_id: str | None = None
+        self,
+        user_id: str,
+        notebook_id: str,
+        question: str,
+        conversation_id: str,
+        output_id: str | None = None,
     ) -> Answer:
         require_notebook(self._store, user_id, notebook_id)
+        conversation = self._owned_conversation(user_id, conversation_id)
+        if conversation.notebook_id != notebook_id:
+            raise ConversationNotFound(conversation_id)
         source_id = self._scope_source(user_id, notebook_id, output_id)
         require_credit(self._store, user_id)
         question = question.strip()
@@ -126,8 +159,11 @@ class RagService:
 
         if chunks:
             passages = number_passages(chunks)
+            history = self._store.list_messages(conversation_id, last=HISTORY_MESSAGES)
             completion = self._llm.complete(
-                ANSWER_SYSTEM_PROMPT, render_answer_prompt(question, passages), ANSWER_MAX_TOKENS
+                ANSWER_SYSTEM_PROMPT,
+                render_answer_prompt(question, passages, history),
+                ANSWER_MAX_TOKENS,
             )
             self._store.record_usage(user_id, notebook_id, completion.usage)
             if not completion.text.strip():
@@ -142,15 +178,53 @@ class RagService:
 
         # Both messages are written only once the answer exists, so the history
         # never holds a question without its answer.
-        self._store.insert_message(notebook_id, "user", question, None)
+        self._store.insert_message(notebook_id, conversation_id, "user", question, None)
         stored = self._store.insert_message(
-            notebook_id, "assistant", answer, [c.model_dump(mode="json") for c in citations]
+            notebook_id,
+            conversation_id,
+            "assistant",
+            answer,
+            [c.model_dump(mode="json") for c in citations],
         )
         return Answer(message_id=stored.id, answer=answer, citations=citations)
 
-    def messages(self, user_id: str, notebook_id: str) -> list[Message]:
+    # -- conversations -------------------------------------------------------
+
+    def conversations(self, user_id: str, notebook_id: str) -> list[Conversation]:
         require_notebook(self._store, user_id, notebook_id)
-        return self._store.list_messages(notebook_id)
+        return [c.to_api() for c in self._store.list_conversations(notebook_id)]
+
+    def create_conversation(
+        self, user_id: str, notebook_id: str, title: str | None = None
+    ) -> Conversation:
+        require_notebook(self._store, user_id, notebook_id)
+        if title is None or not title.strip():
+            title = f"Chat {self._next_chat_number(notebook_id)}"
+        return self._store.create_conversation(notebook_id, title.strip()).to_api()
+
+    def delete_conversation(self, user_id: str, conversation_id: str) -> None:
+        self._owned_conversation(user_id, conversation_id)
+        self._store.delete_conversation(conversation_id)
+
+    def messages(self, user_id: str, conversation_id: str) -> list[Message]:
+        self._owned_conversation(user_id, conversation_id)
+        return self._store.list_messages(conversation_id)
+
+    def _next_chat_number(self, notebook_id: str) -> int:
+        """One above the highest "Chat n" still open, so a closed tab's number
+        can come back but two open tabs never share a default title."""
+        numbers = [
+            int(m.group(1))
+            for c in self._store.list_conversations(notebook_id)
+            if (m := DEFAULT_TITLE.match(c.title))
+        ]
+        return max(numbers, default=0) + 1
+
+    def _owned_conversation(self, user_id: str, conversation_id: str) -> ConversationRow:
+        row = self._store.get_conversation(conversation_id)
+        if row is None or row.owner != user_id:
+            raise ConversationNotFound(conversation_id)
+        return row
 
     def _scope_source(self, user_id: str, notebook_id: str, output_id: str | None) -> str | None:
         if output_id is None:
@@ -382,7 +456,7 @@ def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, 
 
 
 def require_credit(store: Store, user_id: str) -> None:
-    """Core's rule: an admin always has credit, anyone else needs a positive balance."""
+    """Core's rule: a positive balance, for admins as for everyone else."""
     if not store.has_credit(user_id):
         raise InsufficientCredit(user_id)
 
