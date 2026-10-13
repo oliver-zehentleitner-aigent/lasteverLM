@@ -46,7 +46,8 @@ packages = ["src/lasteverlm_ingest"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+markers = ["postgres: needs INGEST_TEST_DATABASE_URL (make test-postgres)"]
+addopts = "-q -m 'not postgres'"
 
 [tool.black]
 line-length = 100

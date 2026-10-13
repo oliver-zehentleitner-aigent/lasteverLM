@@ -70,12 +70,18 @@ stay in `processing`.
 
 ```bash
 make check                     # make install, then ruff check, black --check, mypy, pytest
+make test-postgres             # the repository's SQL against a throwaway pgvector container
 ```
 
 `make check` installs first, so it works on a fresh checkout and is what CI runs.
 
 The tests use in-memory stand-ins for the database, the bucket and the
 inference API (`tests/fakes.py`); nothing touches the network.
+`make test-postgres` runs `tests/test_postgres.py` against a real
+PostgreSQL with the family's migrations applied (the library and its
+dedupe conflict, ownership, the trash and its retention, the queue under
+concurrent claims, the seed claim, the admin counts); it is skipped
+without Docker, and `make check` deselects it.
 
 ## Build
 
