@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import re
 from pathlib import PurePosixPath
 from uuid import UUID, uuid4
@@ -20,9 +19,10 @@ from lasteverlm_ingest.api.deps import (
     worker_deps,
 )
 from lasteverlm_ingest.auth import CurrentUser
+from lasteverlm_ingest.dedupe import file_key, url_key
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
-from lasteverlm_ingest.loaders.url import check_url, normalize_url
+from lasteverlm_ingest.loaders.url import check_url
 from lasteverlm_ingest.repository import NewLibrarySource, StoredSource
 from lasteverlm_ingest.worker import CREDIT_EXHAUSTED, WorkerDeps
 
@@ -84,7 +84,7 @@ def _capture(value: object) -> Capture:
         raise HTTPException(
             status_code=400, detail=f"capture must be one of {', '.join(CAPTURE_MODES)}"
         )
-    return value  # type: ignore[return-value]
+    return value
 
 
 def _out(source: StoredSource, storage: Storage) -> LinkedSource:
@@ -148,10 +148,7 @@ async def create_source(
         name = safe_name(upload.filename)
         url = None
         capture: Capture | None = _capture(form.get("capture")) if kind == "pdf" else None
-        dedupe_key = "sha256:" + hashlib.sha256(data).hexdigest()
-        if capture is not None:
-            # The same bytes captured in another mode are another library source.
-            dedupe_key += f":{capture}"
+        dedupe_key = file_key(data, capture)
     elif content_type.startswith("application/json"):
         try:
             payload = await request.json()
@@ -170,7 +167,7 @@ async def create_source(
             raise HTTPException(status_code=501, detail="URL sources are not supported yet")
         try:
             url = check_url(body.url)
-            dedupe_key = "url:" + normalize_url(url)
+            dedupe_key = url_key(url)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
         # Only the URL is stored; the worker fetches it (see loaders/url.py).

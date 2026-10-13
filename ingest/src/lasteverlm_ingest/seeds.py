@@ -13,15 +13,14 @@ the demo user: a new user has no credit yet.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from lasteverlm_core import DEMO_USER_ID, object_key
+from lasteverlm_core import DEMO_USER_ID, Storage, object_key
 
-from lasteverlm_ingest.loaders.url import normalize_url
+from lasteverlm_ingest.dedupe import file_key, url_key
 from lasteverlm_ingest.repository import NewLibrarySource, Repository
 
 log = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ SEEDS = (
 )
 
 
-def ensure_seeded(repo: Repository, storage: object, owner: UUID) -> int:
+def ensure_seeded(repo: Repository, storage: Storage, owner: UUID) -> int:
     """Give a new owner the demo library, once. Returns the number of
     sources created (0 when already considered, when the owner had
     entries, or for the demo user itself). Same keys as an upload, so the
@@ -60,16 +59,14 @@ def ensure_seeded(repo: Repository, storage: object, owner: UUID) -> int:
         library_id = uuid4()
         if seed.url is not None:
             data = seed.url.encode()
-            dedupe_key = "url:" + normalize_url(seed.url)
+            dedupe_key = url_key(seed.url)
             key = object_key(owner, library_id, "url")
         else:
             assert seed.file is not None
             data = (DEMO_DIR / seed.file).read_bytes()
-            dedupe_key = "sha256:" + hashlib.sha256(data).hexdigest()
-            if seed.capture is not None:
-                dedupe_key += f":{seed.capture}"
+            dedupe_key = file_key(data, seed.capture)
             key = object_key(owner, library_id, seed.name)
-        storage.put(key, data, seed.content_type)  # type: ignore[attr-defined]
+        storage.put(key, data, seed.content_type)
         repo.create_library_source(
             NewLibrarySource(
                 id=library_id,

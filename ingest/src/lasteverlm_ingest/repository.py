@@ -19,7 +19,7 @@ from datetime import date, datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
-from lasteverlm_core import Chunk, ModelPrices, Notebook, Source, UsageRecord
+from lasteverlm_core import Chunk, ModelPrices, Notebook, Source, UsageKind, UsageRecord
 from lasteverlm_core import has_credit as core_has_credit
 from lasteverlm_core import is_admin as core_is_admin
 from lasteverlm_core import record_usage as core_record_usage
@@ -239,7 +239,7 @@ class Repository(Protocol):
         self,
         user_id: UUID,
         notebook_id: UUID | None,
-        kind: str,
+        kind: UsageKind,
         model: str,
         tokens_in: int,
         tokens_out: int,
@@ -691,7 +691,7 @@ class PostgresRepository:
         self,
         user_id: UUID,
         notebook_id: UUID | None,
-        kind: str,
+        kind: UsageKind,
         model: str,
         tokens_in: int,
         tokens_out: int,
@@ -702,7 +702,7 @@ class PostgresRepository:
                 user_id,
                 notebook_id,
                 self._service,
-                kind,  # type: ignore[arg-type]
+                kind,
                 model,
                 tokens_in,
                 tokens_out,
