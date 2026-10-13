@@ -144,7 +144,7 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 /* workspace */
 .workspace { display: grid; grid-template-columns: var(--sidebar-w, 220px) 6px minmax(0, 1fr); height: calc(100% - 48px); }
 .sidebar { padding: 0.75rem; overflow: auto; background: var(--panel); }
-.columns { display: grid; grid-template-columns: var(--left-w, minmax(260px, 1fr)) 6px minmax(0, 2fr); min-height: 0; }
+.columns { display: grid; grid-template-columns: var(--left-w, 27rem) 6px minmax(0, 2fr); min-height: 0; }
 .columns.empty { display: flex; align-items: center; justify-content: center; }
 /* min-width: 0 lets a long tab bar scroll instead of widening the column */
 .column { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
@@ -168,6 +168,10 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 /* output tiles */
 .tiles { padding: 0.75rem 1rem; border-top: 1px solid var(--line); }
 .tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
+/* The output formats are always 3 x 2 tiles of a fixed width: 3 * 8rem +
+   2 * 0.5rem gap + 2 * 1rem padding = 27rem, the middle column's default
+   and minimum width (LEFT_WIDTH in lib/layout.ts, kept equal by a test). */
+.tiles .tile-grid { grid-template-columns: repeat(3, 8rem); }
 .tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left; white-space: normal; background: var(--panel); color: var(--fg); border: 1px solid var(--line); padding: 0.6rem; }
 .tile:not(:disabled):hover { border-color: var(--accent); background: var(--accent-soft); }
 
@@ -425,6 +429,8 @@ button.link.danger { color: var(--danger); }
 .vdivider:hover, .vdivider:focus-visible { background: var(--accent); outline: none; }
 .columns.full .vdivider { display: none; }
 @media (max-width: 900px) { .vdivider { display: none; } }
+/* a phone: the columns stack and the three tiles share the width */
+@media (max-width: 520px) { .tiles .tile-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .library .actions-cell { white-space: nowrap; display: flex; gap: 0.75rem; }
 .wizard .capture { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .wizard .capture legend { color: var(--muted); font-size: 0.9em; padding: 0 0.25rem; }

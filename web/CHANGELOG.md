@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Output format tiles: always three columns by two rows at a fixed width; the middle column's default and minimum width (27rem, 378 px) come from that grid, so the divider cannot squeeze it into another layout. On a phone the three tiles share the width. A test keeps the stylesheet and the divider's minimum equal.
 - Admin System: the "no read role" notice points to "The chart" in `infra/docs/operations.md`, where `kubernetesRead` and the check of the grant are described.
 
 ### Fixed

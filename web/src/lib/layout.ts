@@ -65,7 +65,8 @@ export function activePreset(ratio: number): (typeof CHAT_PRESETS)[number]['labe
 /** Column widths in pixels between the notebook list, the left and the
  *  right column; null means the stylesheet's default. */
 export const SIDEBAR_WIDTH = { key: 'lasteverlm.sidebarWidth', min: 160, max: 420 }
-export const LEFT_WIDTH = { key: 'lasteverlm.leftWidth', min: 240, max: 720 }
+// the minimum is the 3 x 2 output-format grid: 27rem at the 14px root size
+export const LEFT_WIDTH = { key: 'lasteverlm.leftWidth', min: 27 * 14, max: 720 }
 /** what the right column keeps at least while the left one is dragged */
 export const MIN_RIGHT_WIDTH = 360
 

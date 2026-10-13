@@ -74,7 +74,11 @@ is closed. After the wizard the notebook view opens.
   library. Deleting a notebook detaches its sources the same way.
   Generated documents are not listed here, although the backend keeps
   each one as a source of kind `generated` so the chat can cite it.
-- **Output format** (left, middle): the output kinds as tiles. A click
+- **Output format** (left, middle): the output kinds as tiles, always
+  three by two (Report, Quiz, Data table / Mindmap, Infographic,
+  Audio) at a fixed 8rem width; the column starts at, and cannot be
+  dragged below, the width of that grid (27rem). Only on a phone,
+  where the columns stack, do the three tiles share the width. A click
   (or Enter on a focused tile) only selects one, highlighted, and the
   selection stays while the notebook is open; the **Create** button
   at the right edge below the tiles starts the job for the selected
@@ -104,7 +108,8 @@ is closed. After the wizard the notebook view opens.
   the right column: drag them (or arrow keys when focused) to change the
   widths, remembered per browser in pixels; a double-click (or Home)
   returns to the default. The notebook list stays between 160 and 420
-  px, the left column between 240 and 720 px, and the right column
+  px, the left column between 378 px (the 3 x 2 format grid) and 720 px,
+  and the right column
   keeps at least 360 px. Hidden on narrow screens.
 - **Tab bars** (documents and chats) scroll sideways when the tabs do
   not fit: the active tab is scrolled into view, a mouse wheel scrolls
