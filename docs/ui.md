@@ -225,6 +225,15 @@ deleted from the library) stays readable with its quote and is marked
   - **Visits** (`/admin/visits`): visitor log aggregated per day and path.
   - **Mail** (`/admin/mail`): SMTP settings read-only (they come from the
     deployment) with a test button.
+  - **System** (`/admin/system`): per service a card with version,
+    commit and health, then the cluster's pods (name, service, image
+    tag, ready, restarts, node, started) and deployments (replicas,
+    ready, updated); a local run without a cluster says so instead. The
+    overview shows the build ("lasteverLM 0.6.1 · 5e320ae") under its
+    heading, linked to this page.
+
+The running build is also the tooltip of "lasteverLM" in the header, for
+everyone, from the public `/api/account/healthz`.
 
 ## Language
 

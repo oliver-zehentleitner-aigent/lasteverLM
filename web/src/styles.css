@@ -408,3 +408,5 @@ a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); 
 .code-chip { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem; background: var(--bg); }
 .code-chip code { font-size: 0.9em; letter-spacing: 0.03em; }
 button.link.copy { font-size: 0.85em; }
+.build-line { margin: 0; }
+.build-line a { color: inherit; }

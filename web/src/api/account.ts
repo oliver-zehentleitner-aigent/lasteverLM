@@ -1,6 +1,6 @@
 import { ACCOUNT_PREFIX } from '../config'
 import { request } from './client'
-import type { Preferences, User } from './types'
+import type { Health, Preferences, User } from './types'
 
 export const account = {
   /** Step one of the magic-link flow: 202 and a mail for an allowed address,
@@ -16,6 +16,9 @@ export const account = {
     }),
 
   me: () => request<User>(`${ACCOUNT_PREFIX}/me`),
+
+  /** public; carries the build (version, commit) once core reports it */
+  health: () => request<Health>(`${ACCOUNT_PREFIX}/healthz`, { anonymous: true }),
 
   /** Any subset: a value sets, null clears, an absent key stays. Returns the
    *  updated user; the shared demo user gets 403. */
