@@ -7,6 +7,9 @@ describe('failureMessage', () => {
   it('prefers the service message', () => {
     expect(failureMessage(409, '{"error":"output not ready"}')).toBe('output not ready')
     expect(failureMessage(415, '{"error":"unsupported media type: image/gif"}')).toBe('unsupported media type: image/gif')
+    // too many sign-in links for one address: the service's sentence, as is
+    const links = '5 sign-in links were sent to this address in the last hour. Use one of them, or try again later.'
+    expect(failureMessage(429, JSON.stringify({ error: links, code: 'too_many_links' }))).toBe(links)
   })
   it('never shows an HTML error page, describes the status instead', () => {
     expect(failureMessage(502, html)).toBe('The service is not reachable, it may still be starting (HTTP 502)')

@@ -298,6 +298,10 @@ deleted from the library) stays readable with its quote and is marked
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
     with its four editable numbers and a reset to the deployment
     defaults, then blocks, bans (with lift) and the raw access log.
+    Blocks and bans are keyed by an IPv4 address or an IPv6 /64 prefix
+    (`2001:db8:1:2::/64`), shown as is; lifting sends the key as a query
+    parameter (`DELETE /api/account/admin/bans?ip=<key>`), so the slash
+    of a prefix never reaches the path.
   - **Visits** (`/admin/visits`): visitor log aggregated per day and path.
   - **Mail** (`/admin/mail`): SMTP settings read-only (they come from the
     deployment) with a test button.
