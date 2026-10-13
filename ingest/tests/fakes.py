@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from lasteverlm_core import (
@@ -22,7 +22,9 @@ from lasteverlm_core import (
 )
 
 from lasteverlm_ingest.repository import (
+    KINDS,
     AdminStats,
+    DailyStats,
     LibraryEntry,
     LibrarySource,
     NewLibrarySource,
@@ -301,6 +303,26 @@ class InMemoryRepository:
             chunks=sum(len(self.chunks.get(lib.id, [])) for lib in listed),
             source_bytes=sum(lib.size_bytes or 0 for lib in listed),
         )
+
+    def admin_daily(self, days: int) -> list[DailyStats]:
+        today = datetime.now(UTC).date()
+        out = []
+        for offset in range(days - 1, -1, -1):
+            day = today - timedelta(days=offset)
+            libs = [
+                lib
+                for lib in self.library.values()
+                if self._listed(lib) and lib.created_at.astimezone(UTC).date() == day
+            ]
+            out.append(
+                DailyStats(
+                    day=day,
+                    sources_created=len(libs),
+                    by_kind={k: sum(1 for lib in libs if lib.kind == k) for k in KINDS},
+                    failed=sum(1 for lib in libs if lib.status == "failed"),
+                )
+            )
+        return out
 
 
 class InMemoryStorage:
