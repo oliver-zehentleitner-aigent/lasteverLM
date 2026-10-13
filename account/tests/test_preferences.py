@@ -117,3 +117,10 @@ def test_demo_user_cannot_change_preferences(client: TestClient, repo: MemoryRep
     r = client.put(PREFS, json={"ui_language": "de"}, headers=h)
     assert r.status_code == 403
     assert client.get(PREFS, headers=h).json() == UNSET
+
+
+def test_language_code_length_is_capped(client: TestClient, mailer: FakeMailer) -> None:
+    token, _ = login(client, mailer, "alice@example.org")
+    long_but_shaped = "de" + "-abcdefgh" * 5  # 47 chars, every subtag well-formed
+    r = client.put(PREFS, json={"output_language": long_but_shaped}, headers=bearer(token))
+    assert r.status_code == 422

@@ -29,8 +29,9 @@ src/lasteverlm_account/
 ├── repository_postgres.py PostgreSQL (psycopg 3, plain SQL); its pool also serves core's rate-limit store
 ├── repository_memory.py   in-memory, for tests and local runs
 ├── mail.py                SMTP mailer, config from Settings
-├── privacy.py             visitor hashing, daily salt, user-agent family, client IP
-└── api/                   routers: auth, account (me, redeem, visits), admin, deps
+├── privacy.py             visitor hashing, daily salt, user-agent family
+├── system.py              admin System page: service health probes, Kubernetes pods and deployments
+└── api/                   routers: auth, account (me, preferences, redeem, visits), admin; deps incl. the client IP
 db/migrations/             numbered SQL, applied by infra's make migrate after core's
 Makefile                   install (uv sync), check, run, run-dev, build (context: repository root)
 tests/                     unit tests on the memory repository; test_postgres.py needs TEST_DATABASE_URL

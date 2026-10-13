@@ -5,8 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response
 
 from ..models import Preferences, PreferencesUpdate, RedeemBody, User, VisitBody
-from ..privacy import client_ip
-from .deps import CurrentUserId, OptionalUserId, Service
+from .deps import ClientIp, CurrentUserId, OptionalUserId, Service
 
 router = APIRouter(tags=["account"])
 
@@ -36,12 +35,7 @@ async def redeem(body: RedeemBody, service: Service, user_id: CurrentUserId) -> 
 
 @router.post("/visits", status_code=204)
 async def visit(
-    body: VisitBody, request: Request, service: Service, user_id: OptionalUserId
+    body: VisitBody, request: Request, ip: ClientIp, service: Service, user_id: OptionalUserId
 ) -> Response:
-    ip = client_ip(
-        request.client.host if request.client else None,
-        request.headers.get("x-forwarded-for"),
-        trust_proxy_headers=service.settings.trust_proxy_headers,
-    )
     await service.record_visit(body.path, user_id, ip, request.headers.get("user-agent"))
     return Response(status_code=204)
