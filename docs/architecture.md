@@ -79,9 +79,11 @@ visit_log    (id, at, path, user_id null, ip_hash, ua_family)                 --
 
 -- ingest
 notebooks    (id, owner uuid, title, created_at)
-sources      (id, notebook_id, name, kind, storage_path, status, error, summary text null,
-              claimed_at timestamptz null, claimed_by text null, attempts int default 0, created_at)
-chunks       (id, source_id, notebook_id, idx, page, text, embedding vector(1536))
+library_sources (id, owner uuid, name, kind, dedupe_key text null, url text null, size_bytes bigint null,
+                 storage_path, status, error, summary text null, claimed_at, claimed_by, attempts, created_at)
+                 -- the processed unit, one per user and content; unique (owner, dedupe_key)
+sources      (id, notebook_id, library_source_id, created_at)   -- the link of a library source into a notebook; its id is the public source id
+chunks       (id, library_source_id, idx, page, text, embedding vector(1536))   -- one set per library source, searched from every notebook that links it
 
 -- rag
 messages     (id, notebook_id, role, content, citations jsonb, created_at)
@@ -104,7 +106,8 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - `chunks.embedding` dimension follows `EMBEDDING_DIMENSION`; the migration takes it as a parameter, default 1536.
 - `usage.kind`: `llm` | `embedding` | `tts`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
-- Storage object path: `<notebook_id>/<source_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a source or an output deletes its objects.
+- Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
+- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes, a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. Removing a source from a notebook detaches the link; deleting an entry in the library removes it from every notebook with its chunks and object. Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
 
 ## Credits and accounting
 
@@ -174,14 +177,18 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 | POST | `/notebooks` | `{"title"}` | `Notebook` |
 | DELETE | `/notebooks/{id}` | | 204 |
 | GET | `/notebooks/{id}/sources` | | `[Source]` |
-| POST | `/notebooks/{id}/sources` | multipart `file`, or `{"url"}` | `Source` with `status: "processing"` |
-| DELETE | `/sources/{id}` | | 204 |
+| POST | `/notebooks/{id}/sources` | multipart `file`, or `{"url"}`, or `{"library_id"}` | 202 `Source` (new link, `status: "processing"` when newly processed); 200 `Source` when already in this notebook |
+| DELETE | `/sources/{id}` | | 204, detaches the source from the notebook only |
+| GET | `/library` | | `[LibraryEntry]`, newest first, the user's own, never generated |
+| GET | `/library/{id}` | | `LibraryEntry` |
+| DELETE | `/library/{id}` | | 204, removed from every notebook with chunks and object |
 | GET | `/admin/stats` | admin only | `IngestStats` |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
 Notebook: {"id", "title", "created_at"}
-Source:   {"id", "notebook_id", "name", "kind", "status", "error", "created_at"}
+Source:   {"id", "notebook_id", "library_id", "name", "kind", "status", "error", "created_at"}
+LibraryEntry: {"id", "name", "kind", "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
 IngestStats: {"sources": {"processing", "ready", "failed"}, "jobs": {"pending", "running", "failed"}, "chunks", "source_bytes"}
 ```
 
