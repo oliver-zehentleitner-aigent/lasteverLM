@@ -48,8 +48,8 @@ CurrentUserId = Annotated[uuid.UUID, Depends(current_user_id)]
 
 
 def client_address(request: Request, service: Service) -> str:
-    """The caller's IP as core's middleware sees it: first trusted X-Forwarded-For hop, else
-    the peer; anything that is not an address becomes 0.0.0.0, never an error."""
+    """The caller's IP as core's middleware sees it: the last X-Forwarded-For entry (the one
+    the ingress wrote) when trusted, else the peer; a non-address becomes 0.0.0.0."""
     return client_ip(request.scope, service.settings.trust_proxy_headers)
 
 

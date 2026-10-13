@@ -284,9 +284,21 @@ class AccountService:
         way the attempt is logged with the plain client address (context/privacy.md).
         """
         email = normalize_email(email)
+        now = self.now()
         allowed = "@" in email and await self.is_allowed(email)
+        if allowed:
+            # Per-address quota, counted on the attempts already logged; a throttled request
+            # writes no row, so the quota also caps what one address can add to the table.
+            sent = await self.repo.count_allowed_attempts(email, now - timedelta(hours=1))
+            if sent >= self.settings.link_quota_per_hour:
+                raise AccountError(
+                    429,
+                    f"{self.settings.link_quota_per_hour} sign-in links were sent to this "
+                    "address in the last hour. Use one of them, or try again later.",
+                    "too_many_links",
+                )
         await self.repo.add_login_attempt(
-            LoginAttemptRecord(self.now(), email[:254], ip, "allowed" if allowed else "refused")
+            LoginAttemptRecord(now, email[:254], ip, "allowed" if allowed else "refused")
         )
         if not allowed:
             raise AccountError(403, "This address has no access to lasteverLM.", "not_allowed")

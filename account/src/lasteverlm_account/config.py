@@ -30,6 +30,7 @@ class Settings:
     allowed_domains_seed: tuple[str, ...] = ()
     smtp: SmtpConfig | None = None  # None: no SMTP_HOST, sign-in mails cannot be sent
     magic_link_ttl_minutes: int = 15
+    link_quota_per_hour: int = 5  # sign-in links per address per hour, then 429
     jwt_ttl_days: int = 7
     voucher_default_cents: int = 1000
     visit_retention_days: int = 30
@@ -82,6 +83,9 @@ class Settings:
             smtp=smtp,
             magic_link_ttl_minutes=_positive_int(
                 env.get("MAGIC_LINK_TTL_MINUTES", "15"), "MAGIC_LINK_TTL_MINUTES"
+            ),
+            link_quota_per_hour=_positive_int(
+                env.get("LINK_QUOTA_PER_HOUR", "5"), "LINK_QUOTA_PER_HOUR"
             ),
             jwt_ttl_days=_positive_int(env.get("JWT_TTL_DAYS", "7"), "JWT_TTL_DAYS"),
             voucher_default_cents=_positive_int(

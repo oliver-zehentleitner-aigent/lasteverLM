@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Per-address quota for sign-in links: more than `LINK_QUOTA_PER_HOUR` (5) within an hour answers 429 with `code: too_many_links` and a readable sentence; counted on `login_attempts`, a throttled request writes no row.
+
 ### Changed
 
 - The client address for visits and sign-in attempts is resolved by core's `client_ip`, the same way the rate-limit middleware does; a malformed `X-Forwarded-For` becomes `0.0.0.0` instead of a failed insert.

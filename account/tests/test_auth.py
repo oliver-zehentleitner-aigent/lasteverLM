@@ -134,12 +134,12 @@ def test_every_link_request_is_logged_with_outcome_and_client_ip(
     client.post(
         "/api/account/auth/request-link",
         json={"email": "Mallory@evil.test"},
-        headers={"X-Forwarded-For": "203.0.113.7, 10.0.0.1"},
+        headers={"X-Forwarded-For": "203.0.113.7, 10.0.0.1"},  # the last hop is the ingress's
     )
     clock.advance(minutes=1)
     token, _ = login(client, mailer, "admin@example.org")
     assert [(a.email, a.ip, a.outcome) for a in repo.login_attempts] == [
-        ("mallory@evil.test", "203.0.113.7", "refused"),
+        ("mallory@evil.test", "10.0.0.1", "refused"),
         ("admin@example.org", "0.0.0.0", "allowed"),  # the test client is no address
     ]
     r = client.get("/api/account/admin/login-attempts", headers=bearer(token))
@@ -173,7 +173,7 @@ def test_malformed_forwarded_header_cannot_break_a_request(
     r = client.post(
         "/api/account/auth/request-link",
         json={"email": "alice@example.org"},
-        headers={"X-Forwarded-For": "not-an-address, 10.0.0.1"},
+        headers={"X-Forwarded-For": "10.0.0.1, not-an-address"},
     )
     assert r.status_code == 202
     assert repo.login_attempts[-1].ip == "0.0.0.0"  # what the inet column can hold
@@ -181,3 +181,25 @@ def test_malformed_forwarded_header_cannot_break_a_request(
         "/api/account/visits", json={"path": "/"}, headers={"X-Forwarded-For": "<script>"}
     )
     assert r.status_code == 204
+
+
+def test_five_links_per_address_per_hour(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository, clock: Clock
+) -> None:
+    body = {"email": "alice@example.org"}
+    for _ in range(5):
+        assert client.post("/api/account/auth/request-link", json=body).status_code == 202
+    r = client.post("/api/account/auth/request-link", json=body)
+    assert r.status_code == 429
+    assert r.json()["code"] == "too_many_links"
+    assert r.json()["error"].startswith("5 sign-in links were sent to this address")
+    assert len(mailer.sent) == 5
+    assert len(repo.login_attempts) == 5  # the throttled request writes no row
+    # another address is not affected; the quota is per address
+    assert (
+        client.post("/api/account/auth/request-link", json={"email": "bob@example.org"}).status_code
+        == 202
+    )
+    # an hour later the address may ask again
+    clock.advance(hours=1, minutes=1)
+    assert client.post("/api/account/auth/request-link", json=body).status_code == 202

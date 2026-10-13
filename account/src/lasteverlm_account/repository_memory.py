@@ -162,6 +162,13 @@ class MemoryRepository:
     async def list_login_attempts(self, limit: int) -> list[LoginAttemptRecord]:
         return sorted(self.login_attempts, key=lambda r: r.at, reverse=True)[:limit]
 
+    async def count_allowed_attempts(self, email: str, since: datetime) -> int:
+        return sum(
+            1
+            for a in self.login_attempts
+            if a.email == email and a.outcome == "allowed" and a.at >= since
+        )
+
     async def purge_login_attempts(self, before: datetime) -> int:
         async with self._lock:
             kept = [a for a in self.login_attempts if a.at >= before]
