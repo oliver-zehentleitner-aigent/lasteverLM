@@ -39,7 +39,7 @@ rows, which ingest and rag write.
 |---|---|
 | Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
 | Account | `GET /me` → `User` (with `preferences`), `GET /me/preferences`, `PUT /me/preferences` (partial, returns `User`; the demo user gets 403), `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
-| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the four runtime fields for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, no codes), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
+| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the four runtime fields for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, no codes), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/system` (version, commit, every service's health, the namespace's pods and deployments), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans/{ip}`, `GET /admin/access?limit=` |
 | Health | `GET /healthz`, also at the server root for the Kubernetes probe |
 
@@ -85,10 +85,25 @@ comment.
 | `MAGIC_LINK_TTL_MINUTES`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 7, 1000, 30, true, INFO |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100. The first four are only defaults: an admin overrides them at run time through `PUT /admin/settings/ratelimit` (settings key `ratelimit`, read by every service's middleware within 30 s) |
+| `APP_VERSION`, `APP_COMMIT` | no | shown on `/healthz` and `/admin/system`; default `unknown` for both (`lasteverlm-config`) |
+| `SYSTEM_SERVICES` | no | `name=healthz URL` pairs `/admin/system` probes over the cluster DNS; default `ingest=http://ingest/healthz,rag=http://rag/healthz`, empty probes nobody |
 | `RETENTION_DAYS`, `BAN_MAX_DAYS` | no | days the access log, stale blocks and lifted bans are kept, and how long a ban holds at most (core's names); this service purges at every start, defaults 30, 90 |
 
 The domain-list seed is written to the `settings` table only when the key is
 missing; afterwards the admin panel owns the value. SMTP is never stored.
+
+## System page
+
+`GET /admin/system` reports this service's version and commit, probes every
+service in `SYSTEM_SERVICES` (5 s timeout each; an unreachable one is
+`healthy: false`, the response is still 200) and, inside Kubernetes, lists
+the namespace's pods and deployments. The Kubernetes read uses the pod's own
+ServiceAccount (token, CA and namespace from
+`/var/run/secrets/kubernetes.io/serviceaccount`) over plain HTTPS against the
+API server; it needs a Role that allows `get`/`list` on `pods` and
+`deployments` in the namespace, which infra's chart provides. Without a token
+file (`make run-dev`, tests, a plain container) `cluster` is `false` and the
+two lists are empty. See `context/system.md` for why this lives in account.
 
 ## Run locally
 

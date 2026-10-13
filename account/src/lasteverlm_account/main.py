@@ -30,6 +30,7 @@ from .models import Health
 from .repository import Repository
 from .repository_postgres import PostgresRepository
 from .service import AccountError, AccountService
+from .system import SystemProbe, kubernetes_api_base
 
 API_PREFIX = "/api/account"
 
@@ -42,6 +43,7 @@ def create_app(
     mailer: Mailer | None = None,
     rate_limit_store: RateLimitStore | None = None,
     rate_limit_settings: RateLimitSettings | None = None,
+    system: SystemProbe | None = None,
 ) -> FastAPI:
     resolved = settings or Settings.from_env()
     logging.basicConfig(level=resolved.log_level)
@@ -65,7 +67,13 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if postgres is not None:
             await postgres.open()
-        service = AccountService(resolved, repo, mailer or SmtpMailer(), rate_limit=limits)
+        service = AccountService(
+            resolved,
+            repo,
+            mailer or SmtpMailer(),
+            rate_limit=limits,
+            system=system or SystemProbe(resolved.system_services, api_base=kubernetes_api_base()),
+        )
         await service.startup()
         app.state.service = service
         try:
@@ -98,7 +106,7 @@ def create_app(
     @app.get(f"{API_PREFIX}/healthz", response_model=Health, tags=["health"])
     async def healthz(request: Request) -> Health:
         await request.app.state.service.repo.ping()
-        return Health()
+        return Health(version=resolved.app_version, commit=resolved.app_commit)
 
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(account.router, prefix=API_PREFIX)

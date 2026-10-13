@@ -26,6 +26,7 @@ from ..models import (
     RateLimitRulesUpdate,
     RateLimitRulesView,
     Smtp,
+    SystemInfo,
     UsageStats,
 )
 from .deps import AdminUserDep, Service
@@ -36,6 +37,12 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @router.get("/users", response_model=list[AdminUserView])
 async def users(service: Service, _: AdminUserDep) -> list[AdminUserView]:
     return await service.admin_users()
+
+
+@router.get("/system", response_model=SystemInfo)
+async def system(service: Service, _: AdminUserDep) -> SystemInfo:
+    """Installed version, every service's health, the namespace's pods and deployments."""
+    return await service.admin_system()
 
 
 @router.get("/stats", response_model=AdminStats)

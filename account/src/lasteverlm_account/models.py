@@ -261,6 +261,44 @@ class AdminStats(BaseModel):
 
 class Health(BaseModel):
     status: str = "ok"
+    version: str = "unknown"  # APP_VERSION; core's Health.from_env uses the same word
+    commit: str = "unknown"  # APP_COMMIT
+
+
+class SystemService(BaseModel):
+    name: str
+    version: str | None
+    commit: str | None
+    healthy: bool
+
+
+class SystemPod(BaseModel):
+    name: str
+    service: str  # the app.kubernetes.io/name label
+    image_tag: str | None
+    ready: bool
+    restarts: int
+    node: str | None
+    started_at: datetime | None
+
+
+class SystemDeployment(BaseModel):
+    name: str
+    replicas: int
+    ready: int
+    updated: int
+
+
+class SystemInfo(BaseModel):
+    """The admin System page. Outside a cluster `cluster` is false and the Kubernetes lists
+    are empty; the services are probed either way, an unreachable one is `healthy: false`."""
+
+    version: str
+    commit: str
+    cluster: bool
+    services: list[SystemService]
+    pods: list[SystemPod]
+    deployments: list[SystemDeployment]
 
 
 class ErrorResponse(BaseModel):

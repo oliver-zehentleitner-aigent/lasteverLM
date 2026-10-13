@@ -34,6 +34,15 @@ configuration is deleted at start, so the old password does not linger.
 2. Start the service with `ADMIN_EMAILS` set to the first admin's address (read live, bypasses the allowlist) and `AUTH_ALLOWED_DOMAINS` as the seed of the domain list. With both empty and no single addresses listed nobody can log in; the startup log warns about it. Single addresses are added in the admin panel, there is no seed for them. The first user who logs in becomes admin anyway; the demo user does not count.
 3. Log in, open the admin panel: `GET /admin/settings/smtp` shows the mail configuration in effect, `POST /admin/settings/smtp/test` sends a test mail to the admin. Changing it means changing the Secret and restarting.
 
+## System page
+
+`GET /admin/system` reads pods and deployments of the namespace through the
+Kubernetes API with the pod's ServiceAccount. The chart gives the account
+Deployment a ServiceAccount with a Role for `get` and `list` on `pods` and
+`apps/deployments`; without it the API answers 403, the service logs one
+warning per request and returns the page with empty lists. `APP_VERSION` and
+`APP_COMMIT` come from the ConfigMap and are shown on `/healthz` as well.
+
 ## Health
 
 `GET /healthz` (also under `/api/account/`) runs `select 1` against the database and
