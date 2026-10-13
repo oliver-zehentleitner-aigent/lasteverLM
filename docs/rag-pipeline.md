@@ -145,18 +145,24 @@ For a question in a notebook, rag:
 3. runs one SQL statement: chunks of the notebook's **ready** sources,
    ordered by cosine distance, **k = 8**, keeping only chunks with
    similarity **≥ 0.3** (`SIMILARITY_FLOOR`);
-4. refuses, without calling the LLM, when nothing passes the floor:
-   "the sources contain nothing on this" is an answer, not a
-   hallucination (`rag/context/citations.md`).
+4. hands the model the list of the notebook's documents (uploads and
+   generated, by kind and title) with the passages, so questions about
+   the notebook itself ("which documents do you have", "the mind map
+   you made") are answered correctly; only an empty notebook gets the
+   fixed refusal without a model call (`rag/context/citations.md`).
 
 Two scoping rules shape what is searched:
 
-- **Unscoped questions search the uploads only.** Generated documents
-  (reports, quizzes, ...) are also indexed as sources of kind
-  `generated`, but they restate the uploads; including them made the
-  model cite its own paraphrase instead of the original. They are
-  searched only when the user asks about one of them
-  (`rag/context/retrieval.md`).
+- **Uploads first, generated documents capped.** Generated documents
+  (reports, quizzes, ...) are indexed as sources of kind `generated`
+  and restate the uploads; included freely, the model cited its own
+  paraphrase instead of the original. So the uploads fill the k slots
+  by score and generated chunks may take at most
+  `RETRIEVAL_GENERATED_SLOTS` (2) of them, and only above the floor: an
+  original always outranks its paraphrase when both match, and the
+  chat still knows and can cite the notebook's own documents
+  (`rag/context/retrieval.md`, which records the uploads-only rule this
+  replaced and why).
 - **"Ask about this" on a generated document** searches that one
   document with k = 12 and no floor: a summary-type question matches no
   chunk strongly, and the scope already bounds the context.
@@ -215,4 +221,4 @@ itself indexed as a source of kind `generated` so it can be asked about.
 | `LLM_MODEL` | `qwen3.8-27b` | chart `values-prod.yaml` |
 | `RETRIEVAL_K` | 8 (12 when scoped) | rag |
 | `SIMILARITY_FLOOR` | 0.3 (none when scoped) | rag |
-| `RETRIEVAL_INCLUDE_GENERATED` | false | rag |
+| `RETRIEVAL_GENERATED_SLOTS` | 2 | rag |

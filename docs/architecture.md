@@ -219,6 +219,7 @@ v1; the frontend polls `GET /sources`.
 | GET | `/conversations/{id}/messages` | | `[Message]` |
 | GET | `/chunks/{id}` | | `ChunkView` (the cited passage verbatim; 404 unless the caller owns it) |
 | POST | `/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?}` | `Answer`; 422 without a conversation |
+| PATCH | `/conversations/{id}` | `{"title"}` (1–80 chars) | `Conversation` |
 | POST | `/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview, synthesized once per voice/speed/language and then served from storage (one `tts` usage row for the first caller, 402 without credit, 503 without TTS) |
 | GET | `/outputs/options` | | `{"languages": [{"code","label"}], "audio": {"voices": [{"id","label","gender"}], "speeds": [], "default_voice"}}` |
 | POST | `/notebooks/{id}/outputs` | `{"kind", "options"?}` — options per kind: `{"language"}` for text kinds, `{"language", "voice", "speed"}` for audio; 422 outside the catalogue | 202 `Output` with status `waiting` or `processing` |
