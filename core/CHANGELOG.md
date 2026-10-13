@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-13
+
 ### Changed
 
 - `has_credit` / `ahas_credit` no longer exempt admins: the check is `balance_cents > 0` for every user. `is_admin`, `ais_admin` and `admin_only` are unchanged and gate only the admin endpoints.
