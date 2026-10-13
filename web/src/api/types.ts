@@ -125,6 +125,14 @@ export interface LoginEvent {
   at: string
 }
 
+/** One sign-in link request, allowed or refused by the allowlist; kept 30 days. */
+export interface LoginAttempt {
+  at: string
+  email: string
+  ip: string
+  outcome: 'allowed' | 'refused'
+}
+
 /** Aggregated per day and path; the service stores no raw IP addresses. */
 export interface VisitBucket {
   day: string

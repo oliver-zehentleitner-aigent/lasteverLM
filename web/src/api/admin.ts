@@ -4,6 +4,7 @@ import type {
   AccessEntry,
   AccountStats,
   AdminUser,
+  LoginAttempt,
   AllowKind,
   Allowlist,
   Ban,
@@ -26,6 +27,8 @@ export interface AdminApi {
   ragStats(): Promise<RagStats>
   listUsers(): Promise<AdminUser[]>
   listLogins(limit: number): Promise<LoginEvent[]>
+  /** sign-in link requests, newest first */
+  listLoginAttempts(limit: number): Promise<LoginAttempt[]>
   listVisits(days: number): Promise<VisitBucket[]>
   getSmtp(): Promise<Smtp>
   testSmtp(): Promise<{ sent_to: string }>
@@ -55,6 +58,7 @@ const httpAdmin: AdminApi = {
   ragStats: () => request<RagStats>(`${RAG_PREFIX}/admin/stats`),
   listUsers: () => request<AdminUser[]>(`${A}/users`),
   listLogins: (limit) => request<LoginEvent[]>(`${A}/logins?limit=${limit}`),
+  listLoginAttempts: (limit) => request<LoginAttempt[]>(`${A}/login-attempts?limit=${limit}`),
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
   getSmtp: () => request<Smtp>(`${A}/settings/smtp`),
   testSmtp: () => request<{ sent_to: string }>(`${A}/settings/smtp/test`, { method: 'POST' }),
@@ -84,6 +88,10 @@ function mockAdmin(): AdminApi {
   const logins: LoginEvent[] = [
     { user_id: 'u1', email: 'admin@example.org', at: '2026-10-12T18:02:00Z' },
     { user_id: 'u2', email: 'reader@example.org', at: '2026-10-11T09:40:00Z' },
+  ]
+  const attempts: LoginAttempt[] = [
+    { at: '2026-10-12T18:01:30Z', email: 'admin@example.org', ip: '198.51.100.9', outcome: 'allowed' },
+    { at: '2026-10-12T17:55:00Z', email: 'someone@elsewhere.test', ip: '203.0.113.7', outcome: 'refused' },
   ]
   const visits: VisitBucket[] = [
     { day: '2026-10-12', path: '/', visits: 23, unique: 7 },
@@ -133,6 +141,7 @@ function mockAdmin(): AdminApi {
       }),
     listUsers: () => delay([...users]),
     listLogins: (limit) => delay(logins.slice(0, limit)),
+    listLoginAttempts: (limit) => delay(attempts.slice(0, limit)),
     listVisits: () => delay([...visits]),
     getSmtp: () => delay({ ...smtp }),
     testSmtp: () => delay({ sent_to: 'admin@example.org' }),

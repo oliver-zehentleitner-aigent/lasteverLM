@@ -82,6 +82,7 @@ is closed. After the wizard the notebook view opens.
 - Admin (only for admins, one page with sections): an overview at the
   top with numbers from the three services' stats endpoints, each group
   loading on its own; users with last login and balance, login log,
+  sign-in attempts (allowed or refused, with IP),
   visitor log aggregated per day and path, SMTP settings read-only
   (they come from the deployment) with a test button, allowed sign-in
   (domains and single addresses, one entry at a time), voucher creation

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
-import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginEvent, Smtp, VisitBucket, Voucher } from '../../api/types'
+import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, Smtp, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
 import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
@@ -22,6 +22,7 @@ export function AdminPage() {
       <Overview />
       <Users />
       <Logins />
+      <LoginAttempts />
       <Visits />
       <Vouchers />
       <AllowedSignIn />
@@ -109,6 +110,29 @@ function Logins() {
     <Section title={`Login log (last ${LOGIN_LIMIT})`}>
       {error && <p className="error">{error}</p>}
       <Table head={['When', 'E-mail']} rows={data.map((e) => [formatTime(e.at), e.email])} />
+    </Section>
+  )
+}
+
+/** Every sign-in link request with its address and IP, so refused tries and
+ *  probing are visible; the login log above only has completed sign-ins. */
+function LoginAttempts() {
+  const load = useCallback(() => admin.listLoginAttempts(LOGIN_LIMIT), [])
+  const { data, error } = useLoad<LoginAttempt[]>(load, [])
+  return (
+    <Section title={`Sign-in attempts (last ${LOGIN_LIMIT}, kept 30 days)`}>
+      {error && <p className="error">{error}</p>}
+      <Table
+        head={['When', 'E-mail', 'IP', 'Outcome']}
+        rows={data.map((a) => [
+          formatTime(a.at),
+          a.email,
+          a.ip,
+          <span key="outcome" className={`badge ${a.outcome === 'allowed' ? 'ready' : 'failed'}`}>
+            {a.outcome}
+          </span>,
+        ])}
+      />
     </Section>
   )
 }
