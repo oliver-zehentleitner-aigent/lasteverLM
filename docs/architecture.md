@@ -107,7 +107,7 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - `usage.kind`: `llm` | `embedding` | `tts`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
 - Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
-- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes, a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. Removing a source from a notebook detaches the link; deleting an entry in the library removes it from every notebook with its chunks and object. Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
+- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes, a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
 
 ## Credits and accounting
 
@@ -183,7 +183,10 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 | DELETE | `/sources/{id}` | | 204, detaches the source from the notebook only |
 | GET | `/library` | | `[LibraryEntry]`, newest first, the user's own, never generated |
 | GET | `/library/{id}` | | `LibraryEntry` |
-| DELETE | `/library/{id}` | | 204, removed from every notebook with chunks and object |
+| DELETE | `/library/{id}` | | 204, detached from every notebook and moved to the trash (chunks stay) |
+| GET | `/library/trash` | | `[TrashEntry]`: the entry plus `deleted_at` and `purge_at` |
+| POST | `/library/{id}/restore` | | 204, back in the library, not re-linked |
+| DELETE | `/library/{id}/purge` | | 204 at once, from the trash only (404 otherwise): chunks and object go |
 | GET | `/admin/stats` | admin only | `IngestStats` |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
