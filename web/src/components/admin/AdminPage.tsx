@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { admin } from '../../api/admin'
 import type { AccessEntry, AdminUser, AllowKind, Allowlist, Ban, Block, LoginAttempt, LoginEvent, RateLimitRules, RateLimitUpdate, Smtp, VisitBucket, Voucher } from '../../api/types'
 import { ADMIN_MOCK } from '../../config'
+import { ErrorBoundary } from '../ErrorBoundary'
 import { ADMIN_PAGES, adminPath, type AdminPageId } from '../../lib/adminPages'
 import { useAsync } from '../../hooks/useAsync'
 import { formatCents, formatTime } from '../../lib/format'
 import { RATE_LIMIT_BOUNDS, describeRateLimit, rateLimitError } from '../../lib/ratelimit'
 import { accountTiles, ingestTiles, ragTiles, type StatTile } from '../../lib/stats'
+
+// recharts only in the admin overview: its own chunk, loaded on demand
+const StatsCharts = lazy(() => import('./StatsCharts'))
 
 const LOGIN_LIMIT = 50
 const VISIT_DAYS = 14
@@ -195,6 +199,11 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
       <StatGroup title="Accounts" load={admin.accountStats} tiles={accountTiles} onNavigate={onNavigate} />
       <StatGroup title="Sources" load={admin.ingestStats} tiles={ingestTiles} onNavigate={onNavigate} />
       <StatGroup title="Notebooks and documents" load={admin.ragStats} tiles={ragTiles} onNavigate={onNavigate} />
+      <ErrorBoundary what="The charts">
+        <Suspense fallback={<p className="muted small">Loading charts…</p>}>
+          <StatsCharts />
+        </Suspense>
+      </ErrorBoundary>
     </Section>
   )
 }

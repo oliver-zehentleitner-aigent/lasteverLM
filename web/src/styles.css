@@ -9,6 +9,13 @@
   --danger: #b4231f;
   --ok: #1e7f3d;
   --warn: #b26a00;
+  /* chart series, distinct on both themes */
+  --chart-1: #2f6fdd;
+  --chart-2: #e07b39;
+  --chart-3: #1e9e6a;
+  --chart-4: #9b59b6;
+  --chart-5: #d4a017;
+  --chart-6: #d94f70;
   --radius: 6px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -28,6 +35,12 @@
     --danger: #ff7b76;
     --ok: #5fcf84;
     --warn: #f0b858;
+    --chart-1: #6c9cf0;
+    --chart-2: #f2a065;
+    --chart-3: #5fcf9a;
+    --chart-4: #c39be0;
+    --chart-5: #f0cf5a;
+    --chart-6: #f2839f;
   }
 }
 
@@ -336,3 +349,17 @@ button.link.danger { color: var(--danger); }
 .cite.removed { opacity: 0.65; text-decoration: line-through; text-decoration-thickness: 1px; }
 a.stat.linked { text-decoration: none; color: inherit; }
 a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); }
+
+/* admin statistics charts */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+.chart-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 0.9rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.chart-card.wide { grid-column: span 2; }
+.chart-card header { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.chart-card h3 { margin: 0; font-size: 0.95rem; }
+.chart-card .headline { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-body { height: 220px; }
+@media (max-width: 760px) { .chart-card.wide { grid-column: auto; } }
+.top-users { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.top-users th, .top-users td { text-align: left; padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--line); }
+.top-users th { color: var(--muted); font-weight: 500; }
+.top-users td.name { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

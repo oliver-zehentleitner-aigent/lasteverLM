@@ -139,7 +139,12 @@ deleted from the library) stays readable with its quote and is marked
   each page loads only its own data, every page has its own URL.
   - **Overview** (`/admin`): numbers from the three services' stats
     endpoints, each group loading on its own; "Credit granted" links to
-    Users (who got it), "Vouchers open" to Credits.
+    Users (who got it), "Vouchers open" to Credits. Below the numbers,
+    charts of the last 30 days, each loading on its own: cost and credit
+    granted per day (bars), logins and visits (lines), chat messages and
+    documents (areas), documents by kind (donut), sources added per day
+    by kind (stacked bars), cost by model (horizontal bars), and the top
+    users by usage (table).
   - **Users** (`/admin/users`): users with credit granted, used and
     balance and their last login, the login log, sign-in attempts
     (allowed or refused, with IP).

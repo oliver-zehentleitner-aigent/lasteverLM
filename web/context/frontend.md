@@ -180,6 +180,36 @@ per renderer (the mind map does not scroll, it pans), and it could not
 be tried in a browser here; the request allowed the toggle as the
 fallback.
 
+## Charts with recharts, pinned, in a chunk of their own
+
+**Id:** 77802863-fb97-4706-a8b9-e6e7420382bb
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request for a statistics page relayed by the family lead, 2026-10-13 (an established React library, a pinned version, no hand-rolled SVG); the choice of library was this directory's call
+**Revisit when:** recharts drops React 19 support or a major release changes its API, or the admin chunk becomes too large to load comfortably
+
+The admin overview draws its charts with recharts 3.10.1, pinned exactly
+in `package.json`. The charts live in `components/admin/StatsCharts.tsx`,
+loaded with `React.lazy` only on that page, behind an error boundary;
+colours come from the theme's `--chart-1` … `--chart-6` tokens, read
+once per mount because recharts writes them into SVG attributes where
+CSS variables do not resolve.
+
+**Reason:** recharts is made of React components, so a chart reads like
+the rest of the code; it brings bars, lines, areas, donuts, stacked and
+horizontal bars, responsive containers and load animations out of the
+box, and declares React 19 as a peer. Its weight (about 110 kB gzipped)
+is paid only by admins opening the overview.
+
+**Rejected alternative:** Chart.js through a React wrapper. Rejected
+because it draws on a canvas with an imperative API next to React's,
+and theming and tooltips go through its own configuration objects.
+
+**Rejected alternative:** nivo or visx. Rejected: nivo pulls a larger
+set of packages for the same charts, and visx is a toolkit of low-level
+primitives, close to the hand-rolled SVG the request ruled out.
+
 ## Every failed request ends in a sentence, never the server's raw body
 
 **Id:** bd6a0d24-9fce-43d0-9c17-329ab5f143b4

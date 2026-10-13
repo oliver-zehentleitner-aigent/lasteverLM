@@ -2,15 +2,19 @@ import { ACCOUNT_PREFIX, ADMIN_MOCK, INGEST_PREFIX, RAG_PREFIX } from '../config
 import { request } from './client'
 import type {
   AccessEntry,
+  AccountDay,
   AccountStats,
+  AccountUsage,
   AdminUser,
   LoginAttempt,
   AllowKind,
   Allowlist,
   Ban,
   Block,
+  IngestDay,
   IngestStats,
   LoginEvent,
+  RagDay,
   RagStats,
   RateLimitRules,
   RateLimitUpdate,
@@ -27,6 +31,11 @@ export interface AdminApi {
   accountStats(): Promise<AccountStats>
   ingestStats(): Promise<IngestStats>
   ragStats(): Promise<RagStats>
+  /** daily series for the statistics charts, one endpoint per service */
+  accountDaily(days: number): Promise<AccountDay[]>
+  accountUsage(): Promise<AccountUsage>
+  ingestDaily(days: number): Promise<IngestDay[]>
+  ragDaily(days: number): Promise<RagDay[]>
   listUsers(): Promise<AdminUser[]>
   listLogins(limit: number): Promise<LoginEvent[]>
   /** sign-in link requests, newest first */
@@ -62,6 +71,10 @@ const httpAdmin: AdminApi = {
   accountStats: () => request<AccountStats>(`${A}/stats`),
   ingestStats: () => request<IngestStats>(`${INGEST_PREFIX}/admin/stats`),
   ragStats: () => request<RagStats>(`${RAG_PREFIX}/admin/stats`),
+  accountDaily: (days) => request<{ days: AccountDay[] }>(`${A}/stats/daily?days=${days}`).then((r) => r.days),
+  accountUsage: () => request<AccountUsage>(`${A}/stats/usage`),
+  ingestDaily: (days) => request<{ days: IngestDay[] }>(`${INGEST_PREFIX}/admin/stats/daily?days=${days}`).then((r) => r.days),
+  ragDaily: (days) => request<{ days: RagDay[] }>(`${RAG_PREFIX}/admin/stats/daily?days=${days}`).then((r) => r.days),
   listUsers: () => request<AdminUser[]>(`${A}/users`),
   listLogins: (limit) => request<LoginEvent[]>(`${A}/logins?limit=${limit}`),
   listLoginAttempts: (limit) => request<LoginAttempt[]>(`${A}/login-attempts?limit=${limit}`),
@@ -84,6 +97,21 @@ const httpAdmin: AdminApi = {
   listBans: (includeLifted) => request<Ban[]>(`${A}/bans?include_lifted=${includeLifted}`),
   liftBan: (ip) => request<void>(`${A}/bans/${encodeURIComponent(ip)}`, { method: 'DELETE' }),
   listAccess: (limit) => request<AccessEntry[]>(`${A}/access?limit=${limit}`),
+}
+
+/** UTC days ending today, oldest first, with a deterministic wobble so the
+ *  mock charts look like traffic without changing on every reload. */
+function mockDays<T>(days: number, make: (i: number, wobble: (scale: number) => number, day: string) => T): T[] {
+  const today = new Date()
+  let seed = 7
+  const wobble = (scale: number) => {
+    seed = (seed * 16807) % 2147483647
+    return Math.round((seed / 2147483647) * scale)
+  }
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - (days - 1 - i)))
+    return make(i, wobble, d.toISOString().slice(0, 10))
+  })
 }
 
 /** In-memory stand-in for local UI work without an account service. */
@@ -150,6 +178,40 @@ function mockAdmin(): AdminApi {
         jobs: { pending: 0, running: 1, failed: 1 },
         shared: { outputs: 2 },
       }),
+    accountDaily: (days) =>
+      delay(
+        mockDays(days, (i, w, day) => ({
+          day,
+          logins: 2 + w(6) + Math.round(i / 6),
+          visits: 10 + w(25) + i,
+          usage_cost_cents: 20 + w(140) + i * 3,
+          credits_granted_cents: i % 7 === 3 ? 500 * (1 + w(2)) : 0,
+        })),
+      ),
+    accountUsage: () =>
+      delay({
+        by_model: [
+          { model: 'gpt-oss-120b', kind: 'llm' as const, calls: 412, cost_cents: 2210 },
+          { model: 'tts-1', kind: 'tts' as const, calls: 18, cost_cents: 640 },
+          { model: 'text-embedding-3-small', kind: 'embedding' as const, calls: 960, cost_cents: 95 },
+        ],
+        top_users: users.map((u) => ({ email: u.email, usage_cents: u.usage_cents, balance_cents: u.balance_cents })).sort((a, b) => b.usage_cents - a.usage_cents),
+      }),
+    ingestDaily: (days) =>
+      delay(
+        mockDays(days, (_i, w, day) => {
+          const by = { pdf: w(4), text: w(3), url: w(2), image: w(2) }
+          const created = by.pdf + by.text + by.url + by.image
+          return { day, sources_created: created, by_kind: by, failed: Math.min(created, w(1)) }
+        }),
+      ),
+    ragDaily: (days) =>
+      delay(
+        mockDays(days, (i, w, day) => {
+          const by = { report: w(3), quiz: w(2), table: w(2), mindmap: w(2), infographic: w(1), audio: w(1) }
+          return { day, messages: 6 + w(30) + i, outputs: Object.values(by).reduce((a, b) => a + b, 0), outputs_by_kind: by }
+        }),
+      ),
     listUsers: () => delay([...users]),
     listLogins: (limit) => delay(logins.slice(0, limit)),
     listLoginAttempts: (limit) => delay(attempts.slice(0, limit)),
