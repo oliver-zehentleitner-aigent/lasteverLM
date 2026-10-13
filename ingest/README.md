@@ -6,8 +6,9 @@
 
 The ingest service of [lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM),
 a NotebookLM-style assistant. It owns notebooks and sources: a source is
-uploaded (PDF, plain text) by the API and stored; worker pods claim it
-from the database, parse it, cut it into overlapping chunks, embed and
+uploaded (PDF, plain text) or given as a URL (web page, PDF or text
+behind a link) and stored by the API; worker pods claim it from the
+database, fetch and parse it, cut it into overlapping chunks, embed and
 write them, and ask the language model for a one-paragraph summary. The
 rag service retrieves the chunks and reads the summaries.
 

@@ -39,19 +39,21 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/notebooks` | 201 | `{"title"}` |
 | DELETE | `/notebooks/{id}` | 204 | removes sources, chunks and stored files |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
-| POST | `/notebooks/{id}/sources` | 202 | multipart `file` (PDF, `.txt`, `.md`); JSON `{"url"}` answers 501 until the url loader exists |
+| POST | `/notebooks/{id}/sources` | 202 | multipart `file` (PDF, `.txt`, `.md`), or JSON `{"url"}` (`http`/`https`, no credentials in the URL) |
 | DELETE | `/sources/{id}` | 204 | |
 | GET | `/healthz` | 200 | liveness and readiness probe |
 
 Errors are `{"error": "<message>"}`: 400 bad upload, 401 token, 402
 credit exhausted, 404 not yours or missing, 413 too large, 415
-unsupported type, 422 invalid body, 501 not implemented.
+unsupported type, 422 invalid body.
 
 ## Processing
 
 `POST /sources` checks the caller's credit, writes the source row with
 `status: processing`, uploads the file to the bucket at
-`<notebook_id>/<source_id>/<name>` and returns. That row is now in the
+`<notebook_id>/<source_id>/<name>` and returns. For a URL source the
+stored object is the URL itself (`<notebook_id>/<source_id>/url`) and the
+source's `name` is the URL; the API opens no connection to it. That row is now in the
 queue: the queue is the `sources` table, a `processing` row that no
 worker holds. Worker processes (`lasteverlm-ingest-worker`, any number
 of them) claim one row at a time with `UPDATE ... WHERE id = (SELECT ...
@@ -76,6 +78,30 @@ checked before the upload is stored, before the embedding call and
 before the summary call. The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
+
+## URL sources
+
+The worker fetches the URL (`lasteverlm_ingest.loaders.url`) and hands
+the body to the loader for its content type: `text/html` and
+`application/xhtml+xml` to the HTML extractor, `application/pdf` to the
+PDF loader, `text/plain` and `text/markdown` to the text loader; any
+other type fails the source. The HTML extractor drops scripts, styles
+and page chrome (`nav`, `header`, `footer`, `aside`, forms), keeps only
+`<main>`/`<article>` when the page has them, and puts the page title
+first.
+
+The worker runs inside the cluster, so every connection is guarded: the
+host is resolved by the loader itself, every address it resolves to
+must be public (no loopback, private, link-local such as the cloud
+metadata endpoint, carrier-grade NAT, multicast or reserved ranges,
+IPv4-mapped IPv6 included), and the socket connects to the address that
+was checked. Redirects are followed by hand, at most five, and each hop
+goes through the same check. The body is capped at `MAX_UPLOAD_BYTES`,
+the whole fetch at 30 seconds.
+
+A 4xx answer, a blocked address, an unsupported type or a body over the
+cap fail the source at once; a timeout, a refused connection, 429 or
+5xx are retried like any other transient failure.
 
 ## Running the container locally
 
