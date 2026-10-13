@@ -40,3 +40,31 @@ about seven seconds, so no client-side downscaling was added.
   contract change for one caller.
 - Calling the model inside a plain `SourceLoader`: the call would be
   neither credit-checked nor accounted.
+
+## The frontend shows an image through a presigned URL of the original
+
+**Id:** 842fded7-0fd7-4886-9651-4323dc3bd090
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request through the coordinating agent, 2026-10-13: images in the library picker are chosen by seeing them, not by file name
+**Revisit when:** uploaded images grow large enough that loading the originals in a list is slow, or the bucket becomes reachable only through the API
+
+Every listing that names an image source (a notebook's sources, the
+library, the trash) carries `preview_url`: a presigned GET of the
+stored object, valid for an hour, signed when the list is served
+(`api/deps.py`, `preview_url`). Other kinds carry `null`. The object
+key itself stays out of the API (`storage_path` is excluded from the
+response models).
+
+**Reason:** an `<img>` element cannot send the bearer token, and a
+presigned URL needs no further call to ingest; rag hands out its audio
+the same way, so the frontend has one mechanism. Signing is local to the
+S3 client, so a listing costs no extra round trip. The originals are
+small enough to show directly.
+
+**Alternatives:**
+- An ingest endpoint that streams the object: every thumbnail would pass
+  through the API and need the token, which an `<img>` cannot send.
+- Thumbnails rendered at upload: a second object per image and a resize
+  step, for originals that are already small.
