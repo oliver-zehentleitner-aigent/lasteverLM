@@ -219,8 +219,18 @@ pointing at the load balancer yet, or port 80 not reachable).
 Pinned in the `Makefile`: ingress-nginx chart 4.15.1 (controller
 1.15.1), cert-manager v1.21.2, metrics-server chart 3.14.0, VKE
 `v1.37.1+2` (default in `tofu/variables.tf`; `make vke-versions` lists
-what the API offers). Bumps go through a pull request and a
-`CHANGELOG.md` line.
+what the API offers). The Vultr provider is locked in
+`tofu/.terraform.lock.hcl` (version and checksums for Linux and macOS,
+amd64 and arm64); a bump is `tofu init -upgrade` followed by `tofu
+providers lock -platform=linux_amd64 -platform=linux_arm64
+-platform=darwin_amd64 -platform=darwin_arm64`. Bumps go through a pull
+request and a `CHANGELOG.md` line.
+
+`make env` reads every tofu output at once (`tofu output -json`,
+`scripts/tofu_outputs.py`) and stops without touching
+`build/cluster.env` when one is missing or empty: `tofu output -raw`
+exits 0 and prints a warning to stdout when the state has no outputs,
+which the earlier per-output calls wrote into the file as values.
 
 ## Workflows
 

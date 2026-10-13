@@ -13,8 +13,11 @@ answer within a few days.
   inference API keys are read from the environment by the `Makefile` and
   written to Kubernetes Secrets. None of them are stored in this
   repository, and `build/` and every `*.env` file are ignored by Git.
-- OpenTofu state contains the database password and the object storage
-  keys. It is kept local and ignored by Git; treat `tofu/*.tfstate` like
-  a secret.
-- The managed database requires TLS (`sslmode=require`) for every
-  connection.
+- OpenTofu state contains the object storage keys and the cluster's
+  admin credentials (the `vultr_kubernetes` resource stores the
+  kubeconfig and its client key). It is kept local and ignored by Git,
+  and `make up` sets it to mode 600; treat `tofu/*.tfstate` like a
+  secret. The managed database is not in the state: it is created by
+  hand and taken as an input.
+- The managed database requires TLS for every connection; every
+  connection string uses `sslmode=verify-full` against the project CA.

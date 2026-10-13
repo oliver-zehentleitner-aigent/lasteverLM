@@ -12,10 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docker.yml` attaches a provenance attestation (`mode=max`), an SBOM and the OCI annotations from `docker/metadata-action` to every image.
 - `make web-csp-check`: runs the web image (built with `CSP_MODE=report` or given as `WEB_IMAGE`) and walks it in headless Chromium (Playwright image pinned by digest) against the live API with the demo token; lists every CSP violation, console error and failed response, with a canary violation that has to be reported (`scripts/web-csp-check.sh`, `scripts/csp/walk.mjs`).
 - `ci.yml`: the Postgres suites of core, account, ingest and rag run in CI, against a PostgreSQL 18 service container with pgvector (`pgvector/pgvector:0.8.7-pg18-trixie`, as in `compose.yaml`); a skipped test fails the step. Before, they ran only where a developer started them with Docker.
+- `tofu/.terraform.lock.hcl` is committed: provider version and checksums for Linux and macOS (amd64, arm64).
 
 ### Changed
 
 - web's probes use `/healthz` instead of `/`.
+
+### Fixed
+
+- `make env` failed silently without a tofu state: `tofu output -raw` exits 0 with a warning on stdout, which was written into `build/cluster.env` as values. It now reads `tofu output -json` through `scripts/tofu_outputs.py` (with unit tests) and stops, naming the missing outputs, before the file is written.
 
 ### Security
 
@@ -23,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Every container (API services, workers, web, the migration Job) runs with a read-only root filesystem and the `RuntimeDefault` seccomp profile; `/tmp` is an `emptyDir` limited to `tmpSizeLimit` (256 MiB). Every pod except `account` sets `automountServiceAccountToken: false`. The migration and bootstrap Jobs run as the image's `postgres` user (uid 70) with dropped capabilities instead of root, and their `postgres` image is pinned by digest (18.6, Alpine 3.24); the migration Job has resource requests and limits.
 - NetworkPolicies: no pod in the namespace accepts a connection except from the ingress controller's namespace and, on the API port, from `account` (System page health probes). A pod elsewhere in the cluster, or a compromised pod in the namespace, can no longer reach the services directly, past the edge rate limits and the client address nginx sets. `networkPolicy.enabled` in the values.
 - Every action in the workflows is pinned to a commit SHA with its release as a comment, so a moved tag cannot change what runs; `ktw-lint.yml`'s rolling `keep-the-why@lint-latest` stays as it was. `deploy.yml` passes `KUBECONFIG_B64` to the kubeconfig step through `env` instead of expanding the secret inside the script.
+- `make up` sets the OpenTofu state to mode 600 (it was created group- and world-readable with the default umask). `SECURITY.md` now says what the state holds: the object storage keys and the cluster's admin credentials, not the database password.
 
 ## [0.8.2] - 2026-10-13
 

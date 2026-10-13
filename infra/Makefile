@@ -51,7 +51,7 @@ help: ## list targets
 up: ## create or update cluster and object storage (needs VULTR_API_KEY; AUTO_APPROVE=1 skips the plan prompt)
 > $(call require,VULTR_API_KEY)
 > @test -f $(TOFU_DIR)/terraform.tfvars || test -n "$${TF_VAR_object_storage_tier_id:-}" || { echo "set TF_VAR_object_storage_tier_id or copy tofu/terraform.tfvars.example to tofu/terraform.tfvars" >&2; exit 1; }
-> cd $(TOFU_DIR) && tofu init -input=false && tofu apply -input=false $(if $(AUTO_APPROVE),-auto-approve)
+> cd $(TOFU_DIR) && tofu init -input=false && tofu apply -input=false $(if $(AUTO_APPROVE),-auto-approve); status=$$?; chmod 600 terraform.tfstate*; exit $$status
 > $(MAKE) --no-print-directory env
 
 vke-versions: ## list VKE versions the API offers right now
@@ -64,15 +64,10 @@ env: ## write build/cluster.env: tofu outputs, derived database URLs, generated 
 > $(call require,DATABASE_ADMIN_URL)
 > @mkdir -p $(BUILD) && umask 077 && \
 >   pw=$(call keep_or_gen,APP_DB_PASSWORD,pw,32); jwt=$(call keep_or_gen,AUTH_JWT_SECRET,jwt,64); demo=$(call keep_or_gen,DEMO_TOKEN,demo,48); \
->   cd $(TOFU_DIR) && { \
->   echo "VKE_ID=$$(tofu output -raw vke_id)"; \
+>   outs=$$(cd $(TOFU_DIR) && tofu output -json | python3 $(CURDIR)/scripts/tofu_outputs.py) && \
+>   urls=$$(APP_DB_PASSWORD=$$pw python3 $(CURDIR)/scripts/dburls.py) && { \
 >   echo "APP_DB_PASSWORD=$$pw"; echo "AUTH_JWT_SECRET=$$jwt"; echo "DEMO_TOKEN=$$demo"; \
->   APP_DB_PASSWORD=$$pw python3 $(CURDIR)/scripts/dburls.py; \
->   echo "S3_ENDPOINT=$$(tofu output -raw s3_endpoint)"; \
->   echo "S3_BUCKET=$$(tofu output -raw s3_bucket)"; \
->   echo "S3_REGION=$$(tofu output -raw s3_region)"; \
->   echo "S3_ACCESS_KEY=$$(tofu output -raw s3_access_key)"; \
->   echo "S3_SECRET_KEY=$$(tofu output -raw s3_secret_key)"; \
+>   echo "$$urls"; echo "$$outs"; \
 > } > $(CLUSTER_ENV) && echo "wrote $(CLUSTER_ENV)"
 
 $(CLUSTER_ENV):
