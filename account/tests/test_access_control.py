@@ -85,3 +85,23 @@ def test_access_log_newest_first_with_limit(
         ).status_code
         == 422
     )
+
+
+def test_lift_ban_by_query_takes_an_ipv6_prefix_key(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository
+) -> None:
+    from datetime import UTC, datetime
+
+    from lasteverlm_account.repository import BanRecord
+
+    token, _ = login(client, mailer, "admin@example.org")
+    repo.ip_bans.append(BanRecord("2001:db8:1:2::/64", "third block", datetime.now(UTC), None))
+    r = client.delete(
+        "/api/account/admin/bans", params={"ip": "2001:db8:1:2::/64"}, headers=bearer(token)
+    )
+    assert r.status_code == 204
+    assert repo.ip_bans[-1].lifted_at is not None
+    r = client.delete(
+        "/api/account/admin/bans", params={"ip": "2001:db8:1:2::/64"}, headers=bearer(token)
+    )
+    assert r.status_code == 404

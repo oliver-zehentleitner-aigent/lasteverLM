@@ -203,3 +203,11 @@ def test_five_links_per_address_per_hour(
     # an hour later the address may ask again
     clock.advance(hours=1, minutes=1)
     assert client.post("/api/account/auth/request-link", json=body).status_code == 202
+
+
+def test_session_token_lives_one_day_by_default(client: TestClient, mailer: FakeMailer) -> None:
+    import jwt as pyjwt
+
+    token, _ = login(client, mailer, "alice@example.org")
+    claims = pyjwt.decode(token, options={"verify_signature": False})
+    assert claims["exp"] - claims["iat"] == 24 * 3600

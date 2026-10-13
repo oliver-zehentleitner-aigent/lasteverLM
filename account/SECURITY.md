@@ -9,7 +9,7 @@ You will get an answer within a few days.
 ## What this service protects
 
 - **Login** is passwordless. A sign-in link carries a random 256-bit token (also usable as a pasted code); only its SHA-256 hash is stored, it is single use and expires after 15 minutes. An address outside the allowlist is told so (403 `not_allowed`) by the maintainer's decision: the allowlist is a handful of partner domains, not a secret, and a link only ever reaches the address itself (`context/auth.md`).
-- **Session tokens** are HS256 JWTs signed with `AUTH_JWT_SECRET`; use at least 32 random bytes and rotate by redeploying all services with the new value.
+- **Session tokens** are HS256 JWTs signed with `AUTH_JWT_SECRET`, valid for `JWT_TTL_DAYS` (1) day. Sign-out is client-side: the web drops the token, the service keeps no session list and cannot revoke a single token before it expires; a magic link is cheap to request again, so the window is kept short. Immediate revocation of every session means rotating `AUTH_JWT_SECRET` in all services. Use at least 32 random bytes for the secret.
 - **Voucher codes** are stored hashed; the plain code is shown once to the admin who created it.
 - **SMTP password** exists only in the environment (Kubernetes Secret `lasteverlm-smtp`), never in the database and never in an API response.
 - **Admin routes** require `is_admin`; the shared demo identity can never be admin.

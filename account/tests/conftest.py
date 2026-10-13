@@ -55,7 +55,9 @@ class Clock:
     """Controllable time, so expiry and daily salt rotation are testable."""
 
     def __init__(self) -> None:
-        self.now = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
+        # One hour behind the wall clock: core verifies JWT times against real time, so a
+        # token issued "now" must not be immature, and a day's lifetime must not be over.
+        self.now = datetime.now(UTC).replace(microsecond=0) - timedelta(hours=1)
 
     def __call__(self) -> datetime:
         return self.now
