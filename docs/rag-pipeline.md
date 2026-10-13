@@ -28,18 +28,24 @@ Every source kind has one loader in ingest that turns bytes into
 
 | Kind | Loader | What comes out |
 |---|---|---|
-| PDF | `pypdf`, one passage per page that has a text layer | text per page, page number kept for citations |
+| PDF | `pypdf` for the text layer; `pypdfium2` renders pages for the vision model in `vision` and `auto` mode | text per page, page number kept for citations |
 | text | the bytes as one passage | text |
 | URL | fetched by the worker through a guard that connects only to public addresses, HTML reduced to text with the standard library's parser | text, the URL as the name |
 | image | the platform's vision-capable chat model, one billed call: every legible piece of text transcribed verbatim, then a description of the image, in the image's language | text that can be searched and cited |
 
-**No OCR.** A scanned PDF without a text layer yields no passages and
-the source fails with "PDF contains no extractable text", visibly, on
-purpose: a source that is "ready" but cannot answer anything is the
-silent failure the family forbids (`context/architecture.md`, fail
-loud). Images do get their text, through the vision model, so a scanned
-page can be uploaded as an image today. Sending text-less PDF pages
-through the same vision path is the natural extension and is not built.
+**PDF capture modes.** A PDF is read in one of three modes, chosen per
+upload (default from the user's preference `pdf_capture`): `text` takes
+the text layer only; `vision` renders every page (pypdfium2, 150 dpi)
+and has the vision model transcribe it like an image, one billed call
+per page; `auto`, the default, uses the text layer where a page has one
+and vision only for the pages that have none, so a scanned or mixed PDF
+works and the model is paid only for the pages that need it. A PDF
+without any text in `text` mode fails visibly with a message naming the
+mode: a source that is "ready" but cannot answer anything is the silent
+failure the family forbids (`context/architecture.md`, fail loud).
+There is no classic OCR engine; the vision model does the reading, for
+images and for rendered pages alike. A cap (`PDF_VISION_MAX_PAGES`,
+100) bounds the cost of one upload (`ingest/context/pdf-capture.md`).
 
 Each source also gets a **summary**: one LLM call over the head of its
 text, one paragraph of about 120 words in the document's language. The
