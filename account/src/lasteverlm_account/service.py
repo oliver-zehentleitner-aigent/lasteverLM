@@ -20,6 +20,7 @@ from .models import (
     AdminBan,
     AdminBlock,
     AdminLogin,
+    AdminLoginAttempt,
     AdminStats,
     AdminUser,
     AdminVisit,
@@ -31,7 +32,7 @@ from .models import (
     VoucherCounts,
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
-from .repository import Repository, UserRecord, VisitRecord
+from .repository import LoginAttemptRecord, Repository, UserRecord, VisitRecord
 
 log = logging.getLogger("lasteverlm_account")
 
@@ -160,11 +161,17 @@ class AccountService:
             now - timedelta(days=self.settings.visit_retention_days)
         )
         links = await self.repo.purge_magic_links(now)
+        attempts = await self.repo.purge_login_attempts(
+            now - timedelta(days=self.settings.access_retention_days)
+        )
         log.info(
-            "retention: removed %d visit_log rows older than %d days, %d expired magic links",
+            "retention: removed %d visit_log rows older than %d days, %d expired magic links, "
+            "%d login_attempts rows older than %d days",
             removed,
             self.settings.visit_retention_days,
             links,
+            attempts,
+            self.settings.access_retention_days,
         )
         # Core's middleware writes these tables and never deletes; this service owns their
         # retention (context/core.md). A ban holds until an admin lifts it, at most BAN_MAX_DAYS.
@@ -238,13 +245,18 @@ class AccountService:
         domain = email.rsplit("@", 1)[-1]
         return domain in await self.allowed_domains()
 
-    async def request_link(self, email: str) -> PendingMail:
+    async def request_link(self, email: str, ip: str = "unknown") -> PendingMail:
         """Prepare a magic link for an allowed address; 403 ``not_allowed`` for any other.
 
-        A refused address is told so (context/auth.md): no mail goes out for it.
+        A refused address is told so (context/auth.md): no mail goes out for it. Either
+        way the attempt is logged with the plain client address (context/privacy.md).
         """
         email = normalize_email(email)
-        if "@" not in email or not await self.is_allowed(email):
+        allowed = "@" in email and await self.is_allowed(email)
+        await self.repo.add_login_attempt(
+            LoginAttemptRecord(self.now(), email[:254], ip, "allowed" if allowed else "refused")
+        )
+        if not allowed:
             raise AccountError(403, "This address has no access to lasteverLM.", "not_allowed")
         token = secrets.token_urlsafe(32)
         expires_at = self.now() + timedelta(minutes=self.settings.magic_link_ttl_minutes)
@@ -417,6 +429,12 @@ class AccountService:
         return [
             AdminLogin(user_id=r.user_id, email=r.email, at=r.at)
             for r in await self.repo.list_logins(limit)
+        ]
+
+    async def admin_login_attempts(self, limit: int) -> list[AdminLoginAttempt]:
+        return [
+            AdminLoginAttempt(at=a.at, email=a.email, ip=a.ip, outcome=a.outcome)
+            for a in await self.repo.list_login_attempts(limit)
         ]
 
     async def admin_visits(self, days: int) -> list[AdminVisit]:

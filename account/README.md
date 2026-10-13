@@ -29,7 +29,7 @@ rows, which ingest and rag write.
 |---|---|
 | Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
 | Account | `GET /me`, `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
-| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, no codes), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/stats` |
+| Admin | `GET /admin/users`, `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, no codes), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/stats` |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans/{ip}`, `GET /admin/access?limit=` |
 | Health | `GET /healthz`, also at the server root for the Kubernetes probe |
 
@@ -157,10 +157,15 @@ that it cannot identify a person:
 Magic-link tokens and voucher codes are stored as SHA-256 hashes only;
 the plain value exists once, in the mail or in the admin's response.
 
-**One exception, for security:** the access log written by core's
+**Two exceptions, for security:** the access log written by core's
 rate-limit middleware (`access_log`, shown at `GET /admin/access`) holds
 the raw IP address with time, path and status, and the block and ban
-tables hold the addresses they act on. Rate limiting, blocking and lifting
+tables hold the addresses they act on. And `login_attempts` (shown at
+`GET /admin/login-attempts`) records every request for a sign-in link
+with the address, the client IP and whether it was allowed: a refused
+sign-in is a security event an admin wants to attribute, so it is not
+hashed like a visit; it is kept `RETENTION_DAYS` (30) like the access
+log and purged at every start. Rate limiting, blocking and lifting
 a ban are impossible without the address itself. These rows are visible
 to admins only and are removed by this service at every start once older
 than `RETENTION_DAYS` (30), with core's own purge statements; an active

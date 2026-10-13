@@ -61,7 +61,7 @@ repository root's `context/`.
 
 ## P
 
-- [privacy.md](privacy.md) — visitor hashing with a daily salt (shared via secret or per process), browser family only, retention at service start
+- [privacy.md](privacy.md) — visitor hashing with a daily salt (shared via secret or per process), browser family only, retention at service start; sign-in attempts keep the plain client address
 
 ## Q
 

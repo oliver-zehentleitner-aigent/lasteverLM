@@ -76,6 +76,15 @@ class AdminLogin(BaseModel):
     at: datetime
 
 
+class AdminLoginAttempt(BaseModel):
+    """A request for a sign-in link. Holds the plain client IP (context/privacy.md)."""
+
+    at: datetime
+    email: str
+    ip: str
+    outcome: Literal["allowed", "refused"]
+
+
 class AdminVisit(BaseModel):
     day: date
     path: str

@@ -98,3 +98,38 @@ several times, needs its own error handling and gives nothing a restart
 does not. A Kubernetes CronJob was left to the infra repository to add
 if the restart frequency turns out too low; `docs/operations.md` names
 the condition.
+
+## Sign-in attempts are logged with the plain client address, unlike visits
+
+**Id:** 3b713a39-eb07-4396-8c0e-e09d9b0b852b
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-13
+**See:** privacy.md#visitors-are-identified-by-a-hash-with-a-salt-that-lives-only-in-memory — 2c9f825d-7240-414c-849a-f607f0084a31 — as of 2026-10-13
+**Revisit when:** the retention window of core's access log changes, or the admin panel gains blocking by address so attribution needs more than a list
+
+Every `POST /auth/request-link` writes a `login_attempts` row: time,
+address as entered (lower-cased), the client IP as core's middleware
+resolves it (first hop of `X-Forwarded-For` behind the ingress) and the
+outcome, `allowed` or `refused`. Admins read it at
+`GET /admin/login-attempts`. Rows are deleted after `RETENTION_DAYS`
+(30) at every start — the same window as core's `access_log`, not the
+visitor log's own `VISIT_RETENTION_DAYS`.
+
+**Reason:** the visitor log hashes the address because a page view is
+not something anyone needs to attribute; a refused sign-in is. It is a
+security event — someone outside the allowlist asked for a link — and an
+admin who sees a burst of refusals wants to know whether it is one
+address, one network or a partner who is simply not listed yet. A hash
+with a daily salt cannot answer any of that, and the service already
+keeps raw addresses for exactly this purpose in core's access log and
+ban tables, with the same 30-day window. The address and the IP together
+are what makes the row useful; either alone is not.
+
+**Rejected alternative:** hashing the IP like the visitor log —
+rejected because attribution is the whole point of the log, and the
+daily salt rotation would even hide that two refusals on consecutive days
+came from the same place. Also rejected: logging only refused attempts —
+allowed ones give the admin the baseline (who signs in from where) that
+makes a refusal stand out, and they are the same security purpose.
