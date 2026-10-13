@@ -5,6 +5,7 @@ import type { LibraryEntry, OutputKind, SourceKind } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
+import { CAPTURE_MODES, preferredCapture, type CaptureMode } from '../lib/capture'
 import { filterLibrary, notInNotebook } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
@@ -38,6 +39,8 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
   const { busy, error, run } = useAsync()
   const spec = useOutputOptions()
   const { me } = useMe()
+  // how PDFs are read, preset from the preference
+  const [capture, setCapture] = useState<CaptureMode>(() => preferredCapture(me?.preferences))
 
   const canUpload = fromLibrary
     ? picked.size > 0
@@ -72,7 +75,7 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
         count(await ingest.addUrl(notebookId, url.trim()))
         return true
       }
-      for (const f of files) count(await ingest.uploadFile(notebookId, f))
+      for (const f of files) count(await ingest.uploadFile(notebookId, f, capture))
       if (pasted.trim()) {
         const name = `${pasted.trim().split('\n')[0].slice(0, 40) || 'pasted'}.txt`
         count(await ingest.uploadFile(notebookId, new File([pasted], name, { type: 'text/plain' })))
@@ -217,6 +220,19 @@ export function Wizard({ notebookId, onDone, onClose }: Props) {
                       </li>
                     ))}
                   </ul>
+                )}
+                {form.kind === 'pdf' && (
+                  <fieldset className="capture">
+                    <legend>Capture</legend>
+                    {CAPTURE_MODES.map((m) => (
+                      <label key={m.mode} className="check">
+                        <input type="radio" name="capture" value={m.mode} checked={capture === m.mode} onChange={() => setCapture(m.mode)} />
+                        <span>
+                          <strong>{m.label}</strong> <span className="muted small">{m.explain}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </fieldset>
                 )}
                 {form.kind === 'text' && (
                   <label>

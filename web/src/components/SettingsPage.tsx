@@ -4,9 +4,10 @@ import type { Preferences } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
+import { CAPTURE_MODES } from '../lib/capture'
 import { voiceGroups } from '../lib/outputOptions'
 
-const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null }
+const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null, pdf_capture: null }
 const TRASH_DEFAULT = 14
 
 /** /settings: the user's preferences, preselected in every menu they
@@ -83,6 +84,20 @@ export function SettingsPage() {
             {p.audio_voice && spec && !spec.audio.voices.some((v) => v.id === p.audio_voice) && (
               <option value={p.audio_voice}>{p.audio_voice}</option>
             )}
+          </select>
+        </label>
+        <label>
+          Reading PDFs
+          <select
+            value={p.pdf_capture ?? ''}
+            onChange={(e) => set({ pdf_capture: (e.target.value || null) as Preferences['pdf_capture'] })}
+          >
+            <option value="">Default (Auto)</option>
+            {CAPTURE_MODES.map((m) => (
+              <option key={m.mode} value={m.mode}>
+                {m.label}: {m.explain}
+              </option>
+            ))}
           </select>
         </label>
         <label>

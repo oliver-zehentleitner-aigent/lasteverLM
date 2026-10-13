@@ -3,6 +3,7 @@ import { ingest } from '../api/ingest'
 import type { LibraryEntry, TrashEntry } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatTime } from '../lib/format'
+import { kindWithCapture } from '../lib/capture'
 import { deleteConfirmText, filterLibrary, purgeIn, type LibraryFilter } from '../lib/library'
 import { SOURCE_FORMS } from '../lib/outputs'
 
@@ -101,7 +102,7 @@ function LibraryList({ onOpenNotebook }: Props) {
               <td className="name" title={e.url ?? e.name}>
                 {e.name}
               </td>
-              <td>{SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind}</td>
+              <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
               <td>
                 <span className={`badge ${e.status}`}>{e.status}</span>
                 {e.status === 'failed' && e.error && <span className="error small"> {e.error}</span>}
@@ -199,7 +200,7 @@ function TrashList() {
               <td className="name" title={e.url ?? e.name}>
                 {e.name}
               </td>
-              <td>{SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind}</td>
+              <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
               <td>{e.size_bytes === null ? '—' : formatBytes(e.size_bytes)}</td>
               <td>{formatTime(e.deleted_at)}</td>
               <td title={formatTime(e.purge_at)}>{purgeIn(e.purge_at)}</td>

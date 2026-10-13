@@ -396,3 +396,5 @@ a.stat.linked:hover, a.stat.linked:focus-visible { border-color: var(--accent); 
 .columns.full .vdivider { display: none; }
 @media (max-width: 900px) { .vdivider { display: none; } }
 .library .actions-cell { white-space: nowrap; display: flex; gap: 0.75rem; }
+.wizard .capture { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.wizard .capture legend { color: var(--muted); font-size: 0.9em; padding: 0 0.25rem; }

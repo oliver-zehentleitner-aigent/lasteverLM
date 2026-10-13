@@ -1,5 +1,6 @@
 import { INGEST_PREFIX } from '../config'
 import { request, requestWithStatus } from './client'
+import { isPdf, type CaptureMode } from '../lib/capture'
 import type { LibraryEntry, Notebook, Source, TrashEntry } from './types'
 
 export interface Added {
@@ -29,9 +30,11 @@ export const ingest = {
 
   /** The same bytes or URL again link the existing library entry: 202 for a
    *  new link, 200 when it was already in this notebook (`existing`). */
-  uploadFile: (notebookId: string, file: File) => {
+  uploadFile: (notebookId: string, file: File, capture?: CaptureMode) => {
     const form = new FormData()
     form.append('file', file, file.name)
+    // only PDFs take a capture mode; the same bytes in another mode are another entry
+    if (capture && isPdf(file)) form.append('capture', capture)
     return addSource(notebookId, { form })
   },
 
