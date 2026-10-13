@@ -25,10 +25,24 @@ ASK = f"/api/rag/notebooks/{NOTEBOOK}/ask"
 MESSAGES = f"/api/rag/conversations/{CONVERSATION}/messages"
 
 
-def test_healthz_needs_no_auth_at_root_and_under_prefix(settings):
+def test_healthz_needs_no_auth_and_reports_the_build(settings, monkeypatch):
+    monkeypatch.setenv("APP_VERSION", "0.6.1")
+    monkeypatch.setenv("APP_COMMIT", "abc1234")
     client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
-    assert client.get("/api/rag/healthz").json() == {"status": "ok"}
-    assert client.get("/healthz").json() == {"status": "ok"}
+    build = {"status": "ok", "version": "0.6.1", "commit": "abc1234"}
+    assert client.get("/api/rag/healthz").json() == build
+    assert client.get("/healthz").json() == build
+
+
+def test_healthz_without_build_labels_says_unknown(settings, monkeypatch):
+    monkeypatch.delenv("APP_VERSION", raising=False)
+    monkeypatch.setenv("APP_COMMIT", " ")
+    client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
+    assert client.get("/healthz").json() == {
+        "status": "ok",
+        "version": "unknown",
+        "commit": "unknown",
+    }
 
 
 def test_ask_returns_cited_answer_persists_messages_and_accounts_usage(settings):
