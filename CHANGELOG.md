@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Added
+
+- `docs/walkthrough.md`: the script of the ten-minute recorded tour — live demo first, then architecture, then how the fleet built it — with the preparation list and what to do when something fails on camera.
+
 ### Changed
 
 - Architecture: the audio output contract — `usage.kind` gains `tts` priced per input character, output files live at `<notebook_id>/<output_id>/<name>` in object storage, the stored `{"key"}` is served as a one-hour presigned URL on every read, the object-storage client moves into core, `TTS_VOICE` joins the configuration.
