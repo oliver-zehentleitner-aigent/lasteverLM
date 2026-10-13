@@ -196,6 +196,13 @@ Owned here, stored at the repository root in `.github/workflows/`:
 | `ktw-lint.yml` | push to `main`, pull request | the Keep the Why structure check for the root and every sub-project |
 | `pages.yml` | push to `main` | the Keep the Why dashboard export |
 
+`deploy.yml` serializes rollouts with the concurrency group `deploy` on
+its job, not on the workflow: docker runs on `main` start the workflow
+too and are skipped by the job's condition, and at the workflow level
+they took the group and cancelled a pending tag deploy. One pending
+deploy per group remains GitHub's rule, so of two tags pushed while a
+deploy runs, only the newer one rolls out.
+
 Repository secrets for `deploy.yml`: `KUBECONFIG_B64` (the file
 `make kubeconfig` writes, base64), the only one required, and
 `DEMO_TOKEN` (optional; without it the smoke step is skipped). No

@@ -16,10 +16,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: deploy
-  cancel-in-progress: false
-
 jobs:
   deploy:
     if: >-
@@ -27,6 +23,13 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
     runs-on: ubuntu-latest
     environment: production
+    # On the job, not the workflow: every docker run on main also starts this
+    # workflow, and the job's `if` skips it. A skipped job never enters the group;
+    # a workflow-level group let those runs push a pending tag deploy out (GitHub
+    # keeps one pending run per group and cancels the older one).
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
     env:
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
       # What is checked out. After docker: the exact commit docker built, not the
