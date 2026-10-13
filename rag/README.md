@@ -118,7 +118,7 @@ fails with `none of the selected sources is ready`. The shared view
 **Outputs.** `POST /outputs` inserts the job and answers at once. The
 worker entrypoint (`lasteverlm-rag-worker`) claims jobs from the
 `outputs` table with `SELECT ... FOR UPDATE SKIP LOCKED` (a `waiting` row
-once no source is still processing; a claim counts as an attempt, three
+once none of the uploads it reads, its selection or all, is still processing; a claim counts as an attempt, three
 attempts fail the job, a claim older than ten minutes is abandoned), generates the document from the source
 summaries plus the chunks retrieved for the kind's focus query, and
 indexes the result as a source of kind `generated` in the same notebook

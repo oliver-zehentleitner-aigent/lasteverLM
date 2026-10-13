@@ -544,3 +544,16 @@ def test_search_narrowed_to_selected_sources(pool, notebook):
     assert sorted(h.text for h in every) == ["other chunk", "picked chunk"]
     hits = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, source_ids=[picked])
     assert [(h.text, h.source_id) for h in hits] == [("picked chunk", picked)]
+
+
+def test_claim_with_a_selection_waits_only_for_the_selected_sources(store, pool, notebook):
+    ready = add_source(pool, notebook, "ready")
+    slow = add_source(pool, notebook, "processing")
+    blocked = store.create_output(notebook, "report", "waiting", {"sources": [slow]})
+    free = store.create_output(notebook, "quiz", "waiting", {"sources": [ready]})
+    # other tests leave claimable jobs in the shared database: drain them all
+    claimed = set()
+    while (job := store.claim_output("w1", stale_after_s=600)) is not None:
+        claimed.add(job.id)
+    assert free.id in claimed and blocked.id not in claimed  # its selection is processing
+    assert store.get_output(blocked.id).attempts == 0

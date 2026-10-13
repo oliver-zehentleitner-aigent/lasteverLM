@@ -402,8 +402,12 @@ class OutputService:
             # stored with the options, so the viewer shows what it was made from
             resolved["sources"] = selected
         require_credit(self._store, user_id)
+        # the job waits for the uploads it reads: the selection, or all of them
         states = self._store.source_states(notebook_id)
-        waiting = any(s.status == "processing" for s in states)
+        waiting = any(
+            s.status == "processing" and (selected is None or s.source_id in selected)
+            for s in states
+        )
         row = self._store.create_output(
             notebook_id, kind, "waiting" if waiting else "processing", resolved
         )
@@ -487,25 +491,35 @@ class OutputService:
             )
             return True
         except Exception as exc:
+            failure = exc
+        # Clean up outside the except block: a cleanup failure is logged on its
+        # own and can never replace the job's error.
+        self._discard(job, source_id, content)
+        error = public_error(failure)
+        final = isinstance(failure, GenerationFailed) or job.attempts >= MAX_ATTEMPTS
+        # the log keeps the detail; the row (which the user sees) the public text
+        log.warning(
+            "output %s (%s) attempt %d failed%s: %s",
+            job.id,
+            job.kind,
+            job.attempts,
+            "" if final else ", will retry",
+            (str(failure) or failure.__class__.__name__)[:ERROR_LOG_CHARS],
+        )
+        if final:
+            self._store.update_output(job.id, status="failed", error=error)
+            return True
+        self._store.release_output(job.id, error=error)
+        return False
+
+    def _discard(self, job: OutputRow, source_id: str | None, content: dict[str, Any]) -> None:
+        """Remove what a failed attempt left: its generated source and its file."""
+        try:
             if source_id is not None:
                 self._store.delete_source(source_id)
             self._delete_objects(content)
-            error = public_error(exc)
-            final = isinstance(exc, GenerationFailed) or job.attempts >= MAX_ATTEMPTS
-            # the log keeps the detail; the row (which the user sees) the public text
-            log.warning(
-                "output %s (%s) attempt %d failed%s: %s",
-                job.id,
-                job.kind,
-                job.attempts,
-                "" if final else ", will retry",
-                (str(exc) or exc.__class__.__name__)[:ERROR_LOG_CHARS],
-            )
-            if final:
-                self._store.update_output(job.id, status="failed", error=error)
-                return True
-            self._store.release_output(job.id, error=error)
-            return False
+        except Exception:
+            log.exception("output %s: cleanup after a failed attempt failed", job.id)
 
     def _generate(self, user_id: str, row: OutputRow) -> GeneratedOutput:
         generator = self._generators[row.kind]
