@@ -76,6 +76,11 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, o
               <span className="name" title={s.name}>
                 {s.name}
               </span>
+              {s.capture && (
+                <span className="badge" title="How this PDF was read">
+                  {s.capture}
+                </span>
+              )}
               <span className={`badge ${s.status}`}>{s.status}</span>
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
               {s.status === 'processing' && s.error && <span className="muted small">Retrying after: {s.error}</span>}

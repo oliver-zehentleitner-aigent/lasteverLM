@@ -22,6 +22,8 @@ export interface Source {
   error: string | null
   created_at: string
   library_id?: string | null
+  /** how a PDF was read; null for other kinds */
+  capture?: 'auto' | 'text' | 'vision' | null
 }
 
 /** One upload or URL of the user, with the notebooks it is in. */
@@ -35,6 +37,8 @@ export interface LibraryEntry {
   size_bytes: number | null
   /** set only for URLs */
   url: string | null
+  /** how a PDF was read; null for other kinds */
+  capture?: 'auto' | 'text' | 'vision' | null
   created_at: string
   notebooks: { id: string; title: string; source_id: string }[]
 }
@@ -187,6 +191,8 @@ export interface Preferences {
   audio_voice: string | null
   /** days a deleted library entry stays in the trash, 1–365; null is 14 */
   trash_days?: number | null
+  /** how PDFs are read by default; null is auto */
+  pdf_capture?: 'auto' | 'text' | 'vision' | null
 }
 
 export interface User {

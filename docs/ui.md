@@ -19,7 +19,13 @@ Three steps, one question each, large tiles instead of a form.
    kind that is not available yet is shown greyed with "Soon.", so the
    extension points stay visible.
 2. **How does it get in?** Only the ways that fit the type: drop or
-   pick files (several at once), enter a URL, paste text; for the
+   pick files (several at once), enter a URL, paste text. For PDFs a
+   **Capture** choice: Auto (text layer where present, the vision model
+   for scanned pages), Text (text layer only, scanned pages fail) or
+   Vision (every page through the vision model, one model call per
+   page), preset from the preference and sent as `capture` with the
+   upload. The same file in another mode is a separate library entry.
+   For the
    library, a filterable list of the entries not yet in this notebook to
    tick.
 3. **What should come out of it?** Tiles of the output kinds, multiple
@@ -153,7 +159,8 @@ is closed. After the wizard the notebook view opens.
 (browser default, English, Deutsch), language of generated documents
 (same as the sources, or one of rag's languages) and the voice for
 audio (default, or one of rag's voices), and the days a deleted
-library source stays in the trash (1–365, empty for 14). Saved together with
+library source stays in the trash (1–365, empty for 14), and how PDFs
+are read by default (Auto, Text or Vision). Saved together with
 `PUT /api/account/me/preferences`; an empty choice clears the value.
 The preferred language and voice are preselected in the output options
 and used by the wizard, which has no option menus. The interface
