@@ -439,4 +439,5 @@ export const de: Record<MessageKey, string> = {
   'map.zoomIn': 'Vergrößern (+)',
   'map.zoomOut': 'Verkleinern (−)',
   'map.label': 'Mindmap; ziehen zum Verschieben, scrollen zum Zoomen, 0 zum Einpassen',
+  'prov.openDoc': 'Dokument öffnen',
 }

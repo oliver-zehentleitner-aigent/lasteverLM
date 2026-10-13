@@ -17,6 +17,8 @@ interface Props {
   presentSources: ReadonlySet<string> | null
   onClearScope: () => void
   onCitationSelected: (c: Citation | null) => void
+  /** "open in source" / "open document" in the provenance panel */
+  onOpenSource: (c: Citation) => void
   /** controls at the right end of the tab bar (the chat height presets) */
   tools?: ReactNode
   /** a first question to offer in an empty chat (the demo sources'); none otherwise */
@@ -40,7 +42,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected, tools, suggestion }: Props) {
+export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCitationSelected, onOpenSource, tools, suggestion }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // inline rename of a tab: which one, and the text being typed
@@ -177,6 +179,7 @@ export function ChatPane({ notebookId, scope, presentSources, onClearScope, onCi
           suggestion={suggestion}
           onClearScope={onClearScope}
           onCitationSelected={onCitationSelected}
+          onOpenSource={onOpenSource}
         />
       )}
     </section>
@@ -191,7 +194,7 @@ interface ConversationProps extends Props {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-function ConversationView({ notebookId, conversationId, scope, presentSources, suggestion, onClearScope, onCitationSelected }: ConversationProps) {
+function ConversationView({ notebookId, conversationId, scope, presentSources, suggestion, onClearScope, onCitationSelected, onOpenSource }: ConversationProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
@@ -277,7 +280,7 @@ function ConversationView({ notebookId, conversationId, scope, presentSources, s
                     citation={c}
                     answer={m.content}
                     removed={isRemoved(c.source_id, presentSources)}
-                    onOpenSource={onCitationSelected}
+                    onOpenSource={onOpenSource}
                   />
                 ) : null
               })()}

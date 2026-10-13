@@ -2,6 +2,7 @@ import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { Markmap } from 'markmap-view'
 import type { MindmapContent } from '../../api/types'
 import { t } from '../../i18n'
+import { bestMatchIndex, firstLine, type LocateRequest } from '../../lib/locate'
 import { mapAction } from '../../lib/mapKeys'
 import { toMarkdown } from '../../lib/mindmap'
 
@@ -14,7 +15,7 @@ import { toMarkdown } from '../../lib/mindmap'
  *  + and − on the focused map bring it back after panning and zooming; it
  *  sits on the map itself, so the viewer, the full view and the shared
  *  page all have it. */
-export function MindmapView({ content }: { content: MindmapContent }) {
+export function MindmapView({ content, locate }: { content: MindmapContent; locate?: LocateRequest | null }) {
   const box = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
   const error = useRef<HTMLParagraphElement>(null)
@@ -50,6 +51,33 @@ export function MindmapView({ content }: { content: MindmapContent }) {
       destroy?.()
     }
   }, [content])
+
+  // "open document" on a citation: fit the map, then flash the node whose
+  // label matches the chunk's first line (the outline starts at its node)
+  useEffect(() => {
+    if (!locate) return
+    const mm = map.current
+    if (!mm) return
+    let timer = 0
+    void mm.fit().then(() => {
+      timer = window.setTimeout(() => {
+        const nodes = [...(svg.current?.querySelectorAll<HTMLElement>('.markmap-foreign') ?? [])]
+        const i = bestMatchIndex(
+          nodes.map((n) => n.textContent ?? ''),
+          firstLine(locate.text),
+        )
+        // the label is a div inside markmap's foreignObject, which itself paints nothing
+        const label = i >= 0 ? ((nodes[i].firstElementChild as HTMLElement | null) ?? nodes[i]) : null
+        if (label) {
+          label.classList.remove('flash')
+          void label.offsetWidth
+          label.classList.add('flash')
+          window.setTimeout(() => label.classList.remove('flash'), 1800)
+        }
+      }, 50)
+    })
+    return () => window.clearTimeout(timer)
+  }, [locate])
 
   const fit = () => void map.current?.fit()
   const zoom = (by: number) => void map.current?.rescale(by)

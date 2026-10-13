@@ -6,6 +6,7 @@ import { useTabStrip } from '../hooks/useTabStrip'
 import { formatTime } from '../lib/format'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { optionsLabel } from '../lib/outputOptions'
+import { bestMatchIndex, flash, type LocateRequest } from '../lib/locate'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
 import { t } from '../i18n'
@@ -24,7 +25,12 @@ interface Props {
   chatOpen: boolean
   onToggleChat: () => void
   style?: CSSProperties
+  /** show this passage of the open document ("open document" on a citation) */
+  locate?: LocateRequest | null
 }
+
+/** The blocks a cited passage can be in, across the document renderers. */
+const PASSAGE_BLOCKS = 'p, li, td, th, h1, h2, h3, h4, dt, dd, blockquote'
 
 /** Right column, top: one tab per generated document, newest first, with
  *  the actions per document: ask about this, print, share, full view. */
@@ -41,6 +47,7 @@ export function OutputViewer({
   chatOpen,
   onToggleChat,
   style,
+  locate,
 }: Props) {
   const selected = outputs.find((o) => o.id === selectedId) ?? null
   const spec = useOutputOptions()
@@ -51,6 +58,24 @@ export function OutputViewer({
     onSelect,
   )
   const enterButton = useRef<HTMLButtonElement>(null)
+  const body = useRef<HTMLDivElement>(null)
+  const selectedKind = selected?.kind
+  const selectedReady = selected?.status === 'ready'
+
+  // a located passage: the text block that matches the chunk best, scrolled
+  // to and flashed; the mind map does its own (fit, then the node)
+  useEffect(() => {
+    if (!locate || !selectedReady || selectedKind === 'mindmap') return
+    const frame = requestAnimationFrame(() => {
+      const blocks = [...(body.current?.querySelectorAll<HTMLElement>(PASSAGE_BLOCKS) ?? [])]
+      const i = bestMatchIndex(
+        blocks.map((b) => b.textContent ?? ''),
+        locate.text,
+      )
+      if (i >= 0) flash(blocks[i])
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [locate, selectedKind, selectedReady])
   const leaveButton = useRef<HTMLButtonElement>(null)
   const wasFull = useRef(fullView)
 
@@ -127,7 +152,7 @@ export function OutputViewer({
         {outputs.length === 0 && <span className="muted">{t('viewer.noDocs')}</span>}
       </div>
       {(error || actionError) && <p className="error no-print">{error ?? actionError}</p>}
-      <div className="viewer-body printable">
+      <div className="viewer-body printable" ref={body}>
         {selected && (
           <>
             <header className="viewer-head">
@@ -183,6 +208,7 @@ export function OutputViewer({
             <OutputContent
               key={selected.id}
               kind={selected.kind}
+              locate={locate ?? null}
               title={selected.title}
               status={selected.status}
               error={selected.error}
