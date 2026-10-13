@@ -150,10 +150,19 @@ class OpenAICompatibleLLM:
         return result
 
 
-class OpenAICompatibleTextToSpeech:
-    """Prepared for the day the inference platform offers a speech endpoint."""
+DEFAULT_TTS_VOICE = "ryan"
 
-    def __init__(self, client: OpenAI, model: str, voice: str = "alloy") -> None:
+
+class OpenAICompatibleTextToSpeech:
+    """Speech synthesis over `/audio/speech`; returns the MP3 bytes.
+
+    The platform's voices are not the OpenAI names (`alloy` is rejected with
+    a 400); it offers vivian, serena, uncle_fu, dylan, eric, ryan, aiden,
+    ono_anna and sohee. Usage is priced per input character, which the
+    caller records as `tokens_in=len(text)`, `tokens_out=0`, kind `tts`.
+    """
+
+    def __init__(self, client: OpenAI, model: str, voice: str = DEFAULT_TTS_VOICE) -> None:
         self._client = client
         self._model = model
         self._voice = voice
@@ -161,6 +170,10 @@ class OpenAICompatibleTextToSpeech:
     @property
     def model(self) -> str:
         return self._model
+
+    @property
+    def voice(self) -> str:
+        return self._voice
 
     def synthesize(self, text: str) -> bytes:
         try:

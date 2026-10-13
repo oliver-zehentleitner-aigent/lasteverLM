@@ -51,7 +51,7 @@ LEDGER_MIRROR = (
     "create table if not exists ledger (user_id uuid not null, amount_cents integer not null)"
 )
 TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger")
-PRICES = parse_model_prices('{"llm": {"in": 30, "out": 150}}')
+PRICES = parse_model_prices('{"llm": {"in": 30, "out": 150}, "tts": {"in": 2000, "out": 0}}')
 T0 = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 SETTINGS = RateLimitSettings(per_minute=3, block_minutes=15, ban_after_strikes=3)
 
@@ -112,6 +112,19 @@ def test_unpriced_model_writes_nothing(conn: psycopg.Connection[Any]) -> None:
     with pytest.raises(UnpricedModelError):
         record_usage(conn, uuid4(), None, "ingest", "embedding", "none", 1, 0, prices=PRICES)
     assert conn.execute("select count(*) from usage").fetchone() == (0,)
+
+
+def test_tts_usage_is_priced_per_character(conn: psycopg.Connection[Any]) -> None:
+    user = uuid4()
+    usage = record_usage(conn, user, None, "rag", "tts", "tts", 1500, 0, prices=PRICES)
+    assert usage.cost_cents == 3  # ceil(1500 * 2000 / 1e6)
+    assert conn.execute("select kind, tokens_in from usage").fetchone() == ("tts", 1500)
+    with pytest.raises(psycopg.errors.CheckViolation):
+        conn.execute(
+            "insert into usage (user_id, service, kind, model, tokens_in, tokens_out, cost_cents)"
+            " values (%s, 'rag', 'speech', 'tts', 1, 0, 0)",
+            (user,),
+        )
 
 
 def test_balance_on_a_dict_row_connection(dsn: str, conn: psycopg.Connection[Any]) -> None:

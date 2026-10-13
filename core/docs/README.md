@@ -60,6 +60,16 @@ service, which runs on an async pool, uses `abalance_cents` and
 `arecord_usage`; `BALANCE_SQL` and `USAGE_SQL` are exported for a report
 query that needs them inline.
 
+Speech synthesis is priced per input character, not per token. A `tts`
+row carries the character count in `tokens_in` and 0 in `tokens_out`,
+and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million
+characters (`out` 0):
+
+```python
+audio = tts.synthesize(segment)
+record_usage(conn, user_id, notebook_id, "rag", "tts", tts.model, len(segment), 0, prices=prices)
+```
+
 ## Rate limiting
 
 ```python
@@ -134,10 +144,40 @@ goes straight into `record_usage`. Another provider is another module
 implementing `Embedder` or `LLM`; callers are typed against the
 protocols.
 
+`OpenAICompatibleTextToSpeech(client, TTS_MODEL, voice=TTS_VOICE)`
+returns the MP3 bytes of one `synthesize(text)` call. The voice
+defaults to `DEFAULT_TTS_VOICE` (`ryan`): the platform's voices are not
+the OpenAI names and `alloy` is rejected; it offers vivian, serena,
+uncle_fu, dylan, eric, ryan, aiden, ono_anna and sohee. A failed request
+is a `ProviderError`; the caller records the usage (see Accounting).
+
+## Object storage
+
+```python
+from lasteverlm_core import S3Settings, S3Storage, object_key
+
+storage = S3Storage(S3Settings.from_env())  # S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
+key = object_key(notebook_id, output_id, "audio.mp3")
+storage.put(key, mp3, "audio/mpeg")
+url = storage.presigned_get(key)  # valid PRESIGN_SECONDS (3600); expires_s= to change
+storage.delete(key)
+```
+
+One bucket for the family; keys are `<notebook_id>/<source_id>/<name>`
+for an upload and `<notebook_id>/<output_id>/<name>` for a file an
+output produces. `get` returns the bytes, `delete(*keys)` takes one or more
+keys (sent 1000 per request). A presigned GET is how a browser fetches
+a private object without a bearer header; it is signed with SigV4 and
+needs no request to storage. `S3_REGION` is optional (`us-east-1`).
+Every failure is a `StorageError`. The client is synchronous (boto3);
+an async service calls it through `anyio.to_thread.run_sync`.
+`Storage` is the protocol callers are typed against; tests pass a stub
+client to `S3Storage(settings, client=...)`.
+
 ## Migrations
 
-`db/migrations/0001_core_usage.sql` and `0002_core_rate_limit.sql` are
-plain SQL, one transaction each, applied by infra's `make migrate` after
+`db/migrations/0001_core_usage.sql`, `0002_core_rate_limit.sql` and
+`0003_core_usage_tts.sql` (adds `tts` to `usage.kind`) are plain SQL, one transaction each, applied by infra's `make migrate` after
 infra's own migration and before account, ingest and rag. They create no
 extension and reference no table of another service, because none exists
 yet at that point in the order.
