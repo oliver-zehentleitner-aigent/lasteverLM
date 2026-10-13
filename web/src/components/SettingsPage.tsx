@@ -5,8 +5,9 @@ import { useAsync } from '../hooks/useAsync'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { CAPTURE_MODES } from '../lib/capture'
-import { voiceGroups } from '../lib/outputOptions'
-import { t } from '../i18n'
+import { sampleLanguage, voiceGroups } from '../lib/outputOptions'
+import { VoiceSample } from './VoiceSample'
+import { language, t } from '../i18n'
 
 const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null, pdf_capture: null }
 const TRASH_DEFAULT = 14
@@ -91,6 +92,12 @@ export function SettingsPage() {
             )}
           </select>
         </label>
+        {spec && (
+          <VoiceSample
+            voice={p.audio_voice ?? spec.audio.default_voice}
+            language={sampleLanguage(p.output_language, spec, language())}
+          />
+        )}
         <label>
           {t('set.pdf')}
           <select

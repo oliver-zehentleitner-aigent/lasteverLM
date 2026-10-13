@@ -57,3 +57,11 @@ export function optionsLabel(o: OutputOptions | undefined, spec: OutputOptionsSp
   if (o.speed !== undefined) parts.push(`${o.speed}×`)
   return parts.length ? parts.join(' · ') : null
 }
+
+/** The language a voice sample is spoken in: the chosen document language,
+ *  else the interface language when rag offers it, else rag's default. */
+export function sampleLanguage(chosen: string | null | undefined, spec: OutputOptionsSpec, uiLanguage: string): string | undefined {
+  const offered = (code: string) => spec.languages.some((l) => l.code === code)
+  if (chosen && offered(chosen)) return chosen
+  return offered(uiLanguage) ? uiLanguage : undefined
+}

@@ -388,6 +388,9 @@ export const en = {
   'chart.costByModel': 'Cost by model',
   'chart.cost': 'Cost',
   'chart.topUsers': 'Top users by usage',
+  'sample.play': '▶ sample',
+  'sample.loading': 'loading…',
+  'sample.title': 'Play a short sample of this voice',
 } as const
 
 export type MessageKey = keyof typeof en
