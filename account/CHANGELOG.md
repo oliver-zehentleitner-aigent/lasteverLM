@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- Dockerfile pins `python:3.13-slim` by digest (the multi-arch index) in both stages; the refresh command is in the file.
+
 ### Added
 
 - Per-address quota for sign-in links: more than `LINK_QUOTA_PER_HOUR` (5) within an hour answers 429 with `code: too_many_links` and a readable sentence; counted on `login_attempts`, a throttled request writes no row.
