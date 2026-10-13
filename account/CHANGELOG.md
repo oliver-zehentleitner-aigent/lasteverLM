@@ -13,6 +13,10 @@ preserves why it changed, in `context/`.
 
 - `GET /admin/system` for the admin System page: `APP_VERSION`/`APP_COMMIT`, every service's health with version and commit (probed over the cluster DNS, `SYSTEM_SERVICES`), and the namespace's pods and deployments read from the Kubernetes API with the pod's ServiceAccount; outside a cluster `cluster: false` with empty lists. `/healthz` reports version and commit too.
 
+### Changed
+
+- The sign-in mail offers the token as a code to paste on the sign-in page, after the link; one note covers both (single use, 15 minutes). Subject unchanged.
+
 ## [0.6.0] - 2026-10-13
 
 ### Added

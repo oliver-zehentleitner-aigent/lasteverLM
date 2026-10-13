@@ -60,12 +60,16 @@ class SmtpMailer:
             smtp.send_message(message)
 
 
-def magic_link_mail(link: str, ttl_minutes: int) -> tuple[str, str]:
+def magic_link_mail(link: str, token: str, ttl_minutes: int) -> tuple[str, str]:
+    """The sign-in mail: the link first, the same token as a code to paste second, because
+    the sign-in page offers both ways in."""
     subject = "Your lasteverLM sign-in link"
     body = (
         "Open this link to sign in to lasteverLM:\n\n"
         f"{link}\n\n"
-        f"It works once and expires in {ttl_minutes} minutes. "
-        "If you did not request it, ignore this mail.\n"
+        "Or paste this code on the sign-in page:\n\n"
+        f"{token}\n\n"
+        f"Link and code are the same sign-in: it works once and expires in {ttl_minutes} "
+        "minutes. If you did not request it, ignore this mail.\n"
     )
     return subject, body

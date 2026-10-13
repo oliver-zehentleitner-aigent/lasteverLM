@@ -300,7 +300,7 @@ class AccountService:
         expires_at = self.now() + timedelta(minutes=self.settings.magic_link_ttl_minutes)
         await self.repo.create_magic_link(email, hash_secret(token), expires_at)
         link = f"{self.settings.public_base_url}/auth/callback?token={token}"
-        subject, body = magic_link_mail(link, self.settings.magic_link_ttl_minutes)
+        subject, body = magic_link_mail(link, token, self.settings.magic_link_ttl_minutes)
         return PendingMail(to=email, subject=subject, body=body)
 
     async def deliver(self, mail: PendingMail) -> None:
