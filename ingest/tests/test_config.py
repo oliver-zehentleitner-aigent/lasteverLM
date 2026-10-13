@@ -1,4 +1,5 @@
 import pytest
+from lasteverlm_core.settings import VULTR_INFERENCE_BASE_URL
 
 from lasteverlm_ingest.config import ConfigError
 from tests.conftest import make_settings
@@ -19,7 +20,8 @@ def test_defaults_and_values():
 
 
 def test_inference_base_url_defaults_to_the_platform():
-    assert make_settings(INFERENCE_BASE_URL="").inference.base_url.startswith("https://api.vultr")
+    base_url = make_settings(INFERENCE_BASE_URL="").inference.base_url
+    assert base_url == VULTR_INFERENCE_BASE_URL
 
 
 def test_missing_required_variable_names_it():
