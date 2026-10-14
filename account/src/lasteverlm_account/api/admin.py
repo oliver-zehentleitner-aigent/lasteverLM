@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Response
+from fastapi import APIRouter, Header, Path, Query, Response
 from fastapi.responses import JSONResponse
 
 from ..models import (
@@ -46,6 +47,20 @@ async def set_role(
 ) -> AdminUserView:
     """Change a user's role. 409 for the last admin stepping down or for the demo user."""
     return await service.set_user_role(user_id, body.role)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+async def delete_user(
+    user_id: uuid.UUID,
+    service: Service,
+    admin: AdminUserDep,
+    authorization: Annotated[str, Header()],
+) -> Response:
+    """Hard delete across rag, ingest and account, on the admin's own bearer. 409 for the
+    caller's account and the demo user; 502 with the step when another service fails —
+    then nothing of account's was deleted and the user is still listed."""
+    await service.delete_user(admin, user_id, authorization)
+    return Response(status_code=204)
 
 
 @router.get("/system", response_model=SystemInfo)

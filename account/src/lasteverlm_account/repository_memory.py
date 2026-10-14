@@ -47,7 +47,7 @@ class _MagicLink:
 class _Voucher:
     id: uuid.UUID
     amount_cents: int
-    created_by: uuid.UUID
+    created_by: uuid.UUID | None
     created_at: datetime
     redeemed_by: uuid.UUID | None = None
     redeemed_at: datetime | None = None
@@ -144,6 +144,24 @@ class MemoryRepository:
 
     async def count_admins(self) -> int:
         return sum(1 for u in self.users.values() if u.role == "admin")
+
+    async def delete_user(self, user_id: uuid.UUID) -> bool:
+        async with self._lock:
+            if user_id not in self.users:
+                return False
+            del self.users[user_id]
+            self.logins = [r for r in self.logins if r.user_id != user_id]
+            self.ledger = [e for e in self.ledger if e.user_id != user_id]
+            self.usage = [u for u in self.usage if u.user_id != user_id]
+            for v in self.vouchers.values():
+                if v.created_by == user_id:
+                    v.created_by = None
+                if v.redeemed_by == user_id:
+                    v.redeemed_by = None
+            self.visits = [
+                replace(v, user_id=None) if v.user_id == user_id else v for v in self.visits
+            ]
+            return True
 
     async def set_preferences(self, user_id: uuid.UUID, preferences: dict[str, Any]) -> None:
         async with self._lock:

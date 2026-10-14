@@ -162,25 +162,27 @@ async def test_service_builds_the_response_from_the_probe(
     assert json.loads(info.model_dump_json())["pods"][0]["service"] == "account"
 
 
-def test_system_services_from_env() -> None:
+def test_service_urls_drive_both_probes_and_purges() -> None:
     env = {
         "DATABASE_URL": "x",
         "AUTH_JWT_SECRET": "y",
         "PUBLIC_BASE_URL": "https://z",
-        "SYSTEM_SERVICES": "ingest=http://ingest:8000/healthz, rag=https://rag.svc/healthz",
+        "INGEST_URL": "http://ingest.svc:8000/",
+        "RAG_URL": "https://rag.svc",
         "APP_VERSION": "0.7.0",
         "APP_COMMIT": "deadbeef",
     }
     s = Settings.from_env(env)
+    assert (s.ingest_url, s.rag_url) == ("http://ingest.svc:8000", "https://rag.svc")
     assert s.system_services == (
-        ("ingest", "http://ingest:8000/healthz"),
+        ("ingest", "http://ingest.svc:8000/healthz"),
         ("rag", "https://rag.svc/healthz"),
     )
     assert (s.app_version, s.app_commit) == ("0.7.0", "deadbeef")
-    assert Settings.from_env({**env, "SYSTEM_SERVICES": ""}).system_services == ()
-    assert (
-        Settings.from_env({k: v for k, v in env.items() if k != "SYSTEM_SERVICES"}).system_services[
-            0
-        ][0]
-        == "ingest"
+    defaults = Settings.from_env(
+        {k: v for k, v in env.items() if k not in ("INGEST_URL", "RAG_URL")}
+    )
+    assert defaults.system_services == (
+        ("ingest", "http://ingest/healthz"),
+        ("rag", "http://rag/healthz"),
     )

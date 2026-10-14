@@ -9,6 +9,14 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- One way to reach ingest and rag: `INGEST_URL` and `RAG_URL` serve the System page's health probes (`/healthz` appended) and the user purge; `SYSTEM_SERVICES` is gone.
+
+### Added
+
+- `DELETE /admin/users/{id}`: orchestrated hard delete — rag and ingest purge the user's data on the admin's bearer (`RAG_URL`, `INGEST_URL`), then account deletes the user, ledger, login log, usage rows and the visit log's reference; vouchers and `login_attempts` stay as history (migration 0007 lets a voucher outlive its creator). 409 for the caller's own account and the demo user; 502 `purge_failed` with the step when another service fails, nothing deleted then.
+
 ## [0.10.0] - 2026-10-14
 
 ### Changed

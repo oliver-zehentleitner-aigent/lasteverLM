@@ -149,6 +149,19 @@ class PostgresRepository:
             )
             return cur.rowcount == 1
 
+    async def delete_user(self, user_id: uuid.UUID) -> bool:
+        async with self._pool.connection() as conn, conn.transaction():
+            await conn.execute(
+                "update vouchers set created_by = null where created_by = %s", (user_id,)
+            )
+            await conn.execute(
+                "update vouchers set redeemed_by = null where redeemed_by = %s", (user_id,)
+            )
+            await conn.execute("delete from usage where user_id = %s", (user_id,))
+            await conn.execute("update visit_log set user_id = null where user_id = %s", (user_id,))
+            cur = await conn.execute("delete from users where id = %s", (user_id,))
+            return cur.rowcount == 1
+
     async def count_admins(self) -> int:
         async with self._pool.connection() as conn:
             cur = await conn.execute("select count(*) as n from users where role = 'admin'")
@@ -326,7 +339,7 @@ class PostgresRepository:
                 """select v.id, v.amount_cents, c.email as created_by, v.created_at,
                           r.email as redeemed_by, v.redeemed_at
                    from vouchers v
-                   join users c on c.id = v.created_by
+                   left join users c on c.id = v.created_by
                    left join users r on r.id = v.redeemed_by
                    order by v.created_at desc, v.id limit %s""",
                 (limit,),
@@ -336,7 +349,7 @@ class PostgresRepository:
             VoucherRecord(
                 r["id"],
                 int(r["amount_cents"]),
-                r["created_by"],
+                r["created_by"] or "",
                 r["created_at"],
                 r["redeemed_by"],
                 r["redeemed_at"],

@@ -37,6 +37,8 @@ repository root's `context/`.
 
 ## D
 
+- [deletion.md](deletion.md) — deleting a user is an orchestrated hard delete: rag and ingest purge first on the admin's bearer, account deletes its rows last
+
 ## E
 
 ## F

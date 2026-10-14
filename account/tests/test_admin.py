@@ -20,6 +20,7 @@ from .conftest import DEMO_TOKEN, Clock, FakeMailer, bearer, login
 ADMIN_ROUTES = [
     ("GET", "/api/account/admin/users", None),
     ("PATCH", "/api/account/admin/users/00000000-0000-4000-8000-000000000099", {"role": "viewer"}),
+    ("DELETE", "/api/account/admin/users/00000000-0000-4000-8000-000000000099", None),
     ("POST", "/api/account/admin/settings/viewer-domains", {"domain": "x.test"}),
     ("DELETE", "/api/account/admin/settings/viewer-domains/x.test", None),
     ("GET", "/api/account/admin/logins", None),
