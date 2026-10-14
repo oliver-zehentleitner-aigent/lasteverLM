@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortRows, toCsv } from './table'
+import { sortOrder, sortRows, toCsv } from './table'
 
 describe('sortRows', () => {
   const rows = [
@@ -29,5 +29,12 @@ describe('toCsv', () => {
   it('quotes commas, quotes and line breaks, and writes CRLF', () => {
     const csv = toCsv({ columns: ['name', 'note'], rows: [['a,b', 'say "hi"'], ['plain', null], ['multi\nline', 3]] })
     expect(csv).toBe('name,note\r\n"a,b","say ""hi"""\r\nplain,\r\n"multi\nline",3\r\n')
+  })
+})
+
+describe('sortOrder', () => {
+  it('gives the rows\' indices in sorted order, stable for equal values', () => {
+    expect(sortOrder([['b'], ['a'], ['b'], [null]], 0, 'asc')).toEqual([1, 0, 2, 3])
+    expect(sortOrder([[2], [10], [1]], 0, 'desc')).toEqual([1, 0, 2])
   })
 })

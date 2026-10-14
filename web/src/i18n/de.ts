@@ -81,7 +81,7 @@ export const de: Record<MessageKey, string> = {
   'admin.page.security': 'Sicherheit',
   'admin.page.visits': 'Besuche',
   'admin.page.mail': 'Mail',
-  'login.tagline': 'Dokumente bereitstellen, Fragen stellen, Antworten mit Quellen bekommen.',
+  'login.tagline': 'Material rein. Verständnis raus.',
   'login.checkMail': 'Schau in dein Postfach',
   'login.sentTo': 'Ein Anmeldelink ging an {email}. Öffne ihn in diesem Browser.',
   'login.otherAddress': 'Andere Adresse verwenden',
@@ -601,4 +601,6 @@ export const de: Record<MessageKey, string> = {
   'arch.why.crash': 'ein Pod schlägt fehl (Crash-Loop, Fehler oder Speichermangel)',
   'arch.why.climbing': 'Neustarts nehmen zu',
   'arch.depState': '{name}: {state} (laut healthz der Dienste)',
+  'outProv.rowSources': 'Quellen der Zeile',
+  'login.taglineMore': 'PDFs, Text, Webseiten, Bilder und Audio gehen hinein; Fragen, Berichte, Quizze, Tabellen, Mindmaps und gesprochene Überblicke kommen heraus, jeder Satz zurückverfolgbar bis zur Stelle, aus der er stammt.',
 }

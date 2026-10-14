@@ -5,6 +5,12 @@ export type SortDir = 'asc' | 'desc'
 
 /** Numbers before strings, nulls last, stable within equal keys. */
 export function sortRows(rows: Cell[][], column: number, dir: SortDir): Cell[][] {
+  return sortOrder(rows, column, dir).map((i) => rows[i])
+}
+
+/** The rows' indices in sorted order, for what is kept per row beside them
+ *  (a row's passages). Stable: equal values keep their order. */
+export function sortOrder(rows: Cell[][], column: number, dir: SortDir): number[] {
   const sign = dir === 'asc' ? 1 : -1
   return rows
     .map((r, i) => ({ r, i }))
@@ -15,7 +21,7 @@ export function sortRows(rows: Cell[][], column: number, dir: SortDir): Cell[][]
       const c = compare(va, vb)
       return c !== 0 ? c * sign : a.i - b.i
     })
-    .map((x) => x.r)
+    .map((x) => x.i)
 }
 
 function compare(a: string | number, b: string | number): number {

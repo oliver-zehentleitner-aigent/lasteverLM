@@ -256,7 +256,7 @@ export interface ReportContent {
   /** one per paragraph that is not a heading, `text` exactly as in the markdown */
   units?: ({ text: string } & Claim)[]
 }
-export interface QuizQuestion {
+export interface QuizQuestion extends Claim {
   question: string
   options: string[]
   /** the correct option, as text or as index */
@@ -269,8 +269,12 @@ export interface QuizContent {
 export interface TableContent {
   columns: string[]
   rows: (string | number | null)[][]
+  /** one per row, same index: what the row rests on; absent on older tables */
+  row_refs?: Claim[]
 }
-export interface MindmapNode {
+/** `refs` on every node with provenance, `support` once checked (the root
+ *  has none unless it cites) */
+export interface MindmapNode extends Claim {
   label: string
   children?: MindmapNode[]
 }

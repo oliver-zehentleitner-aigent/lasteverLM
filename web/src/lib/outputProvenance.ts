@@ -111,3 +111,12 @@ export function unitBadges(answer: string, units: readonly AnswerUnit[] | null |
   }
   return out
 }
+
+/** A claim's markers and badge as HTML, for a renderer that takes HTML (the
+ *  mind map's labels); added before sanitizing, like the report's. */
+export function claimHtml(c: Claim, known: ReadonlySet<number>): string {
+  const buttons = claimRefs(c, known).map((n) => `<button type="button" class="cite" data-n="${n}">${n}</button>`)
+  const badge = supportBadge(c.support)
+  const span = badge ? `<span class="badge support-${badge}" title="${t(`outProv.${badge}Title`)}">${t(`outProv.${badge}`)}</span>` : ''
+  return buttons.length || span ? ` ${buttons.join('')}${span}` : ''
+}

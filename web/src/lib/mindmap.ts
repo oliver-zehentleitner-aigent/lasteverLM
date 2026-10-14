@@ -3,10 +3,10 @@ import type { MindmapNode } from '../api/types'
 /** markmap takes a Markdown outline; the root becomes the heading, every
  *  child a nested list item. A label is one line: a line break in the
  *  model's text would otherwise start a node of its own. */
-export function toMarkdown(node: MindmapNode, depth = 0): string {
-  const label = node.label.replace(/\s+/g, ' ').trim()
+export function toMarkdown(node: MindmapNode, depth = 0, marks: (n: MindmapNode) => string = () => ''): string {
+  const label = node.label.replace(/\s+/g, ' ').trim() + marks(node)
   const line = depth === 0 ? `# ${label}` : `${'  '.repeat(depth - 1)}- ${label}`
-  return [line, ...(node.children ?? []).map((c) => toMarkdown(c, depth + 1))].join('\n')
+  return [line, ...(node.children ?? []).map((c) => toMarkdown(c, depth + 1, marks))].join('\n')
 }
 
 /** A node as markmap's transformer returns it: `content` is HTML. */

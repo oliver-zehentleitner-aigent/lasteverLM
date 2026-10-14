@@ -243,8 +243,11 @@ is closed. After the wizard the notebook view opens.
   options, the retrieval query, usage, when and how long, the check's
   counts, the retrieval candidates with similarity and whether they went
   into the prompt, and the whole log as a JSON download. The share page
-  shows all of it read-only, without "open in source". Stage 1: report,
-  infographic, audio; table, quiz and mind map follow.
+  shows all of it read-only, without "open in source". A table row's
+  markers sit in a narrow last column (they follow the row when it is
+  sorted; the CSV has no such column), a quiz question's after the
+  question, a mind map node's in its label (a click on a marker shows
+  the passage; the node's circle still folds it).
 - **Print**: a print stylesheet on the viewer and a button; the browser
   produces the PDF. Report and table are the printable kinds.
 - **Share**: creates a share token and shows the link `/s/<token>`; the
@@ -349,7 +352,9 @@ deleted from the library) stays readable with its quote and is marked
 
 ## Login, credit, admin
 
-- Login page: one field, the e-mail address; then "check your mail";
+- Login page: under the name the tagline, its first part bold
+  ("Material in. Understanding out.") and the rest as a muted line;
+  one field, the e-mail address; then "check your mail";
   the link lands on `/auth/callback` and the app is open. An address
   without access is told "This address has no access to lasteverLM."
   and no mail goes out. Under it, "Have a sign-in code from the mail?"
