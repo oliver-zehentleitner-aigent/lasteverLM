@@ -53,6 +53,23 @@ def selected_uploads(
     ]
 
 
+FAILED = "failed"
+
+
+def failed_sources(
+    uploads: Sequence[SourceState], url_refresh: Sequence[str] = ()
+) -> list[SourceState]:
+    """The selected sources that could not be read; a web page the user asked
+    to fetch again is being retried, not failed."""
+    retried = set(url_refresh)
+    return [s for s in uploads if s.status == FAILED and s.library_id not in retried]
+
+
+def could_not_read(source: SourceState) -> str:
+    """The message an output fails or is refused with, naming the source."""
+    return f"Source '{source.name}' could not be read: {source.error or 'reading failed'}"
+
+
 def check_refresh(uploads: Sequence[SourceState], url_refresh: Sequence[str]) -> list[SourceState]:
     """The web pages to check again, each a selected upload of kind url; a
     page not read yet is read fresh anyway and needs no check."""

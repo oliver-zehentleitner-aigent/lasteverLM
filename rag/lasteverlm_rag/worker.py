@@ -86,6 +86,8 @@ class Worker:
             # and the jobs keep their attempts for when the rate is set
             log.error("pricing has no exchange rate (usd_per_eur): no output job runs")
             return 0
+        # an output waiting too long for its sources fails, naming one (uncharged)
+        self._outputs.expire_waiting()
         finished = 0
         retried: set[str] = set()
         while True:

@@ -359,6 +359,39 @@ selected sources not read yet (`POST /api/ingest/sources/process`).
   are ingest's charges, so they are not in the total. An agent plan with
   an output lists the notebook's unread sources the same way.
 
+**Sources that could not be read.** A selected source with status `failed`
+stops an output. All uploads count as selected when nothing is selected.
+
+- **On create:** the request is refused with 409 `Source '<name>' could
+  not be read: <ingest's error>`. Nothing is created or charged.
+- **While waiting:** if the source fails while the output waits for it,
+  the worker fails the output with that message before any model call,
+  so nothing is charged.
+- **Retry path:** a failed web page listed in `url_refresh` is read
+  again instead.
+- **Answers:** an answer names such a source at its end and is never
+  silent about it.
+- **Estimate:** `POST /estimate` with `notebook_id` lists them under
+  `blocked: [{"library_id", "name", "reason"}]`.
+- **Waiting limit:** an output that waits more than 30 minutes for its
+  sources to be read fails with `Source '<name>' did not become ready
+  within 30 minutes`, uncharged and kept.
+
+**Failed attempts.** An output's `error` after a failed attempt says what
+happens next. While a retry is pending, it names the failure and ends
+"attempt n of 3 follows". After the last attempt it says so, names the
+model and the error class (never the provider's message), and states
+whether calls were charged: "the model provider failed 3 times (glm-5.3:
+timeout); no further attempt; nothing was charged". The worker logs every
+failed attempt at WARNING with the output id, the attempt, the model, the
+error class and the message, never a prompt.
+
+**Claim heartbeat.** A running job refreshes its claim (`claimed_at`) at
+most once a minute: before each model call, each judge call and each
+speech segment. Only a job whose worker stopped beating for 10 minutes is
+taken over, so a long run (a judged report, a long audio) is never run a
+second time, and never charged twice, while it is still going.
+
 **Agent chat.** A chat message first goes to a planning call (the LLM
 with tools, `complete_tools`). That call sees the user's message, their
 earlier questions and the names of the notebook's documents and outputs,

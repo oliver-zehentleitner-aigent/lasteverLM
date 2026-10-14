@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A selected source that could not be read is never left out silently.
+  - Creating an output with one is refused with 409 `Source '<name>' could not be read: <reason>`.
+  - If it fails while the output waits, the output fails with that message before any model call, uncharged.
+  - A failed web page in `url_refresh` is retried instead.
+  - Answers name it, and the estimate lists it under `blocked`.
+- An output waiting more than 30 minutes for its sources fails, naming the source, uncharged.
+- A running job refreshes its claim at most once a minute, so a long run (a judged report, a long audio) is no longer taken over after 10 minutes and run, and charged, a second time while it is still going.
+- A failed attempt's error says what happens next.
+  - While a retry is pending, it ends "attempt n of 3 follows".
+  - A final failure says it is final and names the model and the error class: "the model provider failed 3 times (glm-5.3: timeout); no further attempt; nothing was charged" (or "the calls made before the failure were charged").
+  - The worker logs every failed attempt at WARNING with output id, attempt, model, error class and message, never the prompt.
+
 ## [0.19.5] - 2026-10-14
 
 ### Added

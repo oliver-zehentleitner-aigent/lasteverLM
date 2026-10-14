@@ -124,6 +124,7 @@ class FakeStore:
         self.bookings: list[tuple[str, uuid.UUID]] = []
         self.copies: dict[str, dict[str, Any]] = {}
         self.plans: dict[str, dict[str, Any]] = {}
+        self.touches: list[str] = []
         self.suggestions: dict[str, tuple[str, list[str]]] = {}
         # a rate of 1: charges equal costs unless a test sets margins or a rate
         self.rules = PricingRules.parse({"usd_per_eur": 1})
@@ -286,6 +287,22 @@ class FakeStore:
         self.outputs[row["id"]] = row
         return self._output_row(row)
 
+    def touch_output(self, output_id: str) -> None:
+        self.touches.append(output_id)
+
+    def charged(self, action_id: str) -> bool:
+        return any(str(i) == str(action_id) for _, i in self.bookings)
+
+    def waiting_outputs(self, older_than_s: int) -> list[OutputRow]:
+        cutoff = datetime.now(UTC) - timedelta(seconds=older_than_s)
+        return [
+            self._output_row(r)
+            for r in self.outputs.values()
+            if r["status"] == "waiting"
+            and r["deleted_at"] is None
+            and datetime.fromisoformat(r["created_at"]) < cutoff
+        ]
+
     def get_output(self, output_id: str) -> OutputRow | None:
         row = self.outputs.get(output_id)
         return self._output_row(row) if row else None
@@ -419,7 +436,7 @@ class FakeStore:
 
     def source_states(self, notebook_id: str) -> list[SourceState]:
         return [
-            SourceState(s["id"], s["kind"], s["status"], s["id"], s["name"])
+            SourceState(s["id"], s["kind"], s["status"], s["id"], s["name"], s.get("error"))
             for s in self.sources.values()
             if s["notebook_id"] == notebook_id
         ]
