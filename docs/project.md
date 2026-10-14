@@ -1,0 +1,155 @@
+# The project
+
+lasteverLM turns material into understanding you can check. PDFs, text,
+web pages, images and audio go in; questions, reports, quizzes, tables,
+mind maps, infographics, spoken overviews and decisions come out, and
+every sentence can be traced to the passage it came from. This page is
+the whole picture in one place: what it does, how it is built, the
+principles behind it, how it was made, and what it deliberately leaves
+out. Details live in the linked pages; the reasoning behind every
+decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
+
+## What it does
+
+### Sources
+
+- **Five kinds:** PDF, text, web page, image, audio.
+- **PDF capture:** the text layer, the vision model for scanned pages,
+  or `auto` (vision only for pages without a legible text layer; a
+  layer of glyph codes counts as not legible).
+- **Images** are transcribed and described by the vision model.
+- **Audio** is transcribed by a speech-to-text model. MP3 and WAV go in
+  as they are; M4A, AAC, OGG, Opus, FLAC, WebM, the audio track of MP4,
+  and WAV over the platform's 25 MB cap are converted to MP3 first by a
+  minimal ffmpeg. The converted file and the original stay available to
+  play and download, so the transcribed audio can be checked.
+- **Library per user:** every source is stored once (deduplicated by
+  content or normalised URL), linked into any number of notebooks,
+  deleted into a trash for a user-defined number of days. Nothing is
+  shared between users.
+- **Adding is free, processing costs:** without credit a source is
+  stored and waits; it is processed as soon as credit is there.
+- **Demo set:** every new user gets five sources from one fictional
+  world (a PDF, a text, a map, a web page, a radio interview), each
+  carrying facts the others do not, so questions have to combine them.
+
+### Outputs
+
+- **Kinds:** report, quiz, data table, mind map, infographic, audio,
+  decision.
+- **Options:** output language, for audio the style (overview, story,
+  conversation with two voices), voice and speed; for reports style
+  and length; for quizzes number of questions, difficulty and audience;
+  for every kind free notes that steer focus and tone but never the
+  citation rules.
+- **Decision:** a question weighed against the sources. The platform's
+  decision model gives the number (a probability, a choice with its
+  distribution, or a level on a scale); the language model writes the
+  evidence for and against independently from the same passages; both
+  go through the support check, and their agreement is shown
+  (consistent, conflicting, unclear, or "the sources do not decide
+  this").
+- **Outputs belong to the user**, live in the library, survive the
+  deletion of the notebook they were made in, and can be added to
+  other notebooks as sources.
+- **Sharing:** a single output or a whole notebook as a read-only link,
+  readable without login, with all its evidence.
+
+### Chat
+
+Conversations per notebook as tabs, scoped to the sources the user
+selects, with numbered citations into verbatim passages.
+
+### Administration
+
+Users and roles (user, viewer with a read-only admin panel, admin),
+who may sign in (domains and single addresses), credits and vouchers,
+rate limits, blocks and bans with their rules editable at runtime,
+sign-in attempts, visits, mail configuration, and a System page with
+the installed version, every pod and a live architecture diagram that
+colours each component by its state.
+
+## Principles
+
+**Everything derived from a user's input can be checked by that
+user.** Every unit of every output (a report paragraph, a table row, a
+mind-map node, a sentence of an audio transcript, a piece of evidence
+in a decision) carries the passages it rests on and a support status
+from a deterministic check: `supported`, `unsupported`, or
+`unverified` when the output was written in another language than the
+material. Units that fail are marked, never dropped. Every output
+carries its generation log: retrieval candidates and which entered the
+prompt, the model, the prompt version, usage, timing and the check's
+counts. The shared page shows all of it.
+
+**Fail loud.** A wrong or missing value stops the process instead of
+falling back silently: a service without a price for its model does
+not start, a loader that extracts no text fails the source, a provider
+answer without usage is an error.
+
+**Measure, do not assume.** Four billing units were corrected by a
+measurement instead of the documentation: text-to-speech is charged
+per second of speech, not per character; the decision model reports
+input tokens, although the catalog says completion; speech-to-text is
+charged per second; the main model's input price differs from its
+output price. Each is recorded with the measurement.
+
+**One platform.** Kubernetes, PostgreSQL with pgvector, object storage
+and every model run on Vultr. Web search was considered and left out
+because it would add a second vendor.
+
+## Architecture in short
+
+Six parts in one repository, each with its own context: `core` (the
+shared library), `account` (sign-in, credit, administration), `ingest`
+(sources, library, extraction, chunks, embeddings), `rag` (retrieval,
+chat, outputs, sharing), `web` (React), `infra` (OpenTofu for the
+platform, Helm for the application, the pipeline). PostgreSQL is the
+database, the vector store and the job queue. A Git tag builds and
+deploys; a smoke test over the public domain closes every deploy.
+Details: [Architecture and API contract](architecture.md),
+[The RAG pipeline](rag-pipeline.md), [User interface](ui.md).
+
+## Security
+
+TLS with HSTS and an enforced Content-Security-Policy with hashed
+inline scripts; magic-link sign-in with one-day sessions and an
+allowlist; roles checked in every service; rate limits, blocks and
+bans per address (IPv6 by /64) behind the PROXY protocol, so a client
+cannot choose its address; SSRF protection on URL sources; HTML from
+models sanitised before rendering; pods without root, with read-only
+file systems and NetworkPolicies; secrets in Kubernetes Secrets only; actions pinned by
+commit with Dependabot, images with provenance and SBOM; code scanning
+at zero open alerts.
+
+## How it was built
+
+One maintainer and seven coding-agent sessions over three days: one
+agent coordinating, reviewing and merging, one per part of the system.
+Every change went through a pull request that was merged only when
+every check had passed; every decision was written down with the
+alternatives it rejected, and is browsable in the
+[Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
+More than three hundred pull requests and over twenty-five tags; a fix is
+typically live four minutes after its tag. The
+[walkthrough](walkthrough.md) is the script for a guided tour.
+
+## Deliberately not built
+
+- **Web search as a way to add sources:** a second vendor and search
+  quality outside the system's control; the plug-in point is described
+  in the architecture.
+- **Approximate nearest-neighbour index, reranker, model tokenizer for
+  chunking:** named in the RAG pipeline with the size at which they
+  would pay off.
+- **Node autoscaling** waits for the database's private network
+  attachment.
+
+## In progress
+
+Charts as an output kind (the user picks from proposed charts; every
+number is checked exactly against its passage), an optional judge
+model that checks each claim's meaning and lets the output be revised
+until it passes (with a published evaluation), usage and cost pages in
+the administration, voucher codes encrypted at rest so an admin can show
+and mail them again.
