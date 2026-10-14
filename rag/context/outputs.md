@@ -296,15 +296,16 @@ was built.
 **Revisit when:** outputs store files somewhere other than `content.key`, or ingest's notebook delete starts removing rag's objects itself
 
 `DELETE /api/rag/admin/users/{id}` deletes the stored files of the
-outputs in the user's notebooks first and rag's rows there afterwards,
-in one transaction. The rows would cascade from ingest's notebook delete
-anyway; the files would not, and nothing would point at them once the
-rows are gone. So a failed file delete stops the request with the key
+user's outputs first and rag's rows afterwards, in one transaction: the
+user's outputs and generated rows by owner (since outputs outlive their
+notebook, 2026-10-14) and the messages and conversations of the user's
+notebooks. Nothing else deletes the files, and nothing would point at
+them once the rows are gone. So a failed file delete stops the request with the key
 (502) and keeps every row, and account's retry finds the same keys
 again. Missing keys are no error, which makes the retry safe.
 
 **Rejected alternatives:** leaving everything to ingest's cascade
-(orphans every audio file); rows first, then files (a failure in between
+(orphaned every audio file, and outputs no longer cascade); rows first, then files (a failure in between
 leaves files no row names).
 
 **Known gap:** a worker that finishes an audio output while the user is
