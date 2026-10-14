@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stacked layout (below 900 px, also a narrowed desktop window): opening a notebook scrolled the page to its bottom, away from the notebook list. The chat brought its newest message into view with `scrollIntoView`, which scrolls the page too, and its question field took the focus. Now only the messages pane scrolls, and the field takes the focus on its own only where the chat is on screen (wider than 900 px); every focus call uses `preventScroll`.
+
+### Fixed
+
 - Stacked layout (below 900 px, a phone): the chat under the viewer had no messages area, only its tabs and the question field; the chat wrapper's `flex: 1 1 0` gave it zero height in a column without a height of its own. Stacked, the wrapper takes its content's height, the messages get at least 40vh (at most 60vh as before), and an open document's body at least 40vh (at most 50vh).
 
 ## [0.11.0] - 2026-10-14

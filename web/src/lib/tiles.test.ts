@@ -2,7 +2,7 @@
 // the stylesheet as text; vitest does not process CSS imports
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { LEFT_WIDTH } from './layout'
+import { LEFT_WIDTH, STACKED_QUERY } from './layout'
 
 const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
 const rem = (s: string) => Number(s.replace('rem', ''))
@@ -16,5 +16,11 @@ describe('the 3 x 2 output-format grid', () => {
     const width = 3 * tile + 2 * gap + 2 * pad
     expect(css).toContain(`var(--left-w, ${width}rem)`)
     expect(LEFT_WIDTH.min).toBe(width * root)
+  })
+})
+
+describe('the stacked layout', () => {
+  it('starts where the script thinks the chat is below the fold', () => {
+    expect(css).toContain(`@media ${STACKED_QUERY} {\n  .workspace {`)
   })
 })
