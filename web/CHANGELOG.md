@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-10-14
+
 ### Fixed
 
 - Sources and the library: a source still processing or waiting for credit shows its `error`; the missing exchange rate ("pricing has no exchange rate, ask an admin") as it comes, in amber, instead of "Retrying after: …", which only a real retry still says.
