@@ -184,7 +184,7 @@ def test_delete_source_detaches_and_other_users_cannot(client, repo, storage):
     assert [e["notebooks"] for e in client.get("/api/ingest/library").json()] == [[]]
 
 
-def test_generated_source_is_listed_and_deleted_without_storage(client, repo, storage):
+def test_generated_source_is_listed_and_detached_like_any_source(client, repo, storage):
     nb = _notebook(client)
     generated = repo.add_source(UUID(nb), "report.md", "generated", None)
     repo.set_library_status(generated.library_id, "ready")
@@ -192,8 +192,9 @@ def test_generated_source_is_listed_and_deleted_without_storage(client, repo, st
     assert [s["kind"] for s in listed] == ["generated"]
     assert "summary" not in listed[0]
     assert client.delete(f"/api/ingest/sources/{generated.id}").status_code == 204
-    # A generated source has no life outside its notebook: detaching deletes it.
-    assert storage.objects == {} and repo.library == {} and repo.links == {}
+    # The output lives on in the library; only the link went.
+    assert storage.objects == {} and repo.links == {}
+    assert generated.library_id in repo.library
 
 
 def test_delete_notebook_keeps_its_sources_in_the_library(client, repo, storage):
@@ -206,7 +207,8 @@ def test_delete_notebook_keeps_its_sources_in_the_library(client, repo, storage)
     assert len(storage.objects) == 1
     [entry] = client.get("/api/ingest/library").json()
     assert entry["name"] == "a.txt" and entry["notebooks"] == []
-    assert generated.library_id not in repo.library
+    # rag's output keeps its generated library source.
+    assert generated.library_id in repo.library
 
 
 def test_filename_is_sanitized_for_the_object_key(client, storage):

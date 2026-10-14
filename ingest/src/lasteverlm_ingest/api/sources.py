@@ -221,10 +221,11 @@ async def create_source(
         if (body.url is None) == (body.library_id is None):
             raise HTTPException(status_code=400, detail="send exactly one of 'url', 'library_id'")
         if body.library_id is not None:
-            entry = repo.get_library_entry(user, body.library_id)
-            if entry is None:
+            # Uploads in the library and ready outputs (kind generated):
+            # their chunks are reused, nothing is processed or billed.
+            if not repo.linkable(user, body.library_id):
                 raise HTTPException(status_code=404, detail="library source not found")
-            return _link(deps, response, notebook_id, entry.id)
+            return _link(deps, response, notebook_id, body.library_id)
         assert body.url is not None
         if "url" not in deps.loaders.kinds:
             raise HTTPException(status_code=501, detail="URL sources are not supported yet")

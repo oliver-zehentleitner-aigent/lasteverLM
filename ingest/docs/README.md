@@ -14,9 +14,13 @@ image, a recording, a URL), owned by that user, processed once; its chunks hang 
 (`chunks.library_source_id`). A source is the link of a library source
 into a notebook (`sources.library_source_id`, unique per notebook); its
 id is the public source id. Library sources of kind `generated` are
-written by the rag service when it indexes a finished output: they live
-only through their one link, this service lists and detaches them like
-any other source, never loads them, and never shows them in the library.
+written by the rag service when it indexes a finished output: owned by
+the user, linked into the notebook the output was made in, and rag's for
+their whole life (trash, restore, purge). This service never loads them,
+keeps them out of the uploads library and its trash, lists the ready
+ones on their own (`GET /library?kind=generated`) and links them into
+any of the owner's notebooks like an upload; detaching or deleting a
+notebook removes only links, never the output.
 The migrations are
 [`db/migrations/0001_ingest.sql`](../db/migrations/0001_ingest.sql),
 [`0002_source_size.sql`](../db/migrations/0002_source_size.sql)
@@ -51,11 +55,12 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 |---|---|---|---|
 | GET | `/notebooks` | 200 | the caller's notebooks |
 | POST | `/notebooks` | 201 | `{"title"}` |
-| DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library) and deletes its generated sources |
+| DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library, outputs included; rag keeps an output's origin title) |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
-| POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF) with an optional field `capture` for PDFs (`text`, `vision`, `auto`; default `auto`), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library); 200 with the existing source when it is already in this notebook |
+| POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF) with an optional field `capture` for PDFs (`text`, `vision`, `auto`; default `auto`), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library: an upload not in the trash, or a ready output; nothing is processed or billed, the chunks are reused; 404 otherwise); 200 with the existing source when it is already in this notebook |
 | DELETE | `/sources/{id}` | 204 | detach: removes the source from this notebook, it stays in the library |
-| GET | `/library` | 200 | the caller's library, newest first, with where-used |
+| GET | `/library` | 200 | the caller's library (uploads), newest first, with where-used |
+| GET | `/library?kind=generated` | 200 | the caller's ready outputs (rag's, not trashed), newest first, with where-used and `origin`: `{"id", "title"}` of the notebook it was made in, read from rag's `outputs` (`id` null once that notebook is deleted, `title` then rag's snapshot); `preview_url` null |
 | GET | `/library/{id}` | 200 | one library source |
 | DELETE | `/library/{id}` | 204 | to the trash: removed from every notebook, chunks and stored object kept |
 | GET | `/library/trash` | 200 | the caller's trash, most recently deleted first |

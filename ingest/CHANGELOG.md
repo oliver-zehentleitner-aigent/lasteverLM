@@ -16,6 +16,10 @@ preserves why it changed, in `context/`.
 - `DELETE /admin/users/{id}` (admins only): deletes everything a user owns in ingest, the stored objects first (originals and converted recordings, trash included), then the library rows, notebooks and seed mark in one transaction; 503 naming the first key on a storage failure, with the rows kept for the retry; 204 also when nothing is left. For account's user deletion.
 - Audio in other formats: M4A/MP4 (also a video's audio track), AAC, Ogg (Vorbis, Opus), FLAC and WebM are accepted, recognised by their first bytes and stored as uploaded, capped by `MAX_AUDIO_UPLOAD_BYTES` (60 MiB). The worker converts them with ffmpeg to mono 16 kHz MP3 at 32 kbit/s (demuxer forced from the bytes, file protocol only, under `/tmp`, at most 300 s; a failure names ffmpeg's last line), stores the MP3 beside the original (migration 0010, `transcribed_path`) and transcribes that; core's 25 MiB and four hours apply to the MP3. `preview_url` of a converted recording is the MP3, the new `original_url` the original as a download under its name (`null` when nothing was converted); purging removes both objects. The image builds a minimal ffmpeg 7.1.5 from the checksum-verified source (+5 MB; Debian's package would add 627 MB).
 
+### Changed
+
+- Outputs are library items: `GET /library?kind=generated` lists the user's ready outputs (rag's generated library sources, not trashed) with their origin notebook (`origin: {id, title}` from rag's `outputs`, the id null once that notebook is deleted), and `POST /notebooks/{id}/sources` with `{"library_id"}` links one into any of the user's notebooks, reusing its chunks (nothing processed or billed). Deleting a notebook or detaching an output removes only the link; the output stays (rag owns its trash, restore and purge). Needs rag's migration 0004 (`outputs.source_id` on library sources, `origin_title`).
+
 ## [0.11.0] - 2026-10-14
 
 ### Added
