@@ -32,7 +32,7 @@ Every source kind has one loader in ingest that turns bytes into
 | text | the bytes as one passage | text |
 | URL | fetched by the worker through a guard that connects only to public addresses, HTML reduced to text with the standard library's parser | text, the URL as the name |
 | image | the platform's vision-capable chat model, one billed call: every legible piece of text transcribed verbatim, then a description of the image, in the image's language | text that can be searched and cited |
-| audio | MP3 and WAV as uploaded; M4A/MP4, AAC, Ogg/Opus, FLAC and WebM converted by a minimal ffmpeg to mono 16 kHz MP3 first (stored beside the original, which stays for download); up to 25 MiB and four hours as transcribed, the whole file sent to the platform's transcription model in one billed call (usage kind `stt`); the platform returns no timestamps | one passage without a page number, chunked like text; an answer without speech fails the source, its call billed |
+| audio | MP3, and WAV within 25 MiB, as uploaded; a longer WAV (a 44.1 kHz stereo WAV reaches the cap after about 2.5 minutes; transcription is billed per second, so converting does not change the cost) and M4A/MP4, AAC, Ogg/Opus, FLAC and WebM converted by a minimal ffmpeg to mono 16 kHz MP3 first (stored beside the original, which stays for download); up to 25 MiB and four hours as transcribed, the whole file sent to the platform's transcription model in one billed call (usage kind `stt`); the platform returns no timestamps | one passage without a page number, chunked like text; an answer without speech fails the source, its call billed |
 
 **PDF capture modes.** A PDF is read in one of three modes, chosen per
 upload (default from the user's preference `pdf_capture`): `text` takes

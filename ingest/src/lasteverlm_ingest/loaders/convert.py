@@ -1,11 +1,16 @@
 """Audio the transcription model does not take, converted to MP3.
 
-The platform's model accepts WAV and MP3 only. Every other recording
-(M4A/MP4, AAC, Ogg/Opus, FLAC, WebM/Matroska, the audio track of a
-video) is converted by ffmpeg into mono 16 kHz MP3 at 32 kbit/s, which
-is what speech recognition needs and keeps four hours near 55 MiB, and
-the converted file is what gets transcribed. The original stays in
-storage for playback and download. WAV and MP3 pass through untouched.
+The platform's model accepts WAV and MP3 only, at most 25 MiB. Every
+other recording (M4A/MP4, AAC, Ogg/Opus, FLAC, WebM/Matroska, the audio
+track of a video), and a WAV over that cap, is converted by ffmpeg into
+mono 16 kHz MP3 at 32 kbit/s, which is what speech recognition needs and
+keeps four hours near 55 MiB, and the converted file is what gets
+transcribed. The original stays in storage for playback and download.
+Every MP3, and a WAV within the cap, passes through untouched. The
+format does not change the cost (transcription is billed per second of
+audio); it decides whether a recording fits the cap: a 44.1 kHz stereo
+WAV reaches 25 MiB after about 2.5 minutes, the MP3 after about two
+hours.
 
 ffmpeg runs on user-supplied bytes, so it is boxed in: the container
 format is forced from the sniffed magic bytes (no probing into playlist
@@ -23,9 +28,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
+from lasteverlm_core import MAX_AUDIO_BYTES
+
 from lasteverlm_ingest.loaders import LoaderError
 
-Container = Literal["mp4", "aac", "ogg", "flac", "webm"]
+Container = Literal["mp4", "aac", "ogg", "flac", "webm", "wav"]
 
 # The ffmpeg demuxer for each sniffed container.
 _DEMUXER: dict[Container, str] = {
@@ -34,6 +41,7 @@ _DEMUXER: dict[Container, str] = {
     "ogg": "ogg",
     "flac": "flac",
     "webm": "matroska",
+    "wav": "wav",
 }
 # How the original is stored, so the browser can play it where it can.
 MEDIA_TYPES: dict[Container, str] = {
@@ -42,6 +50,7 @@ MEDIA_TYPES: dict[Container, str] = {
     "ogg": "audio/ogg",
     "flac": "audio/flac",
     "webm": "audio/webm",
+    "wav": "audio/wav",
 }
 # Below the claim timeout, together with the transcription call after it
 # (the claim is refreshed in between).
@@ -51,8 +60,11 @@ Run = Callable[..., "subprocess.CompletedProcess[bytes]"]
 
 
 def sniff_container(data: bytes) -> Container | None:
-    """A container that needs converting, from the file's first bytes;
-    None for anything else (WAV and MP3 included)."""
+    """A recording that needs converting, from the file's first bytes: a
+    container the model does not take, or a WAV over its size cap; None
+    for anything else (every MP3, a WAV within the cap)."""
+    if data[:4] == b"RIFF" and data[8:12] == b"WAVE":
+        return "wav" if len(data) > MAX_AUDIO_BYTES else None
     if data[4:8] == b"ftyp":
         return "mp4"
     if data.startswith(b"OggS"):

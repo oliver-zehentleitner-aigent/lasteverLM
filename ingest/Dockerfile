@@ -34,9 +34,9 @@ RUN curl -fsSL -o ffmpeg.tar.xz "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VER
         --disable-avdevice --disable-swscale --disable-x86asm \
         --enable-libmp3lame \
         --enable-protocol=file \
-        --enable-demuxer=mov,ogg,flac,matroska,aac \
+        --enable-demuxer=mov,ogg,flac,matroska,aac,wav \
         --enable-parser=aac,flac,opus,vorbis,mpegaudio \
-        --enable-decoder=aac,alac,opus,vorbis,flac,mp3 \
+        --enable-decoder=aac,alac,opus,vorbis,flac,mp3,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8,pcm_alaw,pcm_mulaw \
         --enable-encoder=libmp3lame --enable-muxer=mp3 \
         --enable-filter=abuffer,abuffersink,aformat,anull,aresample \
     && make -j"$(nproc)" \
