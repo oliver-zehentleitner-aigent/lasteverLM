@@ -10,7 +10,7 @@ const loadFeedback = () => admin.feedback(DAYS)
 
 /** The overview's answer feedback: thumbs up and down over the last 30
  *  days, and the newest down-rated answers (question, answer, comment)
- *  folded under it. */
+ *  folded under it; a viewer sees the counts, the list is for admins. */
 export function FeedbackSummary() {
   const { data, error } = useLoad<FeedbackStats | null>(loadFeedback, null)
   if (error) return <p className="error small">{error}</p>
@@ -23,7 +23,9 @@ export function FeedbackSummary() {
         {t('fb.title', { days: DAYS })}: <strong>{t('fb.counts', { up, down })}</strong>
       </summary>
       <h3 className="small">{t('fb.latest')}</h3>
-      {data.latest_down.length === 0 ? (
+      {data.detail ? (
+        <p className="muted small">{t('fb.adminsOnly')}</p>
+      ) : data.latest_down.length === 0 ? (
         <p className="muted small">{t('fb.none')}</p>
       ) : (
         <ul className="feedback-list">

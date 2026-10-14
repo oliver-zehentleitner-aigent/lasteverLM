@@ -1020,4 +1020,5 @@ export const de: Record<MessageKey, string> = {
   'set.balance': 'Guthaben {value}',
   'set.viewCredits': 'Guthaben ansehen',
   'set.priceList': 'Preisliste',
+  'fb.adminsOnly': 'Details nur für Admins.',
 }
