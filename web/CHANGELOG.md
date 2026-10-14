@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library and trash rows stay one line: no thumbnail in the row (an image's preview shows on hovering or focusing its name, loaded only then), long names end in an ellipsis with the full name as tooltip, and the demo badge follows the name without overlapping it.
 - "Redeem a voucher" moved out of the rows: in a notebook it sits in the hint next to Create ("No credit: sources wait, outputs cannot be created.", Create disabled), in the library in one notice above the table ("N sources wait for credit"); the amber "waiting for credit" badge stays in the rows.
 - Wording: the library's view selector reads All | Sources | Outputs, and the library, its trash and the notebook-delete dialog say "output(s)" instead of "(generated) documents", the notebook's own term. German says "Ausgaben" for outputs everywhere (the notebook's heading, the library pill, dialogs, trash, tooltips, the admin charts), since "Dokumente" collided with sources.
 
