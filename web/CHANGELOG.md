@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-14
+
 ### Added
 
 - Audio styles: the Audio tile's options have a Style select (Overview, Story, Conversation; `audio_style`), and for a conversation a Second voice select with its own sample button (`audio_voice_2`, starting with the next voice of the first one's language and never the same). The player shows the transcript under it (`content.transcript`), a conversation with each speaker named by its voice; the line under the title names the style and both voices.
