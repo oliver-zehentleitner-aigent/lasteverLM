@@ -40,6 +40,7 @@ rows, which ingest and rag write.
 | Area | Endpoints |
 |---|---|
 | Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
+| Public | `GET /prices` (no login; cached five minutes): the public price list, end prices only — see Finance |
 | Account | `GET /me` → `User` (with `preferences`), `GET /me/preferences`, `PUT /me/preferences` (partial, returns `User`; the demo user gets 403), `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
 | Admin | `GET /admin/users`, `PATCH /admin/users/{id}` `{role}` (409 for the last admin or the demo user), `DELETE /admin/users/{id}` (204; 409 for the caller's own account or the demo user; 502 `purge_failed` with `step` and `message` when rag or ingest could not purge — then nothing was deleted), `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the five runtime fields (incl. `ban_max_days`) for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses, viewer_domains, viewer_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}`, `POST /admin/settings/viewer-domains` `{domain}` / `DELETE /admin/settings/viewer-domains/{domain}`, `POST /admin/settings/viewer-addresses` `{address}` / `DELETE /admin/settings/viewer-addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, codes masked; `recoverable`, `sent_to`, `sent_at`), `GET /admin/vouchers/{id}/code` (admin only; 404 `not_recoverable` for vouchers created before 0.10), `POST /admin/vouchers/{id}/send` `{email, message?, allow?}` (mails the code; 409 `already_redeemed`, 429 `too_many_mails`, 502 `mail_failed`), `POST /admin/vouchers` (optional `paid`), `PATCH /admin/vouchers/{id}` `{paid}`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/system` (version, commit, every service's health, the namespace's pods and deployments), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans?ip=` (the key: an IPv4 address or an IPv6 /64 prefix; the path form `DELETE /admin/bans/{ip}` stays for IPv4 one release), `GET /admin/access?limit=` |
@@ -156,6 +157,18 @@ Dates are UTC days, inclusive, default the last 30, at most two years per reques
 Amounts are euro cents unless a field says `usd`; rows booked before core 0006 have no
 rate and count their cost one to one.
 `GET /admin/stats` keeps showing real cost; balances and the users list show charges.
+
+## Public price list
+
+`GET /api/account/prices` needs no login and is cached for five minutes. For every action
+users can buy it gives the unit (a stable key from core: `question`, `output`, `source`,
+`audio_minute`, `check`, …; the web translates it), the price per unit and the typical
+price (p25, median, p75 per action), and the model most of its calls used, plus the
+exchange rate with its ECB date. The figures are the last 30 days' measured costs per
+action run through today's pricing rules with core's `charge_for`, so a changed margin
+shows within five minutes. Below five actions in the window an action has no price:
+"no experience yet", never an estimate. Margins, fees, costs and anything about users
+never appear.
 
 ## Finance: infrastructure costs
 

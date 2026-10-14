@@ -11,6 +11,10 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- `GET /api/account/prices`, the public price list (no login, five-minute cache): per action the unit (core's `USAGE_ACTION_UNITS`), price per unit, p25/median/p75 per action and the model, from the last 30 days' measured costs through today's rules (core's `charge_for`); no number below five actions; end prices only.
+
+### Added
+
 - The exchange rate follows the ECB: every hour the service reads the daily euro reference rate for USD and writes it into the pricing rules when it changed; a failed fetch keeps the rate and is shown; the pricing view reports `rate` (value, mode, source, ECB date, last check, last success, error, stale after three days). An admin's own rate switches to manual and pauses the update; `PUT /admin/settings/pricing/rate-mode`, `POST /admin/settings/pricing/rate/sync`. `EXCHANGE_RATE_SYNC` turns the loop off for offline runs.
 
 ## [0.18.0] - 2026-10-14

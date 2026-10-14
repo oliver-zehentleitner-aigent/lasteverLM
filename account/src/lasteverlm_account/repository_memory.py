@@ -22,6 +22,7 @@ from lasteverlm_core import DEMO_USER_ID
 from .repository import (
     AccessRecord,
     ActionAverageRecord,
+    ActionSampleRecord,
     BanRecord,
     BlockRecord,
     CreditTotals,
@@ -77,6 +78,7 @@ class _Usage:
     action_id: uuid.UUID | None = None
     service: str = "rag"
     cost_usd_cents: Decimal | int | None = None  # None: rows from before core 0006
+    tokens_in: int = 0  # seconds for tts/stt rows
 
     @property
     def cost_usd(self) -> Decimal:
@@ -546,3 +548,21 @@ class MemoryRepository:
             sum(v.amount_cents for v in vs if v.paid and inside(v.redeemed_at)),
             sum(v.amount_cents for v in vs if not v.paid and inside(v.redeemed_at)),
         )
+
+    async def action_samples(self, since: datetime) -> list[ActionSampleRecord]:
+        groups: dict[object, list[_Usage]] = defaultdict(list)
+        for u in self.usage:
+            if u.created_at >= since and u.action != "unknown" and u.action_id is not None:
+                groups[u.action_id].append(u)
+        out = []
+        for rows in groups.values():
+            models = [u.model for u in rows if u.kind != "fee"]
+            out.append(
+                ActionSampleRecord(
+                    rows[0].action,
+                    sum((Decimal(u.cost_cents) for u in rows), Decimal(0)),
+                    sum(u.tokens_in for u in rows if u.kind in ("tts", "stt")),
+                    max(set(models), key=models.count) if models else None,
+                )
+            )
+        return out

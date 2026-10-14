@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, Response
 
-from ..models import Preferences, PreferencesUpdate, RedeemBody, User, VisitBody
+from ..models import Preferences, PreferencesUpdate, PublicPrices, RedeemBody, User, VisitBody
 from .deps import ClientIp, CurrentUserId, OptionalUserId, Service
 
 router = APIRouter(tags=["account"])
@@ -39,3 +39,11 @@ async def visit(
 ) -> Response:
     await service.record_visit(body.path, user_id, ip, request.headers.get("user-agent"))
     return Response(status_code=204)
+
+
+@router.get("/prices", response_model=PublicPrices)
+async def prices(service: Service, response: Response) -> PublicPrices:
+    """The public price list, no login: what each action costs today, from the last 30
+    days' measured costs through the current rules. End prices only (context/finance.md)."""
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return await service.public_prices()

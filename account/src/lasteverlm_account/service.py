@@ -9,6 +9,7 @@ import hashlib
 import logging
 import re
 import secrets
+import statistics
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -21,12 +22,14 @@ from lasteverlm_core import (
     DEMO_USER_ID,
     PRICING_SETTINGS_KEY,
     RATE_LIMIT_SETTINGS_KEY,
+    USAGE_ACTION_UNITS,
     USAGE_ACTIONS,
     AuthSettings,
     DependencyProbe,
     PricingRules,
     RateLimitRules,
     RateLimitSettings,
+    charge_for,
     issue_jwt,
     purge_params,
 )
@@ -63,6 +66,8 @@ from .models import (
     PricingPreviewRow,
     PricingView,
     ProfitRow,
+    PublicPriceRow,
+    PublicPrices,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     Role,
@@ -71,6 +76,7 @@ from .models import (
     SystemInfo,
     SystemPod,
     SystemService,
+    TypicalPrice,
     UsageCost,
     UsageStats,
     User,
@@ -81,6 +87,7 @@ from .models import (
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
 from .repository import (
+    ActionSampleRecord,
     InfraCostRecord,
     LoginAttemptRecord,
     Repository,
@@ -207,6 +214,7 @@ class AccountService:
         key = settings.vultr_billing_api_key
         self.vultr = vultr or (VultrBilling(key) if key else None)
         self.ecb = ecb or EcbRates()
+        self._prices: tuple[datetime, PublicPrices] | None = None  # the 5-minute cache
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
         self.rate_limit = rate_limit or RateLimitSettings()
@@ -1139,6 +1147,63 @@ class AccountService:
         if meta["mode"] == "automatic":
             await self.sync_exchange_rate()
         return await self.pricing_view()
+
+    # the public price list -----------------------------------------------------
+    PRICE_WINDOW_DAYS = 30
+    PRICE_MIN_ACTIONS = 5  # below this an action shows "no experience yet", never a number
+    PRICE_CACHE = timedelta(minutes=5)
+    PRIVATE_ACTIONS = frozenset({"demo_seed"})  # booked by the system, never bought
+
+    async def public_prices(self) -> PublicPrices:
+        now = self.now()
+        if self._prices is not None and now - self._prices[0] < self.PRICE_CACHE:
+            return self._prices[1]
+        rules = await self.pricing_rules()
+        status = await self.rate_status(rules.usd_per_eur)
+        samples: dict[str, list[ActionSampleRecord]] = {}
+        for sample in await self.repo.action_samples(now - timedelta(days=self.PRICE_WINDOW_DAYS)):
+            samples.setdefault(sample.action, []).append(sample)
+        rows = []
+        for action, unit in sorted(USAGE_ACTION_UNITS.items()):
+            if action in self.PRIVATE_ACTIONS:
+                continue
+            seen = samples.get(action, [])
+            charges, per_unit = [], []
+            for x in seen:
+                charge = charge_for(rules, action, x.cost_cents)  # today's rules, measured cost
+                units = Decimal(x.seconds) / 60 if unit.measure == "seconds" else Decimal(1)
+                charges.append(charge)
+                if units > 0:
+                    per_unit.append(charge / units)
+            models = [x.model for x in seen if x.model]
+            enough = len(charges) >= self.PRICE_MIN_ACTIONS
+            typical = None
+            if enough:
+                p25, median, p75 = statistics.quantiles(charges, n=4, method="inclusive")
+                typical = TypicalPrice(p25=_money(p25), median=_money(median), p75=_money(p75))
+            rows.append(
+                PublicPriceRow(
+                    action=action,
+                    unit=unit.unit,
+                    price_per_unit_cents=(
+                        _money(statistics.median(per_unit))
+                        if enough and len(per_unit) >= self.PRICE_MIN_ACTIONS
+                        else None
+                    ),
+                    typical_cents=typical,
+                    count=len(charges),
+                    model=max(set(models), key=models.count) if models else None,
+                )
+            )
+        prices = PublicPrices(
+            usd_per_eur=status.usd_per_eur,
+            rate_date=status.rate_date,
+            rate_source=status.source,
+            window_days=self.PRICE_WINDOW_DAYS,
+            actions=rows,
+        )
+        self._prices = (now, prices)
+        return prices
 
     # finance: costs, revenue, profit -----------------------------------------
     async def finance_costs(self, since: date, until: date, group: str) -> FinanceCosts:

@@ -102,3 +102,31 @@ booking time — rejected because every booking would depend on an outside servi
 up; the rules row is read with a 30-second cache and the fetch runs beside the booking,
 not in it.
 
+## The public price list shows end prices from measured costs under today's rules
+
+**Id:** a41d8d48-87be-4c7b-ac67-169d82352225
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, design agreed with core, 2026-10-14
+**Revisit when:** actions get a per-unit count beyond seconds (pages, words), or the window of 30 days is too short for rare actions
+
+`GET /api/account/prices` is public. For each action users buy it takes the real euro
+cost of every action_id of the last 30 days, runs it through the current pricing rules
+(core's `charge_for`: margin plus the fee once) and reports p25, median and p75, and the
+median divided by the action's units (core's `USAGE_ACTION_UNITS`; audio per minute from
+the tts/stt seconds). Fewer than five actions give no number. The response holds end
+prices, the unit, the model and the exchange rate — nothing else. `demo_seed` is left
+out: the system books it, nobody buys it.
+
+**Reason:** users should see what an action costs before they spend credit. Measured
+costs are what actions really need; today's rules make a margin change visible at once,
+which past charges would hide for weeks. Five actions is the least that makes a median
+mean something; below that a number would be a guess presented as a price.
+
+**Rejected alternatives:** publishing the margin and the fees beside the price —
+rejected, the page is for buyers, the admin finance area keeps the margins; quoting
+past charges — they show yesterday's rules; a per-token estimate from model prices —
+dropped with core, a price per token is not one a user can reason about; pricing PDFs
+per page — the usage rows hold no page count, a later contract change.
+

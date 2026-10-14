@@ -463,3 +463,27 @@ async def test_migrations_seed_the_pricing_rate_once(repo: PostgresRepository) -
         "default_margin_pct": 5,
         "actions": {},
     }
+
+
+async def test_action_samples_group_per_action_id(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    user = await repo.create_user("samples@pg.test", role="user", now=now)
+    a1, a2 = uuid.uuid4(), uuid.uuid4()
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from usage")
+        await conn.execute(
+            """insert into usage (user_id, service, kind, model, tokens_in, cost_cents, action,
+                                  action_id, created_at)
+               values (%(u)s, 'rag', 'llm', 'big', 100, 2, 'output:audio', %(a1)s, %(t)s),
+                      (%(u)s, 'rag', 'tts', 'voice', 90, 3, 'output:audio', %(a1)s, %(t)s),
+                      (%(u)s, 'rag', 'fee', 'fee', 0, 0, 'output:audio', %(a1)s, %(t)s),
+                      (%(u)s, 'rag', 'llm', 'big', 50, 4, 'chat_answer', %(a2)s, %(t)s),
+                      (%(u)s, 'rag', 'llm', 'big', 50, 9, 'unknown', %(a2)s, %(t)s)""",
+            {"u": user.id, "a1": a1, "a2": a2, "t": now},
+        )
+    samples = sorted(await repo.action_samples(now - timedelta(days=1)), key=lambda s: s.action)
+    assert [(s.action, s.cost_cents, s.seconds) for s in samples] == [
+        ("chat_answer", 4, 0),
+        ("output:audio", 5, 90),
+    ]
+    assert samples[1].model in ("big", "voice")
