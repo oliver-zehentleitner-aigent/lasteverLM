@@ -725,3 +725,7 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .library td.name a.open-name { display: flex; min-width: 0; overflow: hidden; }
 .library td.name .image-name { min-width: 0; }
 .library td.name .name-cell > .badge { flex: none; }
+/* inline rename in a list row: the field takes the title's place */
+.item-edit { flex: 1; min-width: 0; height: auto; padding: 0.25rem 0.4rem; font-size: inherit; }
+.out-row.editing { cursor: default; }
+.out-row.editing .item-edit { grid-column: 2 / -1; }

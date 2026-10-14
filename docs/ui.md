@@ -141,6 +141,14 @@ is closed. After the wizard the notebook view opens.
   create request with only the keys the kind takes. The viewer and the
   shared page show what a document was made with ("Deutsch · Ryan ·
   1.25×", "Conversation · Ryan & Aiden · 1×").
+- **Renaming**: a double-click (or F2) on a notebook in the notebook
+  list, on an output's row in Outputs or on its tab in the viewer turns
+  the title into a field, as on the chat tabs: Enter or leaving the
+  field saves (`PATCH /api/ingest/notebooks/{id}`, `PATCH
+  /api/rag/outputs/{id}` with `{title}`, up to 200 characters), Escape
+  cancels; an empty or unchanged title saves nothing. An output is
+  renamed once it is ready (before, the worker would overwrite it). The new title
+  shows at once and the old one returns if the service refuses it.
 - **Outputs** (left, bottom): the generated documents, one row each:
   the kind and the status in fixed slots, the title between them, and
   below the title when it was made ("14 min ago", the date and time as

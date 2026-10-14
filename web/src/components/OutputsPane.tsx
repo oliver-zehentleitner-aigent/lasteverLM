@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import type { Output, OutputKind, Source } from '../api/types'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { t } from '../i18n'
+import { renamedTitle } from '../lib/conversations'
+import { InlineRename } from './InlineRename'
+
+/** rag's limit for an output title */
+const OUTPUT_TITLE_MAX = 200
 import { formatTime } from '../lib/format'
 import { MadeFrom } from './MadeFrom'
 import { FILTER_FROM, SORTS, kindLabel, kindsPresent, optionsBrief, sortOutputs, whenLabel, type Sort } from '../lib/outputsList'
@@ -11,6 +16,8 @@ interface Props {
   selectedId: string | null
   onOpen: (id: string) => void
   onDelete: (o: Output) => void
+  /** a double-click (or F2) on a row renames the output */
+  onRename: (o: Output, title: string) => void
   /** the notebook's uploads, to name what a document was made from */
   sources: Source[] | null
 }
@@ -20,7 +27,8 @@ interface Props {
  *  it was made (relative within a day) with its language and voice, since a
  *  kind is often made again from the same sources. A sort control, and
  *  kind chips once the list is long. A click opens the tab; × deletes. */
-export function OutputsPane({ outputs, selectedId, onOpen, onDelete, sources }: Props) {
+export function OutputsPane({ outputs, selectedId, onOpen, onDelete, onRename, sources }: Props) {
+  const [editing, setEditing] = useState<string | null>(null)
   const [sort, setSort] = useState<Sort>('newest')
   const [kind, setKind] = useState<OutputKind | 'all'>('all')
   const spec = useOutputOptions()
@@ -64,7 +72,39 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete, sources }: 
           const brief = optionsBrief(o, voiceLabel)
           return (
             <li key={o.id} id={`output-${o.id}`} className={o.id === selectedId ? 'selected' : ''}>
-              <button type="button" className="out-row" onClick={() => onOpen(o.id)} title={o.title || kindLabel(o.kind)}>
+              {editing === o.id ? (
+                <span className="out-row editing">
+                  <span className="out-kind">
+                    <span className="badge">{kindLabel(o.kind)}</span>
+                  </span>
+                  <InlineRename
+                    className="item-edit out-title"
+                    value={o.title || kindLabel(o.kind)}
+                    label={t('outputs.renameLabel')}
+                    maxLength={OUTPUT_TITLE_MAX}
+                    onCancel={() => setEditing(null)}
+                    onCommit={(draft) => {
+                      setEditing(null)
+                      const next = renamedTitle(draft, o.title)
+                      if (next) onRename(o, next)
+                    }}
+                  />
+                </span>
+              ) : (
+              <button
+                type="button"
+                className="out-row"
+                onClick={() => onOpen(o.id)}
+                // only a ready output can be renamed (rag answers 409 before: the worker would overwrite it)
+                onDoubleClick={() => o.status === 'ready' && setEditing(o.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'F2' && o.status === 'ready') {
+                    e.preventDefault()
+                    setEditing(o.id)
+                  }
+                }}
+                title={`${o.title || kindLabel(o.kind)} · ${t('outputs.renameHint')}`}
+              >
                 <span className="out-kind">
                   <span className="badge">{kindLabel(o.kind)}</span>
                 </span>
@@ -85,6 +125,7 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete, sources }: 
                   ) : null}
                 </span>
               </button>
+              )}
               <button type="button" className="icon" title={t('outputs.delete')} onClick={() => onDelete(o)}>
                 ×
               </button>

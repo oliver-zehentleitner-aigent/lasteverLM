@@ -64,6 +64,7 @@ export const rag = {
   outputOptions: () => request<OutputOptionsSpec>(`${RAG_PREFIX}/outputs/options`),
   /** also without a notebook; 404 while it is in the trash */
   getOutput: (id: string) => request<Output>(out(id)),
+  renameOutput: (id: string, title: string) => request<Output>(out(id), { method: 'PATCH', json: { title } }),
   /** moves it to the trash: out of every notebook, its share link off */
   deleteOutput: (id: string) => request<void>(out(id), { method: 'DELETE' }),
   /** the user's generated documents, newest first; `trash` lists the trashed ones only */

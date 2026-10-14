@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Rename in place: a double-click (or F2) on a notebook in the notebook list, an output's row or an output's tab edits its title, as on the chat tabs (Enter or leaving saves, Escape cancels).
 - Library: a ready output's row has "share", opening the viewer's share card under the row (create the read-only link, copy or revoke it); the card is one component for the viewer and the library.
 
 ### Changed
