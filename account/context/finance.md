@@ -118,6 +118,10 @@ median divided by the action's units (core's `USAGE_ACTION_UNITS`; audio per min
 the tts/stt seconds). Fewer than five actions give no number. The response holds end
 prices, the unit, the model and the exchange rate — nothing else. `demo_seed` is left
 out: the system books it, nobody buys it.
+The judge appears once per level (`judge:low|medium|high`): its samples are split by the
+model each call used, mapped to a level through `JUDGE_MODELS`, because the levels' models
+cost about ten times apart (added 2026-10-14). The judge share of a generated output stays
+inside that output's price; it cannot be told apart when judge and generator share a model.
 
 **Reason:** users should see what an action costs before they spend credit. Measured
 costs are what actions really need; today's rules make a margin change visible at once,
