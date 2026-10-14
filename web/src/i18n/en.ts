@@ -663,6 +663,10 @@ export const en = {
   'tiles.noCredit': 'No credit: sources wait, outputs cannot be created.',
   'lib.waitingN.one': '{n} source waits for credit',
   'lib.waitingN.other': '{n} sources wait for credit',
+  'nb.renameLabel': 'Notebook name',
+  'nb.renameHint': 'Double-click or F2 to rename',
+  'outputs.renameLabel': 'Output title',
+  'outputs.renameHint': 'double-click or F2 to rename',
 } as const
 
 export type MessageKey = keyof typeof en

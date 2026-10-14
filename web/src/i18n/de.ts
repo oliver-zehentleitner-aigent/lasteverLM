@@ -666,4 +666,8 @@ export const de: Record<MessageKey, string> = {
   'tiles.noCredit': 'Kein Guthaben: Quellen warten, Ausgaben können nicht erzeugt werden.',
   'lib.waitingN.one': '{n} Quelle wartet auf Guthaben',
   'lib.waitingN.other': '{n} Quellen warten auf Guthaben',
+  'nb.renameLabel': 'Name des Notebooks',
+  'nb.renameHint': 'Doppelklick oder F2 zum Umbenennen',
+  'outputs.renameLabel': 'Titel der Ausgabe',
+  'outputs.renameHint': 'Doppelklick oder F2 zum Umbenennen',
 }

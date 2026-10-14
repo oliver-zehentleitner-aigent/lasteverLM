@@ -14,6 +14,8 @@ import { ShareCard } from './ShareCard'
 import { OutputProvenance } from './OutputProvenance'
 import { checkSummary } from '../lib/outputProvenance'
 import { t } from '../i18n'
+import { renamedTitle } from '../lib/conversations'
+import { InlineRename } from './InlineRename'
 
 interface Props {
   outputs: Output[]
@@ -22,6 +24,8 @@ interface Props {
   selectedId: string | null
   onSelect: (id: string) => void
   onChanged: (o: Output) => void
+  /** a double-click (or F2) on a tab renames the output */
+  onRename: (o: Output, title: string) => void
   onDeleted: (id: string) => void
   onAskAbout: (o: Output) => void
   error: string | null
@@ -50,6 +54,7 @@ export function OutputViewer({
   selectedId,
   onSelect,
   onChanged,
+  onRename,
   onDeleted,
   onAskAbout,
   error,
@@ -100,6 +105,8 @@ export function OutputViewer({
     wasFull.current = fullView
   }, [fullView])
   const [shareOpen, setShareOpen] = useState(false)
+  // the tab whose title is being edited
+  const [editing, setEditing] = useState<string | null>(null)
   const { busy, error: actionError, run } = useAsync()
 
   async function remove() {
@@ -133,22 +140,44 @@ export function OutputViewer({
         </div>
       )}
       <div className="tabs no-print" role="tablist" aria-label={t('viewer.documents')} ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
-        {outputs.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            role="tab"
-            data-tab-id={o.id}
-            tabIndex={o.id === selectedId || (!selectedId && o === outputs[0]) ? 0 : -1}
-            aria-selected={o.id === selectedId}
-            className={`tab status-${o.status}${o.id === selectedId ? ' active' : ''}`}
-            onClick={() => onSelect(o.id)}
-            title={`${formFor(o.kind).label} · ${formatTime(o.created_at)}`}
-          >
-            {o.title || formFor(o.kind).label}
-            {(o.status === 'processing' || o.status === 'waiting') && <span className="spinner" aria-label={o.status} />}
-          </button>
-        ))}
+        {outputs.map((o) =>
+          editing === o.id ? (
+            <InlineRename
+              key={o.id}
+              value={o.title || formFor(o.kind).label}
+              label={t('outputs.renameLabel')}
+              maxLength={200}
+              onCancel={() => setEditing(null)}
+              onCommit={(draft) => {
+                setEditing(null)
+                const next = renamedTitle(draft, o.title)
+                if (next) onRename(o, next)
+              }}
+            />
+          ) : (
+            <button
+              key={o.id}
+              type="button"
+              role="tab"
+              data-tab-id={o.id}
+              tabIndex={o.id === selectedId || (!selectedId && o === outputs[0]) ? 0 : -1}
+              aria-selected={o.id === selectedId}
+              className={`tab status-${o.status}${o.id === selectedId ? ' active' : ''}`}
+              onClick={() => onSelect(o.id)}
+              onDoubleClick={() => setEditing(o.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'F2') {
+                  e.preventDefault()
+                  setEditing(o.id)
+                }
+              }}
+              title={`${formFor(o.kind).label} · ${formatTime(o.created_at)} · ${t('outputs.renameHint')}`}
+            >
+              {o.title || formFor(o.kind).label}
+              {(o.status === 'processing' || o.status === 'waiting') && <span className="spinner" aria-label={o.status} />}
+            </button>
+          ),
+        )}
         {outputs.length === 0 && <span className="muted">{t('viewer.noDocs')}</span>}
       </div>
       {(error || actionError) && <p className="error no-print">{error ?? actionError}</p>}

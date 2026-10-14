@@ -144,6 +144,14 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     [outputs, outputsLoaded],
   )
 
+  /** A new title, shown at once; the stored output replaces it, the old
+   *  one returns on error. From the outputs list and the tabs alike. */
+  async function renameOutput(o: Output, title: string) {
+    setOutputs((prev) => prev.map((x) => (x.id === o.id ? { ...x, title } : x)))
+    const saved = await run(() => rag.renameOutput(o.id, title))
+    setOutputs((prev) => prev.map((x) => (x.id === o.id ? (saved ?? o) : x)))
+  }
+
   /** Every source a citation can still point to: the uploads and the
    *  generated documents of this notebook; null while either is loading. */
   const presentSources =
@@ -224,7 +232,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
           onSelect={setFormat}
           onCreate={(k, o) => void createOutput(k, o)}
         />
-        <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} />
+        <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} onRename={(o, title) => void renameOutput(o, title)} />
       </div>
       <ColumnDivider
         label={t('ws.resizeLeft')}
@@ -249,6 +257,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
           selectedId={selectedOutput}
           onSelect={setSelectedOutput}
           onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
+          onRename={(o, title) => void renameOutput(o, title)}
           onDeleted={removeOutput}
           locate={locate && locate.outputId === selectedOutput ? locate : null}
           onAskAbout={(o) => {

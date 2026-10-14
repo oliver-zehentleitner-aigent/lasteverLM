@@ -63,6 +63,15 @@ export function Workspace() {
     if (await run(() => ingest.deleteNotebook(id).then(() => true))) dropNotebook(id)
   }
 
+  /** Shown at once; the stored title replaces it, the old one returns on error. */
+  async function rename(id: string, title: string) {
+    const old = notebooks.find((n) => n.id === id)
+    if (!old) return
+    setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, title } : n)))
+    const saved = await run(() => ingest.renameNotebook(id, title))
+    setNotebooks((prev) => prev.map((n) => (n.id === id ? (saved ?? old) : n)))
+  }
+
   function dropNotebook(id: string) {
     setNotebooks((prev) => {
       const next = prev.filter((n) => n.id !== id)
@@ -74,7 +83,7 @@ export function Workspace() {
   return (
     <main className="workspace" ref={workspaceRef} style={sidebarWidth === null ? undefined : ({ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties)}>
       <aside className="sidebar no-print">
-        <NotebookList notebooks={notebooks} selectedId={selectedId} onSelect={setSelectedId} onCreate={create} onDelete={remove} />
+        <NotebookList notebooks={notebooks} selectedId={selectedId} onSelect={setSelectedId} onCreate={create} onDelete={remove} onRename={(id, title) => void rename(id, title)} />
         {error && <p className="error">{error}</p>}
       </aside>
       {deleting && (

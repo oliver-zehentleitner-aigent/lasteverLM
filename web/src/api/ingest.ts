@@ -22,6 +22,10 @@ export const ingest = {
   createNotebook: (title: string) =>
     request<Notebook>(`${INGEST_PREFIX}/notebooks`, { method: 'POST', json: { title } }),
 
+  /** 1–200 characters after trimming, else 400 */
+  renameNotebook: (id: string, title: string) =>
+    request<Notebook>(`${INGEST_PREFIX}/notebooks/${encodeURIComponent(id)}`, { method: 'PATCH', json: { title } }),
+
   deleteNotebook: (id: string) =>
     request<void>(`${INGEST_PREFIX}/notebooks/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
