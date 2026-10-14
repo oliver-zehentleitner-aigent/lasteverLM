@@ -384,3 +384,40 @@ turn costs nothing extra, because speech is billed per second.
 
 **Rejected alternative:** one voice with different prosody per speaker
 (see above); unknown whether anything else was weighed.
+
+## A decision's number comes from the decision model, its evidence from the LLM independently, and their agreement is shown
+
+**Id:** e384d814-56f5-4990-b4af-e9da3e8b8a18
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer go relayed by the coordinator, 2026-10-14 (the split, the independence and the rejected alternatives); the coordinator's approval the same day for the LLM's own pick in a choice or a scale and for keeping a replaced verdict in the log
+**Revisit when:** agreement turns out "conflicting" or "unclear" for most decisions, the decision model's answers prove uncalibrated, or the platform's decision model changes its question types
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — cf7810ca-d96e-47b8-aeb3-5619cbb5a642 — as of 2026-10-14
+
+A decision output asks the platform's decision model for the number (the
+probability of yes, or a choice or a level with its distribution and
+confidence) and, separately, the LLM for a verdict, evidence for and
+against with cited passages, and gaps. Both get the same numbered
+passages; the LLM never sees the model's answer. For a choice or a
+scale, the LLM names its own pick (`llm_choice`), because evidence "for
+the selected option" needs to know the selection. `agreement` compares
+the number with the balance of supported evidence and is always shown,
+a conflict included. Without supported evidence on either side the
+verdict is the fixed "The sources do not decide this.", and the LLM's
+own sentence is kept in the provenance log.
+
+**Reason:** the coordinator's brief gave the split and the rejected
+alternatives without reasons; the reasons here are rag's and therefore
+inferred. An LLM alone gives no calibrated number; the decision model
+alone gives a number with nothing a reader can check; an LLM shown the
+number first would argue towards it, so agreement between the two would
+prove nothing. Independent calls make agreement informative and a
+conflict visible.
+
+**Rejected alternatives:**
+- An LLM-only verdict.
+- A decision-model-only number.
+- The LLM seeing the model's number before writing the evidence.
+- Evidence for the model's selected option in a choice or scale: it
+  breaks the independence.
