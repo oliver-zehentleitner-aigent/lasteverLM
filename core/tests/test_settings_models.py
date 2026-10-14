@@ -59,8 +59,8 @@ def test_judge_models_default_and_merge_per_level() -> None:
         InferenceSettings.from_env(env).judge_models
         == DEFAULT_JUDGE_MODELS
         == {
-            "low": "glm-5.3-flash",
-            "medium": "deepseek-v4.1-flash",
+            "low": "deepseek-v4.1-flash",
+            "medium": "glm-5.3-flash",
             "high": "glm-5.3",
         }
     )

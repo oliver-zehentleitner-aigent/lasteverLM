@@ -20,11 +20,13 @@ DEFAULT_STT_MODEL = "whisper-large-v3-turbo"
 # `clef-flash` answers the same questions at half the price per token.
 DEFAULT_DECISION_MODEL = "clef"
 # The opt-in answer judge: a level picks the model that checks an answer.
+# rag measured the defaults (rag/docs/judge-eval.md): low is the cheapest per
+# call, which is deepseek, since the GLM models reason even with thinking off.
 JudgeLevel = Literal["low", "medium", "high"]
 JUDGE_LEVELS: tuple[JudgeLevel, ...] = get_args(JudgeLevel)
 DEFAULT_JUDGE_MODELS: Mapping[JudgeLevel, str] = {
-    "low": "glm-5.3-flash",
-    "medium": "deepseek-v4.1-flash",
+    "low": "deepseek-v4.1-flash",
+    "medium": "glm-5.3-flash",
     "high": "glm-5.3",
 }
 
