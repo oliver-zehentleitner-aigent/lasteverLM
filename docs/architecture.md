@@ -304,7 +304,7 @@ per kind, each with a prompt, an output schema and a renderer in web.
 | `table` | `{"columns": [], "rows": [[]]}` | sortable table, CSV export |
 | `mindmap` | `{"root": {"label", "children": []}}` | markmap in the browser |
 | `infographic` | `{"headline", "facts": [{"label", "value"}], "sections": [{"title", "text"}]}` | card grid |
-| `audio` | `{"url"}` | audio player. The row stores `{"key"}` (the object key); every read (GET output, the list, `shared/{token}`) replaces it with a presigned GET URL valid for one hour, because an `<audio>` element cannot send a bearer header. The script is written by the LLM and synthesized in sentence-boundary segments by `TTS_MODEL` with `TTS_VOICE`; the MP3 frames are concatenated |
+| `audio` | `{"url", "transcript": [{"speaker": "narrator"|"interviewer"|"expert", "text"}]}` | audio player with the transcript under it. Options: `audio_style` = `overview` (default) | `story` (one narrator, a narrative) | `conversation` (an interviewer and an expert, two voices: `voice` and `audio_voice_2`, which defaults to the next platform voice of the same language and must differ from the first; 422 otherwise or with another style); the catalogue lists `audio.styles` and `audio.default_style`. The row stores `{"key"}` (the object key); every read (GET output, the list, `shared/{token}`) replaces it with a presigned GET URL valid for one hour, because an `<audio>` element cannot send a bearer header. The script is written by the LLM and synthesized in sentence-boundary segments by `TTS_MODEL` with `TTS_VOICE`; the MP3 frames are concatenated |
 
 How a generator gets its input: every source carries a `summary`
 written by ingest; the generator takes all summaries of the notebook
