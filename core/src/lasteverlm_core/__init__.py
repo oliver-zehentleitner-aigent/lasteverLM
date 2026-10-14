@@ -84,12 +84,19 @@ from .pricing import (
     require_prices,
 )
 from .providers import (
+    DECISION_TYPES,
     DEFAULT_MAX_TOKENS,
     DEFAULT_TTS_VOICE,
     LLM,
+    MAX_CHOICE_OPTIONS,
+    MAX_DECISION_QUESTIONS,
+    MAX_SCORE_LEVELS,
     CompletionResult,
+    DecisionModel,
+    DecisionResult,
     Embedder,
     EmbeddingResult,
+    OpenAICompatibleDecision,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
     OpenAICompatibleSpeechToText,
@@ -102,6 +109,7 @@ from .providers import (
     Usage,
     make_client,
     thinking_body,
+    validate_decision_questions,
 )
 from .ratelimit import (
     PURGE_SQL,
@@ -126,6 +134,7 @@ from .ratelimit import (
     purge_params,
 )
 from .settings import (
+    DEFAULT_DECISION_MODEL,
     DEFAULT_STT_MODEL,
     ConfigError,
     InferenceSettings,
@@ -165,6 +174,8 @@ __version__ = "0.1.0"
 
 __all__ = [
     "BALANCE_SQL",
+    "DECISION_TYPES",
+    "DEFAULT_DECISION_MODEL",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_MODEL_PRICES",
     "DEFAULT_STT_MODEL",
@@ -181,6 +192,9 @@ __all__ = [
     "LLM",
     "MAX_AUDIO_BYTES",
     "MAX_AUDIO_SECONDS",
+    "MAX_CHOICE_OPTIONS",
+    "MAX_DECISION_QUESTIONS",
+    "MAX_SCORE_LEVELS",
     "MIME_TYPES",
     "MIN_JWT_SECRET_BYTES",
     "PRESIGN_SECONDS",
@@ -210,6 +224,8 @@ __all__ = [
     "CompletionResult",
     "ConfigError",
     "Decision",
+    "DecisionModel",
+    "DecisionResult",
     "Dependency",
     "DependencyProbe",
     "DependencyState",
@@ -223,6 +239,7 @@ __all__ = [
     "ModelPrice",
     "ModelPrices",
     "Notebook",
+    "OpenAICompatibleDecision",
     "OpenAICompatibleEmbedder",
     "OpenAICompatibleLLM",
     "OpenAICompatibleSpeechToText",
@@ -298,5 +315,6 @@ __all__ = [
     "scalar",
     "storage_check",
     "thinking_body",
+    "validate_decision_questions",
     "verify_jwt",
 ]

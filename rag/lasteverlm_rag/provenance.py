@@ -102,6 +102,11 @@ class GenerationLog:
     llm_out: int = 0
     embedding_in: int = 0
     tts_seconds: int = 0
+    decision_in: int = 0
+    # one entry per model call that shaped the content (a decision's two)
+    calls: list[dict[str, Any]] = field(default_factory=list)
+    # a decision's own verdict when "the sources do not decide this" replaced it
+    llm_verdict_text: str | None = None
 
     def record(self, check: dict[str, Any]) -> dict[str, Any]:
         in_prompt = {p.chunk_id for p in self.passages}
@@ -145,7 +150,10 @@ class GenerationLog:
                 "llm": {"tokens_in": self.llm_in, "tokens_out": self.llm_out},
                 "embedding": {"tokens_in": self.embedding_in},
                 "tts": {"seconds": self.tts_seconds},
+                **({"decision": {"tokens_in": self.decision_in}} if self.decision_in else {}),
             },
+            **({"calls": self.calls} if self.calls else {}),
+            **({"llm_verdict_text": self.llm_verdict_text} if self.llm_verdict_text else {}),
             "started_at": self.started_at,
             "finished_at": now(),
             "check": check,

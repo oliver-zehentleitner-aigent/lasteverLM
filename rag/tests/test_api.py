@@ -405,7 +405,7 @@ def test_settings_require_one_auth_scheme_and_sane_numbers():
 
 def test_audio_settings_need_object_storage():
     prices = '{"test-llm": {"in": 1, "out": 1}, "test-embedding": {"in": 1, "out": 0}, '
-    prices += '"test-tts": {"in": 1, "out": 0}}'
+    prices += '"test-tts": {"in": 1, "out": 0}, "test-decision": {"in": 1, "out": 0}}'
     env = {**BASE_ENV, "DEMO_TOKEN": "d", "MODEL_PRICES": prices, "TTS_MODEL": "test-tts"}
     with pytest.raises(ConfigError, match="S3_ENDPOINT"):
         Settings.from_env(env)
@@ -444,3 +444,9 @@ def test_a_provider_error_without_a_response_writes_no_usage_row(settings):
     client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), Unreachable())
     client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
     assert [u.kind for _, _, u in store.usage] == ["embedding"]
+
+
+def test_the_decision_model_needs_a_price():
+    prices = '{"test-llm": {"in": 1, "out": 1}, "test-embedding": {"in": 1, "out": 0}}'
+    with pytest.raises(ConfigError, match="test-decision"):
+        Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "MODEL_PRICES": prices})

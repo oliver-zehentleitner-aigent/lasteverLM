@@ -15,6 +15,8 @@ from dataclasses import dataclass
 
 VULTR_INFERENCE_BASE_URL = "https://api.vultrinference.com/v1"
 DEFAULT_STT_MODEL = "whisper-large-v3-turbo"
+# `clef-flash` answers the same questions at half the price per token.
+DEFAULT_DECISION_MODEL = "clef"
 
 
 class ConfigError(RuntimeError):
@@ -53,7 +55,8 @@ class InferenceSettings:
     services, which is why they are loaded by one function. `embedding_dimension`
     is requested from the provider on every call, so it is the width of the
     vectors, not a description of the model's native width. `stt_model`
-    (`STT_MODEL`) transcribes audio sources.
+    (`STT_MODEL`) transcribes audio sources; `decision_model`
+    (`DECISION_MODEL`) answers the Decision output's typed questions.
     """
 
     base_url: str
@@ -64,6 +67,7 @@ class InferenceSettings:
     embedding_dimension: int
     llm_timeout_seconds: int = 60
     stt_model: str = DEFAULT_STT_MODEL
+    decision_model: str = DEFAULT_DECISION_MODEL
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> InferenceSettings:
@@ -77,6 +81,7 @@ class InferenceSettings:
             embedding_dimension=env_int("EMBEDDING_DIMENSION", 1536, env),
             llm_timeout_seconds=env_int("LLM_TIMEOUT_SECONDS", 60, env),
             stt_model=env_optional("STT_MODEL", env) or DEFAULT_STT_MODEL,
+            decision_model=env_optional("DECISION_MODEL", env) or DEFAULT_DECISION_MODEL,
         )
         if settings.llm_max_tokens < 1:
             raise ConfigError("LLM_MAX_TOKENS must be at least 1")

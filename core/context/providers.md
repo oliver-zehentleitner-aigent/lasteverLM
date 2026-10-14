@@ -227,3 +227,47 @@ cost.
 fallback only. It is a fraction of a second shorter than what the
 platform reports (0.89 s against 1), so the ledger would undercount
 every call.
+
+## The decision model is billed per reported input token and called through the SDK's generic post
+
+**Id:** cf7810ca-d96e-47b8-aeb3-5619cbb5a642
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinator's go for the Decision output kind, 2026-10-14; the platform's OpenAPI for `/systemone`; live probes the same day (headers and usage for short and long states, both models)
+**Revisit when:** the platform starts sending usage headers or a cost for `/systemone`, bills output tokens, or the OpenAI SDK gets a call for it
+
+A `decision` usage row holds the response's `usage.input_tokens` in
+`tokens_in`, with 0 in `tokens_out`, priced with `in` in cents per
+million tokens. The request goes through the OpenAI client's generic
+`post("/systemone")`. Before the call, `validate_decision_questions`
+refuses what the platform would answer with a 422.
+
+Measured on 2026-10-14, identical for `clef` and `clef-flash`: no
+`x-usage-*` or cost header on any response; one question on a short
+state reported 144 input tokens, one on a long state 2061, and three on
+that same long state 2192 (not three times 2061, although the OpenAPI
+says every question bills the state). A 112142-token state was still
+accepted (26 s); no 422 for length was reached.
+
+**Reason:** the response body is the only place the platform states
+usage, unlike speech where only a header does. The catalog lists the
+model under a "completion" modality, but output tokens are always 0 and
+input tokens are what is counted, so input is the side to bill. The
+reported number is taken as it comes, not computed from the documented
+"state once per question" rule, which the measurement contradicts. The
+SDK's `post` reuses the key, base URL, timeout, retries and the
+`APIError` mapping (so the `permanent` flag), which a second plain HTTP
+client would have had to repeat.
+
+**Rejected alternative:** a plain HTTP client for `/systemone`. Same
+request, with auth, retries and error mapping written twice.
+
+**Rejected alternative:** estimate the billed tokens as state times
+questions, as the OpenAPI describes it. The platform reports less, and
+the ledger should hold what it reports.
+
+Why a decision model gives the verdict's number while the language model
+writes the evidence is rag's decision and is recorded in rag's context.
+
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — e384d814-56f5-4990-b4af-e9da3e8b8a18 — as of 2026-10-14

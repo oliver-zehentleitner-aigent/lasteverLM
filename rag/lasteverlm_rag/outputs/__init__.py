@@ -50,6 +50,7 @@ class CompleteFn(Protocol):
 
 def registry(tts_available: bool) -> dict[OutputKind, OutputGenerator]:
     from .audio import AudioGenerator
+    from .decision import DecisionGenerator
     from .infographic import InfographicGenerator
     from .mindmap import MindmapGenerator
     from .quiz import QuizGenerator
@@ -63,5 +64,6 @@ def registry(tts_available: bool) -> dict[OutputKind, OutputGenerator]:
         MindmapGenerator(),
         InfographicGenerator(),
         AudioGenerator(available=tts_available),
+        DecisionGenerator(),
     ]
     return {g.kind: g for g in generators}

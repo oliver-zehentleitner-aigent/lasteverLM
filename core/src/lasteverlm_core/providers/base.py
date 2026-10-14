@@ -10,8 +10,9 @@ do not change.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from ..models import UsageKind
 
@@ -84,6 +85,22 @@ class TranscriptionResult:
     seconds: float
 
 
+@dataclass(frozen=True)
+class DecisionResult:
+    """One answer per question id, as the platform returns it, and the usage
+    to record (kind `decision`, input tokens in `tokens_in`).
+
+    `noul`: `{"type", "noul"}`, the probability of yes. `choice`:
+    `{"type", "choice", "probabilities", "confidence"}`. `score`:
+    `{"type", "score", "legend", "probabilities", "confidence"}`, where
+    `score` is the probability-weighted level index and can fall between
+    levels.
+    """
+
+    answers: dict[str, dict[str, Any]]
+    usage: Usage
+
+
 class Embedder(Protocol):
     """Turns texts into vectors of `dimension` floats; services are typed against this."""
 
@@ -130,3 +147,12 @@ class SpeechToText(Protocol):
     def model(self) -> str: ...
 
     def transcribe(self, audio: bytes, filename: str) -> TranscriptionResult: ...
+
+
+class DecisionModel(Protocol):
+    """A state and typed questions in, one probability answer per question out."""
+
+    @property
+    def model(self) -> str: ...
+
+    def decide(self, state: Any, questions: Mapping[str, Mapping[str, Any]]) -> DecisionResult: ...

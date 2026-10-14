@@ -49,7 +49,12 @@ class Settings:
         prices = load_model_prices(env)
         require_prices(
             prices,
-            [inference.llm_model, inference.embedding_model, *([tts_model] if tts_model else [])],
+            [
+                inference.llm_model,
+                inference.embedding_model,
+                inference.decision_model,
+                *([tts_model] if tts_model else []),
+            ],
         )
         retrieval_k = env_int("RETRIEVAL_K", 8, env)
         if retrieval_k <= 0:

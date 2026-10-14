@@ -258,6 +258,35 @@ credit), every later one, from any user, gets the stored file
 (`"cached": true`) without a model call. The URL is presigned for one
 hour. 503 when the deployment has no text-to-speech.
 
+`decision`: a question answered from the sources, by two independent
+calls over the same numbered passages, retrieved with the question as
+the focus query. Options: `question` (required, at most 500
+characters), `decision_type` `yes_no` (default), `choice` with `choices`
+(2–8 distinct labels) or `scale` with `levels` (3–7 ordered labels,
+lowest first). The platform's decision model (`DECISION_MODEL`, core's
+`OpenAICompatibleDecision`, one `decision` usage row) gets the question
+and the passages and gives `model_answer`: `{"probability_yes",
+"answer"}`, `{"choice", "distribution", "confidence"}` or `{"level",
+"score" (probability-weighted level index, 0 = lowest), "legend",
+"distribution", "confidence"}`, every value in 0..1 except `score`. The
+LLM gets the same passages and the question but never that answer and
+writes `verdict_text` (plain, one or two sentences), `evidence_for` and
+`evidence_against` (`[{"text", "refs", "support"}]`, checked like every
+unit), `gaps` (what the sources do not say) and, for a choice or a
+scale, `llm_choice`, the option its evidence argues about. `agreement`
+compares the two: `consistent`, `conflicting` (shown, never hidden) or
+`unclear`, with `agreement_note`; for yes/no, a probability of at least
+0.6 with more supported evidence for than against is consistent, at most
+0.4 with more against too, the mirror cases conflict; for a choice or
+scale, the same pick with more supported for is consistent, a different
+pick with more supported for, or the same with more against, conflicts.
+Without supported evidence on either side `agreement` is `undecided` and
+`verdict_text` is "The sources do not decide this." whatever the number;
+the LLM's own sentence goes into `provenance.llm_verdict_text`.
+`provenance.calls` lists both calls (`role` `decision` with the state's
+size, `role` `evidence`), `provenance.usage.decision` the decision
+model's input tokens.
+
 `audio`: the model writes a spoken-word script (three to five minutes)
 in the chosen style, with a prompt and a JSON schema per style:
 `overview` and `story` are `{"title", "paragraphs": [{"text", "refs"}]}`
@@ -296,6 +325,7 @@ missing or a configured model has no price.
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | yes / default 1536 | query and chunk embedding, requested at that width (`dimensions`); identical to the ingest service |
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
+| `DECISION_MODEL` | no; default `clef` (core) | the platform's decision model for the decision kind, used by the worker; it needs a `MODEL_PRICES` entry, `in` per million input tokens, or startup refuses |
 | `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million seconds of generated audio |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
 | `RETRIEVAL_K` | no | chunks per question, default 8 |
@@ -338,7 +368,8 @@ generated library row instead of its link (expand only: `owner` stays
 nullable for pods of the previous release, and reads fall back to the
 notebook's owner); `0005_rag_output_provenance.sql` adds
 `outputs.provenance`, the generation log; `0006_rag_message_support.sql`
-adds `messages.support` (`{"units", "check"}` of an answer). The
+adds `messages.support` (`{"units", "check"}` of an answer);
+`0007_rag_decision_kind.sql` allows the kind `decision`. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and

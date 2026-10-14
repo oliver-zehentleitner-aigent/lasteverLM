@@ -412,6 +412,7 @@ def test_registry_covers_every_kind():
         "mindmap",
         "infographic",
         "audio",
+        "decision",
     }
 
 

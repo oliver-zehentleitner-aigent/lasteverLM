@@ -67,9 +67,16 @@ KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "mindmap": TEXT_OPTIONS,
     "infographic": TEXT_OPTIONS,
     "audio": ["language", "voice", "speed", "audio_style", "audio_voice_2"],
+    "decision": ["language", "question", "decision_type", "choices", "levels"],
 }
 AUDIO_STYLES = ["overview", "story", "conversation"]
 DEFAULT_AUDIO_STYLE = "overview"
+DECISION_TYPES = ["yes_no", "choice", "scale"]
+DEFAULT_DECISION_TYPE = "yes_no"
+QUESTION_MAX_CHARS = 500
+CHOICES_MIN, CHOICES_MAX = 2, 8
+LEVELS_MIN, LEVELS_MAX = 3, 7
+LABEL_MAX_CHARS = 80
 
 _LANGUAGE_BY_CODE = {lang.code: lang for lang in LANGUAGES}
 _VOICE_IDS = {v.id for v in VOICES}
@@ -85,6 +92,10 @@ class OutputOptions(BaseModel):
     speed: float | None = None
     audio_style: str | None = None
     audio_voice_2: str | None = None
+    question: str | None = None
+    decision_type: str | None = None
+    choices: list[str] | None = None
+    levels: list[str] | None = None
 
 
 def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str) -> dict[str, Any]:
@@ -122,7 +133,39 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
                 raise ValueError("audio_voice_2: must differ from voice")
         elif "audio_voice_2" in given:
             raise ValueError("audio_voice_2: only for the conversation style")
+    if kind == "decision":
+        _resolve_decision(given)
     return given
+
+
+def _resolve_decision(given: dict[str, Any]) -> None:
+    """A decision needs its question; ``choice`` needs ``choices`` and
+    ``scale`` needs ``levels`` (lowest first), each list of distinct, short
+    labels; neither list is taken by another type."""
+    question = " ".join(str(given.get("question", "")).split())
+    if not question:
+        raise ValueError("question: a decision needs a question")
+    if len(question) > QUESTION_MAX_CHARS:
+        raise ValueError(f"question: at most {QUESTION_MAX_CHARS} characters")
+    given["question"] = question
+    kind = given.setdefault("decision_type", DEFAULT_DECISION_TYPE)
+    if kind not in DECISION_TYPES:
+        raise ValueError(f"decision_type: unknown type {kind!r}")
+    needed = {"choice": "choices", "scale": "levels"}.get(kind)
+    for key in ("choices", "levels"):
+        if key in given and key != needed:
+            raise ValueError(f"{key}: not an option of decision_type {kind}")
+    if needed is None:
+        return
+    low, high = (CHOICES_MIN, CHOICES_MAX) if needed == "choices" else (LEVELS_MIN, LEVELS_MAX)
+    labels = [" ".join(str(label).split()) for label in given.get(needed) or []]
+    if not low <= len(labels) <= high:
+        raise ValueError(f"{needed}: {low} to {high} labels for decision_type {kind}")
+    if any(not label or len(label) > LABEL_MAX_CHARS for label in labels):
+        raise ValueError(f"{needed}: every label is 1 to {LABEL_MAX_CHARS} characters")
+    if len({label.casefold() for label in labels}) != len(labels):
+        raise ValueError(f"{needed}: labels must be distinct")
+    given[needed] = labels
 
 
 def second_voice(voice_id: str) -> str:
@@ -162,6 +205,13 @@ def catalogue(default_voice: str) -> dict[str, Any]:
                 "step": SPEED_STEP,
                 "default": SPEED_DEFAULT,
             },
+        },
+        "decision": {
+            "types": DECISION_TYPES,
+            "default_type": DEFAULT_DECISION_TYPE,
+            "question_max_chars": QUESTION_MAX_CHARS,
+            "choices": {"min": CHOICES_MIN, "max": CHOICES_MAX},
+            "levels": {"min": LEVELS_MIN, "max": LEVELS_MAX},
         },
         "kinds": KIND_OPTIONS,
     }
