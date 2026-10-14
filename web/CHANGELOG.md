@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-14
+
 ### Changed
 
 - Library redesigned as one table: the Sources and Outputs tabs are gone (Library | Trash stay); a view selector (All, Sources, Documents) and filters by kind, notebook and name; documents sit next to uploads with their kind, status and "made in …", and open as before (in their notebook, or read-only once it is gone). Ticked rows across both can start a notebook, be added to an existing one ("Add to notebook…" shows per notebook how many are in it already, adds only the missing ones in one call and says "2 added, 1 was already in test1"), or be deleted.

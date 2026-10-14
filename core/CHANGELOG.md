@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-14
+
 ### Changed
 
 - `SourceStatus` gains `waiting_for_credit`: an API value, never stored, for a queued source whose owner has no credit (adding a source needs none, processing does).
