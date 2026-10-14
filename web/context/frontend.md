@@ -358,8 +358,10 @@ ignores the device setting the user already made.
 
 The header toggle replaced a three-step cycle (light, dark, system). It
 always sets the opposite of the theme on screen, its icon shows what a
-click gives, and it writes through the one theme store like the Settings
-page. "system" can be chosen on the Settings page only.
+click gives, and it goes through the one theme store like the Settings
+page. "system" can be chosen on the Settings page only. Since
+2026-10-14 the toggle changes this browser session only and saves
+nothing in the account (see the entry on the session's theme).
 
 **Reason (inferred):** in the cycle, the step to "system" often changed
 nothing visible (the system's theme was the one already on screen), so a
@@ -476,3 +478,27 @@ is the outcome of the other button.
 Rejected because rag's endpoint takes the notebook id, which no longer
 resolves once ingest has deleted the notebook and the foreign key has
 set the documents' notebook to null.
+
+## The header toggle changes the theme for this session; the saved choice is made in Settings
+
+**Id:** 649c8146-3a61-4c81-bfc1-3c36320cffe5
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the family lead, 2026-10-14
+**Revisit when:** users ask for the toggle to remember across sessions again, or the account gains per-device preferences
+
+The toggle writes to the browser session only (sessionStorage) and
+sends nothing to the account. The lasting choice is the theme
+preference on the Settings page. On load the session's choice wins,
+else the saved one, else light. While the two differ, Settings says so
+and offers to use the saved one.
+
+**Reason:** a quick switch for the room one is in should not change the
+next device; a choice that follows the user is a deliberate one and
+belongs in Settings. It also spares the shared demo account, which
+cannot store preferences, a refused request on every click.
+
+**Rejected alternative:** the toggle writes the account preference, as
+before. Rejected because the maintainer found the next device changed
+by a click made elsewhere.

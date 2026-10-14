@@ -16,7 +16,7 @@ import { Workspace } from './components/Workspace'
 import { MeContext } from './hooks/useMe'
 import { useRoute } from './hooks/useRoute'
 import { writeLastNotebook, writeOpenOutput } from './lib/lastNotebook'
-import { getTheme, setTheme } from './lib/theme'
+import { getSavedTheme, setTheme } from './lib/theme'
 import { setLanguage, t } from './i18n'
 import { pickLanguage } from './i18n/translate'
 
@@ -35,10 +35,11 @@ export default function App() {
     document.documentElement.lang = lang
   }, [lang])
 
-  // the account's theme follows the user across browsers; null keeps this browser's
+  // the account's saved theme follows the user across browsers (null keeps
+  // this browser's); a session override from the header toggle stays on top
   const accountTheme = session.state === 'in' ? session.me?.preferences?.theme : null
   useEffect(() => {
-    if (accountTheme && accountTheme !== getTheme()) setTheme(accountTheme)
+    if (accountTheme && accountTheme !== getSavedTheme()) setTheme(accountTheme)
   }, [accountTheme])
 
   /** Load the account behind the stored token. A 401 is handled by the event

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveTheme, getTheme, isTheme, setTheme, subscribeTheme, toggledTheme } from './theme'
+import { effectiveTheme, getSavedTheme, getSessionTheme, getTheme, isTheme, setSessionTheme, setTheme, subscribeTheme, toggledTheme } from './theme'
 
 describe('theme', () => {
   it('toggles between light and dark only, from what is on screen', () => {
@@ -35,5 +35,20 @@ describe('theme store', () => {
     setTheme('dark')
     expect(seen).toBe(2)
     setTheme('system')
+  })
+})
+
+describe('the session override', () => {
+  it('wins over the saved choice until it is dropped, and never changes it', () => {
+    setTheme('light')
+    setSessionTheme('dark')
+    expect(getTheme()).toBe('dark')
+    expect(getSavedTheme()).toBe('light')
+    // the saved choice arriving from the account does not undo the session's
+    setTheme('system')
+    expect(getTheme()).toBe('dark')
+    setSessionTheme(null)
+    expect(getSessionTheme()).toBeNull()
+    expect(getTheme()).toBe('system')
   })
 })
