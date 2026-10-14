@@ -33,6 +33,7 @@ from lasteverlm_core import (
 )
 
 from .config import Settings
+from .judge import judge_models
 from .outputs import registry
 from .service import OutputService
 from .store import PgVectorRetriever, PostgresStore, Store, make_pool
@@ -139,6 +140,7 @@ def main() -> None:
         default_voice=settings.tts_voice,
         # the worker's client timeout also covers a long state (26 s at 112k tokens)
         decision=OpenAICompatibleDecision(client, settings.inference.decision_model),
+        judges=judge_models(client, settings.inference.judge_models),
     )
     worker = Worker(store, outputs)
     for sig in (signal.SIGTERM, signal.SIGINT):

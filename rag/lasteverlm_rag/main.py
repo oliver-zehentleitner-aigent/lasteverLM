@@ -55,6 +55,7 @@ from lasteverlm_core.web import admin_only, admin_read
 from . import __version__
 from .admin import admin_stats, daily_stats
 from .config import Settings
+from .judge import judge_models
 from .models import (
     AdminStats,
     AskRequest,
@@ -63,6 +64,7 @@ from .models import (
     ConversationCreate,
     ConversationRename,
     DailyStats,
+    JudgeRequest,
     OutputCreate,
     OutputRename,
     SharedNotebook,
@@ -76,7 +78,9 @@ from .service import (
     InsufficientCredit,
     InvalidOptions,
     InvalidSources,
+    MessageNotFound,
     NotebookNotFound,
+    NothingToJudge,
     ObjectDeleteFailed,
     OutputNotFound,
     OutputNotInTrash,
@@ -166,6 +170,8 @@ def create_app(
         settings.similarity_floor,
         objects=objects,
         default_voice=settings.tts_voice,
+        # for judging an existing output or answer on request
+        judges=judge_models(make_client(settings.inference), settings.inference.judge_models),
     )
     # the one synthesis the API does itself: short, cached voice previews
     samples = voice_samples or VoiceSamples(
@@ -299,7 +305,7 @@ def create_app(
     @app.get(f"{PREFIX}/outputs/options")
     def output_options(_: User) -> dict[str, Any]:
         """The options catalogue per kind: languages, voices, speeds."""
-        return catalogue(settings.tts_voice)
+        return catalogue(settings.tts_voice, settings.inference.judge_models)
 
     @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=list[Output])
     def list_outputs(notebook_id: NotebookId, user: User) -> list[Output]:
@@ -343,6 +349,16 @@ def create_app(
     def unshare_output(output_id: OutputId, user: User) -> Response:
         outputs.unshare(user, str(output_id))
         return Response(status_code=204)
+
+    @app.post(f"{PREFIX}/outputs/{{output_id}}/judge", response_model=Output)
+    def judge_output(output_id: OutputId, body: JudgeRequest, user: User) -> Output:
+        """Judge a ready output's claims with the level's model; annotate only."""
+        return outputs.judge_stored_output(user, str(output_id), body.level)
+
+    @app.post(f"{PREFIX}/messages/{{message_id}}/judge", response_model=Message)
+    def judge_message(message_id: uuid.UUID, body: JudgeRequest, user: User) -> Message:
+        """Judge a chat answer's paragraphs against its citations; annotate only."""
+        return outputs.judge_message(user, str(message_id), body.level)
 
     @app.patch(f"{PREFIX}/outputs/{{output_id}}", response_model=Output)
     def rename_output(output_id: OutputId, body: OutputRename, user: User) -> Output:
@@ -415,6 +431,14 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(OutputNotFound)
     async def output_not_found(_: Request, exc: OutputNotFound) -> JSONResponse:
         return error(404, "output not found")
+
+    @app.exception_handler(MessageNotFound)
+    async def message_not_found(_: Request, exc: MessageNotFound) -> JSONResponse:
+        return error(404, "message not found")
+
+    @app.exception_handler(NothingToJudge)
+    async def nothing_to_judge(_: Request, exc: NothingToJudge) -> JSONResponse:
+        return error(409, "nothing to judge: no cited passages")
 
     @app.exception_handler(OutputNotInTrash)
     async def output_not_in_trash(_: Request, exc: OutputNotInTrash) -> JSONResponse:

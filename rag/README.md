@@ -34,6 +34,8 @@ this directory implements the `/api/rag` prefix.
 | DELETE | `/api/rag/outputs/{id}` | | 204, into the trash |
 | POST | `/api/rag/outputs/{id}/restore` | | 204, out of the trash |
 | DELETE | `/api/rag/outputs/{id}/purge` | | 204, deleted for good; 409 unless in the trash |
+| POST | `/api/rag/outputs/{id}/judge` | `{"level": "low" \| "medium" \| "high"}` | `Output` with every claim judged, nothing revised or removed; see **Judge** |
+| POST | `/api/rag/messages/{id}/judge` | `{"level"}` | `Message`: an answer's paragraphs judged against its citations |
 | POST | `/api/rag/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/api/rag/outputs/{id}/share` | | 204 |
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
@@ -278,6 +280,43 @@ credit), every later one, from any user, gets the stored file
 (`"cached": true`) without a model call. The URL is presigned for one
 hour. 503 when the deployment has no text-to-speech.
 
+**Judge.** `options.judge` (`off` by default, `low`, `medium` or
+`high`) is offered for every kind except `chart`, whose values already
+get the exact number check. With a level set, the word check is followed
+by the judge: the level's model (`JUDGE_MODELS`, another family than the
+author model) checks every claim unit against its cited passages, one
+call per unit (`lasteverlm_rag/judge.py`). Its verdict is `supported`,
+`contradicted` or `not_in_source`, with a reason and the decisive quote.
+
+- **Rounds.** Units judged `contradicted` or `not_in_source` go to one
+  call of the author model. It gets only those units, with the judge's
+  reasons and their passages, and corrects each unit in its own form or
+  drops it. A revision that does not fit the unit's form counts as none.
+  Only the revised units are judged again, for at most three rounds.
+- **Removal.** A unit that still fails after the last round, or that the
+  reviser dropped, is removed from the output. It is listed in
+  `provenance.judge.removed` (`text`, `verdict`, `reason`, `round`) and
+  never dropped silently.
+- **Annotations.** Every judged unit carries `judge: {"level", "model",
+  "verdict", "reason", "quote", "round"}`. The word check runs again on
+  the final units.
+- **Log.** `provenance.judge` is `{"level", "model", "rounds": [{"round",
+  "judged", "verdicts", "usage", "revision"?: {"revised", "dropped",
+  "usage"}}], "removed"}`, and `provenance.usage.judge` holds the judge's
+  tokens.
+- **Order.** Audio is judged before it is spoken. A decision's agreement
+  follows its judged evidence.
+- **Billing and failures.** Judge calls are billed as `llm` usage of the
+  judge model. A judge answer that does not parse is a billed provider
+  error, retried like any other.
+
+`POST /outputs/{id}/judge` judges a ready output on request. It only
+annotates, adds an entry to `provenance.judgements` and answers 409
+`nothing to judge: no cited passages` for an output without logged
+passages. `POST /messages/{id}/judge` does the same for a chat answer's
+paragraphs against its citations, stored with the message's support.
+Both are synchronous, need credit, and run four judge calls at a time.
+
 **Shared notebooks.** Ingest shares a notebook under a token
 (`notebooks.share_token`, set and revoked there). `GET
 /api/rag/shared/notebooks/{token}`, without sign-in, returns three things:
@@ -395,6 +434,7 @@ missing or a configured model has no price.
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | yes / default 1536 | query and chunk embedding, requested at that width (`dimensions`); identical to the ingest service |
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
+| `JUDGE_MODELS` | no; defaults in core | JSON level → model for the judge (`low`, `medium`, `high`), chosen from `docs/judge-eval.md`; every model needs a `MODEL_PRICES` entry, or startup refuses |
 | `DECISION_MODEL` | no; default `clef` (core) | the platform's decision model for the decision kind, used by the worker; it needs a `MODEL_PRICES` entry, `in` per million input tokens, or startup refuses |
 | `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million seconds of generated audio |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
@@ -474,6 +514,7 @@ lasteverlm_rag/
 ├── citations.py    pure marker-to-citation mapping
 ├── coverage.py     balanced generator input and the uncovered-source check
 ├── judge.py        the judge's single call: prompt, deterministic parse of the verdict
+├── judging.py      the judge in generation (rounds, revision, removal) and on request
 ├── numbers.py      the strict check of a chart's values (every reading of a written number)
 ├── options.py      output options catalogue (languages, voices, speeds) and validation
 ├── speech.py       splitting an audio script into synthesis segments

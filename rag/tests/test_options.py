@@ -51,10 +51,17 @@ def test_the_catalogue_lists_languages_voices_speeds_and_options_per_kind(settin
     assert (voices["ryan"]["gender"], voices["sohee"]["gender"]) == ("male", "female")
     assert body["audio"]["default_voice"] == "ryan"
     assert body["audio"]["speed"] == {"min": 0.75, "max": 1.5, "step": 0.25, "default": 1.0}
-    assert body["kinds"]["report"] == ["language", "instructions", "report_style", "length"]
+    assert body["kinds"]["report"] == [
+        "language",
+        "instructions",
+        "judge",
+        "report_style",
+        "length",
+    ]
     assert body["kinds"]["audio"] == [
         "language",
         "instructions",
+        "judge",
         "voice",
         "speed",
         "audio_style",

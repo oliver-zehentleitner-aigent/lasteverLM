@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from lasteverlm_core import OutputKind, OutputStatus, SharedOutput, SourceKind
@@ -86,6 +86,12 @@ class SharedNotebook(BaseModel):
     title: str
     sources: list[SharedSource]
     outputs: list[SharedOutput]
+
+
+class JudgeRequest(BaseModel):
+    """``POST /outputs/{id}/judge`` and ``POST /messages/{id}/judge``."""
+
+    level: Literal["low", "medium", "high"]
 
 
 class ChartPropose(BaseModel):
@@ -191,6 +197,9 @@ class GeneratedOutput:
     check: dict[str, Any] | None = None
     """A check the kind ran itself (a chart's number check); the word-overlap
     check of the units runs when this is ``None``."""
+    document: Any = None
+    """The validated document the content was built from; the judge edits
+    it and rebuilds the output (``None`` for a chart)."""
 
 
 @dataclass(frozen=True)

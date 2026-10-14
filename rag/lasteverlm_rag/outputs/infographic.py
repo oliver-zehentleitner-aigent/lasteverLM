@@ -39,6 +39,9 @@ class InfographicGenerator(JsonGenerator):
         '"value", "refs": [n, ...]}], "sections": [{"title", "text", "refs": [n, ...]}]}.'
     )
 
+    def unit_lists(self, document: BaseModel) -> tuple[str, ...]:
+        return ("facts", "sections")
+
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         assert isinstance(document, Infographic)
         lines = [document.title, document.headline, ""]

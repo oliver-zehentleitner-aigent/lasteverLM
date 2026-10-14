@@ -14,6 +14,7 @@ endpoint's accepted 0.25-4.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -61,7 +62,7 @@ VOICES = [
 ]
 SPEED_MIN, SPEED_MAX, SPEED_STEP, SPEED_DEFAULT = 0.75, 1.5, 0.25, 1.0
 
-TEXT_OPTIONS = ["language", "instructions"]
+TEXT_OPTIONS = ["language", "instructions", "judge"]
 KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "report": [*TEXT_OPTIONS, "report_style", "length"],
     "quiz": [*TEXT_OPTIONS, "question_count", "difficulty", "audience"],
@@ -71,8 +72,10 @@ KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "audio": [*TEXT_OPTIONS, "voice", "speed", "audio_style", "audio_voice_2"],
     "decision": [*TEXT_OPTIONS, "question", "decision_type", "choices", "levels"],
     # no language: a chart is made from the picked candidates without a model call
+    # no judge either: every value already has the exact number check
     "chart": ["instructions", "charts"],
 }
+JUDGE_LEVELS = ["off", "low", "medium", "high"]
 CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "scatter"]
 CHARTS_MAX = 12  # picked per output, and proposed per call at most
 PROPOSE_DEFAULT = 6
@@ -106,6 +109,7 @@ class OutputOptions(BaseModel):
 
     language: str | None = None
     instructions: str | None = None
+    judge: str | None = None
     report_style: str | None = None
     length: str | None = None
     question_count: int | None = None
@@ -140,7 +144,10 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
             raise ValueError(f"instructions: at most {INSTRUCTIONS_MAX_CHARS} characters")
         if text:
             given["instructions"] = text
+    if given.get("judge") == "off":
+        del given["judge"]  # off is the default and stays absent
     for key, allowed_values in (
+        ("judge", JUDGE_LEVELS),
         ("report_style", REPORT_STYLES),
         ("length", LENGTHS),
         ("difficulty", DIFFICULTIES),
@@ -258,8 +265,9 @@ def is_voice(voice_id: str) -> bool:
     return voice_id in _VOICE_IDS
 
 
-def catalogue(default_voice: str) -> dict[str, Any]:
+def catalogue(default_voice: str, judge_models: Mapping[Any, str]) -> dict[str, Any]:
     return {
+        "judge": {"levels": JUDGE_LEVELS, "default": "off", "models": dict(judge_models)},
         "languages": [{"code": lang.code, "label": lang.label} for lang in LANGUAGES],
         "instructions": {"max_chars": INSTRUCTIONS_MAX_CHARS},
         "report": {

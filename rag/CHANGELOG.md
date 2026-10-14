@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `options.judge` (`off` default, `low`, `medium`, `high`) for every kind but `chart`. Each claim unit is judged by the level's model (`JUDGE_MODELS`, required to be priced) after the word check. Failing units are revised in one call of the author model and judged again, for at most three rounds; what still fails is removed and listed in `provenance.judge.removed`. Units carry `judge {level, model, verdict, reason, quote, round}`, and `provenance.judge` logs every round with its usage.
+
+- `POST /api/rag/outputs/{id}/judge` and `POST /api/rag/messages/{id}/judge` `{"level"}` judge an existing output or chat answer on request: annotate only, nothing revised or removed; 409 without cited passages.
+
 - The judge's single call (`lasteverlm_rag/judge.py`, prompt `judge-v1`): one claim and its cited passages in, a verdict `supported` | `contradicted` | `not_in_source` with a one-sentence reason and the decisive quote out. The answer is parsed deterministically; a malformed one is a billed `ProviderError`. Not yet used by generation.
 
 - The judge evaluation (`evals/judge/`, `make judge-eval`, `docs/judge-eval.md`): 24 hand-written claims on demo-set passages in six categories, judged three times per level against the platform, beside the word check as the baseline, with hit rate, cost and latency per call. The first results are committed (`results/2026-10-14.*`), and the level-to-model mapping is chosen from them.

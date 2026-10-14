@@ -147,6 +147,12 @@ class AudioGenerator(JsonGenerator):
             complete, notebook_title, summaries, passages, language=language, options=options
         )
 
+    # a revised turn keeps its speaker
+    fixed_fields: tuple[str, ...] = ("speaker",)
+
+    def unit_lists(self, document: BaseModel) -> tuple[str, ...]:
+        return ("turns",) if isinstance(document, Conversation) else ("paragraphs",)
+
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         parts: list[tuple[str, str, list[int]]]
         if isinstance(document, Conversation):

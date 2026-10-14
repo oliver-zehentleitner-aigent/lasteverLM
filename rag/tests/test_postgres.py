@@ -746,3 +746,14 @@ def test_chunks_by_id_come_only_from_ready_sources_of_the_notebook(pool, user, n
 
 def test_the_chart_kind_is_allowed(store, notebook):
     assert store.create_output(notebook, "chart", "processing", {"charts": []}).kind == "chart"
+
+
+def test_a_message_is_found_with_its_notebook_and_its_support_replaced(store, notebook):
+    conversation = store.create_conversation(notebook, "Chat 10").id
+    answer = store.insert_message(notebook, conversation, "assistant", "a [1]", [], {"units": []})
+    found = store.get_message(str(answer.id))
+    assert found is not None and found[0] == notebook and found[1].content == "a [1]"
+    judged = {"units": [{"text": "a [1]", "refs": [1], "judge": {"verdict": "supported"}}]}
+    store.update_message_support(str(answer.id), judged)
+    assert store.list_messages(conversation)[0].units == judged["units"]
+    assert store.get_message(str(uuid4())) is None

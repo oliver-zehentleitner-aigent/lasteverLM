@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Set
 from typing import Any
 
 from lasteverlm_core import OutputKind
@@ -38,6 +39,32 @@ class TableGenerator(JsonGenerator):
         'Reply as {"title": "...", "columns": [...], "rows": [[...], ...], '
         '"row_refs": [[n, ...], ...]}.'
     )
+
+    # -- editing: a unit is a row with its refs -------------------------------
+
+    def editable(self, document: BaseModel, index: int) -> dict[str, Any]:
+        assert isinstance(document, Table)
+        refs = document.row_refs[index] if document.row_refs else []
+        return {"cells": document.rows[index], "refs": refs}
+
+    def edit(self, document: BaseModel, index: int, fields: Mapping[str, Any]) -> BaseModel:
+        assert isinstance(document, Table)
+        cells, refs = fields.get("cells"), fields.get("refs", [])
+        if not isinstance(cells, list) or len(cells) != len(document.columns):
+            raise ValueError("a revised row has one cell per column")
+        if not isinstance(refs, list) or not all(isinstance(n, int) for n in refs):
+            raise ValueError("refs are passage numbers")
+        rows = list(document.rows)
+        rows[index] = [str(c) for c in cells]
+        row_refs = list(document.row_refs) or [[] for _ in rows]
+        row_refs[index] = refs
+        return document.model_copy(update={"rows": rows, "row_refs": row_refs})
+
+    def remove(self, document: BaseModel, indexes: Set[int]) -> BaseModel:
+        assert isinstance(document, Table)
+        rows = [r for i, r in enumerate(document.rows) if i not in indexes]
+        row_refs = [r for i, r in enumerate(document.row_refs) if i not in indexes]
+        return document.model_copy(update={"rows": rows, "row_refs": row_refs})
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         assert isinstance(document, Table)

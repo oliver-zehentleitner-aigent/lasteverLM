@@ -53,6 +53,7 @@ class Settings:
                 inference.llm_model,
                 inference.embedding_model,
                 inference.decision_model,
+                *inference.judge_models.values(),
                 *([tts_model] if tts_model else []),
             ],
         )

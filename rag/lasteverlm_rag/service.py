@@ -8,11 +8,13 @@ generates, and indexes the result as a generated source so chat can cite it.
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
 import secrets
-from collections.abc import Iterator, Sequence
+import threading
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import replace
 from typing import Any
@@ -37,11 +39,13 @@ from lasteverlm_core import (
     StorageError,
     TextToSpeech,
     TokenWindowChunker,
+    Usage,
     object_key,
 )
 
 from .citations import defuse_markers, inline, map_citations, number_passages, strip_markers
 from .coverage import balance, per_source_quota, uncovered_sources
+from .judging import annotate, judge_output, stored_units
 from .models import (
     Conversation,
     ConversationRow,
@@ -54,10 +58,11 @@ from .models import (
     SharedSource,
     SourceSummary,
     SpeechTurn,
+    Unit,
 )
 from .options import OutputOptions, language_name, resolve
 from .outputs import CompleteFn, OutputGenerator
-from .outputs._base import GenerationFailed
+from .outputs._base import GenerationFailed, JsonGenerator
 from .outputs.chart import (
     NO_SERIES,
     Candidate,
@@ -189,6 +194,14 @@ class ConversationNotFound(Exception):
 
 class OutputNotReady(Exception):
     """The output exists but has no generated source to ask about yet."""
+
+
+class MessageNotFound(Exception):
+    """No message with that id is in one of the caller's notebooks."""
+
+
+class NothingToJudge(Exception):
+    """The output or message has no cited passages to judge its claims against."""
 
 
 class OutputNotInTrash(Exception):
@@ -446,6 +459,7 @@ class OutputService:
         decision: DecisionModel | None = None,
         objects: Storage | None = None,
         default_voice: str = DEFAULT_TTS_VOICE,
+        judges: Mapping[str, LLM] | None = None,
     ) -> None:
         self._store = store
         self._retriever = retriever
@@ -459,6 +473,8 @@ class OutputService:
         self._decision = decision
         self._objects = objects
         self._default_voice = default_voice
+        # one judge model per level (``JUDGE_MODELS``)
+        self._judges = dict(judges or {})
 
     # -- API-facing ----------------------------------------------------------
 
@@ -748,6 +764,12 @@ class OutputService:
             check = generated.check or check_units(
                 generated.units, trace.passages, translated="language" in job.options
             )
+            if "judge" in job.options:
+                generated = self._judge(job, notebook_id, generated, trace)
+                # the word check again, on what is left after revision and removal
+                check = check_units(
+                    generated.units, trace.passages, translated="language" in job.options
+                )
             content = generated.content
             if job.kind == "decision":
                 trace.llm_verdict_text = finish_decision(content)
@@ -911,6 +933,152 @@ class OutputService:
 
         return complete
 
+    def _judge(
+        self, job: OutputRow, notebook_id: str, generated: GeneratedOutput, trace: GenerationLog
+    ) -> GeneratedOutput:
+        """Judge every claim with the level's model, revise and judge again
+        (at most three rounds), remove what still fails; logged in ``trace``."""
+        level = job.options["judge"]
+        judge_llm = self._judges.get(level)
+        if judge_llm is None:
+            raise GenerationFailed(f"judge: no model for level {level} on this deployment")
+        generator = self._generators[job.kind]
+        assert isinstance(generator, JsonGenerator)
+        if job.kind == "decision":
+            answer = generated.content["model_answer"]
+
+            def rebuild(document: Any) -> GeneratedOutput:
+                content, units = decision_content(job.options, answer, document)
+                return replace(
+                    generated,
+                    content=content,
+                    index_text=decision_index_text(content),
+                    units=units,
+                    document=document,
+                )
+
+        else:
+
+            def rebuild(document: Any) -> GeneratedOutput:
+                return generator.rebuild(document, trace.passages)
+
+        def counted(usage: Usage) -> None:
+            trace.judge_in += usage.tokens_in
+            trace.judge_out += usage.tokens_out
+
+        judged, trace.judge = judge_output(
+            generator,
+            generated,
+            trace.passages,
+            judge=self._judge_call(judge_llm, job.owner, notebook_id, counted),
+            revise=self._completer(job.owner, notebook_id, trace),
+            level=level,
+            model=judge_llm.model,
+            rebuild=rebuild,
+        )
+        return judged
+
+    def _judge_call(
+        self,
+        judge_llm: LLM,
+        user_id: str,
+        notebook_id: str | None,
+        counted: Callable[[Usage], None],
+    ) -> CompleteFn:
+        """The judge model's call, billed like any LLM call, its usage counted;
+        safe for the judge's few parallel calls."""
+        lock = threading.Lock()
+
+        def judge(
+            system: str, user: str, max_tokens: int | None = None, *, thinking: bool | None = None
+        ) -> CompletionResult:
+            result = complete_billed(
+                self._store, judge_llm, user_id, notebook_id, system, user, max_tokens
+            )
+            with lock:
+                counted(result.usage)
+            return result
+
+        return judge
+
+    def _judge_model(self, level: str) -> LLM:
+        judge_llm = self._judges.get(level)
+        if judge_llm is None:
+            raise InvalidOptions(f"judge: no model for level {level} on this deployment")
+        return judge_llm
+
+    def judge_stored_output(self, user_id: str, output_id: str, level: str) -> Output:
+        """Judge a ready output's claims on request: annotate only, nothing is
+        revised or removed. Each judged unit gets its ``judge``; the log gets
+        an entry under ``provenance.judgements``."""
+        row = self._active(user_id, output_id)
+        if row.status != "ready":
+            raise OutputNotReady(output_id)
+        if row.kind == "chart":
+            raise InvalidOptions("judge: a chart's values already have the exact number check")
+        passages = (row.provenance or {}).get("passages") or []
+        if not passages or row.content is None:
+            raise NothingToJudge(output_id)
+        judge_llm = self._judge_model(level)
+        require_credit(self._store, user_id)
+        content = copy.deepcopy(row.content)
+        usage = {"tokens_in": 0, "tokens_out": 0}
+
+        def counted(u: Usage) -> None:
+            usage["tokens_in"] += u.tokens_in
+            usage["tokens_out"] += u.tokens_out
+
+        summary = annotate(
+            self._judge_call(judge_llm, user_id, row.notebook_id, counted),
+            stored_units(row.kind, content),
+            {p["n"]: p["quote"] for p in passages},
+            level=level,
+            model=judge_llm.model,
+        )
+        provenance = dict(row.provenance or {})
+        provenance["judgements"] = [
+            *provenance.get("judgements", []),
+            {**summary, "usage": usage, "at": now()},
+        ]
+        self._store.update_output(row.id, content=content, provenance=provenance)
+        return self._present(replace(row, content=content, provenance=provenance))
+
+    def judge_message(self, user_id: str, message_id: str, level: str) -> Message:
+        """Judge a chat answer's paragraphs against its citations: annotate
+        only; each unit gets its ``judge``."""
+        found = self._store.get_message(message_id)
+        if found is None:
+            raise MessageNotFound(message_id)
+        notebook_id, message = found
+        notebook = self._store.get_notebook(notebook_id)
+        if notebook is None or notebook["owner"] != user_id:
+            raise MessageNotFound(message_id)
+        if message.role != "assistant" or not message.citations or not message.units:
+            raise NothingToJudge(message_id)
+        judge_llm = self._judge_model(level)
+        require_credit(self._store, user_id)
+        targets = copy.deepcopy(message.units)
+        usage = {"tokens_in": 0, "tokens_out": 0}
+
+        def counted(u: Usage) -> None:
+            usage["tokens_in"] += u.tokens_in
+            usage["tokens_out"] += u.tokens_out
+
+        summary = annotate(
+            self._judge_call(judge_llm, user_id, notebook_id, counted),
+            [Unit(t, t["text"], list(t.get("refs") or [])) for t in targets],
+            {c.n: c.quote for c in message.citations},
+            level=level,
+            model=judge_llm.model,
+        )
+        support = {
+            "units": targets,
+            "check": message.check,
+            "judge": {**summary, "usage": usage, "at": now()},
+        }
+        self._store.update_message_support(message_id, support)
+        return message.model_copy(update={"units": targets})
+
     def _check_cited(self, notebook_id: str, charts: Sequence[dict[str, Any]]) -> None:
         """Every passage a picked candidate cites must be a chunk of this notebook."""
         wanted = {p["chunk_id"] for c in charts for p in c["passages"]}
@@ -1039,6 +1207,7 @@ class OutputService:
             content=content,
             index_text=decision_index_text(content),
             units=units,
+            document=evidence,
         )
 
     def _index(
