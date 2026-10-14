@@ -9,6 +9,12 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Speech to text for audio sources: `SpeechToText` and `OpenAICompatibleSpeechToText(client, model).transcribe(audio, filename)` returning `TranscriptionResult` (`text`, `usage`, `seconds`), multipart against `/audio/transcriptions` with `response_format=json`. Usage kind `stt` (`UsageKind`, migration `0004_core_usage_stt.sql`) is billed in seconds of audio, rounded up per call, from the duration the platform reports; a response without it is a `ProviderError` carrying the measured seconds, an empty transcript one carrying the reported usage. `MODEL_PRICES` prices it with `in` in cents per million seconds. `InferenceSettings.stt_model` (`STT_MODEL`, default `whisper-large-v3-turbo`, `DEFAULT_STT_MODEL`). `SourceKind` gains `audio`.
+- `lasteverlm_core.audio`: `probe_audio` detects WAV or MP3 from the bytes, measures the duration from the file and raises `AudioError` (a `ValueError`, message meant for the user) for any other format, above 25 MiB (`MAX_AUDIO_BYTES`) or above four hours (`MAX_AUDIO_SECONDS`); `transcribe` calls it before any request. `billed_seconds` rounds up.
+- `ProviderError.permanent`: `True` when the platform refused a request with a 4xx a retry will not change (all except 408, 409, 429), for every provider call, so a worker fails the job once instead of paying for further attempts. 5xx, timeouts, connection errors and unusable answers stay `False`.
+
 ## [0.10.0] - 2026-10-14
 
 ### Added

@@ -22,11 +22,19 @@ class ProviderError(Exception):
     `usage` is set when the provider answered and billed the call (an
     empty answer, an unusable vector): the caller records it, then lets
     the error propagate. It is `None` when no usable response came back.
+
+    `permanent` is set when the platform refused the request with a 4xx
+    that a retry will not change: a worker fails the job at once instead
+    of paying for more attempts. Everything else (5xx, timeouts, 408, 409,
+    429, an unusable answer) is `False`, retryable as before.
     """
 
-    def __init__(self, message: str, usage: Usage | None = None) -> None:
+    def __init__(
+        self, message: str, usage: Usage | None = None, *, permanent: bool = False
+    ) -> None:
         super().__init__(message)
         self.usage = usage
+        self.permanent = permanent
 
 
 @dataclass(frozen=True)
@@ -55,6 +63,16 @@ class CompletionResult:
     usage: Usage
     # "stop" when the model finished, "length" when max_tokens cut it off.
     finish_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class TranscriptionResult:
+    """The transcript, the usage to record (kind `stt`, seconds in
+    `tokens_in`) and the duration core measured from the file."""
+
+    text: str
+    usage: Usage
+    seconds: float
 
 
 class Embedder(Protocol):
@@ -94,3 +112,12 @@ class TextToSpeech(Protocol):
     def synthesize(
         self, text: str, *, voice: str | None = None, speed: float | None = None
     ) -> bytes: ...
+
+
+class SpeechToText(Protocol):
+    """WAV or MP3 bytes in, the transcript and its usage (per second) out."""
+
+    @property
+    def model(self) -> str: ...
+
+    def transcribe(self, audio: bytes, filename: str) -> TranscriptionResult: ...

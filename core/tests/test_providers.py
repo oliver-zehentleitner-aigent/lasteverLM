@@ -14,9 +14,11 @@ from openai import OpenAI
 
 from lasteverlm_core import (
     DEFAULT_TTS_VOICE,
+    AudioError,
     InferenceSettings,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
+    OpenAICompatibleSpeechToText,
     OpenAICompatibleTextToSpeech,
     ProviderError,
     Usage,
@@ -280,5 +282,98 @@ def test_tts_empty_audio_is_an_error() -> None:
 
 def test_tts_http_error_becomes_provider_error() -> None:
     tts = OpenAICompatibleTextToSpeech(speech_client([], status=400), "tts", voice="alloy")
-    with pytest.raises(ProviderError, match="speech request failed"):
+    with pytest.raises(ProviderError, match="speech request failed") as caught:
         tts.synthesize("Hallo.")
+    assert caught.value.permanent is True  # an unknown voice stays unknown
+
+
+# MPEG-1 Layer III, 128 kbit/s, 44.1 kHz: 417 bytes and 1152 samples a frame,
+# so 200 frames are 5.22 s.
+MP3 = b"\xff\xfb\x90\x00" + bytes(413)
+
+
+def transcription_client(
+    requests: list[httpx.Request], answer: dict[str, Any] | None, status: int = 200
+) -> OpenAI:
+    def handler(request: httpx.Request) -> httpx.Response:
+        request.read()
+        requests.append(request)
+        if status != 200:
+            return httpx.Response(status, json={"error": {"message": "bad audio"}})
+        return httpx.Response(200, json=answer)
+
+    return OpenAI(
+        base_url="http://fake/v1",
+        api_key="test",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        max_retries=0,
+    )
+
+
+def test_stt_sends_the_file_as_multipart_and_bills_the_reported_seconds() -> None:
+    requests: list[httpx.Request] = []
+    answer = {"text": " Hallo Welt. ", "usage": {"type": "duration", "seconds": 5.2}}
+    stt = OpenAICompatibleSpeechToText(transcription_client(requests, answer), "whisper")
+    result = stt.transcribe(MP3 * 200, "talk.mp3")
+    assert result.text == "Hallo Welt."
+    assert result.usage == Usage("stt", "whisper", 6, 0)  # rounded up
+    assert result.seconds == pytest.approx(200 * 1152 / 44100)
+    (request,) = requests
+    assert request.url.path == "/v1/audio/transcriptions"
+    assert request.headers["content-type"].startswith("multipart/form-data")
+    body = request.content
+    assert b'name="model"\r\n\r\nwhisper' in body
+    assert b'name="response_format"\r\n\r\njson' in body
+    assert b'filename="talk.mp3"' in body and b"Content-Type: audio/mpeg" in body
+
+
+def test_stt_without_reported_usage_fails_with_the_measured_seconds() -> None:
+    stt = OpenAICompatibleSpeechToText(transcription_client([], {"text": "Hallo"}), "whisper")
+    with pytest.raises(ProviderError, match="reported no duration usage") as caught:
+        stt.transcribe(MP3 * 200, "talk.mp3")
+    assert caught.value.usage == Usage("stt", "whisper", 6, 0)
+
+
+def test_stt_empty_transcript_is_an_error_with_its_usage() -> None:
+    answer = {"text": "  ", "usage": {"type": "duration", "seconds": 5}}
+    stt = OpenAICompatibleSpeechToText(transcription_client([], answer), "whisper")
+    with pytest.raises(ProviderError, match="recognised no speech") as caught:
+        stt.transcribe(MP3 * 200, "talk.mp3")
+    assert caught.value.usage == Usage("stt", "whisper", 5, 0)
+
+
+def test_stt_refuses_unsupported_audio_before_the_call() -> None:
+    requests: list[httpx.Request] = []
+    stt = OpenAICompatibleSpeechToText(transcription_client(requests, None), "whisper")
+    with pytest.raises(AudioError, match="Ogg"):
+        stt.transcribe(b"OggS" + bytes(100), "talk.ogg")
+    assert requests == []
+
+
+@pytest.mark.parametrize(
+    ("status", "permanent"),
+    [(400, True), (413, True), (422, True), (408, False), (429, False), (500, False)],
+)
+def test_stt_http_error_is_permanent_only_for_a_lasting_refusal(
+    status: int, permanent: bool
+) -> None:
+    stt = OpenAICompatibleSpeechToText(transcription_client([], None, status=status), "whisper")
+    with pytest.raises(ProviderError, match="transcription request failed") as caught:
+        stt.transcribe(MP3 * 10, "talk.mp3")
+    assert caught.value.usage is None
+    assert caught.value.permanent is permanent
+
+
+def test_a_connection_failure_is_retryable() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    client = OpenAI(
+        base_url="http://fake/v1",
+        api_key="test",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        max_retries=0,
+    )
+    with pytest.raises(ProviderError, match="transcription request failed") as caught:
+        OpenAICompatibleSpeechToText(client, "whisper").transcribe(MP3 * 10, "talk.mp3")
+    assert caught.value.permanent is False

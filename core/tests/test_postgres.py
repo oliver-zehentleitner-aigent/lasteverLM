@@ -69,7 +69,10 @@ USERS_MIRROR = (
 )
 SETTINGS_MIRROR = "create table if not exists settings (key text primary key, value jsonb not null)"
 TABLES = ("usage", "access_log", "ip_blocks", "ip_bans", "ledger", "users", "settings")
-PRICES = parse_model_prices('{"llm": {"in": 30, "out": 150}, "tts": {"in": 2000, "out": 0}}')
+PRICES = parse_model_prices(
+    '{"llm": {"in": 30, "out": 150}, "tts": {"in": 2000, "out": 0},'
+    ' "stt": {"in": 28000, "out": 0}}'
+)
 T0 = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 SETTINGS = RateLimitSettings(per_minute=3, block_minutes=15, ban_after_strikes=3)
 
@@ -145,6 +148,12 @@ def test_tts_usage_is_priced_per_character(conn: psycopg.Connection[Any]) -> Non
             " values (%s, 'rag', 'speech', 'tts', 1, 0, 0)",
             (user,),
         )
+
+
+def test_stt_usage_is_priced_per_second(conn: psycopg.Connection[Any]) -> None:
+    usage = record_usage(conn, uuid4(), None, "ingest", "stt", "stt", 3600, 0, prices=PRICES)
+    assert usage.cost_cents == 101  # ceil(3600 * 28000 / 1e6): an hour at 0.00028 USD/s
+    assert conn.execute("select kind, tokens_in from usage").fetchone() == ("stt", 3600)
 
 
 def test_admins_need_credit_like_everyone(dsn: str, conn: psycopg.Connection[Any]) -> None:

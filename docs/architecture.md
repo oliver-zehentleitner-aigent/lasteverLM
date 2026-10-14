@@ -98,13 +98,13 @@ ip_blocks    (ip inet primary key, blocked_until, strikes int, updated_at)
 ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 ```
 
-- `sources.kind`: `pdf` | `text` | `url` | `image` | `generated` (`url` and `image` are later loaders, the column is ready; `generated` is a finished output indexed as a source by rag, see Outputs).
+- `sources.kind`: `pdf` | `text` | `url` | `image` | `audio` | `generated` (`audio` is an MP3 or WAV transcribed by `STT_MODEL`; core has the kind, ingest's loader and its column check follow; `url` and `image` are later loaders, the column is ready; `generated` is a finished output indexed as a source by rag, see Outputs).
 - `sources.status`: `processing` | `ready` | `failed`.
 - `sources.summary`: one summary per source, written by ingest at the end of processing, used by the output generators.
 - `outputs.kind`: `report` | `quiz` | `table` | `mindmap` | `infographic` | `audio`. `outputs.status`: `waiting` (sources still processing) | `processing` | `ready` | `failed`.
 - `claimed_at`, `claimed_by`, `attempts` on `sources` and `outputs` make those tables the job queues of the two workers (see Workers).
 - `chunks.embedding` dimension follows `EMBEDDING_DIMENSION`; the migration takes it as a parameter, default 1536.
-- `usage.kind`: `llm` | `embedding` | `tts`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters.
+- `usage.kind`: `llm` | `embedding` | `tts` | `stt`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters. For `stt` it is seconds of audio as the platform reports them, rounded up per call: `tokens_in` holds the seconds, `tokens_out` is 0, and `MODEL_PRICES` lists `STT_MODEL` with `in` in cents per million seconds.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
 - Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
 - **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. A new user's first library access seeds four demo sources (a PDF, a text, an image, a URL, one coherent fictional set) processed at the demo user's expense, flagged `demo` (`ingest/context/library.md`). Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
@@ -367,6 +367,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `LLM_MODEL` | ingest (source summaries), rag |
 | `SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE` (default `ryan`; the platform's voices are not the OpenAI names) | rag |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | ingest, rag (identical on both) |
+| `STT_MODEL` (default `whisper-large-v3-turbo`) | ingest (audio sources, with its loader) |
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
 | `DEMO_TOKEN` | all services; unset in production |

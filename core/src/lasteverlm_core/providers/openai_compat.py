@@ -17,10 +17,11 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from openai import APIError, OpenAI
+from openai import APIError, APIStatusError, OpenAI
 
+from ..audio import billed_seconds, probe_audio
 from ..settings import InferenceSettings
-from .base import CompletionResult, EmbeddingResult, ProviderError, Usage
+from .base import CompletionResult, EmbeddingResult, ProviderError, TranscriptionResult, Usage
 
 DEFAULT_MAX_TOKENS = 1024
 
@@ -39,6 +40,21 @@ def make_client(
         timeout=settings.llm_timeout_seconds if timeout is None else timeout,
         max_retries=max_retries,
     )
+
+
+# 4xx answers that may change on a retry: timeout, conflict, rate limit.
+_TRANSIENT_CLIENT_ERRORS = frozenset({408, 409, 429})
+
+
+def _request_failed(what: str, exc: APIError) -> ProviderError:
+    """The `ProviderError` for a failed request: `permanent` when the
+    platform refused it with a 4xx a retry will not change (a file over its
+    limits, an unknown voice, a malformed request)."""
+    status = exc.status_code if isinstance(exc, APIStatusError) else None
+    permanent = (
+        status is not None and 400 <= status < 500 and status not in _TRANSIENT_CLIENT_ERRORS
+    )
+    return ProviderError(f"{what} request failed: {exc}", permanent=permanent)
 
 
 def thinking_body(enabled: bool) -> dict[str, Any]:
@@ -75,7 +91,7 @@ class OpenAICompatibleEmbedder:
                 model=self._model, input=texts, dimensions=self._dimension
             )
         except APIError as exc:
-            raise ProviderError(f"embedding request failed: {exc}") from exc
+            raise _request_failed("embedding", exc) from exc
         if response.usage is None:
             raise ProviderError(f"embedding model {self._model} reported no usage")
         usage = Usage("embedding", self._model, response.usage.prompt_tokens, 0)
@@ -157,7 +173,7 @@ class OpenAICompatibleLLM:
                 extra_body=thinking_body(think),
             )
         except APIError as exc:
-            raise ProviderError(f"completion request failed: {exc}") from exc
+            raise _request_failed("completion", exc) from exc
         if response.usage is None:
             raise ProviderError(f"language model {self._model} reported no usage")
         usage = Usage(
@@ -213,7 +229,50 @@ class OpenAICompatibleTextToSpeech:
                 model=self._model, voice=voice or self._voice, input=text, **extra
             )
         except APIError as exc:
-            raise ProviderError(f"speech request failed: {exc}") from exc
+            raise _request_failed("speech", exc) from exc
         if not response.content:
             raise ProviderError(f"speech model {self._model} returned no audio")
         return response.content
+
+
+class OpenAICompatibleSpeechToText:
+    """Transcription over `/audio/transcriptions`, multipart, `response_format=json`.
+
+    The upload is checked by `probe_audio` first (WAV or MP3, 25 MiB,
+    four hours), so `AudioError` is raised before any call. The platform
+    answers `usage: {"type": "duration", "seconds": n}`; that number is
+    what it bills and what is recorded. A response without it is a
+    `ProviderError` carrying the measured duration as usage, so the
+    caller still records the call; an empty transcript is one too, with
+    the reported usage. No timestamps: `verbose_json` is a 400 there.
+    """
+
+    def __init__(self, client: OpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def transcribe(self, audio: bytes, filename: str) -> TranscriptionResult:
+        info = probe_audio(audio)
+        try:
+            response = self._client.audio.transcriptions.create(
+                model=self._model,
+                file=(filename, audio, info.mime),
+                response_format="json",
+            )
+        except APIError as exc:
+            raise _request_failed("transcription", exc) from exc
+        reported = response.usage
+        if reported is None or reported.type != "duration":
+            measured = Usage("stt", self._model, billed_seconds(info.seconds), 0)
+            raise ProviderError(
+                f"speech-to-text model {self._model} reported no duration usage", measured
+            )
+        usage = Usage("stt", self._model, billed_seconds(reported.seconds), 0)
+        text = response.text.strip()
+        if not text:
+            raise ProviderError(f"speech-to-text model {self._model} recognised no speech", usage)
+        return TranscriptionResult(text, usage, info.seconds)

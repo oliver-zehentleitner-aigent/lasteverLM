@@ -6,6 +6,17 @@ defaults shipped here, model by model. A model without a price is a
 configuration error, not a free call: `cost_cents` raises, and a service
 checks its configured models with `require_prices` at startup so the
 failure happens before the first request, not inside it.
+
+One price shape serves every usage kind; what a unit is depends on the
+kind, and only the `in` side is used where there is no output:
+
+- `llm`, `embedding`: tokens, `in` and `out` per million tokens.
+- `tts`: input characters. `tokens_in` holds the character count,
+  `tokens_out` is 0; `in` is cents per million characters.
+- `stt`: seconds of audio, rounded up per call. `tokens_in` holds the
+  seconds, `tokens_out` is 0; `in` is cents per million seconds (the
+  platform prices the model per second, so 0.00028 USD per second is
+  `"in": 28000`).
 """
 
 from __future__ import annotations

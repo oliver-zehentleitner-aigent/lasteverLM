@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/architecture.md`: usage kind `stt` (seconds of audio), source kind `audio`, `STT_MODEL`.
+
 ## [0.10.0] - 2026-10-14
 
 ### Changed
