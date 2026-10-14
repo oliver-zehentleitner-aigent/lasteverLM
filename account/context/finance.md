@@ -14,8 +14,10 @@ With `VULTR_BILLING_API_KEY` set, the account process reads
 (and on `POST /admin/finance/infra/sync`) and upserts monthly lines into `infra_costs`
 keyed by (month, source, item). Every replica may run it; the upsert makes a double
 run harmless. Without the key, or with an empty one, nothing runs and the API says
-`"vultr": "not connected"`. Amounts stay in USD as billed; an admin-set `eur_per_usd`
-converts them, and without a rate the EUR totals are null rather than estimated.
+`"vultr": "not connected"`. Amounts stay in USD as billed; the pricing rules' `usd_per_eur`
+— the one rate core also books with — converts them, and without a rate the EUR totals
+are null rather than estimated. (Until 2026-10-14 account kept its own `eur_per_usd`
+setting for this; it went when core's booking got the rate, so there are not two rates.)
 
 **Reason:** the result has to land in account's database and be shown by account's
 API. Fetching in-process needs nothing new: no internal write endpoint, no second
@@ -25,8 +27,9 @@ this key (session secret, voucher key, database URL).
 **Rejected alternatives:** a Kubernetes CronJob with its own Secret, so the account
 pods never see the key — rejected because the job cannot reach the database and
 would need an internal endpoint on account plus a token to report its results,
-which is more attack surface than the key it protects; a fixed default exchange rate
-— rejected because a silently wrong conversion is worse than an empty field.
+which is more attack surface than the key it protects; a fixed exchange rate in code
+— rejected because a silently wrong conversion is worse than an empty field (the
+seeded 1.1188 of migration 0010 is a value in the editable rules, not in code).
 
 **Consequence:** the account pods hold a Vultr key with the billing permission. Vultr
 has no read-only billing scope, so the key can do what that permission allows, which
@@ -40,7 +43,7 @@ compromised. Account's egress must keep 443 to api.vultr.com open.
 **Status:** active
 **Evidence:** confirmed
 **Source:** implementation of the maintainer's finance brief, 2026-10-14; currency of MODEL_PRICES confirmed by the coordinator, 2026-10-14
-**Revisit when:** core converts cost to EUR at booking (then usage amounts here are EUR and the note below goes), or the demo user gets real money behind it
+**Revisit when:** the rate is fetched automatically (ECB) instead of set by an admin, or the demo user gets real money behind it
 
 `/admin/finance/profit` is charged − model cost − infrastructure per day or month. The
 demo user's usage is reported beside it, not in it: its credit is the migration's seed,
@@ -59,11 +62,13 @@ are funded by the seed, not by anyone; converting with a built-in default rate �
 rejected as above (finance.md, the Vultr entry); attributing infrastructure to the
 first day of the month — rejected because daily profit would swing for no reason.
 
-**Currency of usage amounts:** `MODEL_PRICES` are USD cents per million units, taken
-from Vultr's catalog, so `usage.cost_cents` — and the charge derived from it — are USD
-today while credits are EUR. The conversion belongs in core's booking, where the rate
-can be fixed per row at the time of the call; account does not convert usage on its own,
-so cost and charge read the same in every service. Until core books in EUR, the usage
-figures on the finance pages are USD cents as booked, and the profit row mixes them with
-EUR infrastructure — the pages say so. (An earlier version of this entry assumed EUR.)
+**Currency:** `MODEL_PRICES` are USD cents per million units from Vultr's catalog. Core
+converts at booking with the pricing rules' `usd_per_eur` and stores the rate per row:
+`cost_usd_cents` as measured, `cost_cents` and `charge_cents` in euro cents. Account
+reads those and never converts usage itself, so every service shows the same figures;
+it converts infrastructure with the same rate. The rate is required (core refuses to
+book without it); migration 0010 seeds 1.1188, the ECB reference rate of 2026-10-13,
+until the maintainer confirms one, and the pricing reset keeps the rate. (Earlier
+versions of this entry first assumed EUR prices, then described USD usage amounts
+before core converted at booking.)
 
