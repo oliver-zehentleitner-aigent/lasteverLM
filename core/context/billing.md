@@ -73,3 +73,53 @@ library migrations (0003 expand, 0004 contract) set the precedent.
 **Rejected alternative:** `not null` with defaults in one migration.
 Rejected: no column default can give `action_id` the row's own id or
 `charge_cents` the row's cost, which is what the old rows mean.
+
+## Costs are US cents, charges euro cents, the rate is stored per row
+
+**Id:** 05565ae9-d57c-4263-84d1-bf2162f8e3bb
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the account service's review of the finance redesign and the coordinating agent's decision, 2026-10-14
+**Revisit when:** the maintainer settles where the rate comes from (a manual value, or a daily ECB fetch with a manual override in account's sync)
+
+`MODEL_PRICES` are US cents, as the platform lists them. Credits,
+vouchers and balances are euro cents. `record_usage` books four
+amounts:
+
+- `cost_usd_cents`: the measured cost in US cents.
+- `usd_per_eur`: the rate applied.
+- `cost_cents`: the cost in euro cents, `cost_usd_cents / usd_per_eur`
+  to ten decimal places.
+- `charge_cents`: what the user pays, `cost_cents` times
+  `1 + margin_pct / 100`.
+
+The rate is `usd_per_eur` in the pricing rules, the same settings row as
+the margins, so it has a single source. It is required and has no
+default: rules without a rate, including the shipped defaults, make
+`record_usage` raise `ExchangeRateMissingError` before it writes
+anything. The seed value is the ECB reference rate of 2026-10-13 (1.1188
+US dollars per euro), until the maintainer confirms a value. It is
+seeded by account's migration, because the `settings` table is
+account's and core's migrations run before it exists on a fresh
+database. Rows booked before migration 0006 were charged one to one;
+they keep that and get `usd_per_eur` null.
+
+**Reason:** before this, a cost in dollars was charged as the same
+number of euros. A rate fixed per row keeps a past charge, its cost and
+the conversion reproducible after the rate moves.
+
+**Rejected alternative:** convert `MODEL_PRICES` to euros up front.
+Rejected: the platform's own figures would be lost, and every rate
+change would mean editing the price table.
+
+**Rejected alternative:** a default rate in code. Rejected: a stale
+built-in number would charge wrongly without anyone noticing, which is
+what failing loud is for.
+
+**Rejected alternative:** `eur_per_usd`, as first proposed. Rejected:
+the ECB quotes dollars per euro, and storing its figure unchanged
+avoids a rounded inverse.
+
+**Rejected alternative:** seed the row in core's migration. Rejected
+because of the table ownership and migration order above.
