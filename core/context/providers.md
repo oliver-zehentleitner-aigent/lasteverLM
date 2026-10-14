@@ -269,3 +269,5 @@ the ledger should hold what it reports.
 
 Why a decision model gives the verdict's number while the language model
 writes the evidence is rag's decision and is recorded in rag's context.
+
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — e384d814-56f5-4990-b4af-e9da3e8b8a18 — as of 2026-10-14
