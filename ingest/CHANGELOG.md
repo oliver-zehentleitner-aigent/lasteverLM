@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /estimate?kind=text|url|pdf_text|pdf_vision|image|audio`: the cost and charge of one nominal unit of a source (a page, a web page, an image, a minute of audio) through core's billing at the current pricing rules, plus the once-per-source part (summary and fixed fee), for account's public price list. Any bearer; the nominal sizes are constants in `api/estimate.py`, listed in docs.
+
 ## [0.18.3] - 2026-10-14
 
 ### Changed

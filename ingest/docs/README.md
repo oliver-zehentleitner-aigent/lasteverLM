@@ -72,6 +72,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/library/{id}/restore` | 204 | back from the trash into the library, in no notebook |
 | DELETE | `/library/{id}/purge` | 204 | deletes a trashed entry now: chunks and stored object go |
 | GET | `/healthz` | 200 | liveness and readiness probe: core's `Health`, `{"status": "ok", "version", "commit", "dependencies": {"postgres", "storage", "inference"}}`; version and commit from `APP_VERSION`/`APP_COMMIT` (`"unknown"` when unset), each dependency `"ok"` or `"down"` from core's `DependencyProbe` (a pooled connection, a bucket HEAD, `GET /models`; 2 s each, cached 15 s). `status` stays `"ok"` while a dependency is down, so the probe never restarts a pod over it |
+| GET | `/estimate?kind=text\|url\|pdf_text\|pdf_vision\|image\|audio` | 200 | any bearer (account's price list calls it server-side and publishes only the charge): `{"kind", "unit", "action", "cost_cents", "charge_cents", "per_source_charge_cents", "nominal": [{"model", "tokens_in", "tokens_out"}]}`, euro cents through core's billing at the current pricing rules; 503 without an exchange rate. Nominal units below |
 | GET | `/admin/stats` | 200 | viewers and admins (core's `admin_read`; 403 `admin only` otherwise): counts over all users, see below |
 | GET | `/admin/stats/daily?days=30` | 200 | viewers and admins: library sources created per day, see below |
 | DELETE | `/admin/users/{id}` | 204 | admins only (viewers 403): everything the user owns in ingest. The stored objects of their library (trash and converted recordings included) are deleted first, then their library rows (generated ones too, chunks cascade), notebooks (links and rag's rows cascade) and seed mark in one transaction. A storage failure is 503 `{"error"}` naming the count and the first key, with every row kept for a retry. Idempotent: 204 also when nothing is left or the user never existed. Account calls it, with the admin's bearer, after rag's purge and before deleting the user |
@@ -155,6 +156,22 @@ read-only query.
 
 Errors are `{"error": "<message>"}`: 400 bad upload, 401 token, 403 admin only, 404 not yours or missing, 413 too large, 415
 unsupported type, 422 invalid body.
+
+### Nominal units of `GET /estimate`
+
+What one unit is priced as (constants in `api/estimate.py`, measured on
+the demo set and the live vision runs, deliberately round):
+
+| kind | unit | model calls |
+|---|---|---|
+| `text`, `pdf_text` | page | 500 embedding tokens (about 2,000 characters of prose) |
+| `url` | web page | 6,000 embedding tokens (the demo article, 24,348 characters as text) |
+| `pdf_vision` | page | `LLM_MODEL` 515 in / 960 out (measured on scanned A4), then 960 embedding tokens |
+| `image` | image | `LLM_MODEL` 540 in / 500 out, then 500 embedding tokens |
+| `audio` | minute | `STT_MODEL` 60 seconds, then 200 embedding tokens |
+
+Once per source on top (`per_source_charge_cents`): the summary call at
+its largest input (6,000 in, 300 out) and the action's fixed fee.
 
 ## Processing
 

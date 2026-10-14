@@ -26,6 +26,7 @@ from lasteverlm_core import (
     Chunk,
     ModelPrices,
     Notebook,
+    PricingRules,
     PricingRulesCache,
     Role,
     Source,
@@ -349,6 +350,10 @@ class Repository(Protocol):
     ) -> UsageRecord:
         """Book one model call of a user action (core's `record_usage`: cost
         from the model prices, charge from the pricing rules)."""
+        ...
+
+    def pricing_rules(self) -> PricingRules:
+        """Account's pricing rules (settings row, cached 30 s)."""
         ...
 
     def has_exchange_rate(self) -> bool:
@@ -936,6 +941,10 @@ class PostgresRepository:
                 prices=self._prices,
                 rules=self._rules.current(conn),
             )
+
+    def pricing_rules(self) -> PricingRules:
+        with self._pool.connection() as conn:
+            return self._rules.current(conn)
 
     def has_exchange_rate(self) -> bool:
         with self._pool.connection() as conn:
