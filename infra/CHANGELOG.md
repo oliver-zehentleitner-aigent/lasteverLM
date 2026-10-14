@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `docs/operations.md`: a log of production changes made by hand; first entry the maintainer-ordered removal of the VM address's rate-limit block and the raise of `per_minute` from 120 to 240.
+
 ## [0.18.2] - 2026-10-14
 
 ### Changed

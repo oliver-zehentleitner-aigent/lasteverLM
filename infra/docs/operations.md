@@ -305,6 +305,22 @@ repository variables: the configuration comes from the committed
 `chart/values-prod.yaml`, the same file `make deploy` uses on an
 operator machine, and the smoke test targets the domain in it.
 
+## Changes made by hand
+
+Production changes outside the chart and the Makefile, each ordered by
+the maintainer.
+
+- 2026-10-14, 10:51 UTC, in one transaction through the application
+  role: the 15-minute block of `91.115.8.66` (the address the VM and the
+  maintainer's browser share), set by an unthrottled CSP walk, deleted
+  from `ip_blocks` with its strike (1 row; no ban existed, `ip_bans`
+  unchanged); the admin panel has no action for blocks, only for bans.
+  The rate limiter's `per_minute` in `settings` key `ratelimit` raised
+  from 120 to 240, the other rules unchanged (`block_minutes` 15,
+  `ban_after_strikes` 3, `strike_window_hours` 24); core reads the row
+  within 30 seconds. The admin panel shows and changes the value from
+  then on.
+
 ## Teardown
 
 `make down` runs `tofu destroy` after its confirmation prompt and
