@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-14
+
 ### Fixed
 
 - Text to speech is billed per second of generated speech, as the platform charges it, instead of per input character (about 15 times too much). `synthesize` returns `SpeechResult(audio, usage)`, the usage (kind `tts`, seconds in `tokens_in`) read from the `x-usage-seconds` response header and rounded up. A response without a readable header is a `ProviderError` carrying the duration measured from the MP3 (`measure_audio`); empty audio is one carrying the reported usage. `MODEL_PRICES` gives `in` for a `tts` model in cents per million seconds. Breaking: callers take `.audio` and record `.usage`.

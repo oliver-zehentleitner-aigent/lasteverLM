@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-14
+
 ### Fixed
 
 - Text to speech is billed per second of generated speech, as the platform reports and charges it (core's `SpeechResult`), instead of per input character, which charged about 14 times the platform's price (100 characters: 2.8 cents against 7 seconds at 0.196 cents); `MODEL_PRICES` for `TTS_MODEL` is read as cents per million seconds.
