@@ -162,3 +162,17 @@ def test_a_hanging_dns_lookup_is_bounded_by_the_deadline():
         GuardedBackend(resolve=hang).connect_tcp("slow.example", 443, timeout=0.2)
     assert time.monotonic() - started < 2
     release.set()
+
+
+def test_an_app_shell_says_it_needs_javascript():
+    from lasteverlm_ingest.loaders.html import HtmlLoader
+
+    shell = (
+        b"<!doctype html><html><head><title>lasteverLM</title>"
+        b'<script type="module" src="/assets/index.js"></script></head>'
+        b'<body><div id="root"></div></body></html>'
+    )
+    with pytest.raises(LoaderError, match="no readable text without JavaScript"):
+        HtmlLoader().load(shell)
+    with pytest.raises(LoaderError, match="^the page contains no readable text$"):
+        HtmlLoader().load(b"<html><body><div></div></body></html>")

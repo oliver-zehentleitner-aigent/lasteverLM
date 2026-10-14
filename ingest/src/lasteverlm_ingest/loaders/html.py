@@ -66,6 +66,7 @@ _BLANK_LINES = re.compile(r"\n\s*\n+")
 class _Extractor(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
+        self.scripts = 0
         self.title: list[str] = []
         self.body: list[str] = []
         self.main: list[str] = []
@@ -75,6 +76,8 @@ class _Extractor(HTMLParser):
         self._pre = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "script":
+            self.scripts += 1
         if tag in _VOID:
             if tag == "br":
                 self._text("\n")
@@ -138,7 +141,14 @@ class HtmlLoader:
         main = _tidy(parser.main)
         text = main if main else _tidy(parser.body)
         if not text:
-            raise LoaderError("page contains no readable text")
+            if parser.scripts:
+                # An app shell: its content is built in the browser, and the
+                # worker runs no JavaScript.
+                raise LoaderError(
+                    "the page has no readable text without JavaScript (it builds its content "
+                    "in the browser); add a page that serves its text as HTML"
+                )
+            raise LoaderError("the page contains no readable text")
         title = " ".join("".join(parser.title).split())
         if title and not text.startswith(title):
             text = f"{title}\n\n{text}"
