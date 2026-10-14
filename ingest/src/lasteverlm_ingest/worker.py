@@ -50,6 +50,7 @@ _ERROR_MAX = 500
 # How the API shows a `processing` source whose owner has no credit: it
 # is not claimed until the owner has credit again (see the claim query).
 WAITING_FOR_CREDIT = "waiting_for_credit"
+NO_EXCHANGE_RATE = "pricing has no exchange rate, ask an admin"
 # Backoff after a transient failure: 5 s after the first, 15 s after the second.
 RETRY_BASE_SECONDS = 5.0
 RETRY_FACTOR = 3.0
@@ -152,16 +153,14 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         # Reading this source takes model calls of its own (images, PDF
         # pages): each one is recorded as it returns, and the next one is
         # only made while the owner still has credit.
-        if not _has_credit(repo, source):
-            raise WaitForCredit
+        _may_call(repo, source)
 
         def bill(usage: Usage) -> None:
             _record(repo, source, notebook_id, usage)
             # A vision PDF can take longer than the claim timeout; each
             # answered call shows the job is alive (see refresh_claim).
             repo.refresh_claim(source_id)
-            if not _has_credit(repo, source):
-                raise WaitForCredit
+            _may_call(repo, source)
 
         passages = loader.load_billed(data, bill)
     else:
@@ -169,8 +168,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     chunks = deps.chunker.chunk(passages)
     if not chunks:
         raise ProcessingError("no text to index")
-    if not _has_credit(repo, source):
-        raise WaitForCredit
+    _may_call(repo, source)
 
     vectors: list[list[float]] = []
     tokens = 0
@@ -182,29 +180,14 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         repo.refresh_claim(source_id)
 
     repo.replace_chunks(source_id, chunks, vectors)
-    repo.record_usage(
-        user_id=_payer(source),
-        notebook_id=notebook_id,
-        kind="embedding",
-        model=deps.embedder.model,
-        tokens_in=tokens,
-        tokens_out=0,
-    )
+    _record(repo, source, notebook_id, Usage("embedding", deps.embedder.model, tokens, 0))
 
     # The summary is its own model call, so it gets its own credit check
     # and its own usage row. Without a summary the source is not usable by
     # the output generators, so a failure here fails the source.
-    if not _has_credit(repo, source):
-        raise WaitForCredit
+    _may_call(repo, source)
     summary = deps.summarizer.summarize(source.name, passages)
-    repo.record_usage(
-        user_id=_payer(source),
-        notebook_id=notebook_id,
-        kind=summary.usage.kind,
-        model=summary.usage.model,
-        tokens_in=summary.usage.tokens_in,
-        tokens_out=summary.usage.tokens_out,
-    )
+    _record(repo, source, notebook_id, summary.usage)
     repo.set_library_summary(source_id, summary.text)
     repo.set_library_status(source_id, "ready", None)
     log.info(
@@ -248,21 +231,33 @@ def _payer(source: LibrarySource) -> UUID:
     return DEMO_USER_ID if source.demo else source.owner
 
 
+def _may_call(repo: Repository, source: LibrarySource) -> None:
+    """Checked before every model call. Without an exchange rate in the
+    pricing rules a call could be paid upstream but not booked, so the
+    source fails before the call; without credit it waits."""
+    if not repo.has_exchange_rate():
+        raise ProcessingError(NO_EXCHANGE_RATE)
+    if not _has_credit(repo, source):
+        raise WaitForCredit
+
+
 def _has_credit(repo: Repository, source: LibrarySource) -> bool:
     return source.demo or repo.has_credit(source.owner)
+
+
+def _action(source: LibrarySource) -> str:
+    """What the usage rows of processing this source are booked as: the
+    demo seeds as `demo_seed` (sponsored), everything else `source:<kind>`."""
+    return "demo_seed" if source.demo else f"source:{source.kind}"
 
 
 def _record(
     repo: Repository, source: LibrarySource, notebook_id: UUID | None, usage: Usage
 ) -> None:
-    repo.record_usage(
-        user_id=_payer(source),
-        notebook_id=notebook_id,
-        kind=usage.kind,
-        model=usage.model,
-        tokens_in=usage.tokens_in,
-        tokens_out=usage.tokens_out,
-    )
+    """Book one model call. Every call of processing one source (vision
+    pages, the transcription, the embeddings, the summary) is one action:
+    its `action_id` is the library source's id, retries included."""
+    repo.record_usage(_payer(source), notebook_id, _action(source), source.id, usage)
 
 
 def default_worker_id() -> str:

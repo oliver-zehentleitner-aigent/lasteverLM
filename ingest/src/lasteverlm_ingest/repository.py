@@ -22,7 +22,17 @@ from datetime import date, datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
-from lasteverlm_core import Chunk, ModelPrices, Notebook, Role, Source, UsageKind, UsageRecord
+from lasteverlm_core import (
+    Chunk,
+    ModelPrices,
+    Notebook,
+    PricingRulesCache,
+    Role,
+    Source,
+    Usage,
+    UsageRecord,
+    funded_sql,
+)
 from lasteverlm_core import admin_role as core_admin_role
 from lasteverlm_core import has_credit as core_has_credit
 from lasteverlm_core import record_usage as core_record_usage
@@ -333,12 +343,17 @@ class Repository(Protocol):
         self,
         user_id: UUID,
         notebook_id: UUID | None,
-        kind: UsageKind,
-        model: str,
-        tokens_in: int,
-        tokens_out: int,
+        action: str,
+        action_id: UUID,
+        usage: Usage,
     ) -> UsageRecord:
-        """Price and write one `usage` row (core's `record_usage`)."""
+        """Book one model call of a user action (core's `record_usage`: cost
+        from the model prices, charge from the pricing rules)."""
+        ...
+
+    def has_exchange_rate(self) -> bool:
+        """Do the pricing rules (account's settings row, cached 30 s) have
+        `usd_per_eur`: without it no model call can be booked."""
         ...
 
     def has_credit(self, user_id: UUID) -> bool:
@@ -402,6 +417,8 @@ class PostgresRepository:
 
         self._prices = model_prices
         self._service = service
+        # Account's pricing rules (margins, fees), re-read every 30 s.
+        self._rules = PricingRulesCache()
         self._pool = ConnectionPool(
             database_url,
             min_size=min_size,
@@ -601,11 +618,8 @@ class PostgresRepository:
     # Every library read filters with this: generated rows are rag's.
     _LISTED = "l.kind <> 'generated'"
     # May the worker process this row: a sponsored demo seed, or an owner
-    # with a positive balance (core's rule, ledger minus usage).
-    _FUNDED = (
-        "(l.demo or coalesce((select sum(amount_cents) from ledger where user_id = l.owner), 0)"
-        " - coalesce((select sum(cost_cents) from usage where user_id = l.owner), 0) > 0)"
-    )
+    # with a positive balance (core's expression: credits minus charges).
+    _FUNDED = f"(l.demo or {funded_sql('l.owner')})"
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
@@ -906,10 +920,9 @@ class PostgresRepository:
         self,
         user_id: UUID,
         notebook_id: UUID | None,
-        kind: UsageKind,
-        model: str,
-        tokens_in: int,
-        tokens_out: int,
+        action: str,
+        action_id: UUID,
+        usage: Usage,
     ) -> UsageRecord:
         with self._pool.connection() as conn:
             return core_record_usage(
@@ -917,12 +930,16 @@ class PostgresRepository:
                 user_id,
                 notebook_id,
                 self._service,
-                kind,
-                model,
-                tokens_in,
-                tokens_out,
+                action,
+                action_id,
+                usage,
                 prices=self._prices,
+                rules=self._rules.current(conn),
             )
+
+    def has_exchange_rate(self) -> bool:
+        with self._pool.connection() as conn:
+            return self._rules.current(conn).usd_per_eur is not None
 
     def has_credit(self, user_id: UUID) -> bool:
         with self._pool.connection() as conn:

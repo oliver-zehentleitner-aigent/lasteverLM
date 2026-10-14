@@ -7,6 +7,7 @@ import hashlib
 import math
 import secrets
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -17,10 +18,12 @@ from lasteverlm_core import (
     ModelPrices,
     Notebook,
     Passage,
+    PricingRules,
     TranscriptionResult,
     Usage,
     UsageRecord,
     cost_cents,
+    is_usage_action,
     parse_model_prices,
 )
 
@@ -64,6 +67,8 @@ class InMemoryRepository:
         self.claimed: dict[UUID, str] = {}
         self.refreshed: list[UUID] = []
         self.default_balance = balance
+        # Account seeds the pricing row with a rate; one dollar per euro here.
+        self.rules = PricingRules(usd_per_eur=Decimal(1))
         self.admins: set[UUID] = set()
         self.viewers: set[UUID] = set()
         # account's users.preferences -> 'trash_days'; missing means 14
@@ -464,23 +469,37 @@ class InMemoryRepository:
     ) -> None:
         self.chunks[library_id] = list(zip(chunks, vectors, strict=True))
 
-    def record_usage(self, user_id, notebook_id, kind, model, tokens_in, tokens_out) -> UsageRecord:
-        usage = UsageRecord(
+    def record_usage(self, user_id, notebook_id, action, action_id, usage) -> UsageRecord:
+        """core's booking without the database: the cost in US cents from
+        the prices, in euro cents at the rules' rate, the charge from the
+        rules (fees are core's business)."""
+        assert is_usage_action(action), action
+        cost_usd = cost_cents(self.prices, usage.model, usage.tokens_in, usage.tokens_out)
+        cost = self.rules.cost_eur_cents(cost_usd)
+        record = UsageRecord(
             user_id=user_id,
             notebook_id=notebook_id,
             service="ingest",
-            kind=kind,
-            model=model,
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            cost_cents=cost_cents(self.prices, model, tokens_in, tokens_out),
+            action=action,
+            action_id=action_id,
+            kind=usage.kind,
+            model=usage.model,
+            tokens_in=usage.tokens_in,
+            tokens_out=usage.tokens_out,
+            cost_usd_cents=cost_usd,
+            usd_per_eur=self.rules.usd_per_eur,
+            cost_cents=cost,
+            charge_cents=self.rules.charge_cents(action, cost),
         )
-        self.usage.append(usage)
-        return usage
+        self.usage.append(record)
+        return record
 
-    def balance_cents(self, user_id: UUID) -> int:
+    def balance_cents(self, user_id: UUID):
         credits = self.credits.get(user_id, self.default_balance)
-        return credits - sum(u.cost_cents for u in self.usage if u.user_id == user_id)
+        return credits - sum(u.charge_cents for u in self.usage if u.user_id == user_id)
+
+    def has_exchange_rate(self) -> bool:
+        return self.rules.usd_per_eur is not None
 
     def has_credit(self, user_id: UUID) -> bool:
         # core's rule: a positive balance, for every user alike (admins too).
