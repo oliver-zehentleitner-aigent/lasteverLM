@@ -8,6 +8,8 @@ import pytest
 from pydantic import ValidationError
 
 from lasteverlm_core import (
+    DEFAULT_JUDGE_MODELS,
+    JUDGE_LEVELS,
     UNKNOWN_BUILD,
     Answer,
     ChunkView,
@@ -48,6 +50,38 @@ def test_inference_settings_from_env() -> None:
     assert InferenceSettings.from_env({**env, "STT_MODEL": " stt "}).stt_model == "stt"
     with pytest.raises(ConfigError, match="INFERENCE_API_KEY"):
         InferenceSettings.from_env({})
+
+
+def test_judge_models_default_and_merge_per_level() -> None:
+    env = {"INFERENCE_API_KEY": "k", "LLM_MODEL": "l", "EMBEDDING_MODEL": "e"}
+    assert JUDGE_LEVELS == ("low", "medium", "high")
+    assert (
+        InferenceSettings.from_env(env).judge_models
+        == DEFAULT_JUDGE_MODELS
+        == {
+            "low": "glm-5.3-flash",
+            "medium": "deepseek-v4.1-flash",
+            "high": "glm-5.3",
+        }
+    )
+    custom = InferenceSettings.from_env({**env, "JUDGE_MODELS": '{"high": " clef "}'})
+    assert custom.judge_models == {**DEFAULT_JUDGE_MODELS, "high": "clef"}
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [
+        ("{", "not valid JSON"),
+        ('["glm-5.3"]', "JSON object keyed by level"),
+        ('{"extreme": "glm-5.3"}', "unknown level 'extreme'"),
+        ('{"low": ""}', r"JUDGE_MODELS\['low'\] must be a model name"),
+        ('{"low": 3}', r"JUDGE_MODELS\['low'\] must be a model name"),
+    ],
+)
+def test_bad_judge_models_fail_at_startup(raw: str, message: str) -> None:
+    env = {"INFERENCE_API_KEY": "k", "LLM_MODEL": "l", "EMBEDDING_MODEL": "e"}
+    with pytest.raises(ConfigError, match=message):
+        InferenceSettings.from_env({**env, "JUDGE_MODELS": raw})
 
 
 def test_output_options_default_to_empty() -> None:

@@ -399,6 +399,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `LLM_MODEL` | ingest (source summaries), rag |
 | `STT_MODEL` (default `whisper-large-v3-turbo`; MP3 and WAV only, 25 MiB, 4 h) | ingest (audio sources) |
 | `DECISION_MODEL` (default `clef`; `clef-flash` costs half per token) | rag (Decision outputs) |
+| `JUDGE_MODELS` (JSON level → model, levels `low`, `medium`, `high`; defaults in core; every model needs a price) | rag (answer judge) |
 | `SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE` (default `ryan`; the platform's voices are not the OpenAI names) | rag |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | ingest, rag (identical on both) |
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
