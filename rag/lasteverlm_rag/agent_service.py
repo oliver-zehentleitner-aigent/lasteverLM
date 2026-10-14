@@ -39,6 +39,7 @@ from .citations import inline
 from .ingest_client import Ingest, IngestError
 from .models import Booking
 from .options import OutputOptions
+from .reading import reading_lines
 from .service import (
     HISTORY_MESSAGES,
     ConversationNotFound,
@@ -73,8 +74,9 @@ def public(plan: dict[str, Any]) -> dict[str, Any]:
         "plan_id": plan["id"],
         "status": plan["status"],
         "steps": plan["steps"],
-        "estimate": plan["estimate"],
-        "separate": separate(plan["steps"]),
+        "estimate": {k: v for k, v in plan["estimate"].items() if k != "reading"},
+        # ingest's own charges: pages a step adds, sources an output reads first
+        "separate": separate(plan["steps"]) + plan["estimate"].get("reading", []),
     }
 
 
@@ -111,6 +113,7 @@ class AgentService:
         bearer: str | None,
         output_id: str | None = None,
         source_ids: list[str] | None = None,
+        url_refresh: list[str] | None = None,
     ) -> Answer:
         """A plan when the message asks for actions; the usual answer otherwise.
         A scoped question (about one output) is always answered."""
@@ -120,7 +123,15 @@ class AgentService:
             if planned is not None:
                 return planned
         return self._rag.ask(
-            user_id, notebook_id, question, conversation_id, output_id, source_ids, booking
+            user_id,
+            notebook_id,
+            question,
+            conversation_id,
+            output_id,
+            source_ids,
+            booking,
+            bearer=bearer,
+            url_refresh=url_refresh,
         )
 
     def _plan(
@@ -194,6 +205,12 @@ class AgentService:
                 }
             else:
                 step.estimate = self._estimate(step, bearer)
+        estimate: dict[str, Any] = dict(total(steps))
+        if self._ingest is not None and any(s.valid and s.tool == "create_output" for s in steps):
+            # an output reads the notebook's sources not read yet: ingest's charge
+            estimate["reading"] = reading_lines(
+                self._store, self._ingest, bearer, notebook_id, None, []
+            )
         plan_id = str(uuid.uuid4())
         plan = {
             "id": plan_id,
@@ -202,7 +219,7 @@ class AgentService:
             "owner": user_id,
             "status": "proposed",
             "steps": [s.as_json() for s in steps],
-            "estimate": total(steps),
+            "estimate": estimate,
             "action_id": str(booking.action_id),
         }
         text = "Here is my plan. Nothing runs until you confirm it.\n\n" + "\n".join(
@@ -307,6 +324,7 @@ class AgentService:
                     {k: v for k, v in args["options"].items() if k != "sources"}
                 ),
                 booking_id=plan["action_id"],
+                bearer=bearer,  # its sources not read yet are read now, as the user
             )
             step["result"] = {"output_id": str(output.id)}
             step["state"] = "waiting"

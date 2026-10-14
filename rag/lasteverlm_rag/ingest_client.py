@@ -32,6 +32,20 @@ class Ingest(Protocol):
         """What adding one web page charges: the page plus the per-source part."""
         ...
 
+    def process(self, bearer: str, library_ids: list[str]) -> dict[str, Any]:
+        """Start reading sources not read yet ('added'); idempotent."""
+        ...
+
+    def refetch(self, bearer: str, link_id: str) -> dict[str, Any]:
+        """Queue a check of a web page; it is 'processing' until done."""
+        ...
+
+    def estimate_sources(
+        self, bearer: str, library_ids: list[str], refetch: list[str]
+    ) -> list[dict[str, Any]]:
+        """What reading (or re-reading) each source would charge."""
+        ...
+
 
 class HttpIngest:
     def __init__(self, base_url: str, client: httpx.Client | None = None) -> None:
@@ -71,6 +85,27 @@ class HttpIngest:
     def library(self, bearer: str) -> list[dict[str, Any]]:
         result = self._call("GET", "/library", bearer, params={"kind": "all"})
         return list(result) if isinstance(result, list) else list(result.get("items", []))
+
+    def process(self, bearer: str, library_ids: list[str]) -> dict[str, Any]:
+        result: dict[str, Any] = self._call(
+            "POST", "/sources/process", bearer, json={"library_ids": library_ids}
+        )
+        return result
+
+    def refetch(self, bearer: str, link_id: str) -> dict[str, Any]:
+        result: dict[str, Any] = self._call("POST", f"/sources/{link_id}/refetch", bearer)
+        return result
+
+    def estimate_sources(
+        self, bearer: str, library_ids: list[str], refetch: list[str]
+    ) -> list[dict[str, Any]]:
+        result = self._call(
+            "POST",
+            "/sources/estimate",
+            bearer,
+            json={"library_ids": library_ids, "refetch": refetch},
+        )
+        return list(result.get("items", []))
 
     def url_charge_cents(self, bearer: str) -> Decimal:
         result = self._call("GET", "/estimate", bearer, params={"kind": "url"})

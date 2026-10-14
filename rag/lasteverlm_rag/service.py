@@ -14,6 +14,7 @@ import logging
 import re
 import secrets
 import threading
+import time
 import uuid
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -52,6 +53,7 @@ from lasteverlm_core import (
 
 from .citations import defuse_markers, inline, map_citations, number_passages, strip_markers
 from .coverage import balance, per_source_quota, uncovered_sources
+from .ingest_client import Ingest
 from .judging import annotate, judge_output, stored_units
 from .models import (
     Booking,
@@ -105,6 +107,13 @@ from .provenance import (
     check_units,
     now,
     shared_provenance,
+)
+from .reading import (
+    ANSWER_WAIT_S,
+    InvalidRefresh,
+    prepare,
+    still_reading_note,
+    wait_until_read,
 )
 from .speech import split_for_speech
 from .starter import MAX_COPY_ATTEMPTS, OutputCopy, remap_options, remap_provenance
@@ -310,7 +319,14 @@ class RagService:
         retrieval_k: int,
         similarity_floor: float,
         generated_slots: int = 0,
+        ingest: Ingest | None = None,
+        read_wait_s: float = ANSWER_WAIT_S,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        # ingest reads sources when an answer needs them (with the asker's bearer)
+        self._ingest = ingest
+        self._read_wait_s = read_wait_s
+        self._sleep = sleep
         self._store = store
         self._retriever = retriever
         self._embedder = embedder
@@ -328,6 +344,8 @@ class RagService:
         output_id: str | None = None,
         source_ids: list[str] | None = None,
         booking: Booking | None = None,
+        bearer: str | None = None,
+        url_refresh: list[str] | None = None,
     ) -> Answer:
         """``booking`` books the answer under an action already begun (an agent
         plan's, or the planning call's before it); a new chat_answer otherwise."""
@@ -339,6 +357,16 @@ class RagService:
         selected = check_sources(self._store, notebook_id, source_ids)
         require_credit(self._store, user_id)
         question = question.strip()
+        # sources not read yet are read now; the answer waits a little for them
+        try:
+            prepared = prepare(
+                self._store, self._ingest, bearer, notebook_id, selected, url_refresh or []
+            )
+        except InvalidRefresh as exc:
+            raise InvalidSources(str(exc)) from exc
+        still_reading = wait_until_read(
+            self._store, notebook_id, prepared, self._read_wait_s, sleep=self._sleep
+        )
 
         booking = booking or Booking.new(user_id, notebook_id, "chat_answer")
         embedded = embed_billed(self._store, self._embedder, booking, [question])
@@ -370,6 +398,8 @@ class RagService:
             # An empty notebook: say so without asking the model, so the answer
             # can never come from model knowledge alone.
             answer, citations, support, suggestions = REFUSAL, [], None, []
+        if still_reading:
+            answer = f"{answer}\n\n{still_reading_note(still_reading)}"
 
         # Both messages are written only once the answer exists, so the history
         # never holds a question without its answer.
@@ -546,7 +576,10 @@ class OutputService:
         objects: Storage | None = None,
         default_voice: str = DEFAULT_TTS_VOICE,
         judges: Mapping[str, LLM] | None = None,
+        ingest: Ingest | None = None,
     ) -> None:
+        # ingest reads sources when an output needs them (with the creator's bearer)
+        self._ingest = ingest
         self._store = store
         self._retriever = retriever
         self._embedder = embedder
@@ -572,8 +605,12 @@ class OutputService:
         options: OutputOptions | None = None,
         source_ids: list[str] | None = None,
         booking_id: str | None = None,
+        bearer: str | None = None,
+        url_refresh: list[str] | None = None,
     ) -> Output:
-        """``booking_id`` is an agent plan's action_id: the job books under it."""
+        """``booking_id`` is an agent plan's action_id: the job books under it.
+        The selected sources not read yet are read first (and the web pages in
+        ``url_refresh`` checked again); the job waits for them."""
         try:
             resolved = resolve(kind, options, self._default_voice)
         except ValueError as exc:
@@ -586,6 +623,11 @@ class OutputService:
         if kind == "chart":
             self._check_cited(notebook_id, resolved["charts"])
         require_credit(self._store, user_id)
+        if kind != "chart":  # a chart is drawn from passages already read
+            try:
+                prepare(self._store, self._ingest, bearer, notebook_id, selected, url_refresh or [])
+            except InvalidRefresh as exc:
+                raise InvalidSources(str(exc)) from exc
         # the job waits for the uploads it reads: the selection, or all of them
         states = self._store.source_states(notebook_id)
         waiting = any(

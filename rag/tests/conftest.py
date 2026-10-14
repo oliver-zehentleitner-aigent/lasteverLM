@@ -67,6 +67,8 @@ BASE_ENV = {
     "DECISION_MODEL": "test-decision",
     "MODEL_PRICES": PRICES,
     "JUDGE_MODELS": JUDGE_MODELS,
+    # tests do not wait for sources being read: the waiting is tested with a clock
+    "ANSWER_READ_WAIT_SECONDS": "0",
 }
 
 
@@ -417,7 +419,7 @@ class FakeStore:
 
     def source_states(self, notebook_id: str) -> list[SourceState]:
         return [
-            SourceState(s["id"], s["kind"], s["status"])
+            SourceState(s["id"], s["kind"], s["status"], s["id"], s["name"])
             for s in self.sources.values()
             if s["notebook_id"] == notebook_id
         ]
@@ -658,7 +660,13 @@ class FakeEmbedder:
 class FakeIngest:
     """Ingest's API as the agent uses it: records the calls and the bearer."""
 
-    def __init__(self, library: list[dict[str, Any]] | None = None, fail: bool = False) -> None:
+    def __init__(
+        self,
+        library: list[dict[str, Any]] | None = None,
+        fail: bool = False,
+        store: FakeStore | None = None,
+    ) -> None:
+        self.store = store
         self.calls: list[tuple[str, str, Any]] = []
         self.items = library or []
         self.fail = fail
@@ -681,6 +689,41 @@ class FakeIngest:
 
     def url_charge_cents(self, bearer: str) -> Decimal:
         return Decimal("0.42")
+
+    def process(self, bearer: str, library_ids: list[str]) -> dict[str, Any]:
+        self.calls.append(("process", bearer, library_ids))
+        if self.store is not None:  # ingest marks them processing; the worker reads them
+            for library_id in library_ids:
+                self.store.sources[library_id]["status"] = "processing"
+        return {"queued": library_ids, "unchanged": []}
+
+    def refetch(self, bearer: str, link_id: str) -> dict[str, Any]:
+        self.calls.append(("refetch", bearer, link_id))
+        if self.store is not None:
+            self.store.sources[link_id]["status"] = "processing"
+        return {"library_id": link_id, "version": 1, "fetched_at": "2026-10-14T00:00:00Z"}
+
+    def estimate_sources(
+        self, bearer: str, library_ids: list[str], refetch: list[str]
+    ) -> list[dict[str, Any]]:
+        self.calls.append(("estimate_sources", bearer, (library_ids, refetch)))
+        return [
+            {
+                "library_id": i,
+                "charge_cents_min": "1.5",
+                "charge_cents_max": "1.5",
+                "basis": "3 pages",
+            }
+            for i in library_ids
+        ] + [
+            {
+                "library_id": i,
+                "charge_cents_min": "0",
+                "charge_cents_max": "0.4",
+                "basis": "web page",
+            }
+            for i in refetch
+        ]
 
 
 class FakeLLM:
@@ -798,6 +841,9 @@ def make_client(
     ingest: Any = None,
 ) -> TestClient:
     generators = registry(tts_available=tts is not None)
+    ingest = ingest or FakeIngest(store=store)
+    if getattr(ingest, "store", None) is None:
+        ingest.store = store
     outputs = OutputService(
         store,
         retriever,
@@ -810,6 +856,7 @@ def make_client(
         objects=objects,
         decision=decision,
         judges=judges,
+        ingest=ingest,
     )
     app = create_app(
         settings=settings,
@@ -822,7 +869,7 @@ def make_client(
         rate_limit_store=MemoryRateLimitStore(),
         voice_samples=VoiceSamples(store, tts, objects),
         dependency_probe=dependency_probe,
-        ingest=ingest or FakeIngest(),
+        ingest=ingest,
     )
     client = TestClient(app, raise_server_exceptions=False)
     client.worker = Worker(  # type: ignore[attr-defined]

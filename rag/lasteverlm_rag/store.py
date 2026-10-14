@@ -957,12 +957,16 @@ class PostgresStore:
     def source_states(self, notebook_id: str) -> list[SourceState]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "select s.id::text as id, l.kind, l.status from sources s "
+                "select s.id::text as id, l.kind, l.status, l.id::text as library_id, l.name "
+                "from sources s "
                 "join library_sources l on l.id = s.library_source_id where s.notebook_id = %s "
                 "order by s.created_at, s.id",
                 (notebook_id,),
             ).fetchall()
-        return [SourceState(r["id"], r["kind"], r["status"]) for r in rows]
+        return [
+            SourceState(r["id"], r["kind"], r["status"], r["library_id"], r["name"] or "")
+            for r in rows
+        ]
 
     def source_summaries(self, notebook_id: str) -> list[SourceSummary]:
         with self._pool.connection() as conn:

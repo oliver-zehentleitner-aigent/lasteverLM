@@ -79,6 +79,7 @@ from .models import (
 from .options import OutputOptions, catalogue, resolve
 from .outputs import OutputGenerator, registry
 from .outputs.chart import ChartProposals
+from .reading import InvalidRefresh, reading_lines
 from .service import (
     ChunkNotFound,
     ConversationNotFound,
@@ -95,6 +96,8 @@ from .service import (
     OutputNotReady,
     OutputService,
     RagService,
+    check_sources,
+    require_notebook,
 )
 from .store import (
     PgVectorRetriever,
@@ -157,6 +160,7 @@ def create_app(
         )
     generators = generators or registry(tts_available=settings.tts_model is not None)
 
+    ingest = ingest or HttpIngest(settings.ingest_url)
     rag = RagService(
         store,
         retriever,
@@ -165,6 +169,8 @@ def create_app(
         settings.retrieval_k,
         settings.similarity_floor,
         generated_slots=settings.retrieval_generated_slots,
+        ingest=ingest,
+        read_wait_s=settings.answer_read_wait_s,
     )
     objects = S3Storage(settings.s3) if settings.s3 else None
     if objects is not None:
@@ -183,8 +189,8 @@ def create_app(
         default_voice=settings.tts_voice,
         # for judging an existing output or answer on request
         judges=judge_models(make_client(settings.inference), settings.inference.judge_models),
+        ingest=ingest,
     )
-    ingest = ingest or HttpIngest(settings.ingest_url)
     models = Models(
         llm=settings.inference.llm_model,
         embedding=settings.inference.embedding_model,
@@ -281,6 +287,7 @@ def create_app(
             authorization,
             output_id,
             [str(s) for s in body.source_ids or []],
+            [str(u) for u in body.url_refresh or []],
         )
 
     plan_path = f"{PREFIX}/conversations/{{conversation_id}}/plans/{{plan_id}}"
@@ -344,10 +351,22 @@ def create_app(
         return rag.messages(user, str(conversation_id))
 
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=Output, status_code=202)
-    def create_output(notebook_id: NotebookId, body: OutputCreate, user: User) -> Output:
-        """Inserts the job; a worker (``lasteverlm_rag.worker``) picks it up."""
+    def create_output(
+        notebook_id: NotebookId,
+        body: OutputCreate,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> Output:
+        """Inserts the job; a worker (``lasteverlm_rag.worker``) picks it up. The
+        sources it needs that are not read yet are read first, as the caller."""
         return outputs.create(
-            user, str(notebook_id), body.kind, body.options, [str(s) for s in body.source_ids or []]
+            user,
+            str(notebook_id),
+            body.kind,
+            body.options,
+            [str(s) for s in body.source_ids or []],
+            bearer=authorization,
+            url_refresh=[str(u) for u in body.url_refresh or []],
         )
 
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/charts/propose", response_model=ChartProposals)
@@ -371,8 +390,13 @@ def create_app(
         return catalogue(settings.tts_voice, settings.inference.judge_models)
 
     @app.post(f"{PREFIX}/estimate")
-    def estimate_charge(body: EstimateRequest, _: User) -> dict[str, Any]:
-        """The charge range of an output or an action, before it runs."""
+    def estimate_charge(
+        body: EstimateRequest,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> dict[str, Any]:
+        """The charge range of an output or an action, before it runs; with a
+        notebook, reading its unread selected sources as lines of their own."""
         if (body.kind is None) == (body.action is None):
             raise InvalidOptions("estimate: give either kind or action")
         try:
@@ -391,7 +415,24 @@ def create_app(
                 low, high = (action_calls(action, body.options, models, case) for case in (0, 1))
         except ValueError as exc:  # a pydantic ValidationError is one too
             raise InvalidOptions(str(exc)) from exc
-        return estimate(settings.model_prices, store.pricing_rules(), action, low, high)
+        result = estimate(settings.model_prices, store.pricing_rules(), action, low, high)
+        result["separate"] = []
+        if body.notebook_id is not None and authorization:
+            notebook_id = str(body.notebook_id)
+            require_notebook(store, user, notebook_id)
+            selected = check_sources(store, notebook_id, [str(s) for s in body.source_ids or []])
+            try:
+                result["separate"] = reading_lines(
+                    store,
+                    ingest,
+                    authorization,
+                    notebook_id,
+                    selected,
+                    [str(u) for u in body.url_refresh or []],
+                )
+            except InvalidRefresh as exc:
+                raise InvalidSources(str(exc)) from exc
+        return result
 
     @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=list[Output])
     def list_outputs(notebook_id: NotebookId, user: User) -> list[Output]:

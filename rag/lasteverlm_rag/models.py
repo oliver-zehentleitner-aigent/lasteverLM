@@ -24,6 +24,8 @@ class AskRequest(BaseModel):
     scope: AskScope | None = None
     # the sources the user ticked; absent or empty means all
     source_ids: list[UUID] | None = None
+    # library ids of selected web pages to fetch again first; the others use the cache
+    url_refresh: list[UUID] | None = None
 
 
 class ConversationCreate(BaseModel):
@@ -96,6 +98,11 @@ class EstimateRequest(BaseModel):
     kind: OutputKind | None = None
     action: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
+    # with a notebook: the reading of its selected unread sources and the
+    # re-reading of the web pages in url_refresh, as lines of their own
+    notebook_id: UUID | None = None
+    source_ids: list[UUID] | None = None
+    url_refresh: list[UUID] | None = None
 
 
 class NotebookSuggestions(BaseModel):
@@ -132,6 +139,8 @@ class OutputCreate(BaseModel):
     options: OutputOptions | None = None
     # the sources the document is made from; absent or empty means all
     source_ids: list[UUID] | None = None
+    # library ids of selected web pages to fetch again first; the others use the cache
+    url_refresh: list[UUID] | None = None
 
 
 @dataclass(frozen=True)
@@ -189,7 +198,9 @@ class SourceSummary:
 class SourceState:
     source_id: str
     kind: SourceKind
-    status: str
+    status: str  # 'added' (linked, not read yet), 'processing', 'ready', 'failed', ...
+    library_id: str = ""
+    name: str = ""
 
 
 @dataclass

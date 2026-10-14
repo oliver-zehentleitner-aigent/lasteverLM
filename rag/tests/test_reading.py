@@ -1,0 +1,137 @@
+"""Sources are read when they are used: an output or an answer reads the
+selected sources not read yet, web pages are checked again on request."""
+
+from lasteverlm_rag.models import SourceState
+from lasteverlm_rag.reading import Prepared, wait_until_read
+
+from .conftest import (
+    AUTH,
+    CONVERSATION,
+    NOTEBOOK,
+    FakeIngest,
+    FakeLLM,
+    FakeRetriever,
+    FakeStore,
+    chunk,
+    make_client,
+)
+
+OUTPUTS = f"/api/rag/notebooks/{NOTEBOOK}/outputs"
+ASK = f"/api/rag/notebooks/{NOTEBOOK}/ask"
+REPORT = '{"title": "Sky", "markdown": "The sky is blue. [1]"}'
+
+
+def notebook():
+    store = FakeStore()
+    ready = store.add_source(NOTEBOOK, "sky.pdf", summary="About the sky.")
+    unread = store.add_source(NOTEBOOK, "grass.pdf", status="added")
+    page = store.add_source(NOTEBOOK, "news", summary="A page.", kind="url")
+    return store, ready, unread, page
+
+
+def client_for(settings, store, *replies):
+    ingest = FakeIngest(store=store)
+    llm = FakeLLM(*replies)
+    client = make_client(
+        settings, store, FakeRetriever([chunk(1, "The sky is blue.")]), llm, ingest=ingest
+    )
+    return client, ingest
+
+
+def test_an_output_reads_its_unread_sources_first_and_waits_for_them(settings):
+    store, ready, unread, _ = notebook()
+    client, ingest = client_for(settings, store, REPORT)
+    r = client.post(OUTPUTS, json={"kind": "report"}, headers=AUTH)
+    assert r.status_code == 202 and r.json()["status"] == "waiting"
+    assert ingest.calls == [("process", AUTH["Authorization"], [unread])]
+    assert client.worker.run_once() == 0  # still being read
+
+    store.sources[unread].update(status="ready", summary="About grass.")
+    assert client.worker.run_once() == 1
+
+
+def test_only_the_selected_sources_are_read(settings):
+    store, ready, unread, _ = notebook()
+    client, ingest = client_for(settings, store)
+    body = {"kind": "report", "source_ids": [ready]}
+    assert client.post(OUTPUTS, json=body, headers=AUTH).json()["status"] == "processing"
+    assert ingest.calls == []
+
+
+def test_a_web_page_is_checked_again_only_when_asked(settings):
+    store, ready, unread, page = notebook()
+    client, ingest = client_for(settings, store)
+    body = {"kind": "report", "source_ids": [ready, page], "url_refresh": [page]}
+    r = client.post(OUTPUTS, json=body, headers=AUTH)
+    assert r.json()["status"] == "waiting"
+    assert ingest.calls == [("refetch", AUTH["Authorization"], page)]
+
+    for bad in ([ready], [unread]):  # not a web page, or not selected
+        body = {"kind": "report", "source_ids": [ready, page], "url_refresh": bad}
+        r = client.post(OUTPUTS, json=body, headers=AUTH)
+        assert r.status_code == 422 and "is not a selected web page" in r.json()["error"]
+
+
+def test_an_answer_reads_what_it_needs_and_says_what_is_still_being_read(settings):
+    store, ready, unread, _ = notebook()
+    client, ingest = client_for(settings, store, "The sky is blue [1].")
+    r = client.post(ASK, json={"question": "?", "conversation_id": CONVERSATION}, headers=AUTH)
+    body = r.json()
+    assert ingest.calls == [("process", AUTH["Authorization"], [unread])]
+    assert body["answer"].startswith("The sky is blue [1].")
+    assert "Still being read: grass.pdf." in body["answer"]
+    assert [c["n"] for c in body["citations"]] == [1]
+
+
+def test_waiting_for_sources_ends_when_they_are_read_or_the_time_is_up():
+    store = FakeStore()
+    source = store.add_source(NOTEBOOK, "a.pdf", status="processing")
+    prepared = Prepared(reading=[SourceState(source, "pdf", "processing", source, "a.pdf")])
+    now = [0.0]
+
+    def sleep(seconds: float) -> None:
+        now[0] += seconds
+        if now[0] >= 4:
+            store.sources[source]["status"] = "ready"
+
+    assert wait_until_read(store, NOTEBOOK, prepared, 60, sleep, lambda: now[0]) == []
+    assert now[0] == 4.0
+
+    store.sources[source]["status"] = "processing"
+    now[0] = 0.0
+    never = lambda seconds: now.__setitem__(0, now[0] + seconds)  # noqa: E731
+    assert wait_until_read(store, NOTEBOOK, prepared, 10, never, lambda: now[0]) == ["a.pdf"]
+    assert wait_until_read(store, NOTEBOOK, Prepared(), 10, never, lambda: now[0]) == []
+
+
+def test_the_estimate_lists_reading_and_re_reading_as_lines_of_their_own(settings):
+    store, ready, unread, page = notebook()
+    client, _ = client_for(settings, store)
+    plain = client.post("/api/rag/estimate", json={"kind": "report"}, headers=AUTH).json()
+    assert plain["separate"] == []
+    body = {"kind": "report", "notebook_id": NOTEBOOK, "url_refresh": [page]}
+    r = client.post("/api/rag/estimate", json=body, headers=AUTH).json()
+    assert r["separate"] == [
+        {
+            "library_id": unread,
+            "label": "Read grass.pdf",
+            "basis": "3 pages",
+            "min": 1.5,
+            "max": 1.5,
+        },
+        {
+            "library_id": page,
+            "label": "Re-read news if it changed",
+            "basis": "web page",
+            "min": 0.0,
+            "max": 0.4,
+        },
+    ]
+    assert r["charge_cents_max"] == plain["charge_cents_max"]  # not added into the total
+
+
+def test_a_chart_reads_nothing(settings):
+    store, ready, unread, _ = notebook()
+    client, ingest = client_for(settings, store)
+    client.post(OUTPUTS, json={"kind": "chart", "options": {"charts": []}}, headers=AUTH)
+    assert ingest.calls == []
