@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Header, Path, Query, Response
@@ -24,6 +25,10 @@ from ..models import (
     CreateVouchersResponse,
     DailyStats,
     DomainAdd,
+    FinanceSettings,
+    InfraCost,
+    InfraCostAdd,
+    InfraCosts,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     RoleUpdate,
@@ -32,6 +37,7 @@ from ..models import (
     SystemInfo,
     UsageStats,
     VoucherCode,
+    VoucherPaid,
 )
 from .deps import AdminReaderDep, AdminUserDep, Service
 
@@ -217,7 +223,7 @@ async def create_vouchers(
     """The plain codes come back here; they stay recoverable for admins afterwards. With
     `send_to`, every created voucher is mailed right away (see `/vouchers/{id}/send`)."""
     codes = await service.create_vouchers(
-        admin, body.amount_cents, body.count, body.send_to, body.message, body.allow
+        admin, body.amount_cents, body.count, body.send_to, body.message, body.allow, body.paid
     )
     return CreateVouchersResponse(codes=codes)
 
@@ -285,3 +291,62 @@ async def access(
     service: Service, _: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
 ) -> list[AdminAccess]:
     return await service.admin_access(limit)
+
+
+@router.patch("/vouchers/{voucher_id}", response_model=AdminVoucher)
+async def set_voucher_paid(
+    voucher_id: uuid.UUID, body: VoucherPaid, service: Service, _: AdminUserDep
+) -> AdminVoucher:
+    """Mark a voucher as paid (sold, counts as revenue) or free (a gift)."""
+    return await service.set_voucher_paid(voucher_id, body.paid)
+
+
+# --- finance: infrastructure costs ---------------------------------------------
+
+
+@router.get("/finance/infra", response_model=InfraCosts)
+async def infra_costs(
+    service: Service,
+    _: AdminReaderDep,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: Annotated[date | None, Query()] = None,
+) -> InfraCosts:
+    """Infrastructure costs from Vultr's billing and manual entries, by month; default the
+    last three months. ``vultr`` says whether the billing sync is connected."""
+    until = to or service.now().date()
+    since = from_ or (until.replace(day=1) - timedelta(days=62)).replace(day=1)
+    return await service.admin_infra(since, until)
+
+
+@router.post("/finance/infra", response_model=InfraCost, status_code=201)
+async def add_infra_cost(body: InfraCostAdd, service: Service, _: AdminUserDep) -> InfraCost:
+    return await service.add_infra_cost(body)
+
+
+@router.delete("/finance/infra/{cost_id}", status_code=204)
+async def delete_infra_cost(cost_id: uuid.UUID, service: Service, _: AdminUserDep) -> Response:
+    """Manual entries only; a Vultr line answers 409 not_manual."""
+    await service.delete_infra_cost(cost_id)
+    return Response(status_code=204)
+
+
+@router.post("/finance/infra/sync", response_model=InfraCosts)
+async def sync_infra(service: Service, _: AdminUserDep) -> InfraCosts:
+    """Run the Vultr billing sync now; 409 vultr_not_connected without a key."""
+    await service.sync_vultr()
+    until = service.now().date()
+    return await service.admin_infra(
+        (until.replace(day=1) - timedelta(days=62)).replace(day=1), until
+    )
+
+
+@router.get("/settings/finance", response_model=FinanceSettings)
+async def get_finance_settings(service: Service, _: AdminReaderDep) -> FinanceSettings:
+    return await service.finance_settings()
+
+
+@router.put("/settings/finance", response_model=FinanceSettings)
+async def put_finance_settings(
+    body: FinanceSettings, service: Service, _: AdminUserDep
+) -> FinanceSettings:
+    return await service.update_finance_settings(body)

@@ -107,6 +107,17 @@ class VoucherRecord:
     code_enc: str | None = None
     sent_to: str | None = None
     sent_at: datetime | None = None
+    paid: bool = False
+
+
+@dataclass(frozen=True)
+class InfraCostRecord:
+    id: uuid.UUID
+    date: date  # first day of the month for 'vultr', any day for 'manual'
+    source: str  # 'vultr' | 'manual'
+    item: str
+    amount_cents: int
+    currency: str  # 'USD' | 'EUR'
 
 
 @dataclass(frozen=True)
@@ -218,7 +229,22 @@ class Repository(Protocol):
         created_by: uuid.UUID,
         now: datetime,
         code_enc: str | None = None,
+        paid: bool = False,
     ) -> uuid.UUID: ...
+    async def set_voucher_paid(self, voucher_id: uuid.UUID, paid: bool) -> bool: ...
+    async def upsert_infra_costs(self, source: str, lines: list[InfraCostRecord]) -> int:
+        """Insert or update by (date, source, item); returns the rows written."""
+        ...
+
+    async def add_infra_cost(self, record: InfraCostRecord) -> bool:
+        """False when (date, source, item) exists already."""
+        ...
+
+    async def delete_infra_cost(self, cost_id: uuid.UUID) -> str:
+        """'deleted' | 'not_manual' | 'missing'."""
+        ...
+
+    async def list_infra_costs(self, since: date, until: date) -> list[InfraCostRecord]: ...
     async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None: ...
     async def mark_voucher_sent(self, voucher_id: uuid.UUID, email: str, at: datetime) -> None: ...
     async def count_voucher_mails(self, email: str, since: datetime) -> int:
