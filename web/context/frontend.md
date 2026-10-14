@@ -608,3 +608,26 @@ visit.
 with sources added to it. Rejected because the strip would grow with
 every output, whether anyone opened it or not. Also rejected:
 localStorage, which would carry yesterday's tabs into today's work.
+
+## An empty chat's suggested questions load on a click, with their price
+
+**Id:** 35617647-2f28-4e1a-af75-189a9aaddd7f
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer wish relayed by the family lead, 2026-10-14 (the notebook's suggestions as cards in an empty chat, with the price hint); rag's contract (`GET /api/rag/notebooks/{id}/suggestions`, the first call billed, cached until the uploads change); loading on a click was this directory's call
+
+An empty chat shows **Suggest questions** with its estimated price. The
+notebook's questions are fetched only when that button is clicked, and
+then shown as cards. The follow-up questions under an answer come with
+the answer and cost nothing extra.
+
+**Reason:** the first call for a notebook's questions is billed. Opening
+an empty chat is not a request for anything, so it should not spend
+credit. A user should see the price and choose, as for every other
+billed action.
+
+**Rejected alternative:** loading the questions as soon as an empty chat
+opens, as the wish read literally. Rejected because every new chat in a
+notebook whose cache had been cleared by a changed source would charge
+without a click.
