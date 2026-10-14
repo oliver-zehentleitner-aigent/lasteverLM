@@ -263,16 +263,65 @@ class PostgresRepository:
 
     # credits ----------------------------------------------------------------
     async def create_voucher(
-        self, code_hash: str, amount_cents: int, created_by: uuid.UUID, now: datetime
+        self,
+        code_hash: str,
+        amount_cents: int,
+        created_by: uuid.UUID,
+        now: datetime,
+        code_enc: str | None = None,
     ) -> uuid.UUID:
         voucher_id = uuid.uuid4()
         async with self._pool.connection() as conn:
             await conn.execute(
-                """insert into vouchers (id, code_hash, amount_cents, created_by, created_at)
-                   values (%s, %s, %s, %s, %s)""",
-                (voucher_id, code_hash, amount_cents, created_by, now),
+                """insert into vouchers
+                       (id, code_hash, code_enc, amount_cents, created_by, created_at)
+                   values (%s, %s, %s, %s, %s, %s)""",
+                (voucher_id, code_hash, code_enc, amount_cents, created_by, now),
             )
         return voucher_id
+
+    _VOUCHER_SELECT = """select v.id, v.amount_cents, c.email as created_by, v.created_at,
+                                r.email as redeemed_by, v.redeemed_at, v.code_enc, v.sent_to,
+                                v.sent_at
+                         from vouchers v
+                         left join users c on c.id = v.created_by
+                         left join users r on r.id = v.redeemed_by"""
+
+    @staticmethod
+    def _voucher(r: dict[str, Any]) -> VoucherRecord:
+        return VoucherRecord(
+            r["id"],
+            int(r["amount_cents"]),
+            r["created_by"] or "",
+            r["created_at"],
+            r["redeemed_by"],
+            r["redeemed_at"],
+            r["code_enc"],
+            r["sent_to"],
+            r["sent_at"],
+        )
+
+    async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(self._VOUCHER_SELECT + " where v.id = %s", (voucher_id,))
+            row = await cur.fetchone()
+        return self._voucher(row) if row else None
+
+    async def mark_voucher_sent(self, voucher_id: uuid.UUID, email: str, at: datetime) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "update vouchers set sent_to = %s, sent_at = %s where id = %s",
+                (email, at, voucher_id),
+            )
+
+    async def count_voucher_mails(self, email: str, since: datetime) -> int:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "select count(*) as n from vouchers where sent_to = %s and sent_at >= %s",
+                (email, since),
+            )
+            row = await cur.fetchone()
+        return int(row["n"]) if row else 0
 
     async def redeem_voucher(self, code_hash: str, user_id: uuid.UUID, now: datetime) -> int | None:
         # One transaction: the conditional update claims the voucher (two concurrent
@@ -336,26 +385,10 @@ class PostgresRepository:
     async def list_vouchers(self, limit: int) -> list[VoucherRecord]:
         async with self._pool.connection() as conn:
             cur = await conn.execute(
-                """select v.id, v.amount_cents, c.email as created_by, v.created_at,
-                          r.email as redeemed_by, v.redeemed_at
-                   from vouchers v
-                   left join users c on c.id = v.created_by
-                   left join users r on r.id = v.redeemed_by
-                   order by v.created_at desc, v.id limit %s""",
-                (limit,),
+                self._VOUCHER_SELECT + " order by v.created_at desc, v.id limit %s", (limit,)
             )
             rows = await cur.fetchall()
-        return [
-            VoucherRecord(
-                r["id"],
-                int(r["amount_cents"]),
-                r["created_by"] or "",
-                r["created_at"],
-                r["redeemed_by"],
-                r["redeemed_at"],
-            )
-            for r in rows
-        ]
+        return [self._voucher(r) for r in rows]
 
     async def stats(self, since: datetime, now: datetime) -> StatsRecord:
         async with self._pool.connection() as conn:

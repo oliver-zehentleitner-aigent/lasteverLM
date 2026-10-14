@@ -73,3 +73,36 @@ def magic_link_mail(link: str, token: str, ttl_minutes: int) -> tuple[str, str]:
         "minutes. If you did not request it, ignore this mail.\n"
     )
     return subject, body
+
+
+def voucher_mail(
+    code: str, amount_cents: int, link: str, message: str | None, language: str | None
+) -> tuple[str, str]:
+    """The voucher mail an admin sends: amount, the code, the sign-in link, an optional note.
+    German or English by the sender's ui_language; English when unset."""
+    euros = (
+        f"{amount_cents / 100:.2f}".replace(".", ",")
+        if language == "de"
+        else (f"{amount_cents / 100:.2f}")
+    )
+    if language == "de":
+        subject = f"Dein lasteverLM-Gutschein über {euros} €"
+        body = (
+            f"Du hast einen lasteverLM-Gutschein über {euros} € erhalten.\n\n"
+            f"Gutscheincode:\n\n{code}\n\n"
+            f"Anmelden und einlösen: {link}\n"
+            "Der Code gilt einmal und wird deinem Konto gutgeschrieben.\n"
+        )
+        note = "\nEine Nachricht des Absenders:\n"
+    else:
+        subject = f"You received a lasteverLM voucher of €{euros}"
+        body = (
+            f"You received a lasteverLM voucher of €{euros}.\n\n"
+            f"Voucher code:\n\n{code}\n\n"
+            f"Sign in and redeem it: {link}\n"
+            "The code works once and is credited to your account.\n"
+        )
+        note = "\nA note from the sender:\n"
+    if message:
+        body += note + message.strip() + "\n"
+    return subject, body

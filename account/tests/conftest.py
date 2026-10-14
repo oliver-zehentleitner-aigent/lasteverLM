@@ -78,6 +78,7 @@ def settings() -> Settings:
         database_url="postgresql://unused",
         auth_jwt_secret="test-secret-not-for-production-0123456789",
         public_base_url="https://lasteverlm.test",
+        voucher_key=b"test-voucher-key-32-bytes-long!!",
         demo_token=DEMO_TOKEN,
         admin_emails=frozenset({ADMIN_EMAIL}),
         allowed_domains_seed=(ALLOWED_DOMAIN,),

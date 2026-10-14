@@ -24,7 +24,8 @@ from lasteverlm_core import (
 )
 
 from .config import Settings
-from .mail import Mailer, MailError, magic_link_mail
+from .crypto import VoucherCipher
+from .mail import Mailer, MailError, magic_link_mail, voucher_mail
 from .models import (
     AdminAccess,
     AdminBan,
@@ -54,10 +55,17 @@ from .models import (
     UsageStats,
     User,
     UserUsage,
+    VoucherCode,
     VoucherCounts,
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
-from .repository import LoginAttemptRecord, Repository, UserRecord, VisitRecord
+from .repository import (
+    LoginAttemptRecord,
+    Repository,
+    UserRecord,
+    VisitRecord,
+    VoucherRecord,
+)
 from .services import PurgeError, ServiceClient
 from .system import ServiceStatus, SystemProbe
 
@@ -166,6 +174,7 @@ class AccountService:
             ingest_url=settings.ingest_url, rag_url=settings.rag_url
         )
         self.dependencies = dependencies or DependencyProbe({})
+        self._cipher = VoucherCipher(settings.voucher_key)
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
         self.rate_limit = rate_limit or RateLimitSettings()
@@ -546,18 +555,7 @@ class AccountService:
         return result
 
     async def admin_vouchers(self, limit: int) -> list[AdminVoucher]:
-        return [
-            AdminVoucher(
-                id=v.id,
-                amount_cents=v.amount_cents,
-                created_by=v.created_by,
-                created_at=v.created_at,
-                redeemed_by=v.redeemed_by,
-                redeemed_at=v.redeemed_at,
-                status="redeemed" if v.redeemed_at is not None else "open",
-            )
-            for v in await self.repo.list_vouchers(limit)
-        ]
+        return [self._admin_voucher(v) for v in await self.repo.list_vouchers(limit)]
 
     async def delete_voucher(self, voucher_id: uuid.UUID) -> None:
         outcome = await self.repo.delete_voucher(voucher_id)
@@ -723,15 +721,114 @@ class AccountService:
         ]
 
     async def create_vouchers(
-        self, admin_id: uuid.UUID, amount_cents: int | None, count: int
+        self,
+        admin: UserRecord,
+        amount_cents: int | None,
+        count: int,
+        send_to: str | None = None,
+        message: str | None = None,
+        allow: bool = True,
     ) -> list[str]:
+        """Create `count` vouchers; the plain codes come back once. The code is stored hashed
+        (for the redeem) and encrypted (so an admin can show or mail it again). With
+        `send_to`, every created voucher goes out by mail right away."""
         amount = amount_cents or self.settings.voucher_default_cents
         now = self.now()
         codes = []
         for _ in range(count):
             code = generate_voucher_code()
-            await self.repo.create_voucher(
-                hash_secret(normalize_voucher_code(code)), amount, admin_id, now
+            voucher_id = await self.repo.create_voucher(
+                hash_secret(normalize_voucher_code(code)),
+                amount,
+                admin.id,
+                now,
+                code_enc=self._cipher.encrypt(code),
             )
             codes.append(code)
+            if send_to:
+                await self.send_voucher(admin, voucher_id, send_to, message, allow)
         return codes
+
+    def _plain_code(self, voucher: VoucherRecord) -> str | None:
+        return self._cipher.decrypt(voucher.code_enc) if voucher.code_enc else None
+
+    def _not_recoverable(self, what: str) -> AccountError:
+        return AccountError(
+            404,
+            f"this voucher was created before codes were stored recoverably; {what}",
+            "not_recoverable",
+        )
+
+    async def voucher_code(self, voucher_id: uuid.UUID) -> VoucherCode:
+        voucher = await self.repo.get_voucher(voucher_id)
+        if voucher is None:
+            raise AccountError(404, "unknown voucher")
+        code = self._plain_code(voucher)
+        if code is None:
+            raise self._not_recoverable("only its hash exists")
+        return VoucherCode(code=code)
+
+    async def send_voucher(
+        self,
+        admin: UserRecord,
+        voucher_id: uuid.UUID,
+        email: str,
+        message: str | None,
+        allow: bool,
+    ) -> AdminVoucher:
+        """Mail the voucher to `email` on the admin's behalf: allowlist the address first when
+        asked (idempotent), at most `voucher_mail_quota_per_hour` mails per address."""
+        voucher = await self.repo.get_voucher(voucher_id)
+        if voucher is None:
+            raise AccountError(404, "unknown voucher")
+        if voucher.redeemed_at is not None:
+            raise AccountError(409, "this voucher was redeemed already", "already_redeemed")
+        code = self._plain_code(voucher)
+        if code is None:
+            raise self._not_recoverable("nothing to send")
+        email = normalize_email(email)
+        if self.settings.smtp is None:
+            raise AccountError(409, "SMTP is not configured", "smtp_not_configured")
+        now = self.now()
+        sent = await self.repo.count_voucher_mails(email, now - timedelta(hours=1))
+        if sent >= self.settings.voucher_mail_quota_per_hour:
+            raise AccountError(
+                429,
+                f"{self.settings.voucher_mail_quota_per_hour} voucher mails went to this address "
+                "in the last hour; try again later.",
+                "too_many_mails",
+            )
+        if allow and not await self.is_allowed(email):
+            await self.add_allow_entry("address", email)
+        subject, body = voucher_mail(
+            code,
+            voucher.amount_cents,
+            self.settings.public_base_url,
+            message,
+            self.preferences_of(admin).ui_language,
+        )
+        try:
+            await self.mailer.send(self.settings.smtp, email, subject, body)
+        except MailError as exc:
+            raise AccountError(502, f"mail could not be sent: {exc}", "mail_failed") from exc
+        await self.repo.mark_voucher_sent(voucher.id, email, now)
+        log.info("voucher %s sent to %s by %s", voucher.id, email, admin.email)
+        updated = await self.repo.get_voucher(voucher.id)
+        assert updated is not None
+        return self._admin_voucher(updated)
+
+    def _admin_voucher(self, v: VoucherRecord) -> AdminVoucher:
+        code = self._plain_code(v)
+        return AdminVoucher(
+            id=v.id,
+            amount_cents=v.amount_cents,
+            created_by=v.created_by,
+            created_at=v.created_at,
+            redeemed_by=v.redeemed_by,
+            redeemed_at=v.redeemed_at,
+            status="redeemed" if v.redeemed_at is not None else "open",
+            code_masked=f"{code[:4]}-****-****-****" if code else None,
+            recoverable=code is not None,
+            sent_to=v.sent_to,
+            sent_at=v.sent_at,
+        )

@@ -51,6 +51,9 @@ class _Voucher:
     created_at: datetime
     redeemed_by: uuid.UUID | None = None
     redeemed_at: datetime | None = None
+    code_enc: str | None = None
+    sent_to: str | None = None
+    sent_at: datetime | None = None
 
 
 @dataclass
@@ -222,12 +225,49 @@ class MemoryRepository:
 
     # credits ----------------------------------------------------------------
     async def create_voucher(
-        self, code_hash: str, amount_cents: int, created_by: uuid.UUID, now: datetime
+        self,
+        code_hash: str,
+        amount_cents: int,
+        created_by: uuid.UUID,
+        now: datetime,
+        code_enc: str | None = None,
     ) -> uuid.UUID:
         async with self._lock:
-            voucher = _Voucher(uuid.uuid4(), amount_cents, created_by, now)
+            voucher = _Voucher(uuid.uuid4(), amount_cents, created_by, now, code_enc=code_enc)
             self.vouchers[code_hash] = voucher
             return voucher.id
+
+    def _record(self, v: _Voucher) -> VoucherRecord:
+        return VoucherRecord(
+            v.id,
+            v.amount_cents,
+            self._email(v.created_by) or "",
+            v.created_at,
+            self._email(v.redeemed_by),
+            v.redeemed_at,
+            v.code_enc,
+            v.sent_to,
+            v.sent_at,
+        )
+
+    async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None:
+        for v in self.vouchers.values():
+            if v.id == voucher_id:
+                return self._record(v)
+        return None
+
+    async def mark_voucher_sent(self, voucher_id: uuid.UUID, email: str, at: datetime) -> None:
+        async with self._lock:
+            for v in self.vouchers.values():
+                if v.id == voucher_id:
+                    v.sent_to, v.sent_at = email, at
+
+    async def count_voucher_mails(self, email: str, since: datetime) -> int:
+        return sum(
+            1
+            for v in self.vouchers.values()
+            if v.sent_to == email and v.sent_at is not None and v.sent_at >= since
+        )
 
     async def redeem_voucher(self, code_hash: str, user_id: uuid.UUID, now: datetime) -> int | None:
         async with self._lock:
@@ -264,17 +304,7 @@ class MemoryRepository:
 
     async def list_vouchers(self, limit: int) -> list[VoucherRecord]:
         rows = sorted(self.vouchers.values(), key=lambda v: v.created_at, reverse=True)[:limit]
-        return [
-            VoucherRecord(
-                v.id,
-                v.amount_cents,
-                self._email(v.created_by) or "",
-                v.created_at,
-                self._email(v.redeemed_by),
-                v.redeemed_at,
-            )
-            for v in rows
-        ]
+        return [self._record(v) for v in rows]
 
     async def stats(self, since: datetime, now: datetime) -> StatsRecord:
         return StatsRecord(

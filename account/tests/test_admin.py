@@ -230,6 +230,10 @@ def test_voucher_list_has_no_codes_and_shows_who_redeemed(
         "redeemed_by",
         "redeemed_at",
         "status",
+        "code_masked",
+        "recoverable",
+        "sent_to",
+        "sent_at",
     }
     for code in codes:
         assert code not in r.text

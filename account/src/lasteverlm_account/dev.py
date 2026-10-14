@@ -23,6 +23,7 @@ DEV_SETTINGS = Settings(
     database_url="memory://",
     auth_jwt_secret="dev-only-secret-never-use-in-production-0000",
     public_base_url="http://localhost:8000",
+    voucher_key=b"dev-only-voucher-key-never-prod!",  # 32 bytes, in-memory vouchers only
     demo_token="demo",
     admin_emails=frozenset({"admin@example.org"}),
     allowed_domains_seed=("example.org",),
