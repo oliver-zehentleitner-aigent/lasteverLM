@@ -64,6 +64,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | GET | `/healthz` | 200 | liveness and readiness probe: core's `Health`, `{"status": "ok", "version", "commit"}` from `APP_VERSION`/`APP_COMMIT` (`"unknown"` when unset) |
 | GET | `/admin/stats` | 200 | viewers and admins (core's `admin_read`; 403 `admin only` otherwise): counts over all users, see below |
 | GET | `/admin/stats/daily?days=30` | 200 | viewers and admins: library sources created per day, see below |
+| DELETE | `/admin/users/{id}` | 204 | admins only (viewers 403): everything the user owns in ingest. The stored objects of their library (trash and converted recordings included) are deleted first, then their library rows (generated ones too, chunks cascade), notebooks (links and rag's rows cascade) and seed mark in one transaction. A storage failure is 503 `{"error"}` naming the count and the first key, with every row kept for a retry. Idempotent: 204 also when nothing is left or the user never existed. Account calls it, with the admin's bearer, after rag's purge and before deleting the user |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
 "created_at", "library_id", "capture", "demo", "preview_url", "original_url"}`; name,

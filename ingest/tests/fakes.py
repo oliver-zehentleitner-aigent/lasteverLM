@@ -286,6 +286,25 @@ class InMemoryRepository:
         self._delete_library(library_id)
         return True, _keys([lib])
 
+    def user_object_keys(self, owner: UUID) -> list[str]:
+        return _keys(
+            [lib for lib in self.library.values() if lib.owner == owner and lib.kind != "generated"]
+        )
+
+    def delete_user_data(self, owner: UUID) -> None:
+        for lib in [lib for lib in self.library.values() if lib.owner == owner]:
+            self._delete_library(lib.id)
+            for link_id, (_, lib_id, _) in list(self.links.items()):
+                if lib_id == lib.id:
+                    del self.links[link_id]
+        for nb, (nb_owner, _) in list(self.notebooks.items()):
+            if nb_owner == owner:
+                del self.notebooks[nb]
+                for link_id, (link_nb, _, _) in list(self.links.items()):
+                    if link_nb == nb:
+                        del self.links[link_id]
+        self.seeded.discard(owner)
+
     def purge_expired(self) -> list[str]:
         now = datetime.now(UTC)
         gone = [
