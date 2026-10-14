@@ -144,8 +144,10 @@ is closed. After the wizard the notebook view opens.
   For a report a **Style** (Briefing, Detailed, Executive summary,
   Explainer, Academic) and a **Length** (short, medium, long); for a quiz
   the number of **Questions** (5–30), a **Difficulty** (easy, medium,
-  hard) and an **Audience** (children, teens, adults, experts); all from
-  rag's catalogue with its defaults. Every kind has an optional **Notes
+  hard) and an **Audience** (children, teens, adults, experts); for
+  flashcards the number of **Cards** (5–50, 15 by default) with the
+  same Difficulty and Audience (the flashcards' own lists and defaults
+  from rag's catalogue); all from rag's catalogue with its defaults. Every kind has an optional **Notes
   for this output** field (the `instructions`, up to 500 characters,
   counted), with the hint that whoever the output is shared with sees
   it; blank notes are not sent. The share page and "How this was made"
@@ -211,7 +213,7 @@ is closed. After the wizard the notebook view opens.
   the right column: drag them (or arrow keys when focused) to change the
   widths, remembered per browser in pixels; a double-click (or Home)
   returns to the default. The notebook list stays between 160 and 420
-  px, the left column between 378 px (the 3 x 2 format grid) and 720 px,
+  px, the left column between 378 px (the format grid, three tiles a row) and 720 px,
   and the right column
   keeps at least 360 px. Hidden on narrow screens.
 - **Tab bars** (documents and chats) scroll sideways when the tabs do
@@ -292,7 +294,18 @@ is closed. After the wizard the notebook view opens.
   card grid, audio as a player with the transcript under it (a
   narrator's paragraphs as text; a conversation with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
-  none).
+  none). **Flashcards** one card at a time: "Card 3 of 15" over a large
+  card that a click (or Space or Enter, with the cards focused) turns
+  between front and back; ← and → (buttons and keys) move, wrapping;
+  **Shuffle** mixes the order. A card with a hint offers "Show a hint"
+  on its front. On the back the passages' `[n]` markers and the check's
+  badge, as in the quiz (the back is the claim, checked with its
+  front), and **Knew it** / **Again**, which mark the card for this
+  session and move on; "7 known · 2 again · 6 open" above the cards.
+  **List** shows every card, front over back with its markers, a mark
+  as a green or amber edge. **CSV for Anki** downloads `front;back`, one
+  card a line, both fields quoted. Nothing is saved; the share page
+  shows the same, read-only by nature.
 - **Judge**. Every kind but the chart has the option **Check with a
   judge**: Off (default), Low, Medium or High (the model per level from
   rag's catalogue), with a line on what the level does. A judge reads

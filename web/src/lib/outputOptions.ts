@@ -14,6 +14,7 @@ export interface OptionValues {
   reportStyle: ReportStyle
   length: ReportLength
   questionCount: number
+  cardCount: number
   difficulty: Difficulty
   audience: Audience
   /** a judge while the output is made; sent only when not off */
@@ -65,6 +66,7 @@ export function defaultValues(spec: OutputOptionsSpec, prefs: Preferences | unde
     reportStyle: spec.report?.default_style ?? 'briefing',
     length: spec.report?.default_length ?? 'medium',
     questionCount: spec.quiz?.question_count.default ?? 10,
+    cardCount: spec.flashcards?.card_count.default ?? 15,
     difficulty: spec.quiz?.default_difficulty ?? 'medium',
     audience: spec.quiz?.default_audience ?? 'adults',
     judge: spec.judge?.default ?? 'off',
@@ -85,6 +87,7 @@ export function buildOptions(kind: OutputKind, spec: OutputOptionsSpec, v: Optio
     if (key === 'report_style') out.report_style = v.reportStyle
     if (key === 'length') out.length = v.length
     if (key === 'question_count') out.question_count = v.questionCount
+    if (key === 'card_count') out.card_count = v.cardCount
     if (key === 'difficulty') out.difficulty = v.difficulty
     if (key === 'audience') out.audience = v.audience
     if (key === 'judge' && v.judge !== 'off') out.judge = v.judge
@@ -117,6 +120,7 @@ export function optionsLabel(o: OutputOptions | undefined, spec: OutputOptionsSp
   if (o.report_style) parts.push(t(`opt.reportStyle.${o.report_style}`))
   if (o.length) parts.push(t(`opt.length.${o.length}`))
   if (o.question_count !== undefined) parts.push(t('opt.questions', { n: o.question_count }))
+  if (o.card_count !== undefined) parts.push(t('opt.cards', { n: o.card_count }))
   if (o.difficulty) parts.push(t(`opt.difficulty.${o.difficulty}`))
   if (o.audience) parts.push(t(`opt.audience.${o.audience}`))
   return parts.length ? parts.join(' · ') : null

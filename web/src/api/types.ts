@@ -192,7 +192,7 @@ export interface FeedbackStats {
 
 // outputs (rag prefix)
 
-export type OutputKind = 'report' | 'quiz' | 'table' | 'mindmap' | 'infographic' | 'audio' | 'decision' | 'chart'
+export type OutputKind = 'report' | 'quiz' | 'table' | 'mindmap' | 'infographic' | 'audio' | 'decision' | 'chart' | 'flashcards'
 export type OutputStatus = 'waiting' | 'processing' | 'ready' | 'failed'
 
 export interface Output {
@@ -341,6 +341,8 @@ export interface OutputOptions {
   length?: ReportLength
   /** quiz */
   question_count?: number
+  /** flashcards: 5–50 */
+  card_count?: number
   difficulty?: Difficulty
   audience?: Audience
   /** a judge reads every claim against its passages while the output is made */
@@ -374,6 +376,14 @@ export interface OutputOptionsSpec {
   report?: { styles: ReportStyle[]; default_style: ReportStyle; lengths: ReportLength[]; default_length: ReportLength }
   quiz?: {
     question_count: { min: number; max: number; default: number }
+    difficulties: Difficulty[]
+    default_difficulty: Difficulty
+    audiences: Audience[]
+    default_audience: Audience
+  }
+  /** the flashcards' choices; absent from a rag without them */
+  flashcards?: {
+    card_count: { min: number; max: number; default: number }
     difficulties: Difficulty[]
     default_difficulty: Difficulty
     audiences: Audience[]
@@ -475,6 +485,16 @@ export interface QuizQuestion extends Claim {
 }
 export interface QuizContent {
   questions: QuizQuestion[]
+}
+/** One card: the front asks, the back is the claim (checked with the
+ *  front); `refs` are the passages' numbers, as in the quiz. */
+export interface Flashcard extends Claim {
+  front: string
+  back: string
+  hint?: string
+}
+export interface FlashcardsContent {
+  cards: Flashcard[]
 }
 export interface TableContent {
   columns: string[]

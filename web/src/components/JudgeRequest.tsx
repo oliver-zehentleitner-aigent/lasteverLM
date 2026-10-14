@@ -13,7 +13,8 @@ type Level = Exclude<JudgeLevel, 'off'>
  *  annotates every claim and removes nothing. One billed call; a 402
  *  opens the voucher dialog as everywhere. The level's estimated charge
  *  stands next to Check; `subject` is what the estimate needs of the
- *  judged thing (an output's kind and a quiz's question count), left out
+ *  judged thing (an output's kind, a quiz's question count, the flashcards'
+ *  card count), left out
  *  for a chat answer. */
 export function JudgeRequest({
   onJudge,
@@ -21,7 +22,7 @@ export function JudgeRequest({
   compact = false,
 }: {
   onJudge: (level: Level) => Promise<unknown>
-  subject?: { kind: string; question_count?: number }
+  subject?: { kind: string; question_count?: number; card_count?: number }
   compact?: boolean
 }) {
   const spec = useOutputOptions()
