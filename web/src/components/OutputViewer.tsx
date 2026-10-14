@@ -6,7 +6,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { formatTime } from '../lib/format'
 import { useOutputOptions } from '../hooks/useOutputOptions'
-import { optionsLabel } from '../lib/outputOptions'
+import { optionsLabel, speakerName } from '../lib/outputOptions'
 import { bestMatchIndex, flash, type LocateRequest } from '../lib/locate'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
@@ -223,6 +223,7 @@ export function OutputViewer({
               error={selected.error}
               content={selected.content}
               onExpired={() => rag.getOutput(selected.id).then((o) => (o.content as AudioContent).url)}
+              speakerName={(s) => speakerName(s, selected.options, spec)}
             />
           </>
         )}

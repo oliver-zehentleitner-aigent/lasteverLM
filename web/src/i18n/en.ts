@@ -545,6 +545,15 @@ export const en = {
   'lib.out.trashEmpty': 'No generated documents in the trash.',
   'lib.out.purgeConfirm': 'Delete "{title}" for good? This cannot be undone.',
   'lib.out.restoreNote': 'Restored into the notebook it was made in, if that still exists; other notebooks it was added to need it added again.',
+  'tiles.style': 'Style',
+  'tiles.voice2': 'Second voice',
+  'audioStyle.overview': 'Overview',
+  'audioStyle.story': 'Story',
+  'audioStyle.conversation': 'Conversation',
+  'speaker.narrator': 'Narrator',
+  'speaker.interviewer': 'Interviewer',
+  'speaker.expert': 'Expert',
+  'audio.transcript': 'Transcript',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OutputOptionsSpec } from '../api/types'
-import { buildOptions, defaultValues, optionsLabel, sampleLanguage, speedSteps, voiceGroups } from './outputOptions'
+import { buildOptions, defaultValues, optionsLabel, sampleLanguage, secondVoice, speakerName, speedSteps, voiceGroups } from './outputOptions'
 
 const spec: OutputOptionsSpec = {
   languages: [
@@ -11,29 +11,36 @@ const spec: OutputOptionsSpec = {
     voices: [
       { id: 'ryan', label: 'Ryan', gender: 'male', language: 'en' },
       { id: 'vivian', label: 'Vivian', gender: 'female', language: 'zh' },
+      { id: 'aiden', label: 'Aiden', gender: 'male', language: 'en' },
+      { id: 'serena', label: 'Serena', gender: 'female', language: 'zh' },
+      { id: 'sohee', label: 'Sohee', gender: 'female', language: 'ko' },
     ],
     default_voice: 'ryan',
     speed: { min: 0.75, max: 1.5, step: 0.25, default: 1 },
   },
-  kinds: { report: ['language'], audio: ['language', 'voice', 'speed'] },
+  kinds: { report: ['language'], audio: ['language', 'voice', 'speed', 'audio_style', 'audio_voice_2'] },
 }
 
 describe('output options', () => {
   it('starts from the preferences, else the defaults; language follows the sources without one', () => {
-    expect(defaultValues(spec, undefined)).toEqual({ language: '', voice: 'ryan', speed: 1 })
+    expect(defaultValues(spec, undefined)).toEqual({ language: '', voice: 'ryan', speed: 1, style: 'overview', voice2: 'aiden' })
     expect(defaultValues(spec, { ui_language: null, output_language: 'de', audio_voice: 'vivian' })).toEqual({
       language: 'de',
       voice: 'vivian',
       speed: 1,
+      style: 'overview',
+      voice2: 'serena',
     })
     // a stored value the spec no longer offers falls back
     expect(defaultValues(spec, { ui_language: null, output_language: 'xx', audio_voice: 'alloy' }).voice).toBe('ryan')
   })
 
   it('sends only the keys the kind takes, language only when chosen', () => {
-    const v = { language: 'de', voice: 'vivian', speed: 1.25 }
+    const v = { language: 'de', voice: 'vivian', speed: 1.25, style: 'overview' as const, voice2: 'serena' }
     expect(buildOptions('report', spec, v)).toEqual({ language: 'de' })
-    expect(buildOptions('audio', spec, v)).toEqual({ language: 'de', voice: 'vivian', speed: 1.25 })
+    expect(buildOptions('audio', spec, v)).toEqual({ language: 'de', voice: 'vivian', speed: 1.25, audio_style: 'overview' })
+    // the second voice only for a conversation (rag refuses it otherwise)
+    expect(buildOptions('audio', spec, { ...v, style: 'conversation' })).toEqual({ language: 'de', voice: 'vivian', speed: 1.25, audio_style: 'conversation', audio_voice_2: 'serena' })
     expect(buildOptions('report', spec, { ...v, language: '' })).toEqual({})
     expect(buildOptions('quiz', spec, v)).toEqual({})
   })
@@ -41,8 +48,8 @@ describe('output options', () => {
   it('lists speeds on the step and groups voices', () => {
     expect(speedSteps(spec)).toEqual([0.75, 1, 1.25, 1.5])
     expect(voiceGroups(spec).map((g) => [g.gender, g.voices.map((x) => x.id)])).toEqual([
-      ['female', ['vivian']],
-      ['male', ['ryan']],
+      ['female', ['vivian', 'serena', 'sohee']],
+      ['male', ['ryan', 'aiden']],
     ])
   })
 
@@ -59,5 +66,27 @@ describe('sampleLanguage', () => {
     expect(sampleLanguage('', spec, 'de')).toBe('de')
     expect(sampleLanguage(null, spec, 'fr')).toBeUndefined()
     expect(sampleLanguage('xx', spec, 'en')).toBe('en')
+  })
+})
+
+describe('audio styles', () => {
+  it('starts a conversation with another voice of the same language, else any other', () => {
+    expect(secondVoice(spec, 'ryan')).toBe('aiden')
+    expect(secondVoice(spec, 'aiden')).toBe('ryan')
+    expect(secondVoice(spec, 'serena')).toBe('vivian')
+    expect(secondVoice(spec, 'sohee')).toBe('ryan')
+  })
+
+  it('names a speaker by its voice, else by its role', () => {
+    const o = { voice: 'ryan', audio_voice_2: 'vivian', audio_style: 'conversation' as const }
+    expect(speakerName('interviewer', o, spec)).toBe('Ryan')
+    expect(speakerName('expert', o, spec)).toBe('Vivian')
+    expect(speakerName('expert', o, null)).toBe('Expert')
+    expect(speakerName('narrator', {}, spec)).toBe('Narrator')
+  })
+
+  it('shows a conversation with both voices in the line under the title', () => {
+    expect(optionsLabel({ voice: 'ryan', audio_voice_2: 'vivian', audio_style: 'conversation', speed: 1 }, spec)).toBe('Conversation · Ryan & Vivian · 1×')
+    expect(optionsLabel({ voice: 'ryan', audio_style: 'overview', speed: 1 }, spec)).toBe('Ryan · 1×')
   })
 })

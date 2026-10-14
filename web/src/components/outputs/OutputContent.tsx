@@ -28,11 +28,13 @@ interface Props {
   onExpired?: () => Promise<string>
   /** a passage to show; only the mind map handles it here, the viewer the rest */
   locate?: LocateRequest | null
+  /** an audio transcript's speaker as shown, from its role */
+  speakerName?: (speaker: string) => string
 }
 
 /** Dispatches a document to its renderer by kind. Works for an owned output
  *  and for a shared one alike, which is why it takes fields, not an Output. */
-export function OutputContent({ kind, title, status, error, content, onExpired, locate }: Props) {
+export function OutputContent({ kind, title, status, error, content, onExpired, locate, speakerName }: Props) {
   if (status === 'waiting') return <p className="muted">{t('content.waiting')}</p>
   if (status === 'processing')
     return (
@@ -54,7 +56,7 @@ export function OutputContent({ kind, title, status, error, content, onExpired, 
     case 'infographic':
       return <InfographicView content={content as InfographicContent} />
     case 'audio':
-      return <AudioView content={content as AudioContent} onExpired={onExpired} />
+      return <AudioView content={content as AudioContent} onExpired={onExpired} speakerName={speakerName} />
     default:
       return <pre className="output-text">{JSON.stringify(content, null, 2)}</pre>
   }

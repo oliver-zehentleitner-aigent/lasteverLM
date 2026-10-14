@@ -3,7 +3,7 @@ import { account } from '../api/account'
 import { rag } from '../api/rag'
 import type { AudioContent, SharedOutput } from '../api/types'
 import { formatTime } from '../lib/format'
-import { optionsLabel } from '../lib/outputOptions'
+import { optionsLabel, speakerName } from '../lib/outputOptions'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
 import { t } from '../i18n'
@@ -53,6 +53,7 @@ export function SharePage({ token }: { token: string }) {
               error={null}
               content={doc.content}
               onExpired={() => rag.getShared(token).then((d) => (d.content as AudioContent).url)}
+              speakerName={(s) => speakerName(s, doc.options, null)}
             />
           </>
         )}

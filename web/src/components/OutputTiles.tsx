@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { OutputKind, OutputOptions } from '../api/types'
+import type { AudioStyle, OutputKind, OutputOptions, OutputOptionsSpec } from '../api/types'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
-import { buildOptions, defaultValues, optionsFor, sampleLanguage, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
+import { AUDIO_STYLES, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
 import { language, t } from '../i18n'
@@ -64,21 +64,26 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
               </select>
             </label>
           )}
-          {shown.includes('voice') && (
+          {shown.includes('audio_style') && (
             <label>
-              {t('tiles.voice')}
-              <select value={values.voice} onChange={(e) => set({ voice: e.target.value })}>
-                {voiceGroups(spec).map((g) => (
-                  <optgroup key={g.gender} label={g.gender === 'female' ? t('tiles.female') : t('tiles.male')}>
-                    {g.voices.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.label}
-                      </option>
-                    ))}
-                  </optgroup>
+              {t('tiles.style')}
+              <select value={values.style} onChange={(e) => set({ style: e.target.value as AudioStyle })}>
+                {AUDIO_STYLES.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`audioStyle.${s}`)}
+                  </option>
                 ))}
               </select>
             </label>
+          )}
+          {shown.includes('voice') && (
+            <VoiceSelect
+              label={t('tiles.voice')}
+              spec={spec}
+              value={values.voice}
+              // the two speakers of a conversation never share a voice (rag refuses that)
+              onChange={(voice) => set({ voice, voice2: voice === values.voice2 ? secondVoice(spec, voice) : values.voice2 })}
+            />
           )}
           {shown.includes('speed') && (
             <label>
@@ -93,6 +98,12 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
             </label>
           )}
           {shown.includes('voice') && <VoiceSample voice={values.voice} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />}
+          {shown.includes('audio_voice_2') && values.style === 'conversation' && (
+            <>
+              <VoiceSelect label={t('tiles.voice2')} spec={spec} value={values.voice2} exclude={values.voice} onChange={(voice2) => set({ voice2 })} />
+              <VoiceSample voice={values.voice2} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />
+            </>
+          )}
         </div>
       )}
       <div className="create-row">
@@ -102,5 +113,28 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
         </button>
       </div>
     </section>
+  )
+}
+
+/** The voices grouped female and male; `exclude` leaves one out (the
+ *  first speaker's, in the second voice's select). */
+function VoiceSelect({ label, spec, value, exclude, onChange }: { label: string; spec: OutputOptionsSpec; value: string; exclude?: string; onChange: (voice: string) => void }) {
+  return (
+    <label>
+      {label}
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {voiceGroups(spec).map((g) => (
+          <optgroup key={g.gender} label={g.gender === 'female' ? t('tiles.female') : t('tiles.male')}>
+            {g.voices
+              .filter((v) => v.id !== exclude)
+              .map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
+    </label>
   )
 }
