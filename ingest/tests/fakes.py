@@ -31,6 +31,7 @@ from lasteverlm_ingest.repository import (
     KINDS,
     MAX_ATTEMPTS,
     AdminStats,
+    ChunkText,
     DailyStats,
     LibraryEntry,
     LibrarySource,
@@ -79,6 +80,7 @@ class InMemoryRepository:
         # settings "starter_notebook", and rag's output_copies handover rows
         self.starter: StarterRef | None = None
         self.output_copies: list[tuple] = []
+        self.chunk_ids: dict[UUID, list[UUID]] = {}
         # rag's outputs table as far as ingest reads it: generated library
         # id -> (origin notebook or None once deleted, origin title).
         self.outputs: dict[UUID, tuple[UUID | None, str]] = {}
@@ -341,6 +343,7 @@ class InMemoryRepository:
             )
             self.links[link_id] = (plan.notebook_id, library_id, datetime.now(UTC))
             self.chunks[library_id] = list(self.chunks.get(old.id, []))
+            self.chunk_ids[library_id] = [uuid4() for _ in self.chunks[library_id]]
             source_map[str(source.link_id)] = str(link_id)
             source_map[str(old.id)] = str(library_id)
         maps = {"source_map": source_map, "chunk_map": chunk_map}
@@ -519,6 +522,18 @@ class InMemoryRepository:
         self, library_id: UUID, chunks: list[Chunk], vectors: list[list[float]]
     ) -> None:
         self.chunks[library_id] = list(zip(chunks, vectors, strict=True))
+        self.chunk_ids[library_id] = [uuid4() for _ in chunks]
+
+    def list_chunks(self, library_id, offset, limit):
+        rows = sorted(
+            zip(self.chunk_ids.get(library_id, []), self.chunks.get(library_id, []), strict=True),
+            key=lambda pair: pair[1][0].idx,
+        )
+        page = [
+            ChunkText(chunk_id=cid, index=chunk.idx, page=chunk.page, text=chunk.text)
+            for cid, (chunk, _) in rows[offset : offset + limit]
+        ]
+        return len(rows), page
 
     def record_usage(self, user_id, notebook_id, action, action_id, usage) -> UsageRecord:
         """core's booking without the database: the cost in US cents from

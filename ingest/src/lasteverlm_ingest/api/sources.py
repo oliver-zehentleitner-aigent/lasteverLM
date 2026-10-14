@@ -3,9 +3,10 @@ from __future__ import annotations
 import contextlib
 import re
 from pathlib import PurePosixPath
+from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from lasteverlm_core import (
     AudioError,
     Source,
@@ -33,7 +34,7 @@ from lasteverlm_ingest.loaders.convert import MEDIA_TYPES, sniff_container
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
 from lasteverlm_ingest.loaders.url import check_url
-from lasteverlm_ingest.repository import NewLibrarySource, StoredSource
+from lasteverlm_ingest.repository import ChunkText, NewLibrarySource, StoredSource
 from lasteverlm_ingest.worker import WorkerDeps
 
 router = APIRouter()
@@ -89,6 +90,8 @@ _CONTENT_TYPE = {
     "text": "text/plain; charset=utf-8",
     "url": "text/uri-list",
 }
+# Most chunks one "As read" page returns.
+MAX_CHUNKS_PAGE = 200
 # Most library entries one bulk request links.
 MAX_BULK = 200
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -346,3 +349,42 @@ def link_sources(
         missing = ", ".join(str(i) for i in result.missing)
         raise HTTPException(status_code=404, detail=f"library sources not found: {missing}")
     return BulkLinked(added=result.added, already=result.already)
+
+
+class SourceChunks(BaseModel):
+    """`GET /sources/{id}/chunks`: what the system read from the source, in
+    order. `chunk_count` is the total; `chunks` the requested page."""
+
+    source_id: UUID
+    library_id: UUID
+    kind: str
+    capture: str | None
+    chunk_count: int
+    offset: int
+    chunks: list[ChunkText]
+
+
+@router.get("/sources/{source_id}/chunks", response_model=SourceChunks)
+def source_chunks(
+    request: Request,
+    user: CurrentUser,
+    source_id: UUID,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=MAX_CHUNKS_PAGE)] = 50,
+) -> SourceChunks:
+    """The "As read" view: the source's chunks with their index (a
+    citation's `chunk_index`), id (its `chunk_id`), page and text. An audio
+    source's chunks carry no position: the platform returns no
+    timestamps."""
+    repo = repository(request)
+    source = owned_source(repo, user, source_id)
+    count, chunks = repo.list_chunks(source.library_id, offset, limit)
+    return SourceChunks(
+        source_id=source.id,
+        library_id=source.library_id,
+        kind=source.kind,
+        capture=source.capture,
+        chunk_count=count,
+        offset=offset,
+        chunks=chunks,
+    )

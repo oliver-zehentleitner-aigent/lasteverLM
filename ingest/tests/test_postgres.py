@@ -391,6 +391,22 @@ def test_rename_and_share_a_notebook(repo):
     assert repo.share_notebook(owner, notebook.id) != token
 
 
+def test_list_chunks_in_order_and_paged(repo):
+    owner = _user(repo)
+    entry = _library(repo, owner)
+    repo.replace_chunks(
+        entry.id,
+        [Chunk(idx=1, text="two", page=2), Chunk(idx=0, text="one", page=1)],
+        [[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]],
+    )
+    count, chunks = repo.list_chunks(entry.id, 0, 10)
+    assert count == 2
+    assert [(c.index, c.page, c.text) for c in chunks] == [(0, 1, "one"), (1, 2, "two")]
+    count, page = repo.list_chunks(entry.id, 1, 1)
+    assert count == 2 and [c.text for c in page] == ["two"]
+    assert page[0].chunk_id == chunks[1].chunk_id
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)
