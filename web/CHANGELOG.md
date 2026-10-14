@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Admin overview: a viewer sees the answer feedback's counts and "Details for admins only." in place of the down-rated answers (rag's `detail`).
 - The header's balance opens Credits instead of the voucher dialog (a 402 still opens it); Settings shows "Credits and prices" (balance, View credits, Price list) instead of the price list line.
 - The viewer's tabs are what the user opened, sources and outputs, in the order opened, each closable, kept per notebook for the browser session; no longer every output of the notebook. Empty: "Sources and outputs you open appear here as tabs." The policy allows frames from the media sources (`frame-src`) for the inline PDF.
 - The "demo" badge on copied entries reads "Starter" (ingest's `starter` flag, `demo` still read); the demo sources' first question in an empty chat is gone.

@@ -186,6 +186,8 @@ export interface MessageFeedback {
 export interface FeedbackStats {
   days: { day: string; up: number; down: number }[]
   latest_down: { message_id: string; notebook_id: string; at: string; comment: string | null; answer: string; question: string | null }[]
+  /** set for a viewer ("admins only"): the answers and comments are users' content, the list stays empty */
+  detail?: string
 }
 
 // outputs (rag prefix)

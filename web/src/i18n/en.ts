@@ -1017,6 +1017,7 @@ export const en = {
   'set.balance': 'Balance {value}',
   'set.viewCredits': 'View credits',
   'set.priceList': 'Price list',
+  'fb.adminsOnly': 'Details for admins only.',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -614,7 +614,8 @@ deleted from the library) stays readable with its quote and is marked
     failed sources and documents have no admin page to act on, so they
     stay a muted detail. Then **Answer feedback, last 30 days: 👍 n · 👎
     m** (`GET /api/rag/admin/feedback`), which unfolds the newest
-    down-rated answers (time, question, answer, comment). Below, the
+    down-rated answers (time, question, answer, comment); a viewer sees
+    the counts and "Details for admins only." in place of the list. Below, the
     charts in a two-column grid of equal
     cards and one shared time range (7 days while everything happened
     in the last week, else 30, with a 7 / 30 toggle): cost and credit
