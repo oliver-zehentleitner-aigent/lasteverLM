@@ -174,8 +174,28 @@ is closed. After the wizard the notebook view opens.
   from the same sources), oldest first, by kind, by language, by
   status. From six documents on, kind chips filter the list. A click
   opens the document's tab, × deletes it.
-- **Output viewer** (right, top): one tab per output (its header shows
-  "from 3 sources" when it was made from a selection), processing tabs
+- **Viewer** (right, top): one tab per output or source the user
+  opened (an output from the Outputs list, a new output on Create, a
+  source by clicking its name in the Sources list, either from a
+  citation), in the order opened; the lists stay the index. Opening one
+  that is open brings its tab to the front; each tab has a ×, and
+  closing the active one shows its right neighbour, else the left. The
+  set and the active tab are kept per notebook for the browser session
+  (sessionStorage), so a reload keeps them; a deleted output's or
+  removed source's tab goes. Without tabs: "Sources and outputs you
+  open appear here as tabs." A source tab shows the kind before the
+  name; its view has the name, kind, an **Original | As read** switch
+  and a small ↗ that opens it in a new browser tab. **Original**: an
+  image inline, audio in a player, a PDF in the browser's viewer in an
+  iframe (at the cited page when a citation opened it), a web page as
+  its address, a text file as a link. **As read**: the text the system
+  extracted and answers from (`GET /api/ingest/sources/{id}/chunks`),
+  50 chunks a page with previous/next, each with its number ("Chunk
+  12", and the page for a PDF); opened from a citation it loads the page
+  the cited chunk is on, marks it and scrolls it into view. As read is
+  the default for text and web pages, Original for images, audio and
+  PDFs. An output's header shows
+  "from 3 sources" when it was made from a selection, processing tabs
   show a spinner and poll; the pane says "Generating…" with a small
   ASCII figure walking beside it (decorative, still under reduced
   motion). Each kind has its own renderer; the audio
@@ -235,11 +255,11 @@ is closed. After the wizard the notebook view opens.
   "chunk 12 of 43", the similarity of that chunk to the question as a
   number and a bar, and the chunk text verbatim, with the sentence that
   shares the most words with the cited statement marked (a best guess:
-  the backend sends no span). For an upload "open in source" opens it in
-  a new tab through its `preview_url` (a PDF with `#page=<n>`, so the
-  browser's viewer lands on the cited page; without a page, at the
-  start) and highlights the source in the list; a source without a
-  preview is only highlighted. For a generated document the link reads "open
+  the backend sends no span). For an upload "open in source" opens its
+  source tab in the viewer at the cited page and chunk (see Viewer) and
+  highlights the source in the list; a small ↗ next to it still opens
+  the source in a new browser tab through its `preview_url` (a PDF with
+  `#page=<n>`). For a generated document the link reads "open
   document": it opens that document's tab and shows the passage: in a
   report, quiz, table or infographic the text block sharing the most
   words with the chunk scrolls into the middle and flashes; a mind map

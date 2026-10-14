@@ -8,7 +8,9 @@ import { formatTime } from '../lib/format'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { optionsLabel, speakerName } from '../lib/outputOptions'
 import { bestMatchIndex, flash, type LocateRequest } from '../lib/locate'
-import { formFor } from '../lib/outputs'
+import { formFor, sourceKindLabel } from '../lib/outputs'
+import { tabKey, type ViewerTab } from '../lib/viewerTabs'
+import { SourceView } from './SourceView'
 import { OutputContent } from './outputs/OutputContent'
 import { ShareCard } from './ShareCard'
 import { OutputProvenance } from './OutputProvenance'
@@ -21,10 +23,13 @@ import { InlineRename } from './InlineRename'
 
 interface Props {
   outputs: Output[]
-  /** the notebook's uploads, to name what a document was made from */
+  /** the notebook's uploads, to name what a document was made from and to show an opened source */
   sources: Source[] | null
-  selectedId: string | null
-  onSelect: (id: string) => void
+  /** what the user opened, in the order opened; the lists stay the index */
+  tabs: ViewerTab[]
+  activeKey: string | null
+  onActivate: (key: string) => void
+  onClose: (key: string) => void
   onChanged: (o: Output) => void
   /** a double-click (or F2) on a tab renames the output */
   onRename: (o: Output, title: string) => void
@@ -48,13 +53,17 @@ interface Props {
 /** The blocks a cited passage can be in, across the document renderers. */
 const PASSAGE_BLOCKS = 'p, li, td, th, h1, h2, h3, h4, dt, dd, blockquote'
 
-/** Right column, top: one tab per generated document, newest first, with
- *  the actions per document: ask about this, print, share, full view. */
+/** Right column, top: one tab per output or source the user opened, in
+ *  the order opened, each closable. An output shows its document with the
+ *  actions (ask about this, print, share, full view); a source its
+ *  Original or As read view. */
 export function OutputViewer({
   outputs,
   sources,
-  selectedId,
-  onSelect,
+  tabs,
+  activeKey,
+  onActivate,
+  onClose,
   onChanged,
   onRename,
   onDeleted,
@@ -69,14 +78,21 @@ export function OutputViewer({
   onOpenSource,
   presentSources,
 }: Props) {
-  const selected = outputs.find((o) => o.id === selectedId) ?? null
+  // a tab whose output or source is not (yet) in its list is left out
+  const shown = tabs.flatMap((tab) => {
+    const output = tab.type === 'output' ? outputs.find((o) => o.id === tab.id) : undefined
+    const source = tab.type === 'source' ? sources?.find((s) => s.id === tab.id) : undefined
+    return output || source ? [{ tab, key: tabKey(tab), output, source }] : []
+  })
+  const active = shown.find((x) => x.key === activeKey) ?? null
+  const selected = active?.output ?? null
   const spec = useOutputOptions()
   const made = selected ? optionsLabel(selected.options, spec) : null
   const checked = checkSummary(selected?.provenance?.check)
   const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
-    outputs.map((o) => o.id),
-    selectedId,
-    onSelect,
+    shown.map((x) => x.key),
+    active?.key ?? null,
+    onActivate,
   )
   const enterButton = useRef<HTMLButtonElement>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -142,48 +158,57 @@ export function OutputViewer({
         </div>
       )}
       <div className="tabs no-print" role="tablist" aria-label={t('viewer.documents')} ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
-        {outputs.map((o) =>
-          editing === o.id ? (
-            <InlineRename
-              key={o.id}
-              value={o.title || formFor(o.kind).label}
-              label={t('outputs.renameLabel')}
-              maxLength={200}
-              onCancel={() => setEditing(null)}
-              onCommit={(draft) => {
-                setEditing(null)
-                const next = renamedTitle(draft, o.title)
-                if (next) onRename(o, next)
-              }}
-            />
-          ) : (
-            <button
-              key={o.id}
-              type="button"
-              role="tab"
-              data-tab-id={o.id}
-              tabIndex={o.id === selectedId || (!selectedId && o === outputs[0]) ? 0 : -1}
-              aria-selected={o.id === selectedId}
-              className={`tab status-${o.status}${o.id === selectedId ? ' active' : ''}`}
-              onClick={() => onSelect(o.id)}
-              onDoubleClick={() => o.status === 'ready' && setEditing(o.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'F2' && o.status === 'ready') {
-                  e.preventDefault()
-                  setEditing(o.id)
-                }
-              }}
-              title={`${formFor(o.kind).label} · ${formatTime(o.created_at)} · ${t('outputs.renameHint')}`}
-            >
-              {o.title || formFor(o.kind).label}
-              {(o.status === 'processing' || o.status === 'waiting') && <span className="spinner" aria-label={o.status} />}
-            </button>
-          ),
-        )}
-        {outputs.length === 0 && <span className="muted">{t('viewer.noDocs')}</span>}
+        {shown.map(({ tab, key, output: o, source: src }) => {
+          const label = o ? o.title || formFor(o.kind).label : (src?.name ?? '')
+          if (o && editing === o.id)
+            return (
+              <InlineRename
+                key={key}
+                value={label}
+                label={t('outputs.renameLabel')}
+                maxLength={200}
+                onCancel={() => setEditing(null)}
+                onCommit={(draft) => {
+                  setEditing(null)
+                  const next = renamedTitle(draft, o.title)
+                  if (next) onRename(o, next)
+                }}
+              />
+            )
+          return (
+            <span key={key} className={`tab viewer-tab${tab.type === 'source' ? ' source-tab' : ''}${o ? ` status-${o.status}` : ''}${key === active?.key ? ' active' : ''}`}>
+              <button
+                type="button"
+                role="tab"
+                data-tab-id={key}
+                tabIndex={key === active?.key || (!active && key === shown[0].key) ? 0 : -1}
+                aria-selected={key === active?.key}
+                className="tab-label"
+                onClick={() => onActivate(key)}
+                onDoubleClick={() => o?.status === 'ready' && setEditing(o.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'F2' && o?.status === 'ready') {
+                    e.preventDefault()
+                    setEditing(o.id)
+                  }
+                }}
+                title={o ? `${formFor(o.kind).label} · ${formatTime(o.created_at)} · ${t('outputs.renameHint')}` : `${sourceKindLabel(src!.kind)} · ${src!.name}`}
+              >
+                {src && <span className="tab-kind muted">{sourceKindLabel(src.kind)}</span>}
+                {label}
+                {o && (o.status === 'processing' || o.status === 'waiting') && <span className="spinner" aria-label={o.status} />}
+              </button>
+              <button type="button" className="icon tab-close" title={t('viewer.closeTab', { title: label })} aria-label={t('viewer.closeTab', { title: label })} onClick={() => onClose(key)}>
+                ×
+              </button>
+            </span>
+          )
+        })}
+        {shown.length === 0 && <span className="muted">{t('viewer.noDocs')}</span>}
       </div>
       {(error || actionError) && <p className="error no-print">{error ?? actionError}</p>}
       <div className="viewer-body printable" ref={body}>
+        {active?.source && <SourceView source={active.source} tab={active.tab} />}
         {selected && (
           <>
             <header className="viewer-head">

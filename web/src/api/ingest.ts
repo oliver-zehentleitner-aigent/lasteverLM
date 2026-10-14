@@ -1,7 +1,7 @@
 import { INGEST_PREFIX } from '../config'
 import { request, requestWithStatus } from './client'
 import { isPdf, type CaptureMode } from '../lib/capture'
-import type { LibraryEntry, Notebook, Source, TrashEntry } from './types'
+import type { LibraryEntry, Notebook, Source, SourceChunks, TrashEntry } from './types'
 
 export interface Added {
   source: Source
@@ -72,6 +72,10 @@ export const ingest = {
   /** gone for good, chunks and stored object included */
   purgeFromTrash: (id: string) =>
     request<void>(`${INGEST_PREFIX}/library/${encodeURIComponent(id)}/purge`, { method: 'DELETE' }),
+
+  /** the extracted text, a page of chunks (limit 1–200) in order */
+  sourceChunks: (id: string, offset: number, limit: number) =>
+    request<SourceChunks>(`${INGEST_PREFIX}/sources/${encodeURIComponent(id)}/chunks?offset=${offset}&limit=${limit}`),
 
   /** detaches: the source leaves this notebook and stays in the library */
   deleteSource: (id: string) =>

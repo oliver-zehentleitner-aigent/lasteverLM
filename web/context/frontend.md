@@ -581,3 +581,30 @@ tell a user that something was tried when nothing was.
 
 **Revisit when:** ingest's source shape gains a code or an attempt count
 for the error, or the sentence changes in ingest or rag
+
+## The viewer's tabs hold what was opened, kept for the browser session
+
+**Id:** ff5fabb2-d2b3-4e11-845e-bc7380425552
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the family lead, 2026-10-14 (sources open as tabs with an Original and an As read view; tabs only for what was opened, closable, in the order opened, kept per notebook across a reload, sessionStorage); the storage key, the tab key and the restored tab's position were this directory's call
+
+The viewer shows one tab per output or source the user opened, in the
+order opened. Each tab can be closed, and opening one that is already
+open focuses its tab. The Outputs and Sources lists stay the index. The
+set and the active tab are kept per notebook in sessionStorage
+(`lasteverlm.tabs.<notebook>`), without a citation's page or chunk, so
+a restored tab opens at its top. Outputs and sources share one tab key
+(`output:<id>`, `source:<id>`) and one strip.
+
+**Reason:** a notebook with many outputs filled the strip with tabs
+nobody had asked for, and a source had no place to open inside the app.
+A tab per thing opened keeps the strip to what is being read. Session
+storage keeps the set across a reload without carrying it to the next
+visit.
+
+**Rejected alternative:** one tab per output of the notebook, as before,
+with sources added to it. Rejected because the strip would grow with
+every output, whether anyone opened it or not. Also rejected:
+localStorage, which would carry yesterday's tabs into today's work.
