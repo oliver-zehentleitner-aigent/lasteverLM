@@ -7,7 +7,7 @@ export interface OptionValues {
   voice: string
   speed: number
   style: AudioStyle
-  /** the second speaker, sent only for a conversation */
+  /** the second speaker, sent only for the two-voice styles (conversation, FAQ) */
   voice2: string
   /** the author's instructions; sent only when not blank */
   instructions: string
@@ -24,7 +24,10 @@ export interface OptionValues {
 /** rag's limit for the instructions, when the catalogue does not say. */
 export const INSTRUCTIONS_MAX = 500
 
-export const AUDIO_STYLES: AudioStyle[] = ['overview', 'story', 'conversation']
+export const AUDIO_STYLES: AudioStyle[] = ['overview', 'story', 'conversation', 'faq']
+
+/** The styles spoken by two voices: a conversation and questions and answers. */
+export const twoVoices = (style: AudioStyle | undefined): boolean => style === 'conversation' || style === 'faq'
 
 /** The second speaker a conversation starts with, as rag picks it when
  *  none is sent: the next voice in the catalogue with the first one's
@@ -82,7 +85,7 @@ export function buildOptions(kind: OutputKind, spec: OutputOptionsSpec, v: Optio
     if (key === 'voice') out.voice = v.voice
     if (key === 'speed') out.speed = v.speed
     if (key === 'audio_style') out.audio_style = v.style
-    if (key === 'audio_voice_2' && v.style === 'conversation') out.audio_voice_2 = v.voice2
+    if (key === 'audio_voice_2' && twoVoices(v.style)) out.audio_voice_2 = v.voice2
     if (key === 'instructions' && v.instructions.trim()) out.instructions = v.instructions.trim().replace(/\s+/g, ' ')
     if (key === 'report_style') out.report_style = v.reportStyle
     if (key === 'length') out.length = v.length
@@ -115,7 +118,7 @@ export function optionsLabel(o: OutputOptions | undefined, spec: OutputOptionsSp
   if (o.language) parts.push(spec?.languages.find((l) => l.code === o.language)?.label ?? o.language)
   if (o.audio_style && o.audio_style !== 'overview') parts.push(t(`audioStyle.${o.audio_style}`))
   const voiceLabel = (id: string) => spec?.audio.voices.find((v) => v.id === id)?.label ?? id
-  if (o.voice) parts.push(o.audio_style === 'conversation' && o.audio_voice_2 ? `${voiceLabel(o.voice)} & ${voiceLabel(o.audio_voice_2)}` : voiceLabel(o.voice))
+  if (o.voice) parts.push(twoVoices(o.audio_style) && o.audio_voice_2 ? `${voiceLabel(o.voice)} & ${voiceLabel(o.audio_voice_2)}` : voiceLabel(o.voice))
   if (o.speed !== undefined) parts.push(`${o.speed}×`)
   if (o.report_style) parts.push(t(`opt.reportStyle.${o.report_style}`))
   if (o.length) parts.push(t(`opt.length.${o.length}`))

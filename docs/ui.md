@@ -168,9 +168,11 @@ opens the notebook.
   (the interface language when "same as the sources" is chosen); the
   sample is fetched on click only, since the first one per combination
   is synthesized. For audio also a **Style**: Overview (the default),
-  Story or Conversation (`audio_style`); with Conversation a **Second
-  voice** select appears with its own sample button (`audio_voice_2`,
-  sent for a conversation only), starting with the next voice of the
+  Story, Conversation or FAQ (`audio_style`; FAQ is questions and
+  answers in two voices); with Conversation or FAQ a **Second voice**
+  select appears with its own sample button (`audio_voice_2`, sent for
+  those two only; in an FAQ the first voice asks, the second answers),
+  starting with the next voice of the
   first one's language, as rag would pick it, and never the same as the
   first (changing the first to the second's voice moves the second on).
   For a report a **Style** (Briefing, Detailed, Executive summary,
@@ -356,7 +358,7 @@ opens the notebook.
   made from. Report as Markdown, quiz interactive with reveal, table
   sortable with CSV export, mind map with markmap, infographic as a
   card grid, audio as a player with the transcript under it (a
-  narrator's paragraphs as text; a conversation with each turn's speaker,
+  narrator's paragraphs as text; a conversation or an FAQ with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
   none). **Flashcards** one card at a time: "Card 3 of 15" over a large
   card that a click (or Space or Enter, with the cards focused) turns

@@ -1103,6 +1103,7 @@ export const en = {
   'srcView.noSnapshot': 'No snapshot yet: the page is stored when it is read',
   'srcView.livePage': 'live page',
   'srcView.snapshotTitle': 'Snapshot of {name}',
+  'audioStyle.faq': 'FAQ',
 } as const
 
 export type MessageKey = keyof typeof en

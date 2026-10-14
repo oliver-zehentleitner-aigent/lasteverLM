@@ -1106,4 +1106,5 @@ export const de: Record<MessageKey, string> = {
   'srcView.noSnapshot': 'Noch keine Momentaufnahme: Die Seite wird gespeichert, wenn sie gelesen wird',
   'srcView.livePage': 'Live-Seite',
   'srcView.snapshotTitle': 'Momentaufnahme von {name}',
+  'audioStyle.faq': 'FAQ',
 }
