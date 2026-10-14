@@ -281,6 +281,7 @@ class SystemService(BaseModel):
     version: str | None
     commit: str | None
     healthy: bool
+    dependencies: dict[str, str] | None  # from the service's healthz, passed through unchanged
 
 
 class SystemPod(BaseModel):
@@ -291,6 +292,9 @@ class SystemPod(BaseModel):
     restarts: int
     node: str | None
     started_at: datetime | None
+    phase: str | None  # Pending | Running | Succeeded | Failed | Unknown
+    reason: str | None  # CrashLoopBackOff, ImagePullBackOff, OOMKilled, Error, …; null when running
+    template_hash: str | None  # which ReplicaSet the pod belongs to
 
 
 class SystemDeployment(BaseModel):
@@ -298,6 +302,9 @@ class SystemDeployment(BaseModel):
     replicas: int
     ready: int
     updated: int
+    progressing: bool | None  # the Progressing condition
+    available: bool | None  # the Available condition
+    replica_sets: int  # ReplicaSets that have pods; 2 during a rollout
 
 
 class SystemInfo(BaseModel):

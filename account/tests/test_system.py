@@ -21,21 +21,51 @@ PODS = {
         {
             "metadata": {
                 "name": "account-7d9f-abc",
-                "labels": {"app.kubernetes.io/name": "account"},
+                "labels": {"app.kubernetes.io/name": "account", "pod-template-hash": "7d9f"},
             },
             "spec": {
                 "nodeName": "node-1",
                 "containers": [{"image": "ghcr.io/x/lasteverlm-account:0.6.0"}],
             },
             "status": {
+                "phase": "Running",
                 "startTime": "2026-10-13T08:00:00Z",
-                "containerStatuses": [{"ready": True, "restartCount": 2}],
+                "containerStatuses": [{"ready": True, "restartCount": 2, "state": {"running": {}}}],
             },
         },
         {
-            "metadata": {"name": "rag-1", "labels": {"app.kubernetes.io/name": "rag"}},
+            "metadata": {
+                "name": "account-8e0a-xyz",
+                "labels": {"app.kubernetes.io/name": "account", "pod-template-hash": "8e0a"},
+            },
+            "spec": {"containers": [{"image": "ghcr.io/x/lasteverlm-account:0.7.0"}]},
+            "status": {
+                "phase": "Pending",
+                "containerStatuses": [
+                    {
+                        "ready": False,
+                        "restartCount": 0,
+                        "state": {"waiting": {"reason": "ImagePullBackOff"}},
+                    }
+                ],
+            },
+        },
+        {
+            "metadata": {
+                "name": "rag-1",
+                "labels": {"app.kubernetes.io/name": "rag", "pod-template-hash": "aaaa"},
+            },
             "spec": {"containers": [{"image": "registry/lasteverlm-rag@sha256:abc"}]},
-            "status": {"containerStatuses": [{"ready": False, "restartCount": 0}]},
+            "status": {
+                "phase": "Running",
+                "containerStatuses": [
+                    {
+                        "ready": False,
+                        "restartCount": 5,
+                        "state": {"terminated": {"reason": "OOMKilled", "exitCode": 137}},
+                    }
+                ],
+            },
         },
     ]
 }
@@ -44,16 +74,38 @@ DEPLOYMENTS = {
         {
             "metadata": {"name": "account"},
             "spec": {"replicas": 2},
-            "status": {"readyReplicas": 2, "updatedReplicas": 2},
+            "status": {
+                "readyReplicas": 2,
+                "updatedReplicas": 2,
+                "conditions": [
+                    {"type": "Available", "status": "True"},
+                    {"type": "Progressing", "status": "True"},
+                ],
+            },
         },
-        {"metadata": {"name": "rag"}, "spec": {"replicas": 1}, "status": {"readyReplicas": 0}},
+        {
+            "metadata": {"name": "rag"},
+            "spec": {"replicas": 1},
+            "status": {
+                "readyReplicas": 0,
+                "conditions": [{"type": "Available", "status": "False"}],
+            },
+        },
     ]
 }
 
 
 def handler(request: httpx.Request) -> httpx.Response:
     if request.url.host == "ingest":
-        return httpx.Response(200, json={"status": "ok", "version": "0.6.0", "commit": "abc1234"})
+        return httpx.Response(
+            200,
+            json={
+                "status": "ok",
+                "version": "0.6.0",
+                "commit": "abc1234",
+                "dependencies": {"postgres": "ok", "storage": "down"},
+            },
+        )
     if request.url.host == "rag":
         raise httpx.ConnectError("connection refused")
     if request.url.host == "kube":
@@ -104,12 +156,26 @@ async def test_snapshot_inside_a_cluster(sa_dir: Path) -> None:
         "node-1",
     )
     assert a.started_at is not None and a.started_at.isoformat().startswith("2026-10-13T08:00:00")
+    assert (a.phase, a.reason, a.template_hash) == ("Running", None, "7d9f")
+    rolling = pods["account-8e0a-xyz"]
+    assert (rolling.phase, rolling.reason, rolling.ready) == ("Pending", "ImagePullBackOff", False)
     r = pods["rag-1"]
     assert (r.image_tag, r.ready, r.node, r.started_at) == (None, False, None, None)
+    assert (r.phase, r.reason, r.restarts) == ("Running", "OOMKilled", 5)
     assert [(d.name, d.replicas, d.ready, d.updated) for d in snap.deployments] == [
         ("account", 2, 2, 2),
         ("rag", 1, 0, 0),
     ]
+    account_dep, rag_dep = snap.deployments
+    assert (account_dep.progressing, account_dep.available, account_dep.replica_sets) == (
+        True,
+        True,
+        2,  # two template hashes among its pods: a rollout is under way
+    )
+    assert (rag_dep.progressing, rag_dep.available, rag_dep.replica_sets) == (None, False, 1)
+    ingest = snap.services[1]
+    assert ingest.dependencies == {"postgres": "ok", "storage": "down"}
+    assert snap.services[2].dependencies is None  # unreachable rag reports nothing
 
 
 @pytest.mark.anyio
@@ -145,8 +211,9 @@ def test_admin_system_route_and_healthz_carry_version(
         "version": settings.app_version,
         "commit": settings.app_commit,
         "healthy": True,
+        "dependencies": {"postgres": "ok"},
     }
-    assert set(body["services"][1]) == {"name", "version", "commit", "healthy"}
+    assert set(body["services"][1]) == {"name", "version", "commit", "healthy", "dependencies"}
     h = client.get("/api/account/healthz").json()
     assert h == {"status": "ok", "version": settings.app_version, "commit": settings.app_commit}
 
@@ -157,7 +224,7 @@ async def test_service_builds_the_response_from_the_probe(
 ) -> None:
     service = AccountService(settings, repo, mailer, system=probe(sa_dir))
     info = await service.admin_system()
-    assert info.cluster is True and len(info.pods) == 2 and len(info.deployments) == 2
+    assert info.cluster is True and len(info.pods) == 3 and len(info.deployments) == 2
     assert info.services[0].name == "account" and info.services[0].healthy is True
     assert json.loads(info.model_dump_json())["pods"][0]["service"] == "account"
 

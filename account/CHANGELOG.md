@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /admin/system` for the live architecture diagram: `dependencies` per service (passed through from its healthz), `phase`, `reason` (container waiting/terminated reason) and `template_hash` per pod, `progressing`, `available` and `replica_sets` (ReplicaSets with pods, from the pods' template hashes — no new RBAC) per deployment.
+
 ## [0.12.0] - 2026-10-14
 
 ### Changed
