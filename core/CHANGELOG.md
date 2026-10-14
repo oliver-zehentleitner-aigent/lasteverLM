@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `Answer.suggestions` and `Message.suggestions` (`list[str]`, at most `MAX_SUGGESTIONS` = 3 follow-up questions; `[]` for older messages, `None` read as `[]`), and `Message.feedback: MessageFeedback | None` (`rating` `up` | `down` as `FeedbackRating`, optional `comment`, `at`); rag owns and stores both.
+
 ## [0.18.2] - 2026-10-14
 
 ### Added
