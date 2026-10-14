@@ -143,10 +143,11 @@ indexes the result as a source of kind `generated` in the same notebook
 (chunked with core's token-window chunker, the same one ingest uses),
 so the chat can cite it; `Output.source_id` names that source.
 
-**Provenance.** Report, infographic and audio cite the numbered passages
-of their prompt, the same discipline as a chat answer: every unit (a
-report paragraph that is not a heading, an infographic fact or section,
-an audio paragraph or turn) carries `refs` (passage numbers) and
+**Provenance.** Every kind cites the numbered passages of its prompt,
+the same discipline as a chat answer: every unit (a report paragraph
+that is not a heading, an infographic fact or section, an audio
+paragraph or turn, a table row, a quiz question, a mind-map node below
+the root) carries `refs` (passage numbers) and
 `support`, the result of a deterministic check after generation, with no
 second model call. A unit is `supported` when every ref names a passage
 of the prompt and at least half (`OVERLAP_THRESHOLD = 0.5`) of its
@@ -157,14 +158,16 @@ five characters); `unsupported` without refs, with a ref no passage has,
 or below the threshold; `unverified` when the refs are valid but the
 overlap is low and the output was written in a chosen `language`, where
 word overlap cannot tell. An interviewer's question without refs is no
-claim and gets no `support`. A failing unit is kept and marked, never
+claim and gets no `support`, nor does the mind map's root (it names the
+whole map) unless it cites. A failing unit is kept and marked, never
 dropped, and never fails the output. The report keeps `[n]` markers in
 `content.markdown` (unknown numbers are removed) and lists
 `content.units: [{"text", "refs", "support"}]`; infographic facts and
-sections and the audio transcript entries carry the two fields
-themselves. `Output.provenance` is the generation log, written when the
-output is ready, for every kind (`null` for outputs from before; table,
-quiz and mind map have the log but no units yet): `{"version", "prompt_version", "model", "options",
+sections, the audio transcript entries, quiz questions and mind-map
+nodes carry the two fields themselves; a table keeps `rows` as lists of
+cells and adds `row_refs: [{"refs", "support"}]`, one per row (a quiz
+question is checked with its answer and explanation). `Output.provenance` is the generation log, written when the
+output is ready, for every kind (`null` for outputs from before): `{"version", "prompt_version", "model", "options",
 "focus_query", "retrieval": {"k", "floor", "candidates": [{"chunk_id",
 "source_id", "source_name", "page", "similarity", "in_prompt"}]},
 "passages": [{"n", "chunk_id", "source_id", "source_name",
