@@ -21,6 +21,7 @@ from pydantic import (
     ConfigDict,
     Field,
     SerializerFunctionWrapHandler,
+    field_validator,
     model_serializer,
 )
 
@@ -108,6 +109,9 @@ def is_usage_action(action: str) -> bool:
 
 
 MessageRole = Literal["user", "assistant"]
+FeedbackRating = Literal["up", "down"]
+# Follow-up questions rag writes with an answer, at most this many.
+MAX_SUGGESTIONS = 3
 # What `/healthz` reports per dependency a service uses.
 Dependency = Literal["postgres", "storage", "inference"]
 DependencyState = Literal["ok", "down"]
@@ -194,6 +198,19 @@ class ChunkView(BaseModel):
     text: str
 
 
+class MessageFeedback(BaseModel):
+    """The owner's rating of an assistant message, one per message; the
+    owner may change it, `at` is when it was last given."""
+
+    rating: FeedbackRating
+    comment: str | None = None
+    at: datetime
+
+
+def _no_suggestions(value: Any) -> Any:
+    return [] if value is None else value
+
+
 class Message(_Row):
     """One chat message; an assistant message carries its citations.
 
@@ -202,6 +219,9 @@ class Message(_Row):
     threshold and counts) are the support check rag runs on an answer,
     shaped as on outputs' provenance; rag owns and documents both. They
     are `None` for an answer without citations and for older messages.
+    `suggestions` (up to `MAX_SUGGESTIONS` follow-up questions written
+    with the answer) and `feedback` (the owner's rating) are rag's too;
+    an older message has `[]` and `None`.
     """
 
     id: UUID
@@ -210,18 +230,24 @@ class Message(_Row):
     citations: list[Citation] = Field(default_factory=list)
     units: list[dict[str, Any]] | None = None
     check: dict[str, Any] | None = None
+    suggestions: list[str] = Field(default_factory=list, max_length=MAX_SUGGESTIONS)
+    feedback: MessageFeedback | None = None
     created_at: datetime
+
+    _suggestions = field_validator("suggestions", mode="before")(_no_suggestions)
 
 
 class Answer(BaseModel):
     """What the ask endpoint returns: the stored message's id, text and
-    citations, and the support check as on `Message` (`units`, `check`)."""
+    citations, the support check as on `Message` (`units`, `check`) and
+    the follow-up questions (`suggestions`, stripped from the text)."""
 
     message_id: UUID
     answer: str
     citations: list[Citation] = Field(default_factory=list)
     units: list[dict[str, Any]] | None = None
     check: dict[str, Any] | None = None
+    suggestions: list[str] = Field(default_factory=list, max_length=MAX_SUGGESTIONS)
 
 
 class Output(_Row):
