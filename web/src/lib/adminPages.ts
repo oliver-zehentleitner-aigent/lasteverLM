@@ -4,9 +4,9 @@ import { t } from '../i18n'
  *  overview is the default and lives at /admin itself. */
 export const ADMIN_PAGES = [
   { id: 'overview', get label() { return t('admin.page.overview') } },
+  { id: 'finance', get label() { return t('admin.page.finance') } },
   { id: 'users', get label() { return t('admin.page.users') } },
   { id: 'access', get label() { return t('admin.page.access') } },
-  { id: 'finance', get label() { return t('admin.page.finance') } },
   { id: 'security', get label() { return t('admin.page.security') } },
   { id: 'visits', get label() { return t('admin.page.visits') } },
   { id: 'mail', get label() { return t('admin.page.mail') } },

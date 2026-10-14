@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.18.4] - 2026-10-14
+### Changed
+
+- Admin: Finance comes right after Overview in the sub-navigation (Overview · Finance · Users · Access · Security · Visits · Mail · System).
 
 ### Fixed
 

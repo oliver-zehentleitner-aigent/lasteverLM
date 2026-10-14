@@ -531,7 +531,8 @@ deleted from the library) stays readable with its quote and is marked
   address. The architecture diagram on Admin > System scales to its
   card; wide admin tables scroll inside theirs.
 - Admin (for the roles `admin` and `viewer`): pages under `/admin` with
-  a sub-navigation; each page loads only its own data, every page has
+  a sub-navigation (Overview · Finance · Users · Access · Security ·
+  Visits · Mail · System); each page loads only its own data, every page has
   its own URL. A **viewer** reads everything: the heading carries a
   "read-only" badge, and every write control (voucher create and
   delete, allow-list add and remove, viewer domains, rate-limit save and
@@ -577,7 +578,7 @@ deleted from the library) stays readable with its quote and is marked
     **Sign-in** (who may sign in) and **Viewer (read-only admin
     panel)**: a new user at one of those domains or addresses (also
     allowed to sign in) starts as viewer.
-  - **Finance** (`/admin/finance`, in the menu where Credits was):
+  - **Finance** (`/admin/finance`, in the menu right after Overview):
     pills for its five pages, each with its own URL under
     `/admin/finance/`, and one date range for those that take one
     (7, 30 or 90 days, or two dates), in one row at one height: the day
