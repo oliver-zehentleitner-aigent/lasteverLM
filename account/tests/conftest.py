@@ -83,6 +83,7 @@ def settings() -> Settings:
         admin_emails=frozenset({ADMIN_EMAIL}),
         allowed_domains_seed=(ALLOWED_DOMAIN,),
         smtp=SmtpConfig("smtp.test", 587, "", "", "noreply@lasteverlm.test", True),
+        exchange_rate_sync=False,  # no network in tests; test_exchange_rate drives the sync
     )
 
 

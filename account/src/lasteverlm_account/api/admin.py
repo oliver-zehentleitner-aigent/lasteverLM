@@ -34,6 +34,7 @@ from ..models import (
     PricingView,
     RateLimitRulesUpdate,
     RateLimitRulesView,
+    RateMode,
     RoleUpdate,
     SendVoucherBody,
     Smtp,
@@ -376,6 +377,19 @@ async def put_pricing(body: dict[str, Any], service: Service, _: AdminUserDep) -
 async def preview_pricing(body: dict[str, Any], service: Service, _: AdminUserDep) -> PricingView:
     """What proposed rules would charge per action, without storing them."""
     return await service.preview_pricing(body)
+
+
+@router.put("/settings/pricing/rate-mode", response_model=PricingView)
+async def set_rate_mode(body: RateMode, service: Service, _: AdminUserDep) -> PricingView:
+    """automatic: the hourly ECB rate (fetched at once); manual: the rate an admin sets."""
+    return await service.set_rate_mode(body.mode)
+
+
+@router.post("/settings/pricing/rate/sync", response_model=PricingView)
+async def sync_rate(service: Service, _: AdminUserDep) -> PricingView:
+    """Fetch the ECB rate now (automatic mode); a failure shows in ``rate.last_error``."""
+    await service.sync_exchange_rate()
+    return await service.pricing_view()
 
 
 @router.delete("/settings/pricing", status_code=204)

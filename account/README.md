@@ -95,6 +95,7 @@ comment.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | the mail configuration, read at start and shown read-only in the admin panel, never stored; without `SMTP_HOST` no sign-in mail can be sent (`lasteverlm-smtp`) |
 | `MAGIC_LINK_TTL_MINUTES`, `LINK_QUOTA_PER_HOUR`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 5, 1 (a session token lives a day; sign-out is client-side), 1000, 30, true, INFO |
 | `VOUCHER_KEY` | yes | 32 random bytes, base64 (`openssl rand -base64 32`): voucher codes are stored AES-GCM-encrypted under it so admins can show and mail them again; keep it stable, a new key makes stored codes unrecoverable (`lasteverlm-account`) |
+| `EXCHANGE_RATE_SYNC` | no | default true: fetch the ECB's USD reference rate every hour into the pricing rules (egress 443 to www.ecb.europa.eu); false only for offline runs |
 | `VULTR_BILLING_API_KEY` | no | key of a Vultr sub-user with the billing permission; set, the service reads pending charges and invoices once a day into `infra_costs`; empty or unset, nothing runs and `/admin/finance/infra` says `"vultr": "not connected"` (`lasteverlm-account`) |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100. The first four are only defaults: an admin overrides them at run time through `PUT /admin/settings/ratelimit` (settings key `ratelimit`, read by every service's middleware within 30 s) |
@@ -133,8 +134,16 @@ pricing rules: core books with it and the infrastructure page converts with it.
   validates, 422 names the field; every service reads it within 30 s),
   `POST /admin/settings/pricing/preview` shows proposed rules without storing, `DELETE`
   sets margins and fees to zero and keeps the rate — without a rate core books nothing.
-  Migration 0010 seeds the row with 1.1188 (ECB reference rate of 2026-10-13) until an
-  admin sets another.
+  Migration 0010 seeds the row with 1.1188 (ECB reference rate of 2026-10-13); the
+  service then keeps the rate current (below).
+- The rate is the ECB's daily euro reference rate for USD, fetched every hour and written
+  into the rules when it changed (`rate` in the view: `usd_per_eur`, `mode`, `source`
+  ECB|manual|seed, `rate_date`, `last_checked`, `last_success`, `last_error`, `stale` after
+  three days without a successful fetch). A failed fetch keeps the stored rate and shows
+  the error. An admin's PUT with another rate is an override: `mode` turns manual and the
+  hourly update pauses; `PUT /admin/settings/pricing/rate-mode` `{mode: automatic|manual}`
+  switches back (and fetches at once), `POST /admin/settings/pricing/rate/sync` fetches now.
+  Bookings keep the rate they were made with. Outbound: `www.ecb.europa.eu:443`.
 - `GET /admin/finance/costs?from=&to=&group=day|action|model|user|service`: calls,
   actions, real cost (EUR and the measured USD) and charge per group.
 - `GET /admin/finance/revenue?from=&to=`: charged to users, the demo user's charges apart

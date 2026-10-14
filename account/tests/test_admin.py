@@ -60,6 +60,8 @@ ADMIN_ROUTES = [
         {"default_margin_pct": 0, "actions": {}},
     ),
     ("DELETE", "/api/account/admin/settings/pricing", None),
+    ("PUT", "/api/account/admin/settings/pricing/rate-mode", {"mode": "manual"}),
+    ("POST", "/api/account/admin/settings/pricing/rate/sync", None),
     ("GET", "/api/account/admin/finance/costs", None),
     ("GET", "/api/account/admin/finance/revenue", None),
     ("GET", "/api/account/admin/finance/profit", None),

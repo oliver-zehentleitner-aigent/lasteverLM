@@ -37,6 +37,7 @@ class Settings:
     voucher_default_cents: int = 1000
     voucher_mail_quota_per_hour: int = 5  # voucher mails to one address per hour, then 429
     vultr_billing_api_key: str | None = None  # empty or unset: the billing sync does not run
+    exchange_rate_sync: bool = True  # hourly ECB fetch of usd_per_eur (EXCHANGE_RATE_SYNC)
     visit_retention_days: int = 30
     access_retention_days: int = 30  # core's RETENTION_DAYS, for the tables its middleware writes
     ban_max_days: int = 90  # core's BAN_MAX_DAYS: a ban holds until lifted, at most this long
@@ -80,6 +81,7 @@ class Settings:
             public_base_url=required("PUBLIC_BASE_URL").rstrip("/"),
             voucher_key=_voucher_key(env.get("VOUCHER_KEY")),
             vultr_billing_api_key=env.get("VULTR_BILLING_API_KEY", "").strip() or None,
+            exchange_rate_sync=_bool(env.get("EXCHANGE_RATE_SYNC", "true"), "EXCHANGE_RATE_SYNC"),
             demo_token=env.get("DEMO_TOKEN", "").strip() or None,
             admin_emails=frozenset(_csv_lower(env.get("ADMIN_EMAILS", ""))),
             allowed_domains_seed=tuple(_csv_lower(env.get("AUTH_ALLOWED_DOMAINS", ""))),
