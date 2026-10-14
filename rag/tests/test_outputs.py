@@ -16,6 +16,7 @@ from .conftest import (
     AUTH,
     NOTEBOOK,
     OTHER_NOTEBOOK,
+    REPORT_DEFAULTS,
     FakeLLM,
     FakeObjects,
     FakeRetriever,
@@ -27,12 +28,14 @@ from .conftest import (
 
 OUTPUTS = f"/api/rag/notebooks/{NOTEBOOK}/outputs"
 REPORT = json.dumps({"title": "Sky report", "markdown": "## Sky\n\nThe sky is blue. [1] [7]"})
+# ten questions: the default number a quiz asks for
 QUIZ = json.dumps(
     {
         "title": "Sky quiz",
         "questions": [
             {"question": "Color?", "options": ["blue", "red"], "answer": "blue", "explanation": "x"}
-        ],
+        ]
+        * 10,
     }
 )
 
@@ -70,7 +73,9 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
         "unsupported": 1,
         "unverified": 0,
     }
-    assert provenance["prompt_version"] == "report-v2" and provenance["model"] == "test-llm"
+    assert (
+        provenance["prompt_version"] == "report-briefing-v3" and provenance["model"] == "test-llm"
+    )
     (passage,) = provenance["passages"]
     assert (passage["n"], passage["quote"], passage["page"]) == (1, "The sky is blue.", 1)
     assert [c["in_prompt"] for c in provenance["retrieval"]["candidates"]] == [True]
@@ -324,7 +329,7 @@ def test_share_and_revoke(settings):
             "markdown": "## Sky\n\nThe sky is blue.",
             "units": [{"text": "The sky is blue.", "refs": [], "support": "unsupported"}],
         },
-        "options": {},
+        "options": REPORT_DEFAULTS,
         "created_at": body["created_at"],
         "provenance": body["provenance"],
     }

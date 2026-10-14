@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Report options `report_style` (`briefing` default, `detailed`, `executive_summary`, `explainer`, `academic`) and `length` (`short`, `medium` default, `long`); quiz options `question_count` (5–30, default 10), `difficulty` (`easy`, `medium` default, `hard`) and `audience` (`children`, `teens`, `adults` default, `experts`). Defaults are stored on the output; the catalogue lists them under `report` and `quiz`. A quiz with fewer questions than asked gets the corrective retry, extra ones are cut.
+
+- `instructions` for every kind: the user's own notes (at most 500 characters, whitespace collapsed, blank dropped), given to the generator below the system rules; they steer focus and tone and never override the rules, the citation rules or the reply format. Stored in the options and the provenance log; the catalogue lists `instructions.max_chars`.
+
+- `PATCH /api/rag/outputs/{id}` `{"title"}` renames a ready output outside the trash (trimmed, 1–200 characters) together with its generated source; 409 while it is still being generated.
+
+- `GET /api/rag/shared/notebooks/{token}` (no auth): a notebook shared through ingest's `notebooks.share_token`, as its title, its ready uploads by name and kind, and its ready outputs outside the trash as their shared view; 404 for an unknown or revoked token.
+
 ## [0.15.0] - 2026-10-14
 
 ### Added

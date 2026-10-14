@@ -40,6 +40,8 @@ from lasteverlm_rag.worker import Worker
 
 DEMO_TOKEN = "demo-secret"
 OWNER = str(DEMO_USER_ID)
+# what a report is stored with when the client sends no style or length
+REPORT_DEFAULTS = {"report_style": "briefing", "length": "medium"}
 NOTEBOOK = str(uuid.uuid4())
 OTHER_NOTEBOOK = str(uuid.uuid4())
 CONVERSATION = str(uuid.uuid4())
@@ -240,6 +242,18 @@ class FakeStore:
             if row["share_token"] == share_token:
                 return self._output_row(row)
         return None
+
+    def get_shared_notebook(self, share_token: str) -> dict[str, Any] | None:
+        for notebook in self.notebooks.values():
+            if notebook.get("share_token") == share_token:
+                return {"id": notebook["id"], "title": notebook["title"]}
+        return None
+
+    def rename_output(self, output_id: str, title: str) -> None:
+        row = self.outputs[output_id]
+        row["title"] = title
+        if row["source_id"] in self.sources:
+            self.sources[row["source_id"]]["name"] = title
 
     def list_outputs(self, notebook_id: str) -> list[OutputRow]:
         return [
@@ -513,6 +527,7 @@ class FakeLLM:
     def __init__(self, *replies: str) -> None:
         self.replies = list(replies) or [""]
         self.calls: list[tuple[str, str]] = []
+        self.budgets: list[int | None] = []
 
     def complete(
         self,
@@ -524,6 +539,7 @@ class FakeLLM:
     ) -> CompletionResult:
         assert thinking is None  # answers and generators never ask for reasoning
         self.calls.append((system, user))
+        self.budgets.append(max_tokens)
         reply = self.replies[min(len(self.calls) - 1, len(self.replies) - 1)]
         return CompletionResult(reply, Usage("llm", "test-llm", 50, 20))
 

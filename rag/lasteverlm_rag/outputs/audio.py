@@ -13,6 +13,7 @@ cite what the audio says.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Literal
 
 from lasteverlm_core import OutputKind
@@ -121,7 +122,8 @@ class AudioGenerator(JsonGenerator):
     def __init__(self, available: bool) -> None:
         self.available = available
 
-    def prompt(self, style: str | None) -> tuple[str, type[BaseModel]]:
+    def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:
+        style = options.get("audio_style")
         if style == "conversation":
             return INSTRUCTIONS["conversation"], Conversation
         if style == "story":
@@ -136,13 +138,13 @@ class AudioGenerator(JsonGenerator):
         passages: list[Passage],
         *,
         language: str | None = None,
-        style: str | None = None,
+        options: Mapping[str, Any] | None = None,
     ) -> GeneratedOutput:
         if not self.available:
             # fail before the script costs tokens nobody can listen to
             raise GenerationFailed("audio: text-to-speech is not available on this deployment")
         return super().generate(
-            complete, notebook_title, summaries, passages, language=language, style=style
+            complete, notebook_title, summaries, passages, language=language, options=options
         )
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:

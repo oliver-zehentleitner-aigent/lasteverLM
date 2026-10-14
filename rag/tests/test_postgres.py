@@ -701,3 +701,26 @@ def test_an_answers_support_round_trips(store, notebook):
 def test_the_decision_kind_is_allowed(store, notebook):
     row = store.create_output(notebook, "decision", "processing", {"question": "q"})
     assert row.kind == "decision"
+
+
+def test_renaming_an_output_renames_its_generated_source(store, pool, notebook):
+    row = store.create_output(notebook, "report", "ready")
+    source_id = store.create_generated_source(notebook, "Old", "s")
+    store.update_output(row.id, source_id=source_id, title="Old")
+    store.rename_output(row.id, "New")
+    assert store.get_output(row.id).title == "New"
+    with pool.connection() as conn:
+        name = conn.execute(
+            "select name from library_sources where id = %s", (source_id,)
+        ).fetchone()["name"]
+    assert name == "New"
+
+
+def test_a_notebook_is_found_by_ingests_share_token(store, pool, notebook):
+    assert store.get_shared_notebook("nb-tok") is None
+    with pool.connection() as conn:
+        conn.execute("update notebooks set share_token = 'nb-tok' where id = %s", (notebook,))
+    assert store.get_shared_notebook("nb-tok") == {
+        "id": notebook,
+        "title": store.get_notebook(notebook)["title"],
+    }

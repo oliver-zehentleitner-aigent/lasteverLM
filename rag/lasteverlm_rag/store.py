@@ -105,6 +105,14 @@ class Store(Protocol):
 
     def get_shared_output(self, share_token: str) -> OutputRow | None: ...
 
+    def get_shared_notebook(self, share_token: str) -> dict[str, Any] | None:
+        """The notebook ingest shares under the token (``notebooks.share_token``)."""
+        ...
+
+    def rename_output(self, output_id: str, title: str) -> None:
+        """The output's title and its generated source's name, together."""
+        ...
+
     def list_outputs(self, notebook_id: str) -> list[OutputRow]: ...
 
     def update_output(self, output_id: str, **fields: Any) -> None: ...
@@ -460,6 +468,24 @@ class PostgresStore:
                 f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where o.share_token = %s", (share_token,)
             ).fetchone()
         return _to_output(row) if row else None
+
+    def get_shared_notebook(self, share_token: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select id::text as id, title from notebooks where share_token = %s",
+                (share_token,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def rename_output(self, output_id: str, title: str) -> None:
+        # the generated source carries the title as its name: chat cites it by that
+        with self._pool.connection() as conn, conn.transaction():
+            conn.execute("update outputs set title = %s where id = %s", (title, output_id))
+            conn.execute(
+                "update library_sources l set name = %s from outputs o "
+                "where o.id = %s and l.id = o.source_id",
+                (title, output_id),
+            )
 
     def list_outputs(self, notebook_id: str) -> list[OutputRow]:
         with self._pool.connection() as conn:
