@@ -347,8 +347,11 @@ deployment by default), so the app sees one origin as in production.
 `scripts/csp/walk.mjs` signs in with the demo token, opens every
 notebook and every ready output kind (mind map, audio, …), one output
 a judge has read with its judge panel and source list open, `/library`,
-`/settings`, every admin page including the five finance pages, and the
-theme toggle,
+`/settings`, every admin page including the five finance pages (the
+panel renders only for an admin or viewer; the demo token is a plain
+user, so these steps report "no admin panel" and count as not walked;
+run with a viewer's token, `DEMO_TOKEN="$WALK_TOKEN"`, to walk the panel),
+and the theme toggle,
 opens one shared page per output kind and plays the audio in the
 viewer and on its shared page. It prints the pages it visited, the
 distinct violations (directive and blocked URL), console errors, failed
