@@ -670,4 +670,12 @@ export const de: Record<MessageKey, string> = {
   'nb.renameHint': 'Doppelklick oder F2 zum Umbenennen',
   'outputs.renameLabel': 'Titel der Ausgabe',
   'outputs.renameHint': 'Doppelklick oder F2 zum Umbenennen',
+  'nbShare.share': 'Notebook teilen',
+  'nbShare.sharedTitle': 'Geteilt: Link öffnen',
+  'nbShare.info': 'Jeder mit diesem Link kann das Notebook ohne Anmeldung lesen: Titel, Quellen mit Namen und die Ausgaben; keine Quelldateien.',
+  'nbShare.createInfo': 'Einen Nur-Lese-Link zu diesem Notebook erstellen: Titel, Quellen mit Namen, Ausgaben.',
+  'nbShare.shared': 'geteiltes Notebook',
+  'nbShare.sources': 'Quellen ({n})',
+  'nbShare.outputs': 'Ausgaben',
+  'nbShare.noOutputs': 'Noch keine Ausgaben.',
 }

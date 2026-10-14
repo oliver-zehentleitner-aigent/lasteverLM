@@ -10,6 +10,17 @@ export interface Notebook {
   id: string
   title: string
   created_at: string
+  /** its read-only link's token; null while it is not shared */
+  share_token?: string | null
+}
+
+/** `GET /api/rag/shared/notebooks/{token}`: a notebook as a reader sees it,
+ *  without ids: its ready uploads by name and kind, its ready outputs
+ *  oldest first. */
+export interface SharedNotebook {
+  title: string
+  sources: { name: string; kind: SourceKind }[]
+  outputs: SharedOutput[]
 }
 
 /** A source in one notebook: a link to an entry of the user's library

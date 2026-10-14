@@ -3,6 +3,7 @@ import type { Notebook } from '../api/types'
 import { t } from '../i18n'
 import { renamedTitle } from '../lib/conversations'
 import { InlineRename } from './InlineRename'
+import { NotebookShareCard } from './ShareCard'
 
 /** ingest's limit for a notebook title */
 const NOTEBOOK_TITLE_MAX = 200
@@ -15,11 +16,15 @@ interface Props {
   onDelete: (id: string) => Promise<void>
   /** a double-click (or F2) on a notebook renames it */
   onRename: (id: string, title: string) => void
+  /** the notebook's read-only link changed (created or revoked) */
+  onShared: (id: string, shareToken: string | null) => void
 }
 
-export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDelete, onRename }: Props) {
+export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDelete, onRename, onShared }: Props) {
   const [title, setTitle] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
+  // the notebook whose share card is open
+  const [sharing, setSharing] = useState<string | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -72,12 +77,27 @@ export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDele
             )}
             <button
               type="button"
+              className={nb.share_token ? 'icon share-toggle shared' : 'icon share-toggle'}
+              title={nb.share_token ? t('nbShare.sharedTitle') : t('nbShare.share')}
+              aria-label={nb.share_token ? t('nbShare.sharedTitle') : t('nbShare.share')}
+              aria-expanded={sharing === nb.id}
+              onClick={() => setSharing((s) => (s === nb.id ? null : nb.id))}
+            >
+              ⤴
+            </button>
+            <button
+              type="button"
               className="icon"
               title={t('nb.delete')}
               onClick={() => void onDelete(nb.id)}
             >
               ×
             </button>
+            {sharing === nb.id && (
+              <div className="nb-share">
+                <NotebookShareCard notebook={nb} onChanged={(token) => onShared(nb.id, token)} />
+              </div>
+            )}
           </li>
         ))}
         {notebooks.length === 0 && <li className="muted">{t('nb.none')}</li>}

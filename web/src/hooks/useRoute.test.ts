@@ -7,6 +7,8 @@ describe('parseRoute', () => {
     expect(parseRoute({ pathname: '/admin', search: '' })).toEqual({ name: 'admin', page: 'overview' })
     expect(parseRoute({ pathname: '/auth/callback', search: '?token=abc' })).toEqual({ name: 'auth-callback', token: 'abc' })
     expect(parseRoute({ pathname: '/s/t%20k', search: '' })).toEqual({ name: 'shared', token: 't k' })
+    expect(parseRoute({ pathname: '/shared/notebook/abc', search: '' })).toEqual({ name: 'shared-notebook', token: 'abc' })
+    expect(parseRoute({ pathname: '/shared/notebook/', search: '' })).toEqual({ name: 'home' })
     expect(parseRoute({ pathname: '/library', search: '' })).toEqual({ name: 'library' })
     expect(parseRoute({ pathname: '/settings', search: '' })).toEqual({ name: 'settings' })
   })

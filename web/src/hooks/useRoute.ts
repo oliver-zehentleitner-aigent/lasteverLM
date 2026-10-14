@@ -11,6 +11,7 @@ export type Route =
   | { name: 'library' }
   | { name: 'settings' }
   | { name: 'shared'; token: string }
+  | { name: 'shared-notebook'; token: string }
 
 /** Pure, so the route table is unit-tested without a browser. */
 export function parseRoute(loc: Pick<Location, 'pathname' | 'search'>): Route {
@@ -23,6 +24,8 @@ export function parseRoute(loc: Pick<Location, 'pathname' | 'search'>): Route {
   }
   if (loc.pathname === '/library' || loc.pathname === '/library/') return { name: 'library' }
   if (loc.pathname === '/settings' || loc.pathname === '/settings/') return { name: 'settings' }
+  const sharedNotebook = /^\/shared\/notebook\/([^/]+)$/.exec(loc.pathname)
+  if (sharedNotebook) return { name: 'shared-notebook', token: decodeURIComponent(sharedNotebook[1]) }
   const shared = /^\/s\/([^/]+)$/.exec(loc.pathname)
   if (shared) return { name: 'shared', token: decodeURIComponent(shared[1]) }
   return { name: 'home' }

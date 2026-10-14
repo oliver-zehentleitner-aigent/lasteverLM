@@ -667,6 +667,14 @@ export const en = {
   'nb.renameHint': 'Double-click or F2 to rename',
   'outputs.renameLabel': 'Output title',
   'outputs.renameHint': 'double-click or F2 to rename',
+  'nbShare.share': 'Share notebook',
+  'nbShare.sharedTitle': 'Shared: open the link',
+  'nbShare.info': 'Anyone with this link can read the notebook without signing in: its title, its sources by name and its outputs; no source files.',
+  'nbShare.createInfo': 'Create a read-only link to this notebook: title, sources by name, outputs.',
+  'nbShare.shared': 'shared notebook',
+  'nbShare.sources': 'Sources ({n})',
+  'nbShare.outputs': 'Outputs',
+  'nbShare.noOutputs': 'No outputs yet.',
 } as const
 
 export type MessageKey = keyof typeof en

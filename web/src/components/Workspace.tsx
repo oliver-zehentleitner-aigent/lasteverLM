@@ -83,7 +83,15 @@ export function Workspace() {
   return (
     <main className="workspace" ref={workspaceRef} style={sidebarWidth === null ? undefined : ({ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties)}>
       <aside className="sidebar no-print">
-        <NotebookList notebooks={notebooks} selectedId={selectedId} onSelect={setSelectedId} onCreate={create} onDelete={remove} onRename={(id, title) => void rename(id, title)} />
+        <NotebookList
+          notebooks={notebooks}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onCreate={create}
+          onDelete={remove}
+          onRename={(id, title) => void rename(id, title)}
+          onShared={(id, token) => setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, share_token: token } : n)))}
+        />
         {error && <p className="error">{error}</p>}
       </aside>
       {deleting && (
