@@ -235,6 +235,12 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
   .column.left { border-right: none; border-bottom: 1px solid var(--line); }
   .chat .messages { max-height: 60vh; }
   .viewer-body { max-height: 50vh; }
+  /* stacked, the column has no height to share: the chat wrapper's
+     flex-basis 0 left the chat its tabs and the question field only, the
+     messages squeezed to nothing; both panes get a height of their own */
+  .chat-wrap { flex: none; }
+  .chat .messages { min-height: 40vh; }
+  .viewer-body:has(> .viewer-head) { min-height: 40vh; }
 }
 .grid2 > .row { grid-column: 1 / -1; justify-content: flex-end; }
 
