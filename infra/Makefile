@@ -116,7 +116,7 @@ secrets: env ## create the Secrets and the CA ConfigMap from cluster.env and the
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-s3 --from-literal=S3_ACCESS_KEY="$$S3_ACCESS_KEY" --from-literal=S3_SECRET_KEY="$$S3_SECRET_KEY" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-inference --from-literal=INFERENCE_API_KEY="$$INFERENCE_API_KEY" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-auth --from-literal=AUTH_JWT_SECRET="$$AUTH_JWT_SECRET" --from-literal=DEMO_TOKEN="$$DEMO_TOKEN" --dry-run=client -o yaml | kubectl apply -f - && \
->   kubectl -n $(KUBE_NS) create secret generic lasteverlm-account --from-literal=AUTH_ALLOWED_DOMAINS="$${AUTH_ALLOWED_DOMAINS:-}" --from-literal=ADMIN_EMAILS="$${ADMIN_EMAILS:-}" --from-literal=VISIT_HASH_SECRET="$${VISIT_HASH_SECRET:-}" --from-literal=VOUCHER_KEY="$$VOUCHER_KEY" --dry-run=client -o yaml | kubectl apply -f -
+>   kubectl -n $(KUBE_NS) create secret generic lasteverlm-account --from-literal=AUTH_ALLOWED_DOMAINS="$${AUTH_ALLOWED_DOMAINS:-}" --from-literal=ADMIN_EMAILS="$${ADMIN_EMAILS:-}" --from-literal=VISIT_HASH_SECRET="$${VISIT_HASH_SECRET:-}" --from-literal=VOUCHER_KEY="$$VOUCHER_KEY" --from-literal=VULTR_BILLING_API_KEY="$${VULTR_BILLING_API_KEY:-}" --dry-run=client -o yaml | kubectl apply -f -
 > @if [ -n "$${SMTP_HOST:-}" ]; then \
 >   [ -n "$${SMTP_FROM_ADDRESS:-}" ] || { echo "SMTP_HOST is set but SMTP_FROM_ADDRESS is not; account refuses to start without it" >&2; exit 1; }; \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-smtp \

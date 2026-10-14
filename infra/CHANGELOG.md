@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `JUDGE_MODELS` in the ConfigMap (`config.judgeModels`, JSON level to model, empty = core's defaults; the chart fails the render on invalid JSON) for rag's answer judge; production and `compose.yaml` set `low` `deepseek-v4.1-flash`, `medium` `glm-5.3-flash`, `high` `glm-5.3`, the mapping of rag's evaluation (`rag/docs/judge-eval.md`), which swaps `low` and `medium` against core's defaults.
+- `VULTR_BILLING_API_KEY` (optional) in the `lasteverlm-account` Secret, from the environment by `make secrets`: the API key of a Vultr sub-user with only the `billing` permission, for account's daily fetch of pending charges and invoices; the runbook says how to create it.
 
 ## [0.17.0] - 2026-10-14
 
