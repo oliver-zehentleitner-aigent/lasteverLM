@@ -93,3 +93,12 @@ export function writeWidth(storage: Pick<Storage, 'setItem' | 'removeItem'> | un
     // not remembered; the layout still works
   }
 }
+
+/** The width below which the columns stack (the 900px breakpoint in
+ *  styles.css): the chat is then below the fold, so it neither takes the
+ *  focus on its own nor scrolls the page to itself. */
+export const STACKED_QUERY = '(max-width: 900px)'
+
+export function isStacked(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(STACKED_QUERY).matches
+}

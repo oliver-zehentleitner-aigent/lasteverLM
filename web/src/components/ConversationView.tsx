@@ -3,6 +3,7 @@ import { rag } from '../api/rag'
 import type { Citation, Message } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { isRemoved, splitCitations } from '../lib/citations'
+import { isStacked } from '../lib/layout'
 import { similarityLabel } from '../lib/provenance'
 import { ProvenancePanel } from './ProvenancePanel'
 import { t } from '../i18n'
@@ -21,19 +22,29 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
   const { busy, error, run } = useAsync()
-  const bottom = useRef<HTMLDivElement>(null)
+  const pane = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     void run(async () => setMessages(await rag.listMessages(conversationId)))
   }, [conversationId, run])
 
+  // the newest message in view: the messages pane scrolls, never the page
+  // (scrollIntoView would scroll every ancestor, the document included)
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: 'end' })
+    const el = pane.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages.length, busy])
 
+  // the question field takes the focus where the chat is on screen beside
+  // the documents; stacked, it is below the fold and the page stays put
   useEffect(() => {
-    if (scope) input.current?.focus()
+    if (!isStacked()) input.current?.focus({ preventScroll: true })
+  }, [conversationId])
+
+  // "ask about this" was just clicked: the field is where the answer goes
+  useEffect(() => {
+    if (scope) input.current?.focus({ preventScroll: true })
   }, [scope])
 
   // every source turned off: nothing to answer from, unless the question is about one document
@@ -72,7 +83,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
 
   return (
     <>
-      <div className="messages">
+      <div className="messages" ref={pane}>
         {messages.map((m) => (
           <article key={m.id} className={`msg ${m.role}`}>
             <AnswerText message={m} onCite={(c) => toggle(m, c)} openN={open?.messageId === m.id ? open.n : null} />
@@ -122,14 +133,13 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
               className="link"
               onClick={() => {
                 setQuestion(suggestion)
-                input.current?.focus()
+                input.current?.focus({ preventScroll: true })
               }}
             >
               {suggestion}
             </button>
           </p>
         )}
-        <div ref={bottom} />
       </div>
       {error && <p className="error">{error}</p>}
       {scope && (
@@ -154,7 +164,6 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           disabled={busy}
-          autoFocus
         />
         <button type="submit" disabled={busy || blocked || !question.trim()}>
           {t('chat.ask')}
