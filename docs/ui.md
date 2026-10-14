@@ -94,7 +94,14 @@ opens the notebook.
   audio), each with its kind as a badge
   with status and remove; the add button opens the wizard at step 1,
   without the output step. An audio source has a play button (see
-  "Checking an audio source" under Library).
+  "Checking an audio source" under Library). Each source is one line:
+  its checkbox, the name cut with an ellipsis (the full name as
+  tooltip), then kind, capture and status as compact badges, the play
+  button and × as one group that never wraps inside. Only when that
+  group alone needs half the row or more does the row take two lines,
+  the whole group then below the name. The status badge is short
+  ("ready", "reading", "added", "failed"); what it means, a failed
+  source's error and why a waiting one is not moving are its tooltip.
   Removing only detaches the source from this notebook, it stays in the
   library. Deleting a notebook detaches its sources the same way. A
   document made in another notebook and added from the library is
@@ -114,11 +121,11 @@ opens the notebook.
   creating outputs is: without credit the hint next to Create says "No
   credit: sources wait, outputs cannot be created." with "redeem a
   voucher" (the voucher dialog), and Create is disabled.
-  A source still processing or waiting for credit shows the service's
-  `error` next to its badge: "pricing has no exchange rate, ask an
-  admin" as it comes, in amber (nothing was tried; it runs once an admin
-  sets the rate), any other error while processing as "Retrying after:
-  …", muted, and while waiting for credit as it comes, muted.
+  A source still processing or waiting for credit has the service's
+  `error` as its status badge's tooltip: "pricing has no exchange rate,
+  ask an admin" as it comes, the badge then amber (nothing was tried; it
+  runs once an admin sets the rate), any other error while processing as
+  "Retrying after: …", and while waiting for credit as it comes.
   This notebook's own generated documents are not listed here (they are
   under Outputs), although the backend keeps each one as a source of
   kind `generated` so the chat can cite it.

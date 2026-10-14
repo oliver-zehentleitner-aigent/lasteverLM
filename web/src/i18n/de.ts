@@ -1073,4 +1073,8 @@ export const de: Record<MessageKey, string> = {
   'tour.skip': 'Überspringen',
   'tour.done': 'Fertig',
   'set.tourAgain': 'Einführung erneut zeigen',
+  'statusShort.ready': 'fertig',
+  'statusShort.processing': 'liest',
+  'statusShort.waiting_for_credit': 'hinzugefügt',
+  'statusShort.failed': 'fehlgeschlagen',
 }

@@ -1070,6 +1070,10 @@ export const en = {
   'tour.skip': 'Skip',
   'tour.done': 'Done',
   'set.tourAgain': 'Show the introduction again',
+  'statusShort.ready': 'ready',
+  'statusShort.processing': 'reading',
+  'statusShort.waiting_for_credit': 'added',
+  'statusShort.failed': 'failed',
 } as const
 
 export type MessageKey = keyof typeof en
