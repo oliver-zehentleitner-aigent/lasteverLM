@@ -217,6 +217,16 @@ class ActionSampleRecord:
 
 
 @dataclass(frozen=True)
+class NotebookReadiness:
+    """A notebook as ingest stores it (its tables in the shared database): who owns it and
+    how many of its sources are ready."""
+
+    owner_id: uuid.UUID
+    sources: int
+    ready: int
+
+
+@dataclass(frozen=True)
 class VoucherMoneyRecord:
     issued_paid_cents: int
     issued_free_cents: int
@@ -308,6 +318,10 @@ class Repository(Protocol):
 
     async def action_averages(self, since: datetime) -> list[ActionAverageRecord]: ...
     async def voucher_money(self, since: date, until: date) -> VoucherMoneyRecord: ...
+    async def notebook_readiness(self, notebook_id: uuid.UUID) -> NotebookReadiness | None:
+        """Read from ingest's notebooks and sources; None when there is no such notebook."""
+        ...
+
     async def action_samples(self, since: datetime) -> list[ActionSampleRecord]:
         """Every action_id booked since `since` with a known action, for the price list."""
         ...

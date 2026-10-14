@@ -33,6 +33,7 @@ from .repository import (
     LoginAttemptRecord,
     LoginRecord,
     ModelUsageRecord,
+    NotebookReadiness,
     StatsRecord,
     UsageGroupRecord,
     UsagePeriodRecord,
@@ -781,3 +782,18 @@ class PostgresRepository:
             ActionSampleRecord(r["action"], Decimal(r["cost"]), int(r["seconds"]), r["model"])
             for r in rows
         ]
+
+    async def notebook_readiness(self, notebook_id: uuid.UUID) -> NotebookReadiness | None:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select n.owner,
+                          count(s.id) as sources,
+                          count(s.id) filter (where s.status = 'ready') as ready
+                   from notebooks n left join sources s on s.notebook_id = n.id
+                   where n.id = %s group by n.owner""",
+                (notebook_id,),
+            )
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        return NotebookReadiness(row["owner"], int(row["sources"]), int(row["ready"]))

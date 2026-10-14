@@ -74,6 +74,7 @@ from .models import (
     RateLimitRulesView,
     Role,
     Smtp,
+    StarterNotebook,
     SystemDeployment,
     SystemInfo,
     SystemIngress,
@@ -110,6 +111,7 @@ SETTING_ADDRESSES = "allowed_addresses"
 SETTING_VIEWER_DOMAINS = "viewer_domains"
 SETTING_VIEWER_ADDRESSES = "viewer_addresses"
 SETTING_EXCHANGE_RATE = "exchange_rate"  # {"mode", "source", "rate_date", "last_checked", ...}
+SETTING_STARTER_NOTEBOOK = "starter_notebook"  # {owner_id, notebook_id, set_at, set_by}
 SETTING_VULTR_SYNC = "vultr_sync"  # {"last_sync", "last_error", "rows"}
 _SETTING_KEYS: dict[str, tuple[str, str]] = {  # kind -> (setting key, list key inside the value)
     "domain": (SETTING_DOMAINS, "allowed_domains"),
@@ -1171,6 +1173,47 @@ class AccountService:
         if meta["mode"] == "automatic":
             await self.sync_exchange_rate()
         return await self.pricing_view()
+
+    # the starter notebook ----------------------------------------------------
+    async def starter_notebook(self) -> StarterNotebook:
+        value = await self.repo.get_setting(SETTING_STARTER_NOTEBOOK) or {}
+        return StarterNotebook(
+            notebook_id=value.get("notebook_id"),
+            owner_id=value.get("owner_id"),
+            set_at=value.get("set_at"),
+            set_by=value.get("set_by"),
+        )
+
+    async def set_starter_notebook(
+        self, admin: UserRecord, notebook_id: uuid.UUID
+    ) -> StarterNotebook:
+        """Every new user gets a copy of this notebook. It must exist, belong to an admin and
+        have only ready sources — a copy of a half-processed notebook would stay half."""
+        nb = await self.repo.notebook_readiness(notebook_id)
+        if nb is None:
+            raise AccountError(404, "no such notebook", "unknown_notebook")
+        owner = await self.repo.get_user(nb.owner_id)
+        if owner is None or owner.role != "admin":
+            raise AccountError(409, "the notebook must belong to an admin", "owner_not_admin")
+        if nb.sources == 0 or nb.ready < nb.sources:
+            raise AccountError(
+                409,
+                f"{nb.ready} of {nb.sources} sources are ready; every source must be ready",
+                "sources_not_ready",
+            )
+        await self.repo.set_setting(
+            SETTING_STARTER_NOTEBOOK,
+            {
+                "owner_id": str(nb.owner_id),
+                "notebook_id": str(notebook_id),
+                "set_at": self.now().isoformat(),
+                "set_by": admin.email,
+            },
+        )
+        return await self.starter_notebook()
+
+    async def clear_starter_notebook(self) -> None:
+        await self.repo.delete_setting(SETTING_STARTER_NOTEBOOK)
 
     # the public price list -----------------------------------------------------
     PRICE_WINDOW_DAYS = 30

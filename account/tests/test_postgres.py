@@ -487,3 +487,25 @@ async def test_action_samples_group_per_action_id(repo: PostgresRepository) -> N
         ("output:audio", 5, 90),
     ]
     assert samples[1].model in ("big", "voice")
+
+
+async def test_notebook_readiness_reads_ingest_tables(repo: PostgresRepository) -> None:
+    async with repo._pool.connection() as conn:
+        await conn.execute(
+            """create table if not exists notebooks (id uuid primary key, owner uuid not null);
+               create table if not exists sources (
+                   id uuid primary key, notebook_id uuid not null references notebooks (id)
+                   on delete cascade, status text not null)"""
+        )
+        owner, nb, empty = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+        await conn.execute(
+            "insert into notebooks values (%s, %s), (%s, %s)", (nb, owner, empty, owner)
+        )
+        for status in ("ready", "ready", "processing"):
+            await conn.execute(
+                "insert into sources values (%s, %s, %s)", (uuid.uuid4(), nb, status)
+            )
+    got = await repo.notebook_readiness(nb)
+    assert got is not None and (got.owner_id, got.sources, got.ready) == (owner, 3, 2)
+    assert (await repo.notebook_readiness(empty)).sources == 0  # type: ignore[union-attr]
+    assert await repo.notebook_readiness(uuid.uuid4()) is None

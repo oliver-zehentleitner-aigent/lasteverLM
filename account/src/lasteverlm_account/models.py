@@ -247,6 +247,20 @@ class InfraCosts(BaseModel):
     total_eur_cents: int | None  # null when USD entries exist and no rate is set
 
 
+class StarterNotebookBody(BaseModel):
+    notebook_id: uuid.UUID
+
+
+class StarterNotebook(BaseModel):
+    """The notebook every new user gets a copy of (ingest and rag copy it). All fields null
+    when none is set."""
+
+    notebook_id: uuid.UUID | None
+    owner_id: uuid.UUID | None
+    set_at: datetime | None
+    set_by: str | None  # the admin's e-mail
+
+
 class TypicalPrice(BaseModel):
     p25: float
     median: float

@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Starter notebook: `GET/PUT/DELETE /admin/settings/starter-notebook` stores the notebook new users get a copy of (settings row `starter_notebook` `{owner_id, notebook_id, set_at, set_by}`, read by ingest and rag); it must exist, belong to an admin and have only ready sources.
+
 ### Fixed
 
 - The public price list was almost empty: prices came only from booked actions, and most history predates the action tags. `price_per_unit_cents` now always comes from rag's and ingest's estimates (`estimated: true`, with `price_min_cents`, `price_max_cents`, and for sources `per_source_cents`), the typical range stays from history; sources are priced per page, image, audio minute or web page (PDF by text layer and by vision as two rows).

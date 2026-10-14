@@ -31,6 +31,7 @@ from .repository import (
     LoginAttemptRecord,
     LoginRecord,
     ModelUsageRecord,
+    NotebookReadiness,
     StatsRecord,
     UsageGroupRecord,
     UsagePeriodRecord,
@@ -113,6 +114,9 @@ class MemoryRepository:
     ip_bans: list[BanRecord] = field(default_factory=list)
     access: list[AccessRecord] = field(default_factory=list)
     infra: list[InfraCostRecord] = field(default_factory=list)
+    # ingest's tables, as far as the starter-notebook check reads them (tests fill them)
+    notebooks: dict[uuid.UUID, uuid.UUID] = field(default_factory=dict)  # id -> owner
+    sources: list[tuple[uuid.UUID, str]] = field(default_factory=list)  # (notebook, status)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     # settings ---------------------------------------------------------------
@@ -566,3 +570,10 @@ class MemoryRepository:
                 )
             )
         return out
+
+    async def notebook_readiness(self, notebook_id: uuid.UUID) -> NotebookReadiness | None:
+        owner = self.notebooks.get(notebook_id)
+        if owner is None:
+            return None
+        statuses = [st for nb, st in self.sources if nb == notebook_id]
+        return NotebookReadiness(owner, len(statuses), sum(1 for st in statuses if st == "ready"))

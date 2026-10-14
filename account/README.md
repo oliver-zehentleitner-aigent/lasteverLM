@@ -158,6 +158,17 @@ Amounts are euro cents unless a field says `usd`; rows booked before core 0006 h
 rate and count their cost one to one.
 `GET /admin/stats` keeps showing real cost; balances and the users list show charges.
 
+## Starter notebook
+
+`GET /admin/settings/starter-notebook` (viewer and admin) → `{notebook_id, owner_id, set_at,
+set_by}`, all null when none is set. `PUT` `{notebook_id}` (admin) sets the notebook every
+new user gets a copy of — ingest and rag copy it. It must exist (404 `unknown_notebook`),
+belong to an admin (409 `owner_not_admin`) and have at least one source, all ready (409
+`sources_not_ready`); account reads ingest's `notebooks` and `sources` for that check.
+`DELETE` clears it. Stored as the settings row `starter_notebook`
+`{owner_id, notebook_id, set_at, set_by}`; ingest and rag read that row. The demo user
+stays: the smoke test signs in with the demo token; it plays no part in seeding.
+
 ## Public price list
 
 `GET /api/account/prices` needs no login and is cached for five minutes. One row per thing
