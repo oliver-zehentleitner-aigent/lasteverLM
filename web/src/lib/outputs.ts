@@ -24,6 +24,7 @@ export const OUTPUT_FORMS: OutputForm[] = [
   { kind: 'audio', get label() { return t('kind.audio') }, get description() { return t('kind.audio.note') }, available: true, printable: false },
   { kind: 'decision', get label() { return t('kind.decision') }, get description() { return t('kind.decision.note') }, available: true, printable: true },
   { kind: 'chart', get label() { return t('kind.chart') }, get description() { return t('kind.chart.note') }, available: true, printable: true },
+  { kind: 'flashcards', get label() { return t('kind.flashcards') }, get description() { return t('kind.flashcards.note') }, available: true, printable: false },
 ]
 
 export function formFor(kind: OutputKind): OutputForm {

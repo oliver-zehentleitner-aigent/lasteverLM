@@ -8,6 +8,7 @@ import type {
   OutputKind,
   OutputStatus,
   QuizContent,
+  FlashcardsContent,
   ReportContent,
   TableContent,
 } from '../../api/types'
@@ -20,6 +21,7 @@ import { Walker } from './Walker'
 import { InfographicView } from './InfographicView'
 import { MindmapView } from './MindmapView'
 import { QuizView } from './QuizView'
+import { FlashcardsView } from './FlashcardsView'
 import { ReportView } from './ReportView'
 import { TableView } from './TableView'
 import { t } from '../../i18n'
@@ -56,6 +58,8 @@ export function OutputContent({ kind, title, status, error, content, onExpired, 
       return <ReportView content={content as ReportContent} />
     case 'quiz':
       return <QuizView content={content as QuizContent} />
+    case 'flashcards':
+      return <FlashcardsView content={content as FlashcardsContent} title={title} />
     case 'table':
       return <TableView content={content as TableContent} title={title} />
     case 'mindmap':

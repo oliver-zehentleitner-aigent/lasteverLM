@@ -225,7 +225,7 @@ export function OutputViewer({
               {selected.status === 'ready' && selected.kind !== 'chart' && selected.provenance && (
                 <span className="no-print">
                   <JudgeRequest
-                    subject={{ kind: selected.kind, ...(selected.options?.question_count ? { question_count: selected.options.question_count } : {}) }}
+                    subject={{ kind: selected.kind, ...(selected.options?.question_count ? { question_count: selected.options.question_count } : {}), ...(selected.options?.card_count ? { card_count: selected.options.card_count } : {}) }}
                     onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)}
                   />
                 </span>

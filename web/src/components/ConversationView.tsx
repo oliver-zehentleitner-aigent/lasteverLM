@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { rag } from '../api/rag'
 import type { AnswerUnit, Citation, Message } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
@@ -11,6 +11,7 @@ import { judgeBadge } from '../lib/judge'
 import { JudgeRequest } from './JudgeRequest'
 import { AnswerActions, SuggestionCards } from './AnswerActions'
 import { StarterQuestions } from './StarterQuestions'
+import { PlanCard } from './PlanCard'
 import { PriceTag } from './PriceTag'
 import { ProvenancePanel } from './ProvenancePanel'
 import { t } from '../i18n'
@@ -24,7 +25,7 @@ interface ConversationProps extends ChatPaneProps {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource }: ConversationProps) {
+export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, onOpenTab, onWork }: ConversationProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
@@ -84,12 +85,22 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           units: answer.units ?? null,
           check: answer.check ?? null,
           suggestions: answer.suggestions ?? [],
+          plan: answer.plan ?? null,
           feedback: null,
           created_at: new Date().toISOString(),
         },
       ])
     }
   }
+
+  /** A plan's step made something: the notebook's lists reload; the
+   *  messages too, where an explanation or the plan's summary arrives. */
+  const planWork = useCallback(() => {
+    onWork?.()
+    rag.listMessages(conversationId).then(setMessages, () => {
+      // the next poll or the next question shows them
+    })
+  }, [conversationId, onWork])
 
   function toggle(m: Message, c: Citation) {
     const same = open?.messageId === m.id && open.n === c.n
@@ -103,6 +114,15 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
         {messages.map((m, i) => (
           <article key={m.id} id={`msg-${m.id}`} className={`msg ${m.role}`}>
             <AnswerText message={m} onCite={(c) => toggle(m, c)} openN={open?.messageId === m.id ? open.n : null} />
+            {m.plan && (
+              <PlanCard
+                conversationId={conversationId}
+                plan={m.plan}
+                onChange={(plan) => setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, plan } : x)))}
+                onWork={planWork}
+                onOpen={(target) => onOpenTab?.(target)}
+              />
+            )}
             {m.role === 'assistant' && checkSummary(m.check) && (
               <p
                 className="muted small check-line"
@@ -184,7 +204,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
       <form className="ask row" onSubmit={ask}>
         <input
           ref={input}
-          placeholder={scope ? t('chat.askAbout', { title: scope.title || scope.kind }) : t('chat.askSources')}
+          placeholder={scope ? t('chat.askAbout', { title: scope.title || scope.kind }) : t('chat.askAgent')}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           disabled={busy}

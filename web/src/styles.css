@@ -912,3 +912,36 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 /* settings: a row that is not a preference, in the labels' style */
 .settings-row { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9em; }
 .settings-row-label { color: var(--muted); }
+
+/* flashcards: one card at a time, or all as a list */
+.flash-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
+@media (max-width: 900px) { .presets.flash-mode { display: inline-flex; } }
+.flash-stage { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; outline: none; }
+.flash-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius); }
+.flash-card { width: min(36rem, 100%); min-height: 12rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; padding: 1.25rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: calc(var(--radius) * 2); box-shadow: 0 2px 8px rgb(0 0 0 / 0.08); white-space: normal; text-align: center; font-size: 1.1rem; line-height: 1.4; cursor: pointer; }
+.flash-card.back { border-color: var(--accent); }
+.flash-side { text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.7rem; }
+.flash-text { overflow-wrap: anywhere; }
+.flash-after { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.4rem; }
+.flash-nav { display: flex; gap: 0.5rem; }
+.flash-list { display: flex; flex-direction: column; gap: 0.6rem; padding-left: 1.4rem; }
+.flash-list li { border-bottom: 1px solid var(--line); padding-bottom: 0.4rem; }
+.flash-list li.marked-knew { border-left: 3px solid var(--ok); padding-left: 0.4rem; }
+.flash-list li.marked-again { border-left: 3px solid var(--warn); padding-left: 0.4rem; }
+.flash-front { font-weight: 600; margin: 0; }
+.flash-back { margin: 0.2rem 0 0; }
+/* a chat answer that is a plan: steps, prices, Run and Cancel, live states */
+.plan-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 0.6rem 0.75rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.plan-head { display: flex; align-items: center; gap: 0.5rem; }
+.plan-steps { margin: 0; padding-left: 1.4rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.plan-step { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; }
+.plan-step-label { flex: 1 1 12rem; overflow-wrap: anywhere; }
+.plan-step.invalid .plan-step-label { text-decoration: line-through; color: var(--muted); }
+.plan-step .step-list { flex-basis: 100%; }
+.plan-step .step-error { flex-basis: 100%; }
+.badge.step-state.running, .badge.step-state.waiting, .badge.plan-status.running { color: var(--warn); border-color: var(--warn); }
+.badge.step-state.done, .badge.plan-status.done { color: var(--ok); border-color: var(--ok); }
+.badge.step-state.failed, .badge.plan-status.failed { color: var(--danger); border-color: var(--danger); }
+.badge.step-state.skipped, .badge.plan-status.cancelled { color: var(--muted); }
+.plan-total { margin: 0; }
+.plan-actions { display: flex; gap: 0.5rem; }

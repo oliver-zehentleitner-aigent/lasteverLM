@@ -52,6 +52,8 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
   // without credit sources still go in (and wait); outputs cannot be made
   const noCredit = me !== null && me !== undefined && me.balance_cents <= 0
   const hint = blocker ?? problem
+  // difficulty and audience: the flashcards' own lists, the quiz's otherwise
+  const levels = (selected === 'flashcards' ? spec?.flashcards : spec?.quiz) ?? spec?.quiz ?? null
   const options = (kind: OutputKind): OutputOptions => ({
     ...(spec && values ? buildOptions(kind, spec, values) : {}),
     ...(isDecision ? decisionOptions(dv, decisionKeys) : {}),
@@ -169,11 +171,28 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
               />
             </label>
           )}
-          {shown.includes('difficulty') && spec.quiz && (
+          {shown.includes('card_count') && spec.flashcards && (
+            <label>
+              {t('opt.cardCount')}
+              <input
+                type="number"
+                className="narrow"
+                min={spec.flashcards.card_count.min}
+                max={spec.flashcards.card_count.max}
+                value={values.cardCount}
+                onChange={(e) => {
+                  const n = Math.round(Number(e.target.value))
+                  const { min, max } = spec.flashcards!.card_count
+                  if (Number.isFinite(n)) set({ cardCount: Math.min(max, Math.max(min, n)) })
+                }}
+              />
+            </label>
+          )}
+          {shown.includes('difficulty') && levels && (
             <label>
               {t('opt.difficulty')}
               <select value={values.difficulty} onChange={(e) => set({ difficulty: e.target.value as Difficulty })}>
-                {spec.quiz.difficulties.map((v) => (
+                {levels.difficulties.map((v) => (
                   <option key={v} value={v}>
                     {t(`opt.difficulty.${v}`)}
                   </option>
@@ -181,11 +200,11 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
               </select>
             </label>
           )}
-          {shown.includes('audience') && spec.quiz && (
+          {shown.includes('audience') && levels && (
             <label>
               {t('opt.audience')}
               <select value={values.audience} onChange={(e) => set({ audience: e.target.value as Audience })}>
-                {spec.quiz.audiences.map((v) => (
+                {levels.audiences.map((v) => (
                   <option key={v} value={v}>
                     {t(`opt.audience.${v}`)}
                   </option>

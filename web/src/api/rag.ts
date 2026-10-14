@@ -1,7 +1,7 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
 import type { Estimate, EstimateRequest } from '../lib/estimate'
-import type { FeedbackStats, Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
+import type { FeedbackStats, Plan, Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -33,6 +33,11 @@ export const rag = {
   notebookSuggestions: (notebookId: string) => request<{ suggestions: string[]; cached: boolean }>(`${nb(notebookId)}/suggestions`),
   /** viewers and admins */
   adminFeedback: (days = 30) => request<FeedbackStats>(`${RAG_PREFIX}/admin/feedback?days=${days}`),
+
+  /** a proposed plan runs on confirm, ends on cancel (409 once it did either); poll while running */
+  confirmPlan: (conversationId: string, planId: string) => request<Plan>(`${conv(conversationId)}/plans/${encodeURIComponent(planId)}/confirm`, { method: 'POST' }),
+  cancelPlan: (conversationId: string, planId: string) => request<Plan>(`${conv(conversationId)}/plans/${encodeURIComponent(planId)}/cancel`, { method: 'POST' }),
+  getPlan: (conversationId: string, planId: string) => request<Plan>(`${conv(conversationId)}/plans/${encodeURIComponent(planId)}`),
 
   /** oldest first; the server names a new one "Chat N" */
   listConversations: (notebookId: string) => request<Conversation[]>(`${nb(notebookId)}/conversations`),
