@@ -470,7 +470,7 @@ class AccountService:
     def preferences_of(user: UserRecord) -> Preferences:
         """The stored object, tolerant of keys a later version may have added or removed:
         unknown keys are ignored, a stored value that no longer validates reads as unset."""
-        known = {k: user.preferences.get(k) for k in Preferences.model_fields}
+        known = {k: v for k, v in user.preferences.items() if k in Preferences.model_fields}
         try:
             return Preferences(**known)
         except ValueError:

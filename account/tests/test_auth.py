@@ -43,6 +43,7 @@ def test_full_login_flow_issues_jwt_and_creates_user(
         "trash_days": None,
         "pdf_capture": None,
         "theme": None,
+        "tour_done": False,
     }
 
 
