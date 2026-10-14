@@ -369,3 +369,39 @@ async def test_voucher_code_enc_and_sent_fields(repo: PostgresRepository) -> Non
     assert await repo.count_voucher_mails("friend@pg.test", now + timedelta(seconds=1)) == 0
     listed = {v.id: v for v in await repo.list_vouchers(200)}
     assert listed[vid].code_enc == "sealed" and listed[vid].sent_to == "friend@pg.test"
+
+
+async def test_infra_costs_and_paid_vouchers(repo: PostgresRepository) -> None:
+    from datetime import date
+
+    from lasteverlm_account.repository import InfraCostRecord
+
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from infra_costs")
+    month = date(2026, 9, 1)
+    line = InfraCostRecord(uuid.uuid4(), month, "vultr", "postgres", 1500, "USD")
+    assert await repo.upsert_infra_costs("vultr", [line]) == 1
+    await repo.upsert_infra_costs(
+        "vultr", [InfraCostRecord(uuid.uuid4(), month, "vultr", "postgres", 1600, "USD")]
+    )
+    rows = await repo.list_infra_costs(month, date(2026, 9, 30))
+    assert [(r.item, r.amount_cents) for r in rows] == [("postgres", 1600)]
+    manual = InfraCostRecord(uuid.uuid4(), date(2026, 9, 15), "manual", "domain", 1200, "EUR")
+    assert await repo.add_infra_cost(manual) is True
+    assert (
+        await repo.add_infra_cost(
+            InfraCostRecord(uuid.uuid4(), date(2026, 9, 15), "manual", "domain", 1, "EUR")
+        )
+        is False
+    )
+    assert await repo.delete_infra_cost(rows[0].id) == "not_manual"
+    assert await repo.delete_infra_cost(manual.id) == "deleted"
+    assert await repo.delete_infra_cost(manual.id) == "missing"
+
+    now = datetime.now(UTC)
+    admin = await repo.create_user("fin-admin@pg.test", role="admin", now=now)
+    vid = await repo.create_voucher("hash-fin-paid", 500, admin.id, now, paid=True)
+    assert (await repo.get_voucher(vid)).paid is True  # type: ignore[union-attr]
+    assert await repo.set_voucher_paid(vid, False) is True
+    assert (await repo.get_voucher(vid)).paid is False  # type: ignore[union-attr]
+    assert await repo.set_voucher_paid(uuid.uuid4(), True) is False

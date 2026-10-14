@@ -5,6 +5,7 @@ rate-limit store. Served with ``uvicorn --factory lasteverlm_account.main:create
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -88,9 +89,12 @@ def create_app(
         )
         await service.startup()
         app.state.service = service
+        sync = asyncio.create_task(service.vultr_loop()) if service.vultr is not None else None
         try:
             yield
         finally:
+            if sync is not None:
+                sync.cancel()
             await repo.close()
 
     app = FastAPI(title="lasteverLM account", version=resolved.app_version, lifespan=lifespan)

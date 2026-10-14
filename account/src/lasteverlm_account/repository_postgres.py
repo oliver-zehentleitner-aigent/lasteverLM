@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from lasteverlm_core import DEMO_USER_ID
@@ -25,6 +25,7 @@ from .repository import (
     BlockRecord,
     CreditTotals,
     DailyStatsRecord,
+    InfraCostRecord,
     LoginAttemptRecord,
     LoginRecord,
     ModelUsageRecord,
@@ -269,20 +270,21 @@ class PostgresRepository:
         created_by: uuid.UUID,
         now: datetime,
         code_enc: str | None = None,
+        paid: bool = False,
     ) -> uuid.UUID:
         voucher_id = uuid.uuid4()
         async with self._pool.connection() as conn:
             await conn.execute(
                 """insert into vouchers
-                       (id, code_hash, code_enc, amount_cents, created_by, created_at)
-                   values (%s, %s, %s, %s, %s, %s)""",
-                (voucher_id, code_hash, code_enc, amount_cents, created_by, now),
+                       (id, code_hash, code_enc, amount_cents, created_by, created_at, paid)
+                   values (%s, %s, %s, %s, %s, %s, %s)""",
+                (voucher_id, code_hash, code_enc, amount_cents, created_by, now, paid),
             )
         return voucher_id
 
     _VOUCHER_SELECT = """select v.id, v.amount_cents, c.email as created_by, v.created_at,
                                 r.email as redeemed_by, v.redeemed_at, v.code_enc, v.sent_to,
-                                v.sent_at
+                                v.sent_at, v.paid
                          from vouchers v
                          left join users c on c.id = v.created_by
                          left join users r on r.id = v.redeemed_by"""
@@ -299,7 +301,70 @@ class PostgresRepository:
             r["code_enc"],
             r["sent_to"],
             r["sent_at"],
+            bool(r["paid"]),
         )
+
+    async def set_voucher_paid(self, voucher_id: uuid.UUID, paid: bool) -> bool:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "update vouchers set paid = %s where id = %s", (paid, voucher_id)
+            )
+            return cur.rowcount == 1
+
+    async def upsert_infra_costs(self, source: str, lines: list[InfraCostRecord]) -> int:
+        async with self._pool.connection() as conn, conn.transaction():
+            for line in lines:
+                await conn.execute(
+                    """insert into infra_costs (id, date, source, item, amount_cents, currency)
+                       values (%s, %s, %s, %s, %s, %s)
+                       on conflict (date, source, item) do update
+                       set amount_cents = excluded.amount_cents,
+                           currency = excluded.currency, updated_at = now()""",
+                    (line.id, line.date, source, line.item, line.amount_cents, line.currency),
+                )
+        return len(lines)
+
+    async def add_infra_cost(self, record: InfraCostRecord) -> bool:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """insert into infra_costs (id, date, source, item, amount_cents, currency)
+                   values (%s, %s, %s, %s, %s, %s)
+                   on conflict (date, source, item) do nothing""",
+                (
+                    record.id,
+                    record.date,
+                    record.source,
+                    record.item,
+                    record.amount_cents,
+                    record.currency,
+                ),
+            )
+            return cur.rowcount == 1
+
+    async def delete_infra_cost(self, cost_id: uuid.UUID) -> str:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "delete from infra_costs where id = %s and source = 'manual'", (cost_id,)
+            )
+            if cur.rowcount == 1:
+                return "deleted"
+            cur = await conn.execute("select 1 from infra_costs where id = %s", (cost_id,))
+            return "not_manual" if await cur.fetchone() else "missing"
+
+    async def list_infra_costs(self, since: date, until: date) -> list[InfraCostRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select id, date, source, item, amount_cents, currency from infra_costs
+                   where date between %s and %s order by date, source, item""",
+                (since, until),
+            )
+            rows = await cur.fetchall()
+        return [
+            InfraCostRecord(
+                r["id"], r["date"], r["source"], r["item"], int(r["amount_cents"]), r["currency"]
+            )
+            for r in rows
+        ]
 
     async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None:
         async with self._pool.connection() as conn:

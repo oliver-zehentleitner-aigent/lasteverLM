@@ -37,6 +37,17 @@ ADMIN_ROUTES = [
     ("DELETE", "/api/account/admin/settings/addresses/a@x.test", None),
     ("POST", "/api/account/admin/vouchers", {}),
     ("GET", "/api/account/admin/vouchers", None),
+    ("PATCH", "/api/account/admin/vouchers/00000000-0000-4000-8000-000000000099", {"paid": True}),
+    ("GET", "/api/account/admin/finance/infra", None),
+    (
+        "POST",
+        "/api/account/admin/finance/infra",
+        {"date": "2026-10-01", "item": "x", "amount_cents": 1},
+    ),
+    ("DELETE", "/api/account/admin/finance/infra/00000000-0000-4000-8000-000000000099", None),
+    ("POST", "/api/account/admin/finance/infra/sync", None),
+    ("GET", "/api/account/admin/settings/finance", None),
+    ("PUT", "/api/account/admin/settings/finance", {"eur_per_usd": 0.9}),
     ("DELETE", "/api/account/admin/vouchers/00000000-0000-4000-8000-000000000099", None),
     ("GET", "/api/account/admin/stats", None),
     ("GET", "/api/account/admin/system", None),
@@ -234,6 +245,7 @@ def test_voucher_list_has_no_codes_and_shows_who_redeemed(
         "recoverable",
         "sent_to",
         "sent_at",
+        "paid",
     }
     for code in codes:
         assert code not in r.text

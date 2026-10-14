@@ -206,6 +206,47 @@ class CreateVouchersBody(BaseModel):
     send_to: Email | None = None  # mail every created voucher to this address right away
     message: VoucherMessage | None = None
     allow: bool = True  # with send_to: add the address to the allowlist first
+    paid: bool = False  # sold for money (revenue) rather than given away
+
+
+class VoucherPaid(BaseModel):
+    paid: bool
+
+
+class InfraCost(BaseModel):
+    id: uuid.UUID
+    date: date
+    source: Literal["vultr", "manual"]
+    item: str
+    amount_cents: int  # in `currency`, as billed
+    currency: Literal["USD", "EUR"]
+    amount_eur_cents: int | None  # converted with eur_per_usd; null when the rate is not set
+
+
+class InfraCostAdd(BaseModel):
+    date: date
+    item: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+    amount_cents: int = Field(ge=0, le=10_000_000)
+    currency: Literal["USD", "EUR"] = "EUR"
+
+
+class InfraCosts(BaseModel):
+    """Infrastructure costs of a period. ``vultr`` says whether the billing sync is
+    connected (VULTR_BILLING_API_KEY set) — "not connected" is stated, never implied."""
+
+    vultr: Literal["connected", "not connected"]
+    last_sync: datetime | None
+    last_error: str | None
+    eur_per_usd: float | None
+    entries: list[InfraCost]
+    totals_by_currency: dict[str, int]
+    total_eur_cents: int | None  # null when USD entries exist and no rate is set
+
+
+class FinanceSettings(BaseModel):
+    """Vultr bills USD, credits are EUR: the rate converts infrastructure costs for display."""
+
+    eur_per_usd: float | None = Field(default=None, gt=0, le=10)
 
 
 class SendVoucherBody(BaseModel):
@@ -238,6 +279,7 @@ class AdminVoucher(BaseModel):
     recoverable: bool
     sent_to: str | None
     sent_at: datetime | None
+    paid: bool
 
 
 class VoucherCounts(BaseModel):

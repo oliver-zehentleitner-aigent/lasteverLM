@@ -24,6 +24,7 @@ from .repository import (
     BlockRecord,
     CreditTotals,
     DailyStatsRecord,
+    InfraCostRecord,
     LoginAttemptRecord,
     LoginRecord,
     ModelUsageRecord,
@@ -54,6 +55,7 @@ class _Voucher:
     code_enc: str | None = None
     sent_to: str | None = None
     sent_at: datetime | None = None
+    paid: bool = False
 
 
 @dataclass
@@ -90,6 +92,7 @@ class MemoryRepository:
     blocks: list[BlockRecord] = field(default_factory=list)
     ip_bans: list[BanRecord] = field(default_factory=list)
     access: list[AccessRecord] = field(default_factory=list)
+    infra: list[InfraCostRecord] = field(default_factory=list)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     # settings ---------------------------------------------------------------
@@ -231,9 +234,12 @@ class MemoryRepository:
         created_by: uuid.UUID,
         now: datetime,
         code_enc: str | None = None,
+        paid: bool = False,
     ) -> uuid.UUID:
         async with self._lock:
-            voucher = _Voucher(uuid.uuid4(), amount_cents, created_by, now, code_enc=code_enc)
+            voucher = _Voucher(
+                uuid.uuid4(), amount_cents, created_by, now, code_enc=code_enc, paid=paid
+            )
             self.vouchers[code_hash] = voucher
             return voucher.id
 
@@ -248,7 +254,46 @@ class MemoryRepository:
             v.code_enc,
             v.sent_to,
             v.sent_at,
+            v.paid,
         )
+
+    async def set_voucher_paid(self, voucher_id: uuid.UUID, paid: bool) -> bool:
+        async with self._lock:
+            for v in self.vouchers.values():
+                if v.id == voucher_id:
+                    v.paid = paid
+                    return True
+            return False
+
+    async def upsert_infra_costs(self, source: str, lines: list[InfraCostRecord]) -> int:
+        async with self._lock:
+            for line in lines:
+                key = (line.date, source, line.item)
+                self.infra = [r for r in self.infra if (r.date, r.source, r.item) != key]
+                self.infra.append(replace(line, source=source))
+            return len(lines)
+
+    async def add_infra_cost(self, record: InfraCostRecord) -> bool:
+        async with self._lock:
+            key = (record.date, record.source, record.item)
+            if any((r.date, r.source, r.item) == key for r in self.infra):
+                return False
+            self.infra.append(record)
+            return True
+
+    async def delete_infra_cost(self, cost_id: uuid.UUID) -> str:
+        async with self._lock:
+            for r in self.infra:
+                if r.id == cost_id:
+                    if r.source != "manual":
+                        return "not_manual"
+                    self.infra.remove(r)
+                    return "deleted"
+            return "missing"
+
+    async def list_infra_costs(self, since: date, until: date) -> list[InfraCostRecord]:
+        rows = [r for r in self.infra if since <= r.date <= until]
+        return sorted(rows, key=lambda r: (r.date, r.source, r.item))
 
     async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None:
         for v in self.vouchers.values():
