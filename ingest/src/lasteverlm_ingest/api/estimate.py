@@ -4,7 +4,7 @@ Account's price list calls this server-side and publishes only the charge. Every
 through core's billing with the current pricing rules (margin on the
 cost; the action's fixed fee is reported apart, since it is booked once
 per source, not per unit). The nominal sizes below are what one unit
-costs in model calls; they come from measurements on the demo set and
+costs in model calls; they come from measurements on the former Zeltavia demo set and
 the live vision runs, and are deliberately round.
 """
 
@@ -27,17 +27,17 @@ Kind = Literal["text", "url", "pdf_text", "pdf_vision", "image", "audio"]
 
 # Embedding tokens of one page of text: a dense A4 page of prose is about
 # 2,000 characters, the platform's tokenizer about four characters per
-# token (the demo field notes: 4,460 characters on 3 pages).
+# token (the former demo field notes: 4,460 characters on 3 pages).
 PAGE_TOKENS = 500
-# One web page: the demo article (Wikipedia, "Dead reckoning") is 24,348
+# One web page: the former demo article (Wikipedia, "Dead reckoning") is 24,348
 # characters as text after the HTML is reduced, about 6,000 tokens.
 WEB_PAGE_TOKENS = 6000
 # One PDF page read by the vision model: 515 input and 960 output tokens,
 # measured on two scanned A4 pages (context/pdf-capture.md); the
 # transcript is then embedded.
 VISION_PAGE_IN, VISION_PAGE_OUT = 515, 960
-# One image: the demo map, 537 input and 119 output tokens (docs, Demo
-# library); a photo of a printed page answers longer, so the output is
+# One image: the former demo map, 537 input and 119 output tokens
+# (measured); a photo of a printed page answers longer, so the output is
 # taken as a page's transcript.
 IMAGE_IN, IMAGE_OUT = 540, 500
 # One minute of audio: 60 billed seconds of transcription; speech is about

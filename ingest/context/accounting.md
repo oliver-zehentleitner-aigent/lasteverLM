@@ -67,8 +67,9 @@ batches would leave a source half indexed and its calls billed anyway.
 
 A user without credit can add sources: the upload, URL or text is stored
 and queued like any other. Processing needs credit, so the worker's claim
-query only takes a row whose owner has a positive balance (or a sponsored
-demo seed). The row stays `processing` in the table; the API shows
+query only takes a row whose owner has a positive balance (a sponsored
+demo seed was the exception until the starter notebook replaced the demo
+seeds, 2026-10-14). The row stays `processing` in the table; the API shows
 `waiting_for_credit` when the owner has no credit. As soon as a voucher
 or top-up lands in account's ledger, the next claim takes the source.
 Credit running out in the middle of a job releases the claim without
@@ -97,8 +98,9 @@ counting the attempt, so the source waits instead of failing.
 **Revisit when:** a source can be processed again on purpose (re-indexing with another model), which would be a new action of its own
 
 Every usage row ingest writes goes through core's `record_usage` with
-action `source:<kind>` (`demo_seed` for the sponsored demo sources) and
-the library source's id as `action_id`. The vision pages, the
+action `source:<kind>` (`demo_seed` for the sponsored demo sources until
+the starter notebook replaced them, 2026-10-14; starter copies are not
+processed and book nothing) and the library source's id as `action_id`. The vision pages, the
 transcription, the embeddings and the summary are one action, so the
 summary is booked as `source:<kind>` too, not as a separate `summary`.
 The library id is stable across retries and across a wait for credit,

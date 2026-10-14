@@ -26,7 +26,7 @@ import psycopg
 import pytest
 from lasteverlm_core import Chunk, PricingRules, Usage, parse_model_prices
 
-from lasteverlm_ingest.repository import STALLED, NewLibrarySource, PostgresRepository
+from lasteverlm_ingest.repository import STALLED, NewLibrarySource, PostgresRepository, StarterCopy
 
 pytestmark = pytest.mark.postgres
 
@@ -272,7 +272,7 @@ def test_deleting_a_users_data_leaves_other_users_alone(repo):
         "values (%s, %s, 'Report', 'generated', 'ready')",
         (uuid4(), gone),
     )
-    repo.claim_seed(gone)
+    _execute(repo, "insert into library_seeds (owner) values (%s)", (gone,))
     other = _library(repo, kept)
     other_notebook = repo.create_notebook(kept, "theirs")
 
@@ -285,7 +285,7 @@ def test_deleting_a_users_data_leaves_other_users_alone(repo):
     assert repo.user_object_keys(gone) == []
     assert repo.list_library(gone) == [] and repo.list_trash(gone) == []
     assert repo.get_notebook(gone, notebook.id) is None
-    assert repo.claim_seed(gone)  # the seed mark went too
+    assert not repo.is_seeded(gone)  # the seed mark went too
     assert repo.get_library_source(other.id) is not None
     assert repo.get_notebook(kept, other_notebook.id) is not None
     repo.delete_user_data(gone)  # nothing left: no error
@@ -407,9 +407,10 @@ def test_the_queue_waits_for_credit_without_counting_attempts(repo):
     _claim_all(repo)
     broke = _user(repo, cents=0)
     waiting = _library(repo, broke)
-    seeded = _library(repo, broke, demo=True)  # sponsored: claimed regardless
-    assert _claim_all(repo) == {seeded.id}
+    starter = _library(repo, broke, starter=True)  # no sponsor: it waits too
+    assert _claim_all(repo) == set()
     assert repo.get_library_source(waiting.id).attempts == 0
+    _execute(repo, "update library_sources set status = 'ready' where id = %s", (starter.id,))
     _execute(
         repo,
         "insert into ledger (user_id, amount_cents, reason) values (%s, 100, 'voucher')",
@@ -528,12 +529,75 @@ def test_retry_after_failure_resets_the_row(repo):
     assert _claim_all(repo) == {entry.id}
 
 
-def test_claim_seed_only_once_and_only_for_an_empty_library(repo):
-    fresh, busy = _user(repo), _user(repo)
-    assert repo.claim_seed(fresh)
-    assert not repo.claim_seed(fresh)
+def test_the_starter_notebook_is_copied_once_with_chunks_and_the_handover(repo):
+    admin, user, busy = _user(repo), _user(repo), _user(repo)
+    starter = repo.create_notebook(admin, "Getting started")
+    doc = _library(repo, admin, kind="pdf", name="handbook.pdf", capture="text")
+    repo.set_library_status(doc.id, "ready")
+    repo.set_library_summary(doc.id, "the handbook")
+    repo.replace_chunks(
+        doc.id,
+        [Chunk(idx=0, text="one", page=1), Chunk(idx=1, text="two", page=2)],
+        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+    )
+    link, _ = repo.link_source(starter.id, doc.id)
+    waiting = _library(repo, admin)  # still processing: not copied
+    repo.link_source(starter.id, waiting.id)
+    _output(repo, starter.id, admin)  # rag's: not copied by ingest
+
+    _execute(
+        repo,
+        "insert into settings (key, value) values ('starter_notebook', %s::jsonb) "
+        "on conflict (key) do update set value = excluded.value",
+        (f'{{"owner_id": "{admin}", "notebook_id": "{starter.id}", "set_by": "x"}}',),
+    )
+    ref = repo.starter_ref()
+    assert ref is not None and (ref.owner_id, ref.notebook_id) == (admin, starter.id)
+    [source] = repo.starter_sources(ref)
+    assert (source.link_id, source.library.id) == (link.id, doc.id)
+
+    new_lib, new_link, new_nb = uuid4(), uuid4(), uuid4()
+    plan = StarterCopy(
+        owner=user,
+        source_notebook=starter.id,
+        notebook_id=new_nb,
+        title="Getting started",
+        sources=[(source, new_lib, new_link, f"{user}/{new_lib}/handbook.pdf", None)],
+    )
+    maps = repo.copy_starter(plan)
+    assert maps is not None and repo.is_seeded(user)
+    copy = repo.get_library_source(new_lib)
+    assert copy.owner == user and copy.starter and copy.status == "ready"
+    assert copy.summary == "the handbook" and copy.capture == "text"
+    assert [s.id for s in repo.list_sources(new_nb)] == [new_link]
+    assert maps["source_map"] == {str(link.id): str(new_link), str(doc.id): str(new_lib)}
+    with repo.connection() as conn:
+        old_chunks = conn.execute(
+            "select id, idx, embedding::text from chunks where library_source_id = %s order by idx",
+            (doc.id,),
+        ).fetchall()
+        new_chunks = conn.execute(
+            "select id, idx, embedding::text from chunks where library_source_id = %s order by idx",
+            (new_lib,),
+        ).fetchall()
+        handover = conn.execute(
+            "select source_notebook, owner, source_map, chunk_map from output_copies "
+            "where target_notebook = %s",
+            (new_nb,),
+        ).fetchone()
+    assert [(i, e) for _, i, e in old_chunks] == [(i, e) for _, i, e in new_chunks]
+    pairs = zip(old_chunks, new_chunks, strict=True)
+    assert maps["chunk_map"] == {str(o[0]): str(n[0]) for o, n in pairs}
+    assert handover == (starter.id, user, maps["source_map"], maps["chunk_map"])
+    # Once per user, and never into a library that has entries.
+    again = plan.model_copy(update={"notebook_id": uuid4()})
+    assert repo.copy_starter(again) is None
     _library(repo, busy)
-    assert not repo.claim_seed(busy)
+    assert (
+        repo.copy_starter(plan.model_copy(update={"owner": busy, "notebook_id": uuid4()})) is None
+    )
+    _execute(repo, "delete from settings where key = 'starter_notebook'")
+    assert repo.starter_ref() is None
 
 
 def test_the_exchange_rate_is_read_from_the_pricing_row(database_url, repo):

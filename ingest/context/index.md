@@ -74,7 +74,7 @@ repository root's `context/`.
 
 ## S
 
-- [seeds.md](seeds.md) — why every new user gets a demo library, paid for by the demo user and marked in an ingest-owned table
+- [seeds.md](seeds.md) — why every new user gets a copy of the admin's starter notebook (ready copies, no charge, rag copies the outputs), and the demo library it replaced
 
 ## T
 

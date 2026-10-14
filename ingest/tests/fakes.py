@@ -39,6 +39,8 @@ from lasteverlm_ingest.repository import (
     NotebookUse,
     Origin,
     OwnedNotebook,
+    StarterRef,
+    StarterSource,
     StoredSource,
     TrashEntry,
 )
@@ -74,6 +76,9 @@ class InMemoryRepository:
         # account's users.preferences -> 'trash_days'; missing means 14
         self.trash_days: dict[UUID, int] = {}
         self.seeded: set[UUID] = set()
+        # settings "starter_notebook", and rag's output_copies handover rows
+        self.starter: StarterRef | None = None
+        self.output_copies: list[tuple] = []
         # rag's outputs table as far as ingest reads it: generated library
         # id -> (origin notebook or None once deleted, origin title).
         self.outputs: dict[UUID, tuple[UUID | None, str]] = {}
@@ -196,7 +201,7 @@ class InMemoryRepository:
             attempts=lib.attempts,
             size_bytes=lib.size_bytes,
             capture=lib.capture,
-            demo=lib.demo,
+            starter=lib.starter,
             transcribed_path=lib.transcribed_path,
         )
 
@@ -290,11 +295,57 @@ class InMemoryRepository:
         self.library[lib.id] = lib
         return lib
 
-    def claim_seed(self, owner: UUID) -> bool:
-        if owner in self.seeded:
-            return False
-        self.seeded.add(owner)
-        return not any(lib.owner == owner and self._listed(lib) for lib in self.library.values())
+    def is_seeded(self, owner: UUID) -> bool:
+        return owner in self.seeded
+
+    def starter_ref(self):
+        return self.starter
+
+    def starter_sources(self, ref):
+        if self.get_notebook(ref.owner_id, ref.notebook_id) is None:
+            return None
+        return [
+            StarterSource(link_id=link_id, library=lib)
+            for link_id, (nb, lib_id, _) in self.links.items()
+            if nb == ref.notebook_id
+            and (lib := self.library[lib_id]).owner == ref.owner_id
+            and lib.kind != "generated"
+            and lib.status == "ready"
+            and lib.deleted_at is None
+        ]
+
+    def copy_starter(self, plan):
+        if plan.owner in self.seeded:
+            return None
+        self.seeded.add(plan.owner)
+        if any(lib.owner == plan.owner and self._listed(lib) for lib in self.library.values()):
+            return None
+        self.notebooks[plan.notebook_id] = (
+            plan.owner,
+            OwnedNotebook(id=plan.notebook_id, title=plan.title, created_at=datetime.now(UTC)),
+        )
+        source_map, chunk_map = {}, {}
+        for source, library_id, link_id, key, converted in plan.sources:
+            old = source.library
+            self.library[library_id] = old.model_copy(
+                update={
+                    "id": library_id,
+                    "owner": plan.owner,
+                    "storage_path": key,
+                    "transcribed_path": converted,
+                    "starter": True,
+                    "status": "ready",
+                    "attempts": 0,
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            self.links[link_id] = (plan.notebook_id, library_id, datetime.now(UTC))
+            self.chunks[library_id] = list(self.chunks.get(old.id, []))
+            source_map[str(source.link_id)] = str(link_id)
+            source_map[str(old.id)] = str(library_id)
+        maps = {"source_map": source_map, "chunk_map": chunk_map}
+        self.output_copies.append((plan.notebook_id, plan.source_notebook, plan.owner, maps))
+        return maps
 
     def retry_library_source(self, library_id: UUID) -> None:
         lib = self.library[library_id]
@@ -321,7 +372,7 @@ class InMemoryRepository:
             url=lib.url,
             created_at=lib.created_at,
             capture=lib.capture,
-            demo=lib.demo,
+            starter=lib.starter,
             storage_path=lib.storage_path,
             transcribed_path=lib.transcribed_path,
             notebooks=[
@@ -449,7 +500,7 @@ class InMemoryRepository:
                 and lib.id not in self.claimed
                 and lib.attempts < MAX_ATTEMPTS
                 and self.retry_at.get(lib.id, datetime.min.replace(tzinfo=UTC)) <= datetime.now(UTC)
-                and (lib.demo or self.has_credit(lib.owner))
+                and self.has_credit(lib.owner)
             ):
                 self.claimed[lib.id] = worker_id
                 self.library[lib.id] = lib.model_copy(update={"attempts": lib.attempts + 1})
@@ -524,7 +575,7 @@ class InMemoryRepository:
             for lib in listed
             if lib.status == "processing"
             and lib.id not in self.claimed
-            and not (lib.demo or self.has_credit(lib.owner))
+            and not self.has_credit(lib.owner)
         )
         return AdminStats(
             sources=counts,

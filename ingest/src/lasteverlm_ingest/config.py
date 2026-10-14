@@ -44,7 +44,6 @@ class Settings:
     summary_max_tokens: int
     image_max_tokens: int
     pdf_vision_max_pages: int
-    seed_demo_library: bool
     worker_poll_seconds: float
     claim_timeout_seconds: int
     log_level: str
@@ -110,8 +109,6 @@ class Settings:
             summary_max_tokens=env_int("SUMMARY_MAX_TOKENS", 300, env),
             image_max_tokens=env_int("IMAGE_MAX_TOKENS", 2000, env),
             pdf_vision_max_pages=env_int("PDF_VISION_MAX_PAGES", 100, env),
-            seed_demo_library=(env_optional("SEED_DEMO_LIBRARY", env) or "true").lower()
-            not in ("0", "false", "no", "off"),
             worker_poll_seconds=float(poll_seconds),
             claim_timeout_seconds=claim_timeout,
             log_level=env_optional("LOG_LEVEL", env) or "INFO",

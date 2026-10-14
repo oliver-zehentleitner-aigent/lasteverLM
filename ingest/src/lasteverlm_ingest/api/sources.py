@@ -111,7 +111,7 @@ class LinkedSource(Source):
 
     library_id: UUID
     capture: str | None = None
-    demo: bool = False
+    starter: bool = False
     preview_url: str | None = None
     original_url: str | None = None
 
@@ -131,7 +131,7 @@ def _capture(value: object) -> Capture:
 def _out(source: StoredSource, storage: Storage, credit: CreditView) -> LinkedSource:
     out = LinkedSource.model_validate(source, from_attributes=True)
     out.error = credit.error(source.status, source.error)
-    out.status = credit.status(source.status, source.demo)
+    out.status = credit.status(source.status)
     out.preview_url = preview_url(
         storage, source.kind, source.storage_path, source.url, source.transcribed_path
     )

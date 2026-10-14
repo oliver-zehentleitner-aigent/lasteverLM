@@ -22,7 +22,6 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from lasteverlm_core import (
-    DEMO_USER_ID,
     Chunker,
     Embedder,
     ProviderError,
@@ -237,9 +236,8 @@ def _transcribable(source: LibrarySource, data: bytes, deps: WorkerDeps) -> byte
 
 
 def _payer(source: LibrarySource) -> UUID:
-    """Who pays for processing: the owner, or the demo user for the demo
-    library every new user is seeded with (a new user has no credit)."""
-    return DEMO_USER_ID if source.demo else source.owner
+    """Who pays for processing: the owner."""
+    return source.owner
 
 
 def _may_call(repo: Repository, source: LibrarySource) -> None:
@@ -253,13 +251,12 @@ def _may_call(repo: Repository, source: LibrarySource) -> None:
 
 
 def _has_credit(repo: Repository, source: LibrarySource) -> bool:
-    return source.demo or repo.has_credit(source.owner)
+    return repo.has_credit(source.owner)
 
 
 def _action(source: LibrarySource) -> str:
-    """What the usage rows of processing this source are booked as: the
-    demo seeds as `demo_seed` (sponsored), everything else `source:<kind>`."""
-    return "demo_seed" if source.demo else f"source:{source.kind}"
+    """What the usage rows of processing this source are booked as."""
+    return f"source:{source.kind}"
 
 
 def _record(

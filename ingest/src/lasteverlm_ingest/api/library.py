@@ -29,7 +29,7 @@ def _with_preview[E: (LibraryEntry, TrashEntry)](
     storage = worker_deps(request).storage
     if credit is not None:
         entry.error = credit.error(entry.status, entry.error)
-        entry.status = credit.status(entry.status, entry.demo)
+        entry.status = credit.status(entry.status)
     entry.preview_url = preview_url(
         storage, entry.kind, entry.storage_path, entry.url, entry.transcribed_path
     )
@@ -47,8 +47,8 @@ def _not_found() -> HTTPException:
 def list_library(
     request: Request, user: CurrentUser, kind: Literal["generated", "all"] | None = None
 ) -> list[LibraryEntry]:
-    """The uploads, newest first; a new user's first look seeds the demo
-    sources. `?kind=generated` lists the user's ready outputs instead
+    """The uploads, newest first; a new user's first look copies the
+    starter notebook. `?kind=generated` lists the user's ready outputs instead
     (rag's, with their origin notebook and output id), `?kind=all` both in
     one list, newest first. Every entry carries `notebooks`, the notebooks
     it is linked into."""

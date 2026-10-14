@@ -78,20 +78,20 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/admin/users/{id}` | 204 | admins only (viewers 403): everything the user owns in ingest. The stored objects of their library (trash and converted recordings included) are deleted first, then their library rows (generated ones too, chunks cascade), notebooks (links and rag's rows cascade) and seed mark in one transaction. A storage failure is 503 `{"error"}` naming the count and the first key, with every row kept for a retry. Idempotent: 204 also when nothing is left or the user never existed. Account calls it, with the admin's bearer, after rag's purge and before deleting the user |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
-"created_at", "library_id", "capture", "demo", "preview_url", "original_url"}`; name,
-kind, status, error, capture and demo are the library source's. A
+"created_at", "library_id", "capture", "starter", "preview_url", "original_url"}`; name,
+kind, status, error, capture and starter are the library source's. A
 library entry is
 
 ```json
 {"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
- "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "demo": false,
+ "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "starter": false,
  "preview_url": null, "original_url": null,
  "notebooks": [{"id": "…", "title": "Thesis", "source_id": "…"}]}
 ```
 
 `size_bytes` is null for URLs, `url` is set only for them; an entry in
 no notebook has `"notebooks": []`. `capture` is set for PDFs only (see
-PDF capture modes), `demo` marks the demo library. `preview_url` is where
+PDF capture modes), `starter` marks a copy from the starter notebook. `preview_url` is where
 the frontend opens the source without the bearer token: for an image, a
 PDF, a text or a recording a presigned GET of the stored object, inline,
 valid for one hour and signed anew on every listing (the object carries
@@ -112,7 +112,7 @@ A trash entry is the same without `notebooks`, plus `deleted_at` and
 
 ```json
 {"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
- "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "demo": false,
+ "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "starter": false,
  "preview_url": null, "original_url": null, "deleted_at": "2026-10-13T18:00:00Z", "purge_at": "2026-10-27T18:00:00Z"}
 ```
 
@@ -160,12 +160,12 @@ unsupported type, 422 invalid body.
 ### Nominal units of `GET /estimate`
 
 What one unit is priced as (constants in `api/estimate.py`, measured on
-the demo set and the live vision runs, deliberately round):
+the former Zeltavia demo set and the live vision runs, deliberately round):
 
 | kind | unit | model calls |
 |---|---|---|
 | `text`, `pdf_text` | page | 500 embedding tokens (about 2,000 characters of prose) |
-| `url` | web page | 6,000 embedding tokens (the demo article, 24,348 characters as text) |
+| `url` | web page | 6,000 embedding tokens (the former demo article, 24,348 characters as text) |
 | `pdf_vision` | page | `LLM_MODEL` 515 in / 960 out (measured on scanned A4), then 960 embedding tokens |
 | `image` | image | `LLM_MODEL` 540 in / 500 out, then 500 embedding tokens |
 | `audio` | minute | `STT_MODEL` 60 seconds, then 200 embedding tokens |
@@ -216,7 +216,7 @@ Every row is booked through core's `record_usage`, which computes the
 cost from `MODEL_PRICES` and the charge from account's pricing rules:
 all model calls of processing one source (vision pages, the
 transcription, the embeddings, the summary) are one action,
-`source:<kind>` (`demo_seed` for the sponsored demo sources), with the
+`source:<kind>`, with the
 library source's id as `action_id`, retries included. Before every model
 call the worker also checks that the pricing rules (account's settings
 row, cached 30 s) carry an exchange rate: without one a call could be
@@ -236,8 +236,7 @@ follows promptly instead of after the claim timeout; the third failed
 attempt sets `failed` for good. The user sees the `error` either way.
 
 Adding a source never needs credit; processing does. Every user needs a
-positive balance, admins included (core's rule); the demo seeds are
-sponsored. The claim query takes a row only when its owner's balance
+positive balance, admins included (core's rule). The claim query takes a row only when its owner's balance
 (ledger minus usage, in the same SQL) is positive, so a source added
 without credit stays `processing` in the table, unclaimed and with no
 attempt counted, and the API shows it as `waiting_for_credit` in
@@ -396,46 +395,34 @@ also behind a URL ("PDF has N pages; at most 2000 are read",
 `loaders/pdf.py`, `MAX_PAGES`), before any page is read; `vision` or `auto` without a vision model configured
 fail with "capture mode … needs a vision model".
 
-## Demo library
+## Starter notebook
 
-Every new user finds five demo sources in their library, one per kind,
-forming one fictional set around Zeltavia (the country of the smoke
-test) so that questions across sources work:
+A new user gets a copy of the starter notebook an admin marks (account's
+settings row `starter_notebook`, `{"owner_id", "notebook_id"}`, set in
+account's admin panel). `starter.ensure_starter` runs on the owner's
+first `GET /library` or first upload:
 
-| Source | Kind | What it is |
-|---|---|---|
-| `field-notes-1893.pdf` | pdf (capture `text`) | three pages of an 1893 survey diary: Marrow Bay, the river Quill, a fog crossed by dead reckoning, the Saltglass Reef |
-| `zeltavian-glossary.md` | text | words and customs that the field notes use (brennet, smokra, the Knelling, …) |
-| `marrow-bay-map.png` | image | a map of the places in both, with labels the vision model transcribes |
-| https://en.wikipedia.org/wiki/Dead_reckoning | url | the real navigation method the diary describes |
-| `hollin-interview.mp3` | audio | an 80-second radio interview (two voices) with the keeper of Hollin Lighthouse: the lamp's history, the fog signal Old Grumble, the Strand ledger naming the expedition's ship, Puffin Sunday. None of these facts is in the other four, so a question about them is answered from the transcript |
+- The starter's uploads are copied: linked into it, `ready`, not
+  trashed; never generated rows, whose outputs rag copies. First the
+  stored objects (the original and a converted recording) under the
+  owner's prefix, with the type the upload stored them with.
+- Then, in one transaction: the seed mark (`library_seeds`), a notebook
+  with the starter's title, a library row per source (`ready`, flagged
+  `starter: true`, summary, dedupe key and capture as in the starter),
+  its link, and its chunks with their embeddings. Nothing is processed
+  and nothing is charged.
+- The same transaction writes rag's `output_copies` row: the new and the
+  starter notebook, the owner, and the id maps (`source_map`: old link
+  id and old library id to new; `chunk_map`: old chunk id to new). Rag's
+  worker copies the starter's outputs from it, remapping provenance.
 
-`seeds.ensure_seeded` runs on the owner's first `GET /library` or first
-upload. `library_seeds` (migration 0007) marks every owner it has looked
-at, so it seeds at most once; an owner who already has library sources
-is marked and not seeded, and deleting everything never brings the demo
-back. The demo user itself is never seeded. The sources are ordinary
-library sources with `demo: true` (shown in sources, library and trash
-entries), stored per owner like an upload and processed by the worker.
-Their processing does not check the owner's credit and its usage rows
-go to the demo user (`DEMO_USER_ID`) as the sponsor: a new user starts
-with no credit. Uploading a demo file again links the demo source, like
-any duplicate. `SEED_DEMO_LIBRARY=false` turns seeding off.
-
-The PDF and the map are generated from `src/lasteverlm_ingest/demo/`
-by `demo/build.py` (a small PDF writer with Helvetica and real page
-breaks, and Pillow for the map, under 30 KB) and committed; run it only
-after changing the sources. The recording is made once from its script
-(`hollin-interview.txt`) by `demo/build_audio.py` with the platform's
-speech model (voices serena and ryan, joined and re-encoded by ffmpeg to
-mono 64 kbit/s, 637 KB) and committed; unlike `build.py` it is not
-deterministic and costs a few cents, so it runs only when the script
-changes. Its transcript comes from the normal pipeline when the seed is
-processed. Owners seeded before the recording was added do not get it:
-seeding happens once per owner, and the demo reset gives them the new
-set. Measured: the vision model transcribes all
-fifteen labels of the map in one call (537 input, 119 output tokens);
-the call returned the labels without a description of the map.
+At most once per owner. An owner with entries of their own is marked and
+not seeded. Without a starter (no row, or a notebook that is gone)
+nothing happens and the owner is not marked, so they get it once one is
+set while their library is still empty. The starter's author gets no
+copy. A storage failure copies nothing and is tried again on the next
+access. The copies are the owner's own: deletable, purgeable, and an
+upload of the same bytes links the copy like any duplicate.
 
 ## Running the container locally
 
