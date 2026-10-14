@@ -12,6 +12,7 @@ without a broker, and the API pods never process anything. Entrypoint:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import signal
@@ -36,6 +37,7 @@ from lasteverlm_ingest.loaders import (
     LoaderError,
     LoaderRegistry,
     ModelLoader,
+    Passage,
     TransientLoaderError,
     loader_key,
 )
@@ -175,6 +177,19 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         passages = loader.load_billed(data, bill)
     else:
         passages = loader.load(data)
+    if source.kind == "url":
+        # A web page is compared before any model call: fetched again and
+        # unchanged, it costs nothing; changed, it becomes a new version.
+        digest = content_digest(passages)
+        if source.refetch_requested_at is not None:
+            if digest == source.content_hash:
+                repo.refetch_unchanged(source_id)
+                log.info("web page %s fetched again: unchanged", source_id)
+            else:
+                new_id = repo.new_version(source_id)
+                log.info("web page %s changed: version %s queued", source_id, new_id)
+            return
+        repo.set_fetched(source_id, digest)
     chunks = deps.chunker.chunk(passages)
     if not chunks:
         raise ProcessingError("no text to index")
@@ -233,6 +248,13 @@ def _transcribable(source: LibrarySource, data: bytes, deps: WorkerDeps) -> byte
     deps.repository.set_transcribed_path(source.id, key)
     deps.repository.refresh_claim(source.id)
     return mp3
+
+
+def content_digest(passages: list[Passage]) -> str:
+    """The hash a web page's versions are compared by: its extracted text,
+    whitespace-normalized, so markup or spacing alone is no new version."""
+    text = "\n".join(" ".join(p.text.split()) for p in passages)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _payer(source: LibrarySource) -> UUID:

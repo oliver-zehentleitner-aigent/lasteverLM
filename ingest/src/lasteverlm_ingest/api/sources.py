@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import re
+from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Annotated
 from uuid import UUID, uuid4
@@ -115,6 +116,9 @@ class LinkedSource(Source):
     library_id: UUID
     capture: str | None = None
     starter: bool = False
+    # Web pages: which version, fetched when (null until the first fetch).
+    version: int = 1
+    fetched_at: datetime | None = None
     preview_url: str | None = None
     original_url: str | None = None
 
@@ -422,3 +426,28 @@ def process_sources(request: Request, user: CurrentUser, body: ProcessRequest) -
         missing = ", ".join(str(i) for i in result.missing)
         raise HTTPException(status_code=404, detail=f"library sources not found: {missing}")
     return Processing(queued=result.queued, unchanged=result.unchanged)
+
+
+class Refetching(BaseModel):
+    library_id: UUID
+    version: int
+    fetched_at: datetime | None
+
+
+@router.post("/sources/{source_id}/refetch", response_model=Refetching, status_code=202)
+def refetch_source(request: Request, user: CurrentUser, source_id: UUID) -> Refetching:
+    """Fetch a web page again. A worker reads it and compares its text with
+    the version on file: unchanged, only `fetched_at` moves and nothing is
+    charged; changed, a new version (`version + 1`) takes the links and is
+    read and charged as a web page, the old one kept read-only for old
+    citations. Until then the source shows `processing`. An unread or failed
+    page is simply read. 409 for any other source."""
+    repo = repository(request)
+    source = owned_source(repo, user, source_id)
+    lib = repo.request_refetch(source.library_id)
+    if lib is None:
+        raise HTTPException(
+            status_code=409,
+            detail="only a web page that is not being read can be fetched again",
+        )
+    return Refetching(library_id=lib.id, version=lib.version, fetched_at=lib.fetched_at)

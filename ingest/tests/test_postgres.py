@@ -433,6 +433,43 @@ def test_a_new_source_is_added_and_read_only_when_queued(repo):
     assert _claim_all(repo) == {entry.id}
 
 
+def test_a_web_page_is_versioned_and_purged_with_its_older_versions(repo):
+    _claim_all(repo)
+    owner = _user(repo)
+    notebook = repo.create_notebook(owner, "nb")
+    page = _library(repo, owner, key="url:https://x.test/", kind="url", name="https://x.test/")
+    repo.link_source(notebook.id, page.id)
+    _claim_all(repo)
+    repo.replace_chunks(page.id, [Chunk(idx=0, text="old", page=None)], [[1.0, 0.0, 0.0]])
+    repo.set_fetched(page.id, "hash-1")
+    repo.set_library_status(page.id, "ready")
+    assert repo.get_library_source(page.id).content_hash == "hash-1"
+
+    # Unchanged: ready again, fetched_at moves.
+    asked = repo.request_refetch(page.id)
+    assert asked.status == "processing" and asked.refetch_requested_at is not None
+    assert repo.request_refetch(page.id) is None  # being read
+    repo.refetch_unchanged(page.id)
+    same = repo.get_library_source(page.id)
+    assert same.status == "ready" and same.refetch_requested_at is None and same.version == 1
+
+    # Changed: a new version takes the key and the links; the old stays readable.
+    repo.request_refetch(page.id)
+    new_id = repo.new_version(page.id)
+    old, new = repo.get_library_source(page.id), repo.get_library_source(new_id)
+    assert old.superseded_by == new_id and old.dedupe_key is None and old.status == "ready"
+    assert (new.version, new.status, new.dedupe_key) == (2, "processing", "url:https://x.test/")
+    assert [s.library_id for s in repo.list_sources(notebook.id)] == [new_id]
+    assert [e.id for e in repo.list_library(owner)] == [new_id]
+    assert repo.list_chunks(page.id, 0, 10)[0] == 1  # old citations stay checkable
+    assert _claim_all(repo) == {new_id}
+
+    repo.trash_library_source(owner, new_id)
+    found, keys = repo.purge_library_source(owner, new_id)
+    assert found and keys == [page.storage_path]  # one object, shared by both versions
+    assert repo.get_library_source(page.id) is None and repo.get_library_source(new_id) is None
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)

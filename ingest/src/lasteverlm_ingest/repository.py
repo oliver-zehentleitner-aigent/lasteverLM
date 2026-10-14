@@ -66,6 +66,8 @@ class StoredSource(Source):
     size_bytes: int | None = None
     capture: str | None = None
     starter: bool = False
+    version: int = 1
+    fetched_at: datetime | None = None
     transcribed_path: str | None = None
 
 
@@ -93,6 +95,11 @@ class LibrarySource(BaseModel):
     transcribed_path: str | None = None
     page_count: int | None = None
     duration_seconds: float | None = None
+    version: int = 1
+    fetched_at: datetime | None = None
+    content_hash: str | None = None
+    refetch_requested_at: datetime | None = None
+    superseded_by: UUID | None = None
 
 
 class NotebookUse(BaseModel):
@@ -141,6 +148,8 @@ class LibraryEntry(BaseModel):
     created_at: datetime
     capture: str | None = None
     starter: bool = False
+    version: int = 1
+    fetched_at: datetime | None = None
     notebooks: list[NotebookUse]
     origin: Origin | None = None
     # A generated entry's output in rag (`GET /outputs/{id}`); null otherwise.
@@ -168,6 +177,8 @@ class TrashEntry(BaseModel):
     purge_at: datetime
     capture: str | None = None
     starter: bool = False
+    version: int = 1
+    fetched_at: datetime | None = None
     preview_url: str | None = None
     original_url: str | None = None
     storage_path: str | None = Field(default=None, exclude=True)
@@ -303,6 +314,29 @@ class Repository(Protocol):
     def retry_library_source(self, library_id: UUID) -> None:
         """A failed library source uploaded again: back to `added`, read
         again when it is used."""
+        ...
+
+    def request_refetch(self, library_id: UUID) -> LibrarySource | None:
+        """Ask for a web page to be fetched again: a read current version
+        goes to `processing` with `refetch_requested_at` set (the worker
+        compares and either keeps it or makes a new version); an unread or
+        failed one is simply queued. None when it is no web page, an older
+        version, or being read already."""
+        ...
+
+    def set_fetched(self, library_id: UUID, content_hash: str) -> None:
+        """A web page was read: when, and the hash of its extracted text."""
+        ...
+
+    def refetch_unchanged(self, library_id: UUID) -> None:
+        """The page is as it was: ready again, `fetched_at` now, no charge."""
+        ...
+
+    def new_version(self, library_id: UUID) -> UUID:
+        """The page changed: in one transaction a new row `version + 1` takes
+        the dedupe key and every link of the old one and is queued; the old
+        row is ready again, read-only (`superseded_by`), its chunks kept.
+        Returns the new id."""
         ...
 
     def queue_for_processing(self, owner: UUID, library_ids: list[UUID]) -> ProcessResult:
@@ -604,7 +638,7 @@ class PostgresRepository:
     _SELECT_SOURCES = (
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
         "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
-        "l.capture, l.starter, l.transcribed_path "
+        "l.capture, l.starter, l.transcribed_path, l.version, l.fetched_at "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -714,10 +748,12 @@ class PostgresRepository:
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
-        "l.starter, l.transcribed_path, l.page_count, l.duration_seconds"
+        "l.starter, l.transcribed_path, l.page_count, l.duration_seconds, l.version, "
+        "l.fetched_at, l.content_hash, l.refetch_requested_at, l.superseded_by"
     )
     # Library sources in the library (not in the trash).
-    _ACTIVE = f"{_LISTED} and l.deleted_at is null"
+    # Older versions of a web page are kept read-only, out of every list.
+    _ACTIVE = f"{_LISTED} and l.deleted_at is null and l.superseded_by is null"
     # Days a deleted entry stays in the trash: account's per-user preference,
     # read like core reads users.role; 14 without a user row or a number.
     _TRASH_DAYS = (
@@ -759,6 +795,67 @@ class PostgresRepository:
         found = self.find_library_source(new.owner, new.dedupe_key)
         assert found is not None
         return found
+
+    def request_refetch(self, library_id: UUID) -> LibrarySource | None:
+        row = self._one(
+            "update library_sources set status = 'processing', error = null, attempts = 0, "
+            "retry_at = null, claimed_at = null, claimed_by = null, "
+            "refetch_requested_at = case when status = 'ready' then now() end "
+            "where id = %(id)s and kind = 'url' and superseded_by is null "
+            "and deleted_at is null and status in ('ready', 'added', 'failed') returning id",
+            {"id": library_id},
+        )
+        return self.get_library_source(library_id) if row else None
+
+    def set_fetched(self, library_id: UUID, content_hash: str) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set fetched_at = now(), content_hash = %(hash)s "
+                "where id = %(id)s",
+                {"id": library_id, "hash": content_hash},
+            )
+
+    def refetch_unchanged(self, library_id: UUID) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set status = 'ready', fetched_at = now(), "
+                "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null "
+                "where id = %(id)s",
+                {"id": library_id},
+            )
+
+    def new_version(self, library_id: UUID) -> UUID:
+        new_id = uuid4()
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            # The dedupe key is unique per owner: the old row gives it up first.
+            cur.execute(
+                "select dedupe_key from library_sources where id = %(id)s for update",
+                {"id": library_id},
+            )
+            row = cur.fetchone()
+            key = row[0] if row else None
+            cur.execute(
+                "update library_sources set dedupe_key = null, status = 'ready', "
+                "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null "
+                "where id = %(id)s",
+                {"id": library_id},
+            )
+            cur.execute(
+                "insert into library_sources (id, owner, name, kind, dedupe_key, url, size_bytes, "
+                "storage_path, starter, status, version) "
+                "select %(new)s, owner, name, kind, %(key)s, url, size_bytes, storage_path, "
+                "starter, 'processing', version + 1 from library_sources where id = %(id)s",
+                {"new": new_id, "id": library_id, "key": key},
+            )
+            cur.execute(
+                "update library_sources set superseded_by = %(new)s where id = %(id)s",
+                {"new": new_id, "id": library_id},
+            )
+            cur.execute(
+                "update sources set library_source_id = %(new)s where library_source_id = %(id)s",
+                {"new": new_id, "id": library_id},
+            )
+        return new_id
 
     def queue_for_processing(self, owner: UUID, library_ids: list[UUID]) -> ProcessResult:
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -909,7 +1006,7 @@ class PostgresRepository:
 
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
-           l.capture, l.starter, l.storage_path, l.transcribed_path,
+           l.capture, l.starter, l.storage_path, l.transcribed_path, l.version, l.fetched_at,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -947,7 +1044,8 @@ class PostgresRepository:
     def list_trash(self, owner: UUID) -> list[TrashEntry]:
         rows = self._all(
             f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
-            f"l.capture, l.starter, l.storage_path, l.transcribed_path, l.deleted_at, "
+            f"l.capture, l.starter, l.storage_path, l.transcribed_path, l.version, l.fetched_at, "
+            f"l.deleted_at, "
             f"l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
             f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
             f"and l.deleted_at is not null order by l.deleted_at desc, l.id",
@@ -966,13 +1064,17 @@ class PostgresRepository:
             return cur.rowcount > 0
 
     def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, list[str]]:
-        row = self._one(
-            f"delete from library_sources l where l.id = %(id)s and l.owner = %(owner)s "
-            f"and {self._LISTED} and l.deleted_at is not null "
+        rows = self._all(
+            f"with recursive gone(id) as ("
+            f"  select l.id from library_sources l where l.id = %(id)s and l.owner = %(owner)s"
+            f"  and {self._LISTED} and l.deleted_at is not null"
+            f"  union select older.id from library_sources older join gone g"
+            f"  on older.superseded_by = g.id) "
+            f"delete from library_sources l using gone where l.id = gone.id "
             f"returning l.storage_path, l.transcribed_path",
             {"id": library_id, "owner": owner},
         )
-        return (row is not None, _keys([row] if row else []))
+        return (bool(rows), list(dict.fromkeys(_keys(rows))))
 
     def user_object_keys(self, owner: UUID) -> list[str]:
         rows = self._all(
@@ -990,12 +1092,17 @@ class PostgresRepository:
 
     def purge_expired(self) -> list[str]:
         rows = self._all(
-            f"delete from library_sources l where {self._LISTED} and l.deleted_at is not null "
-            f"and l.deleted_at + make_interval(days => {self._TRASH_DAYS}) <= now() "
+            f"with recursive gone(id) as ("
+            f"  select l.id from library_sources l where {self._LISTED}"
+            f"  and l.deleted_at is not null"
+            f"  and l.deleted_at + make_interval(days => {self._TRASH_DAYS}) <= now()"
+            f"  union select older.id from library_sources older join gone g"
+            f"  on older.superseded_by = g.id) "
+            f"delete from library_sources l using gone where l.id = gone.id "
             f"returning l.storage_path, l.transcribed_path",
             {},
         )
-        return _keys(rows)
+        return list(dict.fromkeys(_keys(rows)))
 
     # -- the worker ------------------------------------------------------------
 

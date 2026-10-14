@@ -108,6 +108,8 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
         "library_id",
         "capture",
         "starter",
+        "version",
+        "fetched_at",
         "preview_url",
         "original_url",
     }
