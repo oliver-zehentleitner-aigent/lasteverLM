@@ -25,6 +25,8 @@ repository root's `context/`.
 
 ## A
 
+- [agent.md](agent.md) — the agent chat: plan, confirm, then run as the user (no stored tokens, ingest steps inside the confirm request, a 30-minute timeout that fails visibly); tool arguments only from the user's message and library, the planner sees no passage
+
 ## B
 
 ## C
