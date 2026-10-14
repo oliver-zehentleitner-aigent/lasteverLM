@@ -10,12 +10,16 @@ two columns, not NotebookLM's three: the product is about turning
 sources into documents and talking about both, so the documents get the
 space.
 
-## The wizard: adding sources
+## Adding sources
 
-Three steps, one question each, large tiles instead of a form, for a
-new notebook. Opened from an existing notebook (the add button) it has
-two: it ends after the sources, with a short note and "Done" when some
-were in the notebook already.
+A dialog, "Add sources", opened by the Sources list's "+ add" and
+right after a notebook is created. It only adds sources: two questions,
+large tiles instead of a form. After each batch it returns to the tiles
+with "3 sources added. Add more, or close." (and how many were in the
+notebook already), and the list behind it shows the new ones at once;
+it stays open until the user closes it ("Done", or "Close" before
+anything was added). Outputs are made in the Output format area, never
+here.
 
 1. **What goes in?** Tiles: **From library** first, for something
    added before to another notebook, then PDF, Text, Web page, Image,
@@ -44,18 +48,25 @@ were in the notebook already.
    For the
    library, a filterable list of the entries not yet in this notebook to
    tick.
-3. **What should come out of it?** (new notebook only) Tiles of the
-   output kinds, multiple selection; "Create n documents", or "Skip" to
-   just chat.
 
-Step 2 calls `POST /api/ingest/notebooks/{id}/sources` per file, once
-with `{"url"}` for a web page, or with `{"library_id"}` per picked
-library entry. The same file or URL again links the existing library
-entry (nothing is processed twice); when it was in this notebook
-already (200), step 3 says so. Step 3
-calls `POST /api/rag/notebooks/{id}/outputs` per selected kind; rag
-waits for the sources itself, so the wizard works even when the browser
-is closed. After the wizard the notebook view opens.
+The second step calls `POST /api/ingest/notebooks/{id}/sources` per
+file, once with `{"url"}` for a web page, or with `{"library_id"}` per
+picked library entry. The same file or URL again links the existing
+library entry (nothing is processed twice); when it was in this
+notebook already (200), the note after the batch says so.
+
+**Introduction.** Once per user, the notebook view opens with a short
+tour: three steps over a dimmed page, each outlining its area with a
+card and an arrow beside it: 1 "Add one or more sources" (the Sources
+panel and "+ add"), 2 "Pick an output format" (the format tiles; set
+options or keep the defaults), 3 "Create" (the Create row; without
+credit "Redeem a voucher first: the link is next to Create"). Next,
+Back, Skip; done in three clicks. Finishing or skipping sets the
+account's `tour_done` preference, and a note in this browser for an
+account that cannot keep it (the shared demo user, or an account
+service before the preference). Not shown over the add-sources dialog.
+Settings has "Show the introduction again", which clears both and
+opens the notebook.
 
 ## The notebook view
 
@@ -423,7 +434,7 @@ is closed. After the wizard the notebook view opens.
 
 `/settings` (in the header next to Library): first a row **Credits and
 prices**, "Balance €X · View credits · Price list" (two plain links);
-then interface language
+"Show the introduction again" (see Adding sources); then interface language
 (browser default, English, Deutsch), language of generated documents
 (same as the sources, or one of rag's languages) and the voice for
 audio (default, or one of rag's voices, with the same sample button),

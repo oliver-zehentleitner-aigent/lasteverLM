@@ -584,6 +584,8 @@ export interface Preferences {
   pdf_capture?: 'auto' | 'text' | 'vision' | null
   /** light, dark, or following the system; null is system */
   theme?: 'system' | 'light' | 'dark' | null
+  /** the first-login introduction was finished or skipped; absent from an older account service */
+  tour_done?: boolean
 }
 
 /** user: the app only; viewer: reads the admin panel; admin: everything */

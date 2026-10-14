@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A first-login introduction: three steps (add sources, pick a format, Create; without credit "Redeem a voucher first"), each outlining its area with an arrow, Next/Back/Skip; shown once per user (the account's `tour_done`, this browser's note for the demo user), again from Settings.
+
+### Changed
+
+- "+ add" only adds sources: the dialog returns to the source tiles after each batch to add more, until it is closed; the output step at the end is gone (outputs are made in the Output format area).
+
 ## [0.18.5] - 2026-10-14
 
 ### Added

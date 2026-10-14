@@ -19,8 +19,8 @@ import { NotebookView } from './NotebookView'
 export function Workspace() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(readLastNotebook)
-  // the notebook the wizard is open for; fresh = just created, so it asks for outputs too
-  const [wizardFor, setWizardFor] = useState<{ id: string; fresh: boolean } | null>(null)
+  // the notebook the add-sources dialog is open for
+  const [wizardFor, setWizardFor] = useState<string | null>(null)
   // the notebook list's width, remembered per browser; null is the stylesheet's
   const [sidebarWidth, setSidebarWidth] = useState(() => readWidth(browserStorage(), SIDEBAR_WIDTH.key, SIDEBAR_WIDTH.min, SIDEBAR_WIDTH.max))
   const workspaceRef = useRef<HTMLElement>(null)
@@ -63,13 +63,13 @@ export function Workspace() {
     if (s) setStarterId(s.notebook_id)
   }
 
-  /** A new notebook goes straight into the wizard: it is empty otherwise. */
+  /** A new notebook goes straight into adding sources: it is empty otherwise. */
   async function create(title: string) {
     const nb = await run(() => ingest.createNotebook(title))
     if (nb) {
       setNotebooks((prev) => [nb, ...prev])
       setSelectedId(nb.id)
-      setWizardFor({ id: nb.id, fresh: true })
+      setWizardFor(nb.id)
     }
   }
 
@@ -147,8 +147,8 @@ export function Workspace() {
         }}
       />
       {selectedId ? (
-        <NotebookView key={selectedId} notebookId={selectedId} wizard={wizardFor?.id === selectedId ? wizardFor : null}
-          onWizard={(open) => setWizardFor(open ? { id: selectedId, fresh: false } : null)}
+        <NotebookView key={selectedId} notebookId={selectedId} wizard={wizardFor === selectedId}
+          onWizard={(open) => setWizardFor(open ? selectedId : null)}
         />
       ) : (
         <div className="columns empty">
