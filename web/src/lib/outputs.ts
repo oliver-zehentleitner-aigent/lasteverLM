@@ -67,7 +67,7 @@ export const SOURCE_FORMS: SourceForm[] = [
     },
     available: true,
     input: 'files',
-    accept: '.mp3,.wav,audio/mpeg,audio/wav,audio/x-wav',
+    accept: '.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.webm,.mp4,audio/*,video/mp4,video/webm',
   },
 ]
 

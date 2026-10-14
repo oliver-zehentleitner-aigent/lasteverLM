@@ -24,7 +24,7 @@ export const de: Record<MessageKey, string> = {
   'source.image': 'Bild',
   'source.image.note': 'PNG, JPEG, WebP oder GIF; der Text darin wird abgeschrieben und das Bild beschrieben.',
   'source.audio': 'Audio',
-  'source.audio.note': 'MP3 oder WAV, bis 25 MB; das Gesprochene wird transkribiert.',
+  'source.audio.note': 'MP3, WAV, M4A, OGG, FLAC, WEBM oder MP4-Audio, bis 60 MB; alles außer MP3 und WAV wird vorher konvertiert.',
   'tile.soon': 'Bald.',
   'create.needSource': 'Eine Quelle hinzufügen und warten, bis sie bereit ist.',
   'create.needFormat': 'Oben ein Format wählen.',

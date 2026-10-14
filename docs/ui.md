@@ -19,7 +19,9 @@ were in the notebook already.
 
 1. **What goes in?** Tiles: **From library** first, for something
    added before to another notebook, then PDF, Text, Web page, Image,
-   Audio (MP3 or WAV, up to 25 MB; what is said is transcribed). A
+   Audio (MP3, WAV, M4A, OGG, FLAC, WEBM or MP4 audio, up to 60 MB;
+   anything but MP3 and WAV is converted first, then what is said is
+   transcribed). A
    kind that is not available yet is shown greyed with "Soon.", so the
    extension points stay visible.
 2. **How does it get in?** Only the ways that fit the type: drop or
