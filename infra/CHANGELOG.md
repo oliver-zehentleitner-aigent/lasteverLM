@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `make web-csp-check` sends at most `WALK_RPS` requests a second to the deployment (default 1, half of core's per-address limit), waits for them before moving on and reports the count and rate; it also opens every admin page including the five finance pages, and one output a judge has read with its judge panel. The unthrottled walk of 0.18.0 got the VM's address rate-blocked.
 
+### Fixed
+
+- `ci.yml`: a change under any `*/db/migrations/` runs the checks and Postgres suites of every Python directory, as a change under `core/` already did. Each suite applies the other directories' migrations, and account's migration 0010 broke ingest's suite on `main` while CI ran only account's.
+
 ## [0.18.0] - 2026-10-14
 
 ### Added
