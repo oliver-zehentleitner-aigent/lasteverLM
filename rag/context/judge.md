@@ -40,3 +40,36 @@ never let a wrong claim pass.
 The fixture saturates: two levels score 100%. So `high` over `medium` is
 a bet on harder material, not something this experiment shows
 (`docs/judge-eval.md`, Limits).
+
+## The judge is opt-in; the deterministic word check stays the default
+
+**Id:** 5af3cb49-03f5-41b3-abe5-daaa4d6a6d6b
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer design relayed by the coordinator, 2026-10-14 (`judge` off by default, supersedes nothing); the measurements in `docs/judge-eval.md`; the reasons and leaving charts out are rag's
+**Revisit when:** judge calls become cheap and fast enough to run on every output unnoticed, or users turn the judge on for most outputs anyway
+
+`options.judge` is `off` unless the user picks `low`, `medium` or `high`.
+Every output still gets the word check
+(2ee513ba-066a-41a3-a9c7-5e906e31c52b), which marks and never blocks. The
+judge comes on top of it, never instead of it. It is not offered for a
+chart, whose values already have the exact number check.
+
+**Reason:** the word check is free, deterministic and instant, so it can
+run on everything. The judge costs a model call per claim unit, plus
+revisions, adds seconds, and its verdicts vary between runs (the
+evaluation's limits). The evaluation shows what the word check cannot
+see (negation, swapped facts, a number off by one: 0 of 12) and that the
+judge sees it, so the judge is worth offering. Whether it is worth its
+price for a given output is the user's call. Keeping the word check
+underneath gives every output, judged or not, the same reproducible
+baseline. A chart is left out because its only claims are numbers: an
+exact match is already stricter than a model's opinion.
+
+**Rejected alternatives:**
+- The judge always on: cost and latency on every output, including ones
+  nobody checks.
+- The judge replacing the word check: it would lose the free,
+  reproducible baseline.
+- Judging chart values: nothing to add to an exact match.
