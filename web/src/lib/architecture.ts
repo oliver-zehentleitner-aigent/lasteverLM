@@ -48,6 +48,8 @@ export function architectureNodes(s: SystemInfo, previous: SystemInfo | null = n
     const build = s.services.find((x) => x.name === svcName)
     const version = known(build?.version)
     const commit = shortCommit(build?.commit)
+    // web has no healthz build: its pods' image tags say what runs (two while rolling out)
+    const tags = name === 'web' ? [...new Set(pods.map((p) => p.image_tag).filter((x): x is string => !!x))] : []
     const restarts = pods.reduce((n, p) => n + p.restarts, 0)
     const before = previous?.pods.filter((p) => p.service === name).reduce((n, p) => n + p.restarts, 0)
     const rolling = d ? (d.progressing ?? d.updated < d.replicas) || new Set(pods.map((p) => p.image_tag)).size > 1 : false
@@ -64,7 +66,7 @@ export function architectureNodes(s: SystemInfo, previous: SystemInfo | null = n
     else if (reasons.length > 0) state = 'warn'
     else if (d || svc?.healthy) state = 'ok'
     else state = 'unknown'
-    out[name] = { replicas: d ? `${d.ready}/${d.replicas}` : null, build: [version, commit].filter(Boolean).join(' · ') || null, state, restarts, reasons }
+    out[name] = { replicas: d ? `${d.ready}/${d.replicas}` : null, build: name === 'web' ? tags.join(' / ') || null : [version, commit].filter(Boolean).join(' · ') || null, state, restarts, reasons }
   }
   return out
 }
@@ -76,4 +78,20 @@ export function dependencyState(s: SystemInfo, dep: Dependency): NodeHealth {
   const said = s.services.map((x) => x.dependencies?.[dep]).filter((v): v is 'ok' | 'down' => v !== undefined)
   if (said.length === 0) return 'unknown'
   return said.includes('down') ? 'down' : 'ok'
+}
+
+/** Days before the certificate's end from which the ingress box is amber. */
+export const TLS_WARN_DAYS = 14
+
+/** The ingress box from the account service's outside probe: red when the
+ *  public URL does not answer, amber when the certificate ends within
+ *  `TLS_WARN_DAYS`, green otherwise, grey without a probe. `line` is
+ *  "TLS until 2027-01-12". */
+export function ingressState(s: SystemInfo, now: Date = new Date()): { state: NodeHealth; line: string | null; expiresSoon: boolean } {
+  const ing = s.ingress
+  if (!ing) return { state: 'unknown', line: null, expiresSoon: false }
+  const ends = ing.tls_expires_at ? new Date(ing.tls_expires_at) : null
+  const expiresSoon = ends !== null && !Number.isNaN(ends.getTime()) && ends.getTime() - now.getTime() < TLS_WARN_DAYS * 86_400_000
+  const state: NodeHealth = ing.status === 'down' ? 'down' : expiresSoon ? 'warn' : 'ok'
+  return { state, line: ing.tls_expires_at ? ing.tls_expires_at.slice(0, 10) : null, expiresSoon }
 }

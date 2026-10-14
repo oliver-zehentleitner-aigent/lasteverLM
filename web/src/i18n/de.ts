@@ -931,4 +931,7 @@ export const de: Record<MessageKey, string> = {
   'settings.prices': 'Was es kostet: die Preisliste',
   'prices.action.judgeLevel': 'Judge, {level}',
   'prices.judgeNote': 'Die Judge-Zeilen sind eine Prüfung, die du für eine bestehende Ausgabe oder Chat-Antwort anforderst. Ein beim Erstellen einer Ausgabe gewählter Judge ist im Preis der Ausgabe enthalten.',
+  'arch.tlsUntil': 'TLS bis {date}',
+  'arch.ingressProbe': '{url} von außen geprüft, zuletzt {at}',
+  'arch.tlsSoon': 'Das Zertifikat läuft in weniger als 14 Tagen ab.',
 }

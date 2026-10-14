@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin > System: the ingress box is coloured from the account service's outside probe (red down, amber when the certificate ends within 14 days, grey without a probe) with "TLS until <date>" and the probe in its tooltip; the web box shows its pods' image tags as its build.
 - Admin > Finance: the range bar's day pills, labels and date fields share one height and line; every money cell, tile and total follows one rule (two decimals from 1 € up, two to four below, the exact value in the tooltip) instead of €0.90 next to €0.622125.
 
 ## [0.18.3] - 2026-10-14

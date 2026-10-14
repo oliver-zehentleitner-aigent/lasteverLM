@@ -725,6 +725,14 @@ export interface SystemInfo {
     /** a rollout is under way (Progressing true, not yet NewReplicaSetAvailable); null or absent when not reported */
     progressing?: boolean | null
   }[]
+  /** the public URL probed from outside, at most once a minute; absent from an older account service */
+  ingress?: {
+    status: 'ok' | 'down'
+    url: string
+    tls_expires_at: string | null
+    checked_at: string
+    error: string | null
+  } | null
 }
 
 /** A service's public `/healthz`; version and commit are "unknown" when unset. */

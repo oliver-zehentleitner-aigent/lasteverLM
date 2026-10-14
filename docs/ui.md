@@ -647,7 +647,8 @@ deleted from the library) stays readable with its quote and is marked
     job queues to PostgreSQL, the workers to storage and the models, rag
     to the models for answers); each deployment's box shows its
     replicas ready of total, its restarts when there are any, and its
-    build, coloured by its state: green when every replica is ready and
+    build (web, which has no healthz build, its pods' image tags, both
+    while rolling out), coloured by its state: green when every replica is ready and
     no pod restarted; amber while a rollout is under way (the
     deployment's Progressing condition, else fewer replicas updated than
     wanted, or two image tags among its pods), when it is partly ready
@@ -659,7 +660,12 @@ deleted from the library) stays readable with its quote and is marked
     dashed red. The external boxes take the state the services' healthz
     report for them (`dependencies`: red when one says down, green when
     all that report say ok) and stay grey with "not probed" until one
-    does. In the light theme the external boxes and the dashed lines are
+    does. The ingress box takes the account service's outside probe of
+    the public URL (`ingress`, at most once a minute): red when it does
+    not answer, amber when the certificate ends within 14 days, green
+    otherwise, grey without a probe; under its title "TLS until
+    2027-01-12", and as tooltip the URL, the time of the check and any
+    error. In the light theme the external boxes and the dashed lines are
     drawn heavier, so they stay visible on white. A legend under the
     diagram; the page reloads the data every 15 s while the tab is
     visible (the time of the last refresh under it), colours change with
