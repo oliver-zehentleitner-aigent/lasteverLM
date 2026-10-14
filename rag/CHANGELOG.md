@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-14
+
 ### Added
 
 - `DELETE /api/rag/admin/users/{id}` (admins only), account's first step when a user is deleted: the stored files of the outputs in the user's notebooks, then rag's rows there (generated sources, outputs, messages, conversations) in one transaction. Idempotent, always 204; a file that cannot be deleted is a 502 naming its key, with every row kept.
@@ -159,3 +161,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The LLM is constructed with `LLM_MAX_TOKENS` as its default budget and called with thinking disabled (core's default) for answers and generators; the generator call-back carries core's `complete` signature.
 - Generated documents are chunked with `lasteverlm_core.chunking`, the family's one chunker; the local copy is gone.
 - Shared API models, bearer-token resolution, pricing, usage accounting and the provider adapters come from `lasteverlm_core` (installed by path from `../core`); the local mirror is gone.
+

@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-14
+
 ### Added
 
 - `DELETE /admin/users/{id}` (admins only): deletes everything a user owns in ingest, the stored objects first (originals and converted recordings, trash included), then the library rows, notebooks and seed mark in one transaction; 503 naming the first key on a storage failure, with the rows kept for the retry; 204 also when nothing is left. For account's user deletion.
@@ -177,3 +179,4 @@ preserves why it changed, in `context/`.
 - Unit tests for chunking, loaders, pricing, token verification, the worker and the API against in-memory fakes.
 - Usage accounting: one `usage` row per model call, priced from `MODEL_PRICES`; refusal to start when a configured model has no price.
 - Worker entrypoint `lasteverlm-ingest-worker` that claims queued sources from PostgreSQL with `FOR UPDATE SKIP LOCKED`, counts attempts, retries transient failures by stale-claim takeover and fails a source for good on the third attempt, and stops after the current source on SIGTERM.
+

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-14
+
 ### Added
 
 - Admin > Users: delete a user (admins only, no button for viewers). A dialog in the voucher dialog's style names the address and what goes with the account (notebooks, sources, generated documents, credit history), and its button stays disabled until the address is typed out; `DELETE /api/account/admin/users/{id}`, the row disappears on 204. A 409 (one's own account, the demo user) shows the service's sentence, a 502 names the failed step and its message (`{step, message}`); the dialog stays open either way. `ApiError` carries the failed response's JSON body for this.
@@ -21,9 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Stacked layout (below 900 px, also a narrowed desktop window): opening a notebook scrolled the page to its bottom, away from the notebook list. The chat brought its newest message into view with `scrollIntoView`, which scrolls the page too, and its question field took the focus. Now only the messages pane scrolls, and the field takes the focus on its own only where the chat is on screen (wider than 900 px); every focus call uses `preventScroll`.
-
-### Fixed
-
 - Stacked layout (below 900 px, a phone): the chat under the viewer had no messages area, only its tabs and the question field; the chat wrapper's `flex: 1 1 0` gave it zero height in a column without a height of its own. Stacked, the wrapper takes its content's height, the messages get at least 40vh (at most 60vh as before), and an open document's body at least 40vh (at most 50vh).
 
 ## [0.11.0] - 2026-10-14
@@ -296,3 +295,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Failed requests always show a readable message: the service's error text, or a description of the status for responses without one (ingress 502/503/504, 413, network failure); HTML error pages are never shown.
 
 - `make check`, `make run` and `make build` install dependencies first through `make install`, so they work on a fresh checkout.
+
