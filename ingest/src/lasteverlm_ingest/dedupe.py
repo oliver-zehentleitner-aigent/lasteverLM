@@ -1,7 +1,7 @@
 """The keys a library source is deduplicated by, per owner: the same key
 again links the existing entry instead of storing or processing anything.
-Uploads and the demo seeds build them here, so a user uploading a demo
-file again finds the demo source."""
+Uploads build them here; the starter copies keep the starter's keys, so
+a user uploading a starter file again finds their copy."""
 
 from __future__ import annotations
 

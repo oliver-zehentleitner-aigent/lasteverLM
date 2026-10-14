@@ -7,7 +7,7 @@ from fastapi import HTTPException, Request
 from lasteverlm_core import Notebook, SourceStatus, Storage
 
 from lasteverlm_ingest.repository import Repository, StoredSource
-from lasteverlm_ingest.seeds import ensure_seeded
+from lasteverlm_ingest.starter import ensure_starter
 from lasteverlm_ingest.worker import NO_EXCHANGE_RATE, WAITING_FOR_CREDIT, WorkerDeps
 
 
@@ -21,10 +21,9 @@ def repository(request: Request) -> Repository:
 
 
 def seed_if_new(request: Request, user: UUID) -> None:
-    """The demo library on the owner's first library access or upload."""
+    """The starter notebook on the owner's first library access or upload."""
     deps = worker_deps(request)
-    if deps.settings.seed_demo_library:
-        ensure_seeded(deps.repository, deps.storage, user)
+    ensure_starter(deps.repository, deps.storage, user)
 
 
 def owned_notebook(repo: Repository, user: UUID, notebook_id: UUID) -> Notebook:
@@ -80,7 +79,7 @@ def original_url(
 
 class CreditView:
     """How a listing shows a queued source. `processing` while its owner
-    has credit (or it is a sponsored demo seed), `waiting_for_credit`
+    has credit, `waiting_for_credit`
     otherwise; without an exchange rate in the pricing rules every queued
     source waits and `error` says why. The worker claims none of these
     (see the claim query and `run_worker`). The owner's credit and the
@@ -93,13 +92,13 @@ class CreditView:
         self._rate: bool | None = None
 
     @overload
-    def status(self, status: SourceStatus, demo: bool) -> SourceStatus: ...
+    def status(self, status: SourceStatus) -> SourceStatus: ...
 
     @overload
-    def status(self, status: str, demo: bool) -> str: ...
+    def status(self, status: str) -> str: ...
 
-    def status(self, status: str, demo: bool) -> str:
-        if status != "processing" or demo:
+    def status(self, status: str) -> str:
+        if status != "processing":
             return status
         if self._credit is None:
             self._credit = self._repo.has_credit(self._owner)

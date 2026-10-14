@@ -40,9 +40,6 @@ def make_settings(**overrides) -> Settings:
             ' "fake-stt": {"in": 100, "out": 0}}'
         ),
         "DEMO_TOKEN": DEMO_TOKEN,
-        # Seeding is tested on its own (test_seeds.py); elsewhere a new
-        # user's library starts empty.
-        "SEED_DEMO_LIBRARY": "false",
         "CHUNK_TOKENS": "50",
         "CHUNK_OVERLAP_TOKENS": "10",
         "MAX_UPLOAD_BYTES": "4096",

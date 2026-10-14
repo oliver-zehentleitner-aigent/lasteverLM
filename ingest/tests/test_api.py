@@ -107,7 +107,7 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
         "created_at",
         "library_id",
         "capture",
-        "demo",
+        "starter",
         "preview_url",
         "original_url",
     }

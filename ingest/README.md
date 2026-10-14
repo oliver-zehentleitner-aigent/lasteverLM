@@ -48,7 +48,6 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `SUMMARY_INPUT_TOKENS`, `SUMMARY_MAX_TOKENS` | no | how much of a source the summary prompt sees (6000) and how long the answer may be (300) |
 | `IMAGE_MAX_TOKENS` | no | how long the model's transcription and description of an image source or a PDF page may be (2000) |
 | `PDF_VISION_MAX_PAGES` | no | most pages of one PDF the vision model reads (`vision`/`auto` capture); more fail the source before any call (100) |
-| `SEED_DEMO_LIBRARY` | no | give every new user the five demo sources on their first library access or upload, processed at the demo user's expense (`true`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware, defaults 120 / 15 / 3 / 24 / 100 |
 | `LOG_LEVEL` | no | default `INFO` |
 
@@ -83,7 +82,7 @@ inference API (`tests/fakes.py`); nothing touches the network.
 `make test-postgres` runs `tests/test_postgres.py` against a real
 PostgreSQL with the family's migrations applied (the library and its
 dedupe conflict, ownership, the trash and its retention, the queue under
-concurrent claims, the seed claim, the admin counts); it is skipped
+concurrent claims, the starter copy, the admin counts); it is skipped
 without Docker, and `make check` deselects it.
 
 ## Build

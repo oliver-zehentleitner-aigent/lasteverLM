@@ -17,6 +17,8 @@ has elapsed and the worker purges it.
 
 from __future__ import annotations
 
+import json
+import logging
 import secrets
 from datetime import date, datetime
 from typing import Any, Literal, Protocol
@@ -38,6 +40,8 @@ from lasteverlm_core import admin_role as core_admin_role
 from lasteverlm_core import has_credit as core_has_credit
 from lasteverlm_core import record_usage as core_record_usage
 from pydantic import BaseModel, ConfigDict, Field
+
+log = logging.getLogger(__name__)
 
 
 class OwnedNotebook(Notebook):
@@ -61,7 +65,7 @@ class StoredSource(Source):
     attempts: int = 0
     size_bytes: int | None = None
     capture: str | None = None
-    demo: bool = False
+    starter: bool = False
     transcribed_path: str | None = None
 
 
@@ -85,7 +89,7 @@ class LibrarySource(BaseModel):
     created_at: datetime
     deleted_at: datetime | None = None
     capture: str | None = None
-    demo: bool = False
+    starter: bool = False
     transcribed_path: str | None = None
 
 
@@ -125,7 +129,7 @@ class LibraryEntry(BaseModel):
     url: str | None
     created_at: datetime
     capture: str | None = None
-    demo: bool = False
+    starter: bool = False
     notebooks: list[NotebookUse]
     origin: Origin | None = None
     # A generated entry's output in rag (`GET /outputs/{id}`); null otherwise.
@@ -152,7 +156,7 @@ class TrashEntry(BaseModel):
     deleted_at: datetime
     purge_at: datetime
     capture: str | None = None
-    demo: bool = False
+    starter: bool = False
     preview_url: str | None = None
     original_url: str | None = None
     storage_path: str | None = Field(default=None, exclude=True)
@@ -169,7 +173,35 @@ class NewLibrarySource(BaseModel):
     size_bytes: int | None
     storage_path: str
     capture: str | None = None
-    demo: bool = False
+    starter: bool = False
+
+
+class StarterRef(BaseModel):
+    """Account's settings row "starter_notebook": the notebook every new
+    user gets a copy of, and its owner (the admin who built it)."""
+
+    owner_id: UUID
+    notebook_id: UUID
+
+
+class StarterSource(BaseModel):
+    """A source of the starter notebook to copy: its library row and its
+    link id there."""
+
+    link_id: UUID
+    library: LibrarySource
+
+
+class StarterCopy(BaseModel):
+    """One user's copy of the starter notebook, prepared: the stored
+    objects are copied already (keys below), the rows are not."""
+
+    owner: UUID
+    source_notebook: UUID
+    notebook_id: UUID
+    title: str
+    # old library id -> (new library id, new link id, storage key, converted key)
+    sources: list[tuple[StarterSource, UUID, UUID, str | None, str | None]]
 
 
 # Family rule: after three attempts a job is failed with its last error.
@@ -249,10 +281,28 @@ class Repository(Protocol):
         """A failed library source uploaded again: back to `processing`."""
         ...
 
-    def claim_seed(self, owner: UUID) -> bool:
-        """Mark the owner as considered for the demo library; True only the
-        first time and only when the owner has no library source yet (in
-        the library or the trash), i.e. when the caller should seed."""
+    def is_seeded(self, owner: UUID) -> bool:
+        """The owner has been considered for the starter notebook already."""
+        ...
+
+    def starter_ref(self) -> StarterRef | None:
+        """Account's settings row "starter_notebook"; None when there is none
+        or it is malformed."""
+        ...
+
+    def starter_sources(self, ref: StarterRef) -> list[StarterSource] | None:
+        """The uploads linked into the starter notebook (not trashed, ready,
+        never generated rows: rag copies the outputs); None when the
+        notebook does not exist or is not its owner's."""
+        ...
+
+    def copy_starter(self, plan: StarterCopy) -> dict[str, dict[str, str]] | None:
+        """Write the user's copy in one transaction: claim the seed mark,
+        the notebook, the library rows (ready, flagged starter), their links
+        and their chunks with embeddings, and rag's `output_copies` row for
+        the outputs. Returns the id maps written there, or None when the
+        owner was considered already or has entries of their own (nothing
+        written)."""
         ...
 
     def list_library(self, owner: UUID) -> list[LibraryEntry]: ...
@@ -518,7 +568,7 @@ class PostgresRepository:
     _SELECT_SOURCES = (
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
         "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
-        "l.capture, l.demo, l.transcribed_path "
+        "l.capture, l.starter, l.transcribed_path "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -597,7 +647,7 @@ class PostgresRepository:
     # origin notebook.
     _GENERATED_ENTRIES = """
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
-           l.capture, l.demo, l.storage_path, l.transcribed_path,
+           l.capture, l.starter, l.storage_path, l.transcribed_path,
            o.id as output_id, o.notebook_id as origin_id,
            coalesce(origin.title, o.origin_title) as origin_title,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
@@ -622,13 +672,13 @@ class PostgresRepository:
 
     # Every library read filters with this: generated rows are rag's.
     _LISTED = "l.kind <> 'generated'"
-    # May the worker process this row: a sponsored demo seed, or an owner
-    # with a positive balance (core's expression: credits minus charges).
-    _FUNDED = f"(l.demo or {funded_sql('l.owner')})"
+    # May the worker process this row: its owner has a positive balance
+    # (core's expression: credits minus charges).
+    _FUNDED = funded_sql("l.owner")
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
-        "l.demo, l.transcribed_path"
+        "l.starter, l.transcribed_path"
     )
     # Library sources in the library (not in the trash).
     _ACTIVE = f"{_LISTED} and l.deleted_at is null"
@@ -651,8 +701,8 @@ class PostgresRepository:
     def create_library_source(self, new: NewLibrarySource) -> LibrarySource:
         self._one(
             "insert into library_sources (id, owner, name, kind, dedupe_key, url, size_bytes, "
-            "storage_path, capture, demo, status) values (%(id)s, %(owner)s, %(name)s, "
-            "%(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(capture)s, %(demo)s, "
+            "storage_path, capture, starter, status) values (%(id)s, %(owner)s, %(name)s, "
+            "%(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(capture)s, %(starter)s, "
             "'processing') "
             "on conflict (owner, dedupe_key) where dedupe_key is not null do nothing returning id",
             {
@@ -665,7 +715,7 @@ class PostgresRepository:
                 "size": new.size_bytes,
                 "path": new.storage_path,
                 "capture": new.capture,
-                "demo": new.demo,
+                "starter": new.starter,
             },
         )
         found = self.find_library_source(new.owner, new.dedupe_key)
@@ -681,26 +731,122 @@ class PostgresRepository:
                 {"id": library_id},
             )
 
-    def claim_seed(self, owner: UUID) -> bool:
+    def is_seeded(self, owner: UUID) -> bool:
+        row = self._one(
+            "select exists (select 1 from library_seeds where owner = %(owner)s) as seeded",
+            {"owner": owner},
+        )
+        return bool(row and row["seeded"])
+
+    def starter_ref(self) -> StarterRef | None:
+        row = self._one("select value from settings where key = 'starter_notebook'", {})
+        if row is None or not isinstance(row["value"], dict):
+            return None
+        try:
+            return StarterRef.model_validate(row["value"])
+        except ValueError:
+            log.warning("settings 'starter_notebook' is malformed; no starter is seeded")
+            return None
+
+    def starter_sources(self, ref: StarterRef) -> list[StarterSource] | None:
+        if self.get_notebook(ref.owner_id, ref.notebook_id) is None:
+            return None
+        rows = self._all(
+            f"select s.id as link_id, {self._LIBRARY_COLUMNS} from sources s "
+            "join library_sources l on l.id = s.library_source_id "
+            "where s.notebook_id = %(nb)s and l.owner = %(owner)s and l.kind <> 'generated' "
+            "and l.status = 'ready' and l.deleted_at is null order by s.created_at, s.id",
+            {"nb": ref.notebook_id, "owner": ref.owner_id},
+        )
+        return [
+            StarterSource(link_id=row.pop("link_id"), library=LibrarySource(**row)) for row in rows
+        ]
+
+    def copy_starter(self, plan: StarterCopy) -> dict[str, dict[str, str]] | None:
+        source_map: dict[str, str] = {}
+        chunk_map: dict[str, str] = {}
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "insert into library_seeds (owner) values (%(owner)s) "
                 "on conflict (owner) do nothing returning owner",
-                {"owner": owner},
+                {"owner": plan.owner},
             )
             if cur.fetchone() is None:
-                return False
+                return None
             cur.execute(
                 f"select exists (select 1 from library_sources l "
                 f"where l.owner = %(owner)s and {self._LISTED})",
-                {"owner": owner},
+                {"owner": plan.owner},
             )
             row = cur.fetchone()
-            return not (row and row[0])
+            if row and row[0]:
+                return None  # the mark stays: an owner with entries is not seeded
+            cur.execute(
+                "insert into notebooks (id, owner, title) values (%(id)s, %(owner)s, %(title)s)",
+                {"id": plan.notebook_id, "owner": plan.owner, "title": plan.title},
+            )
+            for source, library_id, link_id, key, converted in plan.sources:
+                old = source.library
+                cur.execute(
+                    "insert into library_sources (id, owner, name, kind, dedupe_key, url, "
+                    "size_bytes, storage_path, transcribed_path, capture, starter, status, "
+                    "summary) values (%(id)s, %(owner)s, %(name)s, %(kind)s, %(key)s, %(url)s, "
+                    "%(size)s, %(path)s, %(converted)s, %(capture)s, true, 'ready', %(summary)s)",
+                    {
+                        "id": library_id,
+                        "owner": plan.owner,
+                        "name": old.name,
+                        "kind": old.kind,
+                        "key": old.dedupe_key,
+                        "url": old.url,
+                        "size": old.size_bytes,
+                        "path": key,
+                        "converted": converted,
+                        "capture": old.capture,
+                        "summary": old.summary,
+                    },
+                )
+                cur.execute(
+                    "insert into sources (id, notebook_id, library_source_id) "
+                    "values (%(id)s, %(nb)s, %(lib)s)",
+                    {"id": link_id, "nb": plan.notebook_id, "lib": library_id},
+                )
+                cur.execute(
+                    "select id from chunks where library_source_id = %(lib)s", {"lib": old.id}
+                )
+                old_chunks = [r[0] for r in cur.fetchall()]
+                new_chunks = [uuid4() for _ in old_chunks]
+                cur.execute(
+                    "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                    "select m.new_id, %(lib)s, c.idx, c.page, c.text, c.embedding "
+                    "from chunks c join unnest(%(old)s::uuid[], %(new)s::uuid[]) "
+                    "as m(old_id, new_id) on c.id = m.old_id",
+                    {"lib": library_id, "old": old_chunks, "new": new_chunks},
+                )
+                source_map[str(source.link_id)] = str(link_id)
+                source_map[str(old.id)] = str(library_id)
+                chunk_map.update(
+                    {str(o): str(n) for o, n in zip(old_chunks, new_chunks, strict=True)}
+                )
+            # rag's handover: its worker copies the starter's outputs into the
+            # new notebook, remapping provenance through these maps.
+            cur.execute(
+                "insert into output_copies (target_notebook, source_notebook, owner, "
+                "source_map, chunk_map) values (%(target)s, %(source)s, %(owner)s, "
+                "%(sources)s::jsonb, %(chunks)s::jsonb)",
+                {
+                    "target": plan.notebook_id,
+                    "source": plan.source_notebook,
+                    "owner": plan.owner,
+                    "sources": json.dumps(source_map),
+                    "chunks": json.dumps(chunk_map),
+                },
+            )
+        return {"source_map": source_map, "chunk_map": chunk_map}
 
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
-           l.capture, l.demo, l.storage_path, l.transcribed_path,
+           l.capture, l.starter, l.storage_path, l.transcribed_path,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -738,7 +884,7 @@ class PostgresRepository:
     def list_trash(self, owner: UUID) -> list[TrashEntry]:
         rows = self._all(
             f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
-            f"l.capture, l.demo, l.storage_path, l.transcribed_path, l.deleted_at, "
+            f"l.capture, l.starter, l.storage_path, l.transcribed_path, l.deleted_at, "
             f"l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
             f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
             f"and l.deleted_at is not null order by l.deleted_at desc, l.id",
@@ -819,7 +965,7 @@ class PostgresRepository:
     # are written and finished by rag, never by this worker.
     # Processing needs credit: a source whose owner has none is not claimed
     # (the API shows it as waiting_for_credit) and is taken as soon as the
-    # owner's balance is positive again; the demo seeds are sponsored.
+    # owner's balance is positive again.
     # Core's balance (ledger minus usage), per candidate owner.
     _CLAIM_SQL = f"""
     update library_sources

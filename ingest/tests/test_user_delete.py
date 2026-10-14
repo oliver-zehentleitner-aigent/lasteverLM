@@ -17,7 +17,7 @@ def _fill(repo, storage, owner):
     gen = repo.add_source(nb.id, "Report", "generated", None).library_id
     for key in (f"{owner}/a/a.txt", f"{owner}/r/talk.m4a", f"{owner}/r/_transcribed.mp3"):
         storage.put(key, b"x", "application/octet-stream")
-    repo.claim_seed(owner)
+    repo.seeded.add(owner)
     return doc, rec, gen
 
 
