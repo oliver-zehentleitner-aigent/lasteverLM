@@ -8,6 +8,7 @@ import { CAPTURE_MODES } from '../lib/capture'
 import { sampleLanguage, voiceGroups } from '../lib/outputOptions'
 import { DEFAULT_THEME, getSavedTheme, getSessionTheme, setSessionTheme, setTheme, useTheme } from '../lib/theme'
 import { VoiceSample } from './VoiceSample'
+import { formatCents } from '../lib/format'
 import { language, t } from '../i18n'
 
 const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null, pdf_capture: null, theme: null }
@@ -58,10 +59,14 @@ export function SettingsPage() {
   return (
     <main className="settings">
       <h1>{t('set.title')}</h1>
-      <p className="muted small">
-        <a href="/prices">{t('settings.prices')}</a>
-      </p>
       <form className="card" onSubmit={save}>
+        <div className="settings-row">
+          <span className="settings-row-label">{t('set.creditRow')}</span>
+          <span>
+            {me && <>{t('set.balance', { value: formatCents(me.balance_cents) })} · </>}
+            <a href="/credits">{t('set.viewCredits')}</a> · <a href="/prices">{t('set.priceList')}</a>
+          </span>
+        </div>
         <label>
           {t('set.uiLanguage')}
           <select

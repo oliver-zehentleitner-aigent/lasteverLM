@@ -9,6 +9,7 @@ import { AuthCallback } from './components/AuthCallback'
 import { Header } from './components/Header'
 import { LibraryPage } from './components/LibraryPage'
 import { SettingsPage } from './components/SettingsPage'
+import { CreditsPage } from './components/CreditsPage'
 import { LoginPage } from './components/LoginPage'
 import { SharePage, SharedNotebookPage } from './components/SharePage'
 import { PriceList, PricesPage } from './components/PricesPage'
@@ -101,7 +102,7 @@ export default function App() {
   const me = session.me
   const adminPage = route.name === 'admin' && canSeeAdmin(me) ? route.page : null
   const setMe = (u: User) => setSession({ state: 'in', me: u })
-  const headerRoute = adminPage ? 'admin' : route.name === 'library' || route.name === 'settings' || route.name === 'prices' ? route.name : 'home'
+  const headerRoute = adminPage ? 'admin' : route.name === 'library' || route.name === 'settings' || route.name === 'prices' || route.name === 'credits' ? route.name : 'home'
 
   return (
     <MeContext.Provider value={{ me, setMe }}>
@@ -109,7 +110,6 @@ export default function App() {
         me={me}
         route={headerRoute}
         onNavigate={navigate}
-        onVoucher={() => setVoucher({ open: true, reason: 'manual' })}
         onLogout={logout}
       />
       {adminPage ? (
@@ -118,6 +118,8 @@ export default function App() {
         <main className="prices-page">
           <PriceList />
         </main>
+      ) : route.name === 'credits' ? (
+        <CreditsPage onNavigate={navigate} />
       ) : route.name === 'settings' ? (
         <SettingsPage />
       ) : route.name === 'library' ? (

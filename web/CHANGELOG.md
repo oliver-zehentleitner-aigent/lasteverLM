@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `/credits`: the user's own credit (the account service's `GET /api/account/me/credit`): the balance with credited and spent, a voucher field, spending per day and per action for 7, 30 or 90 days, and every entry linked to its notebook or output; opened from the header's balance and from Settings' new "Credits and prices" row.
 - Chat: under each answer Copy (the answer with its [n] markers and the cited passages), 👍 and 👎 (with an optional one-line comment; changeable); under the last answer its follow-up questions as cards that ask on a click; an empty chat's "Suggest questions" with its price loads the notebook's questions as the same cards. Admin overview: answer feedback of the last 30 days with the newest down-rated answers.
 - Sources open in the viewer: a click on a source's name (or "open in source" on a citation) opens it as a tab with two views, **Original** (image, audio player, the PDF inline at the cited page, a web page's address) and **As read** (the extracted text chunk by chunk with numbers and pages, the cited chunk marked; from ingest's `GET /sources/{id}/chunks`). The new-tab link stays as a small ↗.
 - Starter notebook: admins mark one of their notebooks with ☆ "Use as starter notebook" (the account service's `PUT /admin/settings/starter-notebook`); it carries a "Starter" badge in the notebook list, and Admin > Access shows it with a link, who set it and Remove.
 
 ### Changed
 
+- The header's balance opens Credits instead of the voucher dialog (a 402 still opens it); Settings shows "Credits and prices" (balance, View credits, Price list) instead of the price list line.
 - The viewer's tabs are what the user opened, sources and outputs, in the order opened, each closable, kept per notebook for the browser session; no longer every output of the notebook. Empty: "Sources and outputs you open appear here as tabs." The policy allows frames from the media sources (`frame-src`) for the inline PDF.
 - The "demo" badge on copied entries reads "Starter" (ingest's `starter` flag, `demo` still read); the demo sources' first question in an empty chat is gone.
 - Admin: Finance comes right after Overview in the sub-navigation (Overview · Finance · Users · Access · Security · Visits · Mail · System).
