@@ -514,4 +514,11 @@ export const de: Record<MessageKey, string> = {
   'audio.close': 'Player für {name} schließen',
   'audio.transcribed': 'transkribiertes Audio',
   'audio.original': 'Original',
+  'adm.delUser.title': 'Benutzer löschen',
+  'adm.delUser.what': 'Damit werden {email} und alles gelöscht, was zum Konto gehört: seine Notebooks, Quellen und erzeugten Dokumente sowie sein Guthabenverlauf. Das lässt sich nicht rückgängig machen.',
+  'adm.delUser.type': 'Zur Bestätigung die E-Mail-Adresse eingeben',
+  'adm.delUser.confirm': 'Benutzer löschen',
+  'adm.delUser.deleting': 'Wird gelöscht …',
+  'adm.delUser.failedStep': 'Nicht gelöscht: der Schritt „{step}“ ist fehlgeschlagen ({message}). Der Benutzer ist noch da; versuch es noch einmal.',
+  'adm.delUser.of': '{email} löschen',
 }

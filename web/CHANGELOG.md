@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin > Users: delete a user (admins only, no button for viewers). A dialog in the voucher dialog's style names the address and what goes with the account (notebooks, sources, generated documents, credit history), and its button stays disabled until the address is typed out; `DELETE /api/account/admin/users/{id}`, the row disappears on 204. A 409 (one's own account, the demo user) shows the service's sentence, a 502 names the failed step and its message (`{step, message}`); the dialog stays open either way. `ApiError` carries the failed response's JSON body for this.
+- Checking an audio source: in the library and in a notebook's Sources list an audio row has a play button that mounts a player for that row on demand (nothing loads before, one player at a time), with download links "transcribed audio" (`preview_url`, the converted MP3 or the upload as it came) and, when the upload was converted, "original" (`original_url`, new on `Source` and `LibraryEntry`).
+
 ### Changed
 
 - Audio sources: the wizard's Audio tile accepts M4A, AAC, OGG, Opus, FLAC, WEBM and MP4 besides MP3 and WAV (`.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.webm,.mp4,audio/*,video/mp4,video/webm`), converted by ingest before transcription; the hint names the 60 MB upload cap and the conversion.
@@ -26,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Audio sources: the wizard has an Audio tile (MP3 or WAV, `.mp3,.wav,audio/mpeg,audio/wav,audio/x-wav`, the 25 MB cap named in the hint), the kind `audio` is in the library's kind column and filter and in the wizard's library picker, and the open link plays the file in a new tab through its `preview_url` like a PDF (no thumbnail: those stay images-only). Every source in a notebook's Sources list now shows its kind as a badge. A citation into an audio source has no page, so "open in source" opens the file without an anchor. The admin overview's sources-per-day chart has an audio series; a day without a kind may now omit it.
-- Checking an audio source: in the library and in a notebook's Sources list an audio row has a play button that mounts a player for that row on demand (nothing loads before, one player at a time), with download links "transcribed audio" (`preview_url`, the converted MP3 or the upload as it came) and, when the upload was converted, "original" (`original_url`, new on `Source` and `LibraryEntry`).
 
 ## [0.10.3] - 2026-10-14
 

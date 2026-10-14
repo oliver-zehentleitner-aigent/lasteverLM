@@ -340,8 +340,15 @@ deleted from the library) stays readable with its quote and is marked
     select: user, viewer, admin, after a confirmation, `PATCH
     /api/account/admin/users/{id}`; the service's refusal for the last
     admin or the demo user is shown as its sentence), credit granted,
-    used and balance and their last login, the login log, sign-in attempts
-    (allowed or refused, with IP).
+    used and balance and their last login, and for an admin a "delete"
+    action: a dialog names the address and what goes with the account
+    (notebooks, sources, generated documents, credit history) and enables
+    its button only once the address is typed out; `DELETE
+    /api/account/admin/users/{id}`. A refusal (409: one's own account,
+    the demo user) shows the service's sentence, a failed step (502
+    `{step, message}`) names the step and says the user is still there;
+    either way the dialog stays open. Viewers see no delete action. Then
+    the login log, sign-in attempts (allowed or refused, with IP).
   - **Access** (`/admin/access`): allowed sign-in, domains and single
     addresses, one entry at a time; below, the **viewer domains**: a new
     user from one of them (also allowed to sign in) starts as viewer.
