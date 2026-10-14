@@ -308,3 +308,42 @@ leaves files no row names).
 **Known gap:** a worker that finishes an audio output while the user is
 being deleted can store its file after the delete; that file is
 orphaned. Not handled in this change; reported to the coordinator.
+
+## Outputs belong to the user and live in the library; rag owns their generated rows
+
+**Id:** d9bf964d-ec53-4cd7-8bd1-adfc9a5772f2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the coordinator, 2026-10-14 (outputs in the library's "Outputs" tab, surviving the notebook, usable as a source elsewhere); contract settled with ingest and web the same day
+**Revisit when:** the library needs an output linked into several notebooks to survive the trash with those links, or ingest takes over the lifecycle of generated rows
+
+An output has an `owner`; `notebook_id` is only its origin and turns
+null when ingest deletes that notebook (`on delete set null`), with
+`origin_title` as a snapshot of the notebook's title. Its generated
+source is a library row the user owns; ingest lists such rows in its
+picker and links them into other notebooks, reusing the chunks.
+`outputs.source_id` points at that library row rather than at its link,
+because the link goes with the notebook and the row stays. Deleting an
+output moves it to the trash: `deleted_at` on the output and on its
+row, every link of the row removed, as ingest's library trash does.
+Restore relinks only the origin notebook. Rag purges after the owner's
+`trash_days`: the stored file first, then the library row (chunks and
+links cascade), then the output. Ingest's trash, restore and purge keep
+excluding kind `generated`.
+
+**Reason:** the maintainer wants outputs to outlive their notebook and
+to be reusable as sources. One service owning the whole lifecycle of an
+output and its row keeps "files before rows" in one place, which a
+purge split between two services could not guarantee. Migration 0004
+is expand only: `owner` stays nullable and reads fall back to the
+notebook's owner, so pods of the previous release can still insert
+during the rolling deploy.
+
+**Rejected alternatives:**
+- Outputs as full library sources with many links, each surviving the
+  trash: not needed by the maintainer.
+- Ingest's purge sweeping the generated rows while rag deletes the audio
+  file: rejected in favour of one owner. Ingest agreed.
+- Keeping the notebook cascade (the previous behaviour): it deletes what
+  the maintainer wants to keep.
