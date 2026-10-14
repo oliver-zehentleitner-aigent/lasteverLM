@@ -129,34 +129,40 @@ elsewhere; without it the question is answered from the whole document.
 because any floor can still drop every chunk of a short document for a
 question that resembles none of them.
 
-## Incident: an uploaded PDF was ready but never retrieved (resolved, cause not proven)
+## Incident: an uploaded PDF was ready but never retrieved (resolved: a glyph-code text layer)
 
 **Id:** 54626e80-33da-49e5-8bfd-2a92673a654a
 **Type:** incident
 **Status:** active
-**Evidence:** inferred
-**Source:** maintainer's click-through, 2026-10-13, and his re-test on 0.7.1; diagnosis session the same day
-**Revisit when:** a ready source is again missing from retrieval, or the rows of the original notebook become available
+**Evidence:** confirmed
+**Source:** maintainer's click-through, 2026-10-13, and his re-test on 0.7.1; maintainer's screenshots, 2026-10-14 (citations into linux_-_VNC-Server.pdf, chunks 7 and 9 of 17 at similarity 0.30–0.34, showing text like "&MM,:N K OP&M,MM P2QL"); ingest's fix, #276
+**Verification:** corroborated
+**Revisit when:** a ready source is again missing from retrieval
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — bc473b1e-6480-4baf-ac0a-09b63d9a3200 — as of 2026-10-14
 
 A notebook held two ready PDFs. Unscoped questions about the second one
 ("was ist vnc?") were refused or answered from the first PDF only; the
 second was never among the retrieved passages, although a generated
-report summarised it in detail. On 0.7.1 the same questions retrieve it,
-reproducibly.
+report summarised it in detail.
 
-What was checked: the same setup with text files on the demo account
-retrieved correctly, so German embeddings, the similarity floor and k
-were not the cause; the report's detail came from the source summary
-(written from the full extracted text), which proves extraction but not
-searchable chunks; the write path cannot produce a ready source without
-chunks, nor vectors of the wrong count, dimension or order. The live
-rows were never read (production reads were not permitted in that
-session), so the cause stays inferred. Two candidates fit: a worker that
-claimed the source before its stored object was complete, so chunks and
-embeddings were written from a missing or partial download (fixed by
-ingest's claim change, #182); or the per-library re-keying of chunks in
-the 0.5.0 source-library change, which rewrote how a notebook reaches
-its chunks.
+The cause, observed: pages of linux_-_VNC-Server.pdf carry a text layer
+of glyph codes (a font without a usable ToUnicode map). pypdf returned
+that salad, ingest's text check counted characters only, so the pages
+were chunked, embedded and marked ready. Their chunks could not match a
+question about VNC, and the model answered from the vi document. Ingest
+now requires a letter share of at least 0.6 and sends failing pages to
+the vision model in `auto` (#276). Evidence is confirmed for the
+glyph-code layer; the PDF bytes themselves were not read.
+
+What was checked before: the same setup with text files retrieved
+correctly, so German embeddings, the similarity floor and k were not
+the cause; the report's detail came from the source summary, which
+proves extraction but not meaningful chunks. Two candidates were named
+then, a worker claiming the source before its stored object was
+complete (ingest's claim change, #182) and the per-library re-keying of
+chunks in 0.5.0. Neither is needed to explain the failure. That the
+same questions retrieved the document on 0.7.1 stays unexplained; the
+re-test's rows were not read.
 
 The lesson that stays: a source must not become ready unless its chunks
 carry usable embeddings. A vector with a zero norm or a non-finite
