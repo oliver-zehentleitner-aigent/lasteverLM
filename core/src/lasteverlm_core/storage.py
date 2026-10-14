@@ -111,6 +111,14 @@ class S3Storage:
             raise StorageError(f"download failed: {exc}") from exc
         return body
 
+    def ping(self) -> None:
+        """A HEAD on the bucket: the health probe's check that the store is
+        reachable and the credentials work. `StorageError` otherwise."""
+        try:
+            self._client.head_bucket(Bucket=self._bucket)
+        except Exception as exc:
+            raise StorageError(f"bucket unreachable: {exc}") from exc
+
     def exists(self, key: str) -> bool:
         """Whether `key` is stored. Only a missing key is `False`; any other
         failure raises, so a broken bucket never reads as "not there yet"

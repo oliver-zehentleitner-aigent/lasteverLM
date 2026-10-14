@@ -54,6 +54,9 @@ class StubClient:
         self._record("get_object", kwargs)
         return {"Body": io.BytesIO(self.objects[kwargs["Key"]])}
 
+    def head_bucket(self, **kwargs: Any) -> None:
+        self._record("head_bucket", kwargs)
+
     def head_object(self, **kwargs: Any) -> dict[str, Any]:
         self._record("head_object", kwargs)
         if kwargs["Key"] not in self.objects:

@@ -46,6 +46,36 @@ The two values come from the ConfigMap and do not change while the
 process runs, so reading them once at startup is enough. A missing value
 is `"unknown"`, never an error: a probe must not fail over a label.
 
+`dependencies` reports the state of what the service uses, only those:
+`{"postgres": "ok", "storage": "down", ...}`. `DependencyProbe` runs the
+checks concurrently, each bounded by 2 s (`DEPENDENCY_TIMEOUT_SECONDS`),
+and answers from a 15 s cache (`DEPENDENCY_CACHE_SECONDS`), so the
+liveness probe does not hammer them. A check that raises, returns `False`
+or times out is `"down"` and logged as a warning; nothing raises. `status`
+stays `"ok"` whatever the dependencies say: an outage must not get the
+pod restarted. A service without a probe serializes no `dependencies` key.
+
+```python
+from lasteverlm_core import (
+    DependencyProbe, Health, inference_check, postgres_check, storage_check,
+)
+
+probe = DependencyProbe({
+    "postgres": postgres_check(lambda: pool.connection(timeout=2)),  # select 1
+    "storage": storage_check(storage),             # HEAD on the bucket (S3Storage.ping)
+    "inference": inference_check(client),          # GET /models, 2 s, no retry
+})
+
+
+@app.get("/healthz", response_model=Health)
+async def healthz() -> Health:
+    return Health.from_env(dependencies=await probe.states())
+```
+
+An async pool (account) uses `apostgres_check(lambda: pool.connection())`.
+A sync check runs in a worker thread that is abandoned at the timeout, so
+give it a client or pool timeout of its own.
+
 ## Authentication
 
 ```python

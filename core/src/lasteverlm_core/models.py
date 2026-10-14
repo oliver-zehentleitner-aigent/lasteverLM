@@ -13,7 +13,13 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from .settings import env_optional
 
@@ -33,6 +39,9 @@ ROLES: tuple[Role, ...] = ("user", "viewer", "admin")
 UsageKind = Literal["llm", "embedding", "tts", "stt"]
 UsageService = Literal["ingest", "rag"]
 MessageRole = Literal["user", "assistant"]
+# What `/healthz` reports per dependency a service uses.
+Dependency = Literal["postgres", "storage", "inference"]
+DependencyState = Literal["ok", "down"]
 
 
 class _Row(BaseModel):
@@ -200,18 +209,37 @@ class Health(BaseModel):
     `version` and `commit` come from `APP_VERSION` and `APP_COMMIT` (the
     ConfigMap sets both); a value that is unset or blank is `"unknown"`, so
     a probe never fails over a missing label.
+
+    `dependencies` holds the state of what the service uses, only those
+    (`DependencyProbe` in `lasteverlm_core.health`). `status` stays `"ok"`
+    while the process answers: a dependency that is down is reported here,
+    it never fails the liveness probe. A service that reports none (empty)
+    serializes without the key, so its body is what it was before.
     """
 
     status: Literal["ok"] = "ok"
     version: str = UNKNOWN_BUILD
     commit: str = UNKNOWN_BUILD
+    dependencies: dict[Dependency, DependencyState] = Field(default_factory=dict)
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None) -> Health:
+    def from_env(
+        cls,
+        env: Mapping[str, str] | None = None,
+        dependencies: Mapping[Dependency, DependencyState] | None = None,
+    ) -> Health:
         return cls(
             version=env_optional("APP_VERSION", env) or UNKNOWN_BUILD,
             commit=env_optional("APP_COMMIT", env) or UNKNOWN_BUILD,
+            dependencies=dict(dependencies or {}),
         )
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_dependencies(self, handler: SerializerFunctionWrapHandler) -> Any:
+        data = handler(self)
+        if isinstance(data, dict) and not data.get("dependencies"):
+            data.pop("dependencies", None)
+        return data
 
 
 class UsageRecord(BaseModel):
