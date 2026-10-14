@@ -7,18 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-14
+
+### Changed
+
+- Library, "New notebook from n sources": the title is a field in the selection bar next to the button (Enter or the button creates, Escape clears) instead of a browser prompt, and its preset is never a raw address: the first file's name without its extension when a file is selected, else the first web page's title, derived from its address as host and last path segment with `_` and `-` as spaces ("en.wikipedia.org · Dead reckoning") while ingest stores no page title.
+
+### Fixed
+
+- Narrow screens (a phone at about 412 px): the page no longer scrolls sideways. The stacked notebook columns and the workspace grid take at most the screen's width (`minmax(0, 1fr)`, before `1fr`, which a wide child could stretch); below 640 px the header wraps onto two lines, the navigation under brand and account, the e-mail address left out, so "Sign out" stays on screen; the architecture diagram on Admin > System scales to its card instead of keeping a 560 px minimum, and every admin table scrolls sideways inside its card; the Library's status column shows a failure's reason on one line with the full text as tooltip, instead of wrapping it over several lines.
+
 ## [0.10.1] - 2026-10-14
 
 ### Changed
 
 - "Open in source" on a citation into an upload opens the source in a new tab through its `preview_url` (as the library's open link does), a PDF with `#page=<n>` so the browser's viewer lands on the cited page; it still highlights the source in the list, and a source without a preview is only highlighted, as before.
-- Library, "New notebook from n sources": the title is a field in the selection bar next to the button (Enter or the button creates, Escape clears) instead of a browser prompt, and its preset is never a raw address: the first file's name without its extension when a file is selected, else the first web page's title, derived from its address as host and last path segment with `_` and `-` as spaces ("en.wikipedia.org · Dead reckoning") while ingest stores no page title.
 
 ### Fixed
 
 - Notebook sources list: each row showed only its checkbox, centered, and nothing else; the global `width: 100%` for inputs applied to the new source checkbox, which then took the whole row. Checkboxes and radios now keep their own width.
 - Sign-in code: the form under the sign-in ("Have a sign-in code from the mail?") exchanges the code from the mail like the link (`GET /api/account/auth/callback?token=…`) and stores the returned JWT; before, it stored the pasted value as the Bearer token, so the mail's code led to a 401 on every request and nothing visible. The code's format (43 characters of letters, digits, `-` and `_`) is checked while typing with a count, Continue waits for it, an eye toggle shows the code, an unknown, used or expired code and a network or server failure are shown under the form. The field no longer takes a raw Bearer token (`demo` included); docs/development.md says how to use one in the browser.
-- Narrow screens (a phone at about 412 px): the page no longer scrolls sideways. The stacked notebook columns and the workspace grid take at most the screen's width (`minmax(0, 1fr)`, before `1fr`, which a wide child could stretch); below 640 px the header wraps onto two lines, the navigation under brand and account, the e-mail address left out, so "Sign out" stays on screen; the architecture diagram on Admin > System scales to its card instead of keeping a 560 px minimum, and every admin table scrolls sideways inside its card; the Library's status column shows a failure's reason on one line with the full text as tooltip, instead of wrapping it over several lines.
 
 ## [0.10.0] - 2026-10-14
 
