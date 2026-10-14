@@ -65,7 +65,7 @@ repository root's `context/`.
 
 ## P
 
-- [provisioning.md](provisioning.md) — OpenTofu for the Vultr resources, kubeconfig from vultr-cli
+- [provisioning.md](provisioning.md) — OpenTofu for the Vultr resources, kubeconfig from vultr-cli with the admin credentials in the state as well, kept for this deployment (#288)
 
 ## Q
 

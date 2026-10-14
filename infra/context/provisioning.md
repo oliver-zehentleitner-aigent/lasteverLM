@@ -25,19 +25,30 @@ re-runs and teardown would have to be written by hand and would drift;
 Terraform itself — same HCL, same provider, rejected only for the
 license, so switching back is a one-word change in the runbook.
 
-## Kubeconfig comes from vultr-cli, not from the OpenTofu state
+## Kubeconfig comes from vultr-cli; the OpenTofu state holds the admin credentials too
 
 **Id:** a2760414-e8d9-4b37-ae4f-a62ffd57f658
 **Type:** constraint
-**Status:** needs-review
+**Status:** active
 **Evidence:** confirmed
-**Source:** provider source read on 2026-10-12 (`resource_vultr_kubernetes.go` exports no kubeconfig attribute)
-**Verification:** contradicted — on 2026-10-14 the state of the `vultr_kubernetes` resource holds `kube_config`, `client_certificate`, `client_key` and `cluster_ca_certificate` (provider 2.33.1, attribute names read, not values); the state also holds no database password, the database not being in the configuration
-**Revisit when:** the provider exports the kubeconfig again
+**Source:** provider source read on 2026-10-12 (`resource_vultr_kubernetes.go`); the state's attribute names read on 2026-10-14 (provider 2.33.1, names only, not values); the maintainer's decision of 2026-10-14 to keep both as they are for this deployment
+**Verification:** corroborated — the state of the `vultr_kubernetes` resource holds `kube_config`, `client_certificate`, `client_key` and `cluster_ca_certificate`; it holds no database password, the database not being in the configuration
+**Revisit when:** the deployment is kept beyond the demo, or issue #288 is picked up
 
 `make kubeconfig` fetches the cluster credentials with
 `vultr-cli kubernetes config <id>` and writes them to `build/kubeconfig`.
-The provider version in use exports the cluster id and endpoint but not
-the kubeconfig, so it cannot be an OpenTofu output. The side effect is
-welcome: the state file holds the database password and the S3 keys but
-not the cluster admin credentials.
+The OpenTofu state holds the same admin credentials anyway: provider
+2.33.1 stores the cluster's kubeconfig and client key in the state of
+the `vultr_kubernetes` resource, which the 2026-10-12 reading of the
+provider source missed. The state also holds the object storage keys,
+not the database password. It is kept local, ignored by Git and mode
+600 (`make up`), and is a cluster-admin secret.
+
+**Reason:** the deployment lives only as long as the demo and is
+deleted afterwards, so neither path is worth changing for it; issue
+#288 (https://github.com/oliver-zehentleitner/lasteverLM/issues/288)
+keeps the question for a longer-lived deployment.
+
+**Rejected alternatives:** reading the kubeconfig from a tofu output
+instead of vultr-cli — one tool less, but the credentials sit in the
+state either way, so it changes nothing about where they are.
