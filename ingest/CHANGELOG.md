@@ -17,6 +17,10 @@ preserves why it changed, in `context/`.
 
 - A provider error core marks `permanent` (a 4xx other than 408, 409, 429) fails the source at once instead of being retried, for every model call.
 
+### Removed
+
+- Migration `0004_source_library_contract.sql`, the contract step of `0003_source_library.sql`: drops the columns of `sources` (`name`, `kind`, `storage_path`, `status`, `error`, `summary`, `claimed_at`, `claimed_by`, `attempts`, `size_bytes`) and of `chunks` (`source_id`, `notebook_id`) that moved to `library_sources`, and makes `library_source_id` not null on both, after backfilling any row an old pod wrote during 0003's rollout. Ships in a release after the one with 0003. On a database that already has 0005–0009 it runs after them (the migration job applies every file not yet recorded, in order); it touches no column those add.
+
 ## [0.10.1] - 2026-10-14
 
 ### Fixed

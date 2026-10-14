@@ -74,3 +74,33 @@ runtime; the contract with account is the key name and its default.
 - A second library row on re-upload of trashed bytes: two rows with one
   dedupe key, or a key that is unique only outside the trash; restoring
   is simpler and saves the processing.
+
+## The library schema came in two migrations, expand (0003) and contract (0004)
+
+**Id:** 5bd279ae-da86-4aa6-878e-2217d77b14fc
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** library design reviewed with the coordinating agent, 2026-10-13 (0004 listed in TASKS.md as one release after 0003); 0004 written during the security and quality audit, 2026-10-14
+**Revisit when:** never for these two files; the next schema move that a running release still reads follows the same pattern
+
+0003 created `library_sources`, backfilled it and made the old columns
+on `sources` and `chunks` nullable instead of dropping them. 0004 drops
+them (and sets `library_source_id` not null), and ships in a release
+after the one that shipped 0003. It is numbered 0004 although 0005–0008
+were applied before it: the runner records each file by name, so a file
+added later still runs once. It repeats 0003's backfill, guarded so a
+second run is a no-op, for rows an old pod wrote during 0003's rollout.
+
+**Reason:** a deploy is a rolling update: for a while pods of the
+previous release run against the migrated schema. With the columns
+dropped in one step, those pods would fail every source read and write
+until they were replaced. Keeping them one release costs nothing but
+dead columns.
+
+**Alternatives:**
+- One migration that moves and drops at once: breaks the previous
+  release's pods mid-rollout.
+- Keeping the old columns for good: every reader would have to know
+  which of two places is current, and `sources` would keep a nullable
+  `status` nobody writes.
