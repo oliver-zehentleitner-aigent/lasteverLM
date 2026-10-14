@@ -872,6 +872,20 @@ export const en = {
   'price.sample': '({price} when it is new; one played before is free)',
   'price.failed': 'price unavailable',
   'price.failedTitle': 'The estimate failed ({error}); this still costs credit.',
+  'fin.rate.value': '1 EUR = {rate} USD',
+  'fin.rate.none': 'no exchange rate',
+  'fin.rate.ecb': 'ECB {date}',
+  'fin.rate.manualSource': 'set by hand',
+  'fin.rate.seed': 'starting value',
+  'fin.rate.checked': 'checked {at}',
+  'fin.rate.mode': 'Exchange rate',
+  'fin.rate.automatic': 'automatic',
+  'fin.rate.manual': 'manual',
+  'fin.rate.automaticTitle': 'The ECB\'s daily reference rate, checked every hour.',
+  'fin.rate.manualTitle': 'Your own rate; the hourly ECB update pauses until switched back.',
+  'fin.rate.checkNow': 'Check now',
+  'fin.rate.stale': 'No successful ECB check for more than three days; the rate may be out of date.',
+  'fin.rate.error': 'Last check failed: {error}',
 } as const
 
 export type MessageKey = keyof typeof en

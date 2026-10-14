@@ -537,7 +537,45 @@ deleted from the library) stays readable with its quote and is marked
     **Sign-in** (who may sign in) and **Viewer (read-only admin
     panel)**: a new user at one of those domains or addresses (also
     allowed to sign in) starts as viewer.
-  - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
+  - **Finance** (`/admin/finance`, in the menu where Credits was):
+    pills for its five pages, each with its own URL under
+    `/admin/finance/`, and one date range for those that take one
+    (7, 30 or 90 days, or two dates). Every amount is in euro, as core
+    books it; amounts under a cent show finer (€0.0034). The overview's
+    cost and voucher tiles link here.
+    - **Costs** (the default): grouped by day, action, model, user or
+      service; per row the calls, actions, cost, the cost as measured
+      in USD, the charge and the margin, with totals.
+    - **Prices** (`/admin/finance/prices`): the exchange rate first,
+      as a line "1 EUR = 1.1188 USD · ECB 2026-10-13 · checked 14:05"
+      (the check's date too when it was not today; "set by hand" for a
+      manual rate, "starting value" for the seeded one). It is amber,
+      with a sentence saying the rate may be out of date, when the
+      account service reports it stale (automatic mode, no successful
+      ECB check for three days); a failed check's error is shown under
+      it. An **automatic | manual** switch next to it (`PUT
+      /admin/settings/pricing/rate-mode`): automatic is the ECB's rate,
+      fetched at once and then hourly, with **Check now** (`POST
+      …/pricing/rate/sync`), and leaves the rate field read-only;
+      manual makes the field editable and pauses the update. Saving the
+      form with another rate turns manual by itself (the account
+      service does that). The switch keeps the rest of an unsaved
+      draft. Then the margin on every action and, per action, a margin
+      and/or a fixed fee (empty follows the default); 400 ms after
+      typing stops the table previews, per action, the last 30 days'
+      count, the average cost and what the user pays. Save, and "no
+      margin, no fees", which keeps the rate.
+    - **Revenue and profit**: tiles (charged, of which demo, paid and
+      free vouchers issued and redeemed, outstanding credit), a chart
+      per month or day (charged, model cost and infrastructure as bars,
+      profit as a line) and its table; a value without a rate says
+      "needs a rate" with a link to Prices.
+    - **Infrastructure**: Vultr's sync (last sync and error, Sync now)
+      or, not connected, how to connect it; the lines with source and
+      amount in their currency and in euro; lines entered by hand can
+      be added and deleted, Vultr's cannot.
+    - **Vouchers** (`/admin/finance/vouchers`; the old
+      `/admin/credits` opens it): voucher creation (5 EUR by default)
     that shows the codes once as chips with a copy button each ("copy
     all" for several; without the clipboard API the text is selected
     instead), next to the form when there is room; for an admin an
@@ -550,7 +588,9 @@ deleted from the library) stays readable with its quote and is marked
     (a dialog with the same three fields; a refusal for the quota of 5
     mails per address and hour, a missing mail server, the mail server's
     error or an already redeemed voucher stays in the dialog) and
-    deleted.
+    deleted. "Paid" on the create form and per voucher: paid is sold
+    for its face value and counts as revenue, free is a gift and counts
+    as a marketing cost.
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
     with its five editable numbers (the ban cap, 1–365 days, among them) and a reset to the deployment
     defaults, then blocks, bans (with lift) and the raw access log.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin > Finance > Prices: the exchange rate's origin as a line ("1 EUR = 1.1188 USD · ECB 2026-10-13 · checked 14:05"), amber with a sentence when the account service reports it stale, the last check's error under it, and an automatic | manual switch: automatic (the ECB's rate, hourly, with Check now) leaves the rate field read-only, manual makes it editable.
+
 ## [0.18.1] - 2026-10-14
 
 ### Added

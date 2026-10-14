@@ -1,6 +1,7 @@
 import { ACCOUNT_PREFIX, ADMIN_MOCK, INGEST_PREFIX, RAG_PREFIX } from '../config'
 import { ApiError, request } from './client'
 import type {
+  ExchangeRateStatus,
   AccessEntry,
   AccountDay,
   AccountStats,
@@ -65,6 +66,10 @@ export interface AdminApi {
   /** the view for these rules, not stored */
   previewPricing(rules: PricingRules): Promise<PricingView>
   resetPricing(): Promise<void>
+  /** automatic fetches the ECB rate at once; manual pauses the hourly update */
+  setRateMode(mode: ExchangeRateStatus['mode']): Promise<PricingView>
+  /** fetch the ECB rate now; a failure shows in `rate.last_error` */
+  syncRate(): Promise<PricingView>
   financeCosts(from: string, to: string, group: CostGroup): Promise<FinanceCosts>
   financeRevenue(from: string, to: string): Promise<FinanceRevenue>
   financeProfit(from: string, to: string, group: 'month' | 'day'): Promise<FinanceProfit>
@@ -133,6 +138,8 @@ const httpAdmin: AdminApi = {
   savePricing: (rules) => request<PricingView>(`${A}/settings/pricing`, { method: 'PUT', json: rules }),
   previewPricing: (rules) => request<PricingView>(`${A}/settings/pricing/preview`, { method: 'POST', json: rules }),
   resetPricing: () => request<void>(`${A}/settings/pricing`, { method: 'DELETE' }),
+  setRateMode: (mode) => request<PricingView>(`${A}/settings/pricing/rate-mode`, { method: 'PUT', json: { mode } }),
+  syncRate: () => request<PricingView>(`${A}/settings/pricing/rate/sync`, { method: 'POST' }),
   financeCosts: (from, to, group) => request<FinanceCosts>(`${A}/finance/costs?from=${from}&to=${to}&group=${group}`),
   financeRevenue: (from, to) => request<FinanceRevenue>(`${A}/finance/revenue?from=${from}&to=${to}`),
   financeProfit: (from, to, group) => request<FinanceProfit>(`${A}/finance/profit?from=${from}&to=${to}&group=${group}`),
@@ -229,11 +236,14 @@ function mockAdmin(): AdminApi {
     total_eur_cents: 3645.16,
   }
   let pricing: PricingRules = { usd_per_eur: 1.1188, default_margin_pct: 30, actions: { 'output:audio': { fixed_cents: 2 } } }
+  const checked = new Date(Date.now() - 55 * 60 * 1000).toISOString()
+  let rate: ExchangeRateStatus = { usd_per_eur: 1.1188, mode: 'automatic', source: 'ECB', rate_date: '2026-10-13', last_checked: checked, last_success: checked, last_error: null, stale: false }
   const pricingView = (r: PricingRules): PricingView => {
     const actions = ['chat_answer', 'output:report', 'output:audio', 'source:pdf', 'judge']
     return {
       rules: r,
       actions,
+      rate: { ...rate, usd_per_eur: r.usd_per_eur },
       preview: actions.map((a, i) => {
         const margin = r.actions[a]?.margin_pct ?? r.default_margin_pct
         const fixed = r.actions[a]?.fixed_cents ?? 0
@@ -427,10 +437,23 @@ function mockAdmin(): AdminApi {
     syncInfra: () => Promise.reject(new ApiError(409, 'Vultr is not connected', 'vultr_not_connected')),
     getPricing: () => delay(pricingView(pricing)),
     savePricing: (r) => {
+      // another rate is an override, as in the account service
+      if (r.usd_per_eur !== pricing.usd_per_eur) rate = { ...rate, mode: 'manual', source: 'manual' }
       pricing = r
       return delay(pricingView(r))
     },
     previewPricing: (r) => delay(pricingView(r)),
+    setRateMode: (mode) => {
+      const now = new Date().toISOString()
+      rate = mode === 'manual' ? { ...rate, mode } : { ...rate, mode, source: 'ECB', rate_date: '2026-10-13', last_checked: now, last_success: now, stale: false }
+      if (mode === 'automatic') pricing = { ...pricing, usd_per_eur: 1.1188 }
+      return delay(pricingView(pricing))
+    },
+    syncRate: () => {
+      const now = new Date().toISOString()
+      rate = { ...rate, last_checked: now, last_success: now, last_error: null, stale: false }
+      return delay(pricingView(pricing))
+    },
     resetPricing: () => {
       pricing = { ...pricing, default_margin_pct: 0, actions: {} }
       return delay(undefined)

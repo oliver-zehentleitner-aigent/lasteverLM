@@ -1,11 +1,12 @@
 import { Suspense, lazy, useCallback, useEffect, useState, type FormEvent, type MouseEvent } from 'react'
 import { admin } from '../../api/admin'
 import { ApiError } from '../../api/client'
-import type { CostGroup, FinanceCosts, FinanceInfra, FinanceProfit, FinanceRevenue, PricingRules, PricingView } from '../../api/types'
+import type { CostGroup, ExchangeRateStatus, FinanceCosts, FinanceInfra, FinanceProfit, FinanceRevenue, PricingRules, PricingView } from '../../api/types'
 import { useAsync } from '../../hooks/useAsync'
 import { useLoad } from '../../hooks/useLoad'
 import { FINANCE_PAGES, financePageFromPath, financePath, type FinancePageId } from '../../lib/adminPages'
 import { formatTime } from '../../lib/format'
+import { rateLine } from '../../lib/exchangeRate'
 import { charge, formatMoney, lastDays } from '../../lib/money'
 import { t } from '../../i18n'
 import { useCanWrite } from './canWrite'
@@ -119,6 +120,35 @@ function CostsPage({ range }: { range: Range }) {
   )
 }
 
+/** The rate's line ("1 EUR = 1.1188 USD · ECB 2026-10-13 · checked 14:05"),
+ *  amber when the ECB has not answered for three days, the last error when
+ *  there is one, and the automatic | manual switch with Check now. */
+function RateStatus({ rate, busy, onMode, onSync }: { rate: ExchangeRateStatus; busy: boolean; onMode: (mode: ExchangeRateStatus['mode']) => void; onSync: () => void }) {
+  return (
+    <div className="rate-status">
+      <div className="row">
+        <span className="presets rate-mode" role="radiogroup" aria-label={t('fin.rate.mode')}>
+          {(['automatic', 'manual'] as const).map((m) => (
+            <button key={m} type="button" role="radio" aria-checked={rate.mode === m} className={rate.mode === m ? 'preset active' : 'preset'} title={t(`fin.rate.${m}Title`)} disabled={busy} onClick={() => rate.mode !== m && onMode(m)}>
+              {t(`fin.rate.${m}`)}
+            </button>
+          ))}
+        </span>
+        {rate.mode === 'automatic' && (
+          <button type="button" className="secondary small" disabled={busy} onClick={onSync}>
+            {t('fin.rate.checkNow')}
+          </button>
+        )}
+      </div>
+      <p className={rate.stale ? 'small rate-line stale' : 'muted small rate-line'} title={rate.stale ? t('fin.rate.stale') : undefined}>
+        {rateLine(rate)}
+      </p>
+      {rate.stale && <p className="small stale">{t('fin.rate.stale')}</p>}
+      {rate.last_error && <p className="error small">{t('fin.rate.error', { error: rate.last_error })}</p>}
+    </div>
+  )
+}
+
 const EMPTY_RULES: PricingRules = { usd_per_eur: 1, default_margin_pct: 0, actions: {} }
 
 /** The price rule: a margin on every action's cost, overridden per action
@@ -144,7 +174,7 @@ function PricesPage() {
   useEffect(() => {
     if (!dirty) return
     const timer = window.setTimeout(() => {
-      admin.previewPricing(draft).then(setView, () => {})
+      admin.previewPricing(draft).then((v) => setView((prev) => ({ ...v, rate: v.rate ?? prev?.rate })), () => {})
     }, 400)
     return () => window.clearTimeout(timer)
   }, [draft, dirty])
@@ -175,6 +205,15 @@ function PricesPage() {
       setDirty(false)
     }
   }
+  // the mode switch and Check now return the view with the new rate; the
+  // rest of an unsaved draft stays
+  async function rateCall(call: () => Promise<PricingView>) {
+    const v = await run(call)
+    if (v) {
+      setView(v)
+      setDraft((d) => ({ ...d, usd_per_eur: v.rules.usd_per_eur }))
+    }
+  }
   async function reset() {
     if (!confirm(t('fin.price.resetConfirm'))) return
     const v = await run(async () => {
@@ -196,6 +235,7 @@ function PricesPage() {
         {view && (
           <form onSubmit={save}>
             <fieldset className="plain" disabled={!canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')}>
+              {view.rate && <RateStatus rate={view.rate} busy={busy} onMode={(mode) => void rateCall(() => admin.setRateMode(mode))} onSync={() => void rateCall(() => admin.syncRate())} />}
               <label className="inline">
                 {t('fin.rate.label')}
                 <input
@@ -205,6 +245,8 @@ function PricesPage() {
                   max={10}
                   step="0.0001"
                   required
+                  // the ECB's rate is not typed over; manual makes it editable
+                  readOnly={view.rate?.mode === 'automatic'}
                   value={draft.usd_per_eur}
                   onChange={(e) => edit({ ...draft, usd_per_eur: Number(e.target.value) })}
                 />
