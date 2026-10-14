@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 from lasteverlm_core import MemoryRateLimitStore
+from lasteverlm_core.health import DependencyProbe
 
 from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
@@ -82,11 +83,27 @@ def vision_chat() -> FakeChat:
     return FakeChat(answer="A page read by the vision model.")
 
 
+class FakeChecks:
+    """`/healthz` dependency checks that answer from a dict, never the network."""
+
+    def __init__(self) -> None:
+        self.up = {"postgres": True, "storage": True, "inference": True}
+
+    def probe(self) -> DependencyProbe:
+        return DependencyProbe({name: (lambda n=name: self.up[n]) for name in self.up}, ttl=0)
+
+
 @pytest.fixture
-def client(repo, storage, embedder, summarizer, vision_chat) -> TestClient:
+def checks() -> FakeChecks:
+    return FakeChecks()
+
+
+@pytest.fixture
+def client(repo, storage, embedder, summarizer, vision_chat, checks) -> TestClient:
     app = create_app(
         make_settings(),
         rate_limit_store=MemoryRateLimitStore(),
+        probe=checks.probe(),
         repository=repo,
         storage=storage,
         embedder=embedder,
