@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from lasteverlm_core import UNKNOWN_BUILD
 
+from .crypto import VoucherKeyError, load_key
 from .mail import SmtpConfig
 
 
@@ -25,6 +26,7 @@ class Settings:
     database_url: str
     auth_jwt_secret: str
     public_base_url: str
+    voucher_key: bytes  # VOUCHER_KEY, 32 bytes; voucher codes at rest are AES-GCM under it
     demo_token: str | None
     admin_emails: frozenset[str] = field(default_factory=frozenset)
     allowed_domains_seed: tuple[str, ...] = ()
@@ -33,6 +35,7 @@ class Settings:
     link_quota_per_hour: int = 5  # sign-in links per address per hour, then 429
     jwt_ttl_days: int = 1  # sign-out is client-side; a token lives at most this long
     voucher_default_cents: int = 1000
+    voucher_mail_quota_per_hour: int = 5  # voucher mails to one address per hour, then 429
     visit_retention_days: int = 30
     access_retention_days: int = 30  # core's RETENTION_DAYS, for the tables its middleware writes
     ban_max_days: int = 90  # core's BAN_MAX_DAYS: a ban holds until lifted, at most this long
@@ -74,6 +77,7 @@ class Settings:
             database_url=required("DATABASE_URL"),
             auth_jwt_secret=required("AUTH_JWT_SECRET"),
             public_base_url=required("PUBLIC_BASE_URL").rstrip("/"),
+            voucher_key=_voucher_key(env.get("VOUCHER_KEY")),
             demo_token=env.get("DEMO_TOKEN", "").strip() or None,
             admin_emails=frozenset(_csv_lower(env.get("ADMIN_EMAILS", ""))),
             allowed_domains_seed=tuple(_csv_lower(env.get("AUTH_ALLOWED_DOMAINS", ""))),
@@ -109,6 +113,13 @@ class Settings:
         """What /admin/system probes: the same two base URLs the purge calls use, plus
         /healthz — one way to reach each service, not two."""
         return (("ingest", f"{self.ingest_url}/healthz"), ("rag", f"{self.rag_url}/healthz"))
+
+
+def _voucher_key(raw: str | None) -> bytes:
+    try:
+        return load_key(raw)
+    except VoucherKeyError as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 def _csv_lower(raw: str) -> list[str]:

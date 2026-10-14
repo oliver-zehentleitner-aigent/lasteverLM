@@ -242,6 +242,7 @@ def test_service_urls_drive_both_probes_and_purges() -> None:
         "DATABASE_URL": "x",
         "AUTH_JWT_SECRET": "y",
         "PUBLIC_BASE_URL": "https://z",
+        "VOUCHER_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
         "INGEST_URL": "http://ingest.svc:8000/",
         "RAG_URL": "https://rag.svc",
         "APP_VERSION": "0.7.0",

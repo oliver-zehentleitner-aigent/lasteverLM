@@ -27,9 +27,11 @@ from ..models import (
     RateLimitRulesUpdate,
     RateLimitRulesView,
     RoleUpdate,
+    SendVoucherBody,
     Smtp,
     SystemInfo,
     UsageStats,
+    VoucherCode,
 )
 from .deps import AdminReaderDep, AdminUserDep, Service
 
@@ -199,8 +201,28 @@ async def vouchers(
 async def create_vouchers(
     body: CreateVouchersBody, service: Service, admin: AdminUserDep
 ) -> CreateVouchersResponse:
-    codes = await service.create_vouchers(admin.id, body.amount_cents, body.count)
+    """The plain codes come back here; they stay recoverable for admins afterwards. With
+    `send_to`, every created voucher is mailed right away (see `/vouchers/{id}/send`)."""
+    codes = await service.create_vouchers(
+        admin, body.amount_cents, body.count, body.send_to, body.message, body.allow
+    )
     return CreateVouchersResponse(codes=codes)
+
+
+@router.get("/vouchers/{voucher_id}/code", response_model=VoucherCode)
+async def voucher_code(voucher_id: uuid.UUID, service: Service, _: AdminUserDep) -> VoucherCode:
+    """The plain code of a voucher created since codes are stored encrypted; 404
+    ``not_recoverable`` for older ones. Admin only, never the reader role."""
+    return await service.voucher_code(voucher_id)
+
+
+@router.post("/vouchers/{voucher_id}/send", response_model=AdminVoucher)
+async def send_voucher(
+    voucher_id: uuid.UUID, body: SendVoucherBody, service: Service, admin: AdminUserDep
+) -> AdminVoucher:
+    """Mail the voucher: 409 already_redeemed, 404 not_recoverable, 429 too_many_mails,
+    502 mail_failed; with `allow` the address joins the allowlist first."""
+    return await service.send_voucher(admin, voucher_id, str(body.email), body.message, body.allow)
 
 
 @router.delete("/vouchers/{voucher_id}", status_code=204)

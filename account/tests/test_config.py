@@ -11,6 +11,7 @@ REQUIRED = {
     "DATABASE_URL": "postgresql://unused",
     "AUTH_JWT_SECRET": "test-secret-not-for-production-0123456789",
     "PUBLIC_BASE_URL": "https://lasteverlm.test/",
+    "VOUCHER_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
 }
 
 

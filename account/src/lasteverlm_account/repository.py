@@ -95,7 +95,8 @@ class AccessRecord:
 
 @dataclass(frozen=True)
 class VoucherRecord:
-    """One voucher as the admin list shows it: the code is stored hashed, so it is not here."""
+    """One voucher as the admin list shows it. The code is stored as a hash (redeem) and,
+    since 0008, encrypted (``code_enc``, None for older rows); the service decrypts."""
 
     id: uuid.UUID
     amount_cents: int
@@ -103,6 +104,9 @@ class VoucherRecord:
     created_at: datetime
     redeemed_by: str | None  # email
     redeemed_at: datetime | None
+    code_enc: str | None = None
+    sent_to: str | None = None
+    sent_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -208,8 +212,19 @@ class Repository(Protocol):
 
     # credits ----------------------------------------------------------------
     async def create_voucher(
-        self, code_hash: str, amount_cents: int, created_by: uuid.UUID, now: datetime
+        self,
+        code_hash: str,
+        amount_cents: int,
+        created_by: uuid.UUID,
+        now: datetime,
+        code_enc: str | None = None,
     ) -> uuid.UUID: ...
+    async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None: ...
+    async def mark_voucher_sent(self, voucher_id: uuid.UUID, email: str, at: datetime) -> None: ...
+    async def count_voucher_mails(self, email: str, since: datetime) -> int:
+        """Vouchers sent to this address since `since` (the per-address mail quota)."""
+        ...
+
     async def redeem_voucher(self, code_hash: str, user_id: uuid.UUID, now: datetime) -> int | None:
         """Redeem atomically: mark the voucher and credit the ledger, or return None."""
         ...

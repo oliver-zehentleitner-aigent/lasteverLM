@@ -351,3 +351,21 @@ async def test_delete_user_keeps_vouchers_and_attempts_as_history(repo: Postgres
             "select count(*) as n from login_log where user_id = %s", (user.id,)
         )
         assert (await cur.fetchone())["n"] == 0  # type: ignore[index]
+
+
+async def test_voucher_code_enc_and_sent_fields(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    admin = await repo.create_user("vc-admin@pg.test", role="admin", now=now)
+    vid = await repo.create_voucher("hash-vc-1", 300, admin.id, now, code_enc="sealed")
+    old = await repo.create_voucher("hash-vc-old", 300, admin.id, now)
+    got = await repo.get_voucher(vid)
+    assert got is not None and got.code_enc == "sealed" and got.sent_to is None
+    assert (await repo.get_voucher(old)).code_enc is None  # type: ignore[union-attr]
+    assert await repo.get_voucher(uuid.uuid4()) is None
+    await repo.mark_voucher_sent(vid, "friend@pg.test", now)
+    got = await repo.get_voucher(vid)
+    assert got is not None and got.sent_to == "friend@pg.test" and got.sent_at is not None
+    assert await repo.count_voucher_mails("friend@pg.test", now - timedelta(hours=1)) == 1
+    assert await repo.count_voucher_mails("friend@pg.test", now + timedelta(seconds=1)) == 0
+    listed = {v.id: v for v in await repo.list_vouchers(200)}
+    assert listed[vid].code_enc == "sealed" and listed[vid].sent_to == "friend@pg.test"

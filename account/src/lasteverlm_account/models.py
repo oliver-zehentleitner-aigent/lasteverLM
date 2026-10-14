@@ -197,9 +197,25 @@ class AdminAccess(BaseModel):
     service: str
 
 
+VoucherMessage = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)]
+
+
 class CreateVouchersBody(BaseModel):
     amount_cents: int | None = Field(default=None, gt=0)  # null uses the configured default
     count: int = Field(default=1, ge=1, le=100)
+    send_to: Email | None = None  # mail every created voucher to this address right away
+    message: VoucherMessage | None = None
+    allow: bool = True  # with send_to: add the address to the allowlist first
+
+
+class SendVoucherBody(BaseModel):
+    email: Email
+    message: VoucherMessage | None = None
+    allow: bool = True
+
+
+class VoucherCode(BaseModel):
+    code: str
 
 
 class CreateVouchersResponse(BaseModel):
@@ -207,8 +223,9 @@ class CreateVouchersResponse(BaseModel):
 
 
 class AdminVoucher(BaseModel):
-    """A voucher in the admin list. The code is not here: only its hash is stored, and the
-    plain code was shown once, at creation."""
+    """A voucher in the admin list. The code appears masked; the full code is one request
+    away (``GET /admin/vouchers/{id}/code``) for vouchers created since codes are stored
+    encrypted — ``recoverable`` says so; older ones have only the hash."""
 
     id: uuid.UUID
     amount_cents: int
@@ -217,6 +234,10 @@ class AdminVoucher(BaseModel):
     redeemed_by: str | None
     redeemed_at: datetime | None
     status: Literal["open", "redeemed"]
+    code_masked: str | None  # "ABCD-****-****-****", null when not recoverable
+    recoverable: bool
+    sent_to: str | None
+    sent_at: datetime | None
 
 
 class VoucherCounts(BaseModel):
