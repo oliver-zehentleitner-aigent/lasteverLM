@@ -39,6 +39,15 @@ jobs:
             type=sha,format=long,prefix=
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
+      # web's CSP allows images, audio and frames only from the object storage the
+      # deployment uses (s3Endpoint in the production values), not from any https origin.
+      - name: storage origin for web's CSP
+        if: steps.gate.outputs.run == 'true' && matrix.service == 'web'
+        id: csp
+        run: |
+          origin=$(sed -n 's/^  s3Endpoint: *//p' infra/chart/values-prod.yaml)
+          case "$origin" in https://*) ;; *) echo "no https s3Endpoint in infra/chart/values-prod.yaml" >&2; exit 1 ;; esac
+          echo "media_src=$origin" >> "$GITHUB_OUTPUT"
       # Build context is the repository root so that core/ can be copied in.
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         if: steps.gate.outputs.run == 'true'
@@ -49,6 +58,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          build-args: ${{ matrix.service == 'web' && format('CSP_MEDIA_SRC={0}', steps.csp.outputs.media_src) || '' }}
           # Provenance with the full build parameters and an SBOM, attached to the image index.
           provenance: mode=max
           sbom: true

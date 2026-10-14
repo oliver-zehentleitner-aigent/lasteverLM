@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `make handbook`: renders `build/lasteverlm-handbook.pdf` from the repository's docs (ten documents in a fixed order, title page with the latest tag and date, linked table of contents and PDF bookmarks, A4 with page numbers) in the Playwright image (`scripts/handbook.sh`, `scripts/handbook/build.mjs`, `marked` 18.0.14).
 
+### Fixed
+
+- `docker.yml` builds the web image with `CSP_MEDIA_SRC` set to the object storage origin from `chart/values-prod.yaml` (`s3Endpoint`, `https://ams1.vultrobjects.com`): web's enforced CSP allowed `img-src` and `media-src` from any `https:` origin, because no build passed the argument and the Dockerfile default applied.
+
 ## [0.18.4] - 2026-10-14
 
 ### Fixed
