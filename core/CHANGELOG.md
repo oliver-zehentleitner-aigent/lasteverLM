@@ -16,6 +16,10 @@ preserves why it changed, in `context/`.
 
 - `Answer.suggestions` and `Message.suggestions` (`list[str]`, at most `MAX_SUGGESTIONS` = 3 follow-up questions; `[]` for older messages, `None` read as `[]`), and `Message.feedback: MessageFeedback | None` (`rating` `up` | `down` as `FeedbackRating`, optional `comment`, `at`); rag owns and stores both.
 
+### Changed
+
+- `OutputKind` gains `flashcards`; with it `USAGE_ACTIONS` gains `output:flashcards`, quoted per output in `USAGE_ACTION_UNITS`. rag owns the outputs kind constraint.
+
 ## [0.18.2] - 2026-10-14
 
 ### Added

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import get_args
 from uuid import uuid4
 
 import pytest
@@ -11,6 +12,8 @@ from lasteverlm_core import (
     DEFAULT_JUDGE_MODELS,
     JUDGE_LEVELS,
     UNKNOWN_BUILD,
+    USAGE_ACTION_UNITS,
+    ActionUnit,
     Answer,
     ChunkView,
     Citation,
@@ -20,6 +23,7 @@ from lasteverlm_core import (
     Message,
     MessageFeedback,
     Output,
+    OutputKind,
     SharedOutput,
     Source,
     env_int,
@@ -230,6 +234,11 @@ def test_a_source_can_wait_for_credit() -> None:
         "created_at": "2026-10-14T00:00:00Z",
     }
     assert Source.model_validate(row).status == "waiting_for_credit"
+
+
+def test_flashcards_are_an_output_kind_billed_per_output() -> None:
+    assert "flashcards" in get_args(OutputKind)
+    assert USAGE_ACTION_UNITS["output:flashcards"] == ActionUnit("output", "action")
 
 
 def test_chart_is_an_output_kind() -> None:
