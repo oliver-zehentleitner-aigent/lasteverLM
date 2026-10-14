@@ -502,3 +502,35 @@ cannot store preferences, a refused request on every click.
 **Rejected alternative:** the toggle writes the account preference, as
 before. Rejected because the maintainer found the next device changed
 by a click made elsewhere.
+
+## Prices are shown in whole cents rounded outwards; a failed estimate is always said, never hidden
+
+**Id:** bc6bd526-3f0a-44c9-bd9a-4d830e612d3e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** request relayed by the family lead, 2026-10-14 (every price a user sees is the estimate's charge; a failed estimate says "price unavailable" with the error in the tooltip); rag's contract (`POST /api/rag/estimate`, charge in euro cents to a hundredth, rounded outwards, 422 for options that do not fit, 503 without an exchange rate); the display and the failure handling were this directory's call
+
+Next to each billed action the estimate's charge range is shown in
+whole euro cents, the low end rounded down and the high end up, so the
+range still holds: "≈ €0.03–€0.09", one price when both ends meet,
+"up to €0.01" when the low end is under a cent. A 503 (no exchange
+rate) says "no price set yet" in red. Any other failure (a 422 while
+options are being filled in, an unreachable rag) says "price
+unavailable", muted, with the error in the tooltip.
+
+**Reason:** the balance in the header is in whole cents, and a user
+weighs an action against it. Hundredths of a cent would claim a
+precision an estimate with assumed token counts does not have. The 503
+is shown in red because the action itself fails the same way, so the
+user learns it before clicking. Other failures are shown muted rather
+than hidden so a missing price is never taken for a free action; muted,
+because a 422 is normal while options are being filled in (a decision
+without its question).
+
+**Rejected alternative:** the admin's precision (sub-cent amounts with
+up to six decimals, as on Admin > Finance). Rejected for users: it suits
+an admin comparing costs, not a user deciding whether to click. Also
+rejected: hiding the price when the estimate fails, the first version of
+this PR; the family lead asked for the failure to be said, since an
+empty space next to a button reads as free.

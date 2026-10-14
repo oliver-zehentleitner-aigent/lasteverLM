@@ -268,8 +268,8 @@ is closed. After the wizard the notebook view opens.
   and any later judgings. **Check with a judge** on an existing output
   (in the viewer's head) and under a cited chat answer: a level and
   Check, one billed call that annotates every claim and removes nothing.
-  The share page shows all of it. The estimated price per level is not
-  shown yet; it comes with rag's estimate.
+  The share page shows all of it. The estimated charge of the chosen
+  level stands next to Check (see "Prices").
 - **Chart** ("number series from the sources, drawn and checked"). Under
   the tiles: the optional notes, how many charts at most (1–12, 6 by
   default) and **Find charts**, one billed model call (`POST
@@ -465,6 +465,25 @@ deleted from the library) stays readable with its quote and is marked
   used or expired code says so.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
+- Prices: before anything billed runs, its estimated charge from rag's
+  `POST /api/rag/estimate` stands next to the button that starts it, in
+  euro as the balance: before Create (for the kind with its options, a
+  judge level included, asked 400 ms after the options stop changing),
+  next to Check with a judge (for the chosen level and the output's kind,
+  a quiz with its question count; a chat answer sends no kind, so rag
+  assumes a report's claims), next to Find charts, and under the chat's
+  Ask ("per question"); the voice sample's tooltip has it for a sample
+  not played before (one played before is free). Shown in whole cents,
+  rounded outwards: "≈ €0.03–€0.09", "≈ €0.05" when both ends meet,
+  "up to €0.01" when the low end is under a cent; the tooltip says it is
+  an estimate and the booking counts what is really used. While pricing
+  has no exchange rate (503) it says "no price set yet" in red, with
+  "ask an admin" in the tooltip, since the action fails the same way;
+  any other failure (options that do not fit yet, 422) says "price
+  unavailable" muted, with the error in the tooltip and that the action
+  still costs credit, so a missing price never reads as a free one. The
+  voice sample's tooltip says either instead of the price.
+  One request per distinct question for five minutes.
 - Narrow screens: no page scrolls sideways. Below 900 px the notebook's
   columns stack (sources and documents, then viewer, then chat); below
   640 px the header takes two lines, brand and account (theme, balance,

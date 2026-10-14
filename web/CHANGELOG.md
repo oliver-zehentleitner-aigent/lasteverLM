@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Prices: the estimated charge from rag's `POST /api/rag/estimate` next to every billed action, in whole euro cents rounded outwards ("≈ €0.03–€0.09", "up to €0.01"): before Create (the kind with its options, judge level included), next to Check with a judge (the chosen level), Find charts and under the chat's Ask; the voice sample's tooltip. Without an exchange rate it says "no price set yet"; any other failed estimate says "price unavailable" with the error in its tooltip.
+
 ## [0.18.0] - 2026-10-14
 
 ### Added

@@ -1,0 +1,37 @@
+import { t } from '../i18n'
+import { formatCents } from './format'
+
+/** What rag's estimate is asked for: an output by its kind and options, or
+ *  another action. */
+export type EstimateRequest =
+  | { kind: string; options?: Record<string, unknown> }
+  | { action: 'chat_answer' | 'chart_propose' | 'voice_sample' | 'judge'; options?: Record<string, unknown> }
+
+/** rag's answer; the charge is what the user pays, in euro cents like
+ *  their credit, to a hundredth of a cent and rounded outwards. */
+export interface Estimate {
+  action: string
+  charge_cents_min: number
+  charge_cents_max: number
+}
+
+/** The charge as a user reads it, in whole cents and still rounded
+ *  outwards so the range holds: "≈ €0.03–€0.09", "≈ €0.05" when both ends
+ *  meet, "up to €0.01" when the low end is under a cent. Pure, so it is
+ *  tested. */
+export function priceLabel(e: Pick<Estimate, 'charge_cents_min' | 'charge_cents_max'>): string {
+  const min = Math.floor(e.charge_cents_min)
+  const max = Math.max(Math.ceil(e.charge_cents_max), min)
+  if (min === max) return t('price.about', { price: formatCents(min) })
+  if (min === 0) return t('price.upTo', { price: formatCents(max) })
+  return t('price.range', { min: formatCents(min), max: formatCents(max) })
+}
+
+/** The same request gives the same key, whatever the order of its fields. */
+export function estimateKey(req: EstimateRequest): string {
+  return JSON.stringify(req, (_k, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  )
+}

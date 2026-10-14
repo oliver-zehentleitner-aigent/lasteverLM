@@ -1,5 +1,6 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
+import type { Estimate, EstimateRequest } from '../lib/estimate'
 import type { Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
@@ -20,6 +21,10 @@ export const rag = {
         ...(sourceIds ? { source_ids: sourceIds } : {}),
       },
     }),
+
+  /** the charge range of an output or an action before it runs; 422 for
+   *  options that do not fit, 503 while pricing has no exchange rate */
+  estimate: (body: EstimateRequest) => request<Estimate>(`${RAG_PREFIX}/estimate`, { method: 'POST', json: body }),
 
   /** oldest first; the server names a new one "Chat N" */
   listConversations: (notebookId: string) => request<Conversation[]>(`${nb(notebookId)}/conversations`),

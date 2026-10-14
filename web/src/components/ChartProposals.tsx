@@ -3,9 +3,11 @@ import { rag } from '../api/rag'
 import type { ChartCandidate, OutputOptionsSpec } from '../api/types'
 import { useChartColors } from '../hooks/useChartColors'
 import { useAsync } from '../hooks/useAsync'
+import { useEstimate } from '../hooks/useEstimate'
 import { allPoints, supportLine } from '../lib/chartOutput'
 import { t } from '../i18n'
 import { ChartFigure } from './charts/ChartFigure'
+import { PriceTag } from './PriceTag'
 
 interface Props {
   notebookId: string
@@ -28,6 +30,7 @@ export default function ChartProposals({ notebookId, spec, instructions, picked,
   const [found, setFound] = useState<{ candidates: ChartCandidate[]; reason: string | null } | null>(null)
   const { busy, error, run } = useAsync()
   const colors = useChartColors()
+  const price = useEstimate({ action: 'chart_propose' })
 
   async function find() {
     const notes = instructions.trim().replace(/\s+/g, ' ')
@@ -58,6 +61,7 @@ export default function ChartProposals({ notebookId, spec, instructions, picked,
         <button type="button" className="secondary" disabled={busy} onClick={() => void find()}>
           {busy ? t('chartOut.finding') : t('chartOut.find')}
         </button>
+        <PriceTag state={price} />
       </div>
       <p className="muted small">{t('chartOut.findHint')}</p>
       {error && <p className="error">{error}</p>}

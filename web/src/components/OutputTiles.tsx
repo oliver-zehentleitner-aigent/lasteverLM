@@ -1,10 +1,12 @@
 import { Suspense, lazy, useState } from 'react'
 import type { Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
+import { useEstimate } from '../hooks/useEstimate'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { AUDIO_STYLES, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
+import { PriceTag } from './PriceTag'
 import { RedeemLink } from './RedeemLink'
 
 // recharts comes with it, loaded only when the chart kind is picked
@@ -50,6 +52,13 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
   // without credit sources still go in (and wait); outputs cannot be made
   const noCredit = me !== null && me !== undefined && me.balance_cents <= 0
   const hint = blocker ?? problem
+  const options = (kind: OutputKind): OutputOptions => ({
+    ...(spec && values ? buildOptions(kind, spec, values) : {}),
+    ...(isDecision ? decisionOptions(dv, decisionKeys) : {}),
+    ...(isChart ? { charts } : {}),
+  })
+  // what Create would charge; a chart's estimate does not depend on the picked charts
+  const price = useEstimate(selected && hint === null && !noCredit ? { kind: selected, ...(isChart ? {} : { options: options(selected) as Record<string, unknown> }) } : null)
   return (
     <section className="tiles">
       <h2>{t('tiles.title')}</h2>
@@ -233,18 +242,8 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
         ) : (
           hint && <span className="muted small">{hint}</span>
         )}
-        <button
-          type="button"
-          disabled={busy || hint !== null || noCredit}
-          onClick={() =>
-            selected &&
-            onCreate(selected, {
-              ...(spec && values ? buildOptions(selected, spec, values) : {}),
-              ...(isDecision ? decisionOptions(dv, decisionKeys) : {}),
-              ...(isChart ? { charts } : {}),
-            })
-          }
-        >
+        <PriceTag state={price} />
+        <button type="button" disabled={busy || hint !== null || noCredit} onClick={() => selected && onCreate(selected, options(selected))}>
           {t('tiles.create')}
         </button>
       </div>
