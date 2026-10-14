@@ -628,6 +628,8 @@ export interface Voucher {
   /** the address it was mailed to, and when; null when not sent */
   sent_to?: string | null
   sent_at?: string | null
+  /** sold for its face value (revenue) rather than given away (marketing) */
+  paid?: boolean
 }
 
 /** Mailing a voucher's code: to whom, an optional note (plain text, up to
@@ -730,4 +732,86 @@ export interface Health {
   status: string
   version?: string
   commit?: string
+}
+
+// finance (account prefix): amounts in EUR cents (core converts at booking), sub-cent to four places
+
+/** A day's infrastructure charge, from Vultr's billing or entered by hand. */
+export interface InfraEntry {
+  id: string
+  date: string
+  source: 'vultr' | 'manual'
+  item: string
+  amount_cents: number
+  currency: 'USD' | 'EUR'
+  /** null for a USD line while no EUR/USD rate is set */
+  amount_eur_cents: number | null
+}
+
+export interface FinanceInfra {
+  vultr: 'connected' | 'not connected'
+  last_sync: string | null
+  last_error: string | null
+  usd_per_eur: number | null
+  entries: InfraEntry[]
+  totals_by_currency: Partial<Record<'USD' | 'EUR', number>>
+  total_eur_cents: number | null
+}
+
+/** The price on top of the cost: a margin for everything, overridden per
+ *  action by a margin and/or a fixed fee. */
+export interface PricingRules {
+  /** US dollars per euro, 0.1–10: model prices are in USD, everything is booked in EUR */
+  usd_per_eur: number
+  default_margin_pct: number
+  actions: Record<string, { margin_pct?: number; fixed_cents?: number }>
+}
+
+/** The rules with what they mean for the last 30 days' actions. */
+export interface PricingView {
+  rules: PricingRules
+  actions: string[]
+  preview: { action: string; actions: number; avg_cost_cents: number | null; margin_pct: number; fixed_cents: number; charge_cents: number | null }[]
+}
+
+export type CostGroup = 'day' | 'action' | 'model' | 'user' | 'service'
+
+export interface FinanceCosts {
+  from: string
+  to: string
+  group: CostGroup
+  /** EUR cents; cost_usd_cents is the cost as measured in USD */
+  rows: { key: string; calls: number; actions: number; cost_cents: number; cost_usd_cents: number; charge_cents: number }[]
+  total_cost_cents: number
+  total_cost_usd_cents: number
+  total_charge_cents: number
+}
+
+export interface FinanceRevenue {
+  from: string
+  to: string
+  charged_cents: number
+  demo_charged_cents: number
+  vouchers: { issued_paid_cents: number; issued_free_cents: number; redeemed_paid_cents: number; redeemed_free_cents: number }
+  outstanding_credit_cents: number
+}
+
+export interface ProfitRow {
+  period: string
+  charged_cents: number
+  model_cost_cents: number
+  /** null: a USD infrastructure line and no EUR/USD rate set */
+  infra_cost_cents: number | null
+  profit_cents: number | null
+  demo_charged_cents: number
+  demo_cost_cents: number
+}
+
+export interface FinanceProfit {
+  from: string
+  to: string
+  group: 'month' | 'day'
+  usd_per_eur: number | null
+  rows: ProfitRow[]
+  total: ProfitRow | null
 }

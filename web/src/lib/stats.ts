@@ -1,6 +1,6 @@
 import type { AccountStats, IngestStats, RagStats, SystemInfo } from '../api/types'
 import { language, t, tn } from '../i18n'
-import { adminPath } from './adminPages'
+import { adminPath, financePath } from './adminPages'
 import { known } from './build'
 import { formatCents } from './format'
 
@@ -12,6 +12,8 @@ export interface KpiTile {
   label: string
   value: string
   detail?: string
+  /** the page with the details (the money tiles: Finance) */
+  href?: string
 }
 
 const n = (v: number) => v.toLocaleString(language())
@@ -30,8 +32,9 @@ export function kpiTiles(a: AccountStats | null, i: IngestStats | null, r: RagSt
       label: t('kpi.cost24h'),
       value: a ? formatCents(a.usage_cost_cents.last_24h) : DASH,
       detail: a ? t('kpi.costTotal', { value: formatCents(a.usage_cost_cents.total) }) : undefined,
+      href: financePath('costs'),
     },
-    { key: 'vouchers', label: t('kpi.openVouchers'), value: a ? n(a.vouchers.open) : DASH },
+    { key: 'vouchers', label: t('kpi.openVouchers'), value: a ? n(a.vouchers.open) : DASH, href: financePath('vouchers') },
     {
       key: 'sources',
       label: t('kpi.sources'),

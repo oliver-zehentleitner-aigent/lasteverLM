@@ -47,7 +47,13 @@ export function Overview({ onNavigate }: { onNavigate: (path: string) => void })
         {kpiTiles(account, ingest, rag).map((k) => (
           <div key={k.key} className="kpi">
             <span className="kpi-value">{k.value}</span>
-            <span className="kpi-label">{k.label}</span>
+            {k.href ? (
+              <a className="kpi-label" href={k.href} onClick={go(k.href)}>
+                {k.label}
+              </a>
+            ) : (
+              <span className="kpi-label">{k.label}</span>
+            )}
             {k.detail && <span className="kpi-detail">{k.detail}</span>}
           </div>
         ))}

@@ -6,7 +6,7 @@ import { CanWriteContext } from './canWrite'
 import { Overview } from './Overview'
 import { LoginAttempts, Logins, Users } from './Users'
 import { Visits } from './Visits'
-import { Vouchers } from './Credits'
+import { FinancePage } from './Finance'
 import { AllowedSignIn } from './SignIn'
 import { SmtpSettings } from './Mail'
 import { Access, Bans, Blocks, RateLimit } from './Security'
@@ -24,7 +24,7 @@ const PAGE_SECTIONS: Record<AdminPageId, (navigate: (path: string) => void) => R
     </>
   ),
   access: () => <AllowedSignIn />,
-  credits: () => <Vouchers />,
+  finance: (navigate) => <FinancePage onNavigate={navigate} />,
   security: () => (
     <>
       <RateLimit />
