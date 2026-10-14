@@ -205,6 +205,18 @@ class Store(Protocol):
 
     def release_output(self, output_id: str, error: str | None = None) -> None: ...
 
+    def touch_output(self, output_id: str) -> None:
+        """Refresh a running job's claim (its worker is alive)."""
+        ...
+
+    def charged(self, action_id: str) -> bool:
+        """Whether any usage row (a call or a fee) was booked under the action."""
+        ...
+
+    def waiting_outputs(self, older_than_s: int) -> list[OutputRow]:
+        """Outputs still waiting for their sources, created over ``older_than_s`` ago."""
+        ...
+
     # sources and chunks (ingest's tables; rag writes only kind 'generated').
     # A generated source's link and its hidden library row share one id.
     def source_states(self, notebook_id: str) -> list[SourceState]: ...
@@ -944,6 +956,33 @@ class PostgresStore:
                 )
         return True
 
+    def charged(self, action_id: str) -> bool:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select exists (select 1 from usage where action_id = %s) as charged",
+                (action_id,),
+            ).fetchone()
+        return bool(row and row["charged"])
+
+    def touch_output(self, output_id: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update outputs set claimed_at = now() "
+                "where id = %s and claimed_by is not null and status = 'processing'",
+                (output_id,),
+            )
+
+    def waiting_outputs(self, older_than_s: int) -> list[OutputRow]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where o.status = 'waiting' "
+                "and o.deleted_at is null "
+                "and o.created_at < now() - make_interval(secs => %s) "
+                "order by o.created_at, o.id",
+                (older_than_s,),
+            ).fetchall()
+        return [_to_output(r) for r in rows]
+
     def release_output(self, output_id: str, error: str | None = None) -> None:
         """Give the job back to the queue, keeping the last error for the next attempt."""
         with self._pool.connection() as conn:
@@ -957,14 +996,17 @@ class PostgresStore:
     def source_states(self, notebook_id: str) -> list[SourceState]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "select s.id::text as id, l.kind, l.status, l.id::text as library_id, l.name "
+                "select s.id::text as id, l.kind, l.status, l.id::text as library_id, l.name, "
+                "l.error "
                 "from sources s "
                 "join library_sources l on l.id = s.library_source_id where s.notebook_id = %s "
                 "order by s.created_at, s.id",
                 (notebook_id,),
             ).fetchall()
         return [
-            SourceState(r["id"], r["kind"], r["status"], r["library_id"], r["name"] or "")
+            SourceState(
+                r["id"], r["kind"], r["status"], r["library_id"], r["name"] or "", r["error"]
+            )
             for r in rows
         ]
 

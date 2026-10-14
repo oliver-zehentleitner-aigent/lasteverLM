@@ -79,7 +79,13 @@ from .models import (
 from .options import OutputOptions, catalogue, resolve
 from .outputs import OutputGenerator, registry
 from .outputs.chart import ChartProposals
-from .reading import InvalidRefresh, reading_lines
+from .reading import (
+    InvalidRefresh,
+    could_not_read,
+    failed_sources,
+    reading_lines,
+    selected_uploads,
+)
 from .service import (
     ChunkNotFound,
     ConversationNotFound,
@@ -96,6 +102,7 @@ from .service import (
     OutputNotReady,
     OutputService,
     RagService,
+    SourceUnreadable,
     check_sources,
     require_notebook,
 )
@@ -225,6 +232,7 @@ def create_app(
     app = FastAPI(title="lasteverLM rag", version=__version__, docs_url=None, redoc_url=None)
     # the worker's half of the agent chat runs elsewhere; tests drive it through this
     app.state.agent = agent
+    app.state.outputs = outputs
     _install_error_handlers(app)
     app.add_middleware(
         RateLimitMiddleware,
@@ -417,9 +425,21 @@ def create_app(
             raise InvalidOptions(str(exc)) from exc
         result = estimate(settings.model_prices, store.pricing_rules(), action, low, high)
         result["separate"] = []
-        if body.notebook_id is not None and authorization:
+        result["blocked"] = []
+        if body.notebook_id is not None:
+            # a selected source that could not be read: the output would be refused
             notebook_id = str(body.notebook_id)
             require_notebook(store, user, notebook_id)
+            selected = check_sources(store, notebook_id, [str(s) for s in body.source_ids or []])
+            result["blocked"] = [
+                {"library_id": s.library_id, "name": s.name, "reason": could_not_read(s)}
+                for s in failed_sources(
+                    selected_uploads(store, notebook_id, selected),
+                    [str(u) for u in body.url_refresh or []],
+                )
+            ]
+        if body.notebook_id is not None and authorization:
+            notebook_id = str(body.notebook_id)
             selected = check_sources(store, notebook_id, [str(s) for s in body.source_ids or []])
             try:
                 result["separate"] = reading_lines(
@@ -585,6 +605,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(MessageNotFound)
     async def message_not_found(_: Request, exc: MessageNotFound) -> JSONResponse:
         return error(404, "message not found")
+
+    @app.exception_handler(SourceUnreadable)
+    async def source_unreadable(_: Request, exc: SourceUnreadable) -> JSONResponse:
+        return error(409, str(exc))
 
     @app.exception_handler(IngestError)
     async def ingest_failed(_: Request, exc: IngestError) -> JSONResponse:

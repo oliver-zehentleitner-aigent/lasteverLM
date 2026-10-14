@@ -925,3 +925,53 @@ def test_a_plan_round_trips_and_keeps_its_message_in_step(store, notebook):
     assert store.list_messages(conversation)[0].plan == {"plan_id": plan_id, "status": "running"}
     output = store.create_output(notebook, "quiz", "processing", {}, action_id)
     assert output.booking_id == action_id
+
+
+def test_a_heartbeat_keeps_a_running_job_from_being_taken_over(store, pool, notebook):
+    row = store.create_output(notebook, "report", "processing")
+    # w1 claims ours (other tests' jobs share the database and come first)
+    while (job := store.claim_output("w1", 600)) is not None and job.id != row.id:
+        pass
+    assert job is not None
+    with pool.connection() as conn:  # the run has been going for 11 minutes
+        conn.execute(
+            "update outputs set claimed_at = now() - interval '11 minutes' where id = %s",
+            (row.id,),
+        )
+    store.touch_output(row.id)  # the worker is alive: its heartbeat
+
+    def claimed_by_w2() -> list:
+        # other tests' jobs share the database: drain them, then look for ours
+        taken = []
+        while (job := store.claim_output("w2", 600)) is not None:
+            taken.append(job)
+        return taken
+
+    assert row.id not in [j.id for j in claimed_by_w2()]
+    with pool.connection() as conn:  # no heartbeat for 11 minutes: a dead worker's job
+        conn.execute(
+            "update outputs set claimed_at = now() - interval '11 minutes' where id = %s",
+            (row.id,),
+        )
+    (taken,) = [j for j in claimed_by_w2() if j.id == row.id]
+    assert taken.attempts == 2
+
+
+def test_waiting_outputs_and_a_failed_sources_error(store, pool, notebook):
+    waiting = store.create_output(notebook, "report", "waiting")
+    store.create_output(notebook, "quiz", "processing")
+    assert store.waiting_outputs(60) == []
+    with pool.connection() as conn:
+        conn.execute(
+            "update outputs set created_at = now() - interval '31 minutes' where id = %s",
+            (waiting.id,),
+        )
+    assert [r.id for r in store.waiting_outputs(30 * 60)] == [waiting.id]
+    page = add_source(pool, notebook, "failed", kind="url")
+    with pool.connection() as conn:
+        conn.execute(
+            "update library_sources set error = 'no text' where id = %s",
+            (library_id_of(pool, page),),
+        )
+    (state,) = [s for s in store.source_states(notebook) if s.source_id == page]
+    assert (state.status, state.error) == ("failed", "no text")

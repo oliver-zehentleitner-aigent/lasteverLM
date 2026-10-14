@@ -555,3 +555,39 @@ few seconds after the notebook, which a new user does not notice.
   failed file copy would undo the user's notebook.
 - An internal HTTP call from ingest: new auth between services, and not
   atomic with ingest's copy.
+
+## A running job beats its claim; an output waiting for its sources fails after 30 minutes
+
+**Id:** 33fc1c1f-8444-4f70-b597-b459ce000c78
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** a judged report that started on 0.19.4 at 17:22 CEST, kept "processing" and failed after the 0.19.5 rollout, reported by the maintainer and relayed by the coordinator, 2026-10-14; the coordinator's go the same day for the heartbeat, the waiting limit, refusing failed sources and the final error text; the pod logs of that run were gone with the rollout, so the run itself is inferred from the code
+**Revisit when:** jobs routinely run longer than the stale-claim limit even with the heartbeat (a worker blocked in one call longer than 10 minutes), or sources routinely take longer than 30 minutes to read
+
+A worker refreshes the claim of the job it runs (`claimed_at`) at most
+once a minute, before every model call, judge call and speech segment.
+Another worker takes over a job only after 10 minutes without a beat,
+which means its worker died. An output that has waited 30 minutes for
+its sources to be read fails, naming the source, uncharged and kept. A
+selected source that could not be read is refused at creation, or fails
+the output before its first model call, never skipped.
+
+**Reason:** the stale-claim limit had two jobs: notice a dead worker, and
+nothing else. With a judge at its high level, a report makes dozens of
+calls of up to a minute each and outran the 10 minutes. A second worker
+then took over a job that was still running. Both runs booked their
+calls under the output's action, so the user paid twice. The fee is not
+doubled, since it is once per action_id. A beat separates "slow" from
+"dead" whatever the job's length, so the limit can stay short and a dead
+worker's job is still picked up within minutes. The waiting limit
+applies the same fail-loud rule to a source that never finishes: the
+output stops with its reason, as an agent plan's output already did.
+
+**Rejected alternatives:**
+- A longer stale-claim limit: any fixed limit is outrun by some job, and
+  a long one leaves a dead worker's job stuck for that long.
+- Waiting for sources without a limit: a page that never reads holds the
+  output in "waiting" forever.
+- Skipping a failed source and generating from the rest: the output
+  claims to cover a selection it did not read.

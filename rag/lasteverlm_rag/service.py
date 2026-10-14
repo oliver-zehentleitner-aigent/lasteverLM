@@ -111,7 +111,10 @@ from .provenance import (
 from .reading import (
     ANSWER_WAIT_S,
     InvalidRefresh,
+    could_not_read,
+    failed_sources,
     prepare,
+    selected_uploads,
     still_reading_note,
     wait_until_read,
 )
@@ -175,6 +178,10 @@ ANSWER_MAX_TOKENS = 1024
 # (a summary-type question matches no chunk strongly) and a larger k.
 SCOPED_RETRIEVAL_K = 12
 MAX_ATTEMPTS = 3
+# how often a running job refreshes its claim; well inside the worker's stale limit
+HEARTBEAT_S = 60.0
+# how long an output may wait for its sources to be read before it fails
+WAITING_TIMEOUT_S = 30 * 60
 SUMMARY_MAX_CHARS = 500
 # The model sees the newest turns of the conversation, each cut to a bound, so a
 # follow-up ("and how do I install it?") can be resolved without a long chat
@@ -222,6 +229,10 @@ class ConversationNotFound(Exception):
 
 class OutputNotReady(Exception):
     """The output exists but has no generated source to ask about yet."""
+
+
+class SourceUnreadable(Exception):
+    """A selected source could not be read; the message names it and why."""
 
 
 class NotAnAnswer(Exception):
@@ -367,6 +378,10 @@ class RagService:
         still_reading = wait_until_read(
             self._store, notebook_id, prepared, self._read_wait_s, sleep=self._sleep
         )
+        # a selected source that could not be read is named, never silently left out
+        unreadable = failed_sources(
+            selected_uploads(self._store, notebook_id, selected), url_refresh or []
+        )
 
         booking = booking or Booking.new(user_id, notebook_id, "chat_answer")
         embedded = embed_billed(self._store, self._embedder, booking, [question])
@@ -400,6 +415,8 @@ class RagService:
             answer, citations, support, suggestions = REFUSAL, [], None, []
         if still_reading:
             answer = f"{answer}\n\n{still_reading_note(still_reading)}"
+        if unreadable:
+            answer = f"{answer}\n\n" + " ".join(could_not_read(s) + "." for s in unreadable)
 
         # Both messages are written only once the answer exists, so the history
         # never holds a question without its answer.
@@ -577,9 +594,16 @@ class OutputService:
         default_voice: str = DEFAULT_TTS_VOICE,
         judges: Mapping[str, LLM] | None = None,
         ingest: Ingest | None = None,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         # ingest reads sources when an output needs them (with the creator's bearer)
         self._ingest = ingest
+        # the job being run and when its claim was last refreshed (the heartbeat)
+        self._clock = clock
+        self._running: str | None = None
+        self._calling: str | None = None  # the model of the call in flight
+        self._beat_at = 0.0
+        self._beat_lock = threading.Lock()
         self._store = store
         self._retriever = retriever
         self._embedder = embedder
@@ -623,6 +647,14 @@ class OutputService:
         if kind == "chart":
             self._check_cited(notebook_id, resolved["charts"])
         require_credit(self._store, user_id)
+        if kind != "chart":
+            # a selected source that could not be read stops the output at once,
+            # unless it is a web page the user asked to fetch again
+            failed = failed_sources(
+                selected_uploads(self._store, notebook_id, selected), url_refresh or []
+            )
+            if failed:
+                raise SourceUnreadable(could_not_read(failed[0]))
         if kind != "chart":  # a chart is drawn from passages already read
             try:
                 prepare(self._store, self._ingest, bearer, notebook_id, selected, url_refresh or [])
@@ -882,6 +914,7 @@ class OutputService:
         """
         source_id: str | None = None
         content: dict[str, Any] = {}
+        self._running, self._beat_at, self._calling = job.id, self._clock(), None
         try:
             notebook_id = job.notebook_id
             if notebook_id is None:
@@ -924,21 +957,27 @@ class OutputService:
                 "output %s (%s) ready: %r, source %s", job.id, job.kind, generated.title, source_id
             )
             self._settle(job.id, source_id, content)
+            self._running = None
             return True
         except Exception as exc:
             failure = exc
+        self._running = None
         # Clean up outside the except block: a cleanup failure is logged on its
         # own and can never replace the job's error.
         self._discard(job, source_id, content)
-        error = public_error(failure)
         final = isinstance(failure, GenerationFailed) or job.attempts >= MAX_ATTEMPTS
-        # the log keeps the detail; the row (which the user sees) the public text
+        charged = self._store.charged(job.booking_id or job.id)
+        error = attempt_error(failure, job.attempts, final, self._calling, charged)
+        # the log keeps the detail (never a prompt); the row (which the user sees) the public text
         log.warning(
-            "output %s (%s) attempt %d failed%s: %s",
+            "output %s (%s) attempt %d of %d failed%s: model %s, %s: %s",
             job.id,
             job.kind,
             job.attempts,
+            MAX_ATTEMPTS,
             "" if final else ", will retry",
+            self._calling or "none",
+            _cause_name(failure),
             (str(failure) or failure.__class__.__name__)[:ERROR_LOG_CHARS],
         )
         if final:
@@ -990,6 +1029,28 @@ class OutputService:
             )
             self._store.end_output_copy(job.target_notebook, public_error(exc), final=final)
             return final
+
+    def expire_waiting(self) -> int:
+        """Fail the outputs that have waited ``WAITING_TIMEOUT_S`` for sources
+        still being read, naming one; nothing ran, so nothing is charged."""
+        expired = 0
+        for row in self._store.waiting_outputs(WAITING_TIMEOUT_S):
+            if row.notebook_id is None:
+                continue
+            pending = [
+                s
+                for s in selected_uploads(self._store, row.notebook_id, row.options.get("sources"))
+                if s.status in ("added", "processing")
+            ]
+            name = pending[0].name if pending else "a selected source"
+            minutes = WAITING_TIMEOUT_S // 60
+            self._store.update_output(
+                row.id,
+                status="failed",
+                error=f"Source '{name}' did not become ready within {minutes} minutes",
+            )
+            expired += 1
+        return expired
 
     def _discard(self, job: OutputRow, source_id: str | None, content: dict[str, Any]) -> None:
         """Remove what a failed attempt left: its generated source and its file."""
@@ -1071,10 +1132,29 @@ class OutputService:
             )
         return generated
 
+    def _heartbeat(self, model: str | None = None) -> None:
+        """Refresh the running job's claim, at most every ``HEARTBEAT_S``: a
+        long run (a judged report, a long audio) is never taken for a dead
+        worker's and run a second time while it is still going. ``model`` is
+        the call about to be made, named when the job fails."""
+        self._calling = model
+        if self._running is None:
+            return
+        with self._beat_lock:
+            if self._clock() - self._beat_at < HEARTBEAT_S:
+                return
+            self._beat_at = self._clock()
+        self._store.touch_output(self._running)
+
     def _material(self, notebook_id: str, options: dict[str, Any]) -> Summaries:
-        """The ready uploads a job reads: its selection, or all of them."""
-        summaries = self._store.source_summaries(notebook_id)
+        """The ready uploads a job reads: its selection, or all of them. A
+        selected source that could not be read fails the job here, before
+        any model call, so nothing is charged and nothing is left out silently."""
         selected = options.get("sources")
+        failed = failed_sources(selected_uploads(self._store, notebook_id, selected))
+        if failed:
+            raise GenerationFailed(could_not_read(failed[0]))
+        summaries = self._store.source_summaries(notebook_id)
         if selected:
             summaries = [s for s in summaries if s.source_id in selected]
             if not summaries:
@@ -1093,6 +1173,7 @@ class OutputService:
             *,
             thinking: bool | None = None,
         ) -> CompletionResult:
+            self._heartbeat(self._llm.model)
             result = complete_billed(
                 self._store,
                 self._llm,
@@ -1166,6 +1247,7 @@ class OutputService:
         def judge(
             system: str, user: str, max_tokens: int | None = None, *, thinking: bool | None = None
         ) -> CompletionResult:
+            self._heartbeat(judge_llm.model)
             result = complete_billed(self._store, judge_llm, booking, system, user, max_tokens)
             with lock:
                 counted(result.usage)
@@ -1325,6 +1407,7 @@ class OutputService:
 
         state = decision_state(question, trace.passages)
         started = now()
+        self._heartbeat(self._decision.model)
         decided = decide_billed(
             self._store,
             self._decision,
@@ -1418,6 +1501,7 @@ class OutputService:
             raise GenerationFailed("audio: the script is empty")
         parts: list[bytes] = []
         for voice, segment in segments:
+            self._heartbeat(getattr(self._tts, "model", None))
             result = synthesize_billed(
                 self._store,
                 self._tts,
@@ -1641,6 +1725,46 @@ def to_output(row: OutputRow) -> Output:
             "provenance": row.provenance,
         }
     )
+
+
+def _cause_name(exc: Exception) -> str:
+    """The class of what really failed: the SDK error behind a ProviderError."""
+    return type(exc.__cause__ or exc).__name__
+
+
+def _what_failed(exc: Exception, model: str | None) -> str:
+    """A short, safe description: the model and the error class or HTTP
+    status, never the provider's message (it can carry endpoints)."""
+    cause = exc.__cause__ or exc
+    status = getattr(cause, "status_code", None)
+    name = type(cause).__name__
+    what = "timeout" if "Timeout" in name else f"HTTP {status}" if status else name
+    return f"{model}: {what}" if model else what
+
+
+def attempt_error(
+    exc: Exception, attempts: int, final: bool, model: str | None, charged: bool
+) -> str:
+    """What the output shows after a failed attempt. A retry is mentioned
+    only while one is pending; a final failure says it is final, what failed
+    and whether anything was charged."""
+    if isinstance(exc, GenerationFailed):
+        return str(exc)
+    if not final:
+        return public_error(exc).split(";")[0] + (
+            f" ({_what_failed(exc, model)}); attempt {attempts + 1} of {MAX_ATTEMPTS} follows"
+            if isinstance(exc, ProviderError)
+            else f"; attempt {attempts + 1} of {MAX_ATTEMPTS} follows"
+        )
+    paid = "the calls made before the failure were charged" if charged else "nothing was charged"
+    if isinstance(exc, ProviderError):
+        return (
+            f"the model provider failed {attempts} times ({_what_failed(exc, model)}); "
+            f"no further attempt; {paid}"
+        )
+    if isinstance(exc, StorageError):
+        return f"storing the audio failed {attempts} times; no further attempt; {paid}"
+    return f"internal error while generating, {attempts} attempts; no further attempt; {paid}"
 
 
 def public_error(exc: Exception) -> str:

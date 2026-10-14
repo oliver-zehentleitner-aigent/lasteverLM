@@ -201,6 +201,7 @@ class SourceState:
     status: str  # 'added' (linked, not read yet), 'processing', 'ready', 'failed', ...
     library_id: str = ""
     name: str = ""
+    error: str | None = None  # why reading failed, for status 'failed'
 
 
 @dataclass

@@ -276,7 +276,7 @@ def test_a_judge_answer_that_does_not_parse_fails_the_attempt_and_is_billed(sett
         report("The sky is blue. [1]"),
         judge_models=judges(broken=True),
     )
-    assert out["status"] == "processing" and "retried" in out["error"]
+    assert out["status"] == "processing" and "attempt 3 of 3 follows" in out["error"]
     assert any(u.model == "test-judge-low" for _, _, u in store.usage)
 
 
