@@ -36,7 +36,9 @@ export interface Source {
   library_id?: string | null
   /** how a PDF was read; null for other kinds */
   capture?: 'auto' | 'text' | 'vision' | null
-  /** one of the example sources a new account starts with */
+  /** copied from the starter notebook a new account gets */
+  starter?: boolean
+  /** the same flag under ingest's name before the starter notebook */
   demo?: boolean
   /** where it opens without a bearer header: an image, PDF or text as a
    *  presigned GET of the original (valid one hour), a web page at its URL */
@@ -62,7 +64,9 @@ export interface LibraryEntry {
   url: string | null
   /** how a PDF was read; null for other kinds */
   capture?: 'auto' | 'text' | 'vision' | null
-  /** one of the example sources a new account starts with */
+  /** copied from the starter notebook a new account gets */
+  starter?: boolean
+  /** the same flag under ingest's name before the starter notebook */
   demo?: boolean
   /** images only: a presigned picture of it, valid one hour */
   preview_url?: string | null
@@ -875,4 +879,13 @@ export interface PublicPriceRow {
   model: string | null
   /** the judge's level for the `judge:<level>` rows, null otherwise */
   level?: 'low' | 'medium' | 'high' | null
+}
+
+/** The notebook every new account gets a copy of (GET/PUT/DELETE
+ *  /admin/settings/starter-notebook); all null when none is set. */
+export interface StarterNotebook {
+  notebook_id: string | null
+  owner_id: string | null
+  set_at: string | null
+  set_by: string | null
 }

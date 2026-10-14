@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Starter notebook: admins mark one of their notebooks with ☆ "Use as starter notebook" (the account service's `PUT /admin/settings/starter-notebook`); it carries a "Starter" badge in the notebook list, and Admin > Access shows it with a link, who set it and Remove.
+
 ### Changed
 
+- The "demo" badge on copied entries reads "Starter" (ingest's `starter` flag, `demo` still read); the demo sources' first question in an empty chat is gone.
 - Admin: Finance comes right after Overview in the sub-navigation (Overview · Finance · Users · Access · Security · Visits · Mail · System).
 
 ### Fixed

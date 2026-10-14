@@ -6,7 +6,7 @@ import { useAsync } from '../hooks/useAsync'
 import { sourceKindLabel, uploadedSources } from '../lib/outputs'
 import { audioFiles } from '../lib/openEntry'
 import { AudioCheck, PlayButton } from './AudioCheck'
-import { DemoBadge } from './DemoBadge'
+import { StarterBadge } from './StarterBadge'
 import { PendingReason } from './PendingReason'
 import { t } from '../i18n'
 
@@ -118,7 +118,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
               <span className="name" title={s.name}>
                 {s.name}
               </span>
-              <DemoBadge demo={s.demo} />
+              <StarterBadge item={s} />
               <span className="badge">{sourceKindLabel(s.kind)}</span>
               {s.capture && (
                 <span className="badge" title={t('sources.captureTitle')}>

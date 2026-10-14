@@ -9,7 +9,7 @@ import { kindWithCapture } from '../lib/capture'
 import { addPlan, addedSummary, bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter } from '../lib/library'
 import { audioFiles, openTarget } from '../lib/openEntry'
 import { OUTPUT_FORMS, SOURCE_FORMS, formFor, sourceKindLabel } from '../lib/outputs'
-import { DemoBadge } from './DemoBadge'
+import { StarterBadge } from './StarterBadge'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
 import { ReadOnlyOutput, TrashedOutputs } from './LibraryOutputs'
@@ -345,7 +345,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                       ) : (
                         <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} thumbnail={false} />
                       )}
-                      <DemoBadge demo={e.demo} />
+                      <StarterBadge item={e} />
                     </span>
                   </td>
                   <td>{doc ? (out ? formFor(out.kind).label : sourceKindLabel(e.kind)) : kindWithCapture(sourceKindLabel(e.kind), e.capture)}</td>
@@ -554,7 +554,7 @@ function TrashList({ onOpenSettings }: Pick<Props, 'onOpenSettings'>) {
               <td className="name">
                 <span className="name-cell">
                   <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} thumbnail={false} />
-                  <DemoBadge demo={e.demo} />
+                  <StarterBadge item={e} />
                 </span>
               </td>
               <td>{kindWithCapture(sourceKindLabel(e.kind), e.capture)}</td>

@@ -385,9 +385,6 @@ export const en = {
   'sys.col.replicas': 'Replicas',
   'sys.col.updated': 'Updated',
   'header.build': 'Version: {line}',
-  'demo.badge': 'demo',
-  'demo.badgeTitle': 'An example source every new account starts with',
-  'chat.tryDemo': 'Try a first question:',
   'kpi.users': 'Users',
   'kpi.logins24h': 'Logins 24 h',
   'kpi.cost24h': 'Cost 24 h',
@@ -944,6 +941,17 @@ export const en = {
   'arch.tlsUntil': 'TLS until {date}',
   'arch.ingressProbe': '{url} probed from outside, last {at}',
   'arch.tlsSoon': 'The certificate ends within 14 days.',
+  'starter.badge': 'Starter',
+  'starter.badgeTitle': 'Copied from the starter notebook every new account gets',
+  'starter.listTitle': 'The starter notebook: every new account gets a copy of it',
+  'starter.use': 'Use as starter notebook',
+  'starter.confirm': 'Use "{title}" as the starter notebook? Every new account gets a copy of it, its sources and outputs.',
+  'starter.title': 'Starter notebook',
+  'starter.intro': 'Every new account gets a copy of this notebook, its sources and outputs, on its first visit to the library. Choose it with ☆ in your own notebook list; all its sources must be ready.',
+  'starter.none': 'No starter notebook: new accounts start empty.',
+  'starter.setBy': 'set by {by}, {at}',
+  'starter.remove': 'Remove',
+  'starter.removeConfirm': 'Remove the starter notebook? New accounts then start empty; the notebook itself stays.',
 } as const
 
 export type MessageKey = keyof typeof en

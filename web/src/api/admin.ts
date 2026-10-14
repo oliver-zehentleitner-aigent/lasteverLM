@@ -1,6 +1,7 @@
 import { ACCOUNT_PREFIX, ADMIN_MOCK, INGEST_PREFIX, RAG_PREFIX } from '../config'
 import { ApiError, request } from './client'
 import type {
+  StarterNotebook,
   ExchangeRateStatus,
   AccessEntry,
   AccountDay,
@@ -61,6 +62,11 @@ export interface AdminApi {
   deleteInfra(id: string): Promise<void>
   /** 409 vultr_not_connected, 502 vultr_failed */
   syncInfra(): Promise<FinanceInfra>
+  /** viewer and admin */
+  getStarter(): Promise<StarterNotebook>
+  /** admin; 404 unknown_notebook, 409 owner_not_admin, 409 sources_not_ready */
+  setStarter(notebookId: string): Promise<StarterNotebook>
+  clearStarter(): Promise<void>
   getPricing(): Promise<PricingView>
   savePricing(rules: PricingRules): Promise<PricingView>
   /** the view for these rules, not stored */
@@ -134,6 +140,9 @@ const httpAdmin: AdminApi = {
   addInfra: (e) => request<InfraEntry>(`${A}/finance/infra`, { method: 'POST', json: e }),
   deleteInfra: (id) => request<void>(`${A}/finance/infra/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   syncInfra: () => request<FinanceInfra>(`${A}/finance/infra/sync`, { method: 'POST' }),
+  getStarter: () => request<StarterNotebook>(`${A}/settings/starter-notebook`),
+  setStarter: (notebookId) => request<StarterNotebook>(`${A}/settings/starter-notebook`, { method: 'PUT', json: { notebook_id: notebookId } }),
+  clearStarter: () => request<void>(`${A}/settings/starter-notebook`, { method: 'DELETE' }),
   getPricing: () => request<PricingView>(`${A}/settings/pricing`),
   savePricing: (rules) => request<PricingView>(`${A}/settings/pricing`, { method: 'PUT', json: rules }),
   previewPricing: (rules) => request<PricingView>(`${A}/settings/pricing/preview`, { method: 'POST', json: rules }),
@@ -236,6 +245,7 @@ function mockAdmin(): AdminApi {
     totals_by_currency: { EUR: 1500, USD: 2400 },
     total_eur_cents: 3645.16,
   }
+  let starter: StarterNotebook = { notebook_id: null, owner_id: null, set_at: null, set_by: null }
   let pricing: PricingRules = { usd_per_eur: 1.1188, default_margin_pct: 30, actions: { 'output:audio': { fixed_cents: 2 } } }
   const checked = new Date(Date.now() - 55 * 60 * 1000).toISOString()
   let rate: ExchangeRateStatus = { usd_per_eur: 1.1188, mode: 'automatic', source: 'ECB', rate_date: '2026-10-13', last_checked: checked, last_success: checked, last_error: null, stale: false }
@@ -436,6 +446,15 @@ function mockAdmin(): AdminApi {
       return delay(undefined)
     },
     syncInfra: () => Promise.reject(new ApiError(409, 'Vultr is not connected', 'vultr_not_connected')),
+    getStarter: () => delay(starter),
+    setStarter: (notebookId) => {
+      starter = { notebook_id: notebookId, owner_id: 'u-admin', set_at: new Date().toISOString(), set_by: 'admin@example.org' }
+      return delay(starter)
+    },
+    clearStarter: () => {
+      starter = { notebook_id: null, owner_id: null, set_at: null, set_by: null }
+      return delay(undefined)
+    },
     getPricing: () => delay(pricingView(pricing)),
     savePricing: (r) => {
       // another rate is an override, as in the account service

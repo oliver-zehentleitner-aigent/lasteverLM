@@ -521,9 +521,7 @@ td > label.check.paid-toggle { display: inline-flex; white-space: nowrap; }
 .code-chip { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem; background: var(--bg); }
 .code-chip code { font-size: 0.9em; letter-spacing: 0.03em; }
 button.link.copy { font-size: 0.85em; }
-.badge.demo { color: var(--accent); border-color: var(--accent); }
-.suggestion { color: var(--muted); }
-.suggestion button.link { text-align: left; white-space: normal; }
+.badge.starter { color: var(--accent); border-color: var(--accent); }
 
 /* admin overview: meta line, KPI row, attention strip, charts */
 .overview { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 0.5rem; }

@@ -23,8 +23,6 @@ export interface ChatPaneProps {
   onOpenSource: (c: Citation) => void
   /** controls at the right end of the tab bar (the chat height presets) */
   tools?: ReactNode
-  /** a first question to offer in an empty chat (the demo sources'); none otherwise */
-  suggestion?: string
 }
 
 /** A notebook without conversations gets its first one when the chat opens,
@@ -45,7 +43,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools, suggestion }: ChatPaneProps) {
+export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools }: ChatPaneProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // inline rename of a tab: which one, and the text being typed
@@ -180,7 +178,6 @@ export function ChatPane({ notebookId, scope, presentSources, sources, onClearSc
           scope={scope}
           presentSources={presentSources}
           sources={sources}
-          suggestion={suggestion}
           onClearScope={onClearScope}
           onCitationSelected={onCitationSelected}
           onOpenSource={onOpenSource}
