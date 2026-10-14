@@ -31,6 +31,8 @@ export interface ChatPaneProps {
   webPages?: Source[]
   /** selected sources not read yet: a question reads them first */
   unreadSelected?: number
+  /** turns a source off (one rag reported it cannot read) */
+  onDeselect?: (libraryId: string) => void
 }
 
 /** A notebook without conversations gets its first one when the chat opens,
@@ -51,7 +53,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools, onOpenTab, onWork, webPages, unreadSelected }: ChatPaneProps) {
+export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools, onOpenTab, onWork, webPages, unreadSelected, onDeselect }: ChatPaneProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // inline rename of a tab: which one, and the text being typed
@@ -193,6 +195,7 @@ export function ChatPane({ notebookId, scope, presentSources, sources, onClearSc
           onWork={onWork}
           webPages={webPages}
           unreadSelected={unreadSelected}
+          onDeselect={onDeselect}
         />
       )}
     </section>

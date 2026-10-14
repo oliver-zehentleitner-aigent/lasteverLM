@@ -8,6 +8,7 @@ import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
 import { PriceTag } from './PriceTag'
 import { UrlRefresh } from './UrlRefresh'
+import { BlockedSources } from './BlockedSources'
 import { keptRefresh } from '../lib/urlRefresh'
 import { RedeemLink } from './RedeemLink'
 
@@ -31,13 +32,15 @@ interface Props {
   sourceIds?: string[]
   /** the selected web pages, each cached or fetched again */
   webPages: Source[]
+  /** turns a source off for the chat and new outputs (a blocked one) */
+  onDeselect: (libraryId: string) => void
 }
 
 /** The output formats as tiles under the sources. A click (or Enter on a
  *  focused tile) only selects one and shows that format's options (language,
  *  and voice and speed for audio), preset from the user's preferences; the
  *  Create button below starts the job, and says why when it cannot yet. */
-export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected, busy, onSelect, onCreate, sourceIds, webPages }: Props) {
+export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected, busy, onSelect, onCreate, sourceIds, webPages, onDeselect }: Props) {
   const [refresh, setRefresh] = useState<Set<string>>(new Set())
   const urlRefresh = keptRefresh(refresh, webPages)
   const blocker = createBlocker(selected, hasReadySource, noneSelected)
@@ -80,6 +83,8 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
         }
       : null,
   )
+  // sources that cannot be read: Create would be refused, so the reasons stand in for the price
+  const blocked = price && 'estimate' in price ? (price.estimate.blocked ?? []) : []
   return (
     <section className="tiles">
       <h2>{t('tiles.title')}</h2>
@@ -273,6 +278,7 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
         </Suspense>
       )}
       {selected && <UrlRefresh pages={webPages} refresh={refresh} onChange={setRefresh} />}
+      <BlockedSources blocked={blocked} webPages={webPages} refresh={refresh} onDeselect={onDeselect} onRefetch={(id) => setRefresh((prev) => new Set(prev).add(id))} />
       <div className="create-row">
         {noCredit ? (
           <span className="muted small">
@@ -281,8 +287,8 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
         ) : (
           hint && <span className="muted small">{hint}</span>
         )}
-        <PriceTag state={price} />
-        <button type="button" disabled={busy || hint !== null || noCredit} onClick={() => selected && onCreate(selected, options(selected), urlRefresh)}>
+        {blocked.length === 0 && <PriceTag state={price} />}
+        <button type="button" disabled={busy || hint !== null || noCredit || blocked.length > 0} onClick={() => selected && onCreate(selected, options(selected), urlRefresh)}>
           {t('tiles.create')}
         </button>
       </div>

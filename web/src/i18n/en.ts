@@ -1104,6 +1104,8 @@ export const en = {
   'srcView.livePage': 'live page',
   'srcView.snapshotTitle': 'Snapshot of {name}',
   'audioStyle.faq': 'FAQ',
+  'blocked.deselect': 'turn it off',
+  'blocked.refetch': 'fetch the page again',
 } as const
 
 export type MessageKey = keyof typeof en
