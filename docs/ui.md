@@ -617,20 +617,26 @@ deleted from the library) stays readable with its quote and is marked
       amount in their currency and in euro; lines entered by hand can
       be added and deleted, Vultr's cannot.
     - **Vouchers** (`/admin/finance/vouchers`; the old
-      `/admin/credits` opens it): voucher creation (5 EUR by default)
-    that shows the codes once as chips with a copy button each ("copy
-    all" for several; without the clipboard API the text is selected
-    instead), next to the form when there is room; for an admin an
-    optional "Send to an address right away" (e-mail, a note, "also
-    allow this address to sign in", on by default) mails each created
-    voucher at once. The list of issued vouchers below: the code masked,
-    and for an admin "show" (fetched once, with copy and hide; a voucher
-    made before codes were kept says "not recoverable" instead), "sent
+      `/admin/credits` opens it): voucher creation as a form card above
+    the list, at most 40rem wide: Amount (EUR, 5 by default) | Count |
+    "Paid voucher" in one row; then, for an admin, "Send to an address
+    right away", which opens below it, full width, the recipient's
+    e-mail, a message with its counter and "also allow this address to
+    sign in" (on by default), and mails each created voucher at once;
+    Create at the bottom right. Every checkbox is one clickable unit
+    with its text beside it. On a phone the row stacks and Create is
+    full width. The codes are shown once under the card as chips with
+    a copy button each ("copy all" for several; without the clipboard
+    API the text is selected instead). The list of issued vouchers
+    below: the code masked, and for an admin "show" (fetched once, with
+    copy and hide; a voucher made before codes were kept says "code not
+    kept (before 0.18)", the full sentence as tooltip), "sent
     to … , date" under the status once mailed; open ones can be sent
     (a dialog with the same three fields; a refusal for the quota of 5
     mails per address and hour, a missing mail server, the mail server's
     error or an already redeemed voucher stays in the dialog) and
-    deleted. "Paid" on the create form and per voucher: paid is sold
+    deleted. "Paid" on the create form and per voucher (in the list a
+    checkbox with "Paid" or "Free" beside it on one line): paid is sold
     for its face value and counts as revenue, free is a gift and counts
     as a marketing cost.
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
