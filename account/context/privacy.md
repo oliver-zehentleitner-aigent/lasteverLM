@@ -133,3 +133,26 @@ daily salt rotation would even hide that two refusals on consecutive days
 came from the same place. Also rejected: logging only refused attempts —
 allowed ones give the admin the baseline (who signs in from where) that
 makes a refusal stand out, and they are the same security purpose.
+
+## A viewer gets e-mail addresses masked by the server
+
+**Id:** a658f9ad-1baa-44fe-ad02-c9dea467ef71
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-14; core's `mask_email` (#455); `masking.py`
+
+The viewer role (read-only admin) receives every e-mail address in the
+admin API masked by core's `mask_email` (`j***e@example.com`, domain in
+full): users, logins, sign-in attempts, the allowlist's single addresses
+(sign-in and viewer), vouchers' `created_by`, `redeemed_by` and
+`sent_to`, finance costs grouped by user, the usage stats' top users, and
+the starter notebook's `set_by`. Admins see full addresses. The mail
+settings' sender and username stay: they are the service's own mailbox,
+not a person's. A finance row of a deleted user keeps its user id.
+
+**Reason:** a viewer needs the overview, not the identities; what the
+server never sends cannot leak from a browser, a cache or a screenshot.
+
+**Rejected alternatives:** masking in the web only — rejected because the
+response would still carry the full address to every viewer's browser.
