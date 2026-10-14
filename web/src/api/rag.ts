@@ -35,6 +35,9 @@ export const rag = {
   getChunk: (chunkId: string) => request<Chunk>(`${RAG_PREFIX}/chunks/${encodeURIComponent(chunkId)}`),
 
   listOutputs: (notebookId: string) => request<Output[]>(`${nb(notebookId)}/outputs`),
+  /** every generated document of the notebook, before the notebook itself
+   *  is deleted; without this call they stay in the library */
+  deleteNotebookOutputs: (notebookId: string) => request<void>(`${nb(notebookId)}/outputs`, { method: 'DELETE' }),
   /** `options` only with the keys the kind takes; missing ones fall back to
    *  defaults. `sourceIds` limits the document to the selected sources
    *  (left out when all are selected). */

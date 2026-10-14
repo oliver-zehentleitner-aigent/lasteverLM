@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ingest } from '../api/ingest'
+import { rag } from '../api/rag'
 import type { Notebook } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { browserStorage, readWidth, SIDEBAR_WIDTH, writeWidth } from '../lib/layout'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { ColumnDivider } from './ColumnDivider'
+import { NotebookDeleteDialog } from './NotebookDeleteDialog'
 import { NotebookList } from './NotebookList'
 import { t } from '../i18n'
 import { NotebookView } from './NotebookView'
@@ -20,6 +22,8 @@ export function Workspace() {
   const [sidebarWidth, setSidebarWidth] = useState(() => readWidth(browserStorage(), SIDEBAR_WIDTH.key, SIDEBAR_WIDTH.min, SIDEBAR_WIDTH.max))
   const workspaceRef = useRef<HTMLElement>(null)
   const { error, run } = useAsync()
+  // a notebook with generated documents asks what becomes of them
+  const [deleting, setDeleting] = useState<{ notebook: Notebook; outputs: number } | null>(null)
 
   useEffect(() => {
     void run(async () => {
@@ -43,18 +47,28 @@ export function Workspace() {
     }
   }
 
+  /** Without generated documents a plain confirmation; with some, a dialog
+   *  asks whether they go too or stay in the library. Their number comes
+   *  from rag; when it cannot be read nothing is deleted. */
   async function remove(id: string) {
-    const ok = await run(async () => {
-      await ingest.deleteNotebook(id)
-      return true
-    })
-    if (ok) {
-      setNotebooks((prev) => {
-        const next = prev.filter((n) => n.id !== id)
-        setSelectedId((cur) => (cur === id ? (next[0]?.id ?? null) : cur))
-        return next
-      })
+    const notebook = notebooks.find((n) => n.id === id)
+    if (!notebook) return
+    const outputs = await run(() => rag.listOutputs(id))
+    if (!outputs) return
+    if (outputs.length > 0) {
+      setDeleting({ notebook, outputs: outputs.length })
+      return
     }
+    if (!confirm(t('nb.deleteConfirm', { title: notebook.title }))) return
+    if (await run(() => ingest.deleteNotebook(id).then(() => true))) dropNotebook(id)
+  }
+
+  function dropNotebook(id: string) {
+    setNotebooks((prev) => {
+      const next = prev.filter((n) => n.id !== id)
+      setSelectedId((cur) => (cur === id ? (next[0]?.id ?? null) : cur))
+      return next
+    })
   }
 
   return (
@@ -63,6 +77,17 @@ export function Workspace() {
         <NotebookList notebooks={notebooks} selectedId={selectedId} onSelect={setSelectedId} onCreate={create} onDelete={remove} />
         {error && <p className="error">{error}</p>}
       </aside>
+      {deleting && (
+        <NotebookDeleteDialog
+          notebook={deleting.notebook}
+          outputs={deleting.outputs}
+          onCancel={() => setDeleting(null)}
+          onDeleted={(id) => {
+            setDeleting(null)
+            dropNotebook(id)
+          }}
+        />
+      )}
       <ColumnDivider
         label={t('ws.resizeList')}
         width={sidebarWidth}

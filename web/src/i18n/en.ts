@@ -108,7 +108,7 @@ export const en = {
   'common.loading': 'Loading…',
   'nb.new': 'New notebook…',
   'nb.delete': 'Delete notebook',
-  'nb.deleteConfirm': 'Delete notebook "{title}"? Its chats and generated documents are deleted; its sources stay in your library.',
+  'nb.deleteConfirm': 'Delete notebook "{title}"? Its chats are deleted; its sources stay in your library.',
   'nb.none': 'No notebooks yet.',
   'nb.createFirst': 'Create a notebook to start.',
   'header.library': 'Library',
@@ -518,6 +518,14 @@ export const en = {
   'adm.delUser.deleting': 'Deleting…',
   'adm.delUser.failedStep': 'Not deleted: the step "{step}" failed ({message}). The user is still there; try again.',
   'adm.delUser.of': 'Delete {email}',
+  'common.cancel': 'Cancel',
+  'nbDel.title': 'Delete notebook "{title}"',
+  'nbDel.question.one': 'It has {n} generated document: delete it too, or keep it in the library?',
+  'nbDel.question.other': 'It has {n} generated documents: delete them too, or keep them in the library?',
+  'nbDel.rest': 'Its chats are deleted either way; its sources stay in your library.',
+  'nbDel.keep': 'Keep in library',
+  'nbDel.all.one': 'Delete it too',
+  'nbDel.all.other': 'Delete all {n} too',
 } as const
 
 export type MessageKey = keyof typeof en
