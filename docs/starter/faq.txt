@@ -9,8 +9,10 @@ the complete technical description.
 
 An assistant that turns material into understanding you can check. You
 add sources (PDF, text, web pages, images, audio), then ask questions or
-choose an output form: report, quiz, data table, chart, mind map,
-infographic, spoken audio, or a decision. Every claim in an answer or an
+choose an output form: report, quiz, flashcards, data table, chart,
+mind map, infographic, spoken audio, or a decision. You can also tell
+the chat what to do ("add this URL, make a quiz and explain it"); it
+shows a plan with prices and runs it only after you confirm. Every claim in an answer or an
 output points to the passage it came from.
 
 
@@ -169,7 +171,28 @@ handbook and the "Keep the Why" dashboard linked from the docs show the
 whole history.
 
 
-20. Can I delete this starter notebook?
+20. How do I see what the system actually read from a file?
+
+Click a source: it opens as a tab with two views, "Original" (the file
+itself) and "As read" (the extracted text, chunk by chunk, with page
+numbers). Opening a citation highlights exactly the chunk it rests on.
+
+
+21. Where do I see my credit and what I spent?
+
+Click your balance at the top right. The Credits page shows the
+balance, lets you redeem a voucher, and lists every charge by day, by
+action and one by one, linked to the notebook, source or output.
+
+
+22. Can I tell you whether an answer was good?
+
+Yes: under every answer there are copy, thumbs up and thumbs down
+(with an optional comment). Below the last answer three follow-up
+questions are suggested; one click asks them.
+
+
+23. Can I delete this starter notebook?
 
 Yes. It is your own copy: delete it, rename it, or add your own sources
 to it.
