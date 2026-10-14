@@ -421,7 +421,7 @@ deleted from the library) stays readable with its quote and is marked
   - **Mail** (`/admin/mail`): SMTP settings read-only (they come from the
     deployment) with a test button.
   - **System** (`/admin/system`): per service a card with version,
-    commit and health; an **architecture diagram** (plain SVG, static
+    commit and health; **Architecture and monitoring**, a diagram (plain SVG, static
     layout, live numbers): the browser and the ingress at the top, web
     and the three API services below, the ingest and rag workers under
     their services, and PostgreSQL with pgvector, the object storage and
@@ -429,8 +429,23 @@ deleted from the library) stays readable with its quote and is marked
     the flows (ingress to the services, the services and the workers'
     job queues to PostgreSQL, the workers to storage and the models, rag
     to the models for answers); each deployment's box shows its
-    replicas ready of total and its build, in the attention colour when
-    short of replicas or not answering. Then the cluster's pods (name, service, image
+    replicas ready of total, its restarts when there are any, and its
+    build, coloured by its state: green when every replica is ready and
+    no pod restarted; amber while a rollout is under way (the
+    deployment's Progressing condition, else fewer replicas updated than
+    wanted, or two image tags among its pods), when it is partly ready
+    (4 of 5) or its pods have restarted; red only for failure: a pod
+    crash-looping, erroring or killed for memory, restarts that grew
+    since the last refresh, nothing ready outside a rollout, or a healthz
+    that does not answer; grey when nothing is known (the state and why
+    as tooltip). A rollout is never red. The lines into a red box are
+    dashed red. The external boxes take the state the services' healthz
+    report for them (`dependencies`: red when one says down, green when
+    all that report say ok) and stay grey with "not probed" until one
+    does. A legend under the
+    diagram; the page reloads the data every 15 s while the tab is
+    visible (the time of the last refresh under it), colours change with
+    a short transition, none with reduced motion. Then the cluster's pods (name, service, image
     tag, ready, restarts, node, started) and deployments (replicas,
     ready, updated); a local run without a cluster says so instead, and
     in a cluster where both lists come back empty (the account service
