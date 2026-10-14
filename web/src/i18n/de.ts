@@ -1098,4 +1098,10 @@ export const de: Record<MessageKey, string> = {
   'sources.fetchedShort': '{when}',
   'statusShort.added': 'hinzugefügt',
   'srcView.notRead': 'Noch nicht gelesen: Es wird gelesen, wenn du fragst oder etwas erstellst.',
+  'kindShort.pdf': 'PDF',
+  'kindShort.text': 'TXT',
+  'kindShort.url': 'WEB',
+  'kindShort.image': 'BILD',
+  'kindShort.audio': 'AUD',
+  'kindShort.generated': 'GEN',
 }

@@ -18,12 +18,18 @@ export function PendingReason({ status, error, className }: { status: SourceStat
 /** A source's status as one short, compact badge for a one-line row: a
  *  failed source's error, why a waiting one is not moving, or what a long
  *  status means, all in its tooltip; amber only where an admin has to act. */
+/** The status as an icon, for a very narrow pane; the word stays in the tooltip. */
+const STATUS_ICON: Record<SourceStatus, string> = { added: '+', processing: '…', waiting_for_credit: '€', ready: '✓', failed: '!' }
+
 export function StatusBadge({ status, error }: { status: SourceStatus; error: string | null }) {
   const r = pendingReason(status, error)
   const title = status === 'failed' ? (error ?? t('status.failed')) : (r?.text ?? t(`status.${status}`))
   return (
-    <span className={`badge ${status}${r?.admin ? ' pending-admin' : ''}`} title={title}>
-      {t(`statusShort.${status}`)}
+    <span className={`badge status ${status}${r?.admin ? ' pending-admin' : ''}`} title={title}>
+      <span className="long">{t(`statusShort.${status}`)}</span>
+      <span className="short" aria-hidden="true">
+        {STATUS_ICON[status]}
+      </span>
     </span>
   )
 }

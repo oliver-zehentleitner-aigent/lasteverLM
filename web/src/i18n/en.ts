@@ -1095,6 +1095,12 @@ export const en = {
   'sources.fetchedShort': '{when}',
   'statusShort.added': 'added',
   'srcView.notRead': 'Not read yet: it is read when you ask or create.',
+  'kindShort.pdf': 'PDF',
+  'kindShort.text': 'TXT',
+  'kindShort.url': 'WEB',
+  'kindShort.image': 'IMG',
+  'kindShort.audio': 'AUD',
+  'kindShort.generated': 'GEN',
 } as const
 
 export type MessageKey = keyof typeof en
