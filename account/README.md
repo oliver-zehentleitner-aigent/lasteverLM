@@ -160,20 +160,23 @@ rate and count their cost one to one.
 
 ## Public price list
 
-`GET /api/account/prices` needs no login and is cached for five minutes. For every action
-users can buy it gives the unit (a stable key from core: `question`, `output`, `source`,
-`audio_minute`, `check`, …; the web translates it), the price per unit and the typical
-price (p25, median, p75 per action), and the model most of its calls used, plus the
-exchange rate with its ECB date. The figures are the last 30 days' measured costs per
-action run through today's pricing rules with core's `charge_for`, so a changed margin
-shows within five minutes. The on-request judge is priced per level — rows
-`judge:low`, `judge:medium`, `judge:high` with `level` set — because its models cost an
-order of magnitude apart; a judge row's samples are the calls whose model `JUDGE_MODELS`
-maps to that level (calls of a model no level maps to any more are left out). The judge
-share inside a generated output is part of that output's price and not split out.
-Below five actions in the window an action has no price:
-"no experience yet", never an estimate. Margins, fees, costs and anything about users
-never appear.
+`GET /api/account/prices` needs no login and is cached for five minutes. One row per thing
+a user can buy: a chat answer, each output kind, the judge per level, a voice sample, and
+each source kind per unit. Each row has:
+
+- `price_per_unit_cents` with `price_min_cents` and `price_max_cents`, `estimated: true` —
+  from rag's `POST /api/rag/estimate` with default options (outputs, chat, judge; the
+  midpoint of its min and max; a chart is its proposal plus the chart) or from ingest's
+  `GET /api/ingest/estimate` (one nominal page, image, audio minute or web page; ingest's
+  README names the nominal sizes), plus `per_source_cents`, what a source adds once.
+  Account calls both with a 60-second token of the demo user and reads only the charge
+  fields. A failed estimate leaves the price null and `estimated: false`, never a guess.
+- `typical_cents` (p25, median, p75 per whole action) from the last 30 days' measured
+  costs under today's rules, null below five actions; `count`, `model`.
+
+Units are stable keys (`question`, `output`, `voice_sample`, `page`, `image`,
+`audio_minute`, `web_page`); the web translates them. Margins, fees, costs and anything
+about users never appear.
 
 ## Finance: infrastructure costs
 

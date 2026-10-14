@@ -6,7 +6,8 @@ services (context/deletion.md). The admin's bearer is forwarded; each step is on
 from __future__ import annotations
 
 import uuid
-from typing import Literal
+from decimal import Decimal
+from typing import Any, Literal
 
 import httpx
 
@@ -57,3 +58,78 @@ class ServiceClient:
         except ValueError:
             detail = ""
         raise PurgeError(step, f"HTTP {r.status_code}" + (f" {detail}" if detail else ""))
+
+
+class EstimateError(Exception):
+    """An estimate could not be had; the price list leaves that price empty."""
+
+
+async def _json(client: httpx.AsyncClient, method: str, url: str, **kw: Any) -> dict[str, Any]:
+    try:
+        r = await client.request(method, url, **kw)
+    except httpx.HTTPError as exc:
+        raise EstimateError(f"{url}: unreachable ({type(exc).__name__})") from exc
+    if not r.is_success:
+        raise EstimateError(f"{url}: HTTP {r.status_code}")
+    try:
+        body = r.json()
+    except ValueError as exc:
+        raise EstimateError(f"{url}: not JSON") from exc
+    if not isinstance(body, dict):
+        raise EstimateError(f"{url}: not an object")
+    return body
+
+
+class EstimateClient:
+    """Price estimates of rag (outputs, chat, judge) and ingest (sources), for the public
+    price list. Only the charge fields are read; costs never leave this module."""
+
+    def __init__(
+        self,
+        *,
+        ingest_url: str,
+        rag_url: str,
+        transport: httpx.AsyncBaseTransport | None = None,
+        timeout_seconds: float = 10.0,
+    ) -> None:
+        self._ingest = ingest_url.rstrip("/")
+        self._rag = rag_url.rstrip("/")
+        self._transport = transport
+        self._timeout = timeout_seconds
+
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(transport=self._transport, timeout=self._timeout)
+
+    async def rag(self, body: dict[str, Any], bearer: str) -> tuple[Decimal, Decimal]:
+        """(min, max) charge in euro cents of one output or action with default options."""
+        async with self._client() as client:
+            data = await _json(
+                client,
+                "POST",
+                f"{self._rag}/api/rag/estimate",
+                json=body,
+                headers={"Authorization": bearer},
+            )
+        try:
+            return Decimal(str(data["charge_cents_min"])), Decimal(str(data["charge_cents_max"]))
+        except (KeyError, ArithmeticError) as exc:
+            raise EstimateError("rag estimate without charge_cents_min/max") from exc
+
+    async def ingest(self, kind: str, bearer: str) -> tuple[Decimal, Decimal]:
+        """(per unit, per source) charge in euro cents of a source kind: one nominal unit
+        (margin only), and what each source adds once (summary at its largest, fee)."""
+        async with self._client() as client:
+            data = await _json(
+                client,
+                "GET",
+                f"{self._ingest}/api/ingest/estimate",
+                params={"kind": kind},
+                headers={"Authorization": bearer},
+            )
+        try:
+            return (
+                Decimal(str(data["charge_cents"])),
+                Decimal(str(data.get("per_source_charge_cents") or 0)),
+            )
+        except (KeyError, ArithmeticError) as exc:
+            raise EstimateError("ingest estimate without charge_cents") from exc
