@@ -26,7 +26,8 @@ export interface Source {
   capture?: 'auto' | 'text' | 'vision' | null
   /** one of the example sources a new account starts with */
   demo?: boolean
-  /** images only: a presigned picture of it, valid one hour */
+  /** where it opens without a bearer header: an image, PDF or text as a
+   *  presigned GET of the original (valid one hour), a web page at its URL */
   preview_url?: string | null
 }
 

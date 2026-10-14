@@ -20,6 +20,7 @@ import { DEMO_QUESTION } from '../lib/demo'
 import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
+import { citationTarget } from '../lib/openEntry'
 import { ChatPane } from './ChatPane'
 import { ColumnDivider } from './ColumnDivider'
 import { Divider } from './Divider'
@@ -166,10 +167,13 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
 
   /** "Open document" on a citation into a generated document: that
    *  document's tab, and a request for the viewer to show the passage. An
-   *  upload's "open in source" highlights it in the list as before. */
+   *  upload's "open in source" opens it in a new tab (a PDF on the cited
+   *  page) when it has a preview, and highlights it in the list either way. */
   const [locate, setLocate] = useState<LocateRequest | null>(null)
   function openSource(c: Citation) {
     if (c.source_kind !== 'generated') {
+      const href = citationTarget(uploads?.find((s) => s.id === c.source_id), c.page)
+      if (href) window.open(href, '_blank', 'noopener,noreferrer')
       onCitation(c)
       return
     }

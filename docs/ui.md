@@ -177,8 +177,11 @@ is closed. After the wizard the notebook view opens.
   "chunk 12 of 43", the similarity of that chunk to the question as a
   number and a bar, and the chunk text verbatim, with the sentence that
   shares the most words with the cited statement marked (a best guess:
-  the backend sends no span). For an upload "open in source" highlights
-  the source in the list. For a generated document the link reads "open
+  the backend sends no span). For an upload "open in source" opens it in
+  a new tab through its `preview_url` (a PDF with `#page=<n>`, so the
+  browser's viewer lands on the cited page; without a page, at the
+  start) and highlights the source in the list; a source without a
+  preview is only highlighted. For a generated document the link reads "open
   document": it opens that document's tab and shows the passage: in a
   report, quiz, table or infographic the text block sharing the most
   words with the chunk scrolls into the middle and flashes; a mind map

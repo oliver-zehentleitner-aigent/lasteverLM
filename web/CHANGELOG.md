@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- "Open in source" on a citation into an upload opens the source in a new tab through its `preview_url` (as the library's open link does), a PDF with `#page=<n>` so the browser's viewer lands on the cited page; it still highlights the source in the list, and a source without a preview is only highlighted, as before.
+
 ### Fixed
 
 - Notebook sources list: each row showed only its checkbox, centered, and nothing else; the global `width: 100%` for inputs applied to the new source checkbox, which then took the whole row. Checkboxes and radios now keep their own width.
