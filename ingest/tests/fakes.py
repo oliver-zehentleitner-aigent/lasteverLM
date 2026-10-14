@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import secrets
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -34,6 +35,7 @@ from lasteverlm_ingest.repository import (
     NewLibrarySource,
     NotebookUse,
     Origin,
+    OwnedNotebook,
     StoredSource,
     TrashEntry,
 )
@@ -123,17 +125,38 @@ class InMemoryRepository:
 
     # -- notebooks -------------------------------------------------------------
 
-    def list_notebooks(self, owner: UUID) -> list[Notebook]:
+    def list_notebooks(self, owner: UUID) -> list[OwnedNotebook]:
         return [nb for o, nb in self.notebooks.values() if o == owner]
 
-    def create_notebook(self, owner: UUID, title: str) -> Notebook:
-        nb = Notebook(id=uuid4(), title=title, created_at=datetime.now(UTC))
+    def create_notebook(self, owner: UUID, title: str) -> OwnedNotebook:
+        nb = OwnedNotebook(id=uuid4(), title=title, created_at=datetime.now(UTC))
         self.notebooks[nb.id] = (owner, nb)
         return nb
 
-    def get_notebook(self, owner: UUID, notebook_id: UUID) -> Notebook | None:
+    def get_notebook(self, owner: UUID, notebook_id: UUID) -> OwnedNotebook | None:
         entry = self.notebooks.get(notebook_id)
         return entry[1] if entry and entry[0] == owner else None
+
+    def _update_notebook(self, owner, notebook_id, **fields) -> OwnedNotebook | None:
+        nb = self.get_notebook(owner, notebook_id)
+        if nb is None:
+            return None
+        self.notebooks[notebook_id] = (owner, nb.model_copy(update=fields))
+        return self.notebooks[notebook_id][1]
+
+    def rename_notebook(self, owner, notebook_id, title):
+        return self._update_notebook(owner, notebook_id, title=title)
+
+    def share_notebook(self, owner, notebook_id):
+        nb = self.get_notebook(owner, notebook_id)
+        if nb is None:
+            return None
+        token = nb.share_token or secrets.token_urlsafe(24)
+        self._update_notebook(owner, notebook_id, share_token=token)
+        return token
+
+    def unshare_notebook(self, owner, notebook_id):
+        return self._update_notebook(owner, notebook_id, share_token=None) is not None
 
     def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
         if self.get_notebook(owner, notebook_id) is None:

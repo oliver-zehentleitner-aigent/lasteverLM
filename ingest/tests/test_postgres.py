@@ -368,6 +368,22 @@ def test_link_many_links_in_one_go_and_never_doubles(repo):
     assert entry.output_id is not None
 
 
+def test_rename_and_share_a_notebook(repo):
+    owner, stranger = _user(repo), _user(repo)
+    notebook = repo.create_notebook(owner, "Thesis")
+    assert notebook.share_token is None
+    assert repo.rename_notebook(stranger, notebook.id, "x") is None
+    assert repo.rename_notebook(owner, notebook.id, "Defence").title == "Defence"
+    assert repo.share_notebook(stranger, notebook.id) is None
+    token = repo.share_notebook(owner, notebook.id)
+    assert token and repo.share_notebook(owner, notebook.id) == token
+    assert repo.get_notebook(owner, notebook.id).share_token == token
+    assert not repo.unshare_notebook(stranger, notebook.id)
+    assert repo.unshare_notebook(owner, notebook.id)
+    assert repo.list_notebooks(owner)[0].share_token is None
+    assert repo.share_notebook(owner, notebook.id) != token
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)

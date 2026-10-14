@@ -56,7 +56,7 @@ repository root's `context/`.
 
 ## L
 
-- [library.md](library.md) — why sources live in a per-user library that notebooks link, with chunks per library source and URL dedupe by URL, why deleting goes to a trash, and why the schema came in an expand and a contract migration; why deleting a user removes the objects before the rows; why outputs are library items whose lifecycle rag owns
+- [library.md](library.md) — why sources live in a per-user library that notebooks link, with chunks per library source and URL dedupe by URL, why deleting goes to a trash, and why the schema came in an expand and a contract migration; why deleting a user removes the objects before the rows; why outputs are library items whose lifecycle rag owns; why a shared notebook shows its sources by name, never their files
 
 ## M
 

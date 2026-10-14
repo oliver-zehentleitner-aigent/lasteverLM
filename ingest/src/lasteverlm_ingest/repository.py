@@ -17,6 +17,7 @@ has elapsed and the worker purges it.
 
 from __future__ import annotations
 
+import secrets
 from datetime import date, datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
@@ -26,6 +27,13 @@ from lasteverlm_core import admin_role as core_admin_role
 from lasteverlm_core import has_credit as core_has_credit
 from lasteverlm_core import record_usage as core_record_usage
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class OwnedNotebook(Notebook):
+    """A notebook as its owner sees it: with the token of its read-only
+    share link (null when not shared)."""
+
+    share_token: str | None = None
 
 
 class StoredSource(Source):
@@ -159,11 +167,25 @@ STALLED = f"processing did not finish in {MAX_ATTEMPTS} attempts (the worker sto
 
 
 class Repository(Protocol):
-    def list_notebooks(self, owner: UUID) -> list[Notebook]: ...
+    def list_notebooks(self, owner: UUID) -> list[OwnedNotebook]: ...
 
-    def create_notebook(self, owner: UUID, title: str) -> Notebook: ...
+    def create_notebook(self, owner: UUID, title: str) -> OwnedNotebook: ...
 
-    def get_notebook(self, owner: UUID, notebook_id: UUID) -> Notebook | None: ...
+    def get_notebook(self, owner: UUID, notebook_id: UUID) -> OwnedNotebook | None: ...
+
+    def rename_notebook(self, owner: UUID, notebook_id: UUID, title: str) -> OwnedNotebook | None:
+        """The owner's notebook with its new title; None when it is not theirs."""
+        ...
+
+    def share_notebook(self, owner: UUID, notebook_id: UUID) -> str | None:
+        """The notebook's share token, made on the first call and kept after
+        (sharing twice gives the same link); None when it is not theirs."""
+        ...
+
+    def unshare_notebook(self, owner: UUID, notebook_id: UUID) -> bool:
+        """Drop the token: the old link stops working. False when the
+        notebook is not theirs."""
+        ...
 
     def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
         """Delete the notebook: its links go, its library sources stay in
@@ -410,29 +432,55 @@ class PostgresRepository:
             cur.execute(sql, params)
             return cur.fetchall()
 
-    def list_notebooks(self, owner: UUID) -> list[Notebook]:
+    _NOTEBOOK = "id, title, created_at, share_token"
+
+    def list_notebooks(self, owner: UUID) -> list[OwnedNotebook]:
         rows = self._all(
-            "select id, title, created_at from notebooks where owner = %(owner)s "
+            f"select {self._NOTEBOOK} from notebooks where owner = %(owner)s "
             "order by created_at desc",
             {"owner": owner},
         )
-        return [Notebook(**row) for row in rows]
+        return [OwnedNotebook(**row) for row in rows]
 
-    def create_notebook(self, owner: UUID, title: str) -> Notebook:
+    def create_notebook(self, owner: UUID, title: str) -> OwnedNotebook:
         row = self._one(
             "insert into notebooks (id, owner, title) values (%(id)s, %(owner)s, %(title)s) "
-            "returning id, title, created_at",
+            f"returning {self._NOTEBOOK}",
             {"id": uuid4(), "owner": owner, "title": title},
         )
         assert row is not None
-        return Notebook(**row)
+        return OwnedNotebook(**row)
 
-    def get_notebook(self, owner: UUID, notebook_id: UUID) -> Notebook | None:
+    def get_notebook(self, owner: UUID, notebook_id: UUID) -> OwnedNotebook | None:
         row = self._one(
-            "select id, title, created_at from notebooks where id = %(id)s and owner = %(owner)s",
+            f"select {self._NOTEBOOK} from notebooks where id = %(id)s and owner = %(owner)s",
             {"id": notebook_id, "owner": owner},
         )
-        return Notebook(**row) if row else None
+        return OwnedNotebook(**row) if row else None
+
+    def rename_notebook(self, owner: UUID, notebook_id: UUID, title: str) -> OwnedNotebook | None:
+        row = self._one(
+            "update notebooks set title = %(title)s where id = %(id)s and owner = %(owner)s "
+            f"returning {self._NOTEBOOK}",
+            {"id": notebook_id, "owner": owner, "title": title},
+        )
+        return OwnedNotebook(**row) if row else None
+
+    def share_notebook(self, owner: UUID, notebook_id: UUID) -> str | None:
+        row = self._one(
+            "update notebooks set share_token = coalesce(share_token, %(token)s) "
+            "where id = %(id)s and owner = %(owner)s returning share_token",
+            {"id": notebook_id, "owner": owner, "token": secrets.token_urlsafe(24)},
+        )
+        return str(row["share_token"]) if row else None
+
+    def unshare_notebook(self, owner: UUID, notebook_id: UUID) -> bool:
+        row = self._one(
+            "update notebooks set share_token = null where id = %(id)s and owner = %(owner)s "
+            "returning id",
+            {"id": notebook_id, "owner": owner},
+        )
+        return row is not None
 
     def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
         # Links cascade; rag's outputs keep their generated library source
