@@ -100,6 +100,9 @@ input, textarea, select {
 /* one height for every single-line control, so selects and text fields
    side by side line up (their labels too) */
 select, input:not([type='checkbox'], [type='radio'], [type='file']) { height: 2.3rem; }
+/* and a checkbox or radio keeps its own width: at 100% it filled a source
+   row and squeezed the name and the remove button to nothing */
+input[type='checkbox'], input[type='radio'] { width: auto; }
 select { padding-right: 0.4rem; }
 input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 textarea { resize: vertical; }
