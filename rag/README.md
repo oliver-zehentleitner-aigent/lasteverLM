@@ -15,7 +15,7 @@ this directory implements the `/api/rag` prefix.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?, "source_ids"?}` | `Answer`; with `plan` instead of an answer when the message asks for actions, see **Agent chat** |
+| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?, "source_ids"?, "url_refresh"?}` | `Answer`; with `plan` instead of an answer when the message asks for actions, see **Agent chat** |
 | GET | `/api/rag/conversations/{id}/plans/{plan_id}` | | the plan with every step's state |
 | POST | `/api/rag/conversations/{id}/plans/{plan_id}/confirm` | | runs a proposed plan; 409 when confirmed or cancelled already |
 | POST | `/api/rag/conversations/{id}/plans/{plan_id}/cancel` | | cancels a proposed plan |
@@ -27,7 +27,7 @@ this directory implements the `/api/rag` prefix.
 | DELETE | `/api/rag/conversations/{id}` | | 204, the conversation and its messages |
 | GET | `/api/rag/conversations/{id}/messages` | | `[Message]`, oldest first |
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
-| POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?}` | 202 `Output`, status `waiting` or `processing` |
+| POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?, "url_refresh"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
 | POST | `/api/rag/notebooks/{id}/charts/propose` | `{"instructions"?, "max"?}` | `{"candidates", "reason"}`: candidate charts, nothing stored, see below |
 | POST | `/api/rag/estimate` | `{"kind", "options"?}` or `{"action", "options"?}` | the charge range before it runs, see **Estimate** |
@@ -328,6 +328,33 @@ passages. `POST /messages/{id}/judge` does the same for a chat answer's
 paragraphs against its citations, stored with the message's support.
 Both are synchronous, need credit, and run four judge calls at a time.
 
+**Reading when used.** A source linked into a notebook stays `added` (not
+read) until something needs it. Before an output is created or a question
+is answered, rag asks ingest, with the caller's own bearer, to read the
+selected sources not read yet (`POST /api/ingest/sources/process`).
+
+- **Refresh per page:** each web page in `url_refresh` (library ids of
+  selected web pages) is checked again (`POST
+  /api/ingest/sources/{link_id}/refetch`). All other pages use the
+  cached version. An unchanged page costs nothing, and anything else in
+  `url_refresh` is a 422. A page not read yet or being read is fresh
+  already and is not checked. A changed page moves its link to a new
+  library row, so waiting follows the link, not the library id. Ingest
+  refusing or being down is a 502 `ingest: …`, and nothing is created.
+- **Waiting:** ingest marks these sources `processing` until it is done.
+  An output job waits for them, as it waits for any processing source. An
+  answer waits up to `ANSWER_READ_WAIT_SECONDS` (60) and then answers
+  from what is ready, ending with "Still being read: …".
+- **Not covered:** a chart reads nothing (it is drawn from passages
+  already read). A step the worker runs (an agent plan's explanation)
+  has no bearer and uses only what is ready.
+- **Estimate:** `POST /estimate` with `notebook_id` (and `source_ids`,
+  `url_refresh`) adds `separate`: one line per source to read and per
+  page to re-read, `{"library_id", "label", "basis", "min", "max"}` at
+  ingest's per-source price (`POST /api/ingest/sources/estimate`). These
+  are ingest's charges, so they are not in the total. An agent plan with
+  an output lists the notebook's unread sources the same way.
+
 **Agent chat.** A chat message first goes to a planning call (the LLM
 with tools, `complete_tools`). That call sees the user's message, their
 earlier questions and the names of the notebook's documents and outputs,
@@ -551,7 +578,8 @@ missing or a configured model has no price.
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
 | `JUDGE_MODELS` | no; defaults in core | JSON level → model for the judge (`low`, `medium`, `high`), chosen from `docs/judge-eval.md`; every model needs a `MODEL_PRICES` entry, or startup refuses |
-| `INGEST_URL` | no; default `http://ingest` | ingest's API inside the cluster, for the agent chat's steps |
+| `INGEST_URL` | no; default `http://ingest` | ingest's API inside the cluster: reading sources when used, the agent chat's steps |
+| `ANSWER_READ_WAIT_SECONDS` | no; default 60 | how long an answer waits for sources it started reading before it answers from what is ready |
 | `DECISION_MODEL` | no; default `clef` (core) | the platform's decision model for the decision kind, used by the worker; it needs a `MODEL_PRICES` entry, `in` per million input tokens, or startup refuses |
 | `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million seconds of generated audio |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
@@ -687,6 +715,7 @@ lasteverlm_rag/
 ├── voice_samples.py cached voice previews
 ├── agent.py        the agent chat's tools and plan validation (arguments only from the user)
 ├── agent_service.py plan, confirm, execute; the worker's half of the agent chat
+├── reading.py      sources read when used: start reading, refresh pages, wait, estimate lines
 ├── ingest_client.py ingest's API for the agent's steps, with the user's bearer
 ├── admin.py        admin statistics (totals, daily series)
 ├── outputs/        OutputGenerator interface, one module per kind

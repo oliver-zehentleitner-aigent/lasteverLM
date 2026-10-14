@@ -172,3 +172,32 @@ every service goes through: rejecting such a vector as a provider error
 makes ingest fail the source loudly and makes rag's question and output
 embeddings fail visibly, instead of a source sitting ready and
 unsearchable.
+
+## An answer waits up to 60 seconds for sources being read, then answers from what is ready
+
+**Id:** 40278aa2-a4a6-4834-afb6-bbac557f4bdf
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer-ordered flow change "sources are read when they are used", relayed by the coordinator, 2026-10-14 (about 60 s, then answer with what is ready and name the rest; blocking and refusing rejected); the reasons are rag's
+**Revisit when:** reading a typical source takes far less (the wait rarely matters) or far more (most answers come with the note), or answers are streamed so progress can be shown while waiting
+
+A question whose selected sources are not read yet starts their reading
+and waits up to `ANSWER_READ_WAIT_SECONDS` (60). It then answers from
+the sources that are ready, and the answer ends by naming the ones still
+being read. An output does not answer anyone in the moment: its job
+simply waits until all its sources are read.
+
+**Reason:** a chat question expects an answer within seconds. A text or
+a short PDF is read well inside a minute; audio to transcribe or a
+scanned PDF can take several. Blocking until everything is read would
+hold the request for minutes, or time it out. Refusing would give the
+user nothing, though most of their sources are ready. An answer from
+what is ready, with the rest named, is useful at once and honest about
+what it did not see. Asking again a moment later then covers everything.
+
+**Rejected alternatives:**
+- Block until every selected source is read: minutes for audio or
+  scanned PDFs.
+- Refuse to answer until the sources are read: nothing for the user,
+  though most sources are ready.

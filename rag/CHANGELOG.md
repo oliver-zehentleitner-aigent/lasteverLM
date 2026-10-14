@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Sources are read when they are used.
+  - Creating an output or asking a question first has ingest read the selected sources not read yet (`added`), with the caller's bearer. The output job waits for them; an answer waits up to `ANSWER_READ_WAIT_SECONDS` (60) and then answers from what is ready, naming the sources still being read.
+  - `url_refresh` (library ids of selected web pages) has ingest check those pages again first; the others use the cache.
+  - `POST /api/rag/estimate` with `notebook_id` lists reading each unread source and re-reading each refreshed page as `separate` lines, at ingest's per-source price. An agent plan with an output does the same, and its output step reads as the user too.
+  - Setting `ANSWER_READ_WAIT_SECONDS`.
+
 ## [0.18.6] - 2026-10-14
 
 ### Fixed

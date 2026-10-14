@@ -42,6 +42,8 @@ class Settings:
     log_level: str
     # ingest's API inside the cluster, for the agent chat's steps (the chart's Service name)
     ingest_url: str = "http://ingest"
+    # how long an answer waits for sources it started reading (ANSWER_READ_WAIT_SECONDS)
+    answer_read_wait_s: float = 60.0
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -81,6 +83,7 @@ class Settings:
             similarity_floor=_unit_float(env.get("SIMILARITY_FLOOR", "0.3"), "SIMILARITY_FLOOR"),
             log_level=(env_optional("LOG_LEVEL", env) or "INFO").upper(),
             ingest_url=(env_optional("INGEST_URL", env) or "http://ingest").rstrip("/"),
+            answer_read_wait_s=float(env_int("ANSWER_READ_WAIT_SECONDS", 60, env)),
         )
 
 

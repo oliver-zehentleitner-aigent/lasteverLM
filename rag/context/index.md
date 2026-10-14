@@ -77,7 +77,7 @@ repository root's `context/`.
 
 ## R
 
-- [retrieval.md](retrieval.md) — why the chat lists the notebook's documents and gives generated chunks at most a few slots after the uploads (supersedes uploads-only), why the user's source selection is per request and by link id, and why a scoped question runs without a similarity floor; incident: a ready PDF that never retrieved (its text layer was glyph codes), and the unusable-vector guard
+- [retrieval.md](retrieval.md) — why the chat lists the notebook's documents and gives generated chunks at most a few slots after the uploads (supersedes uploads-only), why the user's source selection is per request and by link id, and why a scoped question runs without a similarity floor; an answer waits up to 60 s for sources being read, then answers from what is ready; incident: a ready PDF that never retrieved (its text layer was glyph codes), and the unusable-vector guard
 
 ## S
 

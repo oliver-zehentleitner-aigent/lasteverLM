@@ -263,3 +263,24 @@ def test_one_action_tool_is_enough_for_a_plan(settings):
     _, _, _, client = setup(settings, [calls])
     plan = ask(client, "Make a report.")["plan"]
     assert [s["tool"] for s in plan["steps"]] == ["list_sources", "create_output"]
+
+
+def test_a_planned_output_reads_unread_sources_as_the_user(settings):
+    calls = [("create_output", {"kind": "quiz", "options": {"question_count": 5}})]
+    store, _, ingest, client = setup(settings, [calls])
+    unread = store.add_source(NOTEBOOK, "grass.pdf", status="added")
+    plan = ask(client, "Make a quiz of 5 questions.")["plan"]
+    assert plan["separate"] == [
+        {
+            "library_id": unread,
+            "label": "Read grass.pdf",
+            "basis": "3 pages",
+            "min": 1.5,
+            "max": 1.5,
+        }
+    ]
+    assert "reading" not in plan["estimate"]
+    running = client.post(f"{plan_path(plan['plan_id'])}/confirm", headers=AUTH).json()
+    assert ("process", AUTH["Authorization"], [unread]) in ingest.calls
+    output_id = running["steps"][0]["result"]["output_id"]
+    assert store.outputs[output_id]["status"] == "waiting"
