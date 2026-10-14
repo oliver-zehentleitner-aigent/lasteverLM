@@ -311,6 +311,7 @@ storage = S3Storage(S3Settings.from_env())  # S3_ENDPOINT, S3_BUCKET, S3_ACCESS_
 key = object_key(notebook_id, output_id, "audio.mp3")
 storage.put(key, mp3, "audio/mpeg")
 url = storage.presigned_get(key)  # valid PRESIGN_SECONDS (3600); expires_s= up to 7 days
+link = storage.presigned_get(key, download_name="Vortrag Müller.m4a")  # saved, not played
 storage.delete(key)
 ```
 
@@ -325,7 +326,12 @@ only when the key is missing, a `StorageError` for anything else (no
 access, no bucket, endpoint down), so a cache check in front of a paid
 generation never mistakes a broken bucket for an empty one. A presigned GET is how a browser fetches
 a private object without a bearer header; it is signed with SigV4 and
-needs no request to storage. `S3_REGION` is optional (`us-east-1`).
+needs no request to storage. With `download_name` the URL also signs
+`response-content-disposition` (`attachment_disposition`: an ASCII
+`filename` fallback and the exact name as `filename*`), so the browser
+saves the file under that name; a link's `download` attribute would be
+ignored, because the bucket is another origin. A name that is empty or
+holds a control character is a `ValueError`. `S3_REGION` is optional (`us-east-1`).
 Every failure is a `StorageError`. The client is synchronous (boto3);
 an async service calls it through `anyio.to_thread.run_sync`.
 `Storage` is the protocol callers are typed against; tests pass a stub

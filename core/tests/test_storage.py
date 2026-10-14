@@ -18,6 +18,7 @@ from lasteverlm_core import (
     S3Settings,
     S3Storage,
     StorageError,
+    attachment_disposition,
     object_key,
 )
 from lasteverlm_core.storage import PRESIGN_MAX_SECONDS
@@ -137,6 +138,48 @@ def test_real_boto3_presigns_locally() -> None:
     query = parse_qs(parsed.query)
     assert query["X-Amz-Expires"] == ["900"]
     assert "X-Amz-Signature" in query
+    assert "response-content-disposition" not in query  # inline, as stored
+
+
+def test_a_download_name_is_signed_into_the_url() -> None:
+    url = S3Storage(SETTINGS).presigned_get("u/l/original.m4a", download_name="Vortrag Müller.m4a")
+    query = parse_qs(urlparse(url).query)
+    assert query["response-content-disposition"] == [
+        "attachment; filename=\"Vortrag Muller.m4a\"; filename*=UTF-8''Vortrag%20M%C3%BCller.m4a"
+    ]
+    assert "X-Amz-Signature" in query
+
+
+def test_download_name_reaches_the_client_params() -> None:
+    client = StubClient()
+    S3Storage(SETTINGS, client=client).presigned_get("k", 60, download_name="a.mp3")
+    assert client.calls[0][1]["Params"] == {
+        "Bucket": "lasteverlm",
+        "Key": "k",
+        "ResponseContentDisposition": "attachment; filename=\"a.mp3\"; filename*=UTF-8''a.mp3",
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "fallback", "encoded"),
+    [
+        ("日本.wav", "__.wav", "%E6%97%A5%E6%9C%AC.wav"),
+        ('a"b\\c.mp3', "a_b_c.mp3", "a%22b%5Cc.mp3"),
+        ("Café; x=1.mp3", "Cafe; x=1.mp3", "Caf%C3%A9%3B%20x%3D1.mp3"),
+    ],
+)
+def test_attachment_disposition_keeps_the_header_well_formed(
+    name: str, fallback: str, encoded: str
+) -> None:
+    assert attachment_disposition(name) == (
+        f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{encoded}"
+    )
+
+
+@pytest.mark.parametrize("name", ["", "a\r\nX-Evil: 1", "tab\there", "del\x7f"])
+def test_attachment_disposition_refuses_what_would_break_the_header(name: str) -> None:
+    with pytest.raises(ValueError, match="control characters"):
+        attachment_disposition(name)
 
 
 def test_settings_from_env() -> None:

@@ -8,14 +8,18 @@ live in the user's library, not in one notebook),
 
 A presigned GET is how a browser fetches a private object without a
 bearer header (an `<audio>` element cannot send one); the URL carries its
-own expiry and needs no further call to storage.
+own expiry and needs no further call to storage. With a `download_name`
+it also carries the `Content-Disposition` the response is served with,
+because a link's `download` attribute is ignored across origins.
 """
 
 from __future__ import annotations
 
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
+from urllib.parse import quote
 from uuid import UUID
 
 from botocore.exceptions import ClientError
@@ -45,7 +49,9 @@ class Storage(Protocol):
 
     def exists(self, key: str) -> bool: ...
 
-    def presigned_get(self, key: str, expires_s: int = PRESIGN_SECONDS) -> str: ...
+    def presigned_get(
+        self, key: str, expires_s: int = PRESIGN_SECONDS, *, download_name: str | None = None
+    ) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -131,19 +137,52 @@ class S3Storage:
         except Exception as exc:
             raise StorageError(f"delete failed: {exc}") from exc
 
-    def presigned_get(self, key: str, expires_s: int = PRESIGN_SECONDS) -> str:
-        """A URL that fetches `key` without credentials until `expires_s` seconds pass."""
+    def presigned_get(
+        self, key: str, expires_s: int = PRESIGN_SECONDS, *, download_name: str | None = None
+    ) -> str:
+        """A URL that fetches `key` without credentials until `expires_s` seconds pass.
+
+        With `download_name` the response is an attachment saved under that
+        name (`attachment_disposition`); without it, the object is served
+        as stored, for inline use.
+        """
         if not 0 < expires_s <= PRESIGN_MAX_SECONDS:
             raise ValueError(f"expires_s must be between 1 and {PRESIGN_MAX_SECONDS}")
+        params = {"Bucket": self._bucket, "Key": key}
+        if download_name is not None:
+            params["ResponseContentDisposition"] = attachment_disposition(download_name)
         try:
             url: str = self._client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": self._bucket, "Key": key},
-                ExpiresIn=expires_s,
+                "get_object", Params=params, ExpiresIn=expires_s
             )
         except Exception as exc:
             raise StorageError(f"presign failed: {exc}") from exc
         return url
+
+
+def attachment_disposition(name: str) -> str:
+    """`attachment; filename="<ascii>"; filename*=UTF-8''<encoded>` (RFC 6266).
+
+    `filename*` carries the name exactly, umlauts included; `filename` is
+    the fallback for a client that ignores it, character by character:
+    accents stripped, anything else outside printable ASCII, `"` and `\\`
+    replaced by `_`.
+    A name that is empty or holds a control character (which would
+    break the header) is a `ValueError`.
+    """
+    if not name or any(unicodedata.category(c) == "Cc" for c in name):
+        raise ValueError("download name must be non-empty and free of control characters")
+    fallback = "".join(_ascii_fallback(c) for c in name)
+    encoded = quote(name, safe="")
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{encoded}"
+
+
+def _ascii_fallback(char: str) -> str:
+    """`ä` -> `a`; a character without an ASCII base, `"` or `\\` -> `_`."""
+    folded = unicodedata.normalize("NFKD", char).encode("ascii", "ignore").decode()
+    if not folded or not folded.isprintable() or folded in ('"', "\\"):
+        return "_"
+    return folded
 
 
 def object_key(notebook_id: Any, owner_id: Any, name: str) -> str:
