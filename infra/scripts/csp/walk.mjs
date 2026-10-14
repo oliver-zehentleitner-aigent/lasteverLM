@@ -255,6 +255,40 @@ await step('source tab with an inline PDF', async () => {
   const origin = await frame.evaluate((el) => new URL(el.src).origin)
   storageLoads.push({ what: 'inline PDF frame', origin, violations: violations.size - before, ok: origin === STORAGE && violations.size === before })
 })
+// A web page source opened in its notebook's source tab: its Original is the stored
+// snapshot, in a sandboxed frame from storage. The sandbox must not allow scripts or
+// the same origin. Without a ready web page source with a snapshot the step fails.
+await step('source tab with a web page snapshot', async () => {
+  let found = null
+  for (const nb of notebooks) {
+    const url = (await api(`/api/ingest/notebooks/${nb.id}/sources`)).find(
+      (x) => x.kind === 'url' && x.status === 'ready' && x.snapshot_url,
+    )
+    if (url) {
+      found = { nb, url }
+      break
+    }
+  }
+  if (!found) {
+    storageLoads.push({ what: 'web page snapshot', error: 'no ready web page source with a snapshot in a notebook', ok: false })
+    throw new Error('no ready web page source with a snapshot in a notebook')
+  }
+  await page.evaluate((id) => localStorage.setItem('lasteverlm.notebook', id), found.nb.id)
+  await page.goto(WEB + '/')
+  await settle()
+  const before = violations.size
+  await page.click(`.sources li#source-${found.url.id} button.link.name`, { timeout: 5000 })
+  const frame = await page.waitForSelector('.viewer-body iframe.source-frame.snapshot', { timeout: 8000 }).catch(() => null)
+  if (!frame) {
+    storageLoads.push({ what: 'web page snapshot', error: 'no snapshot frame in the source tab', ok: false })
+    throw new Error('no snapshot frame in the source tab')
+  }
+  await settle(3000)
+  const r = await frame.evaluate((el) => ({ origin: new URL(el.src).origin, sandbox: el.getAttribute('sandbox') }))
+  const tokens = r.sandbox === null ? null : r.sandbox.split(/\s+/).filter(Boolean)
+  const sandboxOk = tokens !== null && !tokens.includes('allow-scripts') && !tokens.includes('allow-same-origin')
+  storageLoads.push({ what: 'web page snapshot frame', ...r, violations: violations.size - before, ok: r.origin === STORAGE && sandboxOk && violations.size === before })
+})
 // The admin panel renders only for an admin or viewer; for anyone else /admin
 // falls back to the notebook view, so a page counts as walked only with the panel.
 let adminRendered = 0
