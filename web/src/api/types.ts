@@ -44,6 +44,10 @@ export interface Source {
   /** a web page: the version read (1 for the first fetch, +1 when it changed) and when it was last fetched; absent before ingest's page versions */
   version?: number | null
   fetched_at?: string | null
+  /** a web page: the stored snapshot of this version (one self-contained HTML file, presigned for an hour; null until fetched), the address after redirects, and when a refetch last checked it */
+  snapshot_url?: string | null
+  final_url?: string | null
+  checked_at?: string | null
   /** where it opens without a bearer header: an image, PDF or text as a
    *  presigned GET of the original (valid one hour), a web page at its URL */
   preview_url?: string | null

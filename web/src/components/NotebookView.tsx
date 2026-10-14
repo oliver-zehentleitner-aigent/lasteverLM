@@ -20,7 +20,7 @@ import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
 import { takeOpenOutput } from '../lib/lastNotebook'
-import { afterClose, dropMissing, heldUrl, openTab, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
+import { afterClose, dropMissing, heldUrl, openTab, tabUrl, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
 import { ChatPane } from './ChatPane'
 import { SourceLinks } from './SourceLinks'
 import { citationTarget } from '../lib/openEntry'
@@ -225,7 +225,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   function openSource(c: Citation) {
     if (c.source_kind !== 'generated') {
       const src = uploads?.find((s) => s.id === c.source_id)
-      open({ type: 'source', id: c.source_id, page: c.page, chunkId: c.chunk_id, chunkIndex: c.chunk_index ?? null, url: src?.preview_url ?? null, urlAt: Date.now() })
+      open({ type: 'source', id: c.source_id, page: c.page, chunkId: c.chunk_id, chunkIndex: c.chunk_index ?? null, url: src ? tabUrl(src) : null, urlAt: Date.now() })
       onCitation(c)
       return
     }
@@ -264,11 +264,15 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
               const now = Date.now()
               setTabs((prev) => {
                 const kept = dropMissing(prev, 'source', new Set(list.map((s) => s.id)))
-                const next = kept.map((x) => heldUrl(x, list.find((s) => s.id === x.id)?.preview_url ?? null, now))
+                const listed = (id: string) => {
+                  const found = list.find((s) => s.id === id)
+                  return found ? tabUrl(found) : null
+                }
+                const next = kept.map((x) => heldUrl(x, listed(x.id), now))
                 return next.every((x, i) => x === kept[i]) ? kept : next
               })
             }}
-            onOpen={(s) => open({ type: 'source', id: s.id, url: s.preview_url ?? null, urlAt: Date.now() })}
+            onOpen={(s) => open({ type: 'source', id: s.id, url: tabUrl(s), urlAt: Date.now() })}
           />
           <OutputTiles
             notebookId={notebookId}
@@ -350,7 +354,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
               onOpenSource={openSource}
               onOpenTab={(target) => {
                 const src = target.type === 'source' ? uploads?.find((s) => s.id === target.id) : undefined
-                open({ type: target.type, id: target.id, ...(src ? { url: src.preview_url ?? null, urlAt: Date.now() } : {}) })
+                open({ type: target.type, id: target.id, ...(src ? { url: tabUrl(src), urlAt: Date.now() } : {}) })
               }}
               onWork={planWork}
               tools={

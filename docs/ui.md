@@ -229,12 +229,17 @@ opens the notebook.
   and a small ↗ that opens it in a new browser tab. **Original**: an
   image inline, audio in a player, a PDF in the browser's viewer in an
   iframe (at the cited page when a citation opened it), a web page as
-  its address, a text or Markdown file inline (`GET
+  the snapshot of the version that was read (`snapshot_url`, one
+  self-contained HTML file without scripts or images) in a sandboxed
+  iframe (no scripts, no same origin; its links open in a new tab)
+  under "Snapshot from 14.10.2026 14:05, version 2 · live page ↗" (the
+  live page at its address after redirects; before the page is read
+  "No snapshot yet" and the live link alone), a text or Markdown file inline (`GET
   /api/ingest/sources/{id}/text`, also before it is read: plain text in
   monospace, Markdown rendered and sanitized like a report; over 2 MiB
   the service's sentence with a link to the file). The tab keeps the presigned
-  address it opened with (a re-listed source gets a new one, and a new
-  `src` would fetch the file again) and takes the list's only after 50
+  address it opened with, a web page its snapshot's (a re-listed source
+  gets a new one, and a new `src` would fetch the file again) and takes the list's only after 50
   minutes, before it expires, or after a reload, when it has none. **As read**: the text the system
   extracted and answers from (`GET /api/ingest/sources/{id}/chunks`),
   50 chunks a page with previous/next, each with its number ("Chunk

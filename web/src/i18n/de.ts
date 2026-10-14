@@ -1102,4 +1102,8 @@ export const de: Record<MessageKey, string> = {
   'kindShort.image': 'BILD',
   'kindShort.audio': 'AUD',
   'kindShort.generated': 'GEN',
+  'srcView.snapshot': 'Momentaufnahme vom {when}, Version {version}',
+  'srcView.noSnapshot': 'Noch keine Momentaufnahme: Die Seite wird gespeichert, wenn sie gelesen wird',
+  'srcView.livePage': 'Live-Seite',
+  'srcView.snapshotTitle': 'Momentaufnahme von {name}',
 }

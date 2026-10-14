@@ -1099,6 +1099,10 @@ export const en = {
   'kindShort.image': 'IMG',
   'kindShort.audio': 'AUD',
   'kindShort.generated': 'GEN',
+  'srcView.snapshot': 'Snapshot from {when}, version {version}',
+  'srcView.noSnapshot': 'No snapshot yet: the page is stored when it is read',
+  'srcView.livePage': 'live page',
+  'srcView.snapshotTitle': 'Snapshot of {name}',
 } as const
 
 export type MessageKey = keyof typeof en
