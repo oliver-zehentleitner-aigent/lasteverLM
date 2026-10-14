@@ -23,6 +23,10 @@ export interface ChatPaneProps {
   onOpenSource: (c: Citation) => void
   /** controls at the right end of the tab bar (the chat height presets) */
   tools?: ReactNode
+  /** a plan's step made a source or an output: open it as a viewer tab */
+  onOpenTab?: (target: { type: 'source' | 'output'; id: string }) => void
+  /** a plan's step made something: the notebook's lists reload */
+  onWork?: () => void
 }
 
 /** A notebook without conversations gets its first one when the chat opens,
@@ -43,7 +47,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools }: ChatPaneProps) {
+export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools, onOpenTab, onWork }: ChatPaneProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // inline rename of a tab: which one, and the text being typed
@@ -181,6 +185,8 @@ export function ChatPane({ notebookId, scope, presentSources, sources, onClearSc
           onClearScope={onClearScope}
           onCitationSelected={onCitationSelected}
           onOpenSource={onOpenSource}
+          onOpenTab={onOpenTab}
+          onWork={onWork}
         />
       )}
     </section>

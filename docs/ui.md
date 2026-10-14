@@ -262,7 +262,22 @@ is closed. After the wizard the notebook view opens.
   loads the notebook's questions (`GET
   /api/rag/notebooks/{id}/suggestions`) as the same cards, or says
   there are none until a source is ready. It is a click, not automatic:
-  the first call is billed.
+  the first call is billed. The question field says "Ask, or tell me
+  what to add and create…": an answer can be a **plan** (rag's agent,
+  `plan` on the answer and on its message). It shows as a card under
+  the answer: the steps numbered, each with its label and estimated
+  price ("free" for a listing; an invalid step struck through with its
+  reason, it never runs), "Total ≈ €…", and a web page's processing as
+  its own line beside the total, not in it ("Process the web page ≈ €…",
+  billed by ingest at the price list's price). **Run** confirms it,
+  **Cancel** ends it (every step skipped). While it runs the card polls
+  every 2.5 s and each step shows queued, running, waiting, done, failed
+  or skipped with its error; a step that added a source or made an
+  output links to it and opens it as a viewer tab; a listing shows what
+  it found, a library add how many it added. Each done step reloads the
+  Sources and Outputs lists and the conversation, where an explanation
+  arrives as a normal cited answer and, at the end, the plan's summary.
+  After a reload the card shows the plan as it stands.
 
 ## Viewer, print, share
 
