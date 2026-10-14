@@ -8,6 +8,7 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.responses import PlainTextResponse
 from lasteverlm_core import (
     AudioError,
     Source,
@@ -34,6 +35,7 @@ from lasteverlm_ingest.dedupe import file_key, url_key
 from lasteverlm_ingest.loaders.convert import MEDIA_TYPES, sniff_container
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture, pdf_page_count
+from lasteverlm_ingest.loaders.text import decode_text
 from lasteverlm_ingest.loaders.url import check_url
 from lasteverlm_ingest.repository import ChunkText, NewLibrarySource, StoredSource
 from lasteverlm_ingest.worker import WorkerDeps
@@ -451,3 +453,32 @@ def refetch_source(request: Request, user: CurrentUser, source_id: UUID) -> Refe
             detail="only a web page that is not being read can be fetched again",
         )
     return Refetching(library_id=lib.id, version=lib.version, fetched_at=lib.fetched_at)
+
+
+# Most bytes of a text source `GET /sources/{id}/text` returns.
+MAX_TEXT_BYTES = 2 * 1024 * 1024
+
+
+@router.get("/sources/{source_id}/text", response_class=PlainTextResponse)
+def source_text(request: Request, user: CurrentUser, source_id: UUID) -> PlainTextResponse:
+    """The stored file of a text or Markdown source as text, read or not,
+    for the viewer's "Original" view (the API's origin, no presigned URL):
+    `text/plain; charset=utf-8`, decoded as the text loader decodes it.
+    415 for other kinds, 413 above 2 MiB."""
+    deps = worker_deps(request)
+    source = owned_source(deps.repository, user, source_id)
+    if source.kind != "text" or source.storage_path is None:
+        raise HTTPException(status_code=415, detail="only text and Markdown sources have a text")
+    if (source.size_bytes or 0) > MAX_TEXT_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"the text is larger than {MAX_TEXT_BYTES // 1024 // 1024} MiB"
+        )
+    try:
+        data = deps.storage.get(source.storage_path)
+    except StorageError as exc:
+        raise HTTPException(status_code=503, detail=f"storage unavailable: {exc}") from exc
+    if len(data) > MAX_TEXT_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"the text is larger than {MAX_TEXT_BYTES // 1024 // 1024} MiB"
+        )
+    return PlainTextResponse(decode_text(data), media_type="text/plain; charset=utf-8")
