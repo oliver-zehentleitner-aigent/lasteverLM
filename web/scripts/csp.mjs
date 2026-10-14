@@ -15,11 +15,13 @@ import { pathToFileURL } from 'node:url'
 
 export const MODES = ['off', 'report', 'enforce']
 
-/** sha256 sources for every inline script (one without src) of a page. */
+/** sha256 sources for every inline script (one without src) of a page.
+ *  Tag names in any case, attributes on the opening tag, whitespace before
+ *  the closing tag's >. */
 export function inlineScriptHashes(html) {
   const hashes = []
-  for (const m of html.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
-    if (/\ssrc=/.test(m[1] ?? '')) continue
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+    if (/\ssrc\s*=/i.test(m[1] ?? '')) continue
     hashes.push(`'sha256-${createHash('sha256').update(m[2], 'utf8').digest('base64')}'`)
   }
   return hashes

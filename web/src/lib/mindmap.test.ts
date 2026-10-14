@@ -1,6 +1,9 @@
+// @vitest-environment jsdom
+// DOMPurify needs a DOM: the labels are cleaned with the app's own sanitizer
 import { describe, expect, it } from 'vitest'
 import { Transformer } from 'markmap-lib'
 import { cleanTree, toMarkdown } from './mindmap'
+import { sanitizeHtml } from './sanitize'
 
 describe('toMarkdown', () => {
   it('writes the root as heading and children as a nested list', () => {
@@ -20,9 +23,11 @@ describe('labels', () => {
   it('reach markmap as raw HTML, so the tree has to be cleaned', () => {
     const { root } = new Transformer().transform(toMarkdown({ label: 'R <img src=x onerror=alert(1)>', children: [{ label: '<b>A</b>' }] }))
     expect(root.content).toContain('onerror')
-    const cleaned = cleanTree(root, (html) => html.replace(/<[^>]*>/g, ''))
-    expect(cleaned.content).toBe('R ')
-    expect(cleaned.children?.[0].content).toBe('A')
+    const cleaned = cleanTree(root, sanitizeHtml)
+    expect(cleaned.content).not.toContain('onerror')
+    expect(cleaned.content).toContain('R ')
+    // harmless markup stays, as markmap renders it
+    expect(cleaned.children?.[0].content).toBe('<b>A</b>')
   })
 })
 
