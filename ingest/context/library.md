@@ -75,6 +75,27 @@ runtime; the contract with account is the key name and its default.
   dedupe key, or a key that is unique only outside the trash; restoring
   is simpler and saves the processing.
 
+## Deleting a user removes the objects before the rows
+
+**Id:** 74926408-01fb-42f0-9a63-83af364b450c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's wish (delete a user in the admin panel) and the order, through the coordinating agent, 2026-10-14; the call contract settled with account the same day
+**Revisit when:** storage gets a lifecycle rule or a listing that can find objects without their rows
+
+`DELETE /admin/users/{id}` reads the keys of the user's stored objects
+from their library rows, deletes the objects, and only then deletes the
+rows. A storage failure answers 503 and leaves every row, so the retry
+(account stops and the admin tries again) finds the same keys; rows are
+the only index of what the user stored.
+
+**Alternatives:**
+- Rows first, objects swept later by an orphan sweep: the rows are the
+  only record of the keys, so the sweep would have to list the bucket and
+  match prefixes; until it ran, a deleted user's files would still sit in
+  storage.
+
 ## The library schema came in two migrations, expand (0003) and contract (0004)
 
 **Id:** 5bd279ae-da86-4aa6-878e-2217d77b14fc
