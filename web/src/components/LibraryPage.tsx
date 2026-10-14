@@ -244,9 +244,15 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                   </span>
                 </td>
                 <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
-                <td>
-                  <span className={`badge ${e.status}`}>{t(`status.${e.status}`)}</span>
-                  {e.status === 'failed' && e.error && <span className="error small"> {e.error}</span>}
+                <td className="status-cell">
+                  <span className={`badge ${e.status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
+                    {t(`status.${e.status}`)}
+                  </span>
+                  {e.status === 'failed' && e.error && (
+                    <span className="error small reason" title={e.error}>
+                      {e.error}
+                    </span>
+                  )}
                 </td>
                 <td>
                   {e.size_bytes === null ? (

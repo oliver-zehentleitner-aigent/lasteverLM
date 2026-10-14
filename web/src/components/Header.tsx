@@ -109,7 +109,7 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         <ThemeToggle />
         {me && (
           <>
-            <span className="muted">{me.email}</span>
+            <span className="muted email" title={me.email}>{me.email}</span>
             <button type="button" className="pill" onClick={onVoucher} title={t('header.redeem')}>
               {formatCents(me.balance_cents)}
             </button>

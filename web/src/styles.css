@@ -150,6 +150,15 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .topbar nav a { text-decoration: none; color: var(--muted); }
 .topbar nav a.active { color: var(--fg); }
 .account { display: flex; align-items: center; gap: 0.75rem; }
+.account .email { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a phone: brand and account on the first line, the nav on its own line
+   below, the address left out (it is the account's, not needed to act) */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; height: auto; gap: 0.4rem 0.75rem; }
+  .topbar nav { order: 3; flex: 1 0 100%; gap: 1.25rem; }
+  .account { margin-left: auto; gap: 0.6rem; }
+  .account .email { display: none; }
+}
 
 /* workspace */
 .workspace { display: grid; grid-template-columns: var(--sidebar-w, 220px) 6px minmax(0, 1fr); height: calc(100% - 48px); }
@@ -217,11 +226,12 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .admin table, .library table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
 .admin th, .admin td, .library th, .library td { text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--line); }
 .admin th, .library th { color: var(--muted); font-weight: 500; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
 
 @media (max-width: 900px) {
-  .workspace { grid-template-columns: 1fr; height: auto; }
+  .workspace { grid-template-columns: minmax(0, 1fr); height: auto; }
   .sidebar { border-right: none; border-bottom: 1px solid var(--line); }
-  .columns { grid-template-columns: 1fr; }
+  .columns { grid-template-columns: minmax(0, 1fr); }
   .column.left { border-right: none; border-bottom: 1px solid var(--line); }
   .chat .messages { max-height: 60vh; }
   .viewer-body { max-height: 50vh; }
@@ -396,6 +406,9 @@ button.link.danger { color: var(--danger); }
 .library .filters { display: grid; grid-template-columns: minmax(9rem, 12rem) minmax(0, 22rem); align-items: end; gap: 0.75rem; margin: 0.5rem 0 0.75rem; }
 @media (max-width: 520px) { .library .filters { grid-template-columns: minmax(0, 1fr); } }
 .library td.name { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* status: the badge, and a failure's reason on one line (the whole of it as tooltip) */
+.library td.status-cell { white-space: nowrap; }
+.library td.status-cell .reason { display: block; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; }
 .where-used { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; }
 .cite.removed { opacity: 0.65; text-decoration: line-through; text-decoration-thickness: 1px; }
 
@@ -539,7 +552,7 @@ button.link.copy { font-size: 0.85em; }
 .walker { display: inline-block; vertical-align: baseline; white-space: pre; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.95em; color: var(--muted); overflow: hidden; }
 /* admin System: the architecture diagram, coloured through the tokens */
 .arch-wrap { overflow-x: auto; }
-.arch { display: block; width: 100%; min-width: 560px; max-width: 900px; height: auto; margin: 0 auto; }
+.arch { display: block; width: 100%; max-width: 900px; height: auto; margin: 0 auto; }
 .arch-box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; }
 .arch-box.ext { fill: var(--bg); stroke-dasharray: 4 3; }
 .arch-node.down .arch-box { stroke: var(--danger); stroke-width: 2; }
