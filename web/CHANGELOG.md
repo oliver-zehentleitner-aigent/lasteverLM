@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Admin > System: the diagram's card is called "Architecture" again (the whole page is monitoring); in the light theme the external boxes and the dashed lines are drawn thicker and with longer dashes, so they stay visible on white. The dark theme is unchanged.
 - Sources without credit: adding a source is no longer refused for lack of credit (ingest's `waiting_for_credit`); the notebook's Sources list and the library show "waiting for credit" with "redeem a voucher", which opens the voucher dialog, and keep polling until processing starts. Creating documents still needs credit.
 
 ## [0.15.0] - 2026-10-14

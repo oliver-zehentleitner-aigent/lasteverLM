@@ -458,7 +458,7 @@ deleted from the library) stays readable with its quote and is marked
   - **Mail** (`/admin/mail`): SMTP settings read-only (they come from the
     deployment) with a test button.
   - **System** (`/admin/system`): per service a card with version,
-    commit and health; **Architecture and monitoring**, a diagram (plain SVG, static
+    commit and health; **Architecture**, a diagram (plain SVG, static
     layout, live numbers): the browser and the ingress at the top, web
     and the three API services below, the ingest and rag workers under
     their services, and PostgreSQL with pgvector, the object storage and
@@ -479,7 +479,8 @@ deleted from the library) stays readable with its quote and is marked
     dashed red. The external boxes take the state the services' healthz
     report for them (`dependencies`: red when one says down, green when
     all that report say ok) and stay grey with "not probed" until one
-    does. A legend under the
+    does. In the light theme the external boxes and the dashed lines are
+    drawn heavier, so they stay visible on white. A legend under the
     diagram; the page reloads the data every 15 s while the tab is
     visible (the time of the last refresh under it), colours change with
     a short transition, none with reduced motion. Then the cluster's pods (name, service, image
