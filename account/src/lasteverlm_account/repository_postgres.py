@@ -24,6 +24,7 @@ from psycopg_pool import AsyncConnectionPool
 from .repository import (
     AccessRecord,
     ActionAverageRecord,
+    ActionSampleRecord,
     BanRecord,
     BlockRecord,
     CreditTotals,
@@ -759,3 +760,24 @@ class PostgresRepository:
             int(r["redeemed_paid"]),
             int(r["redeemed_free"]),
         )
+
+    async def action_samples(self, since: datetime) -> list[ActionSampleRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select action, action_id,
+                          coalesce(sum(cost_cents), 0) as cost,
+                          coalesce(sum(tokens_in) filter (where kind in ('tts', 'stt')), 0)
+                              as seconds,
+                          mode() within group (order by model) filter (where kind <> 'fee')
+                              as model
+                   from usage
+                   where created_at >= %s and action_id is not null
+                         and action is not null and action <> 'unknown'
+                   group by action, action_id""",
+                (since,),
+            )
+            rows = await cur.fetchall()
+        return [
+            ActionSampleRecord(r["action"], Decimal(r["cost"]), int(r["seconds"]), r["model"])
+            for r in rows
+        ]

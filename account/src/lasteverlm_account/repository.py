@@ -206,6 +206,17 @@ class ActionAverageRecord:
 
 
 @dataclass(frozen=True)
+class ActionSampleRecord:
+    """One past action (an action_id): its real cost in euro cents, its seconds of audio
+    (tts/stt tokens_in), and the model most of its calls used."""
+
+    action: str
+    cost_cents: Decimal
+    seconds: int
+    model: str | None
+
+
+@dataclass(frozen=True)
 class VoucherMoneyRecord:
     issued_paid_cents: int
     issued_free_cents: int
@@ -297,6 +308,10 @@ class Repository(Protocol):
 
     async def action_averages(self, since: datetime) -> list[ActionAverageRecord]: ...
     async def voucher_money(self, since: date, until: date) -> VoucherMoneyRecord: ...
+    async def action_samples(self, since: datetime) -> list[ActionSampleRecord]:
+        """Every action_id booked since `since` with a known action, for the price list."""
+        ...
+
     async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None: ...
     async def mark_voucher_sent(self, voucher_id: uuid.UUID, email: str, at: datetime) -> None: ...
     async def count_voucher_mails(self, email: str, since: datetime) -> int:

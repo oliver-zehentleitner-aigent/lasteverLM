@@ -245,6 +245,32 @@ class InfraCosts(BaseModel):
     total_eur_cents: int | None  # null when USD entries exist and no rate is set
 
 
+class TypicalPrice(BaseModel):
+    p25: float
+    median: float
+    p75: float
+
+
+class PublicPriceRow(BaseModel):
+    action: str
+    unit: str  # a stable key ("question", "output", "audio_minute", …); web translates it
+    price_per_unit_cents: float | None  # the median action under today's rules per unit
+    typical_cents: TypicalPrice | None  # per action under today's rules; null below 5
+    count: int  # actions in the window
+    model: str | None
+
+
+class PublicPrices(BaseModel):
+    """End prices only: what an action costs a user today, from the last window's measured
+    costs through the current pricing rules. No margins, fees, costs or user data."""
+
+    usd_per_eur: float | None
+    rate_date: date | None
+    rate_source: Literal["ECB", "manual", "seed"]
+    window_days: int
+    actions: list[PublicPriceRow]
+
+
 class PricingPreviewRow(BaseModel):
     action: str
     actions: int  # how many of this action ran in the last 30 days
