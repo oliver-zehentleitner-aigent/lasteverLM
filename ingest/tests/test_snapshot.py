@@ -83,3 +83,33 @@ def test_snapshot_url_on_sources_and_library_and_purged_with_the_page(client, re
     client.delete(f"/api/ingest/library/{lib}")
     assert client.delete(f"/api/ingest/library/{lib}/purge").status_code == 204
     assert key not in storage.objects
+
+
+def _body(html: str) -> str:
+    return html_snapshot(html, "https://x.test/", "now").split("</small></p>", 1)[1]
+
+
+def test_a_search_form_in_the_navigation_does_not_swallow_the_article():
+    body = _body(
+        "<body><nav><form><label>Search</label><div><span>go</span></div>"
+        "<button><span>Find</span></button></form></nav>"
+        "<main><h1>Article</h1><p>Body text</p></main></body>"
+    )
+    assert "<h1>Article</h1>" in body and "<p>Body text</p>" in body
+    assert "Search" not in body and "Find" not in body
+
+
+def test_an_svg_with_children_does_not_swallow_what_follows():
+    body = _body(
+        "<p>Before</p><svg viewBox='0 0 10 10'><g><path d='M0 0'/><g><path d='M1 1'/>"
+        "</g></g><text>logo</text></svg><p>After the logo</p>"
+    )
+    assert "<p>Before</p>" in body and "<p>After the logo</p>" in body
+    assert ">logo<" not in body and "path" not in body
+
+
+def test_nested_and_unclosed_dropped_tags():
+    nested = _body("<form><form><span>x</span></form></form><p>kept</p>")
+    assert "<p>kept</p>" in nested and "x" not in nested.split("<p>kept</p>")[0]
+    # An unclosed dropped tag drops the rest: fail safe.
+    assert "after" not in _body("<p>before</p><script>evil()<p>after</p>")

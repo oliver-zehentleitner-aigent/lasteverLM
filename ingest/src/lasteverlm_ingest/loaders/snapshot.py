@@ -56,9 +56,12 @@ class _Snapshot(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag == "title":
             self._in_title = True
-        if self._drop or tag in _DROP:
-            if tag not in _VOID:
-                self._drop += 1
+        # Only dropped tags are counted, so the region ends with the tag that
+        # opened it, whatever it holds; an unclosed one drops the rest.
+        if tag in _DROP:
+            self._drop += 1
+            return
+        if self._drop:
             return
         if tag == "img":
             alt = next((v for k, v in attrs if k == "alt" and v), None)
@@ -84,9 +87,10 @@ class _Snapshot(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "title":
             self._in_title = False
+        if tag in _DROP and self._drop:
+            self._drop -= 1
+            return
         if self._drop:
-            if tag in _DROP:
-                self._drop -= 1
             return
         if tag in _KEEP and tag not in _VOID and tag in self._open:
             while self._open:
