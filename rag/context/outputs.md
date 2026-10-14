@@ -122,12 +122,14 @@ with a reason the frontend can show.
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-13; platform probe, 2026-10-13; `GET /v1/models`, 2026-10-14 (`max_prompt_length` 6000 characters)
 **Revisit when:** the platform lowers its input limit below the segment size, or offers long-form speech
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — b57ab97c-0eee-43b3-a7ee-06226e2d9714 — as of 2026-10-14
 
 The audio generator only writes the script (title plus spoken text,
 three to five minutes). The output service cuts the script into
 segments of at most 1500 characters, ending at a sentence end where
 possible, synthesizes each with `TTS_MODEL` and `TTS_VOICE`, writes one
-`tts` usage row per segment (input characters as `tokens_in`), and
+`tts` usage row per segment (the seconds of speech the platform
+billed, as `tokens_in`), and
 stores the segments' bytes joined as one MP3 at
 `<notebook_id>/<output_id>/audio.mp3`. The row keeps `{"key"}`; reads
 return a presigned URL. The script is also the output's index text.
