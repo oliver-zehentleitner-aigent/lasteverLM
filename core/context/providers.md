@@ -119,3 +119,48 @@ still be wrong, only in the logs.
 **Rejected alternative:** record the usage inside the provider. Core's
 providers know no connection, and the caller's transaction would no
 longer decide what gets written.
+
+## Transcription is billed per second, as the platform reports it
+
+**Id:** 1da06e7e-a292-4729-9a86-178d26584373
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinator's go for audio sources, 2026-10-14 (per-second billing, fail loud without usage); the platform's model catalog (whisper-large-v3-turbo priced per second); a live probe of `/audio/transcriptions` the same day
+**Revisit when:** the platform stops reporting `usage.type = "duration"`, prices transcription per file or per token, or accepts formats beyond WAV and MP3
+
+An `stt` usage row holds whole seconds of audio in `tokens_in`, rounded
+up per call, and `MODEL_PRICES` gives `in` in cents per million seconds,
+the same shape as `tts` with characters. The seconds are the ones the
+platform reports in `usage: {"type": "duration", "seconds": n}`. The
+duration core measures from the file (`probe_audio`) checks the four-hour
+limit before the call, and it is the usage a `ProviderError` carries
+when a response arrives without a duration. So the call fails loud and
+is still recorded.
+
+**Reason:** the platform prices the model per second, so per second is
+the unit that matches its invoice. Its reported number is what it bills:
+the probe returned 5 seconds for a WAV that measures 4.4 s and for an
+MP3 that measures 5.04 s (encoder padding), so the platform's own count
+is what the ledger should hold, not core's estimate of it. Core still has
+to measure the file, because the four-hour limit has to be checked before
+the call. Then the measurement can also stand in for the billing
+evidence when the reported duration is missing. Measuring is plain
+Python (WAV chunks, every MP3 frame header) because the common audio
+library is GPL-licensed and core is MIT.
+
+**Rejected alternative:** a flat price per file. A one-minute memo and a
+four-hour lecture would cost the same, while the platform bills them
+240 times apart.
+
+**Rejected alternative:** bill the measured duration always. It disagrees
+with the platform by up to a second per call, in both directions.
+
+**Rejected alternative:** a silent fallback to the measured duration
+when usage is missing. That is the free-call-without-trace case the rule
+"a response without usage is an error" exists for. The error carries the
+measured usage instead, so the caller records it and the source fails.
+
+Multipart upload is used although the catalog describes a base64 JSON
+body (`input_audio`): the probe accepted both, and multipart is what the
+SDK sends without a hand-built request.
