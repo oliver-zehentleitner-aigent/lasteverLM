@@ -604,7 +604,13 @@ class AccountService:
         except Exception as exc:  # the page must render even when the database is away
             log.warning("own health check failed: %s", exc)
             healthy = False
-        own = ServiceStatus("account", self.settings.app_version, self.settings.app_commit, healthy)
+        own = ServiceStatus(
+            "account",
+            self.settings.app_version,
+            self.settings.app_commit,
+            healthy,
+            {"postgres": "ok" if healthy else "down"},  # account's one dependency
+        )
         snap = await self.system.snapshot(own)
         return SystemInfo(
             version=self.settings.app_version,

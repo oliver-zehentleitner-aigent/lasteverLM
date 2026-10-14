@@ -120,7 +120,12 @@ half-deleted one; the call can simply be repeated. See `context/deletion.md`.
 `GET /admin/system` reports this service's version and commit, probes every
 service at `INGEST_URL/healthz` and `RAG_URL/healthz` (5 s timeout each; an unreachable one is
 `healthy: false`, the response is still 200) and, inside Kubernetes, lists
-the namespace's pods and deployments. The Kubernetes read uses the pod's own
+the namespace's pods and deployments — per pod phase, readiness, restarts and the
+container's waiting/terminated reason (`CrashLoopBackOff`, `ImagePullBackOff`,
+`OOMKilled`, …), per deployment the Progressing/Available conditions and the number
+of ReplicaSets that have pods (two during a rollout; counted from the pods'
+`pod-template-hash` labels, so no extra RBAC). Each service's `dependencies` object
+from its healthz is passed through. The Kubernetes read uses the pod's own
 ServiceAccount (token, CA and namespace from
 `/var/run/secrets/kubernetes.io/serviceaccount`) over plain HTTPS against the
 API server; it needs a Role that allows `get`/`list` on `pods` and
