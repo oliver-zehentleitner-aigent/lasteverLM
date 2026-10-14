@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin > Finance > Infrastructure: "Vultr connected" only after a successful sync; with a key that has not worked yet "Key set · last successful sync: never", the last attempt, and the failed sync's message from Vultr in red (account's `configured`, `last_success_at`, `last_attempt_at`, `last_error` replace `vultr` and `last_sync`).
 - Admin > Finance: the range bar's day pills, labels and date fields share one height and line; every money cell, tile and total follows one rule (two decimals from 1 € up, two to four below, the exact value in the tooltip) instead of €0.90 next to €0.622125.
 
 ## [0.18.3] - 2026-10-14

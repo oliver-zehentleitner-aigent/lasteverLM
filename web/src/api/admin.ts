@@ -224,8 +224,9 @@ function mockAdmin(): AdminApi {
   const listKey = (kind: AllowKind) =>
     kind === 'domain' ? 'allowed_domains' : kind === 'viewer' ? 'viewer_domains' : kind === 'viewer_address' ? 'viewer_addresses' : 'allowed_addresses'
   let infra: FinanceInfra = {
-    vultr: 'not connected',
-    last_sync: null,
+    configured: false,
+    last_success_at: null,
+    last_attempt_at: null,
     last_error: null,
     usd_per_eur: 1.1188,
     entries: [

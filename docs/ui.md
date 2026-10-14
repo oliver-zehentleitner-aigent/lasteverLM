@@ -606,8 +606,14 @@ deleted from the library) stays readable with its quote and is marked
       per month or day (charged, model cost and infrastructure as bars,
       profit as a line) and its table; a value without a rate says
       "needs a rate" with a link to Prices.
-    - **Infrastructure**: Vultr's sync (last sync and error, Sync now)
-      or, not connected, how to connect it; the lines with source and
+    - **Infrastructure**: with a key set (`configured`), "Vultr
+      connected · last successful sync <time>" only when a sync has
+      worked and the last attempt did not fail; otherwise "Key set ·
+      last successful sync: <time or never>". A last attempt later than
+      the last success is added ("last attempt <time>"), then Sync now.
+      A failed attempt's `last_error` (Vultr's own message, with where
+      to allow the address for an IP refusal) stands under it in red.
+      Without a key "Vultr is not configured." and how to set it; the lines with source and
       amount in their currency and in euro; lines entered by hand can
       be added and deleted, Vultr's cannot.
     - **Vouchers** (`/admin/finance/vouchers`; the old
