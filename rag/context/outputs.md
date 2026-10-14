@@ -118,7 +118,7 @@ with a reason the frontend can show.
 
 **Id:** b8b85840-a958-42e9-90b4-a9205d5b6f40
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-13; platform probe, 2026-10-13
 **Revisit when:** the platform documents an input limit or offers streaming or long-form speech
