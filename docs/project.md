@@ -35,8 +35,8 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
 
 ### Outputs
 
-- **Kinds:** report, quiz, data table, mind map, infographic, audio,
-  decision.
+- **Kinds:** report, quiz, data table, chart, mind map, infographic,
+  audio, decision.
 - **Options:** output language, for audio the style (overview, story,
   conversation with two voices), voice and speed; for reports style
   and length; for quizzes number of questions, difficulty and audience;
@@ -49,6 +49,19 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   go through the support check, and their agreement is shown
   (consistent, conflicting, unclear, or "the sources do not decide
   this").
+- **Chart:** "Find charts" proposes number series from the sources as
+  small previews; the user picks which are drawn. Every value is
+  checked exactly against its passage (in any notation: 1.906, 1906,
+  1,9 Mio., percent); a computed value is marked as computed, never as
+  supported.
+- **Judge (optional):** a model of another family than the author
+  checks each claim's meaning against its passages (supported,
+  contradicted, not in the source), in three levels whose models were
+  chosen by a published evaluation ([judge evaluation](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/judge-eval.md)).
+  At generation, failing claims are revised and judged again, at most
+  three rounds; a claim that still fails is removed and listed as
+  removed. On an existing output or chat answer the judge annotates
+  only.
 - **Outputs belong to the user**, live in the library, survive the
   deletion of the notebook they were made in, and can be added to
   other notebooks as sources.
@@ -63,11 +76,27 @@ selects, with numbered citations into verbatim passages.
 ### Administration
 
 Users and roles (user, viewer with a read-only admin panel, admin),
-who may sign in (domains and single addresses), credits and vouchers,
-rate limits, blocks and bans with their rules editable at runtime,
+who may sign in and who starts as viewer (domains and single addresses
+for both), a finance area (below), rate limits, blocks and bans with their rules editable at runtime,
 sign-in attempts, visits, mail configuration, and a System page with
 the installed version, every pod and a live architecture diagram that
 colours each component by its state.
+
+### Finance
+
+Every booking keeps the measured cost in US cents (the platform's
+currency), the EUR/USD rate applied, the cost in euro and the price
+charged to the user, all fixed at booking time, so a later change of
+rules never rewrites history. The charge is the cost plus a margin,
+set globally and per action (a chat answer, each output kind, each
+source kind, the judge, a decision), optionally with a fixed fee per
+action. Users see the charged price before every paid action. The
+admin sees costs, prices with a live preview, revenue against paid and
+free vouchers, and profit after the platform's infrastructure costs,
+which are read daily from Vultr's billing API. Voucher codes are
+encrypted at rest with a separate key, so an admin can show them again
+and send them by mail. Adding a source is free; processing it waits
+for credit.
 
 ## Principles
 
@@ -87,12 +116,18 @@ falling back silently: a service without a price for its model does
 not start, a loader that extracts no text fails the source, a provider
 answer without usage is an error.
 
-**Measure, do not assume.** Four billing units were corrected by a
+**Measure, do not assume.** Five billing facts were corrected by a
 measurement instead of the documentation: text-to-speech is charged
 per second of speech, not per character; the decision model reports
 input tokens, although the catalog says completion; speech-to-text is
 charged per second; the main model's input price differs from its
-output price. Each is recorded with the measurement.
+output price; the platform prices in US dollars while credits are in
+euro. Each is recorded with the measurement. The judge's models were
+chosen by an evaluation rather than by reputation: on 24 hand-written
+claims the word check alone caught none of the negated, swapped or
+off-by-one claims; no judge level missed a negation, and two of the
+three scored every claim correctly (details and limits in the
+evaluation).
 
 **One platform.** Kubernetes, PostgreSQL with pgvector, object storage
 and every model run on Vultr. Web search was considered and left out
@@ -118,7 +153,9 @@ allowlist; roles checked in every service; rate limits, blocks and
 bans per address (IPv6 by /64) behind the PROXY protocol, so a client
 cannot choose its address; SSRF protection on URL sources; HTML from
 models sanitised before rendering; pods without root, with read-only
-file systems and NetworkPolicies; secrets in Kubernetes Secrets only; actions pinned by
+file systems and NetworkPolicies; secrets in Kubernetes Secrets only; voucher codes encrypted at rest
+with a separate key; no paid model call without a configured exchange
+rate, so nothing is paid upstream and left unbooked; actions pinned by
 commit with Dependabot, images with provenance and SBOM; code scanning
 at zero open alerts.
 
@@ -144,12 +181,3 @@ typically live four minutes after its tag. The
   would pay off.
 - **Node autoscaling** waits for the database's private network
   attachment.
-
-## In progress
-
-Charts as an output kind (the user picks from proposed charts; every
-number is checked exactly against its passage), an optional judge
-model that checks each claim's meaning and lets the output be revised
-until it passes (with a published evaluation), usage and cost pages in
-the administration, voucher codes encrypted at rest so an admin can show
-and mail them again.
