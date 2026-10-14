@@ -7,12 +7,14 @@ import json
 import uuid
 from datetime import timedelta
 from decimal import Decimal
+from html.parser import HTMLParser
 
 import httpx
 import jwt as pyjwt
 from fastapi.testclient import TestClient
 from lasteverlm_core import DEMO_USER_ID, PRICING_SETTINGS_KEY
 
+from lasteverlm_account.prices_page import format_price
 from lasteverlm_account.repository_memory import MemoryRepository, _Usage
 from lasteverlm_account.services import EstimateClient
 
@@ -173,3 +175,67 @@ def test_cached_five_minutes(client: TestClient, clock: Clock) -> None:
     clock.advance(minutes=6)
     client.get(PRICES)
     assert len(fake.bearers) > calls
+
+
+class _Rows(HTMLParser):
+    """The page's table rows by their data-action: the cells' text."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.rows: dict[str, list[str]] = {}
+        self._action: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "tr":
+            self._action = dict(attrs).get("data-action")
+            if self._action:
+                self.rows[self._action] = []
+        elif tag == "td" and self._action:
+            self.rows[self._action].append("")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "tr":
+            self._action = None
+
+    def handle_data(self, data: str) -> None:
+        if self._action and self.rows[self._action]:
+            self.rows[self._action][-1] += data
+
+
+def test_html_page_matches_the_json(
+    client: TestClient, repo: MemoryRepository, clock: Clock
+) -> None:
+    install(client)
+    for _ in range(5):  # enough history for a typical range, with a hostile model name
+        book(repo, clock, "chat_answer", "3", charge_cents=Decimal(3), model="<b>x</b>")
+    body = client.get(PRICES).json()
+    r = client.get(f"{PRICES}/page")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "text/html; charset=utf-8"
+    assert r.headers["cache-control"] == "public, max-age=300"
+    assert r.headers["content-security-policy"].startswith(
+        "default-src 'none'; style-src 'unsafe-inline'"
+    )
+    assert "<script" not in r.text and "<title>" in r.text
+    assert r.text.index("How it works") < r.text.index("<table>")
+    parser = _Rows()
+    parser.feed(r.text)
+    assert set(parser.rows) == {a["action"] for a in body["actions"]}
+    for a in body["actions"]:
+        cells = parser.rows[a["action"]]
+        price = a["price_per_unit_cents"]
+        if a["price_min_cents"] is not None and a["price_min_cents"] != a["price_max_cents"]:
+            expected = f"{format_price(a['price_min_cents'])}–{format_price(a['price_max_cents'])}"
+        else:
+            expected = format_price(price)
+        assert cells[1].startswith(expected), (a["action"], cells[1])
+    assert parser.rows["chat_answer"][1].startswith("€0.02–€0.04 per question")
+    assert parser.rows["source:pdf"][1] == "€0.005 per page + €0.013 per source · estimated"
+    assert parser.rows["judge:high"][0] == "Judge, high"
+    # escaped, not markup; and nothing internal leaks
+    assert "&lt;b&gt;x&lt;/b&gt;" in r.text and "<b>x</b>" not in r.text
+    visible = r.text.split("</head>", 1)[1]  # the stylesheet's CSS "margin" is not a leak
+    for secret in ("margin", "cost_", "fee", "999"):
+        assert secret not in visible, secret
+    assert body["rate_source"] != "ECB" or body["rate_date"] in r.text
+    assert client.get(f"{PRICES}/page", headers={"Authorization": "Bearer junk"}).status_code == 200

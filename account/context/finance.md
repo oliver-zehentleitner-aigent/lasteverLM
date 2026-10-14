@@ -142,3 +142,28 @@ past charges — they show yesterday's rules; a per-token estimate from model pr
 dropped with core, a price per token is not one a user can reason about; pricing PDFs
 per page — the usage rows hold no page count, a later contract change.
 
+
+## The price list also comes as script-free HTML
+
+**Id:** 97909649-2b48-4ab2-b1ce-17da55d977cf
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer bug report relayed by the coordinator, 2026-10-14; `prices_page.py`
+
+The web's `/prices` is a JavaScript-only page: a plain fetch gets the
+empty shell, so ingest's URL loader read nothing when the starter notebook
+used it as a source. `GET /api/account/prices/page` renders the same list
+as plain HTML (title, headings, tables, every value escaped, no script,
+CSP `default-src 'none'`), built from the same `PublicPrices` as
+`GET /prices`, so the two cannot disagree. English only, in the web's
+words; a test compares every row with the JSON.
+
+**Reason:** the smallest change that gives a non-JavaScript reader the
+real content, in the service that owns the data.
+
+**Rejected alternatives:** server-side rendering of the whole web app —
+far larger than one page needs, and a second rendering path for every
+page; a headless browser in the URL loader — heavy to run in the cluster
+and a new attack surface, executing arbitrary pages' scripts for every
+URL source.
