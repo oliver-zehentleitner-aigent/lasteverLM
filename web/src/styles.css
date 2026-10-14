@@ -455,6 +455,12 @@ button.icon.play[aria-pressed='true'] { color: var(--accent); }
 .preset + .preset { border-left: 1px solid var(--line); }
 .preset.active { color: var(--fg); background: var(--accent-soft); }
 @media (max-width: 900px) { .presets { display: none; } }
+/* Finance > Prices: the rate's automatic | manual switch stays on a phone */
+@media (max-width: 900px) { .presets.rate-mode { display: inline-flex; } }
+.rate-status { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
+.rate-status .row { align-items: center; gap: 0.5rem; }
+.rate-status p { margin: 0; }
+.rate-status .stale { color: var(--warn); }
 
 /* citation provenance panel, under the answer */
 .provenance { margin-top: 0.6rem; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--panel); padding: 0.6rem 0.75rem; display: flex; flex-direction: column; gap: 0.45rem; }

@@ -768,10 +768,28 @@ export interface PricingRules {
 }
 
 /** The rules with what they mean for the last 30 days' actions. */
+/** Where the pricing rules' `usd_per_eur` comes from. `automatic`: the
+ *  ECB's daily reference rate, checked every hour; `manual`: an admin's,
+ *  the hourly update paused. `stale`: no successful ECB check for three
+ *  days (automatic only). */
+export interface ExchangeRateStatus {
+  usd_per_eur: number | null
+  mode: 'automatic' | 'manual'
+  source: 'ECB' | 'manual' | 'seed'
+  /** the ECB day the rate is for, YYYY-MM-DD */
+  rate_date: string | null
+  last_checked: string | null
+  last_success: string | null
+  last_error: string | null
+  stale: boolean
+}
+
 export interface PricingView {
   rules: PricingRules
   actions: string[]
   preview: { action: string; actions: number; avg_cost_cents: number | null; margin_pct: number; fixed_cents: number; charge_cents: number | null }[]
+  /** absent from an account service before the ECB sync */
+  rate?: ExchangeRateStatus
 }
 
 export type CostGroup = 'day' | 'action' | 'model' | 'user' | 'service'
