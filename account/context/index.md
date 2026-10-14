@@ -45,6 +45,8 @@ repository root's `context/`.
 
 ## F
 
+- [finance.md](finance.md) — Vultr billing fetched inside account with the key in account's Secret; no default exchange rate
+
 ## G
 
 ## H
