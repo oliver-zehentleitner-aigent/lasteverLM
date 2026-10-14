@@ -305,17 +305,26 @@ service's sentence).
 
 ## Library
 
-`/library` (in the header next to Admin): every upload and URL of the
-user, once, newest first, with kind, status (a failed entry's reason on
-one line next to the badge, in full as its tooltip), size ("unknown" for
-entries added before sizes were recorded), date and the
-notebooks it is in as links (or "not in any notebook"). Filters by kind
-and by part of the name or address. **Open** (a row action, and the
-name itself) shows the entry in a new tab: a web page at its address,
-an upload (PDF, text, image, audio, which the browser plays) through
-its presigned `preview_url`; an
-image also keeps the hover preview below. Only `http(s)` addresses are
-linked, and without a preview the action is disabled with a note.
+`/library` (in the header next to Admin), two views: **Library** and
+**Trash**. The library is one table of every upload, URL and generated
+document of the user, once, newest first (`GET /api/ingest/library?kind=all`).
+Above it a view selector (All, Sources, Documents, pills like the output
+kind chips) and filters by kind (source kinds, and the output kinds for
+documents), by notebook (or "not in any notebook") and by part of the
+name or address. Columns: kind (a document's output kind, from rag's
+list of the user's documents joined by `output_id`), name, status (a
+failed entry's reason on one line next to the badge, in full as its
+tooltip; "waiting for credit" with "redeem a voucher"), size ("unknown"
+for entries added before sizes were recorded, none for documents), date,
+and the notebooks it is in as links (or "not in any notebook"); a
+document also says where it was made ("made in test1", or "made in
+deleted notebook "test1"" once that notebook is gone). **Open** works
+per type: an upload in a new tab (a web page at its address, an upload
+through its presigned `preview_url`; the name too; only `http(s)`
+addresses are linked, without a preview the action is disabled with a
+note); a document goes to the notebook it was made in with it selected,
+or, when that notebook is deleted, shows it read-only on this page as
+the share page does (print where the kind has it, no sharing).
 **Checking an audio source** (here and in a notebook's Sources list): a
 play button per audio row mounts a player for that row only (nothing
 loads before; one player at a time, a second click closes it), with a
@@ -324,38 +333,32 @@ converted MP3, or the upload itself for MP3 and WAV) and, when the
 upload was converted first, "original" (`original_url`). Open still
 takes the transcribed file.
 Each row has a checkbox ("all / none" in the column header acts on the
-rows the filter shows; ticks survive a filter change). With rows
-ticked a bar above the table offers **New notebook from n sources** (a
-title field in the bar next to the button, Enter or the button creates,
-Escape clears it; preset with the first file's name without its
-extension, else the first web page's title or, from its address, host
-and last path segment, "en.wikipedia.org · Dead reckoning", never the
-raw address; the notebook is created, each entry added from the library one by one,
-then the notebook opens) and **Delete n** (one confirmation naming every
-notebook the entries leave, then one delete per entry with "n of m" in
-the bar; after a failure the rest stays ticked).
-Delete moves the entry to the
-trash, out of every notebook, after a confirmation that names those
-notebooks. The **Trash** view next to it lists deleted entries with
-the date they are purged (after the trash days set in the settings,
-14 by default; "settings" links to that field): restore puts one back in the library in no notebook,
-"delete for good" removes the file and its passages at once. Uploading
-the same file or URL again restores it too.
-
-**Outputs** (a view between Sources and Trash): every generated document
-of the user, newest first (`GET /api/rag/library/outputs`), with title,
-kind (and status when not ready), the notebook it was made in (its
-current title; once that notebook is deleted, "deleted notebook
-"test1"" with the title it had) and the date. **Open** goes to that
-notebook with the document selected; when the notebook is deleted it
-shows the document read-only on this page, as the share page does, with
-print where the kind has it and no sharing. Checkboxes with "all /
-none", and **Delete n** in a bar (one confirmation, then one delete per
-document with progress), or delete per row: a document moves to the
-trash, leaves every notebook and its share link stops working. The
-**Trash** view lists trashed documents under the trashed sources, with
-restore (back into the notebook it was made in, if that still exists;
-other notebooks need it added again) and delete for good.
+rows the filters show; ticks survive a filter change), across sources
+and documents. With rows ticked a bar above the table offers:
+**New notebook from n** (a title field in the bar next to the button,
+Enter or the button creates, Escape clears it; preset with the first
+file's name without its extension, else the first web page's title or,
+from its address, host and last path segment, "en.wikipedia.org · Dead
+reckoning", never the raw address; the notebook is created, the entries
+linked in one call, `POST /notebooks/{id}/sources/bulk`, then it opens);
+**Add to notebook…** (a list of the user's notebooks, each saying "2 of
+3 already in it"; a click links only the missing ones in one call, and
+a line says "2 added, 1 was already in test1"; a notebook that has them
+all is disabled and says so; documents that are not ready are left out,
+since ingest refuses the whole call for one); and **Delete n** (one
+confirmation naming every notebook the entries leave, then one delete
+per entry with "n of m" in the bar, an upload through ingest's trash, a
+document through rag's; after a failure the rest stays ticked).
+Delete moves the entry to the trash, out of every notebook, after a
+confirmation that names those notebooks; a document's share link stops
+working while it is there. The **Trash** view lists deleted uploads with
+the date they are purged (after the trash days set in the settings, 14
+by default; "settings" links to that field): restore puts one back in
+the library in no notebook, "delete for good" removes the file and its
+passages at once (uploading the same file or URL again restores it
+too); and, under them, the trashed documents, with restore (back into
+the notebook it was made in, if that still exists; other notebooks need
+it added again) and delete for good.
 
 Image entries show a small square thumbnail in front of their name in
 the library, the trash and the wizard's picker, loaded lazily from the

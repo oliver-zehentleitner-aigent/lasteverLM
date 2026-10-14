@@ -59,6 +59,10 @@ export interface LibraryEntry {
   original_url?: string | null
   created_at: string
   notebooks: { id: string; title: string; source_id: string }[]
+  /** generated rows only: the document (rag's outputs.id) and the notebook
+   *  it was made in; origin.id is null once that notebook is deleted */
+  output_id?: string | null
+  origin?: { id: string | null; title: string } | null
 }
 
 /** A deleted library entry, kept until `purge_at` (the user's trash days). */
