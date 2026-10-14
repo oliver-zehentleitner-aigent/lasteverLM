@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, timedelta
-from typing import Annotated
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Header, Path, Query, Response
+from fastapi import APIRouter, Header, HTTPException, Path, Query, Response
 from fastapi.responses import JSONResponse
 
 from ..models import (
@@ -25,10 +25,14 @@ from ..models import (
     CreateVouchersResponse,
     DailyStats,
     DomainAdd,
+    FinanceCosts,
+    FinanceProfit,
+    FinanceRevenue,
     FinanceSettings,
     InfraCost,
     InfraCostAdd,
     InfraCosts,
+    PricingView,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     RoleUpdate,
@@ -350,3 +354,81 @@ async def put_finance_settings(
     body: FinanceSettings, service: Service, _: AdminUserDep
 ) -> FinanceSettings:
     return await service.update_finance_settings(body)
+
+
+# --- finance: pricing, costs, revenue, profit -----------------------------------
+
+From = Annotated[date | None, Query(alias="from")]
+To = Annotated[date | None, Query()]
+
+
+def _range(service: Service, from_: date | None, to: date | None) -> tuple[date, date]:
+    until = to or service.now().date()
+    since = from_ or until - timedelta(days=29)
+    if since > until:
+        raise HTTPException(status_code=422, detail="from must not be after to")
+    if (until - since).days > 731:
+        raise HTTPException(status_code=422, detail="at most two years per request")
+    return since, until
+
+
+@router.get("/settings/pricing", response_model=PricingView)
+async def get_pricing(service: Service, _: AdminReaderDep) -> PricingView:
+    """Core's pricing rules in force, the actions they can name, an example per action."""
+    return await service.pricing_view()
+
+
+@router.put("/settings/pricing", response_model=PricingView)
+async def put_pricing(body: dict[str, Any], service: Service, _: AdminUserDep) -> PricingView:
+    """Replace the rules; core's PricingRules.parse validates (422 names the field). Every
+    service reads them within 30 s."""
+    return await service.update_pricing(body)
+
+
+@router.post("/settings/pricing/preview", response_model=PricingView)
+async def preview_pricing(body: dict[str, Any], service: Service, _: AdminUserDep) -> PricingView:
+    """What proposed rules would charge per action, without storing them."""
+    return await service.preview_pricing(body)
+
+
+@router.delete("/settings/pricing", status_code=204)
+async def reset_pricing(service: Service, _: AdminUserDep) -> Response:
+    """Back to core's defaults (no margin, no fees)."""
+    await service.reset_pricing()
+    return Response(status_code=204)
+
+
+@router.get("/finance/costs", response_model=FinanceCosts, response_model_by_alias=True)
+async def finance_costs(
+    service: Service,
+    _: AdminReaderDep,
+    from_: From = None,
+    to: To = None,
+    group: Literal["day", "action", "model", "user", "service"] = "day",
+) -> FinanceCosts:
+    """Usage between from and to (UTC days, inclusive; default the last 30): real cost and
+    charge per group."""
+    since, until = _range(service, from_, to)
+    return await service.finance_costs(since, until, group)
+
+
+@router.get("/finance/revenue", response_model=FinanceRevenue, response_model_by_alias=True)
+async def finance_revenue(
+    service: Service, _: AdminReaderDep, from_: From = None, to: To = None
+) -> FinanceRevenue:
+    """Charged to users, paid vs. free vouchers issued and redeemed, credit outstanding."""
+    since, until = _range(service, from_, to)
+    return await service.finance_revenue(since, until)
+
+
+@router.get("/finance/profit", response_model=FinanceProfit, response_model_by_alias=True)
+async def finance_profit(
+    service: Service,
+    _: AdminReaderDep,
+    from_: From = None,
+    to: To = None,
+    group: Literal["day", "month"] = "month",
+) -> FinanceProfit:
+    """Charged − model cost − infrastructure per day or month, demo usage apart."""
+    since, until = _range(service, from_, to)
+    return await service.finance_profit(since, until, group)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from lasteverlm_core import AdminUser
 from lasteverlm_core import User as CoreUser
@@ -249,6 +249,84 @@ class FinanceSettings(BaseModel):
     """Vultr bills USD, credits are EUR: the rate converts infrastructure costs for display."""
 
     eur_per_usd: float | None = Field(default=None, gt=0, le=10)
+
+
+class PricingPreviewRow(BaseModel):
+    action: str
+    actions: int  # how many of this action ran in the last 30 days
+    avg_cost_cents: float | None  # mean real cost of one action; null without data
+    margin_pct: float
+    fixed_cents: float
+    charge_cents: float | None  # what one average action charges under these rules
+
+
+class PricingView(BaseModel):
+    """Core's pricing rules (settings key ``pricing``), the actions they can name, and an
+    example charge per action from the last 30 days' average cost."""
+
+    rules: dict[
+        str, Any
+    ]  # {"default_margin_pct", "actions": {action: {margin_pct?, fixed_cents?}}}
+    actions: list[str]
+    preview: list[PricingPreviewRow]
+
+
+class FinanceGroupRow(BaseModel):
+    key: str
+    calls: int
+    actions: int
+    cost_cents: float  # real cost
+    charge_cents: float  # charged to users
+
+
+class FinanceCosts(BaseModel):
+    from_: date = Field(serialization_alias="from")
+    to: date
+    group: str
+    rows: list[FinanceGroupRow]
+    total_cost_cents: float
+    total_charge_cents: float
+
+
+class VoucherMoney(BaseModel):
+    issued_paid_cents: int
+    issued_free_cents: int
+    redeemed_paid_cents: int
+    redeemed_free_cents: int
+
+
+class FinanceRevenue(BaseModel):
+    """Money in: paid vouchers. Credit used: what users were charged. The demo user's
+    charges are seed credit, not money, and stand apart."""
+
+    from_: date = Field(serialization_alias="from")
+    to: date
+    charged_cents: float
+    demo_charged_cents: float
+    vouchers: VoucherMoney
+    outstanding_credit_cents: int  # what users can still spend, now; the demo user excluded
+
+
+class ProfitRow(BaseModel):
+    period: date
+    charged_cents: float
+    model_cost_cents: float
+    infra_cost_cents: float | None  # EUR; null when USD lines exist and no rate is set
+    profit_cents: float | None
+    demo_charged_cents: float
+    demo_cost_cents: float
+
+
+class FinanceProfit(BaseModel):
+    """Charged − model cost − infrastructure, per day or month, in EUR cents. Daily rows get
+    an even share of their month's infrastructure. Demo usage is shown, not counted."""
+
+    from_: date = Field(serialization_alias="from")
+    to: date
+    group: Literal["day", "month"]
+    eur_per_usd: float | None
+    rows: list[ProfitRow]
+    total: ProfitRow | None
 
 
 class SendVoucherBody(BaseModel):

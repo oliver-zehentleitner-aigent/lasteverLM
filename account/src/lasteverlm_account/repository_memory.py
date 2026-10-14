@@ -14,12 +14,14 @@ from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any, Literal
 
 from lasteverlm_core import DEMO_USER_ID
 
 from .repository import (
     AccessRecord,
+    ActionAverageRecord,
     BanRecord,
     BlockRecord,
     CreditTotals,
@@ -29,10 +31,13 @@ from .repository import (
     LoginRecord,
     ModelUsageRecord,
     StatsRecord,
+    UsageGroupRecord,
+    UsagePeriodRecord,
     UserRecord,
     UserUsageRecord,
     VisitRecord,
     VisitSummary,
+    VoucherMoneyRecord,
     VoucherRecord,
 )
 
@@ -63,10 +68,18 @@ class _Usage:
     """A row of core's `usage` table as ingest/rag write it; tests fill this directly."""
 
     user_id: uuid.UUID
-    cost_cents: int
+    cost_cents: Decimal | int
     created_at: datetime
     model: str = "model"
     kind: str = "llm"
+    charge_cents: Decimal | int | None = None  # None: rows from before core 0006, charge = cost
+    action: str = "unknown"
+    action_id: uuid.UUID | None = None
+    service: str = "rag"
+
+    @property
+    def charge(self) -> Decimal:
+        return Decimal(self.cost_cents if self.charge_cents is None else self.charge_cents)
 
 
 @dataclass
@@ -326,7 +339,7 @@ class MemoryRepository:
 
     async def credit_totals(self, user_id: uuid.UUID) -> CreditTotals:
         credited = sum(e.amount_cents for e in self.ledger if e.user_id == user_id)
-        spent = sum(u.cost_cents for u in self.usage if u.user_id == user_id)
+        spent = sum((u.charge for u in self.usage if u.user_id == user_id), Decimal(0))
         return CreditTotals(credited, spent)
 
     async def all_credit_totals(self) -> dict[uuid.UUID, CreditTotals]:
@@ -358,8 +371,14 @@ class MemoryRepository:
             vouchers_issued=len(self.vouchers),
             vouchers_redeemed=sum(1 for v in self.vouchers.values() if v.redeemed_at is not None),
             credits_granted_cents=sum(e.amount_cents for e in self.ledger),
-            usage_cost_cents_total=sum(u.cost_cents for u in self.usage),
-            usage_cost_cents_since=sum(u.cost_cents for u in self.usage if u.created_at >= since),
+            usage_cost_cents_total=round(
+                sum((Decimal(u.cost_cents) for u in self.usage), Decimal(0))
+            ),
+            usage_cost_cents_since=round(
+                sum(
+                    (Decimal(u.cost_cents) for u in self.usage if u.created_at >= since), Decimal(0)
+                )
+            ),
             blocks_active=sum(1 for b in self.blocks if b.blocked_until > now),
             bans_active=sum(1 for b in self.ip_bans if b.lifted_at is None),
         )
@@ -374,7 +393,7 @@ class MemoryRepository:
                 days[v.at.astimezone(UTC).date()][1] += 1
         for u in self.usage:
             if u.created_at >= since:
-                days[u.created_at.astimezone(UTC).date()][2] += u.cost_cents
+                days[u.created_at.astimezone(UTC).date()][2] += round(Decimal(u.cost_cents))
         for e in self.ledger:
             if e.created_at >= since:
                 days[e.created_at.astimezone(UTC).date()][3] += e.amount_cents
@@ -384,14 +403,14 @@ class MemoryRepository:
         groups: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
         for u in self.usage:
             groups[(u.model, u.kind)][0] += 1
-            groups[(u.model, u.kind)][1] += u.cost_cents
+            groups[(u.model, u.kind)][1] += round(Decimal(u.cost_cents))
         rows = [ModelUsageRecord(m, k, calls, cost) for (m, k), (calls, cost) in groups.items()]
         return sorted(rows, key=lambda r: (-r.cost_cents, r.model, r.kind))
 
     async def top_users_by_usage(self, limit: int) -> list[UserUsageRecord]:
         totals = await self.all_credit_totals()
         rows = [
-            UserUsageRecord(self.users[u].email, t.usage_cents, t.balance_cents)
+            UserUsageRecord(self.users[u].email, t.usage_cents_whole, t.balance_cents)
             for u, t in totals.items()
             if t.usage_cents > 0
         ]
@@ -461,3 +480,63 @@ class MemoryRepository:
 
     async def close(self) -> None:
         return None
+
+    # finance ------------------------------------------------------------------
+    def _usage_in(self, since: date, until: date) -> list[_Usage]:
+        return [u for u in self.usage if since <= u.created_at.astimezone(UTC).date() <= until]
+
+    async def usage_groups(self, since: date, until: date, group: str) -> list[UsageGroupRecord]:
+        def key(u: _Usage) -> str:
+            if group == "day":
+                return u.created_at.astimezone(UTC).date().isoformat()
+            if group == "user":
+                return self.users[u.user_id].email if u.user_id in self.users else str(u.user_id)
+            return str({"action": u.action, "model": u.model, "service": u.service}[group])
+
+        rows: dict[str, list[_Usage]] = defaultdict(list)
+        for u in self._usage_in(since, until):
+            rows[key(u)].append(u)
+        out = [
+            UsageGroupRecord(
+                k,
+                sum(1 for u in us if u.kind != "fee"),
+                len({u.action_id or id(u) for u in us}),
+                sum((Decimal(u.cost_cents) for u in us), Decimal(0)),
+                sum((u.charge for u in us), Decimal(0)),
+            )
+            for k, us in rows.items()
+        ]
+        if group == "day":
+            return sorted(out, key=lambda r: r.key)
+        return sorted(out, key=lambda r: (-r.cost_cents, r.key))
+
+    async def usage_periods(self, since: date, until: date, period: str) -> list[UsagePeriodRecord]:
+        sums: dict[tuple[date, bool], list[Decimal]] = defaultdict(lambda: [Decimal(0), Decimal(0)])
+        for u in self._usage_in(since, until):
+            day = u.created_at.astimezone(UTC).date()
+            start = day.replace(day=1) if period == "month" else day
+            sums[(start, u.user_id == DEMO_USER_ID)][0] += Decimal(u.cost_cents)
+            sums[(start, u.user_id == DEMO_USER_ID)][1] += u.charge
+        return [UsagePeriodRecord(p, d, c, ch) for (p, d), (c, ch) in sorted(sums.items())]
+
+    async def action_averages(self, since: datetime) -> list[ActionAverageRecord]:
+        per_action: dict[str, dict[object, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+        for u in self.usage:
+            if u.created_at >= since and u.action != "unknown" and u.kind != "fee":
+                per_action[u.action][u.action_id or id(u)] += Decimal(u.cost_cents)
+        return [
+            ActionAverageRecord(a, len(ids), sum(ids.values(), Decimal(0)) / len(ids))
+            for a, ids in sorted(per_action.items())
+        ]
+
+    async def voucher_money(self, since: date, until: date) -> VoucherMoneyRecord:
+        def inside(at: datetime | None) -> bool:
+            return at is not None and since <= at.astimezone(UTC).date() <= until
+
+        vs = list(self.vouchers.values())
+        return VoucherMoneyRecord(
+            sum(v.amount_cents for v in vs if v.paid and inside(v.created_at)),
+            sum(v.amount_cents for v in vs if not v.paid and inside(v.created_at)),
+            sum(v.amount_cents for v in vs if v.paid and inside(v.redeemed_at)),
+            sum(v.amount_cents for v in vs if not v.paid and inside(v.redeemed_at)),
+        )

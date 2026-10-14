@@ -8,10 +8,12 @@ free of transaction handling.
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Literal, Protocol
 
 
@@ -163,12 +165,51 @@ class StatsRecord:
 
 @dataclass(frozen=True)
 class CreditTotals:
+    """Credits and what the user was charged (core's usage.charge_cents, sub-cent exact)."""
+
     credited_cents: int
-    usage_cents: int
+    usage_cents: Decimal  # charged, not the real cost
 
     @property
     def balance_cents(self) -> int:
-        return self.credited_cents - self.usage_cents
+        """Whole cents the user can still spend: rounded down, never in the user's favour."""
+        return math.floor(self.credited_cents - Decimal(self.usage_cents))
+
+    @property
+    def usage_cents_whole(self) -> int:
+        return math.ceil(Decimal(self.usage_cents))
+
+
+@dataclass(frozen=True)
+class UsageGroupRecord:
+    key: str
+    calls: int  # usage rows except fixed fees
+    actions: int  # distinct actions
+    cost_cents: Decimal  # real cost
+    charge_cents: Decimal  # charged to users
+
+
+@dataclass(frozen=True)
+class UsagePeriodRecord:
+    period: date  # first day of the day or month
+    demo: bool  # the shared demo user's usage, paid by seed credit, not money
+    cost_cents: Decimal
+    charge_cents: Decimal
+
+
+@dataclass(frozen=True)
+class ActionAverageRecord:
+    action: str
+    actions: int
+    avg_cost_cents: Decimal  # mean real cost of one action, fees excluded
+
+
+@dataclass(frozen=True)
+class VoucherMoneyRecord:
+    issued_paid_cents: int
+    issued_free_cents: int
+    redeemed_paid_cents: int
+    redeemed_free_cents: int
 
 
 class Repository(Protocol):
@@ -245,6 +286,16 @@ class Repository(Protocol):
         ...
 
     async def list_infra_costs(self, since: date, until: date) -> list[InfraCostRecord]: ...
+    async def usage_groups(self, since: date, until: date, group: str) -> list[UsageGroupRecord]:
+        """Usage of [since, until] (UTC days) grouped by day | action | model | user | service."""
+        ...
+
+    async def usage_periods(self, since: date, until: date, period: str) -> list[UsagePeriodRecord]:
+        """Cost and charge per day or month, the demo user's share apart."""
+        ...
+
+    async def action_averages(self, since: datetime) -> list[ActionAverageRecord]: ...
+    async def voucher_money(self, since: date, until: date) -> VoucherMoneyRecord: ...
     async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None: ...
     async def mark_voucher_sent(self, voucher_id: uuid.UUID, email: str, at: datetime) -> None: ...
     async def count_voucher_mails(self, email: str, since: datetime) -> int:

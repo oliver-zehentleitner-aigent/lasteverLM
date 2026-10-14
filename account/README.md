@@ -117,6 +117,30 @@ fails, nothing of account's is deleted and the answer is 502 `purge_failed`
 naming the step, so the admin sees a user that is still there, never a
 half-deleted one; the call can simply be repeated. See `context/deletion.md`.
 
+## Finance: pricing, costs, revenue, profit
+
+Core books every call twice: `cost_cents`, what it really cost, and `charge_cents`, what
+the user pays — cost plus the margin of the pricing rules, plus an action's fixed fee
+(sub-cent exact). A user's balance is credits minus charges, rounded down to whole cents.
+
+- `GET /admin/settings/pricing` → `{rules, actions, preview}`: core's rules
+  (`{default_margin_pct, actions: {action: {margin_pct?, fixed_cents?}}}`), the actions
+  they can name, and per action the last 30 days' average cost with what it charges.
+  `PUT` stores (core's `PricingRules.parse` validates, 422 names the field; every service
+  reads it within 30 s), `POST /admin/settings/pricing/preview` shows proposed rules
+  without storing, `DELETE` returns to no margin and no fees.
+- `GET /admin/finance/costs?from=&to=&group=day|action|model|user|service`: calls,
+  actions, real cost and charge per group.
+- `GET /admin/finance/revenue?from=&to=`: charged to users, the demo user's charges apart
+  (seed credit, not money), paid vs. free vouchers issued and redeemed, credit outstanding.
+- `GET /admin/finance/profit?from=&to=&group=month|day`: charged − model cost −
+  infrastructure, demo usage shown apart; a day gets an even share of its month's
+  infrastructure; without an exchange rate for USD lines infrastructure and profit are null.
+
+Dates are UTC days, inclusive, default the last 30, at most two years per request.
+Amounts are EUR cents; model prices (`MODEL_PRICES`) are taken as EUR cents.
+`GET /admin/stats` keeps showing real cost; balances and the users list show charges.
+
 ## Finance: infrastructure costs
 
 `GET /admin/finance/infra?from=&to=` lists infrastructure costs per month (default the
