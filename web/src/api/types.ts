@@ -854,4 +854,6 @@ export interface PublicPriceRow {
   typical_cents: { p25: number; median: number; p75: number } | null
   count: number
   model: string | null
+  /** the judge's level for the `judge:<level>` rows, null otherwise */
+  level?: 'low' | 'medium' | 'high' | null
 }

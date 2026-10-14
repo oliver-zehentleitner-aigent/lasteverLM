@@ -17,6 +17,11 @@ describe('groupPrices', () => {
     expect(groups[0].rows.map((r) => r.action)).toEqual(['judge', 'something_new'])
   })
 
+  it('puts the judge per level first in extras, low to high', () => {
+    const groups = groupPrices([row('chart_propose'), row('judge:high'), row('judge:low'), row('judge:medium')])
+    expect(groups[0].rows.map((r) => r.action)).toEqual(['judge:low', 'judge:medium', 'judge:high', 'chart_propose'])
+  })
+
   it('leaves out empty groups', () => {
     expect(groupPrices([row('chat_answer')]).map((g) => g.group)).toEqual(['chat'])
   })
@@ -26,6 +31,7 @@ describe('labels', () => {
   it('names actions and units, and falls back to the code', () => {
     expect(actionLabel('output:report')).toBe('Report')
     expect(actionLabel('judge')).toBe('Check with a judge')
+    expect(actionLabel('judge:medium')).toBe('Judge, medium')
     expect(actionLabel('brand_new')).toBe('brand_new')
     expect(unitLabel('audio_minute')).toBe('per minute of audio')
     expect(unitLabel('page')).toBe('per page')
