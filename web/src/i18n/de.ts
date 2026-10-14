@@ -328,7 +328,7 @@ export const de: Record<MessageKey, string> = {
   'adm.rl.resetConfirm': 'Das Rate-Limit auf die Werte des Deployments zurücksetzen?',
   'adm.rl.title': 'Rate-Limit und Banns',
   'adm.rl.ingress': 'Vor dieser Regel sitzt ein grobes Limit pro IP am Ingress (Anfragen pro Sekunde, offene Verbindungen).',
-  'adm.rl.fromEnv': 'Aus dem Deployment, hier nicht änderbar: ein Bann gilt höchstens {ban} Tage; Zugriffsprotokoll, abgelaufene Sperren und aufgehobene Banns bleiben {keep} Tage.',
+  'adm.rl.fromEnv': 'Aus dem Deployment, hier nicht änderbar: Zugriffsprotokoll, abgelaufene Sperren und aufgehobene Banns bleiben {keep} Tage.',
   'adm.rl.reset': 'Auf Standard zurücksetzen',
   'adm.rl.save': 'Regel speichern',
   'adm.rl.applies': 'Jeder Dienst übernimmt eine Änderung innerhalb von 30 Sekunden.',
@@ -751,4 +751,5 @@ export const de: Record<MessageKey, string> = {
   'adm.signInBlock': 'Anmeldung',
   'adm.viewerBlock': 'Viewer (Admin-Bereich, nur lesend)',
   'adm.removeViewerAddress': '{v} aus den Viewer-Adressen entfernen?',
+  'adm.rl.banDays': 'Ein Bann gilt höchstens, Tage',
 }

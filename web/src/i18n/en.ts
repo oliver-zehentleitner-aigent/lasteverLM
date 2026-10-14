@@ -325,7 +325,7 @@ export const en = {
   'adm.rl.resetConfirm': 'Reset the rate limit to the deployment defaults?',
   'adm.rl.title': 'Rate limit and bans',
   'adm.rl.ingress': 'A coarse per-IP limit at the ingress (requests per second, open connections) sits in front of this rule.',
-  'adm.rl.fromEnv': 'From the deployment, not editable here: a ban holds at most {ban} days; the access log, stale blocks and lifted bans are kept {keep} days.',
+  'adm.rl.fromEnv': 'From the deployment, not editable here: the access log, stale blocks and lifted bans are kept {keep} days.',
   'adm.rl.reset': 'Reset to defaults',
   'adm.rl.save': 'Save rule',
   'adm.rl.applies': 'Every service applies a change within 30 seconds.',
@@ -748,6 +748,7 @@ export const en = {
   'adm.signInBlock': 'Sign-in',
   'adm.viewerBlock': 'Viewer (read-only admin panel)',
   'adm.removeViewerAddress': 'Remove {v} from the viewer addresses?',
+  'adm.rl.banDays': 'A ban holds at most, days',
 } as const
 
 export type MessageKey = keyof typeof en

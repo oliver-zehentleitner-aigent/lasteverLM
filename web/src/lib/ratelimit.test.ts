@@ -20,15 +20,18 @@ describe('describeRateLimit', () => {
 
 describe('rateLimitError', () => {
   it('accepts values inside the bounds, edges included', () => {
-    expect(rateLimitError({ per_minute: 10000, block_minutes: 1, ban_after_strikes: 100, strike_window_hours: 720 })).toBeNull()
+    expect(rateLimitError({ per_minute: 10000, block_minutes: 1, ban_after_strikes: 100, strike_window_hours: 720, ban_max_days: 365 })).toBeNull()
   })
 
   it('names the first field outside its bounds, the way the service does', () => {
-    expect(rateLimitError({ per_minute: 120, block_minutes: 1441, ban_after_strikes: 3, strike_window_hours: 24 })).toBe(
+    expect(rateLimitError({ per_minute: 120, block_minutes: 1441, ban_after_strikes: 3, strike_window_hours: 24, ban_max_days: 90 })).toBe(
       'block_minutes must be between 1 and 1440',
     )
-    expect(rateLimitError({ per_minute: 1.5, block_minutes: 15, ban_after_strikes: 3, strike_window_hours: 24 })).toBe(
+    expect(rateLimitError({ per_minute: 1.5, block_minutes: 15, ban_after_strikes: 3, strike_window_hours: 24, ban_max_days: 90 })).toBe(
       'per_minute must be between 1 and 10000',
+    )
+    expect(rateLimitError({ per_minute: 120, block_minutes: 15, ban_after_strikes: 3, strike_window_hours: 24, ban_max_days: 366 })).toBe(
+      'ban_max_days must be between 1 and 365',
     )
   })
 })

@@ -592,9 +592,9 @@ export interface VoucherSend {
   allow?: boolean
 }
 
-/** The rate-limit rule in force for every service. The first four are
- *  editable at run time; `ban_max_days` and `retention_days` come from the
- *  environment only. */
+/** The rate-limit rule in force for every service. The first five are
+ *  editable at run time (the ban cap since core accepts it); `retention_days`
+ *  comes from the environment only. */
 export interface RateLimitRules {
   per_minute: number
   block_minutes: number
@@ -604,7 +604,7 @@ export interface RateLimitRules {
   retention_days: number
 }
 
-export type RateLimitUpdate = Pick<RateLimitRules, 'per_minute' | 'block_minutes' | 'ban_after_strikes' | 'strike_window_hours'>
+export type RateLimitUpdate = Pick<RateLimitRules, 'per_minute' | 'block_minutes' | 'ban_after_strikes' | 'strike_window_hours' | 'ban_max_days'>
 
 // admin statistics: daily series over the last N UTC days, oldest first,
 // today last, every day present with zeros

@@ -16,11 +16,12 @@ const RULE_FIELDS: { key: keyof RateLimitUpdate; label: () => string }[] = [
   { key: 'block_minutes', label: () => t('adm.rl.blockMinutes') },
   { key: 'ban_after_strikes', label: () => t('adm.rl.strikes') },
   { key: 'strike_window_hours', label: () => t('adm.rl.window') },
+  { key: 'ban_max_days', label: () => t('adm.rl.banDays') },
 ]
 
 /** The rule behind the blocks and bans below, as a sentence and as the
- *  four numbers an admin may change; every service picks a change up
- *  within 30 seconds. The ban cap and the retention are environment only. */
+ *  five numbers an admin may change (the ban cap included); every service
+ *  picks a change up within 30 seconds. The retention is environment only. */
 export function RateLimit() {
   const { data, setData, error: loadError } = useLoad<RateLimitRules | null>(admin.getRateLimit, null)
   const [form, setForm] = useState<Record<keyof RateLimitUpdate, string> | null>(null)
@@ -39,6 +40,7 @@ export function RateLimit() {
       block_minutes: Number(values.block_minutes),
       ban_after_strikes: Number(values.ban_after_strikes),
       strike_window_hours: Number(values.strike_window_hours),
+      ban_max_days: Number(values.ban_max_days),
     }
     const problem = rateLimitError(update)
     setInvalid(problem)
@@ -70,7 +72,7 @@ export function RateLimit() {
       {data && (
         <>
           <p>{describeRateLimit(data)}</p>
-          <p className="muted small">{t('adm.rl.fromEnv', { ban: data.ban_max_days, keep: data.retention_days })}</p>
+          <p className="muted small">{t('adm.rl.fromEnv', { keep: data.retention_days })}</p>
         </>
       )}
       {values && (
@@ -112,6 +114,7 @@ function toForm(r: RateLimitRules): Record<keyof RateLimitUpdate, string> {
     block_minutes: String(r.block_minutes),
     ban_after_strikes: String(r.ban_after_strikes),
     strike_window_hours: String(r.strike_window_hours),
+    ban_max_days: String(r.ban_max_days),
   }
 }
 
