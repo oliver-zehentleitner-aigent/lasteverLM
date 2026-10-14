@@ -769,3 +769,7 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .proposal { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 0.4rem; color: var(--fg); font-size: 0.9em; cursor: pointer; }
 .proposal input { grid-row: span 3; margin-top: 0.15rem; }
 .proposal-title { font-weight: 600; overflow-wrap: anywhere; }
+.voucher-send-block { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.send-fields { display: flex; flex-direction: column; gap: 0.5rem; max-width: 28rem; }
+.code-cell { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.admin td .sent { display: block; }

@@ -23,6 +23,7 @@ import type {
   SystemInfo,
   VisitBucket,
   Voucher,
+  VoucherSend,
 } from './types'
 
 /** Everything the admin panel needs, as one interface so the pages do not
@@ -58,7 +59,12 @@ export interface AdminApi {
   deleteUser(userId: string): Promise<void>
   removeAllowed(kind: AllowKind, value: string): Promise<void>
   /** Codes are shown once; the server stores only their hashes. */
-  createVouchers(amountCents: number, count: number): Promise<string[]>
+  /** with `send`, each created voucher is mailed right away */
+  createVouchers(amountCents: number, count: number, send?: VoucherSend): Promise<string[]>
+  /** admin only; 404 with code `not_recoverable` for a voucher made before codes were kept */
+  voucherCode(id: string): Promise<string>
+  /** the updated row; 409 already_redeemed / smtp_not_configured, 404 not_recoverable, 429 too_many_mails, 502 mail_failed */
+  sendVoucher(id: string, send: VoucherSend): Promise<Voucher>
   /** newest first, without codes */
   listVouchers(limit: number): Promise<Voucher[]>
   /** open vouchers only; a redeemed one answers 409 */
@@ -101,8 +107,13 @@ const httpAdmin: AdminApi = {
     request<Allowlist>(`${A}/settings/${ALLOW_PATH[kind]}`, { method: 'POST', json: { [ALLOW_FIELD[kind]]: value } }),
   removeAllowed: (kind, value) =>
     request<void>(`${A}/settings/${ALLOW_PATH[kind]}/${encodeURIComponent(value)}`, { method: 'DELETE' }),
-  createVouchers: (amount_cents, count) =>
-    request<{ codes: string[] }>(`${A}/vouchers`, { method: 'POST', json: { amount_cents, count } }).then((r) => r.codes),
+  createVouchers: (amount_cents, count, send) =>
+    request<{ codes: string[] }>(`${A}/vouchers`, {
+      method: 'POST',
+      json: { amount_cents, count, ...(send ? { send_to: send.email, message: send.message, allow: send.allow } : {}) },
+    }).then((r) => r.codes),
+  voucherCode: (id) => request<{ code: string }>(`${A}/vouchers/${encodeURIComponent(id)}/code`).then((r) => r.code),
+  sendVoucher: (id, send) => request<Voucher>(`${A}/vouchers/${encodeURIComponent(id)}/send`, { method: 'POST', json: send }),
   listVouchers: (limit) => request<Voucher[]>(`${A}/vouchers?limit=${limit}`),
   deleteVoucher: (id) => request<void>(`${A}/vouchers/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   getRateLimit: () => request<RateLimitRules>(`${A}/settings/ratelimit`),
@@ -167,6 +178,7 @@ function mockAdmin(): AdminApi {
   const smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
   let allow: Required<Allowlist> = { allowed_domains: ['example.org', 'review.example.org'], allowed_addresses: ['guest@partner.test'], viewer_domains: ['review.example.org'] }
   const listKey = (kind: AllowKind) => (kind === 'domain' ? 'allowed_domains' : kind === 'viewer' ? 'viewer_domains' : 'allowed_addresses')
+  let mockCodes: Record<string, string> = {}
   let vouchers: Voucher[] = [
     { id: 'v2', amount_cents: 500, created_by: 'admin@example.org', created_at: '2026-10-12T17:30:00Z', redeemed_by: null, redeemed_at: null, status: 'open' },
     { id: 'v1', amount_cents: 1000, created_by: 'admin@example.org', created_at: '2026-10-10T09:00:00Z', redeemed_by: 'reader@example.org', redeemed_at: '2026-10-11T09:45:00Z', status: 'redeemed' },
@@ -283,14 +295,36 @@ function mockAdmin(): AdminApi {
       allow = { ...allow, [key]: allow[key].filter((x) => x !== value) }
       return delay(undefined)
     },
-    createVouchers: (amount, count) => {
+    createVouchers: (amount, count, send) => {
       const codes = Array.from({ length: count }, () => `V-${Math.random().toString(36).slice(2, 8).toUpperCase()}`)
       const now = new Date().toISOString()
       vouchers = [
-        ...codes.map((_, i) => ({ id: `v${vouchers.length + i + 1}`, amount_cents: amount, created_by: 'admin@example.org', created_at: now, redeemed_by: null, redeemed_at: null, status: 'open' as const })),
+        ...codes.map((c, i) => ({
+          id: `v${vouchers.length + i + 1}`,
+          amount_cents: amount,
+          created_by: 'admin@example.org',
+          created_at: now,
+          redeemed_by: null,
+          redeemed_at: null,
+          status: 'open' as const,
+          code_masked: `${c.slice(0, 4)}-****`,
+          recoverable: true,
+          sent_to: send?.email ?? null,
+          sent_at: send ? now : null,
+        })),
         ...vouchers,
       ]
+      mockCodes = { ...mockCodes, ...Object.fromEntries(vouchers.slice(0, count).map((v, i) => [v.id, codes[i]])) }
       return delay(codes)
+    },
+    voucherCode: (id) => (mockCodes[id] ? delay(mockCodes[id]) : Promise.reject(new ApiError(404, 'This voucher was made before codes were kept.', 'not_recoverable'))),
+    sendVoucher: (id, send) => {
+      const v = vouchers.find((x) => x.id === id)
+      if (!v) return Promise.reject(new ApiError(404, 'unknown voucher'))
+      if (v.status === 'redeemed') return Promise.reject(new ApiError(409, 'voucher already redeemed', 'already_redeemed'))
+      if (!mockCodes[id]) return Promise.reject(new ApiError(404, 'This voucher was made before codes were kept.', 'not_recoverable'))
+      Object.assign(v, { sent_to: send.email, sent_at: new Date().toISOString() })
+      return delay({ ...v })
     },
     listVouchers: (limit) => delay(vouchers.slice(0, limit)),
     deleteVoucher: (id) => {

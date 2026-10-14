@@ -572,6 +572,21 @@ export interface Voucher {
   redeemed_by: string | null
   redeemed_at: string | null
   status: 'open' | 'redeemed'
+  /** "ABCD-****-****-****"; null for vouchers made before codes were kept */
+  code_masked?: string | null
+  /** whether the code can be shown again (kept encrypted) */
+  recoverable?: boolean
+  /** the address it was mailed to, and when; null when not sent */
+  sent_to?: string | null
+  sent_at?: string | null
+}
+
+/** Mailing a voucher's code: to whom, an optional note (plain text, up to
+ *  1000 characters), and whether the address may also sign in (default on). */
+export interface VoucherSend {
+  email: string
+  message?: string
+  allow?: boolean
 }
 
 /** The rate-limit rule in force for every service. The first four are
