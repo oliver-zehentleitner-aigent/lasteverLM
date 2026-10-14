@@ -32,3 +32,34 @@ which is more attack surface than the key it protects; a fixed default exchange 
 has no read-only billing scope, so the key can do what that permission allows, which
 is less than an account key; it is still a credential to rotate if a pod is
 compromised. Account's egress must keep 443 to api.vultr.com open.
+
+## Profit counts only money: demo usage apart, infrastructure only with a known rate
+
+**Id:** f89faf54-14f5-4f28-bdba-130b0e0ff070
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** implementation of the maintainer's finance brief, 2026-10-14
+**Revisit when:** model prices are configured in another currency than EUR, or infrastructure is billed in EUR, or the demo user gets real money behind it
+
+`/admin/finance/profit` is charged − model cost − infrastructure per day or month. The
+demo user's usage is reported beside it, not in it: its credit is the migration's seed,
+no one paid for it. Infrastructure enters a month as its EUR sum; a USD line without an
+admin-set rate makes that month's infrastructure and profit null instead of estimated.
+Daily rows get an even share of their month's infrastructure. Balances round down to
+whole cents (never in the user's favour), shown charges round up.
+
+**Reason:** a profit figure is only useful if every term in it is money that moved;
+seed credit and a guessed exchange rate would make it look better or worse than it is
+with no visible cause. Spreading a month's infrastructure evenly is the simplest rule
+that makes daily rows add up to the month.
+
+**Rejected alternatives:** counting the demo user's charges as revenue — rejected, they
+are funded by the seed, not by anyone; converting with a built-in default rate —
+rejected as above (finance.md, the Vultr entry); attributing infrastructure to the
+first day of the month — rejected because daily profit would swing for no reason.
+
+**Open assumption:** `MODEL_PRICES` are read as EUR cents, because credits are EUR. If
+the platform's model prices are entered in USD, cost needs the same conversion as
+infrastructure; Evidence stays inferred until the maintainer confirms the currency.
+
