@@ -118,10 +118,10 @@ with a reason the frontend can show.
 
 **Id:** b8b85840-a958-42e9-90b4-a9205d5b6f40
 **Type:** decision
-**Status:** needs-review
+**Status:** active
 **Evidence:** confirmed
-**Source:** family coordination, 2026-10-13; platform probe, 2026-10-13
-**Revisit when:** the platform documents an input limit or offers streaming or long-form speech
+**Source:** family coordination, 2026-10-13; platform probe, 2026-10-13; `GET /v1/models`, 2026-10-14 (`max_prompt_length` 6000 characters)
+**Revisit when:** the platform lowers its input limit below the segment size, or offers long-form speech
 
 The audio generator only writes the script (title plus spoken text,
 three to five minutes). The output service cuts the script into
@@ -136,7 +136,9 @@ return a presigned URL. The script is also the output's index text.
 returned MP3, 24 kHz mono at 64 kbps, at about ten seconds of synthesis
 per thousand characters, and documents no input limit. Segments keep
 each request short and bounded, and a failure costs one segment, not
-the script. MP3 is a stream of self-contained frames, so the segments
+the script. The model catalog later named an input limit of 6000
+characters (2026-10-14); 1500-character segments stay well inside it,
+and the reasons above hold without it. MP3 is a stream of self-contained frames, so the segments
 concatenate without re-encoding and without an audio library in the
 image. Cutting at sentence ends keeps the joins at natural pauses.
 
