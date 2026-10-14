@@ -1,10 +1,12 @@
 """The demo library: one source per kind that every new user finds in
 their library, so they can try the system at once.
 
-The four sources form one fictional set around Zeltavia (the country of
+The five sources form one fictional set around Zeltavia (the country of
 the family's smoke test): an expedition's field notes as a PDF with page
-breaks, a glossary as text, a map of Marrow Bay as an image, and a real
-article on dead reckoning, the navigation the field notes describe. The
+breaks, a glossary as text, a map of Marrow Bay as an image, a real
+article on dead reckoning, the navigation the field notes describe, and
+a radio interview with the keeper of Hollin Lighthouse as an MP3, whose
+facts are in no other source. The
 files live in `demo/` next to this module (built by `demo/build.py` at
 the root of the service). They are inserted as ordinary library sources
 flagged `demo`, processed by the worker like any upload, and paid for by
@@ -44,6 +46,7 @@ SEEDS = (
     Seed("zeltavian-glossary.md", "text", "glossary.md", "text/plain; charset=utf-8"),
     Seed("marrow-bay-map.png", "image", "marrow-bay-map.png", "image/png"),
     Seed(DEMO_URL, "url", url=DEMO_URL, content_type="text/uri-list"),
+    Seed("hollin-interview.mp3", "audio", "hollin-interview.mp3", "audio/mpeg"),
 )
 
 
