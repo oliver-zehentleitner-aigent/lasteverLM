@@ -6,15 +6,26 @@
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** `GET https://api.vultrinference.com/v1/models` on 2026-10-12 (catalog, prices, context lengths), embedding probes the same day; the choice itself was delegated to infra by the family coordinator because the maintainer was offline
+**Source:** `GET https://api.vultrinference.com/v1/models` on 2026-10-12 (catalog, prices, context lengths), embedding probes the same day; the choice itself was delegated to infra by the family coordinator because the maintainer was offline; the same catalog read again on 2026-10-14 (qwen3.8-27b's prices, the TTS unit)
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — b57ab97c-0eee-43b3-a7ee-06226e2d9714 — as of 2026-10-14
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — b8b85840-a958-42e9-90b4-a9205d5b6f40 — as of 2026-10-14
 **Revisit when:** a Llama-class or a stronger multilingual model appears in the catalog, the demo's answer quality is judged, or the prices change
 
 `LLM_MODEL=qwen3.8-27b`, `EMBEDDING_MODEL=qwen3-embedding-4b`,
 `EMBEDDING_DIMENSION=1024`, `TTS_MODEL=qwen3-tts-12hz-1.7b`, and
-`MODEL_PRICES` from the catalog's per-token price (one price per model,
-so `in` equals `out`): 100, 5 and 28000 cents per million tokens. The
-maintainer can flip any of these with one value in the environment and
-`make deploy`.
+`MODEL_PRICES` from the catalog's prices: qwen3.8-27b
+`{"in":15,"out":100}` cents per million input and output tokens,
+qwen3-embedding-4b 5, and qwen3-tts-12hz-1.7b 28000 cents per million
+seconds of output audio. The maintainer can flip any of these with one
+value in the environment and `make deploy`.
+
+The two catalog reads disagree on qwen3.8-27b: the read of 2026-10-12
+was recorded as one price per model, 100 cents for `in` and `out`; the
+read of 2026-10-14 lists a `prompt` price of 0.00000015 and a
+`completion` price of 0.000001 USD per token, 15 and 100 cents per
+million. Whether the catalog changed in between or the first read was
+wrong is not known. Resolved in favour of the live catalog: the prices
+are 15 and 100 since 2026-10-14.
 
 **Reason:** the catalog has no Llama-class model at all. Among the text
 models, qwen3.8-27b is multilingual (German sources are the demo case),
@@ -37,11 +48,12 @@ less known on German text; keeping 2560 dimensions — would have forced
 **Known risks:** qwen3.8-27b is a reasoning model; a probe with
 `max_tokens=20` returned only reasoning tokens and an empty answer, so
 the services must disable thinking or budget for it. The TTS price unit
-is in conflict: on 2026-10-14 the catalog lists qwen3-tts-12hz-1.7b at
-0.00028 USD per second of output audio (its unit read as "token" on
-2026-10-12), while core prices `tts` usage per million characters of
-input text, so the 28000 is applied to characters; which unit the
-platform bills is open.
+conflict is resolved: on 2026-10-14 the catalog lists
+qwen3-tts-12hz-1.7b at 0.00028 USD per second of output audio (its unit
+read as "token" on 2026-10-12), core first priced `tts` usage per
+million characters of input text, and core and rag now record the
+seconds the platform reports (`x-usage-seconds`), so the 28000 applies
+to seconds (the two See lines).
 
 ## Speech to text: whisper-large-v3-turbo, priced per second of audio
 
