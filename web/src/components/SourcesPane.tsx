@@ -7,6 +7,7 @@ import { sourceKindLabel, uploadedSources } from '../lib/outputs'
 import { audioFiles } from '../lib/openEntry'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { DemoBadge } from './DemoBadge'
+import { PendingReason } from './PendingReason'
 import { t } from '../i18n'
 
 interface Props {
@@ -127,7 +128,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
               <span className={`badge ${s.status}`}>{t(`status.${s.status}`)}</span>
               {audioFiles(s) && <PlayButton open={playing?.id === s.id} name={s.name} onToggle={() => togglePlayer(s)} />}
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
-              {s.status === 'processing' && s.error && <span className="muted small">{t('sources.retrying', { error: s.error })}</span>}
+              <PendingReason status={s.status} error={s.error} />
               {playing?.id === s.id && <AudioCheck files={playing.files} />}
             </div>
             <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>

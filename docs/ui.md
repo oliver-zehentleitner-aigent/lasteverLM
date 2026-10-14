@@ -102,6 +102,11 @@ is closed. After the wizard the notebook view opens.
   creating outputs is: without credit the hint next to Create says "No
   credit: sources wait, outputs cannot be created." with "redeem a
   voucher" (the voucher dialog), and Create is disabled.
+  A source still processing or waiting for credit shows the service's
+  `error` next to its badge: "pricing has no exchange rate, ask an
+  admin" as it comes, in amber (nothing was tried; it runs once an admin
+  sets the rate), any other error while processing as "Retrying after:
+  …", muted, and while waiting for credit as it comes, muted.
   This notebook's own generated documents are not listed here (they are
   under Outputs), although the backend keeps each one as a source of
   kind `generated` so the chat can cite it.
@@ -377,7 +382,8 @@ outputs), by notebook (or "not in any notebook") and by part of the
 name or address. Columns: kind (an output's kind, from rag's
 list of the user's outputs joined by `output_id`), name, status (a
 failed entry's reason on one line next to the badge, in full as its
-tooltip; "waiting for credit" in amber, and one notice above the table
+tooltip; a processing or waiting entry's `error` on the same line, as
+in the notebook's source list; "waiting for credit" in amber, and one notice above the table
 "N sources wait for credit · redeem a voucher" while any does), size ("unknown"
 for entries added before sizes were recorded, none for outputs), date,
 and the notebooks it is in as links (or "not in any notebook"); a

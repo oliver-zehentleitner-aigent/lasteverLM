@@ -13,6 +13,7 @@ import { DemoBadge } from './DemoBadge'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
 import { ReadOnlyOutput, TrashedOutputs } from './LibraryOutputs'
+import { PendingReason } from './PendingReason'
 import { RedeemLink } from './RedeemLink'
 import { ShareCard } from './ShareCard'
 import { t, tn } from '../i18n'
@@ -357,6 +358,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                         {e.error}
                       </span>
                     )}
+                    <PendingReason status={e.status} error={e.error} className="reason" />
                   </td>
                   <td>
                     {doc ? (
