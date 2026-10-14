@@ -206,6 +206,20 @@ def test_suggestions_and_feedback_are_optional_and_bounded() -> None:
     assert Answer(message_id=uuid4(), answer="a", suggestions=["Why?"]).suggestions == ["Why?"]
 
 
+def test_a_plan_is_optional_and_passed_through() -> None:
+    row = {
+        "id": str(uuid4()),
+        "role": "assistant",
+        "content": "",
+        "created_at": "2026-10-14T00:00:00Z",
+    }
+    assert Message.model_validate(row).plan is None
+    plan = {"plan_id": "p1", "status": "proposed", "steps": [], "estimate": {"min": 1, "max": 2}}
+    assert Message.model_validate({**row, "plan": plan}).model_dump(mode="json")["plan"] == plan
+    assert Answer(message_id=uuid4(), answer="", plan=plan).plan == plan
+    assert Answer(message_id=uuid4(), answer="a").plan is None
+
+
 def test_a_source_can_wait_for_credit() -> None:
     row = {
         "id": str(uuid4()),

@@ -67,6 +67,27 @@ class CompletionResult:
 
 
 @dataclass(frozen=True)
+class ToolCall:
+    """One function call the model asked for; `arguments` parsed from its JSON."""
+
+    id: str
+    name: str
+    arguments: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ToolCompletion:
+    """A completion that may call tools: the text (possibly empty when there
+    are calls), the calls in the model's order, the usage to record and why
+    the model stopped ("tool_calls" when it wants results back)."""
+
+    text: str
+    tool_calls: list[ToolCall]
+    usage: Usage
+    finish_reason: str | None = None
+
+
+@dataclass(frozen=True)
 class SpeechResult:
     """The MP3 bytes and the usage to record (kind `tts`, seconds of
     generated speech in `tokens_in`)."""
@@ -127,6 +148,24 @@ class LLM(Protocol):
         *,
         thinking: bool | None = None,
     ) -> CompletionResult: ...
+
+
+class ToolCallingLLM(LLM, Protocol):
+    """An `LLM` that can also offer the model tools over a chat history.
+
+    A protocol of its own, so a service's text-only `LLM` (and its test
+    doubles) need not implement tool calls."""
+
+    def complete_tools(
+        self,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int | None = None,
+        *,
+        thinking: bool | None = None,
+        tool_choice: str = "auto",
+    ) -> ToolCompletion: ...
 
 
 class TextToSpeech(Protocol):
