@@ -28,7 +28,7 @@ def test_bulk_links_uploads_and_outputs_and_reports_what_was_there(client, repo)
     assert r.json() == {"added": [b, report], "already": [a]}
     listed = {s["library_id"] for s in client.get(f"/api/ingest/notebooks/{target}/sources").json()}
     assert listed == {a, b, report}
-    assert repo.pending() == 2  # a and b from their uploads; linking queued nothing
+    assert repo.pending() == 0  # uploads are read when used; linking queued nothing
     # Again: everything is there, nothing doubled.
     again = client.post(url, json={"library_ids": [report, a]}).json()
     assert again == {"added": [], "already": [report, a]}

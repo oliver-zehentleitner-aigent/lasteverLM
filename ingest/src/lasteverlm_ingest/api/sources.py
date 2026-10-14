@@ -32,7 +32,7 @@ from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.dedupe import file_key, url_key
 from lasteverlm_ingest.loaders.convert import MEDIA_TYPES, sniff_container
 from lasteverlm_ingest.loaders.image import sniff_image_type
-from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
+from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture, pdf_page_count
 from lasteverlm_ingest.loaders.url import check_url
 from lasteverlm_ingest.repository import ChunkText, NewLibrarySource, StoredSource
 from lasteverlm_ingest.worker import WorkerDeps
@@ -151,16 +151,18 @@ def detect_kind(filename: str, media_type: str | None) -> str | None:
     return kind
 
 
-def _audio_type(data: bytes) -> str:
-    """The stored media type of a recording, from its bytes: a container the
-    worker converts (see loaders/convert.py), else WAV or MP3 as core's
-    probe reads them; 415 with the reason otherwise."""
+def _audio_type(data: bytes) -> tuple[str, float | None]:
+    """The stored media type of a recording, from its bytes, and its length
+    in seconds where it is known before reading: a container the worker
+    converts (see loaders/convert.py; length unknown until converted), else
+    WAV or MP3 as core's probe reads them; 415 with the reason otherwise."""
     container = sniff_container(data)
     if container is not None:
         # Size and duration are checked on the converted file.
-        return MEDIA_TYPES[container]
+        return MEDIA_TYPES[container], None
     try:
-        return probe_audio(data).mime
+        info = probe_audio(data)
+        return info.mime, info.seconds
     except AudioError as exc:
         # Not a recording we can read, or an MP3 over core's limits.
         raise HTTPException(status_code=415, detail=f"{exc} (accepted: {AUDIO_FORMATS})") from None
@@ -218,7 +220,8 @@ async def create_source(
             raise HTTPException(status_code=400, detail="file is empty")
         if kind == "image" and sniff_image_type(data) is None:
             raise HTTPException(status_code=415, detail="not a PNG, JPEG, WebP or GIF image")
-        audio_type = _audio_type(data) if kind == "audio" else None
+        audio_type, seconds = _audio_type(data) if kind == "audio" else (None, None)
+        pages = pdf_page_count(data) if kind == "pdf" else None
         name = safe_name(upload.filename)
         url = None
         capture: Capture | None = _capture(form.get("capture")) if kind == "pdf" else None
@@ -247,6 +250,7 @@ async def create_source(
             raise HTTPException(status_code=400, detail=str(exc)) from None
         # Only the URL is stored; the worker fetches it (see loaders/url.py).
         kind, data, name, capture = "url", url.encode(), url[:200], None
+        pages = seconds = None
     else:
         raise HTTPException(
             status_code=415,
@@ -290,6 +294,8 @@ async def create_source(
             size_bytes=None if kind == "url" else len(data),
             storage_path=key,
             capture=capture,
+            page_count=pages,
+            duration_seconds=seconds,
         )
     )
     if created.id != library_id:
@@ -388,3 +394,31 @@ def source_chunks(
         offset=offset,
         chunks=chunks,
     )
+
+
+class ProcessRequest(BaseModel):
+    """`POST /sources/process`: library entries to read now."""
+
+    library_ids: list[UUID] = Field(min_length=1, max_length=MAX_BULK)
+
+
+class Processing(BaseModel):
+    queued: list[UUID]
+    unchanged: list[UUID]
+
+
+@router.post("/sources/process", response_model=Processing)
+def process_sources(request: Request, user: CurrentUser, body: ProcessRequest) -> Processing:
+    """Read the caller's sources that are not read yet: `added` entries move
+    to `processing` (`queued`) and a worker reads them; entries being read,
+    read or failed are left as they are (`unchanged`). Nothing is billed
+    here; the worker bills the reading, and without credit the sources wait
+    (`waiting_for_credit`). Called by rag before an answer or an output and
+    by the web's "read now". One transaction: if any id is not the
+    caller's, nothing is queued (404 naming the ids)."""
+    ids = list(dict.fromkeys(body.library_ids))
+    result = repository(request).queue_for_processing(user, ids)
+    if result.missing:
+        missing = ", ".join(str(i) for i in result.missing)
+        raise HTTPException(status_code=404, detail=f"library sources not found: {missing}")
+    return Processing(queued=result.queued, unchanged=result.unchanged)

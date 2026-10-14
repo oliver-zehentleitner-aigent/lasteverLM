@@ -137,7 +137,11 @@ def test_trashed_sources_are_not_processed(client, repo, run_queue):
     lib = _upload(client, nb).json()["library_id"]
     client.delete(f"/api/ingest/library/{lib}")
     assert run_queue() == 0 and repo.claim_library_source("w", 600) is None
+    # Asking for a trashed entry is refused; restored, it can be read.
+    process = "/api/ingest/sources/process"
+    assert client.post(process, json={"library_ids": [lib]}).status_code == 404
     client.post(f"/api/ingest/library/{lib}/restore")
+    assert client.post(process, json={"library_ids": [lib]}).json()["queued"] == [lib]
     assert repo.claim_library_source("w", 600) == UUID(lib)
 
 
@@ -210,8 +214,9 @@ def test_a_failed_source_uploaded_again_is_retried(client, repo, run_queue):
     lib = UUID(r.json()["library_id"])
     assert repo.library[lib].status == "failed"
     again = _upload(client, nb, data=b"   \n  ", name="blank.txt")
-    assert again.status_code == 200 and again.json()["status"] == "processing"
-    assert repo.library[lib].attempts == 0 and repo.pending() == 1
+    # Back to unread: read again when it is used.
+    assert again.status_code == 200 and again.json()["status"] == "added"
+    assert repo.library[lib].attempts == 0 and repo.pending() == 0
 
 
 def test_the_same_url_is_entered_once(client, repo, storage):

@@ -205,3 +205,33 @@ costs one indexed update per call instead of a timer.
 - A separate heartbeat thread: refreshes even while the job is hung,
   which would keep a hung job's claim alive forever and defeat the
   stalled-attempt rule.
+
+## A source is read when it is used, not when it is added
+
+**Id:** d80fd88e-9269-4b75-bcb2-f215e4fcd1f7
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's decision through the coordinating agent, 2026-10-14 (analysis starts only when a source is used); the stored status and the endpoint chosen by the ingest author with rag's author
+**Revisit when:** users expect their sources to be ready the moment they add them, or the wait before a first answer grows long
+
+Adding a source only stores it, as `added`, stored in
+`library_sources.status`; no worker claims it. Rag asks for the sources
+an answer or an output uses (`POST /sources/process`), and the web asks
+for one with "read now"; those move to `processing` and are read and
+billed as before. A source nobody uses costs nothing. The upload keeps
+the page count of a PDF and the length of an MP3 or WAV, so the cost of
+reading can be estimated before anything is read.
+
+The status is stored, not derived: the claim query needs no change,
+workers of the previous release go on claiming only `processing`, and
+rag tells unread sources apart in its own SQL.
+
+**Alternatives:**
+- Processing at add time, the previous behaviour: every upload was read
+  and billed whether it was ever used; the maintainer wants the analysis
+  to start only when a source is used.
+- A request flag beside `processing` (a nullable `process_requested_at`):
+  every reader of the status would have to combine two columns to tell
+  unread from waiting.
+

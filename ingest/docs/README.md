@@ -60,6 +60,8 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/notebooks/{id}/share` | 204 | revokes the link; sharing again makes a new token |
 | DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library, outputs included; rag keeps an output's origin title) |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
+| POST | `/sources/process` | 200 | `{"library_ids": [...]}` (1–200): read the caller's unread sources now. `added` entries move to `processing` (`"queued"`), entries being read, read or failed stay as they are (`"unchanged"`): `{"queued": [library_id], "unchanged": [library_id]}`. Nothing is billed here (the worker bills the reading); without credit the queued ones show `waiting_for_credit`. One transaction: 404 naming any id that is not the caller's (unknown, someone else's, trashed). Called by rag before an answer or an output and by the web's "read now" |
+| POST | `/sources/estimate` | 200 | `{"library_ids": [...], "refetch": [...]}`: what reading them would charge, `{"items": [{"library_id", "kind", "unread", "charge_cents_min", "charge_cents_max", "basis"}]}` in euro cents (decimal strings). Unread entries from their stored size, page count (PDFs) or duration (MP3/WAV), a range where those are unknown (a web page before its fetch, an older PDF, a recording to convert); read ones 0 ("read already"), unless in `refetch` ("re-read if changed": 0 to one web page). Each includes the summary and the fixed fee. 404 naming ids not the caller's, 503 without an exchange rate |
 | POST | `/notebooks/{id}/sources/bulk` | 200 | `{"library_ids": [...]}` (1–200): links the caller's library entries into their notebook at once, uploads (any status, not trashed) and ready outputs alike; nothing is processed or billed. Answers `{"added": [library_id], "already": [library_id]}` in the order given (duplicates counted once); an existing link is `already`, never doubled (unique `sources_link_idx`). One transaction: if any id is unknown, someone else's, trashed or an unfinished output, nothing is added and the answer is 404 naming them |
 | POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF) with an optional field `capture` for PDFs (`text`, `vision`, `auto`; default `auto`), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library: an upload not in the trash, or a ready output; nothing is processed or billed, the chunks are reused; 404 otherwise); 200 with the existing source when it is already in this notebook |
 | GET | `/sources/{id}/chunks?offset=0&limit=50` | 200 | the "As read" view, owner only (404 otherwise): `{"source_id", "library_id", "kind", "capture", "chunk_count", "offset", "chunks": [{"chunk_id", "index", "page", "text"}]}`, in order of `index` (`chunks.idx`, a citation's `chunk_index`; `chunk_id` is a citation's `chunk_id`); `limit` 1–200; `page` for PDFs, null otherwise; audio chunks carry no position (no timestamps from the platform) |
@@ -235,6 +237,14 @@ backoff (`retry_at`, migration 0008): no worker takes it for 5 seconds
 after the first failure and 15 after the second, so the next attempt
 follows promptly instead of after the claim timeout; the third failed
 attempt sets `failed` for good. The user sees the `error` either way.
+
+Adding a source only stores it: a new upload, URL or text is `added`
+(not read yet), and no worker claims it until it is used, when rag (before
+an answer or an output) or the web ("read now") calls `POST
+/sources/process`, which moves it to `processing`. Uploading a failed
+source again puts it back to `added`. The upload stores what the cost of
+reading depends on: the page count of a PDF and the length of an MP3 or
+WAV (migration 0014), for `POST /sources/estimate`.
 
 Adding a source never needs credit; processing does. Every user needs a
 positive balance, admins included (core's rule). The claim query takes a row only when its owner's balance

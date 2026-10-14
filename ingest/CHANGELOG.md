@@ -9,6 +9,14 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `POST /sources/process` `{"library_ids"}` reads the caller's unread sources (`added` to `processing`; `{"queued", "unchanged"}`), and `POST /sources/estimate` `{"library_ids", "refetch"}` gives what reading them would charge (min/max and a basis such as "12 pages, text layer") from the page count and recording length stored at upload (migration 0014).
+
+### Changed
+
+- A source is read when it is used, not when it is added: uploads, URLs and texts are stored as `added` (migration 0013) and no worker reads them until `POST /sources/process` (rag before an answer or an output, the web's "read now"); a failed source uploaded again goes back to `added`. `GET /admin/stats` `sources` counts `added`.
+
 ## [0.18.5] - 2026-10-14
 
 ### Added

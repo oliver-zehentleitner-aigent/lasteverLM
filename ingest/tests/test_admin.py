@@ -17,7 +17,7 @@ def test_admin_stats_counts_across_users(client, repo, run_queue):
     empty = client.get("/api/ingest/admin/stats")
     assert empty.status_code == 200
     assert empty.json() == {
-        "sources": {"processing": 0, "ready": 0, "failed": 0},
+        "sources": {"added": 0, "processing": 0, "ready": 0, "failed": 0},
         "jobs": {"pending": 0, "running": 0, "waiting_for_credit": 0, "failed": 0},
         "chunks": 0,
         "source_bytes": 0,
@@ -28,7 +28,7 @@ def test_admin_stats_counts_across_users(client, repo, run_queue):
     client.post(url, files={"file": ("a.pdf", pdf, "application/pdf")})
     client.post(url, files={"file": ("b.txt", b"   ", "text/plain")})
     run_queue()
-    client.post(url, files={"file": ("c.txt", b"waiting", "text/plain")})
+    client.post(url, files={"file": ("c.txt", b"waiting", "text/plain")})  # added, not read
     other = repo.create_notebook(uuid4(), "someone else's")
     repo.add_source(other.id, "d.txt", "text", "k", 10)
     repo.add_source(other.id, "report", "generated", None)  # rag's, never counted
@@ -39,8 +39,8 @@ def test_admin_stats_counts_across_users(client, repo, run_queue):
     repo.add_source(broke.id, "e.txt", "text", "k2", 5)
 
     stats = client.get("/api/ingest/admin/stats").json()
-    assert stats["sources"] == {"processing": 3, "ready": 1, "failed": 1}
-    assert stats["jobs"] == {"pending": 1, "running": 1, "waiting_for_credit": 1, "failed": 1}
+    assert stats["sources"] == {"added": 1, "processing": 2, "ready": 1, "failed": 1}
+    assert stats["jobs"] == {"pending": 0, "running": 1, "waiting_for_credit": 1, "failed": 1}
     assert stats["chunks"] >= 1
     assert stats["source_bytes"] == len(pdf) + 3 + len(b"waiting") + 10 + 5
 
@@ -52,8 +52,11 @@ def test_admins_need_credit_like_everyone(client, repo):
     url = f"/api/ingest/notebooks/{nb}/sources"
     files = {"file": ("a.txt", b"text", "text/plain")}
     repo.admins.add(DEMO_USER_ID)
-    r = client.post(url, files=files)
-    assert r.status_code == 202 and r.json()["status"] == "waiting_for_credit"
+    lib = client.post(url, files=files).json()["library_id"]
+    r = client.post("/api/ingest/sources/process", json={"library_ids": [lib]})
+    assert r.status_code == 200 and r.json()["queued"] == [lib]
+    [source] = client.get(url).json()
+    assert source["status"] == "waiting_for_credit"
     assert repo.claim_library_source("w", 600) is None
 
 

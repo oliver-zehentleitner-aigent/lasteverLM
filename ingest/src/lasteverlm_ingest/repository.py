@@ -91,12 +91,23 @@ class LibrarySource(BaseModel):
     capture: str | None = None
     starter: bool = False
     transcribed_path: str | None = None
+    page_count: int | None = None
+    duration_seconds: float | None = None
 
 
 class NotebookUse(BaseModel):
     id: UUID
     title: str
     source_id: UUID
+
+
+class ProcessResult(BaseModel):
+    """`queue_for_processing`: what moved to `processing`, what was left as
+    it was (read, being read, failed), and ids not the owner's."""
+
+    queued: list[UUID] = []
+    unchanged: list[UUID] = []
+    missing: list[UUID] = []
 
 
 class LinkResult(BaseModel):
@@ -174,6 +185,8 @@ class NewLibrarySource(BaseModel):
     storage_path: str
     capture: str | None = None
     starter: bool = False
+    page_count: int | None = None
+    duration_seconds: float | None = None
 
 
 class StarterRef(BaseModel):
@@ -288,7 +301,15 @@ class Repository(Protocol):
         ...
 
     def retry_library_source(self, library_id: UUID) -> None:
-        """A failed library source uploaded again: back to `processing`."""
+        """A failed library source uploaded again: back to `added`, read
+        again when it is used."""
+        ...
+
+    def queue_for_processing(self, owner: UUID, library_ids: list[UUID]) -> ProcessResult:
+        """Move the owner's `added` library sources to `processing`, so a
+        worker reads them; the others are left as they are. When any id is
+        not the owner's (unknown, someone else's, trashed), nothing is
+        queued and those ids are `missing`."""
         ...
 
     def is_seeded(self, owner: UUID) -> bool:
@@ -693,7 +714,7 @@ class PostgresRepository:
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
-        "l.starter, l.transcribed_path"
+        "l.starter, l.transcribed_path, l.page_count, l.duration_seconds"
     )
     # Library sources in the library (not in the trash).
     _ACTIVE = f"{_LISTED} and l.deleted_at is null"
@@ -716,9 +737,9 @@ class PostgresRepository:
     def create_library_source(self, new: NewLibrarySource) -> LibrarySource:
         self._one(
             "insert into library_sources (id, owner, name, kind, dedupe_key, url, size_bytes, "
-            "storage_path, capture, starter, status) values (%(id)s, %(owner)s, %(name)s, "
-            "%(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(capture)s, %(starter)s, "
-            "'processing') "
+            "storage_path, capture, starter, page_count, duration_seconds, status) values "
+            "(%(id)s, %(owner)s, %(name)s, %(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, "
+            "%(capture)s, %(starter)s, %(pages)s, %(seconds)s, 'added') "
             "on conflict (owner, dedupe_key) where dedupe_key is not null do nothing returning id",
             {
                 "id": new.id,
@@ -731,16 +752,40 @@ class PostgresRepository:
                 "path": new.storage_path,
                 "capture": new.capture,
                 "starter": new.starter,
+                "pages": new.page_count,
+                "seconds": new.duration_seconds,
             },
         )
         found = self.find_library_source(new.owner, new.dedupe_key)
         assert found is not None
         return found
 
+    def queue_for_processing(self, owner: UUID, library_ids: list[UUID]) -> ProcessResult:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "select l.id from library_sources l where l.id = any(%(ids)s) "
+                "and l.owner = %(owner)s and l.deleted_at is null for update",
+                {"ids": library_ids, "owner": owner},
+            )
+            found = {row[0] for row in cur.fetchall()}
+            missing = [i for i in library_ids if i not in found]
+            if missing:
+                return ProcessResult(missing=missing)
+            cur.execute(
+                "update library_sources set status = 'processing' "
+                "where id = any(%(ids)s) and status = 'added' returning id",
+                {"ids": library_ids},
+            )
+            queued = {row[0] for row in cur.fetchall()}
+        return ProcessResult(
+            queued=[i for i in library_ids if i in queued],
+            unchanged=[i for i in library_ids if i not in queued],
+        )
+
     def retry_library_source(self, library_id: UUID) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
-                "update library_sources set status = 'processing', error = null, attempts = 0, "
+                "update library_sources set status = 'added', error = null, attempts = 0, "
                 "claimed_at = null, claimed_by = null, retry_at = null "
                 "where id = %(id)s and status = 'failed'",
                 {"id": library_id},
@@ -805,8 +850,9 @@ class PostgresRepository:
                 cur.execute(
                     "insert into library_sources (id, owner, name, kind, dedupe_key, url, "
                     "size_bytes, storage_path, transcribed_path, capture, starter, status, "
-                    "summary) values (%(id)s, %(owner)s, %(name)s, %(kind)s, %(key)s, %(url)s, "
-                    "%(size)s, %(path)s, %(converted)s, %(capture)s, true, 'ready', %(summary)s)",
+                    "summary, page_count, duration_seconds) values (%(id)s, %(owner)s, %(name)s, "
+                    "%(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(converted)s, %(capture)s, "
+                    "true, 'ready', %(summary)s, %(pages)s, %(seconds)s)",
                     {
                         "id": library_id,
                         "owner": plan.owner,
@@ -819,6 +865,8 @@ class PostgresRepository:
                         "converted": converted,
                         "capture": old.capture,
                         "summary": old.summary,
+                        "pages": old.page_count,
+                        "seconds": old.duration_seconds,
                     },
                 )
                 cur.execute(
@@ -1134,6 +1182,7 @@ class PostgresRepository:
     _STATS_SQL = f"""
     select count(*) filter (where status = 'processing'),
            count(*) filter (where status = 'ready'),
+           count(*) filter (where status = 'added'),
            count(*) filter (where status = 'failed'),
            count(*) filter (where status = 'processing' and {_FUNDED}
                               and (claimed_at is null
@@ -1151,9 +1200,9 @@ class PostgresRepository:
             cur.execute(self._STATS_SQL, {"stale": stale_after_seconds})
             row = cur.fetchone()
         assert row is not None
-        processing, ready, failed, pending, waiting, size, chunks = (int(v) for v in row)
+        processing, ready, added, failed, pending, waiting, size, chunks = (int(v) for v in row)
         return AdminStats(
-            sources={"processing": processing, "ready": ready, "failed": failed},
+            sources={"added": added, "processing": processing, "ready": ready, "failed": failed},
             jobs={
                 "pending": pending,
                 "running": processing - pending - waiting,
