@@ -27,6 +27,17 @@ of a shared link is exactly what sanitizing closes.
 produces an HTML string. Rejected as a larger dependency for the same
 result; `marked` plus DOMPurify is small and well understood.
 
+With provenance (2026-10-14) a report's `[n]` markers become buttons and
+a paragraph the check did not back gets a badge. Both are added to the
+rendered HTML before it is sanitized, so DOMPurify sees them like the
+model's own markup; the click is handled by one listener on the
+container, so the HTML needs no event attributes.
+
+**Rejected alternative:** inserting the buttons and badges after
+sanitizing. Rejected because string edits on sanitized HTML are trusted
+blindly: a marker that happened to sit inside an attribute would be
+turned into markup no sanitizer checked.
+
 ## markmap is loaded on demand
 
 **Id:** c052fbee-b171-4ac1-9149-ed6afd66a5d4
