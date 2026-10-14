@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.3] - 2026-10-14
+
 ### Changed
 
 - `make web-csp-check` opens a ready web page source's stored snapshot in its source tab and checks that the frame loads from object storage without a violation and that its `sandbox` allows neither scripts nor the same origin; without such a source the walk fails (exit 3).
