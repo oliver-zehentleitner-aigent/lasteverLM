@@ -53,8 +53,11 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 
 | Method | Path | Status | Notes |
 |---|---|---|---|
-| GET | `/notebooks` | 200 | the caller's notebooks |
+| GET | `/notebooks` | 200 | the caller's notebooks, `{"id", "title", "created_at", "share_token"}` (`share_token` null when not shared) |
 | POST | `/notebooks` | 201 | `{"title"}` |
+| PATCH | `/notebooks/{id}` | 200 | `{"title"}`: rename, trimmed, 1–200 characters like at creation (400 otherwise); the notebook |
+| POST | `/notebooks/{id}/share` | 200 | `{"share_token"}`: a read-only link (`notebooks.share_token`, `secrets.token_urlsafe(24)` like rag's output links), the same token on every call until revoked. Rag's public view shows the title, the sources' names and kinds and the shared outputs, never the source files |
+| DELETE | `/notebooks/{id}/share` | 204 | revokes the link; sharing again makes a new token |
 | DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library, outputs included; rag keeps an output's origin title) |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
 | POST | `/notebooks/{id}/sources/bulk` | 200 | `{"library_ids": [...]}` (1–200): links the caller's library entries into their notebook at once, uploads (any status, not trashed) and ready outputs alike; nothing is processed or billed. Answers `{"added": [library_id], "already": [library_id]}` in the order given (duplicates counted once); an existing link is `already`, never doubled (unique `sources_link_idx`). One transaction: if any id is unknown, someone else's, trashed or an unfinished output, nothing is added and the answer is 404 naming them |
