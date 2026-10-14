@@ -16,7 +16,6 @@ import {
   writeRatio,
   writeWidth,
 } from '../lib/layout'
-import { DEMO_QUESTION } from '../lib/demo'
 import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
@@ -292,7 +291,6 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             scope={scope}
             presentSources={presentSources}
             sources={picked}
-            suggestion={uploads?.some((s) => s.demo) ? DEMO_QUESTION : undefined}
             onClearScope={() => setScope(null)}
             onCitationSelected={onCitation}
             onOpenSource={openSource}

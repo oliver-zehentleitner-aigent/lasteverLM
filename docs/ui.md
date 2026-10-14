@@ -29,7 +29,7 @@ were in the notebook already.
    library, a list with one row per entry (checkbox, the name on one
    line with an ellipsis, images with a 2rem thumbnail in front, a URL
    shortened to host and path, the kind and
-   demo badges in a fixed slot on the right, a generated document as
+   starter badges in a fixed slot on the right, a generated document as
    "Generated", so a document made in one notebook becomes a source in
    another; the whole row toggles) and
    "n selected" next to the add button. For PDFs a
@@ -434,7 +434,7 @@ it added again) and delete for good.
 
 In the library and the trash every row stays one line: a long name (a
 URL, say) is cut with an ellipsis and shows in full as tooltip, and the
-demo badge follows it without overlapping. An image entry there has no
+starter badge follows it without overlapping. An image entry there has no
 thumbnail; hovering or focusing its name shows a preview up to 320 px
 next to it, kept inside the window (loaded only then), and leaving or
 Esc hides it. In the wizard's picker an image keeps a small square
@@ -443,14 +443,22 @@ thumbnail in front of its name, loaded lazily from the entry's
 name or focusing the thumbnail; on touch a tap on the thumbnail opens it
 without ticking the row, a tap elsewhere closes it.
 
-A new account starts with four example sources in its library (a PDF,
-a Markdown glossary, an image and a Wikipedia page), marked "demo"
-there, in the wizard's library picker and in a notebook's source list.
-The library page polls while entries are still processing, so they
-turn ready on their own. In a notebook that holds demo sources, an
-empty chat offers a first question ("How did Ida Vennholt find her way
-in the fog, and what is that method called?"); a click puts it into
-the question field.
+A new account gets a copy of the starter notebook, if an admin has set
+one: the notebook with its sources, ready, and its outputs a few
+seconds later. The copied entries are marked "Starter" in the library,
+the wizard's library picker and the notebook's source list (ingest's
+`starter` flag; `demo`, its earlier name, counts too). For admins and
+viewers the starter notebook carries a "Starter" badge in the notebook
+list; an admin's other notebooks have a ☆ button, "Use as starter
+notebook", which asks for confirmation and sets it (`PUT
+/api/account/admin/settings/starter-notebook`); a refusal (sources not
+all ready, a notebook an admin does not own) shows the service's
+sentence. Admin > Access has a **Starter notebook** card: the notebook
+(its title when it is one of this admin's, else its id) as a link that
+opens it, who set it and when, and Remove (after a confirmation; the
+notebook stays); without one, "new accounts start empty". The library
+page polls while entries are still processing, so they turn ready on
+their own.
 
 A citation whose source is no longer in the notebook (detached, or
 deleted from the library) stays readable with its quote and is marked

@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { admin } from '../api/admin'
 import { ingest } from '../api/ingest'
 import { rag } from '../api/rag'
 import type { Notebook } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
+import { useMe } from '../hooks/useMe'
+import { canSeeAdmin, canWriteAdmin } from '../lib/roles'
 import { browserStorage, readWidth, SIDEBAR_WIDTH, writeWidth } from '../lib/layout'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
 import { ColumnDivider } from './ColumnDivider'
@@ -36,6 +39,29 @@ export function Workspace() {
   useEffect(() => {
     if (selectedId) writeLastNotebook(selectedId)
   }, [selectedId])
+
+  // the starter notebook, marked in the list for admins and viewers; only an admin sets it
+  const { me } = useMe()
+  const seesStarter = canSeeAdmin(me)
+  const [starterId, setStarterId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!seesStarter) return
+    admin.getStarter().then(
+      (s) => setStarterId(s.notebook_id),
+      () => {
+        // no mark without the setting; the admin pages show the error
+      },
+    )
+  }, [seesStarter])
+
+  /** The account service refuses a notebook whose sources are not all
+   *  ready, or one an admin does not own; its sentence is shown. */
+  async function makeStarter(id: string) {
+    const notebook = notebooks.find((n) => n.id === id)
+    if (!notebook || !confirm(t('starter.confirm', { title: notebook.title }))) return
+    const s = await run(() => admin.setStarter(id))
+    if (s) setStarterId(s.notebook_id)
+  }
 
   /** A new notebook goes straight into the wizard: it is empty otherwise. */
   async function create(title: string) {
@@ -91,6 +117,8 @@ export function Workspace() {
           onDelete={remove}
           onRename={(id, title) => void rename(id, title)}
           onShared={(id, token) => setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, share_token: token } : n)))}
+          starterId={seesStarter ? starterId : null}
+          onMakeStarter={canWriteAdmin(me) ? (id) => void makeStarter(id) : undefined}
         />
         {error && <p className="error">{error}</p>}
       </aside>

@@ -10,7 +10,7 @@ import { filterLibrary, notInNotebook, shortUrl } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { afterSources, wizardSteps } from '../lib/wizard'
 import { OUTPUT_FORMS, SOURCE_FORMS, sourceKindLabel, tileNote, type SourceForm } from '../lib/outputs'
-import { DemoBadge } from './DemoBadge'
+import { StarterBadge } from './StarterBadge'
 import { ImageName } from './ImageName'
 import { t, tn } from '../i18n'
 
@@ -206,7 +206,7 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
                         <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.url ? shortUrl(e.url) : e.name} title={e.url ?? e.name} />
                       </span>
                       <span className="pick-badges">
-                        <DemoBadge demo={e.demo} />
+                        <StarterBadge item={e} />
                         <span className="badge">{sourceKindLabel(e.kind)}</span>
                       </span>
                     </label>

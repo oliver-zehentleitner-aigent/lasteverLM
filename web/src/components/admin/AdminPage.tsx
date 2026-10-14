@@ -8,6 +8,7 @@ import { LoginAttempts, Logins, Users } from './Users'
 import { Visits } from './Visits'
 import { FinancePage } from './Finance'
 import { AllowedSignIn } from './SignIn'
+import { StarterSetting } from './Starter'
 import { SmtpSettings } from './Mail'
 import { Access, Bans, Blocks, RateLimit } from './Security'
 import { SystemView } from './System'
@@ -23,7 +24,12 @@ const PAGE_SECTIONS: Record<AdminPageId, (navigate: (path: string) => void) => R
       <LoginAttempts />
     </>
   ),
-  access: () => <AllowedSignIn />,
+  access: (navigate) => (
+    <>
+      <AllowedSignIn />
+      <StarterSetting onNavigate={navigate} />
+    </>
+  ),
   finance: (navigate) => <FinancePage onNavigate={navigate} />,
   security: () => (
     <>

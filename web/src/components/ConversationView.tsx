@@ -22,7 +22,7 @@ interface ConversationProps extends ChatPaneProps {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, suggestion, onClearScope, onCitationSelected, onOpenSource }: ConversationProps) {
+export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource }: ConversationProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
@@ -151,21 +151,6 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
         ))}
         {busy && <p className="muted">…</p>}
         {messages.length === 0 && !busy && <p className="muted">{t('chat.empty')}</p>}
-        {messages.length === 0 && !busy && suggestion && (
-          <p className="suggestion small">
-            {t('chat.tryDemo')}{' '}
-            <button
-              type="button"
-              className="link"
-              onClick={() => {
-                setQuestion(suggestion)
-                input.current?.focus({ preventScroll: true })
-              }}
-            >
-              {suggestion}
-            </button>
-          </p>
-        )}
       </div>
       {error && <p className="error">{error}</p>}
       {scope && (

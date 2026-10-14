@@ -18,9 +18,13 @@ interface Props {
   onRename: (id: string, title: string) => void
   /** the notebook's read-only link changed (created or revoked) */
   onShared: (id: string, shareToken: string | null) => void
+  /** the starter notebook every new account gets a copy of, marked "Starter" */
+  starterId?: string | null
+  /** admins only: make this notebook the starter */
+  onMakeStarter?: (id: string) => void
 }
 
-export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDelete, onRename, onShared }: Props) {
+export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDelete, onRename, onShared, starterId = null, onMakeStarter }: Props) {
   const [title, setTitle] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   // the notebook whose share card is open
@@ -73,6 +77,16 @@ export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDele
                 }}
               >
                 {nb.title}
+              </button>
+            )}
+            {nb.id === starterId && (
+              <span className="badge starter" title={t('starter.listTitle')}>
+                {t('starter.badge')}
+              </span>
+            )}
+            {onMakeStarter && nb.id !== starterId && (
+              <button type="button" className="icon" title={t('starter.use')} aria-label={t('starter.use')} onClick={() => onMakeStarter(nb.id)}>
+                ☆
               </button>
             )}
             <button
