@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.5] - 2026-10-14
+
 ### Added
 
 - Audio: a fourth style, FAQ (questions and answers in two voices; rag's `faq`), with the second voice select as for a conversation.
