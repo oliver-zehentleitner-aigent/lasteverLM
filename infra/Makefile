@@ -59,14 +59,17 @@ vke-versions: ## list VKE versions the API offers right now
 
 # keep <VAR> from the previous cluster.env, or generate it once (never printed)
 keep_or_gen = $$( { grep -s '^$(1)=' $(CLUSTER_ENV) | cut -d= -f2-; } || true); [ -n "$$$(2)" ] || $(2)=$$(openssl rand -base64 48 | tr -d '/+=\n' | cut -c1-$(3))
+# the same for a key of <bytes> random bytes in standard base64 with padding
+keep_or_gen_key = $$( { grep -s '^$(1)=' $(CLUSTER_ENV) | cut -d= -f2-; } || true); [ -n "$$$(2)" ] || $(2)=$$(openssl rand -base64 $(3))
 
 env: ## write build/cluster.env: tofu outputs, derived database URLs, generated secrets (ignored by Git, never printed)
 > $(call require,DATABASE_ADMIN_URL)
 > @mkdir -p $(BUILD) && umask 077 && \
 >   pw=$(call keep_or_gen,APP_DB_PASSWORD,pw,32); jwt=$(call keep_or_gen,AUTH_JWT_SECRET,jwt,64); demo=$(call keep_or_gen,DEMO_TOKEN,demo,48); \
+>   vk=$(call keep_or_gen_key,VOUCHER_KEY,vk,32); \
 >   outs=$$(cd $(TOFU_DIR) && tofu output -json | python3 $(CURDIR)/scripts/tofu_outputs.py) && \
 >   urls=$$(APP_DB_PASSWORD=$$pw python3 $(CURDIR)/scripts/dburls.py) && { \
->   echo "APP_DB_PASSWORD=$$pw"; echo "AUTH_JWT_SECRET=$$jwt"; echo "DEMO_TOKEN=$$demo"; \
+>   echo "APP_DB_PASSWORD=$$pw"; echo "AUTH_JWT_SECRET=$$jwt"; echo "DEMO_TOKEN=$$demo"; echo "VOUCHER_KEY=$$vk"; \
 >   echo "$$urls"; echo "$$outs"; \
 > } > $(CLUSTER_ENV) && echo "wrote $(CLUSTER_ENV)"
 
@@ -113,7 +116,7 @@ secrets: env ## create the Secrets and the CA ConfigMap from cluster.env and the
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-s3 --from-literal=S3_ACCESS_KEY="$$S3_ACCESS_KEY" --from-literal=S3_SECRET_KEY="$$S3_SECRET_KEY" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-inference --from-literal=INFERENCE_API_KEY="$$INFERENCE_API_KEY" --dry-run=client -o yaml | kubectl apply -f - && \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-auth --from-literal=AUTH_JWT_SECRET="$$AUTH_JWT_SECRET" --from-literal=DEMO_TOKEN="$$DEMO_TOKEN" --dry-run=client -o yaml | kubectl apply -f - && \
->   kubectl -n $(KUBE_NS) create secret generic lasteverlm-account --from-literal=AUTH_ALLOWED_DOMAINS="$${AUTH_ALLOWED_DOMAINS:-}" --from-literal=ADMIN_EMAILS="$${ADMIN_EMAILS:-}" --from-literal=VISIT_HASH_SECRET="$${VISIT_HASH_SECRET:-}" --dry-run=client -o yaml | kubectl apply -f -
+>   kubectl -n $(KUBE_NS) create secret generic lasteverlm-account --from-literal=AUTH_ALLOWED_DOMAINS="$${AUTH_ALLOWED_DOMAINS:-}" --from-literal=ADMIN_EMAILS="$${ADMIN_EMAILS:-}" --from-literal=VISIT_HASH_SECRET="$${VISIT_HASH_SECRET:-}" --from-literal=VOUCHER_KEY="$$VOUCHER_KEY" --dry-run=client -o yaml | kubectl apply -f -
 > @if [ -n "$${SMTP_HOST:-}" ]; then \
 >   [ -n "$${SMTP_FROM_ADDRESS:-}" ] || { echo "SMTP_HOST is set but SMTP_FROM_ADDRESS is not; account refuses to start without it" >&2; exit 1; }; \
 >   kubectl -n $(KUBE_NS) create secret generic lasteverlm-smtp \
