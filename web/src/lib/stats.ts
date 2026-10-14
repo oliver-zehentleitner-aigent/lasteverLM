@@ -1,7 +1,7 @@
 import type { AccountStats, IngestStats, RagStats, SystemInfo } from '../api/types'
 import { language, t, tn } from '../i18n'
 import { adminPath, financePath } from './adminPages'
-import { known } from './build'
+import { known, tagVersion } from './build'
 import { formatCents } from './format'
 
 /** One number of the overview's KPI row: a value, a one-word label and an
@@ -77,7 +77,7 @@ export function attentionItems(a: AccountStats | null, s: SystemInfo | null): At
 export function systemMeta(s: SystemInfo): { build: string | null; health: string; dots: { name: string; healthy: boolean }[] } {
   const v = known(s.version)
   const c = known(s.commit)
-  const build = [v && `v${v}`, c && c.slice(0, 7)].filter(Boolean).join(' · ') || null
+  const build = [v && tagVersion(v), c && c.slice(0, 7)].filter(Boolean).join(' · ') || null
   const ok = s.services.filter((x) => x.healthy).length
   const total = s.services.length
   const health = ok === total ? tn('meta.allHealthy', total) : t('meta.someHealthy', { ok, n: total })

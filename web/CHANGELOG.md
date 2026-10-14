@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin overview: the meta line read "vv0.18.3"; the version keeps the Git tag's own "v" and gets one only when it has none.
 - Admin > Finance: the range bar's day pills, labels and date fields share one height and line; every money cell, tile and total follows one rule (two decimals from 1 € up, two to four below, the exact value in the tooltip) instead of €0.90 next to €0.622125.
 
 ## [0.18.3] - 2026-10-14
