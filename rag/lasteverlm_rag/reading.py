@@ -53,14 +53,16 @@ def selected_uploads(
 
 
 def check_refresh(uploads: Sequence[SourceState], url_refresh: Sequence[str]) -> list[SourceState]:
-    """The web pages to check again, each a selected upload of kind url."""
+    """The web pages to check again, each a selected upload of kind url; a
+    page not read yet is read fresh anyway and needs no check."""
     by_library = {s.library_id: s for s in uploads}
     pages = []
     for library_id in dict.fromkeys(url_refresh):
         page = by_library.get(library_id)
         if page is None or page.kind != "url":
             raise InvalidRefresh(f"url_refresh: {library_id} is not a selected web page")
-        pages.append(page)
+        if page.status != NOT_READ:
+            pages.append(page)
     return pages
 
 

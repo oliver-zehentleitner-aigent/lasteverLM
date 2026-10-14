@@ -135,3 +135,12 @@ def test_a_chart_reads_nothing(settings):
     client, ingest = client_for(settings, store)
     client.post(OUTPUTS, json={"kind": "chart", "options": {"charts": []}}, headers=AUTH)
     assert ingest.calls == []
+
+
+def test_an_unread_page_in_url_refresh_is_read_once(settings):
+    store, ready, _, page = notebook()
+    store.sources[page]["status"] = "added"
+    client, ingest = client_for(settings, store)
+    body = {"kind": "report", "source_ids": [ready, page], "url_refresh": [page]}
+    client.post(OUTPUTS, json=body, headers=AUTH)
+    assert ingest.calls == [("process", AUTH["Authorization"], [page])]
