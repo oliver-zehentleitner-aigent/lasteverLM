@@ -35,14 +35,16 @@ passages the kind does not need.
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12; implementation session, 2026-10-12
 **Revisit when:** the schema gains a generic link table or ingest takes over indexing
+**See:** outputs.md#outputs-belong-to-the-user-and-live-in-the-library-rag-owns-their-generated-rows — d9bf964d-ec53-4cd7-8bd1-adfc9a5772f2 — as of 2026-10-14
 
 When generation succeeds, the service writes a `sources` row of kind
 `generated` in the same notebook (name = the output's title, summary =
 the start of its text), chunks the document with the same 800/100 token
 windows ingest uses, embeds the chunks and inserts them. `outputs.source_id`
-holds that source so deleting the output deletes the source (and its
-chunks by cascade) and `scope.output_id` on `/ask` can restrict retrieval
-to it. The column is this service's addition to the family's data model.
+holds that source (since 2026-10-14 its library row, which follows the
+output into the trash and is purged with it) and `scope.output_id` on
+`/ask` can restrict retrieval to it. The column is this service's
+addition to the family's data model.
 
 **Reason:** indexing the document as an ordinary source lets the chat
 answer about and cite generated documents with the same retrieval and
@@ -294,17 +296,57 @@ was built.
 **Revisit when:** outputs store files somewhere other than `content.key`, or ingest's notebook delete starts removing rag's objects itself
 
 `DELETE /api/rag/admin/users/{id}` deletes the stored files of the
-outputs in the user's notebooks first and rag's rows there afterwards,
-in one transaction. The rows would cascade from ingest's notebook delete
-anyway; the files would not, and nothing would point at them once the
-rows are gone. So a failed file delete stops the request with the key
+user's outputs first and rag's rows afterwards, in one transaction: the
+user's outputs and generated rows by owner (since outputs outlive their
+notebook, 2026-10-14) and the messages and conversations of the user's
+notebooks. Nothing else deletes the files, and nothing would point at
+them once the rows are gone. So a failed file delete stops the request with the key
 (502) and keeps every row, and account's retry finds the same keys
 again. Missing keys are no error, which makes the retry safe.
 
 **Rejected alternatives:** leaving everything to ingest's cascade
-(orphans every audio file); rows first, then files (a failure in between
+(orphaned every audio file, and outputs no longer cascade); rows first, then files (a failure in between
 leaves files no row names).
 
 **Known gap:** a worker that finishes an audio output while the user is
 being deleted can store its file after the delete; that file is
 orphaned. Not handled in this change; reported to the coordinator.
+
+## Outputs belong to the user and live in the library; rag owns their generated rows
+
+**Id:** d9bf964d-ec53-4cd7-8bd1-adfc9a5772f2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the coordinator, 2026-10-14 (outputs in the library's "Outputs" tab, surviving the notebook, usable as a source elsewhere); contract settled with ingest and web the same day
+**Revisit when:** the library needs an output linked into several notebooks to survive the trash with those links, or ingest takes over the lifecycle of generated rows
+
+An output has an `owner`; `notebook_id` is only its origin and turns
+null when ingest deletes that notebook (`on delete set null`), with
+`origin_title` as a snapshot of the notebook's title. Its generated
+source is a library row the user owns; ingest lists such rows in its
+picker and links them into other notebooks, reusing the chunks.
+`outputs.source_id` points at that library row rather than at its link,
+because the link goes with the notebook and the row stays. Deleting an
+output moves it to the trash: `deleted_at` on the output and on its
+row, every link of the row removed, as ingest's library trash does.
+Restore relinks only the origin notebook. Rag purges after the owner's
+`trash_days`: the stored file first, then the library row (chunks and
+links cascade), then the output. Ingest's trash, restore and purge keep
+excluding kind `generated`.
+
+**Reason:** the maintainer wants outputs to outlive their notebook and
+to be reusable as sources. One service owning the whole lifecycle of an
+output and its row keeps "files before rows" in one place, which a
+purge split between two services could not guarantee. Migration 0004
+is expand only: `owner` stays nullable and reads fall back to the
+notebook's owner, so pods of the previous release can still insert
+during the rolling deploy.
+
+**Rejected alternatives:**
+- Outputs as full library sources with many links, each surviving the
+  trash: not needed by the maintainer.
+- Ingest's purge sweeping the generated rows while rag deletes the audio
+  file: rejected in favour of one owner. Ingest agreed.
+- Keeping the notebook cascade (the previous behaviour): it deletes what
+  the maintainer wants to keep.

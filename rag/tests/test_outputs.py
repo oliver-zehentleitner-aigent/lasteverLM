@@ -70,7 +70,11 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
         "source_id",
         "options",
         "created_at",
+        "origin_title",
+        "deleted_at",
+        "purge_at",
     }
+    assert out["origin_title"] == "My notebook" and out["deleted_at"] is None
     # the generator saw the summaries and the focus-query passages
     prompt = llm.calls[0][1]
     assert "- sky.pdf: About the sky." in prompt and "[1] (doc1.pdf, page 1)" in prompt
@@ -220,8 +224,13 @@ def test_audio_is_synthesized_in_segments_stored_and_served_presigned(settings):
     token = client.post(f"/api/rag/outputs/{output_id}/share", headers=AUTH).json()["share_token"]
     assert client.get(f"/api/rag/shared/{token}").json()["content"] == out["content"]
 
+    # deleting moves it to the trash: the file stays until the purge
     assert client.delete(f"/api/rag/outputs/{output_id}", headers=AUTH).status_code == 204
-    assert objects.objects == {}
+    assert key in objects.objects
+    assert client.get(f"/api/rag/shared/{token}").status_code == 404
+    purge = f"/api/rag/outputs/{output_id}/purge"
+    assert client.delete(purge, headers=AUTH).status_code == 204
+    assert objects.objects == {} and output_id not in store.outputs
 
 
 def test_audio_retries_a_failed_synthesis_without_leaving_a_file(settings):

@@ -66,6 +66,7 @@ from .service import (
     NotebookNotFound,
     ObjectDeleteFailed,
     OutputNotFound,
+    OutputNotInTrash,
     OutputNotReady,
     OutputService,
     RagService,
@@ -271,6 +272,17 @@ def create_app(
     def list_outputs(notebook_id: NotebookId, user: User) -> list[Output]:
         return outputs.list(user, str(notebook_id))
 
+    @app.delete(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", status_code=204)
+    def delete_notebook_outputs(notebook_id: NotebookId, user: User) -> Response:
+        outputs.delete_notebook_outputs(user, str(notebook_id))
+        return Response(status_code=204)
+
+    @app.get(f"{PREFIX}/library/outputs", response_model=list[Output])
+    def library_outputs(
+        user: User, kind: OutputKind | None = None, trash: bool = False
+    ) -> list[Output]:
+        return outputs.library(user, kind, trash)
+
     @app.get(f"{PREFIX}/outputs/{{output_id}}", response_model=Output)
     def get_output(output_id: OutputId, user: User) -> Output:
         return outputs.get(user, str(output_id))
@@ -278,6 +290,16 @@ def create_app(
     @app.delete(f"{PREFIX}/outputs/{{output_id}}", status_code=204)
     def delete_output(output_id: OutputId, user: User) -> Response:
         outputs.delete(user, str(output_id))
+        return Response(status_code=204)
+
+    @app.post(f"{PREFIX}/outputs/{{output_id}}/restore", status_code=204)
+    def restore_output(output_id: OutputId, user: User) -> Response:
+        outputs.restore(user, str(output_id))
+        return Response(status_code=204)
+
+    @app.delete(f"{PREFIX}/outputs/{{output_id}}/purge", status_code=204)
+    def purge_output(output_id: OutputId, user: User) -> Response:
+        outputs.purge(user, str(output_id))
         return Response(status_code=204)
 
     @app.post(f"{PREFIX}/outputs/{{output_id}}/share")
@@ -351,6 +373,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(OutputNotFound)
     async def output_not_found(_: Request, exc: OutputNotFound) -> JSONResponse:
         return error(404, "output not found")
+
+    @app.exception_handler(OutputNotInTrash)
+    async def output_not_in_trash(_: Request, exc: OutputNotInTrash) -> JSONResponse:
+        return error(409, "output is not in the trash")
 
     @app.exception_handler(OutputNotReady)
     async def output_not_ready(_: Request, exc: OutputNotReady) -> JSONResponse:

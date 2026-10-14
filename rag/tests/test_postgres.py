@@ -601,3 +601,75 @@ def test_deleting_a_users_data_leaves_uploads_notebooks_and_other_users(
         ).fetchone()
     assert left == {"messages": 0, "generated": 0, "notebooks": 1}
     assert [o.id for o in store.list_outputs(other)] == [theirs]
+
+
+def test_outputs_in_the_library_trash_restore_and_outlive_their_notebook(
+    store, pool, user, notebook
+):
+    retriever = PgVectorRetriever(pool)
+    row = store.create_output(notebook, "report", "processing")
+    assert (row.owner, row.origin_title, row.deleted_at) == (user, "nb", None)
+    generated = store.create_generated_source(notebook, "Report", "s")
+    store.insert_chunks(generated, [Chunk(0, None, "g")], [[1.0, 0.0, 0.0]])
+    store.set_source_status(generated, "ready")
+    store.update_output(row.id, status="ready", source_id=generated)
+    other = store.create_output(notebook, "quiz", "waiting")
+
+    def searchable() -> list[str]:
+        hits = retriever.search(notebook, [1.0, 0.0, 0.0], k=8, floor=0.0, generated=True)
+        return [h.source_id for h in hits]
+
+    assert searchable() == [generated]
+    assert [d.output_kind for d in store.notebook_documents(notebook)] == ["report"]
+    assert [o.id for o in store.list_library_outputs(user, "report", False)] == [row.id]
+
+    store.trash_outputs([row.id, other.id])
+    store.trash_outputs([row.id])  # again: no change
+    assert searchable() == [] and store.list_outputs(notebook) == []
+    trashed = store.list_library_outputs(user, None, True)
+    assert {o.id for o in trashed} == {row.id, other.id}
+    assert all(o.deleted_at and o.purge_at for o in trashed)
+    assert store.claim_output("w", 600) is None  # a trashed job is never claimed
+    assert store.expired_outputs() == []
+
+    store.restore_output(row.id)
+    assert searchable() == [generated]
+    assert [o.id for o in store.list_outputs(notebook)] == [row.id]
+
+    # ingest deletes the notebook, keeping the outputs: the origin goes to null
+    with pool.connection() as conn:
+        conn.execute("delete from notebooks where id = %s", (notebook,))
+        conn.execute(
+            "update users set preferences = '{\"trash_days\": 0}'::jsonb where id = %s", (user,)
+        )
+    kept = store.get_output(row.id)
+    assert kept is not None and kept.notebook_id is None and kept.owner == user
+    assert kept.origin_title == "nb" and kept.source_id == generated
+    store.trash_outputs([row.id])
+    store.restore_output(row.id)  # nothing to relink into
+    store.trash_outputs([row.id])
+    # trash_days 0: both are due; the purge deletes the generated row by its library id
+    assert {o.id for o in store.expired_outputs()} == {row.id, other.id}
+    store.delete_source(generated)
+    store.delete_output(row.id)
+    with pool.connection() as conn:
+        left = conn.execute(
+            "select count(*) as n from library_sources where id = %s", (generated,)
+        ).fetchone()
+    assert left == {"n": 0} and store.get_output(row.id) is None
+
+
+def test_deleting_a_users_data_covers_outputs_of_deleted_notebooks(store, pool, user, notebook):
+    row = store.create_output(notebook, "audio", "ready")
+    generated = store.create_generated_source(notebook, "Audio", "s")
+    store.update_output(row.id, content={"key": "k/a.mp3"}, source_id=generated)
+    with pool.connection() as conn:
+        conn.execute("delete from notebooks where id = %s", (notebook,))
+    assert store.user_output_contents(user) == [{"key": "k/a.mp3"}]
+    store.delete_user_data(user)
+    assert store.get_output(row.id) is None
+    with pool.connection() as conn:
+        left = conn.execute(
+            "select count(*) as n from library_sources where id = %s", (generated,)
+        ).fetchone()
+    assert left == {"n": 0}

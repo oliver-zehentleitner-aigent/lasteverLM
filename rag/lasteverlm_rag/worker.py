@@ -7,6 +7,8 @@ processing is not claimable until they settle (the claim query checks).
 A claim older than the stale limit is taken over, which is how a job
 survives a worker that died mid-run; a transient failure gives the job
 back to the queue, and the service fails it after three attempts.
+At start and then hourly it also purges trashed outputs past their
+owner's retention.
 
     lasteverlm-rag-worker            # or: python -m lasteverlm_rag.worker
 """
@@ -41,6 +43,7 @@ STALE_CLAIM_S = 10 * 60
 # Seconds per model request in the worker; a 4000-token document can take
 # longer than the 60 s the API keeps for a chat answer.
 WORKER_LLM_TIMEOUT_S = 180
+PURGE_INTERVAL_S = 60 * 60
 
 
 class Worker:
@@ -50,11 +53,14 @@ class Worker:
         outputs: OutputService,
         worker_id: str | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._store = store
         self._outputs = outputs
         self.worker_id = worker_id or f"{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
         self._sleep = sleep
+        self._clock = clock
+        self._next_purge: float | None = None
         self._stop = threading.Event()
 
     def stop(self) -> None:
@@ -76,10 +82,23 @@ class Worker:
             else:
                 retried.add(job.id)
 
+    def purge_if_due(self) -> int:
+        """Purge expired trash at the first call and then once per interval.
+        Returns how many outputs went."""
+        now = self._clock()
+        if self._next_purge is not None and now < self._next_purge:
+            return 0
+        self._next_purge = now + PURGE_INTERVAL_S
+        purged = self._outputs.purge_expired()
+        if purged:
+            log.info("purged %d trashed outputs", purged)
+        return purged
+
     def run_forever(self) -> None:
         log.info("worker %s started", self.worker_id)
         while not self._stop.is_set():
             try:
+                self.purge_if_due()
                 self.run_once()
             except Exception:
                 log.exception("worker pass failed")

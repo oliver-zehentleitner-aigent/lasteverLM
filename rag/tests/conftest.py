@@ -110,6 +110,10 @@ class FakeStore:
             OTHER_NOTEBOOK: {"id": OTHER_NOTEBOOK, "owner": "someone-else", "title": "Theirs"},
         }
         self.sources: dict[str, dict[str, Any]] = {}
+        # generated sources out of every notebook (their output is trashed, or
+        # its notebook was deleted): kept with their chunks, never searched
+        self.trashed_sources: dict[str, dict[str, Any]] = {}
+        self.trash_days = 14
         self.chunks: dict[str, list[tuple[Chunk, list[float]]]] = {}
         self.outputs: dict[str, dict[str, Any]] = {}
         self.conversations: dict[str, dict[str, Any]] = {}
@@ -188,9 +192,13 @@ class FakeStore:
         status: OutputStatus,
         options: dict[str, Any] | None = None,
     ) -> OutputRow:
+        notebook = self.notebooks[notebook_id]
         row = {
             "id": str(uuid.uuid4()),
             "notebook_id": notebook_id,
+            "owner": notebook["owner"],
+            "origin_title": notebook["title"],
+            "deleted_at": None,
             "kind": kind,
             "title": "",
             "content": None,
@@ -218,8 +226,58 @@ class FakeStore:
 
     def list_outputs(self, notebook_id: str) -> list[OutputRow]:
         return [
-            self._output_row(r) for r in self.outputs.values() if r["notebook_id"] == notebook_id
+            self._output_row(r)
+            for r in self.outputs.values()
+            if r["notebook_id"] == notebook_id and r["deleted_at"] is None
         ]
+
+    def list_library_outputs(self, owner: str, kind: str | None, trash: bool) -> list[OutputRow]:
+        rows = [
+            r
+            for r in self.outputs.values()
+            if r["owner"] == owner
+            and (kind is None or r["kind"] == kind)
+            and (r["deleted_at"] is not None) == trash
+        ]
+        rows.sort(key=lambda r: r["deleted_at"] or r["created_at"], reverse=True)
+        return [self._output_row(r) for r in rows]
+
+    def trash_outputs(self, output_ids: list[str]) -> None:
+        for output_id in output_ids:
+            row = self.outputs[output_id]
+            source = self.sources.pop(row["source_id"], None) if row["source_id"] else None
+            if source is not None:
+                self.trashed_sources[source["id"]] = source
+            if row["deleted_at"] is None:
+                row["deleted_at"] = datetime.now(UTC).isoformat()
+
+    def restore_output(self, output_id: str) -> None:
+        row = self.outputs[output_id]
+        source = self.trashed_sources.pop(row["source_id"], None) if row["source_id"] else None
+        if source is not None and row["notebook_id"] in self.notebooks:
+            self.sources[source["id"]] = source
+        row["deleted_at"] = None
+
+    def expired_outputs(self) -> list[OutputRow]:
+        cutoff = datetime.now(UTC) - timedelta(days=self.trash_days)
+        return [
+            self._output_row(r)
+            for r in self.outputs.values()
+            if r["deleted_at"] is not None and datetime.fromisoformat(r["deleted_at"]) <= cutoff
+        ]
+
+    def delete_notebook(self, notebook_id: str) -> None:
+        """ingest's notebook delete as rag sees it: links go, outputs keep
+        their rows with the origin set to null."""
+        del self.notebooks[notebook_id]
+        for source_id, s in list(self.sources.items()):
+            if s["notebook_id"] == notebook_id:
+                if s["kind"] == "generated":
+                    self.trashed_sources[source_id] = s
+                del self.sources[source_id]
+        for row in self.outputs.values():
+            if row["notebook_id"] == notebook_id:
+                row["notebook_id"] = None
 
     def update_output(self, output_id: str, **fields: Any) -> None:
         self.outputs[output_id].update(fields)
@@ -230,6 +288,8 @@ class FakeStore:
     def claim_output(self, worker_id: str, stale_after_s: int) -> OutputRow | None:
         for row in sorted(self.outputs.values(), key=lambda r: r["created_at"]):
             if row["status"] not in ("waiting", "processing") or row["claimed_by"] is not None:
+                continue
+            if row["deleted_at"] is not None:
                 continue
             selected = row["options"].get("sources")
             if any(
@@ -249,7 +309,13 @@ class FakeStore:
 
     def _output_row(self, row: dict[str, Any]) -> OutputRow:
         fields = {k: v for k, v in row.items() if k != "claimed_by"}
-        return OutputRow(owner=self.notebooks[row["notebook_id"]]["owner"], **fields)
+        deleted = row["deleted_at"]
+        purge_at = (
+            (datetime.fromisoformat(deleted) + timedelta(days=self.trash_days)).isoformat()
+            if deleted
+            else None
+        )
+        return OutputRow(purge_at=purge_at, **fields)
 
     # sources and chunks
     def add_source(
@@ -302,7 +368,8 @@ class FakeStore:
         self.sources[source_id].update(status=status, error=error)
 
     def delete_source(self, source_id: str) -> None:
-        self.sources.pop(source_id)
+        self.sources.pop(source_id, None)
+        self.trashed_sources.pop(source_id, None)
         self.chunks.pop(source_id, None)
 
     # deleting a user
@@ -310,19 +377,18 @@ class FakeStore:
         return {n["id"] for n in self.notebooks.values() if n["owner"] == user_id}
 
     def user_output_contents(self, user_id: str) -> list[dict[str, Any]]:
-        mine = self._owned_notebooks(user_id)
         return [
             o["content"]
             for o in self.outputs.values()
-            if o["notebook_id"] in mine and o["content"] is not None
+            if o["owner"] == user_id and o["content"] is not None
         ]
 
     def delete_user_data(self, user_id: str) -> None:
         mine = self._owned_notebooks(user_id)
-        for source_id, s in list(self.sources.items()):
-            if s["notebook_id"] in mine and s["kind"] == "generated":
-                self.delete_source(source_id)
-        self.outputs = {k: o for k, o in self.outputs.items() if o["notebook_id"] not in mine}
+        for o in self.outputs.values():
+            if o["owner"] == user_id and o["source_id"]:
+                self.delete_source(o["source_id"])
+        self.outputs = {k: o for k, o in self.outputs.items() if o["owner"] != user_id}
         self.messages = [m for m in self.messages if m["notebook_id"] not in mine]
         self.conversations = {
             k: c for k, c in self.conversations.items() if c["notebook_id"] not in mine
