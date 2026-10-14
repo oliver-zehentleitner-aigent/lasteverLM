@@ -56,6 +56,14 @@ cross-origin link cannot ask for a download itself). Core's limits apply
 to the MP3. The original is capped separately (60 MiB, below the ingress
 body limit). A retry reuses the stored MP3.
 
+A WAV over the model's 25 MiB is converted the same way instead of being
+refused (the maintainer's go, 2026-10-14); a WAV within the cap and every
+MP3 pass through. Transcription is billed per second of audio, so the
+format does not change what a recording costs; it only decides whether
+it fits the cap, and a 44.1 kHz stereo WAV reaches 25 MiB after about
+2.5 minutes, the converted MP3 after about two hours. The build gained
+the WAV demuxer and its PCM decoders (+1.4 MB).
+
 ffmpeg reads user-supplied bytes, so it is a subprocess (a crash takes
 the conversion, not the worker), with the demuxer forced from the
 sniffed magic bytes (no probing into playlist or concat formats that
