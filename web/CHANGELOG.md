@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-14
+
 ### Added
 
 - Admin > Finance replaces Credits: Costs (cost and charge per day, action, model, user or service, with the measured USD cost), Prices (the USD per EUR rate, a margin and per-action margins and fixed fees with a live preview of what users would pay), Revenue and profit (charged, paid and free vouchers, outstanding credit, profit per month or day with a chart), Infrastructure (Vultr's charges, or how to connect it, and lines entered by hand) and Vouchers (as before, plus paid or free); a date range shared by the pages, the overview's money tiles linking here.

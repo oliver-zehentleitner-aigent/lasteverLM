@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-14
+
 ### Added
 
 - Migration 0010 seeds the pricing row core's booking needs: `usd_per_eur` 1.1188 (ECB reference rate of 2026-10-13, until the maintainer confirms one), no margin, no fees; an existing row is never touched.

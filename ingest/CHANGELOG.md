@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-14
+
 ### Changed
 
 - Usage is booked through core's new `record_usage` (cost and charge in core: the cost in US cents, charged in euro cents at the pricing rules' rate): every model call of processing one source is one action, `source:<kind>` (`demo_seed` for the demo sources), with the library source's id as `action_id`; the claim query uses core's `funded_sql` (credits minus charges) instead of its own copy of the balance. Without an exchange rate in the pricing rules the worker makes no model call: the source fails with "pricing has no exchange rate, ask an admin" instead of a call paid upstream but never booked.

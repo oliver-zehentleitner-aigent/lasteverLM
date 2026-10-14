@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-14
+
 ### Added
 
 - `POST /api/rag/estimate`: the charge range of an output (`kind` with its options, a judge level included) or of an action (`chat_answer`, `chart_propose`, `judge`, `voice_sample`) before it runs. Each call the action makes is priced at assumed low and high token counts with core's cost in US cents, converted at the pricing rules' `usd_per_eur` and charged in euro cents with the action's margin; the action's fixed fee is counted once. Without an exchange rate every request that would call a model answers 503 before any provider call, and the worker claims no job.
