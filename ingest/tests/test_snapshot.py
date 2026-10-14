@@ -113,3 +113,31 @@ def test_nested_and_unclosed_dropped_tags():
     assert "<p>kept</p>" in nested and "x" not in nested.split("<p>kept</p>")[0]
     # An unclosed dropped tag drops the rest: fail safe.
     assert "after" not in _body("<p>before</p><script>evil()<p>after</p>")
+
+
+def test_an_unchanged_refetch_backfills_a_missing_snapshot_once():
+    repo, storage = InMemoryRepository(), InMemoryStorage()
+    site = RedirectingSite("<html><body><p>Same news.</p></body></html>")
+    nb, link, lib = _read_page(repo, storage, site)
+    # As if read before snapshots existed.
+    key = repo.library[lib].snapshot_path
+    del storage.objects[key]
+    repo.library[lib] = repo.library[lib].model_copy(
+        update={"snapshot_path": None, "final_url": None}
+    )
+    fetched_at = repo.library[lib].fetched_at
+    repo.request_refetch(lib)
+    process_source(lib, _deps(repo, storage, site))
+    page = repo.library[lib]
+    assert page.version == 1 and page.superseded_by is None  # unchanged
+    assert page.snapshot_path == key and "Same news." in storage.objects[key].decode()
+    assert page.final_url == "https://example.org/news/final"
+    assert page.fetched_at == fetched_at
+
+    # A version that has its snapshot keeps it: no second write.
+    writes = []
+    real_put = storage.put
+    storage.put = lambda k, d, t: writes.append(k) or real_put(k, d, t)
+    repo.request_refetch(lib)
+    process_source(lib, _deps(repo, storage, site))
+    assert writes == [] and repo.library[lib].snapshot_path == key

@@ -189,7 +189,14 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         digest = content_digest(passages)
         if source.refetch_requested_at is not None:
             if digest == source.content_hash:
-                repo.refetch_unchanged(source_id)
+                # A version read before snapshots existed gets one now: the
+                # same text, so still a snapshot of what was read.
+                backfill = None
+                if source.snapshot_path is None and fetched is not None:
+                    backfill = _store_snapshot(source, fetched, passages, deps)
+                repo.refetch_unchanged(
+                    source_id, backfill, fetched.url if backfill and fetched else None
+                )
                 log.info("web page %s fetched again: unchanged", source_id)
             else:
                 new_id = repo.new_version(source_id)

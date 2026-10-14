@@ -452,8 +452,9 @@ def test_a_web_page_is_versioned_and_purged_with_its_older_versions(repo):
     asked = repo.request_refetch(page.id)
     assert asked.status == "processing" and asked.refetch_requested_at is not None
     assert repo.request_refetch(page.id) is None  # being read
-    repo.refetch_unchanged(page.id)
+    repo.refetch_unchanged(page.id, "other-key", "https://other.test/")  # kept: has one
     same = repo.get_library_source(page.id)
+    assert (same.snapshot_path, same.final_url) == (snapshot, "https://x.test/final")
     assert same.status == "ready" and same.refetch_requested_at is None and same.version == 1
     assert same.fetched_at == fetched.fetched_at and same.checked_at > fetched.checked_at
 
