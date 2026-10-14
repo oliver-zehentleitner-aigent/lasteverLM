@@ -162,3 +162,41 @@ refusal skips the model); deleting marker-shaped text (it loses content
 such as reference numbers in a paper); escaping with a scheme the model
 would have to decode (more ways to get it wrong than parentheses).
 
+
+## Generated outputs: each unit is checked against its passages without a model, marked and never blocked
+
+**Id:** 2ee513ba-066a-41a3-a9c7-5e906e31c52b
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer go relayed by the coordinator, 2026-10-14 ("each sentence traceable to the passage it came from"; mark, never block; a deterministic check); the method, the threshold and "unverified" were proposed by rag and approved by the coordinator the same day
+**Revisit when:** rated outputs show the 0.5 threshold marking supported units unsupported or the reverse, translated outputs need a verdict, or the chat's answers get the same check
+
+Report, infographic and audio cite the numbered passages of their prompt.
+Every unit carries `refs` and `support`, and the output stores a
+generation log (`outputs.provenance`). The check runs after generation,
+without a model: the unit's content words, against the words of its
+cited passages taken together (`lexical-overlap-v1`, threshold 0.5). A
+unit with no refs, a ref the prompt never had, or too little overlap is
+`unsupported`, kept and shown as such; the output is never failed or
+trimmed for it. Below the threshold in a chosen output language the unit
+is `unverified`, because the overlap of words across languages says
+nothing.
+
+**Reason:** the claim is meant to be checkable, so the check must give
+the same answer every time and cost nothing per unit; a reader can
+retrace it from the passages in the log. Marking instead of dropping
+keeps the document whole and shows where it goes beyond its sources,
+which is the information the reader needs. The threshold is set, not
+calibrated: no rated outputs existed when it was chosen.
+
+**Rejected alternatives:**
+- A judge model rating each unit: a second billed call per output whose
+  verdict can differ between runs, and itself unverifiable.
+- Dropping unsupported units: hides exactly what the provenance is
+  meant to show and can tear a document apart.
+- Embedding similarity between unit and passage: works across languages
+  but is a model call with an uncalibrated threshold; kept as the later
+  option for translated outputs.
+- Calling a low-overlap translated unit "unsupported": would mark most
+  of every translated output, falsely.
