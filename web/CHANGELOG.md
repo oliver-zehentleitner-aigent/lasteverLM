@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.5] - 2026-10-14
+
 ### Added
 
 - Chat: an answer that is a plan (rag's agent) shows as a card: numbered steps with label and estimated price, the total, a web page's processing on its own line, Run and Cancel; while running each step's state live (polled), done steps opening what they made as a viewer tab, the lists reloading as steps finish. The question field reads "Ask, or tell me what to add and create…".

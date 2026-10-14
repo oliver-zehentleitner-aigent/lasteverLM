@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.18.5] - 2026-10-14
+
 ### Added
 
 - `GET /sources/{id}/chunks?offset&limit` for the "As read" view: the source's chunks in order, each with `chunk_id`, `index` (as citations carry them), `page` and `text`, plus `chunk_count` and the capture mode; paged (limit 1–200), owner only.

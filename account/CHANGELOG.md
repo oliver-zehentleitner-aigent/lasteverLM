@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.18.5] - 2026-10-14
+
 ### Added
 
 - Starter notebook: `GET/PUT/DELETE /admin/settings/starter-notebook` stores the notebook new users get a copy of (settings row `starter_notebook` `{owner_id, notebook_id, set_at, set_by}`, read by ingest and rag); it must exist, belong to an admin and have only ready sources.
