@@ -37,3 +37,6 @@ data:
   {{- with .Values.config.sttModel }}
   STT_MODEL: {{ . | quote }}
   {{- end }}
+  {{- with .Values.config.decisionModel }}
+  DECISION_MODEL: {{ . | quote }}
+  {{- end }}

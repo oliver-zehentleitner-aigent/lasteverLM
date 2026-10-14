@@ -18,7 +18,7 @@ the bucket is created with curl; nothing else is needed.
 | `TF_VAR_object_storage_tier_id` (or `tofu/terraform.tfvars`) | environment | `make up`; `vultr-cli object-storage tier list` shows the ids |
 | `DATABASE_ADMIN_URL` | environment; the managed instance's admin role, created by the maintainer | `make env` (derived URLs), `make db-bootstrap` |
 | `PGSSLROOTCERT` | environment, path to the instance's CA file | `make secrets` (ConfigMap `lasteverlm-pg-ca`) |
-| Domain, ACME e-mail, model names, `modelPrices` (JSON), embedding dimension, similarity floor, TTS model and voice, STT model, S3 endpoint, voucher credit | `chart/values-prod.yaml`, committed (`VALUES=<file>` for another deployment) | `make deploy`, `make check`, `make smoke` (default URL) |
+| Domain, ACME e-mail, model names, `modelPrices` (JSON), embedding dimension, similarity floor, TTS model and voice, STT model, decision model, S3 endpoint, voucher credit | `chart/values-prod.yaml`, committed (`VALUES=<file>` for another deployment) | `make deploy`, `make check`, `make smoke` (default URL) |
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`), `COMMIT` (default `git rev-parse HEAD`) | make variables | `make deploy`; `TAG` and `COMMIT` also become `APP_VERSION` and `APP_COMMIT` in the ConfigMap, the build every `/healthz` and the System page report. Deploy from a checkout of `TAG` so the commit matches the images; `deploy.yml` checks out that commit itself |
 | `INFERENCE_API_KEY` | environment | `make secrets` |
 | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
