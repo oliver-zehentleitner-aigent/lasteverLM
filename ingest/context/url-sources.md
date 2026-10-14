@@ -64,3 +64,36 @@ navigation.
   revisit condition fires.
 - A headless browser for JavaScript-rendered pages: a browser in the
   worker image is the wrong weight for this step.
+
+## A changed web page becomes a new version; the old one stays for its citations
+
+**Id:** 9b572655-c22f-47b1-8ba1-ecdffad01088
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's decision through the coordinating agent, 2026-10-14 (refetch, versions, old version kept read-only); the hash and the inline comparison chosen by the ingest author
+**Revisit when:** pages are refetched often enough that old versions pile up in storage, or users want to see or restore an older version
+
+A web page can be fetched again. The worker compares the hash of the
+extracted text (whitespace normalized) with the stored one before any
+model call:
+
+- **Unchanged:** only `fetched_at` moves, and nothing is charged.
+- **Changed:** a new library row (`version + 1`) takes the dedupe key and
+  every link and is read like a new source, charged as a web page. The
+  old row keeps its chunks and stays reachable by id but out of every
+  list, so the citations of outputs made from it still open their
+  passages.
+
+The new version is read by its own job, which fetches the page once
+more. That costs nothing, and every failure of reading it lands on the
+new row, not on the version that worked. Pages read before versions
+existed have no hash; their first refetch counts as changed.
+
+**Alternatives:**
+- Overwriting the entry's chunks with the new text: every citation into
+  the old text would point at chunks that no longer exist or now say
+  something else.
+- Re-embedding on every refetch without comparing: charges for a page
+  that did not change.
+
