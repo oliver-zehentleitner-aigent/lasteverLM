@@ -9,7 +9,8 @@ def test_healthz_needs_no_token_and_answers_on_both_paths(client, monkeypatch):
     monkeypatch.delenv("APP_VERSION", raising=False)
     monkeypatch.delenv("APP_COMMIT", raising=False)
     del client.headers["Authorization"]
-    unknown = {"status": "ok", "version": "unknown", "commit": "unknown"}
+    up = {"postgres": "ok", "storage": "ok", "inference": "ok"}
+    unknown = {"status": "ok", "version": "unknown", "commit": "unknown", "dependencies": up}
     assert client.get("/api/ingest/healthz").json() == unknown
     assert client.get("/healthz").json() == unknown
 
@@ -17,9 +18,36 @@ def test_healthz_needs_no_token_and_answers_on_both_paths(client, monkeypatch):
 def test_healthz_reports_the_build(client, monkeypatch):
     monkeypatch.setenv("APP_VERSION", "v0.6.0")
     monkeypatch.setenv("APP_COMMIT", "abc1234")
-    build = {"status": "ok", "version": "v0.6.0", "commit": "abc1234"}
+    up = {"postgres": "ok", "storage": "ok", "inference": "ok"}
+    build = {"status": "ok", "version": "v0.6.0", "commit": "abc1234", "dependencies": up}
     assert client.get("/healthz").json() == build
     assert client.get("/api/ingest/healthz").json() == build
+
+
+def test_a_dependency_that_is_down_is_reported_and_the_service_stays_ok(client, checks):
+    checks.up["storage"] = False
+    body = client.get("/healthz").json()
+    assert body["status"] == "ok"
+    assert body["dependencies"] == {"postgres": "ok", "storage": "down", "inference": "ok"}
+
+
+def test_the_probe_checks_what_ingest_uses(repo, storage):
+    from lasteverlm_core import S3Settings, S3Storage
+
+    from lasteverlm_ingest.main import dependency_probe
+    from tests.conftest import make_settings
+    from tests.test_worker import deps
+
+    # Test doubles cannot be probed: only the inference API is checked.
+    assert set(dependency_probe(deps(repo, storage, None))._checks) == {"inference"}
+    s3 = S3Storage(S3Settings("https://s3.invalid", "b", "ak", "sk"), client=object())
+
+    from lasteverlm_ingest.repository import PostgresRepository
+
+    postgres = object.__new__(PostgresRepository)  # no pool: building the probe opens nothing
+    d = deps(postgres, s3, None)
+    d = d.__class__(**{**d.__dict__, "settings": make_settings()})
+    assert set(dependency_probe(d)._checks) == {"postgres", "storage", "inference"}
 
 
 def test_missing_or_wrong_token(client):

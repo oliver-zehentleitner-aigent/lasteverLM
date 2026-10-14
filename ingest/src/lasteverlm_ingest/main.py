@@ -17,6 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from lasteverlm_core import (
     Chunker,
+    Dependency,
     Embedder,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
@@ -29,6 +30,13 @@ from lasteverlm_core import (
     Storage,
     TokenWindowChunker,
     make_client,
+)
+from lasteverlm_core.health import (
+    Check,
+    DependencyProbe,
+    inference_check,
+    postgres_check,
+    storage_check,
 )
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException
@@ -120,14 +128,32 @@ def build_worker_deps(
     )
 
 
+def dependency_probe(worker: WorkerDeps) -> DependencyProbe:
+    """What `/healthz` reports: the database (a pooled connection with a
+    2 s wait), the bucket (a HEAD) and the inference API (`GET /models`).
+    Only a test double is left out: the real repository and storage, which
+    `build_worker_deps` builds, are always probed, so a missing key in the
+    body never hides a dependency production uses."""
+    checks: dict[Dependency, Check] = {}
+    repository = worker.repository
+    if isinstance(repository, PostgresRepository):
+        checks["postgres"] = postgres_check(lambda: repository.connection(timeout=2))
+    if isinstance(worker.storage, S3Storage):
+        checks["storage"] = storage_check(worker.storage)
+    checks["inference"] = inference_check(make_client(worker.settings.inference))
+    return DependencyProbe(checks)
+
+
 def create_app(
     settings: Settings | None = None,
     *,
     rate_limit_store: RateLimitStore | None = None,
+    probe: DependencyProbe | None = None,
     **injected: Any,
 ) -> FastAPI:
     """`uvicorn --factory lasteverlm_ingest.main:create_app`. Keyword
-    arguments are the injectable dependencies of `build_worker_deps`."""
+    arguments are the injectable dependencies of `build_worker_deps`, and
+    the `/healthz` dependency probe."""
     worker = build_worker_deps(settings, **injected)
     settings = worker.settings
 
@@ -147,6 +173,7 @@ def create_app(
     app = FastAPI(title="lasteverLM ingest", version=__version__, lifespan=lifespan)
     app.state.settings = settings
     app.state.worker = worker
+    app.state.dependency_probe = probe or dependency_probe(worker)
     app.include_router(router())
     # The runtime contract probes `/healthz` at the root; the API contract
     # lists it under the prefix. Both answer.
