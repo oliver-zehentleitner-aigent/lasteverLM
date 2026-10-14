@@ -425,8 +425,8 @@ port and are reached through nginx.
 
 **Reason, egress open:** every outbound destination is an external
 host named by DNS — Object Storage, Serverless Inference, the SMTP
-server, the managed database (public address, VPC attachment pending)
-— and Kubernetes NetworkPolicy matches only IP blocks and ports. An
+server, the managed database (public address, VPC attachment pending),
+the Vultr API for account's billing read — and Kubernetes NetworkPolicy matches only IP blocks and ports. An
 egress policy would come down to "DNS, 443, 587 and the database port to
 anywhere", which blocks little and breaks on the next port a provider
 uses.
@@ -495,3 +495,36 @@ the CI image choice would be a per-directory override, and their
 `DOCKER ?= sg docker -c` default does not work on a runner;
 `pgvector/pgvector:pg17` as first proposed — a different major than
 production.
+
+## The Vultr billing key lives in account's Secret, not in a separate CronJob
+
+**Id:** e53ac516-3186-4096-bfd2-727f4136f426
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** the maintainer's go for a finance view with Vultr's pending charges and invoices, 2026-10-14, relayed by the family coordinator; the choice between a CronJob and a task in account made by account's maintainer agent the same day; the permission list read from `vultr-cli user create --help`
+**Revisit when:** account's egress is restricted, the finance fetch moves out of account, or Vultr offers a read-only billing permission
+
+`VULTR_BILLING_API_KEY` is optional in `lasteverlm-account`; account
+fetches once a day in its own process. The key belongs to a sub-user
+with only the `billing` permission, never the account key that
+`make up` uses.
+
+**Reason:** a CronJob of its own would have kept the key out of the
+account pods and allowed an egress policy for just that job, but it
+cannot write to the database without a new internal write endpoint on
+account and a second token for it, which is more attack surface than the
+key. The account pods already hold more sensitive values (`VOUCHER_KEY`,
+`AUTH_JWT_SECRET`, the database URL). Account's writes are idempotent
+upserts, so two replicas running the task cost one extra API call.
+
+**Rejected alternatives:** a CronJob with its own Secret and egress
+limited to DNS and 443 outside the cluster (above); pinning egress to
+`api.vultr.com`'s addresses — NetworkPolicy matches only IP blocks, a
+pinned address breaks silently when it changes; domain-based egress
+policies — the cluster's CNI is Calico, which would need a platform
+change for one job.
+
+**Known risks:** Vultr's `billing` permission is the only billing
+permission in the list, with no read-only variant, so the key is
+narrower than the account key but not read-only.
