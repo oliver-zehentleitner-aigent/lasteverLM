@@ -451,3 +451,30 @@ nobody until a user complains, and because every service in this
 family has at least two replicas behind a load balancer, where a
 partially working pod is indistinguishable from a working one.
 
+
+## The cheaper path is the default; every extra cost is the user's own action
+
+**Id:** 5009c08b-6a92-4f49-8a40-63d1377f9435
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer, 2026-10-14, on reading sources only when used and on cached versus refetched web pages
+
+Whenever the system can do something more cheaply or more expensively,
+the default is the cheaper one, and the more expensive one happens only
+because the user chose it: adding a source stores it, reading it waits
+until it is used; a web page is taken from the cache unless the user
+asks for it to be fetched again, page by page; the judge is off unless
+chosen; a price is shown before any paid step, and a plan of the chat
+runs only after confirmation.
+
+**Reason:** the user pays for every model call. A system that spends
+on their behalf by default, even with good intent, makes the bill
+something that happens to them; one that spends only on their action
+keeps every charge explainable by a click they made, which is also
+what the Credits page lists.
+
+**Rejected alternative:** process everything eagerly so results are
+instant (the behaviour before 2026-10-14). Rejected by the maintainer:
+it charges for sources that may never be used and hides the moment the
+cost arises.
