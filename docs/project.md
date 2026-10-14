@@ -27,12 +27,25 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   content or normalised URL), linked into any number of notebooks,
   deleted into a trash for a user-defined number of days. Nothing is
   shared between users.
-- **Adding is free, processing costs:** without credit a source is
-  stored and waits; it is processed as soon as credit is there.
+- **Read when used:** adding a source stores it and costs nothing. It
+  is read (extracted, chunked, embedded and charged) only when a
+  question or an output needs it, after the price has been shown.
+  Without credit it waits and is read as soon as credit is there.
+- **Web pages have versions:** a page is fetched when it is first used.
+  "Re-read if changed" fetches it again: unchanged, nothing is charged;
+  changed, it becomes a new version that takes over the page's links,
+  while the old version stays readable. Every read version keeps an
+  inert snapshot of what was read (the fetched HTML rebuilt from an
+  allowlist: text, structure and links, no scripts, styles, frames or
+  images), so the original a citation points to survives the live
+  page changing or disappearing.
 - **Starter notebook:** every new user gets their own copy of a notebook
   about lasteverLM itself: the complete technical handbook as a PDF, an
   FAQ, the public price list as a web page, a screenshot of the app, and
   finished outputs of every kind, ready to ask and to check.
+- **First steps:** on the first sign-in a three-step introduction
+  outlines where sources go, where the format is picked and where
+  Create is; it can be shown again from Settings.
 
 ### Outputs
 
@@ -84,9 +97,11 @@ message and library, never from source text.
 ### Viewer
 
 Sources and outputs the user opens appear as tabs. A source tab shows
-the original (PDF inline at the cited page, image, audio) and the text
-as the system read it, chunk by chunk; a citation highlights its
-chunk.
+the original (PDF inline at the cited page, image, audio, a text or
+Markdown file inline, a web page as the snapshot of the version that
+was read, in a sandboxed frame without scripts, with a link to the
+live page) and the text as the system read it, chunk by chunk; a
+citation highlights its chunk.
 
 ### Administration
 
@@ -112,8 +127,8 @@ admin sees costs, prices with a live preview, revenue against paid and
 free vouchers, and profit after the platform's infrastructure costs,
 which are read daily from Vultr's billing API. Voucher codes are
 encrypted at rest with a separate key, so an admin can show them again
-and send them by mail. Adding a source is free; processing it waits
-for credit.
+and send them by mail. Adding a source is free; reading it is charged
+when it is first used.
 
 ## Principles
 
@@ -132,6 +147,11 @@ counts. The shared page shows all of it.
 falling back silently: a service without a price for its model does
 not start, a loader that extracts no text fails the source, a provider
 answer without usage is an error.
+
+**The cheaper path by default.** Whatever costs extra is an action
+the user takes, never a default: sources are read only when used, a
+web page is fetched again only on request, the judge is off unless
+chosen, and every paid action shows its price first.
 
 **Measure, do not assume.** Five billing facts were corrected by a
 measurement instead of the documentation: text-to-speech is charged
@@ -185,7 +205,7 @@ Every change went through a pull request that was merged only when
 every check had passed; every decision was written down with the
 alternatives it rejected, and is browsable in the
 [Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
-More than three hundred pull requests and over twenty-five tags; a fix is
+More than 450 pull requests and over forty tags; a fix is
 typically live four minutes after its tag. The
 [walkthrough](walkthrough.md) is the script for a guided tour.
 
