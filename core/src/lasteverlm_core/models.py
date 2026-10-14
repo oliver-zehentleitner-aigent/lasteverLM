@@ -32,7 +32,9 @@ SourceKind = Literal["pdf", "text", "url", "image", "audio", "generated"]
 # "waiting_for_credit" is never stored: ingest shows it for a queued
 # ("processing") source whose owner has no credit, which its worker skips.
 SourceStatus = Literal["processing", "waiting_for_credit", "ready", "failed"]
-OutputKind = Literal["report", "quiz", "table", "mindmap", "infographic", "audio", "decision"]
+OutputKind = Literal[
+    "report", "quiz", "table", "mindmap", "infographic", "audio", "decision", "chart"
+]
 OutputStatus = Literal["waiting", "processing", "ready", "failed"]
 # Access to the admin area: a viewer reads it, an admin also changes it.
 # Stored in account's `users.role`; `users.is_admin` is `role = 'admin'`.

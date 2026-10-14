@@ -155,6 +155,18 @@ def test_a_source_can_wait_for_credit() -> None:
     assert Source.model_validate(row).status == "waiting_for_credit"
 
 
+def test_chart_is_an_output_kind() -> None:
+    row = {
+        "id": str(uuid4()),
+        "notebook_id": str(uuid4()),
+        "kind": "chart",
+        "title": "t",
+        "status": "ready",
+        "created_at": "2026-10-14T00:00:00Z",
+    }
+    assert Output.model_validate(row).kind == "chart"
+
+
 def test_health_reports_the_build_from_the_env() -> None:
     env = {"APP_VERSION": "0.4.0", "APP_COMMIT": " 5e320ae "}
     assert Health.from_env(env).model_dump() == {

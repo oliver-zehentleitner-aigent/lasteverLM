@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- `OutputKind` gains `chart`. The proposal is an ordinary `llm` call, so there is no new usage kind; rag owns the outputs kind constraint.
+
 ## [0.16.0] - 2026-10-14
 
 ### Changed
