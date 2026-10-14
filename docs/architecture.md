@@ -108,7 +108,7 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - `usage.kind`: `llm` | `embedding` | `tts` | `stt`. `usage.service`: `ingest` | `rag`. For `tts` and `stt` the priced unit is seconds of audio as the platform reports them (generated speech for `tts`, the uploaded file for `stt`), rounded up per call: `tokens_in` holds the seconds, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` and `STT_MODEL` with `in` in cents per million seconds.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
 - Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
-- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. A new user's first library access seeds four demo sources (a PDF, a text, an image, a URL, one coherent fictional set) processed at the demo user's expense, flagged `demo` (`ingest/context/library.md`). Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
+- **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are library rows of kind `generated` owned by the user, listed by `GET /library?kind=generated` with their origin notebook (`origin: {"id", "title"}`, `id` null once that notebook is deleted); linking one into another notebook (`{"library_id"}`) reuses its chunks at no cost. Rag owns their whole lifecycle (trash, restore, purge, see Outputs); ingest's trash and purge skip kind `generated`, and deleting a notebook or detaching a source removes only links. A new user's first library access seeds four demo sources (a PDF, a text, an image, a URL, one coherent fictional set) processed at the demo user's expense, flagged `demo` (`ingest/context/library.md`). Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
 
 ## Credits and accounting
 
@@ -229,8 +229,12 @@ v1; the frontend polls `GET /sources`.
 | GET | `/outputs/options` | | `{"languages": [{"code","label"}], "audio": {"voices": [{"id","label","gender"}], "speeds": [], "default_voice"}}` |
 | POST | `/notebooks/{id}/outputs` | `{"kind", "options"?}` — options per kind: `{"language"}` for text kinds, `{"language", "voice", "speed"}` for audio; 422 outside the catalogue | 202 `Output` with status `waiting` or `processing` |
 | GET | `/notebooks/{id}/outputs` | | `[Output]` |
+| GET | `/library/outputs?kind=&trash=` | | `[Output]`, the user's outputs across notebooks (`trash=true`: the trashed ones) |
 | GET | `/outputs/{id}` | | `Output` |
-| DELETE | `/outputs/{id}` | | 204 |
+| DELETE | `/outputs/{id}` | | 204, moves the output to the trash (`deleted_at`), its generated library row with it |
+| POST | `/outputs/{id}/restore` | | `Output` |
+| DELETE | `/outputs/{id}/purge` | | 204; 409 unless trashed |
+| DELETE | `/notebooks/{id}/outputs` | | 204, trashes every output of the notebook; the web calls it before ingest's notebook delete when the user chooses to delete the documents too |
 | POST | `/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/outputs/{id}/share` | | 204 |
 | GET | `/shared/{token}` | no auth | `Output` without ids, read-only |
@@ -243,7 +247,7 @@ Answer:   {"message_id", "answer", "citations": [Citation]}
 Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote" (verbatim chunk text), "similarity", "chunk_index", "chunk_count"}
 Conversation: {"id", "notebook_id", "title", "created_at"}
 Message:  {"id", "conversation_id", "role", "content", "citations", "created_at"}
-Output:   {"id", "notebook_id", "origin_title", "kind", "title", "content", "status", "error", "share_token", "source_id", "options", "created_at", "deleted_at", "purge_at"}
+Output:   {"id", "notebook_id" (null once the origin notebook is deleted), "origin_title", "kind", "title", "content", "status", "error", "share_token", "source_id" (the generated library row), "options", "deleted_at", "purge_at", "created_at"}
 ChunkView: {"chunk_id", "source_id", "source_name", "source_kind", "page", "text", "chunk_index", "chunk_count"}
 RagStats: {"notebooks": {"total"}, "messages": {"total", "last_24h"}, "outputs": {"by_kind": {<kind>: n}, "by_status": {<status>: n}},
            "jobs": {"pending", "running", "failed"}, "shared": {"outputs"}}
@@ -315,6 +319,8 @@ source of its notebook is `ready` or `failed`), generates, writes
 ready, rag chunks and embeds its text as a source of kind `generated`
 in the same notebook, so the chat can answer questions about generated
 documents and cite them. Deleting an output deletes that source.
+
+Ownership: an output belongs to the user (`outputs.owner`); the notebook it was made in is its origin (`notebook_id`, set to null when that notebook is deleted, `origin_title` kept for display). Deleting an output moves it to the trash for the user's `trash_days`; the rag worker purges trashed outputs at start and hourly: the stored file, then the generated library row, then the output row (`rag/context/outputs.md`).
 
 Sharing: `POST /outputs/{id}/share` sets a random `share_token`; the
 page `/s/<token>` in web renders `GET /api/rag/shared/<token>` without
