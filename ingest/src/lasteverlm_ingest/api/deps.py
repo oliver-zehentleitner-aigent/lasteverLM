@@ -48,13 +48,30 @@ _STORED_PREVIEW = frozenset({"image", "pdf", "text", "audio"})
 
 
 def preview_url(
-    storage: Storage, kind: str, storage_path: str | None, url: str | None = None
+    storage: Storage,
+    kind: str,
+    storage_path: str | None,
+    url: str | None = None,
+    transcribed_path: str | None = None,
 ) -> str | None:
     """Where the frontend opens a library source without a bearer header:
-    for an image, PDF, text or audio a presigned GET of the stored original (valid
-    one hour), for a URL source the URL itself; None for generated rows."""
+    for an image, PDF, text or audio a presigned GET (valid one hour,
+    inline) of the stored object, for a converted recording the MP3 that
+    was transcribed; for a URL source the URL itself; None for generated
+    rows."""
     if kind == "url":
         return url
     if kind not in _STORED_PREVIEW or not storage_path:
         return None
-    return storage.presigned_get(storage_path)
+    return storage.presigned_get(transcribed_path or storage_path)
+
+
+def original_url(
+    storage: Storage, name: str, storage_path: str | None, transcribed_path: str | None
+) -> str | None:
+    """The uploaded original of a converted recording, presigned as a
+    download under its file name (a cross-origin link cannot set that
+    itself); None where the original is what `preview_url` opens."""
+    if not transcribed_path or not storage_path:
+        return None
+    return storage.presigned_get(storage_path, download_name=name)

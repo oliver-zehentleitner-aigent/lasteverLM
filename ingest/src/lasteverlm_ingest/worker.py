@@ -29,6 +29,7 @@ from lasteverlm_core import (
     Storage,
     StorageError,
     Usage,
+    object_key,
 )
 
 from lasteverlm_ingest.config import Settings
@@ -39,6 +40,7 @@ from lasteverlm_ingest.loaders import (
     TransientLoaderError,
     loader_key,
 )
+from lasteverlm_ingest.loaders.convert import convert_to_mp3, sniff_container
 from lasteverlm_ingest.repository import MAX_ATTEMPTS, LibrarySource, Repository
 from lasteverlm_ingest.summarizer import Summarizer
 
@@ -129,6 +131,8 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     if source.storage_path is None:
         raise ProcessingError(f"source kind {source.kind!r} has nothing to load yet")
     data = deps.storage.get(source.storage_path)
+    if source.kind == "audio":
+        data = _transcribable(source, data, deps)
     key = loader_key(source.kind, source.capture)
     if key not in deps.loaders.kinds and key != source.kind:
         raise ProcessingError(f"capture mode {source.capture} needs a vision model")
@@ -200,6 +204,31 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         summary.usage.tokens_in,
         summary.usage.tokens_out,
     )
+
+
+# The converted recording's object name; safe_name never yields a leading
+# underscore, so it cannot collide with an uploaded original's name.
+TRANSCRIBED_NAME = "_transcribed.mp3"
+
+
+def _transcribable(source: LibrarySource, data: bytes, deps: WorkerDeps) -> bytes:
+    """The bytes to transcribe: MP3 and WAV as uploaded; anything else
+    converted to MP3 once and stored beside the original, so the user can
+    hear what was transcribed and a retry does not convert again."""
+    container = sniff_container(data)
+    if container is None:
+        return data
+    if source.transcribed_path:
+        try:
+            return deps.storage.get(source.transcribed_path)
+        except StorageError:
+            log.info("converted audio of %s missing, converting again", source.id)
+    mp3 = convert_to_mp3(data, container)
+    key = object_key(source.owner, source.id, TRANSCRIBED_NAME)
+    deps.storage.put(key, mp3, "audio/mpeg")
+    deps.repository.set_transcribed_path(source.id, key)
+    deps.repository.refresh_claim(source.id)
+    return mp3
 
 
 def _payer(source: LibrarySource) -> UUID:

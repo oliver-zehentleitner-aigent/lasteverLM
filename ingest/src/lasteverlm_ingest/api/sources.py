@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from lasteverlm_core import (
-    MAX_AUDIO_BYTES,
     AudioError,
     Source,
     Storage,
@@ -19,6 +18,7 @@ from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
 from lasteverlm_ingest.api.deps import (
+    original_url,
     owned_notebook,
     owned_source,
     preview_url,
@@ -28,6 +28,7 @@ from lasteverlm_ingest.api.deps import (
 )
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.dedupe import file_key, url_key
+from lasteverlm_ingest.loaders.convert import MEDIA_TYPES, sniff_container
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
 from lasteverlm_ingest.loaders.url import check_url
@@ -48,6 +49,14 @@ _KIND_BY_SUFFIX = {
     ".gif": "image",
     ".mp3": "audio",
     ".wav": "audio",
+    ".m4a": "audio",
+    ".mp4": "audio",
+    ".aac": "audio",
+    ".ogg": "audio",
+    ".oga": "audio",
+    ".opus": "audio",
+    ".flac": "audio",
+    ".webm": "audio",
 }
 _KIND_BY_MEDIA_TYPE = {
     "application/pdf": "pdf",
@@ -61,13 +70,19 @@ _KIND_BY_MEDIA_TYPE = {
     "audio/mp3": "audio",
     "audio/wav": "audio",
     "audio/x-wav": "audio",
+    "audio/mp4": "audio",
+    "audio/m4a": "audio",
+    "audio/x-m4a": "audio",
+    "audio/aac": "audio",
+    "audio/ogg": "audio",
+    "audio/opus": "audio",
+    "audio/flac": "audio",
+    "audio/x-flac": "audio",
+    "audio/webm": "audio",
+    "video/mp4": "audio",
+    "video/webm": "audio",
 }
-# The platform's transcription model takes MP3 and WAV only; other
-# recordings are refused by name rather than transcoded.
-_OTHER_AUDIO_SUFFIXES = frozenset(
-    {".m4a", ".mp4", ".aac", ".ogg", ".oga", ".opus", ".webm", ".flac"}
-)
-AUDIO_FORMATS = "audio must be MP3 or WAV"
+AUDIO_FORMATS = "MP3, WAV, M4A/MP4, AAC, Ogg/Opus, FLAC or WebM"
 _CONTENT_TYPE = {
     "pdf": "application/pdf",
     "text": "text/plain; charset=utf-8",
@@ -93,6 +108,7 @@ class LinkedSource(Source):
     capture: str | None = None
     demo: bool = False
     preview_url: str | None = None
+    original_url: str | None = None
 
 
 def _capture(value: object) -> Capture:
@@ -109,7 +125,12 @@ def _capture(value: object) -> Capture:
 
 def _out(source: StoredSource, storage: Storage) -> LinkedSource:
     out = LinkedSource.model_validate(source, from_attributes=True)
-    out.preview_url = preview_url(storage, source.kind, source.storage_path, source.url)
+    out.preview_url = preview_url(
+        storage, source.kind, source.storage_path, source.url, source.transcribed_path
+    )
+    out.original_url = original_url(
+        storage, source.name, source.storage_path, source.transcribed_path
+    )
     return out
 
 
@@ -120,11 +141,19 @@ def detect_kind(filename: str, media_type: str | None) -> str | None:
     return kind
 
 
-def _other_audio(filename: str, media_type: str | None) -> bool:
-    """A recording in a format the transcription model does not take."""
-    if PurePosixPath(filename).suffix.lower() in _OTHER_AUDIO_SUFFIXES:
-        return True
-    return media_type is not None and media_type.split(";")[0].strip().lower().startswith("audio/")
+def _audio_type(data: bytes) -> str:
+    """The stored media type of a recording, from its bytes: a container the
+    worker converts (see loaders/convert.py), else WAV or MP3 as core's
+    probe reads them; 415 with the reason otherwise."""
+    container = sniff_container(data)
+    if container is not None:
+        # Size and duration are checked on the converted file.
+        return MEDIA_TYPES[container]
+    try:
+        return probe_audio(data).mime
+    except AudioError as exc:
+        # Not a recording we can read, or an MP3/WAV over core's limits.
+        raise HTTPException(status_code=415, detail=f"{exc} (accepted: {AUDIO_FORMATS})") from None
 
 
 def safe_name(filename: str) -> str:
@@ -161,14 +190,16 @@ async def create_source(
         if not isinstance(upload, UploadFile) or not upload.filename:
             raise HTTPException(status_code=400, detail="multipart field 'file' is required")
         kind = detect_kind(upload.filename, upload.content_type)
-        if kind is None and _other_audio(upload.filename, upload.content_type):
-            raise HTTPException(status_code=415, detail=AUDIO_FORMATS)
         if kind is None or kind not in deps.loaders.kinds:
             raise HTTPException(
                 status_code=415,
                 detail="unsupported file type; use PDF, text, an image or audio",
             )
-        limit = MAX_AUDIO_BYTES if kind == "audio" else deps.settings.max_upload_bytes
+        limit = (
+            deps.settings.max_audio_upload_bytes
+            if kind == "audio"
+            else deps.settings.max_upload_bytes
+        )
         data = await upload.read(limit + 1)
         if len(data) > limit:
             raise HTTPException(status_code=413, detail="file is too large")
@@ -176,13 +207,7 @@ async def create_source(
             raise HTTPException(status_code=400, detail="file is empty")
         if kind == "image" and sniff_image_type(data) is None:
             raise HTTPException(status_code=415, detail="not a PNG, JPEG, WebP or GIF image")
-        audio_type = None
-        if kind == "audio":
-            try:
-                audio_type = probe_audio(data).mime
-            except AudioError as exc:
-                # Not WAV or MP3, or over four hours: core's message names it.
-                raise HTTPException(status_code=415, detail=str(exc)) from None
+        audio_type = _audio_type(data) if kind == "audio" else None
         name = safe_name(upload.filename)
         url = None
         capture: Capture | None = _capture(form.get("capture")) if kind == "pdf" else None

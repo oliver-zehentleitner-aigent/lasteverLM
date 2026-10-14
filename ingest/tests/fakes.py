@@ -161,6 +161,7 @@ class InMemoryRepository:
             size_bytes=lib.size_bytes,
             capture=lib.capture,
             demo=lib.demo,
+            transcribed_path=lib.transcribed_path,
         )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
@@ -234,6 +235,7 @@ class InMemoryRepository:
             capture=lib.capture,
             demo=lib.demo,
             storage_path=lib.storage_path,
+            transcribed_path=lib.transcribed_path,
             notebooks=[
                 NotebookUse(id=nb, title=self.notebooks[nb][1].title, source_id=link_id)
                 for _, link_id, nb in uses
@@ -277,12 +279,12 @@ class InMemoryRepository:
         self.library[library_id] = lib.model_copy(update={"deleted_at": None})
         return True
 
-    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, str | None]:
+    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, list[str]]:
         lib = self.library.get(library_id)
         if lib is None or lib.owner != owner or not self._trashed(lib):
-            return False, None
+            return False, []
         self._delete_library(library_id)
-        return True, lib.storage_path
+        return True, _keys([lib])
 
     def purge_expired(self) -> list[str]:
         now = datetime.now(UTC)
@@ -293,7 +295,7 @@ class InMemoryRepository:
         ]
         for lib in gone:
             self._delete_library(lib.id)
-        return [lib.storage_path for lib in gone if lib.storage_path]
+        return _keys(gone)
 
     def _delete_library(self, library_id: UUID) -> None:
         self.library.pop(library_id, None)
@@ -341,6 +343,11 @@ class InMemoryRepository:
 
     def set_library_summary(self, library_id: UUID, summary: str) -> None:
         self.library[library_id] = self.library[library_id].model_copy(update={"summary": summary})
+
+    def set_transcribed_path(self, library_id: UUID, key: str) -> None:
+        self.library[library_id] = self.library[library_id].model_copy(
+            update={"transcribed_path": key}
+        )
 
     def replace_chunks(
         self, library_id: UUID, chunks: list[Chunk], vectors: list[list[float]]
@@ -449,8 +456,11 @@ class InMemoryStorage:
         for key in keys:
             self.objects.pop(key, None)
 
-    def presigned_get(self, key: str, expires_s: int = 3600) -> str:
-        return f"https://storage.test/{key}?expires={expires_s}"
+    def presigned_get(
+        self, key: str, expires_s: int = 3600, *, download_name: str | None = None
+    ) -> str:
+        url = f"https://storage.test/{key}?expires={expires_s}"
+        return f"{url}&download={download_name}" if download_name else url
 
 
 class FakeEmbedder:
@@ -517,3 +527,7 @@ class FakeTranscriber:
         if self.error is not None:
             raise self.error
         return TranscriptionResult(self.answer, Usage("stt", "fake-stt", 90, 0), 90.0)
+
+
+def _keys(libs: list[LibrarySource]) -> list[str]:
+    return [k for lib in libs for k in (lib.storage_path, lib.transcribed_path) if k]

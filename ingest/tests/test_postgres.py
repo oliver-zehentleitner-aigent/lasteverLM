@@ -160,7 +160,7 @@ def test_owner_scoped_calls_refuse_a_foreign_owner(repo):
     assert repo.trash_library_source(owner, entry.id)
     assert repo.list_trash(stranger) == []
     assert not repo.restore_library_source(stranger, entry.id)
-    assert repo.purge_library_source(stranger, entry.id) == (False, None)
+    assert repo.purge_library_source(stranger, entry.id) == (False, [])
     repo.delete_notebook(stranger, notebook.id)
     assert repo.get_notebook(owner, notebook.id) is not None
 
@@ -216,14 +216,37 @@ def test_restore_and_purge(repo):
     owner = _user(repo)
     entry = _library(repo, owner)
     assert not repo.restore_library_source(owner, entry.id)  # not in the trash
-    assert repo.purge_library_source(owner, entry.id) == (False, None)  # not in the trash
+    assert repo.purge_library_source(owner, entry.id) == (False, [])  # not in the trash
     repo.trash_library_source(owner, entry.id)
     assert repo.restore_library_source(owner, entry.id)
     assert repo.get_library_entry(owner, entry.id) is not None
     repo.trash_library_source(owner, entry.id)
     repo.replace_chunks(entry.id, [Chunk(idx=0, text="hello", page=None)], [[1.0, 0.0, 0.0]])
-    assert repo.purge_library_source(owner, entry.id) == (True, entry.storage_path)
+    assert repo.purge_library_source(owner, entry.id) == (True, [entry.storage_path])
     assert repo.get_library_source(entry.id) is None
+
+
+def test_a_converted_recording_is_read_and_purged_with_its_original(repo):
+    owner = _user(repo)
+    entry = _library(repo, owner)
+    repo.set_transcribed_path(entry.id, f"{owner}/{entry.id}/_transcribed.mp3")
+    assert (
+        repo.get_library_source(entry.id).transcribed_path == f"{owner}/{entry.id}/_transcribed.mp3"
+    )
+    notebook = repo.create_notebook(owner, "nb")
+    repo.link_source(notebook.id, entry.id)
+    [source] = repo.list_sources(notebook.id)
+    [listed] = repo.list_library(owner)
+    assert (
+        source.transcribed_path == listed.transcribed_path == f"{owner}/{entry.id}/_transcribed.mp3"
+    )
+    repo.trash_library_source(owner, entry.id)
+    [trashed] = repo.list_trash(owner)
+    assert trashed.transcribed_path == listed.transcribed_path
+    assert repo.purge_library_source(owner, entry.id) == (
+        True,
+        [entry.storage_path, f"{owner}/{entry.id}/_transcribed.mp3"],
+    )
 
 
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):

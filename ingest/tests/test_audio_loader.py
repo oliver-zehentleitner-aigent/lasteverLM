@@ -141,33 +141,37 @@ def test_audio_upload_is_stored_by_its_detected_type_and_deduplicated(client, st
     assert storage.types[key] == "audio/wav"
 
 
-@pytest.mark.parametrize(
-    ("name", "media_type"),
-    [
-        ("talk.m4a", "audio/mp4"),
-        ("talk.ogg", "application/octet-stream"),
-        ("talk.webm", "audio/webm"),
-        ("talk", "audio/flac"),
-    ],
-)
-def test_other_audio_formats_are_refused_by_name(client, name, media_type):
-    r = client.post(_url(client), files={"file": (name, b"\x00" * 64, media_type)})
-    assert r.status_code == 415 and r.json()["error"] == "audio must be MP3 or WAV"
-
-
-def test_audio_upload_is_probed_and_has_its_own_cap(client, monkeypatch):
-    from lasteverlm_ingest.api import sources
-
+def test_audio_upload_is_probed(client):
     url = _url(client)
     r = client.post(url, files={"file": ("fake.mp3", b"<html>" * 10, "audio/mpeg")})
     assert r.status_code == 415 and "only those can be transcribed" in r.json()["error"]
+    assert "(accepted: MP3, WAV, M4A/MP4" in r.json()["error"]
     r = client.post(url, files={"file": ("silent.wav", _wav(0), "audio/wav")})
-    assert r.status_code == 415 and r.json()["error"] == "the audio file contains no audio"
-    # Audio is capped by core's MAX_AUDIO_BYTES, not MAX_UPLOAD_BYTES.
-    monkeypatch.setattr(sources, "MAX_AUDIO_BYTES", len(WAV) + 50)
-    assert client.post(url, files={"file": ("a.wav", WAV, "audio/wav")}).status_code == 202
-    r = client.post(url, files={"file": ("b.wav", WAV + b"\x00" * 51, "audio/wav")})
-    assert r.status_code == 413
+    assert r.status_code == 415 and r.json()["error"].startswith("the audio file contains no audio")
+
+
+def test_audio_has_its_own_upload_cap(repo, storage, embedder, summarizer):
+    from lasteverlm_core import MemoryRateLimitStore
+
+    from lasteverlm_ingest.main import create_app
+    from tests.conftest import DEMO_TOKEN
+
+    app = create_app(
+        make_settings(MAX_UPLOAD_BYTES="100", MAX_AUDIO_UPLOAD_BYTES=str(len(WAV) + 50)),
+        rate_limit_store=MemoryRateLimitStore(),
+        repository=repo,
+        storage=storage,
+        embedder=embedder,
+        summarizer=summarizer,
+        loaders=default_registry(transcriber=FakeTranscriber()),
+    )
+    with TestClient(app) as client:
+        client.headers["Authorization"] = f"Bearer {DEMO_TOKEN}"
+        url = _url(client)
+        # Over MAX_UPLOAD_BYTES, within MAX_AUDIO_UPLOAD_BYTES.
+        assert client.post(url, files={"file": ("a.wav", WAV, "audio/wav")}).status_code == 202
+        r = client.post(url, files={"file": ("b.wav", WAV + b"\x00" * 51, "audio/wav")})
+        assert r.status_code == 413
 
 
 def test_without_a_transcriber_audio_is_refused(repo, storage, embedder, summarizer):

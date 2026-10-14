@@ -6,7 +6,7 @@
 
 The ingest service of [lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM),
 a NotebookLM-style assistant. It owns notebooks and each user's source
-library: a source is uploaded (PDF, plain text, image, MP3/WAV recording) or given as a URL
+library: a source is uploaded (PDF, plain text, image, recording: MP3, WAV, M4A, AAC, Ogg/Opus, FLAC, WebM, the audio of an MP4) or given as a URL
 (web page, PDF or text behind a link) once, stored in the user's library
 and linked into any number of notebooks; worker pods claim it from the
 database once, fetch and parse it, cut it into overlapping chunks, embed and
@@ -37,7 +37,8 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `LLM_MODEL` | yes | writes the per-source summary; `LLM_MAX_TOKENS` optional, default 1024, the ceiling for one completion (the summary asks for 300) |
 | `MODEL_PRICES` | until core ships defaults | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`; the service refuses to start when `EMBEDDING_MODEL`, `LLM_MODEL` or `STT_MODEL` has no price |
 | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | at least one | the HS256 secret the account service signs JWTs with (issuer `lasteverlm`), and/or the shared demo token; a JWT is checked first |
-| `MAX_UPLOAD_BYTES` | no | default 20 MiB; larger uploads get 413; audio is capped by core's `MAX_AUDIO_BYTES` (25 MiB) instead |
+| `MAX_UPLOAD_BYTES` | no | default 20 MiB; larger uploads get 413; audio has its own cap |
+| `MAX_AUDIO_UPLOAD_BYTES` | no | default 60 MiB, the uploaded recording; an MP3/WAV must also be within core's 25 MiB, a converted recording's MP3 likewise |
 | `STT_MODEL` | no | transcribes MP3/WAV sources, core's default `whisper-large-v3-turbo`; needs a `MODEL_PRICES` entry (`in` in cents per million seconds) or the service refuses to start |
 | `STT_TIMEOUT_SECONDS` | no | one transcription call, default 300, no SDK retries; must be below `CLAIM_TIMEOUT_SECONDS` |
 | `CHUNK_TOKENS`, `CHUNK_OVERLAP_TOKENS` | no | override core's chunker defaults for one deployment; unset means core decides |
@@ -93,7 +94,12 @@ make build                     # docker build -f ingest/Dockerfile <repo root>
 
 The build context is the repository root, because `core/` is installed
 from the same checkout (it is not published). Multi-stage image on
-`python:3.13-slim`, runs as an unprivileged user.
+`python:3.13-slim`, runs as an unprivileged user. A first stage builds
+a minimal ffmpeg (audio conversion) from a pinned, checksum-verified
+source tarball. To bump ffmpeg: take the version from
+<https://ffmpeg.org/releases/>, check its `.asc` against the FFmpeg
+release signing key, and set `FFMPEG_VERSION` and `FFMPEG_SHA256` in the
+Dockerfile.
 The default command is the API on `PORT` (default 8000); the worker is
 the same image with the command `lasteverlm-ingest-worker`. CI builds
 the image on every push.

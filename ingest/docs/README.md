@@ -66,14 +66,14 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | GET | `/admin/stats/daily?days=30` | 200 | viewers and admins: library sources created per day, see below |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
-"created_at", "library_id", "capture", "demo", "preview_url"}`; name,
+"created_at", "library_id", "capture", "demo", "preview_url", "original_url"}`; name,
 kind, status, error, capture and demo are the library source's. A
 library entry is
 
 ```json
 {"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
  "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "demo": false,
- "preview_url": null,
+ "preview_url": null, "original_url": null,
  "notebooks": [{"id": "…", "title": "Thesis", "source_id": "…"}]}
 ```
 
@@ -81,12 +81,19 @@ library entry is
 no notebook has `"notebooks": []`. `capture` is set for PDFs only (see
 PDF capture modes), `demo` marks the demo library. `preview_url` is where
 the frontend opens the source without the bearer token: for an image, a
-PDF, a text or a recording a presigned GET of the stored original, valid
-for one hour and signed anew on every listing (the object carries its
-type, so an image shows in an `<img>`, a PDF in the browser's viewer, a
-text as `text/plain; charset=utf-8`, a recording plays in an `<audio>`); for a URL source the URL itself; `null`
-for generated rows. Sources, library and trash entries all carry it. The
-object key itself is never returned.
+PDF, a text or a recording a presigned GET of the stored object, inline,
+valid for one hour and signed anew on every listing (the object carries
+its type, so an image shows in an `<img>`, a PDF in the browser's viewer,
+a text as `text/plain; charset=utf-8`, a recording plays in an
+`<audio>`); for a recording that was converted (see Audio sources) it is
+the converted MP3, the file that was transcribed; for a URL source the
+URL itself; `null` for generated rows. `original_url` is set only for a
+converted recording: the uploaded original, presigned for one hour as a
+download (`Content-Disposition: attachment` with the file name, since a
+cross-origin link cannot ask for that itself); `null` everywhere else,
+including a recording whose conversion has not run yet. `size_bytes` is
+always the original's. Sources, library and trash entries all carry
+both. The object keys themselves are never returned.
 
 A trash entry is the same without `notebooks`, plus `deleted_at` and
 `purge_at`:
@@ -94,7 +101,7 @@ A trash entry is the same without `notebooks`, plus `deleted_at` and
 ```json
 {"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,
  "size_bytes": 2048, "url": null, "created_at": "…", "capture": null, "demo": false,
- "preview_url": null, "deleted_at": "2026-10-13T18:00:00Z", "purge_at": "2026-10-27T18:00:00Z"}
+ "preview_url": null, "original_url": null, "deleted_at": "2026-10-13T18:00:00Z", "purge_at": "2026-10-27T18:00:00Z"}
 ```
 
 `purge_at` is `deleted_at` plus the owner's `trash_days` (account's
@@ -244,26 +251,42 @@ the answer.
 
 ## Audio sources
 
-An upload named `.mp3` or `.wav` (or sent as `audio/mpeg`, `audio/mp3`,
-`audio/wav`, `audio/x-wav`) is an audio source, capped by core's
-`MAX_AUDIO_BYTES` (25 MiB, the transcription model's own limit) instead
-of `MAX_UPLOAD_BYTES`. Those are the only formats the platform's
-transcription model takes: an M4A, MP4, AAC, Ogg, Opus, WebM, FLAC or
-any other `audio/*` upload gets 415 "audio must be MP3 or WAV", nothing
-is transcoded. The API runs core's `probe_audio` on the bytes, which
-detects WAV or MP3 from them, measures the duration and refuses a file
-that is neither, empty, or longer than four hours (`MAX_AUDIO_SECONDS`)
-with a 415 naming the reason; the stored object gets `audio/mpeg` or
-`audio/wav` from that probe, so the browser plays its `preview_url`.
-Audio is deduplicated by the sha256 of its bytes like every file.
+An upload named `.mp3`, `.wav`, `.m4a`, `.mp4`, `.aac`, `.ogg`, `.oga`,
+`.opus`, `.flac` or `.webm` (or sent with one of their `audio/*` types,
+`video/mp4` or `video/webm`) is an audio source, capped at
+`MAX_AUDIO_UPLOAD_BYTES` (60 MiB, below the ingress body limit) instead
+of `MAX_UPLOAD_BYTES`. The API reads the format from the first bytes:
+an MP4/M4A (`ftyp`), ADTS AAC, Ogg (Vorbis or Opus), FLAC or
+WebM/Matroska container is stored as `audio/mp4`, `audio/aac`,
+`audio/ogg`, `audio/flac` or `audio/webm`; anything else goes through
+core's `probe_audio`, which accepts WAV and MP3 within the transcription
+model's limits (25 MiB, four hours) and stores them as `audio/wav` or
+`audio/mpeg`. Bytes that are none of these get 415 with the reason and
+the accepted list. Audio is deduplicated by the sha256 of the original's
+bytes like every file.
 
-The worker sends the whole file to `STT_MODEL` (core's default
+The platform's transcription model takes WAV and MP3 only. The worker
+transcribes those as uploaded; every other container it converts first
+with ffmpeg into mono 16 kHz MP3 at 32 kbit/s from the first audio track
+(a video's audio track included). ffmpeg runs as a subprocess with the
+demuxer forced from the sniffed bytes and only the `file` protocol, in a
+private directory under `/tmp`, for at most 300 s; a failure fails the
+source at once with ffmpeg's last line of output. The converted MP3 is
+stored beside the original (`<owner>/<library_id>/_transcribed.mp3`,
+`library_sources.transcribed_path`, migration 0010) and is what is
+transcribed: core's limits apply to it, not to the original, and a retry
+reuses it instead of converting again. Deleting the entry from the trash
+removes both objects. The image's ffmpeg is a minimal build (see the
+Dockerfile): only the demuxers, decoders and the resampler these formats
+need, and the MP3 encoder.
+
+The worker sends the MP3 or WAV to `STT_MODEL` (core's default
 `whisper-large-v3-turbo`, priced in `MODEL_PRICES` per million seconds)
 in one call. The loader is a `ModelLoader` like the image loader: the
 credit is checked before the call, its usage (kind `stt`, the seconds the
 platform billed) is recorded the moment it returns, the claim is
-refreshed. The call has its own client: one attempt, at most
-`STT_TIMEOUT_SECONDS` (300), which must stay below
+refreshed (also after a conversion). The call has its own client: one
+attempt, at most `STT_TIMEOUT_SECONDS` (300), which must stay below
 `CLAIM_TIMEOUT_SECONDS` so no other worker takes the job over while the
 call runs. The platform returns plain text without timestamps, so a
 recording becomes one passage without a page number, chunked, embedded

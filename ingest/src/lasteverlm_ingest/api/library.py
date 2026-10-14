@@ -8,7 +8,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from lasteverlm_ingest.api.deps import preview_url, repository, seed_if_new, worker_deps
+from lasteverlm_ingest.api.deps import (
+    original_url,
+    preview_url,
+    repository,
+    seed_if_new,
+    worker_deps,
+)
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.repository import LibraryEntry, TrashEntry
 
@@ -16,8 +22,12 @@ router = APIRouter()
 
 
 def _with_preview[E: (LibraryEntry, TrashEntry)](request: Request, entry: E) -> E:
+    storage = worker_deps(request).storage
     entry.preview_url = preview_url(
-        worker_deps(request).storage, entry.kind, entry.storage_path, entry.url
+        storage, entry.kind, entry.storage_path, entry.url, entry.transcribed_path
+    )
+    entry.original_url = original_url(
+        storage, entry.name, entry.storage_path, entry.transcribed_path
     )
     return entry
 
@@ -68,9 +78,9 @@ def restore_library_entry(request: Request, user: CurrentUser, library_id: UUID)
 def purge_library_entry(request: Request, user: CurrentUser, library_id: UUID) -> Response:
     """Removes a trashed entry now: its chunks and its stored object go."""
     deps = worker_deps(request)
-    found, key = deps.repository.purge_library_source(user, library_id)
+    found, keys = deps.repository.purge_library_source(user, library_id)
     if not found:
         raise _not_found()
-    if key:
-        deps.storage.delete(key)
+    if keys:
+        deps.storage.delete(*keys)
     return Response(status_code=204)
