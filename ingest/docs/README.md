@@ -203,8 +203,12 @@ transcription, the embeddings, the summary) are one action,
 library source's id as `action_id`, retries included. Before every model
 call the worker also checks that the pricing rules (account's settings
 row, cached 30 s) carry an exchange rate: without one a call could be
-paid upstream but not booked, so the source fails at once with "pricing
-has no exchange rate, ask an admin", before any provider call. A failure
+paid upstream but not booked, so no worker claims a source while the
+rate is missing, and a job that finds it gone goes back to the queue
+before its next provider call (attempt not counted), like a source
+waiting for credit. Queued sources then show `error` "pricing has no
+exchange rate, ask an admin" (derived, never stored); once an admin sets
+the rate they run, without a re-upload. A failure
 that a retry cannot change (unreadable file, no text) sets `failed` at
 once. A failure that may pass next time (object
 storage, the embedding or summary request, an unexpected error) leaves

@@ -147,16 +147,38 @@ def test_vanished_source_is_a_noop():
     process_source(uuid4(), deps(InMemoryRepository(), InMemoryStorage(), FakeEmbedder()))
 
 
-def test_without_an_exchange_rate_nothing_is_called_and_the_source_fails_loud():
+def test_without_an_exchange_rate_nothing_is_called_and_the_source_waits():
     from lasteverlm_core import PricingRules
 
-    from lasteverlm_ingest.worker import NO_EXCHANGE_RATE
-
     repo, storage, embedder = InMemoryRepository(), InMemoryStorage(), FakeEmbedder()
-    repo.rules = PricingRules()  # reset to defaults: no usd_per_eur
     sid = add_source(repo, storage, b"some text")
+    assert repo.claim_library_source("w", 600) == sid
+    rules, repo.rules = repo.rules, PricingRules()  # reset to defaults: no usd_per_eur
     process_source(sid, deps(repo, storage, embedder))
     source = repo.library[sid]
-    assert source.status == "failed" and source.error == NO_EXCHANGE_RATE
-    # Nothing paid upstream that could not be booked.
+    # Back in the queue, the attempt not counted; nothing paid upstream.
+    assert source.status == "processing" and source.attempts == 0 and source.error is None
     assert embedder.calls == [] and repo.usage == []
+    # The admin sets the rate: it runs, no re-upload needed.
+    repo.rules = rules
+    assert repo.claim_library_source("w", 600) == sid
+    process_source(sid, deps(repo, storage, embedder))
+    assert repo.library[sid].status == "ready"
+
+
+def test_the_worker_claims_nothing_without_an_exchange_rate():
+    import threading
+
+    from lasteverlm_core import PricingRules
+
+    from lasteverlm_ingest.worker import run_worker
+
+    repo, storage = InMemoryRepository(), InMemoryStorage()
+    sid = add_source(repo, storage, b"some text")
+    repo.rules = PricingRules()
+    stop = threading.Event()
+    d = deps(repo, storage, FakeEmbedder(), WORKER_POLL_SECONDS="1")
+    timer = threading.Timer(0.2, stop.set)
+    timer.start()
+    assert run_worker(d, stop, worker_id="w") == 0
+    assert repo.library[sid].attempts == 0 and sid not in repo.claimed

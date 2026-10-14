@@ -13,6 +13,7 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- Without an exchange rate in the pricing rules sources wait instead of failing, as in rag: no worker claims one, a job in flight goes back to the queue before its next model call (attempt not counted), and queued sources show `error` "pricing has no exchange rate, ask an admin" until an admin sets the rate; then they run without a re-upload.
 - Usage is booked through core's new `record_usage` (cost and charge in core: the cost in US cents, charged in euro cents at the pricing rules' rate): every model call of processing one source is one action, `source:<kind>` (`demo_seed` for the demo sources), with the library source's id as `action_id`; the claim query uses core's `funded_sql` (credits minus charges) instead of its own copy of the balance. Without an exchange rate in the pricing rules the worker makes no model call: the source fails with "pricing has no exchange rate, ask an admin" instead of a call paid upstream but never booked.
 
 ## [0.17.0] - 2026-10-14

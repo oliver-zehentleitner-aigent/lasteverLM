@@ -318,10 +318,10 @@ class Repository(Protocol):
         Generated rows are rag's and never claimed; trashed ones wait."""
         ...
 
-    def wait_for_credit(self, library_id: UUID) -> None:
+    def release_waiting(self, library_id: UUID) -> None:
         """Release the claim without counting the attempt: the owner ran out
-        of credit, and the claim query skips the source until they have
-        some again."""
+        of credit, or the pricing rules lost their exchange rate. The claim
+        query skips the source until it can be paid for again."""
         ...
 
     def refresh_claim(self, library_id: UUID) -> None:
@@ -833,7 +833,7 @@ class PostgresRepository:
     returning id
     """
 
-    def wait_for_credit(self, library_id: UUID) -> None:
+    def release_waiting(self, library_id: UUID) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "update library_sources set claimed_at = null, claimed_by = null, "
