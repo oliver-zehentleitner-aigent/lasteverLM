@@ -1,0 +1,2230 @@
+{
+  "date": "2026-10-14T09:47:39+00:00",
+  "prompt_version": "judge-v1",
+  "max_tokens": 1500,
+  "n": 3,
+  "prices": {
+    "source": "platform model catalogue as relayed by the coordinator, 2026-10-14; USD per million tokens",
+    "models": {
+      "glm-5.3-flash": {
+        "in": 0.1,
+        "out": 0.35
+      },
+      "deepseek-v4.1-flash": {
+        "in": 0.15,
+        "out": 0.6
+      },
+      "glm-5.3": {
+        "in": 0.75,
+        "out": 3.0
+      }
+    }
+  },
+  "baseline": {
+    "method": "lexical-overlap-v1",
+    "threshold": 0.5,
+    "results": {
+      "supported-1": "supported",
+      "supported-2": "supported",
+      "supported-3": "supported",
+      "supported-4": "supported",
+      "paraphrase-1": "unsupported",
+      "paraphrase-2": "supported",
+      "paraphrase-3": "supported",
+      "paraphrase-4": "supported",
+      "negated-1": "supported",
+      "negated-2": "supported",
+      "negated-3": "supported",
+      "negated-4": "supported",
+      "swapped-1": "supported",
+      "swapped-2": "supported",
+      "swapped-3": "supported",
+      "swapped-4": "supported",
+      "off_by_one-1": "supported",
+      "off_by_one-2": "supported",
+      "off_by_one-3": "supported",
+      "off_by_one-4": "supported",
+      "not_in_source-1": "unsupported",
+      "not_in_source-2": "supported",
+      "not_in_source-3": "unsupported",
+      "not_in_source-4": "unsupported"
+    }
+  },
+  "levels": {
+    "low": {
+      "model": "glm-5.3-flash",
+      "calls": [
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "Passage [1] explicitly states the narrator fixed the mouth of the Quill at 312 degrees from the lantern.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 1.225,
+          "tokens_in": 365,
+          "tokens_out": 162
+        },
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "Passage 1 explicitly states that the narrator fixed the mouth of the Quill at 312 degrees from the lantern.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 4.072,
+          "tokens_in": 365,
+          "tokens_out": 162
+        },
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "Passage 1 states the narrator fixed the mouth of the Quill at 312 degrees from the lantern, exactly as the statement claims.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 1.173,
+          "tokens_in": 365,
+          "tokens_out": 166
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "The passage states that the Margarethe, one of the three wrecks lying inside the Saltglass Reef, went aground in 1879.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.377,
+          "tokens_in": 378,
+          "tokens_out": 259
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef and that the Margarethe, the newest of them, went aground in 1879.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.086,
+          "tokens_in": 378,
+          "tokens_out": 249
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef and that the Margarethe, the newest of them, went aground in 1879.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.032,
+          "tokens_in": 378,
+          "tokens_out": 249
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "Passage [1] states that the keeper of Hollin Lighthouse, Widow Agathe Strand, has kept it for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.821,
+          "tokens_in": 350,
+          "tokens_out": 140
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "Passage [1] states that the keeper of Hollin Lighthouse, Widow Agathe Strand, has kept it for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.837,
+          "tokens_in": 350,
+          "tokens_out": 146
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "Passage [1] states that the keeper of Hollin Lighthouse, Widow Agathe Strand, has kept it for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.804,
+          "tokens_in": 350,
+          "tokens_out": 140
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "Passage [1] states that three wrecks lie inside the Saltglass Reef, matching the statement exactly.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.742,
+          "tokens_in": 371,
+          "tokens_out": 113
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef, matching the statement exactly.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.759,
+          "tokens_in": 371,
+          "tokens_out": 131
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef, matching the statement exactly.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.715,
+          "tokens_in": 371,
+          "tokens_out": 125
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The narrator explicitly estimates the town's population at about nine thousand, matching the statement's 'roughly 9,000 people'.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 0.746,
+          "tokens_in": 373,
+          "tokens_out": 144
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The narrator explicitly gives their own estimate of the town's population as about nine thousand, matching the statement's 'roughly 9,000 people'.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 1.156,
+          "tokens_in": 373,
+          "tokens_out": 155
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The narrator explicitly estimates the town's population at about nine thousand, matching the statement's 'roughly 9,000 people'.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 0.935,
+          "tokens_in": 373,
+          "tokens_out": 144
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "supported",
+          "reason": "The passage states that when the fog lifted they were within a quarter mile of the reckoned position, matching the statement's claim.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 4.054,
+          "tokens_in": 372,
+          "tokens_out": 443
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "supported",
+          "reason": "The passage states that when the fog lifted, they were within a quarter mile of the reckoned position, matching the statement's claim.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 4.59,
+          "tokens_in": 372,
+          "tokens_out": 670
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "supported",
+          "reason": "The passage states that when the fog lifted, they were within a quarter mile of the reckoned position, matching the statement's claim.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 4.188,
+          "tokens_in": 372,
+          "tokens_out": 591
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "The passage states the terraces (the Juniper Steps) have wild juniper whose berries are harvested every September in a festival called the Knelling, matching the statement.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 3.27,
+          "tokens_in": 360,
+          "tokens_out": 204
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "The passage states the terraces (the Juniper Steps) have wild juniper whose berries are harvested every September in a festival called the Knelling.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 0.866,
+          "tokens_in": 360,
+          "tokens_out": 201
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "The passage states that on the terraces (the Juniper Steps) wild juniper grows and the berries are harvested every September in a festival called the Knelling, matching the statement.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 0.92,
+          "tokens_in": 360,
+          "tokens_out": 208
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "The passage states the ferry at Quill Ford has been out of service since 1861, which matches the claim that it has not run since then.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 1.193,
+          "tokens_in": 354,
+          "tokens_out": 326
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "The passage states that at Quill Ford the ferry has been 'temporarily out of service' since 1861, which means it has not run since then.",
+          "quote": "where the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 1.2,
+          "tokens_in": 354,
+          "tokens_out": 317
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "The passage states the ferry at Quill Ford has been 'temporarily out of service' since 1861, which means it has not run since then.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 1.062,
+          "tokens_in": 354,
+          "tokens_out": 278
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the keeper would not let the narrator copy the ledger, only admire it, which directly conflicts with the claim that she let the cartographer copy it.",
+          "quote": "she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 0.945,
+          "tokens_in": 348,
+          "tokens_out": 237
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the keeper would not let the narrator copy the ledger, only admire it, which conflicts with the claim that she let the cartographer copy it.",
+          "quote": "she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 0.93,
+          "tokens_in": 348,
+          "tokens_out": 231
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the keeper would not let the narrator copy the ledger, which directly conflicts with the statement that she let the cartographer copy it.",
+          "quote": "she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 1.422,
+          "tokens_in": 348,
+          "tokens_out": 274
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage states the Grey Isles are treeless, which directly conflicts with the claim that they are thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 0.681,
+          "tokens_in": 341,
+          "tokens_out": 99
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage states the Grey Isles are treeless, which directly conflicts with the claim that they are thickly wooded.",
+          "quote": "the Grey Isles, low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 0.747,
+          "tokens_in": 341,
+          "tokens_out": 102
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage states the Grey Isles are treeless, which directly conflicts with the claim that they are thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 0.779,
+          "tokens_in": 341,
+          "tokens_out": 99
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "The passage states that at Quill Ford the river is shallow enough to wade, which directly conflicts with the claim that it is too deep to wade.",
+          "quote": "where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 0.776,
+          "tokens_in": 353,
+          "tokens_out": 164
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "The passage states that at Quill Ford the river is shallow enough to wade, which directly conflicts with the claim that it is too deep to wade.",
+          "quote": "Quill Ford, where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 0.754,
+          "tokens_in": 353,
+          "tokens_out": 166
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "The passage states that at Quill Ford the river is shallow enough to wade, which directly conflicts with the claim that it is too deep to wade.",
+          "quote": "where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 1.143,
+          "tokens_in": 353,
+          "tokens_out": 162
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "The passage states the reef can be seen from the Lantern Hill, directly contradicting the claim that it cannot.",
+          "quote": "sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 1.237,
+          "tokens_in": 373,
+          "tokens_out": 204
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "The passage states the reef can be seen from the Lantern Hill on a clear day and that the sailors are right, which directly conflicts with the claim that it cannot be seen.",
+          "quote": "it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 1.118,
+          "tokens_in": 373,
+          "tokens_out": 218
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "The passage states the reef can be seen from the Lantern Hill on a clear day and that the sailors are right, which directly conflicts with the claim that it cannot be seen.",
+          "quote": "it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 1.096,
+          "tokens_in": 373,
+          "tokens_out": 218
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees and the Saltglass Reef at 205 degrees, the reverse of the statement's assignment.",
+          "quote": "the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees",
+          "quote_verbatim": true,
+          "latency_s": 1.751,
+          "tokens_in": 374,
+          "tokens_out": 242
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage assigns the bearings the opposite way: the mouth of the Quill is at 312 degrees and the Saltglass Reef at 205 degrees, not the reverse as the statement claims.",
+          "quote": "the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees",
+          "quote_verbatim": true,
+          "latency_s": 1.622,
+          "tokens_in": 374,
+          "tokens_out": 239
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the opposite assignment of bearings: the mouth of the Quill was fixed at 312 degrees and the Saltglass Reef at 205 degrees, not the reverse as the statement claims.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees",
+          "quote_verbatim": true,
+          "latency_s": 1.662,
+          "tokens_in": 374,
+          "tokens_out": 245
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage states the first basket is offered to the river and the second to whoever sings worst, which is the reverse of the statement's order.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 1.586,
+          "tokens_in": 361,
+          "tokens_out": 187
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage states the first basket is offered to the river and the second to whoever sings worst, which reverses the order claimed in the statement.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 0.957,
+          "tokens_in": 361,
+          "tokens_out": 186
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage states the first basket is offered to the river and the second to whoever sings worst, which is the reverse of the statement's order.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 1.028,
+          "tokens_in": 361,
+          "tokens_out": 182
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "The passages assign the roles the opposite way: Ambrose Tull is called the naturalist and Maren Holloway is the pilot, not the reverse.",
+          "quote": "Mr Ambrose Tull, our naturalist, spent the morning arguing with a goat.",
+          "quote_verbatim": true,
+          "latency_s": 0.981,
+          "tokens_in": 452,
+          "tokens_out": 204
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "The passages state the opposite roles: Ambrose Tull is the naturalist and Maren Holloway is the pilot, so the statement assigns each the wrong role.",
+          "quote": "Mr Ambrose Tull, our naturalist",
+          "quote_verbatim": true,
+          "latency_s": 0.932,
+          "tokens_in": 452,
+          "tokens_out": 190
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "The passages state the opposite roles: Ambrose Tull is the naturalist and Maren Holloway is the pilot, so the statement assigns each the wrong role.",
+          "quote": "Mr Ambrose Tull, our naturalist",
+          "quote_verbatim": true,
+          "latency_s": 0.886,
+          "tokens_in": 452,
+          "tokens_out": 167
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage reverses the attribution: the narrator (author of the notes) estimates nine thousand souls while Pell insists on twelve thousand, not the other way around.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 1.016,
+          "tokens_in": 374,
+          "tokens_out": 209
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage states the author estimated nine thousand while Pell insisted on twelve thousand, the reverse of the statement's attribution.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 0.922,
+          "tokens_in": 374,
+          "tokens_out": 198
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage attributes the nine thousand estimate to the narrator and the twelve thousand figure to Pell, the reverse of the statement.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 0.958,
+          "tokens_in": 374,
+          "tokens_out": 209
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the Margarethe went aground in 1879, not 1880.",
+          "quote": "went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.898,
+          "tokens_in": 378,
+          "tokens_out": 170
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the Margarethe went aground in 1879, not 1880.",
+          "quote": "the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.96,
+          "tokens_in": 378,
+          "tokens_out": 188
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the Margarethe went aground in 1879, not 1880 as the statement claims.",
+          "quote": "the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.984,
+          "tokens_in": 378,
+          "tokens_out": 247
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage states Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years, not thirty-two.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.682,
+          "tokens_in": 350,
+          "tokens_out": 86
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage states the widow has kept the lighthouse for thirty-one years, not thirty-two.",
+          "quote": "has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.679,
+          "tokens_in": 350,
+          "tokens_out": 77
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage states Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years, not thirty-two.",
+          "quote": "has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.646,
+          "tokens_in": 350,
+          "tokens_out": 80
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, not 313 degrees.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.717,
+          "tokens_in": 365,
+          "tokens_out": 118
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, not 313 degrees as the statement claims.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.722,
+          "tokens_in": 365,
+          "tokens_out": 153
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, not 313 degrees as the statement claims.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.878,
+          "tokens_in": 365,
+          "tokens_out": 153
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.745,
+          "tokens_in": 371,
+          "tokens_out": 77
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 2.059,
+          "tokens_in": 371,
+          "tokens_out": 77
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 1.977,
+          "tokens_in": 371,
+          "tokens_out": 77
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passages only describe Maren Holloway as a fifteen-year-old river pilot and never mention her later becoming harbourmaster or any place called Marrow Bay.",
+          "quote": "a pilot, a girl of perhaps fifteen called Maren Holloway",
+          "quote_verbatim": true,
+          "latency_s": 1.769,
+          "tokens_in": 354,
+          "tokens_out": 496
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passages only describe Maren Holloway as a fifteen-year-old river pilot and say nothing about her later becoming the harbourmaster of Marrow Bay.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 1.154,
+          "tokens_in": 354,
+          "tokens_out": 311
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passage only describes Maren Holloway as a fifteen-year-old river pilot and never mentions her becoming harbourmaster or any place called Marrow Bay.",
+          "quote": "a girl of perhaps fifteen called Maren Holloway, who knows every sandbar of the river by name",
+          "quote_verbatim": true,
+          "latency_s": 1.0,
+          "tokens_in": 354,
+          "tokens_out": 164
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passages mention Hollin Lighthouse and its keeper but never state when it was built, so the 1850 construction date is neither supported nor contradicted.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.697,
+          "tokens_in": 345,
+          "tokens_out": 127
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passages mention Hollin Lighthouse and its keeper but never state when it was built, so the 1850 construction date is neither supported nor contradicted.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.789,
+          "tokens_in": 345,
+          "tokens_out": 115
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passages mention Hollin Lighthouse and its keeper but never state when it was built, so the 1850 construction date is neither supported nor contradicted.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 1.087,
+          "tokens_in": 345,
+          "tokens_out": 260
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passages state that the Margarethe went aground in 1879 but never mention any cargo, so the claim about timber is neither supported nor contradicted.",
+          "quote": "went aground in 1879 while her captain was, by all accounts, explaining to his crew that the reef was further east",
+          "quote_verbatim": true,
+          "latency_s": 1.066,
+          "tokens_in": 377,
+          "tokens_out": 247
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passages state that the Margarethe went aground in 1879 but say nothing about her cargo, so the timber claim is neither supported nor contradicted.",
+          "quote": "the Margarethe, went aground in 1879 while her captain was, by all accounts, explaining to his crew that the reef was further east",
+          "quote_verbatim": true,
+          "latency_s": 0.96,
+          "tokens_in": 377,
+          "tokens_out": 229
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passage confirms the Margarethe went aground (in 1879) but says nothing about her carrying a cargo of timber.",
+          "quote": "the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.935,
+          "tokens_in": 377,
+          "tokens_out": 185
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage describes the Knelling festival and its customs but never states how long it lasts, so the three-day duration is neither supported nor contradicted.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.632,
+          "tokens_in": 349,
+          "tokens_out": 94
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage describes the Knelling festival and its customs but never states how long it lasts, so the three-day duration is neither supported nor contradicted.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.629,
+          "tokens_in": 349,
+          "tokens_out": 94
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage describes the Knelling festival and its customs but never states how long it lasts, so the three-day duration is neither supported nor contradicted.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.769,
+          "tokens_in": 349,
+          "tokens_out": 94
+        }
+      ]
+    },
+    "medium": {
+      "model": "deepseek-v4.1-flash",
+      "calls": [
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "Passage 1 states the narrator fixed the mouth of the Quill at 312 degrees from the lantern.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.586,
+          "tokens_in": 356,
+          "tokens_out": 57
+        },
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "Passage 1 states the narrator fixed the mouth of the Quill at 312 degrees from the lantern.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.684,
+          "tokens_in": 356,
+          "tokens_out": 57
+        },
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "Passage 1 states the mouth of the Quill was fixed at 312 degrees from the lantern.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.595,
+          "tokens_in": 356,
+          "tokens_out": 56
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "Passage 1 states the Margarethe went aground in 1879 on the Saltglass Reef.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.627,
+          "tokens_in": 371,
+          "tokens_out": 54
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "Passage 1 states the Margarethe went aground in 1879 on the Saltglass Reef.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.572,
+          "tokens_in": 371,
+          "tokens_out": 54
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "Passage [1] states the Margarethe went aground in 1879 and identifies the Saltglass Reef as the location of the wrecks.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.821,
+          "tokens_in": 371,
+          "tokens_out": 63
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "Passage 1 states that Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.571,
+          "tokens_in": 341,
+          "tokens_out": 54
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "Passage 1 states that Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.576,
+          "tokens_in": 341,
+          "tokens_out": 54
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "Passage [1] states that Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.584,
+          "tokens_in": 341,
+          "tokens_out": 55
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "Passage [1] states that three wrecks lie inside the Saltglass Reef.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.55,
+          "tokens_in": 364,
+          "tokens_out": 41
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "Passage 1 states directly that three wrecks lie inside the Saltglass Reef.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.624,
+          "tokens_in": 364,
+          "tokens_out": 41
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "Passage 1 states directly that three wrecks lie inside the Saltglass Reef.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.536,
+          "tokens_in": 364,
+          "tokens_out": 41
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The narrator (author of the notes) estimates the town's population at some nine thousand souls, which matches roughly 9,000 people.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 0.57,
+          "tokens_in": 365,
+          "tokens_out": 51
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The narrator (author of the notes) estimates the town's population at some nine thousand souls, which matches roughly 9,000 people.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 0.683,
+          "tokens_in": 365,
+          "tokens_out": 51
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The narrator of the notes estimates the town's population at some nine thousand souls, which matches roughly 9,000 people.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 0.674,
+          "tokens_in": 365,
+          "tokens_out": 48
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "contradicted",
+          "reason": "The passage says they were within a quarter mile of the reckoned position, not less than a quarter mile, and the navigator was the narrator, not an expedition.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 0.741,
+          "tokens_in": 361,
+          "tokens_out": 75
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "contradicted",
+          "reason": "The passage says they were within a quarter mile of the reckoned position, meaning less than a quarter mile, which matches the statement; however, the statement says 'less than a quarter mile' while the passage says 'within a quarter mile' — these are compatible, so the statement is supported.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 0.679,
+          "tokens_in": 361,
+          "tokens_out": 101
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "contradicted",
+          "reason": "The passage says they were within a quarter mile of the reckoned position, not less than a quarter mile, and the statement's 'less than' conflicts with 'within'.",
+          "quote": "we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 0.802,
+          "tokens_in": 361,
+          "tokens_out": 68
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "Passage 1 states the juniper on the terraces is harvested every September in a festival called the Knelling.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 0.57,
+          "tokens_in": 351,
+          "tokens_out": 54
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "Passage 1 states the juniper on the terraces is harvested every September in a festival called the Knelling.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 0.648,
+          "tokens_in": 351,
+          "tokens_out": 54
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "Passage 1 states the juniper on the terraces is harvested every September in a festival called the Knelling.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 0.565,
+          "tokens_in": 351,
+          "tokens_out": 54
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "Passage 1 states the ferry at Quill Ford has been temporarily out of service since 1861, which matches the statement that it has not run since 1861.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 0.682,
+          "tokens_in": 347,
+          "tokens_out": 69
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "Passage 1 states the ferry at Quill Ford has been temporarily out of service since 1861, which matches the statement that it has not run since 1861.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 0.621,
+          "tokens_in": 347,
+          "tokens_out": 69
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "Passage 1 states the ferry at Quill Ford has been temporarily out of service since 1861, which means it has not run since then.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 0.742,
+          "tokens_in": 347,
+          "tokens_out": 64
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the keeper would not let the narrator copy her ledger, contradicting that she let the cartographer copy it.",
+          "quote": "which she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 0.588,
+          "tokens_in": 339,
+          "tokens_out": 56
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage says the keeper would not let the narrator copy the ledger, contradicting that she let the cartographer copy it.",
+          "quote": "which she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 0.602,
+          "tokens_in": 339,
+          "tokens_out": 56
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage says the keeper would not let the narrator copy the ledger, contradicting that she let the cartographer copy it.",
+          "quote": "which she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 0.745,
+          "tokens_in": 339,
+          "tokens_out": 56
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage describes the Grey Isles as low and treeless, which conflicts with the statement that they are thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 0.548,
+          "tokens_in": 333,
+          "tokens_out": 47
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage describes the Grey Isles as low and treeless, which conflicts with the statement that they are thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 0.658,
+          "tokens_in": 333,
+          "tokens_out": 47
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "Passage 1 describes the Grey Isles as low and treeless, which conflicts with the statement that they are thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 0.695,
+          "tokens_in": 333,
+          "tokens_out": 49
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "Passage 1 states the river at Quill Ford is shallow enough to wade, contradicting the claim that it is too deep to wade.",
+          "quote": "By evening we reached Quill Ford, where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 0.592,
+          "tokens_in": 346,
+          "tokens_out": 69
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "Passage 1 states the river at Quill Ford is shallow enough to wade, contradicting the claim that it is too deep to wade.",
+          "quote": "By evening we reached Quill Ford, where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 0.596,
+          "tokens_in": 346,
+          "tokens_out": 69
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "The passage says the river at Quill Ford is shallow enough to wade, contradicting the statement that it is too deep to wade.",
+          "quote": "where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 0.573,
+          "tokens_in": 346,
+          "tokens_out": 59
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "Passage 1 states the reef can be seen from the Lantern Hill on a clear day, which conflicts with the statement that it cannot be seen.",
+          "quote": "sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 0.629,
+          "tokens_in": 367,
+          "tokens_out": 75
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "Passage 1 states the reef can be seen from the Lantern Hill on a clear day, contradicting the statement that it cannot be seen.",
+          "quote": "sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 0.627,
+          "tokens_in": 367,
+          "tokens_out": 74
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "Passage 1 states the reef can be seen from the Lantern Hill on a clear day, which conflicts with the statement that it cannot be seen.",
+          "quote": "sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 0.692,
+          "tokens_in": 367,
+          "tokens_out": 75
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage gives the mouth of the Quill at 312 degrees and the Saltglass Reef at 205 degrees, the reverse of the statement.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees.",
+          "quote_verbatim": true,
+          "latency_s": 0.583,
+          "tokens_in": 365,
+          "tokens_out": 76
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage gives 312 degrees for the mouth of the Quill and 205 for the Saltglass Reef, the reverse of the statement.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees.",
+          "quote_verbatim": true,
+          "latency_s": 0.847,
+          "tokens_in": 365,
+          "tokens_out": 75
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage gives the mouth of the Quill at 312 degrees and the Saltglass Reef at 205 degrees, the reverse of the statement.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees.",
+          "quote_verbatim": true,
+          "latency_s": 0.618,
+          "tokens_in": 365,
+          "tokens_out": 76
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage says the first basket is offered to the river and the second to whoever sings worst, the reverse of the statement.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 0.608,
+          "tokens_in": 352,
+          "tokens_out": 59
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage says the first basket is offered to the river and the second to whoever sings worst, the reverse of the statement.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 0.667,
+          "tokens_in": 352,
+          "tokens_out": 59
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage says the first basket is offered to the river and the second to whoever sings worst, reversing the statement's order.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 0.629,
+          "tokens_in": 352,
+          "tokens_out": 59
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "Passage 1 calls Ambrose Tull the naturalist and passage 2 calls Maren Holloway the pilot, the reverse of the statement's roles.",
+          "quote": "Mr Ambrose Tull, our naturalist",
+          "quote_verbatim": true,
+          "latency_s": 0.635,
+          "tokens_in": 446,
+          "tokens_out": 58
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "Passage 1 makes Ambrose Tull the naturalist, while passage 2 makes Maren Holloway the pilot, reversing the roles in the statement.",
+          "quote": "Mr Ambrose Tull, our naturalist",
+          "quote_verbatim": true,
+          "latency_s": 0.666,
+          "tokens_in": 446,
+          "tokens_out": 59
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "The passages assign the roles in reverse: Ambrose Tull is called the naturalist and Maren Holloway is the pilot.",
+          "quote": "Mr Ambrose Tull, our naturalist",
+          "quote_verbatim": true,
+          "latency_s": 0.638,
+          "tokens_in": 446,
+          "tokens_out": 52
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage attributes the nine thousand estimate to the narrator and the twelve thousand claim to Pell, the reverse of the statement.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 0.634,
+          "tokens_in": 366,
+          "tokens_out": 65
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage attributes the nine thousand estimate to the narrator and the twelve thousand claim to Pell, the reverse of the statement.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 0.668,
+          "tokens_in": 366,
+          "tokens_out": 65
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage attributes the nine thousand estimate to the narrator and the twelve thousand claim to Pell, the reverse of the statement.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 0.682,
+          "tokens_in": 366,
+          "tokens_out": 65
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage says the Margarethe went aground in 1879, not 1880.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.617,
+          "tokens_in": 371,
+          "tokens_out": 54
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the Margarethe went aground in 1879, not 1880.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.579,
+          "tokens_in": 371,
+          "tokens_out": 54
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage says the Margarethe went aground in 1879, not 1880.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 0.543,
+          "tokens_in": 371,
+          "tokens_out": 54
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage says Agathe Strand has kept the lighthouse for thirty-one years, not thirty-two.",
+          "quote": "has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.539,
+          "tokens_in": 341,
+          "tokens_out": 45
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage says Agathe Strand has kept the lighthouse for thirty-one years, not thirty-two.",
+          "quote": "has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.65,
+          "tokens_in": 341,
+          "tokens_out": 45
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage says Agathe Strand has kept the lighthouse for thirty-one years, not thirty-two.",
+          "quote": "has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 0.555,
+          "tokens_in": 341,
+          "tokens_out": 45
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees, not 313 degrees.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.576,
+          "tokens_in": 356,
+          "tokens_out": 58
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees, not 313 degrees.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.649,
+          "tokens_in": 356,
+          "tokens_out": 58
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees, not 313.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.631,
+          "tokens_in": 356,
+          "tokens_out": 54
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states that three wrecks lie inside the reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.645,
+          "tokens_in": 364,
+          "tokens_out": 41
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states that three wrecks lie inside the reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.755,
+          "tokens_in": 364,
+          "tokens_out": 41
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states that three wrecks lie inside the reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.514,
+          "tokens_in": 364,
+          "tokens_out": 41
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passages describe Maren Holloway as a fifteen-year-old pilot and mention Quill Ford, but never state she became harbourmaster of Marrow Bay.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.601,
+          "tokens_in": 347,
+          "tokens_out": 50
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passages describe Maren Holloway as a pilot and mention Quill Ford, but say nothing about her becoming harbourmaster of Marrow Bay.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.568,
+          "tokens_in": 347,
+          "tokens_out": 48
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passages describe Maren Holloway as a fifteen-year-old pilot and mention Quill Ford, but never state she became harbourmaster of Marrow Bay.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.566,
+          "tokens_in": 347,
+          "tokens_out": 50
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passages mention Hollin Lighthouse but never state when it was built.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.537,
+          "tokens_in": 336,
+          "tokens_out": 33
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passages describe Hollin Lighthouse and its keeper but never state when it was built.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.526,
+          "tokens_in": 336,
+          "tokens_out": 36
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passages describe Hollin Lighthouse and its keeper but never state when it was built.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.531,
+          "tokens_in": 336,
+          "tokens_out": 36
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passage says the Margarethe went aground in 1879 but does not mention her cargo of timber.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.56,
+          "tokens_in": 370,
+          "tokens_out": 42
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passage says the Margarethe went aground in 1879 but does not mention her cargo of timber.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.554,
+          "tokens_in": 370,
+          "tokens_out": 42
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passage says the Margarethe went aground in 1879 but does not mention her cargo being timber.",
+          "quote": "The newest, the Margarethe, went aground in 1879 while her captain was, by all accounts, explaining to his crew that the reef was further east.",
+          "quote_verbatim": true,
+          "latency_s": 0.59,
+          "tokens_in": 370,
+          "tokens_out": 77
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage mentions the Knelling festival but does not state its duration.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.571,
+          "tokens_in": 340,
+          "tokens_out": 33
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage mentions the Knelling festival but does not state its duration.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.628,
+          "tokens_in": 340,
+          "tokens_out": 33
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage describes the Knelling festival but never states how long it lasts.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.511,
+          "tokens_in": 340,
+          "tokens_out": 34
+        }
+      ]
+    },
+    "high": {
+      "model": "glm-5.3",
+      "calls": [
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, matching the statement exactly.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 1.115,
+          "tokens_in": 365,
+          "tokens_out": 126
+        },
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, matching the statement exactly.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 1.131,
+          "tokens_in": 365,
+          "tokens_out": 126
+        },
+        {
+          "claim": "supported-1",
+          "verdict": "supported",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, matching the statement exactly.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 1.132,
+          "tokens_in": 365,
+          "tokens_out": 130
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "The passage states the Margarethe is one of the three wrecks inside the Saltglass Reef and that she went aground in 1879.",
+          "quote": "Three wrecks lie inside it. The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.698,
+          "tokens_in": 378,
+          "tokens_out": 293
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "The passage states the Margarethe, one of three wrecks inside the Saltglass Reef, went aground in 1879.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.297,
+          "tokens_in": 378,
+          "tokens_out": 220
+        },
+        {
+          "claim": "supported-2",
+          "verdict": "supported",
+          "reason": "The passage states the Margarethe went aground in 1879 and is one of the wrecks lying inside the Saltglass Reef.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.2,
+          "tokens_in": 378,
+          "tokens_out": 162
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "Passage 1 states that Widow Agathe Strand, keeper of Hollin Lighthouse, has kept it for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 1.04,
+          "tokens_in": 350,
+          "tokens_out": 115
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "The passage states that Widow Agathe Strand, keeper of Hollin Lighthouse, has kept it for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 1.015,
+          "tokens_in": 350,
+          "tokens_out": 111
+        },
+        {
+          "claim": "supported-3",
+          "verdict": "supported",
+          "reason": "The passage states that Widow Agathe Strand, the keeper of Hollin Lighthouse, has kept it for thirty-one years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 1.002,
+          "tokens_in": 350,
+          "tokens_out": 112
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "The passage explicitly states that three wrecks lie inside the Saltglass Reef.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.9,
+          "tokens_in": 371,
+          "tokens_out": 78
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "The passage explicitly states that three wrecks lie inside the Saltglass Reef.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.917,
+          "tokens_in": 371,
+          "tokens_out": 78
+        },
+        {
+          "claim": "supported-4",
+          "verdict": "supported",
+          "reason": "The passage states that three wrecks lie inside the Saltglass Reef.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.813,
+          "tokens_in": 371,
+          "tokens_out": 81
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The passage states the note-writer's own estimate of the town's population as about nine thousand, while the twelve thousand figure is attributed to Pell.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 1.425,
+          "tokens_in": 373,
+          "tokens_out": 188
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The passage's author states their own estimate of the town's population as about nine thousand, matching the statement.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 1.379,
+          "tokens_in": 373,
+          "tokens_out": 153
+        },
+        {
+          "claim": "paraphrase-1",
+          "verdict": "supported",
+          "reason": "The passage's first-person narrator states their own estimate of the town's population as about nine thousand, matching the statement's claim about the author of the notes.",
+          "quote": "I estimate some nine thousand souls",
+          "quote_verbatim": true,
+          "latency_s": 1.22,
+          "tokens_in": 373,
+          "tokens_out": 179
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "supported",
+          "reason": "The passage states that when the fog lifted the expedition was within a quarter mile of the reckoned position, matching the statement.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 1.327,
+          "tokens_in": 372,
+          "tokens_out": 228
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "supported",
+          "reason": "The passage states that when the fog lifted they were within a quarter mile of the reckoned position, matching the statement.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 1.398,
+          "tokens_in": 372,
+          "tokens_out": 249
+        },
+        {
+          "claim": "paraphrase-2",
+          "verdict": "supported",
+          "reason": "The passage states that when the fog lifted they were within a quarter mile of the reckoned position, matching the statement's claim.",
+          "quote": "When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be",
+          "quote_verbatim": true,
+          "latency_s": 1.753,
+          "tokens_in": 372,
+          "tokens_out": 328
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "The passage states that the juniper on the terraces (the Juniper Steps) is harvested every September at a festival called the Knelling.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 1.447,
+          "tokens_in": 360,
+          "tokens_out": 220
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "The passage states that the juniper on the terraces (the Juniper Steps) is harvested every September at a festival called the Knelling, matching the statement.",
+          "quote": "harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 1.576,
+          "tokens_in": 360,
+          "tokens_out": 272
+        },
+        {
+          "claim": "paraphrase-3",
+          "verdict": "supported",
+          "reason": "The passage states that the juniper on the terraces (the Juniper Steps) is harvested every September at a festival called the Knelling.",
+          "quote": "The Zeltavians call them the Juniper Steps and harvest the berries every September in a festival called the Knelling",
+          "quote_verbatim": true,
+          "latency_s": 1.66,
+          "tokens_in": 360,
+          "tokens_out": 271
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "The passage states the ferry at Quill Ford has been out of service since 1861, meaning it has not run since then.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 1.396,
+          "tokens_in": 354,
+          "tokens_out": 253
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "The passage states the ferry at Quill Ford has been out of service since 1861, meaning it has not run since then.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 1.604,
+          "tokens_in": 354,
+          "tokens_out": 261
+        },
+        {
+          "claim": "paraphrase-4",
+          "verdict": "supported",
+          "reason": "The passage states the ferry at Quill Ford has been out of service since 1861, which matches the claim that it has not run since then.",
+          "quote": "the ferry has been \"temporarily out of service\" since 1861",
+          "quote_verbatim": true,
+          "latency_s": 1.467,
+          "tokens_in": 354,
+          "tokens_out": 244
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage says the keeper would not let the narrator copy her ledger, only admire it.",
+          "quote": "which she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 1.269,
+          "tokens_in": 348,
+          "tokens_out": 183
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the keeper would not let the narrator copy her ledger, only admire it.",
+          "quote": "which she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 2.028,
+          "tokens_in": 348,
+          "tokens_out": 199
+        },
+        {
+          "claim": "negated-1",
+          "verdict": "contradicted",
+          "reason": "The passage says the keeper would not let the narrator copy her ledger, only admire it.",
+          "quote": "which she would not let me copy but did let me admire",
+          "quote_verbatim": true,
+          "latency_s": 1.278,
+          "tokens_in": 348,
+          "tokens_out": 161
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage describes the Grey Isles as treeless, which conflicts with being thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 1.049,
+          "tokens_in": 341,
+          "tokens_out": 86
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage describes the Grey Isles as treeless, which conflicts with being thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 0.89,
+          "tokens_in": 341,
+          "tokens_out": 86
+        },
+        {
+          "claim": "negated-2",
+          "verdict": "contradicted",
+          "reason": "The passage describes the Grey Isles as treeless, which conflicts with being thickly wooded.",
+          "quote": "low and treeless",
+          "quote_verbatim": true,
+          "latency_s": 39.602,
+          "tokens_in": 341,
+          "tokens_out": 86
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "The passage states that at Quill Ford the river is wide and shallow enough to wade, which directly conflicts with the claim that it is too deep to wade.",
+          "quote": "where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 38.823,
+          "tokens_in": 353,
+          "tokens_out": 166
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the river at Quill Ford is shallow enough to wade, directly contradicting the claim that it is too deep to wade.",
+          "quote": "where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 38.698,
+          "tokens_in": 353,
+          "tokens_out": 163
+        },
+        {
+          "claim": "negated-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the river at Quill Ford is shallow enough to wade, directly contradicting the claim that it is too deep to wade.",
+          "quote": "where the river is wide and shallow enough to wade",
+          "quote_verbatim": true,
+          "latency_s": 38.692,
+          "tokens_in": 353,
+          "tokens_out": 163
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "The passage states the reef can be seen from the Lantern Hill on a clear day and confirms the sailors' claim is right, directly contradicting the statement.",
+          "quote": "sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 1.291,
+          "tokens_in": 373,
+          "tokens_out": 197
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "The passage states the reef can be seen from the Lantern Hill on a clear day and confirms the sailors' claim is right, directly conflicting with the statement that it cannot be seen.",
+          "quote": "sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 1.197,
+          "tokens_in": 373,
+          "tokens_out": 198
+        },
+        {
+          "claim": "negated-4",
+          "verdict": "contradicted",
+          "reason": "The passage states the reef can be seen from the Lantern Hill on a clear day and confirms the sailors' claim is right, directly conflicting with the statement.",
+          "quote": "sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right",
+          "quote_verbatim": true,
+          "latency_s": 1.325,
+          "tokens_in": 373,
+          "tokens_out": 193
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage assigns 312 degrees to the mouth of the Quill and 205 degrees to the Saltglass Reef, the reverse of the statement.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees.",
+          "quote_verbatim": true,
+          "latency_s": 1.792,
+          "tokens_in": 374,
+          "tokens_out": 277
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage assigns 312 degrees to the mouth of the Quill and 205 degrees to the Saltglass Reef, the reverse of the statement.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees.",
+          "quote_verbatim": true,
+          "latency_s": 1.669,
+          "tokens_in": 374,
+          "tokens_out": 253
+        },
+        {
+          "claim": "swapped-1",
+          "verdict": "contradicted",
+          "reason": "The passage assigns 312 degrees to the mouth of the Quill and 205 degrees to the Saltglass Reef, the reverse of the statement.",
+          "quote": "From the summit I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees.",
+          "quote_verbatim": true,
+          "latency_s": 1.441,
+          "tokens_in": 374,
+          "tokens_out": 256
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage says the first basket is offered to the river and the second to whoever sings worst, which is the reverse of the statement's order.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 1.285,
+          "tokens_in": 361,
+          "tokens_out": 179
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage says the first basket is offered to the river and the second to whoever sings worst, which is the reverse of the statement's order.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 1.417,
+          "tokens_in": 361,
+          "tokens_out": 179
+        },
+        {
+          "claim": "swapped-2",
+          "verdict": "contradicted",
+          "reason": "The passage says the first basket is offered to the river and the second to whoever sings worst, which is the reverse of the statement's order.",
+          "quote": "the first basket is offered to the river and the second to whoever sings worst",
+          "quote_verbatim": true,
+          "latency_s": 1.297,
+          "tokens_in": 361,
+          "tokens_out": 174
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "The passages state the reverse roles: Ambrose Tull was the naturalist and Maren Holloway was the river pilot.",
+          "quote": "Mr Ambrose Tull, our naturalist, spent the morning arguing with a goat.",
+          "quote_verbatim": true,
+          "latency_s": 1.808,
+          "tokens_in": 452,
+          "tokens_out": 308
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "The passages state the reverse: Ambrose Tull was the naturalist and Maren Holloway was the river pilot.",
+          "quote": "Mr Ambrose Tull, our naturalist",
+          "quote_verbatim": true,
+          "latency_s": 1.557,
+          "tokens_in": 452,
+          "tokens_out": 252
+        },
+        {
+          "claim": "swapped-3",
+          "verdict": "contradicted",
+          "reason": "The passages state the opposite roles: Ambrose Tull is the naturalist and Maren Holloway is the hired river pilot.",
+          "quote": "Mr Ambrose Tull, our naturalist, spent the morning arguing with a goat.",
+          "quote_verbatim": true,
+          "latency_s": 2.855,
+          "tokens_in": 452,
+          "tokens_out": 480
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage reverses the attribution: the author estimates nine thousand souls while Pell insists on twelve thousand, not the other way around.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 1.336,
+          "tokens_in": 374,
+          "tokens_out": 216
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage attributes the nine thousand estimate to the author ('I') and the twelve thousand figure to Pell, the reverse of the statement.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 1.742,
+          "tokens_in": 374,
+          "tokens_out": 210
+        },
+        {
+          "claim": "swapped-4",
+          "verdict": "contradicted",
+          "reason": "The passage reverses the attribution: the author estimates nine thousand souls while Pell insists on twelve thousand, not the other way around.",
+          "quote": "I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\"",
+          "quote_verbatim": true,
+          "latency_s": 1.518,
+          "tokens_in": 374,
+          "tokens_out": 216
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the Margarethe went aground on the Saltglass Reef in 1879, not 1880.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.246,
+          "tokens_in": 378,
+          "tokens_out": 151
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the Margarethe went aground on the Saltglass Reef in 1879, not 1880.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.27,
+          "tokens_in": 378,
+          "tokens_out": 135
+        },
+        {
+          "claim": "off_by_one-1",
+          "verdict": "contradicted",
+          "reason": "The passage states the Margarethe went aground on the Saltglass Reef in 1879, not 1880.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.352,
+          "tokens_in": 378,
+          "tokens_out": 151
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage states Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years, not thirty-two.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 1.022,
+          "tokens_in": 350,
+          "tokens_out": 84
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage states Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years, not thirty-two years.",
+          "quote": "Its keeper, Widow Agathe Strand, has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 1.088,
+          "tokens_in": 350,
+          "tokens_out": 85
+        },
+        {
+          "claim": "off_by_one-2",
+          "verdict": "contradicted",
+          "reason": "The passage states Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years, not thirty-two.",
+          "quote": "has kept it for thirty-one years",
+          "quote_verbatim": true,
+          "latency_s": 1.008,
+          "tokens_in": 350,
+          "tokens_out": 76
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, not 313 degrees.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 1.1,
+          "tokens_in": 365,
+          "tokens_out": 118
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, not 313 degrees.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 0.921,
+          "tokens_in": 365,
+          "tokens_out": 118
+        },
+        {
+          "claim": "off_by_one-3",
+          "verdict": "contradicted",
+          "reason": "The passage states the mouth of the Quill was fixed at 312 degrees from the lantern, not 313 degrees.",
+          "quote": "I fixed the mouth of the Quill at 312 degrees from the lantern",
+          "quote_verbatim": true,
+          "latency_s": 1.109,
+          "tokens_in": 365,
+          "tokens_out": 121
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states three wrecks lie inside the Saltglass Reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.853,
+          "tokens_in": 371,
+          "tokens_out": 77
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states three wrecks lie inside the Saltglass Reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 0.866,
+          "tokens_in": 371,
+          "tokens_out": 77
+        },
+        {
+          "claim": "off_by_one-4",
+          "verdict": "contradicted",
+          "reason": "The passage states three wrecks lie inside the Saltglass Reef, not four.",
+          "quote": "Three wrecks lie inside it.",
+          "quote_verbatim": true,
+          "latency_s": 51.461,
+          "tokens_in": 371,
+          "tokens_out": 77
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passage only describes Maren Holloway as a fifteen-year-old river pilot and says nothing about her becoming harbourmaster of Marrow Bay.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 51.549,
+          "tokens_in": 354,
+          "tokens_out": 116
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passage only describes Maren Holloway as a fifteen-year-old river pilot and says nothing about her becoming harbourmaster of Marrow Bay.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 50.631,
+          "tokens_in": 354,
+          "tokens_out": 116
+        },
+        {
+          "claim": "not_in_source-1",
+          "verdict": "not_in_source",
+          "reason": "The passage only describes Maren Holloway as a fifteen-year-old river pilot and never mentions her becoming harbourmaster of Marrow Bay.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 51.336,
+          "tokens_in": 354,
+          "tokens_out": 235
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passage mentions Hollin Lighthouse and its keeper of thirty-one years but never states when it was built.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 1.146,
+          "tokens_in": 345,
+          "tokens_out": 125
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passage mentions Hollin Lighthouse and its keeper's tenure of thirty-one years, but never states when the lighthouse was built.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 1.268,
+          "tokens_in": 345,
+          "tokens_out": 106
+        },
+        {
+          "claim": "not_in_source-2",
+          "verdict": "not_in_source",
+          "reason": "The passage mentions Hollin Lighthouse and its keeper but never states when the lighthouse was built.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 1.021,
+          "tokens_in": 345,
+          "tokens_out": 124
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passage confirms the Margarethe went aground in 1879 but says nothing about her carrying a cargo of timber.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.18,
+          "tokens_in": 377,
+          "tokens_out": 151
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passage confirms the Margarethe went aground in 1879 but says nothing about her carrying a cargo of timber.",
+          "quote": "The newest, the Margarethe, went aground in 1879",
+          "quote_verbatim": true,
+          "latency_s": 1.328,
+          "tokens_in": 377,
+          "tokens_out": 170
+        },
+        {
+          "claim": "not_in_source-3",
+          "verdict": "not_in_source",
+          "reason": "The passage confirms the Margarethe went aground in 1879 but says nothing about her carrying a cargo of timber.",
+          "quote": "The newest, the Margarethe, went aground in 1879 while her captain was, by all accounts, explaining to his crew that the reef was further east.",
+          "quote_verbatim": true,
+          "latency_s": 1.376,
+          "tokens_in": 377,
+          "tokens_out": 190
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage describes the Knelling festival but never states how many days it lasts.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 1.05,
+          "tokens_in": 349,
+          "tokens_out": 129
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage describes the Knelling festival but never states how many days it lasts.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 1.156,
+          "tokens_in": 349,
+          "tokens_out": 169
+        },
+        {
+          "claim": "not_in_source-4",
+          "verdict": "not_in_source",
+          "reason": "The passage describes the Knelling festival's offerings and timing in September but never states how many days it lasts.",
+          "quote": "",
+          "quote_verbatim": false,
+          "latency_s": 0.963,
+          "tokens_in": 349,
+          "tokens_out": 128
+        }
+      ]
+    }
+  }
+}

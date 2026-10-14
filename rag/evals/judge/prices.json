@@ -1,0 +1,8 @@
+{
+  "source": "platform model catalogue as relayed by the coordinator, 2026-10-14; USD per million tokens",
+  "models": {
+    "glm-5.3-flash": {"in": 0.10, "out": 0.35},
+    "deepseek-v4.1-flash": {"in": 0.15, "out": 0.60},
+    "glm-5.3": {"in": 0.75, "out": 3.00}
+  }
+}
