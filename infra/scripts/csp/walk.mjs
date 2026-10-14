@@ -3,6 +3,9 @@
 // WEB_URL (the web image); /api and /shared are fetched from API_URL (the live
 // deployment) through page.route, so the page sees one origin as in production.
 // DEMO_TOKEN signs in; it is read from the environment and never printed.
+// Every request to API_URL waits for a slot: WALK_RPS per second (default 1), well
+// under core's per-address rate limit (120 a minute), which a walk shares with
+// everything else leaving the same address.
 import { chromium } from 'playwright'
 
 const WEB = process.env.WEB_URL
@@ -13,6 +16,26 @@ if (!WEB || !API || !TOKEN) {
   process.exit(2)
 }
 
+const RPS = Number(process.env.WALK_RPS || 1)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+let nextSlot = 0
+let busy = 0 // requests to the API waiting for a slot or in flight
+let sent = 0
+const throttled = async (fn) => {
+  busy++
+  try {
+    const now = Date.now()
+    const at = Math.max(now, nextSlot)
+    nextSlot = at + 1000 / RPS
+    if (at > now) await sleep(at - now)
+    sent++
+    return await fn()
+  } finally {
+    busy--
+  }
+}
+const started = Date.now()
+
 const browser = await chromium.launch()
 const context = await browser.newContext({ viewport: { width: 1400, height: 900 } })
 const page = await context.newPage()
@@ -21,8 +44,13 @@ const page = await context.newPage()
 await page.route(/\/(api|shared)\//, async (route) => {
   const url = new URL(route.request().url())
   if (url.origin !== new URL(WEB).origin) return route.continue()
-  const response = await route.fetch({ url: API + url.pathname + url.search })
-  await route.fulfill({ response })
+  try {
+    const response = await throttled(() => route.fetch({ url: API + url.pathname + url.search }))
+    await route.fulfill({ response })
+  } catch {
+    // the page navigated away while the request waited for its slot
+    await route.abort().catch(() => {})
+  }
 })
 
 // Violations, from the DOM event (enforced and report-only alike) and the console.
@@ -85,9 +113,13 @@ const step = async (label, fn) => {
     visited.push(`${label} (failed: ${e.message.split('\n')[0].slice(0, 120)})`)
   }
 }
-const settle = (ms = 2500) => page.waitForTimeout(ms)
+// Waits ms, then until the page's API requests have drained (at most 60 s more).
+const settle = async (ms = 2500) => {
+  await page.waitForTimeout(ms)
+  for (let i = 0; busy > 0 && i < 120; i++) await page.waitForTimeout(500)
+}
 const api = async (path) => {
-  const r = await fetch(API + path, { headers: { Authorization: 'Bearer ' + TOKEN } })
+  const r = await throttled(() => fetch(API + path, { headers: { Authorization: 'Bearer ' + TOKEN } }))
   if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`)
   return r.json()
 }
@@ -126,10 +158,12 @@ console.log('canary (inline script) reported:', canary)
 
 const notebooks = await api('/api/ingest/notebooks')
 const shares = new Map() // kind -> share token, one shared page per output kind
+let judged = null // one output a judge has read, opened with its judge panel
 for (const nb of notebooks.slice(0, Number(process.env.MAX_NOTEBOOKS ?? 6))) {
   const outputs = await api(`/api/rag/notebooks/${nb.id}/outputs`)
   const ready = outputs.filter((o) => o.status === 'ready')
   for (const o of outputs) if (o.share_token && o.status === 'ready' && !shares.has(o.kind)) shares.set(o.kind, o.share_token)
+  if (!judged) judged = ready.find((o) => o.provenance?.judge) ?? null
   await page.evaluate((id) => localStorage.setItem('lasteverlm.notebook', id), nb.id)
   await step(`notebook ${nb.id.slice(0, 8)}`, async () => {
     await page.goto(WEB + '/')
@@ -143,8 +177,21 @@ for (const nb of notebooks.slice(0, Number(process.env.MAX_NOTEBOOKS ?? 6))) {
       if (kind === 'audio') console.log('  audio in viewer:', await playAudio())
     })
   }
+  if (judged && ready.includes(judged)) {
+    await step(`  output ${judged.kind} with judge panel`, async () => {
+      await page.click(`#output-${judged.id} .out-row`, { timeout: 4000 })
+      await settle(1500)
+      await page.click('.badge.judge', { timeout: 4000 })
+      await settle(1000)
+      for (const d of await page.$$('details.out-sources, details.how-made')) await d.evaluate((el) => (el.open = true))
+      await settle(1000)
+    })
+  }
 }
-for (const path of ['/library', '/settings', '/admin', '/admin/system', '/admin/stats']) {
+if (!judged) visited.push('output with judge panel (no judged output found)')
+const adminPages = ['/admin', '/admin/users', '/admin/access', '/admin/security', '/admin/visits', '/admin/mail', '/admin/system']
+const financePages = ['/admin/finance', '/admin/finance/prices', '/admin/finance/revenue', '/admin/finance/infrastructure', '/admin/finance/vouchers']
+for (const path of ['/library', '/settings', ...adminPages, ...financePages]) {
   await step(path, async () => {
     await page.goto(WEB + path)
     await settle()
@@ -168,6 +215,8 @@ for (const theme of ['toggle 1', 'toggle 2']) {
 }
 await browser.close()
 
+const seconds = (Date.now() - started) / 1000
+console.log(`\nAPI requests: ${sent} in ${Math.round(seconds)} s (${Math.round((sent / seconds) * 60)} a minute, WALK_RPS ${RPS})`)
 console.log('\nvisited:')
 for (const v of visited) console.log('  ' + v)
 console.log(`\nCSP violations (distinct): ${violations.size}`)

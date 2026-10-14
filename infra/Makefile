@@ -191,7 +191,7 @@ test: ## unit tests (the smoke test against an in-process stub)
 PLAYWRIGHT_VERSION := 1.63.0
 PLAYWRIGHT_IMAGE   := mcr.microsoft.com/playwright:v$(PLAYWRIGHT_VERSION)-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
-web-csp-check: ## walk the web image in headless Chromium against URL, list every CSP violation (Docker, DEMO_TOKEN; WEB_IMAGE=<image> or a build with CSP_MODE=report)
+web-csp-check: ## walk the web image in headless Chromium against URL, list every CSP violation (Docker, DEMO_TOKEN; WEB_IMAGE=<image> or a build with CSP_MODE=report; WALK_RPS, default 1)
 > $(call require,URL)
 > $(call require,DEMO_TOKEN)
 > API_URL=$(URL) REPO_ROOT=$(REPO_ROOT) PLAYWRIGHT_IMAGE=$(PLAYWRIGHT_IMAGE) PLAYWRIGHT_VERSION=$(PLAYWRIGHT_VERSION) sh scripts/web-csp-check.sh
