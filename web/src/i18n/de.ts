@@ -944,4 +944,7 @@ export const de: Record<MessageKey, string> = {
   'prices.unit.page': 'pro Seite',
   'prices.unit.image': 'pro Bild',
   'prices.unit.web_page': 'pro Webseite',
+  'arch.tlsUntil': 'TLS bis {date}',
+  'arch.ingressProbe': '{url} von außen geprüft, zuletzt {at}',
+  'arch.tlsSoon': 'Das Zertifikat läuft in weniger als 14 Tagen ab.',
 }

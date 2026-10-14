@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SystemInfo } from '../api/types'
-import { architectureNodes, dependencyState } from './architecture'
+import { architectureNodes, dependencyState, ingressState } from './architecture'
 
 const pod = (service: string, tag: string, restarts = 0, reason: string | null = null) => ({ name: `${service}-x`, service, image_tag: tag, ready: true, restarts, node: 'n1', started_at: null, reason })
 
@@ -78,5 +78,30 @@ describe('dependencyState', () => {
     expect(dependencyState(reported, 'postgres')).toBe('ok')
     expect(dependencyState(reported, 'storage')).toBe('down')
     expect(dependencyState(reported, 'inference')).toBe('unknown')
+  })
+})
+
+describe('web build', () => {
+  it('shows its pods\' image tags, both while rolling out', () => {
+    expect(architectureNodes(system).web.build).toBe('0.8.2 / 0.8.1')
+    expect(architectureNodes({ ...system, pods: [pod('web', '0.18.3')] }).web.build).toBe('0.18.3')
+  })
+})
+
+describe('ingressState', () => {
+  const now = new Date('2026-10-14T12:00:00Z')
+  const ing = { status: 'ok' as const, url: 'https://example.org', tls_expires_at: '2027-01-12T00:00:00Z', checked_at: '2026-10-14T11:59:00Z', error: null }
+
+  it('is green with the certificate\'s end date', () => {
+    expect(ingressState({ ...system, ingress: ing }, now)).toEqual({ state: 'ok', line: '2027-01-12', expiresSoon: false })
+  })
+
+  it('is amber when the certificate ends within 14 days', () => {
+    expect(ingressState({ ...system, ingress: { ...ing, tls_expires_at: '2026-10-20T00:00:00Z' } }, now).state).toBe('warn')
+  })
+
+  it('is red when the URL does not answer, grey without a probe', () => {
+    expect(ingressState({ ...system, ingress: { ...ing, status: 'down', error: 'timeout' } }, now).state).toBe('down')
+    expect(ingressState(system, now)).toEqual({ state: 'unknown', line: null, expiresSoon: false })
   })
 })

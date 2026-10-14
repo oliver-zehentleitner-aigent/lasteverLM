@@ -941,6 +941,9 @@ export const en = {
   'prices.unit.page': 'per page',
   'prices.unit.image': 'per image',
   'prices.unit.web_page': 'per web page',
+  'arch.tlsUntil': 'TLS until {date}',
+  'arch.ingressProbe': '{url} probed from outside, last {at}',
+  'arch.tlsSoon': 'The certificate ends within 14 days.',
 } as const
 
 export type MessageKey = keyof typeof en
