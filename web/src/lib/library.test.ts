@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibraryEntry } from '../api/types'
-import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, outputOrigin, pageTitleFrom, purgeIn, shortUrl } from './library'
+import { addPlan, addedSummary, bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, pageTitleFrom, purgeIn, shortUrl } from './library'
 
 const entry = (id: string, kind: LibraryEntry['kind'], name: string, notebooks: LibraryEntry['notebooks'] = [], url: string | null = null): LibraryEntry => ({
   id,
@@ -123,14 +123,31 @@ describe('shortUrl', () => {
   })
 })
 
-describe('outputOrigin', () => {
-  it("names the notebook by its current title, else the one it had", () => {
-    expect(outputOrigin({ notebook_id: 'n1', origin_title: 'Old name' }, 'New name')).toBe('New name')
-    expect(outputOrigin({ notebook_id: 'n1', origin_title: 'Old name' })).toBe('Old name')
+
+describe('the one table', () => {
+  const nb = (id: string) => ({ id, title: id, source_id: 's' })
+  const entry = (id: string, kind: LibraryEntry['kind'], notebooks: string[] = []) =>
+    ({ id, name: id, kind, status: 'ready', error: null, size_bytes: null, url: null, created_at: '2026-10-14T00:00:00Z', notebooks: notebooks.map(nb) }) as LibraryEntry
+  const all = [entry('a.pdf', 'pdf', ['n1']), entry('Report on X', 'generated', ['n1', 'n2']), entry('b.txt', 'text')]
+  const docKind = (e: LibraryEntry) => (e.kind === 'generated' ? ('report' as const) : null)
+
+  it('narrows by view, a document kind and a notebook', () => {
+    const f = { kind: 'all' as const, query: '' }
+    expect(filterLibrary(all, { ...f, view: 'documents' }).map((e) => e.id)).toEqual(['Report on X'])
+    expect(filterLibrary(all, { ...f, view: 'sources' }).map((e) => e.id)).toEqual(['a.pdf', 'b.txt'])
+    expect(filterLibrary(all, { ...f, kind: 'report' }, docKind).map((e) => e.id)).toEqual(['Report on X'])
+    expect(filterLibrary(all, { ...f, notebook: 'n2' }).map((e) => e.id)).toEqual(['Report on X'])
+    expect(filterLibrary(all, { ...f, notebook: 'none' }).map((e) => e.id)).toEqual(['b.txt'])
   })
 
-  it('says when the notebook is deleted', () => {
-    expect(outputOrigin({ notebook_id: null, origin_title: 'test1' })).toBe('deleted notebook "test1"')
-    expect(outputOrigin({ notebook_id: null, origin_title: null })).toBe('a deleted notebook')
+  it('adds only what is not in the notebook yet, and only ready documents', () => {
+    expect(addPlan(all, 'n1')).toEqual({ already: 2, toAdd: ['b.txt'], skipped: 0 })
+    expect(addPlan(all, 'n3', (e) => e.kind !== 'generated')).toEqual({ already: 0, toAdd: ['a.pdf', 'b.txt'], skipped: 1 })
+    expect(addPlan(all.slice(0, 2), 'n1').toAdd).toEqual([])
+  })
+
+  it('says what happened', () => {
+    expect(addedSummary(2, 1, 'test1')).toBe('2 added, 1 was already in test1')
+    expect(addedSummary(1, 0, 'test1')).toBe('1 added')
   })
 })

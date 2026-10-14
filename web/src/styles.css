@@ -707,3 +707,15 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 @keyframes decision-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .gauge-fill, .choice-fill { animation: none; } .scale-marker { transition: none; } }
 .redeem-link { margin-left: 0.3rem; }
+/* library: the view pills, and the notebook picker of the selection bar */
+.library-views { margin: 0.5rem 0 0; }
+.library-views .preset.active { border-color: var(--accent); }
+.add-to { position: relative; display: inline-flex; }
+.add-to-list { position: absolute; top: 100%; left: 0; z-index: 20; margin: 0.25rem 0 0; padding: 0.25rem; list-style: none; min-width: 16rem; max-height: 18rem; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); }
+.add-to-list .item { display: flex; justify-content: space-between; gap: 0.75rem; width: 100%; }
+.add-to-list .item:not(:disabled):hover { background: var(--accent-soft); }
+.add-to-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library .made-in { display: block; }
+.library .made-in.gone { font-style: italic; }
+.library .filters { grid-template-columns: minmax(9rem, 12rem) minmax(9rem, 14rem) minmax(0, 22rem); }
+@media (max-width: 640px) { .library .filters { grid-template-columns: minmax(0, 1fr); } }

@@ -1,20 +1,50 @@
-import type { LibraryEntry, Output } from '../api/types'
+import type { LibraryEntry, OutputKind } from '../api/types'
 import { t, tn } from '../i18n'
 
+/** Which rows the library lists: everything, the uploads, or the documents. */
+export type LibraryView = 'all' | 'sources' | 'documents'
+
 export interface LibraryFilter {
-  kind: LibraryEntry['kind'] | 'all'
+  view?: LibraryView
+  /** a source kind, or an output kind for a document */
+  kind: LibraryEntry['kind'] | OutputKind | 'all'
   query: string
+  /** a notebook id, "none" for entries in no notebook, or "all" */
+  notebook?: string
 }
 
-/** Entries matching a kind and a case-insensitive part of the name (or of
- *  the URL), in the server's order (newest first). */
-export function filterLibrary(entries: readonly LibraryEntry[], f: LibraryFilter): LibraryEntry[] {
+/** Entries matching the view, a kind (a document's kind is its output's,
+ *  from `docKind`), a notebook and a case-insensitive part of the name (or
+ *  of the URL), in the server's order (newest first). */
+export function filterLibrary(entries: readonly LibraryEntry[], f: LibraryFilter, docKind: (e: LibraryEntry) => OutputKind | null = () => null): LibraryEntry[] {
   const q = f.query.trim().toLowerCase()
-  return entries.filter(
-    (e) =>
-      (f.kind === 'all' || e.kind === f.kind) &&
-      (!q || e.name.toLowerCase().includes(q) || (e.url ?? '').toLowerCase().includes(q)),
-  )
+  const view = f.view ?? 'all'
+  const nb = f.notebook ?? 'all'
+  return entries.filter((e) => {
+    const doc = e.kind === 'generated'
+    if (view === 'sources' && doc) return false
+    if (view === 'documents' && !doc) return false
+    if (f.kind !== 'all' && e.kind !== f.kind && !(doc && docKind(e) === f.kind)) return false
+    if (nb === 'none' ? e.notebooks.length > 0 : nb !== 'all' && !e.notebooks.some((n) => n.id === nb)) return false
+    return !q || e.name.toLowerCase().includes(q) || (e.url ?? '').toLowerCase().includes(q)
+  })
+}
+
+/** For "Add to notebook": which of the selected entries are in the
+ *  notebook already, and which would be added. A document that is not
+ *  ready cannot be linked (ingest refuses the whole call), so it is left
+ *  out of `toAdd` and counted as `skipped`. */
+export function addPlan(selected: readonly LibraryEntry[], notebookId: string, ready: (e: LibraryEntry) => boolean = () => true) {
+  const already = selected.filter((e) => e.notebooks.some((n) => n.id === notebookId))
+  const rest = selected.filter((e) => !already.includes(e))
+  const toAdd = rest.filter(ready)
+  return { already: already.length, toAdd: toAdd.map((e) => e.id), skipped: rest.length - toAdd.length }
+}
+
+/** The line after adding: "2 added, 1 was already in test1". */
+export function addedSummary(added: number, already: number, title: string): string {
+  const a = tn('lib.addedN', added)
+  return already > 0 ? `${a}, ${tn('lib.alreadyInN', already, { title })}` : a
 }
 
 /** What "add from library" offers for a notebook: entries not in it yet. */
@@ -106,10 +136,3 @@ export function pageTitleFrom(url: string): string {
   return words ? `${host} · ${words}` : host
 }
 
-/** Where a generated document was made, for the Outputs tab: the
- *  notebook's title, or, once that notebook is deleted, saying so with the
- *  title it had. */
-export function outputOrigin(o: Pick<Output, 'notebook_id' | 'origin_title'>, notebookTitle?: string): string {
-  if (o.notebook_id !== null) return notebookTitle ?? o.origin_title ?? ''
-  return o.origin_title ? t('lib.out.fromDeleted', { title: o.origin_title }) : t('lib.out.fromDeletedUnknown')
-}

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library redesigned as one table: the Sources and Outputs tabs are gone (Library | Trash stay); a view selector (All, Sources, Documents) and filters by kind, notebook and name; documents sit next to uploads with their kind, status and "made in …", and open as before (in their notebook, or read-only once it is gone). Ticked rows across both can start a notebook, be added to an existing one ("Add to notebook…" shows per notebook how many are in it already, adds only the missing ones in one call and says "2 added, 1 was already in test1"), or be deleted.
 - Admin > System: the diagram's card is called "Architecture" again (the whole page is monitoring); in the light theme the external boxes and the dashed lines are drawn thicker and with longer dashes, so they stay visible on white. The dark theme is unchanged.
 - Sources without credit: adding a source is no longer refused for lack of credit (ingest's `waiting_for_credit`); the notebook's Sources list and the library show "waiting for credit" with "redeem a voucher", which opens the voucher dialog, and keep polling until processing starts. Creating documents still needs credit.
 

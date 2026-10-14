@@ -1,18 +1,19 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { ingest } from '../api/ingest'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
-import type { LibraryEntry, TrashEntry } from '../api/types'
+import { rag } from '../api/rag'
+import type { LibraryEntry, Notebook, Output, TrashEntry } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
-import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter } from '../lib/library'
+import { addPlan, addedSummary, bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter } from '../lib/library'
 import { audioFiles, openTarget } from '../lib/openEntry'
-import { SOURCE_FORMS, sourceKindLabel } from '../lib/outputs'
+import { OUTPUT_FORMS, SOURCE_FORMS, formFor, sourceKindLabel } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
+import { ReadOnlyOutput, TrashedOutputs } from './LibraryOutputs'
 import { RedeemLink } from './RedeemLink'
-import { OutputsList, TrashedOutputs } from './LibraryOutputs'
 import { t, tn } from '../i18n'
 
 interface Props {
@@ -22,17 +23,18 @@ interface Props {
   onOpenSettings: () => void
 }
 
-/** /library: every upload and URL of the user with the notebooks it is in,
- *  every generated document (Outputs), and the trash of both. Removing a source in a notebook only detaches it;
+/** /library: every upload and URL of the user and every generated
+ *  document, in one table with the notebooks each is in, and the trash of
+ *  both. Removing a source in a notebook only detaches it;
  *  deleting here moves it to the trash (out of every notebook, after a
  *  confirmation that names them), from where it is restored or purged. */
 export function LibraryPage({ onOpenNotebook, onOpenSettings }: Props) {
-  const [view, setView] = useState<'library' | 'outputs' | 'trash'>('library')
+  const [view, setView] = useState<'library' | 'trash'>('library')
   return (
     <main className="library">
       <h1>{t('lib.title')}</h1>
       <nav className="subnav" aria-label={t('lib.views')}>
-        {(['library', 'outputs', 'trash'] as const).map((v) => (
+        {(['library', 'trash'] as const).map((v) => (
           <a
             key={v}
             href="/library"
@@ -43,14 +45,12 @@ export function LibraryPage({ onOpenNotebook, onOpenSettings }: Props) {
               setView(v)
             }}
           >
-            {v === 'library' ? t('lib.sources') : v === 'outputs' ? t('lib.outputs') : t('lib.trash')}
+            {v === 'library' ? t('lib.title') : t('lib.trash')}
           </a>
         ))}
       </nav>
       {view === 'library' ? (
         <LibraryList onOpenNotebook={onOpenNotebook} />
-      ) : view === 'outputs' ? (
-        <OutputsList onOpenNotebook={onOpenNotebook} />
       ) : (
         <>
           <TrashList onOpenSettings={onOpenSettings} />
@@ -93,20 +93,36 @@ function NotebookFromSelection({ selected, busy, onCreate }: { selected: Library
 }
 
 const withoutGenerated = <T extends { kind: string }>(list: T[]): T[] => list.filter((e) => e.kind !== 'generated')
+const isDoc = (e: LibraryEntry) => e.kind === 'generated'
 
+/** The library as one table: uploads and generated documents together,
+ *  narrowed by a view (all, sources, documents), a kind, a notebook and a
+ *  part of the name. A document's kind and status come from rag's list of
+ *  the user's outputs (joined by `output_id`); it opens in the notebook it
+ *  was made in, or read-only here once that notebook is gone, and is
+ *  deleted through rag. Ticked rows can start a notebook, be added to one
+ *  (only those not in it yet) or be deleted. */
 function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   const [entries, setEntries] = useState<LibraryEntry[]>([])
-  const [filter, setFilter] = useState<LibraryFilter>({ kind: 'all', query: '' })
+  const [outputs, setOutputs] = useState<Map<string, Output>>(new Map())
+  const [notebooks, setNotebooks] = useState<Notebook[]>([])
+  const [filter, setFilter] = useState<LibraryFilter>({ view: 'all', kind: 'all', query: '', notebook: 'all' })
   // ticked rows, kept across filtering; actions apply to those still listed
   const [picked, setPicked] = useState<Set<string>>(new Set())
   // the one audio entry whose player is open, with the files taken then
   const [playing, setPlaying] = useState<{ id: string; files: NonNullable<ReturnType<typeof audioFiles>> } | null>(null)
   const [progress, setProgress] = useState<{ kind: 'delete' | 'add'; done: number; total: number } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [reading, setReading] = useState<Output | null>(null)
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
-    // generated documents have their own tab
-    void run(async () => setEntries(withoutGenerated(await ingest.listLibrary())))
+    void run(async () => {
+      const [list, outs, nbs] = await Promise.all([ingest.listLibrary('all'), rag.libraryOutputs(), ingest.listNotebooks()])
+      setEntries(list)
+      setOutputs(new Map(outs.map((o) => [o.id, o])))
+      setNotebooks(nbs)
+    })
   }, [run])
 
   // new entries (a new account's demo sources, say) turn ready as the worker gets to them
@@ -114,23 +130,47 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   useEffect(() => {
     if (!processing) return
     const timer = setInterval(() => {
-      ingest.listLibrary().then((list) => setEntries(withoutGenerated(list)), () => {
+      ingest.listLibrary('all').then(setEntries, () => {
         // a failed poll is retried on the next tick
       })
     }, SOURCE_POLL_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [processing])
 
-  async function remove(e: LibraryEntry) {
-    if (!confirm(deleteConfirmText(e))) return
-    const ok = await run(async () => {
-      await ingest.deleteLibraryEntry(e.id)
-      return true
+  const output = (e: LibraryEntry) => (e.output_id ? outputs.get(e.output_id) : undefined)
+  const docKind = (e: LibraryEntry) => output(e)?.kind ?? null
+  // a document links only once it is ready (ingest refuses the whole call otherwise)
+  const linkable = (e: LibraryEntry) => !isDoc(e) || (output(e)?.status ?? 'ready') === 'ready'
+
+  function drop(id: string) {
+    setEntries((prev) => prev.filter((x) => x.id !== id))
+    setPicked((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
     })
-    if (ok) setEntries((prev) => prev.filter((x) => x.id !== e.id))
   }
 
-  const shown = filterLibrary(entries, filter)
+  // an upload goes to ingest's trash, a document to rag's
+  const trash = (e: LibraryEntry) => (isDoc(e) && e.output_id ? rag.deleteOutput(e.output_id) : ingest.deleteLibraryEntry(e.id))
+
+  async function remove(e: LibraryEntry) {
+    if (!confirm(deleteConfirmText(e))) return
+    if (await run(() => trash(e).then(() => true))) drop(e.id)
+  }
+
+  async function open(e: LibraryEntry) {
+    if (e.origin?.id && e.output_id) {
+      onOpenNotebook(e.origin.id, e.output_id)
+      return
+    }
+    const id = e.output_id
+    if (!id) return
+    const full = await run(() => rag.getOutput(id))
+    if (full) setReading(full)
+  }
+
+  const shown = filterLibrary(entries, filter, docKind)
   const selected = entries.filter((e) => picked.has(e.id))
   const toggle = (id: string) =>
     setPicked((prev) => {
@@ -140,23 +180,19 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
       return next
     })
 
-  /** One DELETE per entry, in order; after a failure the rest stays ticked. */
+  /** One delete per entry, in order; after a failure the rest stays ticked. */
   async function removeSelected() {
     if (selected.length === 0 || !confirm(bulkDeleteConfirmText(selected))) return
+    setNotice(null)
     await run(async () => {
       let done = 0
       setProgress({ kind: 'delete', done, total: selected.length })
       try {
         for (const e of selected) {
-          await ingest.deleteLibraryEntry(e.id)
+          await trash(e)
           done += 1
           setProgress({ kind: 'delete', done, total: selected.length })
-          setEntries((prev) => prev.filter((x) => x.id !== e.id))
-          setPicked((prev) => {
-            const next = new Set(prev)
-            next.delete(e.id)
-            return next
-          })
+          drop(e.id)
         }
       } finally {
         setProgress(null)
@@ -164,41 +200,75 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
     })
   }
 
-  /** A notebook with the title from the selection bar, the entries added
-   *  to it one by one, then opened. */
+  /** The entries not in the notebook yet, in one call; the rows learn
+   *  their new notebook from a fresh list. */
+  async function addTo(nb: Notebook) {
+    const plan = addPlan(selected, nb.id, linkable)
+    if (plan.toAdd.length === 0) return
+    setNotice(null)
+    const r = await run(() => ingest.addManyFromLibrary(nb.id, plan.toAdd))
+    if (!r) return
+    setNotice(addedSummary(r.added.length, plan.already + r.already.length, nb.title))
+    const list = await run(() => ingest.listLibrary('all'))
+    if (list) setEntries(list)
+  }
+
+  /** A notebook with the title from the selection bar, the entries linked
+   *  in one call, then opened. */
   async function notebookFromSelected(title: string) {
-    if (selected.length === 0 || !title) return
+    const ids = selected.filter(linkable).map((e) => e.id)
+    if (ids.length === 0 || !title) return
     const id = await run(async () => {
       const nb = await ingest.createNotebook(title)
-      let done = 0
-      setProgress({ kind: 'add', done, total: selected.length })
-      try {
-        for (const e of selected) {
-          await ingest.addFromLibrary(nb.id, e.id)
-          done += 1
-          setProgress({ kind: 'add', done, total: selected.length })
-        }
-      } finally {
-        setProgress(null)
-      }
+      await ingest.addManyFromLibrary(nb.id, ids)
       return nb.id
     })
     if (id) onOpenNotebook(id)
   }
 
+  if (reading) return <ReadOnlyOutput output={reading} onBack={() => setReading(null)} />
+
+  const kinds: { value: string; label: string }[] = [
+    ...(filter.view !== 'documents' ? SOURCE_FORMS.map((f) => ({ value: f.kind, label: f.label })) : []),
+    ...(filter.view !== 'sources' ? OUTPUT_FORMS.map((f) => ({ value: f.kind, label: f.label })) : []),
+  ]
+
   return (
     <>
-      <p className="muted small">
-        {t('lib.intro')}
-      </p>
+      <p className="muted small">{t('lib.intro')}</p>
+      <div className="library-views kind-chips" role="group" aria-label={t('lib.view')}>
+        {(['all', 'sources', 'documents'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            className={filter.view === v ? 'preset active' : 'preset'}
+            aria-pressed={filter.view === v}
+            onClick={() => setFilter({ ...filter, view: v, kind: 'all' })}
+          >
+            {t(`lib.view.${v}`)}
+          </button>
+        ))}
+      </div>
       <div className="filters">
         <label>
           {t('lib.kind')}
           <select value={filter.kind} onChange={(e) => setFilter({ ...filter, kind: e.target.value as LibraryFilter['kind'] })}>
             <option value="all">{t('lib.all')}</option>
-            {SOURCE_FORMS.map((f) => (
-              <option key={f.kind} value={f.kind}>
-                {f.label}
+            {kinds.map((k) => (
+              <option key={k.value} value={k.value}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t('lib.notebook')}
+          <select value={filter.notebook} onChange={(e) => setFilter({ ...filter, notebook: e.target.value })}>
+            <option value="all">{t('lib.all')}</option>
+            <option value="none">{t('lib.notInAny')}</option>
+            {notebooks.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.title}
               </option>
             ))}
           </select>
@@ -209,10 +279,12 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
         </label>
       </div>
       {error && <p className="error">{error}</p>}
+      {notice && <p className="notice small">{notice}</p>}
       {selected.length > 0 && (
         <div className="selection-bar" role="region" aria-label={tn('lib.selected', selected.length)}>
           <span className="muted small">{progress ? t(progress.kind === 'delete' ? 'lib.progressDelete' : 'lib.progressAdd', { done: progress.done, total: progress.total }) : tn('lib.selected', selected.length)}</span>
           <NotebookFromSelection selected={selected} busy={busy} onCreate={(title) => void notebookFromSelected(title)} />
+          <AddToNotebook selected={selected} notebooks={notebooks} linkable={linkable} busy={busy} onAdd={(nb) => void addTo(nb)} />
           <button type="button" className="danger" disabled={busy} onClick={() => void removeSelected()}>
             {tn('lib.deleteN', selected.length)}
           </button>
@@ -243,8 +315,11 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
         </thead>
         <tbody>
           {shown.map((e) => {
-            const href = openTarget(e)
-            const files = audioFiles(e)
+            const doc = isDoc(e)
+            const out = output(e)
+            const href = doc ? null : openTarget(e)
+            const files = doc ? null : audioFiles(e)
+            const status = doc && out ? out.status : e.status
             return (
               <Fragment key={e.id}>
                 <tr className={picked.has(e.id) ? 'picked' : undefined}>
@@ -263,20 +338,22 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                       <DemoBadge demo={e.demo} />
                     </span>
                   </td>
-                  <td>{kindWithCapture(sourceKindLabel(e.kind), e.capture)}</td>
+                  <td>{doc ? (out ? formFor(out.kind).label : sourceKindLabel(e.kind)) : kindWithCapture(sourceKindLabel(e.kind), e.capture)}</td>
                   <td className="status-cell">
-                    <span className={`badge ${e.status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
-                      {t(`status.${e.status}`)}
+                    <span className={`badge ${status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
+                      {t(`status.${status}`)}
                     </span>
                     {e.status === 'waiting_for_credit' && <RedeemLink />}
-                  {e.status === 'failed' && e.error && (
+                    {e.status === 'failed' && e.error && (
                       <span className="error small reason" title={e.error}>
                         {e.error}
                       </span>
                     )}
                   </td>
                   <td>
-                    {e.size_bytes === null ? (
+                    {doc ? (
+                      <span className="muted small">—</span>
+                    ) : e.size_bytes === null ? (
                       <span className="muted small" title={t('lib.sizeUnknownTitle')}>
                         {t('lib.sizeUnknown')}
                       </span>
@@ -286,8 +363,13 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                   </td>
                   <td>{formatTime(e.created_at)}</td>
                   <td>
+                    {doc && e.origin && (
+                      <span className={e.origin.id ? 'muted small made-in' : 'muted small made-in gone'}>
+                        {e.origin.id ? t('lib.madeIn', { title: e.origin.title }) : t('lib.madeInDeleted', { title: e.origin.title })}
+                      </span>
+                    )}
                     {e.notebooks.length === 0 ? (
-                      <span className="muted small">{t('lib.notInAny')}</span>
+                      !doc && <span className="muted small">{t('lib.notInAny')}</span>
                     ) : (
                       <span className="where-used">
                         {e.notebooks.map((n) => (
@@ -307,7 +389,11 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                   </td>
                   <td className="row-actions">
                     {files && <PlayButton open={playing?.id === e.id} name={e.name} onToggle={() => setPlaying((p) => (p?.id === e.id ? null : { id: e.id, files }))} />}
-                    {href ? (
+                    {doc ? (
+                      <button type="button" className="link" disabled={busy || !e.output_id} title={e.origin?.id ? t('lib.out.openTitle', { title: e.name }) : t('lib.out.openReadOnly', { title: e.name })} onClick={() => void open(e)}>
+                        {t('lib.open')}
+                      </button>
+                    ) : href ? (
                       <a className="link" href={href} target="_blank" rel="noopener noreferrer">
                         {t('lib.open')}
                       </a>
@@ -341,6 +427,48 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
         </tbody>
       </table>
     </>
+  )
+}
+
+/** "Add to notebook…": the user's notebooks, each saying how many of the
+ *  ticked entries are in it already; a click adds only the others. A
+ *  notebook that has all of them is disabled and says so. */
+function AddToNotebook({ selected, notebooks, linkable, busy, onAdd }: { selected: LibraryEntry[]; notebooks: Notebook[]; linkable: (e: LibraryEntry) => boolean; busy: boolean; onAdd: (nb: Notebook) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="add-to">
+      <button type="button" className="secondary" disabled={busy || notebooks.length === 0} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {t('lib.addTo')}
+      </button>
+      {open && (
+        <ul className="add-to-list" role="menu">
+          {notebooks.map((nb) => {
+            const plan = addPlan(selected, nb.id, linkable)
+            const full = plan.toAdd.length === 0
+            return (
+              <li key={nb.id} role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="item"
+                  disabled={busy || full}
+                  title={full ? (plan.skipped ? t('lib.notReadyTitle') : t('lib.allInTitle')) : undefined}
+                  onClick={() => {
+                    setOpen(false)
+                    onAdd(nb)
+                  }}
+                >
+                  <span className="add-to-name">{nb.title}</span>
+                  <span className="muted small">
+                    {full && plan.already === selected.length ? t('lib.allIn') : t('lib.someIn', { n: plan.already, total: selected.length })}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </span>
   )
 }
 

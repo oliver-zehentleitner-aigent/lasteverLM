@@ -43,8 +43,14 @@ export const ingest = {
   /** add an existing library entry; 200 with the existing link when it is already in */
   addFromLibrary: (notebookId: string, libraryId: string) => addSource(notebookId, { json: { library_id: libraryId } }),
 
-  /** newest first, generated documents never listed */
-  listLibrary: () => request<LibraryEntry[]>(`${INGEST_PREFIX}/library`),
+  /** newest first; `all` lists uploads and generated documents together */
+  listLibrary: (kind: 'all' | 'uploads' = 'all') => request<LibraryEntry[]>(`${INGEST_PREFIX}/library${kind === 'all' ? '?kind=all' : ''}`),
+  /** links several library entries at once; `added` and `already` are library ids in request order */
+  addManyFromLibrary: (notebookId: string, libraryIds: string[]) =>
+    request<{ added: string[]; already: string[] }>(`${INGEST_PREFIX}/notebooks/${encodeURIComponent(notebookId)}/sources/bulk`, {
+      method: 'POST',
+      json: { library_ids: libraryIds },
+    }),
   /** moves the entry to the trash: gone from every notebook, kept until purged */
   deleteLibraryEntry: (id: string) =>
     request<void>(`${INGEST_PREFIX}/library/${encodeURIComponent(id)}`, { method: 'DELETE' }),
