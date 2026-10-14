@@ -283,3 +283,28 @@ guessed; the access logs are rotated, so a token does not stay there.
 (a header, a URL fragment read by the page) was weighed when sharing
 was built.
 
+
+## Deleting a user removes the output files before the rows
+
+**Id:** e7a0ae3d-6e45-4f3d-b3fd-d369682df8a0
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request "delete a user in the admin panel", relayed by the coordinator with the order, 2026-10-14; account's call contract the same day
+**Revisit when:** outputs store files somewhere other than `content.key`, or ingest's notebook delete starts removing rag's objects itself
+
+`DELETE /api/rag/admin/users/{id}` deletes the stored files of the
+outputs in the user's notebooks first and rag's rows there afterwards,
+in one transaction. The rows would cascade from ingest's notebook delete
+anyway; the files would not, and nothing would point at them once the
+rows are gone. So a failed file delete stops the request with the key
+(502) and keeps every row, and account's retry finds the same keys
+again. Missing keys are no error, which makes the retry safe.
+
+**Rejected alternatives:** leaving everything to ingest's cascade
+(orphans every audio file); rows first, then files (a failure in between
+leaves files no row names).
+
+**Known gap:** a worker that finishes an audio output while the user is
+being deleted can store its file after the delete; that file is
+orphaned. Not handled in this change; reported to the coordinator.
