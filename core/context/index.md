@@ -44,7 +44,7 @@ repository root's `context/`.
 
 ## H
 
-- [health.md](health.md) — why the build labels in /healthz default to unknown and why each service keeps its own route
+- [health.md](health.md) — why the build labels in /healthz default to unknown and why each service keeps its own route; why dependency states are reported but never fail liveness
 
 ## I
 
