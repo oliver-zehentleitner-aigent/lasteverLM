@@ -97,8 +97,7 @@ comment.
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100. The first four are only defaults: an admin overrides them at run time through `PUT /admin/settings/ratelimit` (settings key `ratelimit`, read by every service's middleware within 30 s) |
 | `APP_VERSION`, `APP_COMMIT` | no | shown on `/healthz` and `/admin/system`; default `unknown` for both (`lasteverlm-config`) |
-| `INGEST_URL`, `RAG_URL` | no | base URLs of the services account calls to purge a deleted user's data; defaults `http://ingest`, `http://rag` (the chart's Service names) |
-| `SYSTEM_SERVICES` | no | `name=healthz URL` pairs `/admin/system` probes over the cluster DNS; default `ingest=http://ingest/healthz,rag=http://rag/healthz`, empty probes nobody |
+| `INGEST_URL`, `RAG_URL` | no | base URLs of the two other services, used for the System page's health probes (`<url>/healthz`) and for the user purge; defaults `http://ingest`, `http://rag` (the chart's Service names) |
 | `RETENTION_DAYS`, `BAN_MAX_DAYS` | no | days the access log, stale blocks and lifted bans are kept, and how long a ban holds at most (core's names); this service purges at every start, defaults 30, 90 |
 
 The domain-list seed is written to the `settings` table only when the key is
@@ -119,7 +118,7 @@ half-deleted one; the call can simply be repeated. See `context/deletion.md`.
 ## System page
 
 `GET /admin/system` reports this service's version and commit, probes every
-service in `SYSTEM_SERVICES` (5 s timeout each; an unreachable one is
+service at `INGEST_URL/healthz` and `RAG_URL/healthz` (5 s timeout each; an unreachable one is
 `healthy: false`, the response is still 200) and, inside Kubernetes, lists
 the namespace's pods and deployments. The Kubernetes read uses the pod's own
 ServiceAccount (token, CA and namespace from

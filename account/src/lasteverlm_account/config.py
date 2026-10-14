@@ -43,13 +43,8 @@ class Settings:
         UNKNOWN_BUILD  # APP_VERSION, from the ConfigMap; shown on /healthz and /admin/system
     )
     app_commit: str = UNKNOWN_BUILD  # APP_COMMIT
-    ingest_url: str = "http://ingest"  # the chart's Service names; account calls them to
-    rag_url: str = "http://rag"  # purge a deleted user's data (INGEST_URL, RAG_URL)
-    # name=healthz URL of the other services, probed by /admin/system over the cluster DNS
-    system_services: tuple[tuple[str, str], ...] = (
-        ("ingest", "http://ingest/healthz"),
-        ("rag", "http://rag/healthz"),
-    )
+    ingest_url: str = "http://ingest"  # the chart's Service names (INGEST_URL, RAG_URL): the
+    rag_url: str = "http://rag"  # health probes of /admin/system and the user purge both use them
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
@@ -105,26 +100,15 @@ class Settings:
             log_level=env.get("LOG_LEVEL", "INFO").upper(),
             app_version=env.get("APP_VERSION", "").strip() or UNKNOWN_BUILD,
             app_commit=env.get("APP_COMMIT", "").strip() or UNKNOWN_BUILD,
-            system_services=_services(env.get("SYSTEM_SERVICES")),
-            ingest_url=env.get("INGEST_URL", "").strip() or "http://ingest",
-            rag_url=env.get("RAG_URL", "").strip() or "http://rag",
+            ingest_url=env.get("INGEST_URL", "").strip().rstrip("/") or "http://ingest",
+            rag_url=env.get("RAG_URL", "").strip().rstrip("/") or "http://rag",
         )
 
-
-def _services(raw: str | None) -> tuple[tuple[str, str], ...]:
-    """`SYSTEM_SERVICES="ingest=http://ingest/healthz,rag=http://rag/healthz"`; unset keeps
-    the defaults, an empty string probes nobody."""
-    if raw is None:
-        return Settings.system_services
-    pairs = []
-    for part in raw.split(","):
-        if not part.strip():
-            continue
-        name, sep, url = part.partition("=")
-        if not sep or not name.strip() or not url.strip().startswith(("http://", "https://")):
-            raise ConfigError(f"SYSTEM_SERVICES entry must be name=http(s)://..., got {part!r}")
-        pairs.append((name.strip(), url.strip()))
-    return tuple(pairs)
+    @property
+    def system_services(self) -> tuple[tuple[str, str], ...]:
+        """What /admin/system probes: the same two base URLs the purge calls use, plus
+        /healthz — one way to reach each service, not two."""
+        return (("ingest", f"{self.ingest_url}/healthz"), ("rag", f"{self.rag_url}/healthz"))
 
 
 def _csv_lower(raw: str) -> list[str]:
