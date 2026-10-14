@@ -1,9 +1,10 @@
-"""What a viewer (the read-only admin role) sees of e-mail addresses: core's mask, applied
-at the server, so the full address never leaves account for that role. Admins see
-everything (context/privacy.md, "A viewer gets e-mail addresses masked by the server")."""
+"""What a viewer (the read-only admin role) sees of e-mail and IP addresses: masked at the
+server, so the full address never leaves account for that role. Admins see everything
+(context/privacy.md, "A viewer gets e-mail and IP addresses masked by the server")."""
 
 from __future__ import annotations
 
+import ipaddress
 from typing import Any, cast
 
 from lasteverlm_core import Role, mask_email, masks_emails
@@ -23,6 +24,36 @@ ADDRESS_FIELDS: dict[str, tuple[str, ...]] = {
     "StarterNotebook": ("set_by",),
 }
 
+# Per response model: the fields that carry a client IP (or a ban key, an IPv6 /64 prefix).
+IP_FIELDS: dict[str, tuple[str, ...]] = {
+    "AdminLoginAttempt": ("ip",),
+    "AdminBlock": ("ip",),
+    "AdminBan": ("ip",),
+    "AdminAccess": ("ip",),
+}
+
+
+def mask_ip(value: str) -> str:
+    """The common anonymization: IPv4 without its last octet (``203.0.113.*``), IPv6 to its
+    /48 (``2a05:f480:1800::*``), a v4-mapped IPv6 as IPv4. A prefix (an IPv6 ban key) is
+    shortened by its network address the same way. Anything else becomes ``*``: fail
+    closed, never pass an unparsed value through."""
+    try:
+        if "/" in value:
+            address: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_network(
+                value, strict=False
+            ).network_address
+        else:
+            address = ipaddress.ip_address(value)
+    except ValueError:
+        return "*"
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+        address = address.ipv4_mapped
+    if isinstance(address, ipaddress.IPv4Address):
+        return ".".join(str(address).split(".")[:3]) + ".*"
+    groups = address.exploded.split(":")[:3]
+    return ":".join(f"{int(g, 16):x}" for g in groups) + "::*"
+
 
 def _masked(value: Any) -> Any:
     if isinstance(value, str):
@@ -33,10 +64,14 @@ def _masked(value: Any) -> Any:
 
 
 def mask[T: BaseModel](model: T) -> T:
-    """A copy of ``model`` with every address field masked; nested models are walked."""
+    """A copy of ``model`` with every e-mail and IP field masked; nested models are walked."""
+    kind = type(model).__name__
     update: dict[str, Any] = {
-        name: _masked(getattr(model, name)) for name in ADDRESS_FIELDS.get(type(model).__name__, ())
+        name: _masked(getattr(model, name)) for name in ADDRESS_FIELDS.get(kind, ())
     }
+    for name in IP_FIELDS.get(kind, ()):
+        value = getattr(model, name)
+        update[name] = mask_ip(value) if isinstance(value, str) else value
     for name, value in model:
         if isinstance(value, BaseModel):
             update[name] = mask(value)
