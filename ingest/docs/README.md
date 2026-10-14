@@ -194,7 +194,17 @@ language model for a one-paragraph summary in the language of the
 source (the first `SUMMARY_INPUT_TOKENS` tokens go into the prompt),
 records a second `usage` row of kind `llm`, stores the summary in
 `library_sources.summary` for the output generators, and sets `ready`.
-Usage rows name the notebook the library source was first added to. A failure
+Usage rows name the notebook the library source was first added to.
+Every row is booked through core's `record_usage`, which computes the
+cost from `MODEL_PRICES` and the charge from account's pricing rules:
+all model calls of processing one source (vision pages, the
+transcription, the embeddings, the summary) are one action,
+`source:<kind>` (`demo_seed` for the sponsored demo sources), with the
+library source's id as `action_id`, retries included. Before every model
+call the worker also checks that the pricing rules (account's settings
+row, cached 30 s) carry an exchange rate: without one a call could be
+paid upstream but not booked, so the source fails at once with "pricing
+has no exchange rate, ask an admin", before any provider call. A failure
 that a retry cannot change (unreadable file, no text) sets `failed` at
 once. A failure that may pass next time (object
 storage, the embedding or summary request, an unexpected error) leaves

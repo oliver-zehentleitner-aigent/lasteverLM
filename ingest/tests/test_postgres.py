@@ -24,7 +24,7 @@ from uuid import UUID, uuid4
 
 import psycopg
 import pytest
-from lasteverlm_core import Chunk, parse_model_prices
+from lasteverlm_core import Chunk, Usage, parse_model_prices
 
 from lasteverlm_ingest.repository import STALLED, NewLibrarySource, PostgresRepository
 
@@ -55,6 +55,13 @@ def database_url() -> str:
                 for service in MIGRATION_DIRS:
                     for path in sorted((REPO / service / "db" / "migrations").glob("*.sql")):
                         conn.execute(_sql(path))
+                # Account seeds the pricing rules with a rate in production;
+                # without one no usage can be booked.
+                conn.execute(
+                    "insert into settings (key, value) values ('pricing', %s::jsonb) "
+                    "on conflict (key) do nothing",
+                    ('{"usd_per_eur": 1}',),
+                )
                 conn.commit()
             return DATABASE_URL
         except psycopg.OperationalError:
@@ -529,11 +536,33 @@ def test_claim_seed_only_once_and_only_for_an_empty_library(repo):
     assert not repo.claim_seed(busy)
 
 
+def test_the_exchange_rate_is_read_from_the_pricing_row(database_url, repo):
+    assert repo.has_exchange_rate()
+    _execute(repo, "update settings set value = '{}'::jsonb where key = 'pricing'", ())
+    try:
+        fresh = PostgresRepository(database_url, model_prices=PRICES)  # its own cache
+        try:
+            assert not fresh.has_exchange_rate()
+        finally:
+            fresh.close()
+    finally:
+        _execute(
+            repo,
+            "update settings set value = '{\"usd_per_eur\": 1}'::jsonb where key = 'pricing'",
+            (),
+        )
+
+
 def test_credit_and_usage(repo):
     rich, broke = _user(repo), _user(repo, cents=0)
     assert repo.has_credit(rich) and not repo.has_credit(broke)
-    record = repo.record_usage(rich, None, "llm", "llm", 1000, 1000)
-    assert record.cost_cents > 0
+    action_id = uuid4()
+    record = repo.record_usage(
+        rich, None, "source:text", action_id, Usage("llm", "llm", 1000, 1000)
+    )
+    assert record.cost_cents > 0 and record.charge_cents >= record.cost_cents
+    assert record.cost_usd_cents == record.cost_cents and record.usd_per_eur == 1
+    assert (record.action, record.action_id) == ("source:text", action_id)
 
 
 def test_admin_counts(repo):

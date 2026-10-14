@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from lasteverlm_core import TokenWindowChunker
@@ -44,8 +45,10 @@ def test_happy_path_writes_chunks_usage_and_ready():
     assert [u.kind for u in repo.usage] == ["embedding", "llm"]
     embedding, llm = repo.usage
     assert embedding.service == "ingest" and embedding.model == "fake-embed"
-    assert embedding.tokens_in > 0 and embedding.cost_cents >= 1
-    assert llm.model == "fake-llm" and llm.tokens_out == 5 and llm.cost_cents >= 1
+    assert embedding.tokens_in > 0 and embedding.cost_cents > 0
+    assert llm.model == "fake-llm" and llm.tokens_out == 5 and llm.cost_cents > 0
+    # One action: processing this text source; its id is the library id.
+    assert {(u.action, u.action_id) for u in repo.usage} == {("source:text", sid)}
     assert source.summary.startswith("a.txt: w0 w1")
 
 
@@ -67,7 +70,9 @@ def test_summary_failure_fails_the_source_but_keeps_chunks_and_usage():
 
 
 def test_credit_gone_after_embedding_waits_before_summary():
-    repo, storage, summarizer = InMemoryRepository(balance=1), InMemoryStorage(), FakeSummarizer()
+    # Less than the embedding costs (exact cents, no rounding up).
+    repo = InMemoryRepository(balance=Decimal("0.001"))
+    storage, summarizer = InMemoryStorage(), FakeSummarizer()
     sid = add_source(repo, storage, b"some text here")
     assert repo.claim_library_source("w", 600) == sid
     process_source(sid, deps(repo, storage, FakeEmbedder(), summarizer))
@@ -140,3 +145,18 @@ def test_transient_provider_error_keeps_processing_for_a_retry():
 
 def test_vanished_source_is_a_noop():
     process_source(uuid4(), deps(InMemoryRepository(), InMemoryStorage(), FakeEmbedder()))
+
+
+def test_without_an_exchange_rate_nothing_is_called_and_the_source_fails_loud():
+    from lasteverlm_core import PricingRules
+
+    from lasteverlm_ingest.worker import NO_EXCHANGE_RATE
+
+    repo, storage, embedder = InMemoryRepository(), InMemoryStorage(), FakeEmbedder()
+    repo.rules = PricingRules()  # reset to defaults: no usd_per_eur
+    sid = add_source(repo, storage, b"some text")
+    process_source(sid, deps(repo, storage, embedder))
+    source = repo.library[sid]
+    assert source.status == "failed" and source.error == NO_EXCHANGE_RATE
+    # Nothing paid upstream that could not be booked.
+    assert embedder.calls == [] and repo.usage == []
