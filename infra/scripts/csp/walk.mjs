@@ -11,6 +11,9 @@ import { chromium } from 'playwright'
 const WEB = process.env.WEB_URL
 const API = process.env.API_URL
 const TOKEN = process.env.DEMO_TOKEN
+// The object storage origin the policy allows for images and audio; the library
+// step checks that its loads went there.
+const STORAGE = process.env.STORAGE_ORIGIN ?? ''
 if (!WEB || !API || !TOKEN) {
   console.error('WEB_URL, API_URL and DEMO_TOKEN are required')
   process.exit(2)
@@ -192,6 +195,66 @@ for (const nb of notebooks.slice(0, Number(process.env.MAX_NOTEBOOKS ?? 6))) {
 if (!judged) visited.push('output with judge panel (no judged output found)')
 const adminPages = ['/admin', '/admin/users', '/admin/access', '/admin/security', '/admin/visits', '/admin/mail', '/admin/system']
 const financePages = ['/admin/finance', '/admin/finance/prices', '/admin/finance/revenue', '/admin/finance/infrastructure', '/admin/finance/vouchers']
+// Storage loads on /library: hovering an image's name loads its presigned preview,
+// the play button of an audio source loads its presigned file. Each load must come
+// from STORAGE and draw no violation.
+const storageLoads = []
+await step('/library storage loads', async () => {
+  await page.goto(WEB + '/library')
+  await settle()
+  const before = violations.size
+  const names = await page.$$('td.name .image-name')
+  if (!names.length) storageLoads.push('image: no image entry in the library')
+  else {
+    await names[0].hover()
+    const img = await page.waitForSelector('.image-preview img', { timeout: 10000 })
+    await img.evaluate((el) => (el.complete ? null : new Promise((r) => { el.onload = el.onerror = r })))
+    const r = await img.evaluate((el) => ({ origin: new URL(el.currentSrc || el.src).origin, width: el.naturalWidth }))
+    storageLoads.push({ what: 'image preview', ...r, ok: r.origin === STORAGE && r.width > 0 })
+    await page.mouse.move(0, 0)
+  }
+  const play = await page.$('td.row-actions button.icon.play')
+  if (!play) storageLoads.push('audio: no audio source in the library')
+  else {
+    await play.click()
+    await settle(1500)
+    const r = await page.$eval('.audio-check audio', async (el) => {
+      try {
+        await el.play()
+        await new Promise((res) => setTimeout(res, 1500))
+        el.pause()
+      } catch (e) {
+        return { origin: new URL(el.currentSrc || el.src).origin, error: String(e).slice(0, 120) }
+      }
+      return { origin: new URL(el.currentSrc).origin, played: el.currentTime > 0 }
+    })
+    storageLoads.push({ what: 'audio source', ...r, ok: r.origin === STORAGE && r.played === true })
+  }
+  storageLoads.push({ what: 'violations during these loads', count: violations.size - before, ok: violations.size === before })
+})
+// A PDF source opened in its notebook's source tab: the original shows inline in a
+// frame from its presigned URL, which frame-src has to allow.
+await step('source tab with an inline PDF', async () => {
+  let found = null
+  for (const nb of notebooks) {
+    const pdf = (await api(`/api/ingest/notebooks/${nb.id}/sources`)).find((x) => x.kind === 'pdf' && x.status === 'ready')
+    if (pdf) {
+      found = { nb, pdf }
+      break
+    }
+  }
+  if (!found) return storageLoads.push('pdf: no ready PDF source in a notebook')
+  await page.evaluate((id) => localStorage.setItem('lasteverlm.notebook', id), found.nb.id)
+  await page.goto(WEB + '/')
+  await settle()
+  const before = violations.size
+  await page.click(`.sources li#source-${found.pdf.id} button.link.name`, { timeout: 5000 })
+  const frame = await page.waitForSelector('.viewer-body iframe.source-frame', { timeout: 8000 }).catch(() => null)
+  if (!frame) return storageLoads.push('pdf: this build shows no inline PDF frame')
+  await settle(3000)
+  const origin = await frame.evaluate((el) => new URL(el.src).origin)
+  storageLoads.push({ what: 'inline PDF frame', origin, violations: violations.size - before, ok: origin === STORAGE && violations.size === before })
+})
 for (const path of ['/library', '/settings', ...adminPages, ...financePages]) {
   await step(path, async () => {
     await page.goto(WEB + path)
@@ -228,8 +291,16 @@ console.log(`\nother origins loaded (type origin status): ${origins.size}`)
 for (const [k, n] of origins) console.log(`  ${n}x ${k}`)
 console.log(`\nfailed responses (distinct): ${failed.size}`)
 for (const [k, n] of failed) console.log(`  ${n}x ${k}`)
+console.log(`\nstorage loads on /library (expected origin ${STORAGE || 'not set'}):`)
+for (const l of storageLoads) console.log('  ' + (typeof l === 'string' ? l : JSON.stringify(l)))
+const storageFailed = storageLoads.some((l) => typeof l === 'object' && !l.ok)
 if (!canary) {
   console.error('the canary violation was not reported: no policy on the page, or the listener did not run')
   process.exit(2)
 }
-process.exit(violations.size ? 1 : 0)
+if (violations.size) process.exit(1)
+if (storageFailed) {
+  console.error('a storage load failed or came from another origin')
+  process.exit(3)
+}
+process.exit(0)

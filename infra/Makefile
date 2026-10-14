@@ -194,7 +194,7 @@ PLAYWRIGHT_IMAGE   := mcr.microsoft.com/playwright:v$(PLAYWRIGHT_VERSION)-noble@
 web-csp-check: ## walk the web image in headless Chromium against URL, list every CSP violation (Docker, DEMO_TOKEN; WEB_IMAGE=<image> or a build with CSP_MODE=report; WALK_RPS, default 1)
 > $(call require,URL)
 > $(call require,DEMO_TOKEN)
-> API_URL=$(URL) REPO_ROOT=$(REPO_ROOT) PLAYWRIGHT_IMAGE=$(PLAYWRIGHT_IMAGE) PLAYWRIGHT_VERSION=$(PLAYWRIGHT_VERSION) sh scripts/web-csp-check.sh
+> API_URL=$(URL) STORAGE_ORIGIN=$$(sed -n 's/^  s3Endpoint: *//p' $(VALUES)) REPO_ROOT=$(REPO_ROOT) PLAYWRIGHT_IMAGE=$(PLAYWRIGHT_IMAGE) PLAYWRIGHT_VERSION=$(PLAYWRIGHT_VERSION) sh scripts/web-csp-check.sh
 
 # Markdown to HTML for the handbook, in the Playwright image.
 MARKED_VERSION := 18.0.14
