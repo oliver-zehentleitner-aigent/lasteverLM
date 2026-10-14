@@ -12,6 +12,7 @@ preserves why it changed, in `context/`.
 ### Fixed
 
 - The public price list was almost empty: prices came only from booked actions, and most history predates the action tags. `price_per_unit_cents` now always comes from rag's and ingest's estimates (`estimated: true`, with `price_min_cents`, `price_max_cents`, and for sources `per_source_cents`), the typical range stays from history; sources are priced per page, image, audio minute or web page (PDF by text layer and by vision as two rows).
+- The architecture diagram's ingress box was always grey: `/admin/system` now reports `ingress` (`status`, `tls_expires_at`, `checked_at`, `error`) from a request to `PUBLIC_BASE_URL`'s healthz through the load balancer and the certificate of that TLS handshake, cached 60 s.
 
 ## [0.18.4] - 2026-10-14
 

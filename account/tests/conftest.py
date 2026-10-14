@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from lasteverlm_core import MemoryRateLimitStore, RateLimitSettings
 
 from lasteverlm_account.config import Settings
+from lasteverlm_account.ingress import IngressProbe
 from lasteverlm_account.mail import SmtpConfig
 from lasteverlm_account.main import create_app
 from lasteverlm_account.repository_memory import MemoryRepository
@@ -140,6 +141,11 @@ def client(
                 lambda request: httpx.Response(200, json={"status": "ok"})
             ),
         ),
+        ingress=IngressProbe(
+            "https://lasteverlm.test",
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json={})),
+            cert=_fixed_cert,
+        ),
         services=ServiceClient(
             ingest_url="http://ingest",
             rag_url="http://rag",
@@ -169,3 +175,7 @@ def bearer(token: str) -> dict[str, str]:
 
 def new_user_id() -> uuid.UUID:
     return uuid.uuid4()
+
+
+async def _fixed_cert(host: str, port: int) -> datetime:
+    return datetime(2027, 1, 1, tzinfo=UTC)

@@ -38,6 +38,7 @@ from lasteverlm_core import (
 from .config import Settings
 from .crypto import VoucherCipher
 from .ecb import EcbError, EcbRates
+from .ingress import IngressProbe
 from .mail import Mailer, MailError, magic_link_mail, voucher_mail
 from .models import (
     AdminAccess,
@@ -75,6 +76,7 @@ from .models import (
     Smtp,
     SystemDeployment,
     SystemInfo,
+    SystemIngress,
     SystemPod,
     SystemService,
     TypicalPrice,
@@ -203,6 +205,7 @@ class AccountService:
         vultr: VultrBilling | None = None,
         ecb: EcbRates | None = None,
         estimates: EstimateClient | None = None,
+        ingress: IngressProbe | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
@@ -219,6 +222,7 @@ class AccountService:
         self.estimates = estimates or EstimateClient(
             ingest_url=settings.ingest_url, rag_url=settings.rag_url
         )
+        self.ingress = ingress or IngressProbe(settings.public_base_url)
         self._prices: tuple[datetime, PublicPrices] | None = None  # the 5-minute cache
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
@@ -669,6 +673,7 @@ class AccountService:
             services=[SystemService(**s.__dict__) for s in snap.services],
             pods=[SystemPod(**p.__dict__) for p in snap.pods],
             deployments=[SystemDeployment(**d.__dict__) for d in snap.deployments],
+            ingress=_ingress(await self.ingress.status(self.now())),
         )
 
     async def admin_stats(self) -> AdminStats:
@@ -1433,3 +1438,13 @@ def _price_catalogue(
     for key, unit, history, kind in _SOURCE_ROWS:
         rows.append((key, None, unit, history, ("ingest", kind)))
     return rows
+
+
+def _ingress(status: Any) -> SystemIngress:
+    return SystemIngress(
+        status="ok" if status.status == "ok" else "down",
+        url=status.url,
+        tls_expires_at=status.tls_expires_at,
+        checked_at=status.checked_at,
+        error=status.error,
+    )

@@ -504,6 +504,17 @@ class SystemDeployment(BaseModel):
     replica_sets: int  # ReplicaSets that have pods; 2 during a rollout
 
 
+class SystemIngress(BaseModel):
+    """The public entrance as a browser meets it: PUBLIC_BASE_URL's healthz requested from
+    inside the cluster through the load balancer, and the certificate it serves."""
+
+    status: Literal["ok", "down"]
+    url: str
+    tls_expires_at: datetime | None
+    checked_at: datetime
+    error: str | None
+
+
 class SystemInfo(BaseModel):
     """The admin System page. Outside a cluster `cluster` is false and the Kubernetes lists
     are empty; the services are probed either way, an unreachable one is `healthy: false`."""
@@ -514,3 +525,4 @@ class SystemInfo(BaseModel):
     services: list[SystemService]
     pods: list[SystemPod]
     deployments: list[SystemDeployment]
+    ingress: SystemIngress

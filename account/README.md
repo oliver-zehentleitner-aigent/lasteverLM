@@ -209,6 +209,12 @@ API server; it needs a Role that allows `get`/`list` on `pods` and
 file (`make run-dev`, tests, a plain container) `cluster` is `false` and the
 two lists are empty. See `context/system.md` for why this lives in account.
 
+
+`ingress` (`status` ok|down, `url`, `tls_expires_at`, `checked_at`, `error`) is the public
+entrance as a browser meets it: account requests `PUBLIC_BASE_URL` + `/api/account/healthz`
+from inside the cluster through the load balancer (3 s timeout, cached 60 s) and reads the
+certificate's notAfter from a verified TLS handshake. A failed request or handshake is
+`down` with the error. No access to the ingress controller's namespace is needed.
 ## Run locally
 
 ```bash
