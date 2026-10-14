@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-14
+
 ### Added
 
 - `POST /notebooks/{id}/sources/bulk` `{"library_ids"}` links up to 200 library entries (uploads in any state, ready outputs) into a notebook in one transaction, without processing or cost; answers `{"added", "already"}` (library ids), an existing link is never doubled, and an id that cannot be linked makes it a 404 that adds nothing. `GET /library?kind=all` lists uploads and outputs together; output entries carry `output_id`.
