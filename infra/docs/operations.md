@@ -329,14 +329,22 @@ in a throwaway Docker network, and drives it from the Playwright image
 its `/api` and `/shared` requests are fetched from `URL` (the live
 deployment by default), so the app sees one origin as in production.
 `scripts/csp/walk.mjs` signs in with the demo token, opens every
-notebook and every ready output kind (mind map, audio, …), `/library`,
-`/settings`, the admin pages and the theme toggle,
+notebook and every ready output kind (mind map, audio, …), one output
+a judge has read with its judge panel and source list open, `/library`,
+`/settings`, every admin page including the five finance pages, and the
+theme toggle,
 opens one shared page per output kind and plays the audio in the
 viewer and on its shared page. It prints the pages it visited, the
 distinct violations (directive and blocked URL), console errors, failed
 responses, every other origin the page loaded from directly (the
 storage host for images and audio) and whether the audio played. A canary inline
 script is injected first and must be reported, so "0 violations" cannot
-come from a page without a policy. Exit 0: clean; 1: violations; 2:
+come from a page without a policy. Every request to the deployment waits
+for a slot, `WALK_RPS` per second (default 1): core blocks an address
+for 15 minutes above 120 requests a minute and bans it after three
+blocks, and the walk shares its address with everything else on the
+machine (an unthrottled walk of 0.18.0 sent about 1800 requests in a few
+minutes and got the VM's address blocked). The report gives the
+number of requests and the rate reached. Exit 0: clean; 1: violations; 2:
 the canary was not reported. On the VM: `sg docker -c "make
 web-csp-check"`. The output kinds covered are those the demo user has.

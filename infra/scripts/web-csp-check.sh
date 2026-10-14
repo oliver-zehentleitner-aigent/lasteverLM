@@ -29,6 +29,6 @@ trap cleanup EXIT
 docker network create "$run" >/dev/null
 docker run -d --rm --name "$run-web" --network "$run" --read-only --tmpfs /tmp "$WEB_IMAGE" >/dev/null
 docker run --rm --network "$run" --ipc=host \
-    -e DEMO_TOKEN -e WEB_URL="http://$run-web:8080" -e API_URL="$API_URL" -e MAX_NOTEBOOKS \
+    -e DEMO_TOKEN -e WEB_URL="http://$run-web:8080" -e API_URL="$API_URL" -e MAX_NOTEBOOKS -e WALK_RPS \
     -v "$here/csp/walk.mjs:/walk/walk.mjs:ro" -w /walk "$playwright" \
     sh -c "npm install --silent --no-save --no-audit --no-fund playwright@$playwright_version >/dev/null 2>&1 && node walk.mjs"
