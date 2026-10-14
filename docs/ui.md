@@ -94,7 +94,23 @@ opens the notebook.
   audio), each with its kind as a badge
   with status and remove; the add button opens the wizard at step 1,
   without the output step. An audio source has a play button (see
-  "Checking an audio source" under Library).
+  "Checking an audio source" under Library). Each source is one line:
+  its checkbox, the name cut with an ellipsis (the full name as
+  tooltip), then kind, capture and status as compact badges, the play
+  button and × as one group that never wraps inside. Only when that
+  group alone needs half the row or more does the row take two lines,
+  the whole group then below the name. The status badge is short
+  ("ready", "reading", "added", "failed"); what it means, a failed
+  source's error and why a waiting one is not moving are its tooltip.
+  **Read when used**: a new source is "added" (neutral; "added · read
+  when used"), read only when an output or a question first uses it; a
+  small **read now** asks ingest's price for it (`POST
+  /api/ingest/sources/estimate`) and, after a confirmation naming it,
+  reads it (`POST /api/ingest/sources/process`). Without credit the
+  source being read waits as before. A web page shows how long ago it
+  was fetched after its name ("3 h ago"), "v2" once it changed, and ↻
+  (fetch again: `POST /api/ingest/sources/{id}/refetch`, after a
+  confirmation; read again only if it changed).
   Removing only detaches the source from this notebook, it stays in the
   library. Deleting a notebook detaches its sources the same way. A
   document made in another notebook and added from the library is
@@ -114,11 +130,11 @@ opens the notebook.
   creating outputs is: without credit the hint next to Create says "No
   credit: sources wait, outputs cannot be created." with "redeem a
   voucher" (the voucher dialog), and Create is disabled.
-  A source still processing or waiting for credit shows the service's
-  `error` next to its badge: "pricing has no exchange rate, ask an
-  admin" as it comes, in amber (nothing was tried; it runs once an admin
-  sets the rate), any other error while processing as "Retrying after:
-  …", muted, and while waiting for credit as it comes, muted.
+  A source still processing or waiting for credit has the service's
+  `error` as its status badge's tooltip: "pricing has no exchange rate,
+  ask an admin" as it comes, the badge then amber (nothing was tried; it
+  runs once an admin sets the rate), any other error while processing as
+  "Retrying after: …", and while waiting for credit as it comes.
   This notebook's own generated documents are not listed here (they are
   under Outputs), although the backend keeps each one as a source of
   kind `generated` so the chat can cite it.
@@ -612,6 +628,17 @@ deleted from the library) stays readable with its quote and is marked
   the tables the exchange rate ("1 EUR = 1.1188 USD, ECB reference rate
   of 2026-10-13"). No margins, fees or costs: the service sends end
   prices only.
+- Reading on use: Create and Ask send the notebook (and the selection)
+  with their estimate, and rag lists reading each unread selected
+  source ("Read a.pdf", its basis as tooltip) and re-reading each page
+  to fetch again on their own lines under the price ("+ Read a.pdf ≈
+  €0.03"), not in it: ingest bills them apart. Above Create (once a
+  format is picked) and above the chat's question field, each selected
+  web page that was read has its own choice, **cached (fetched 3 h ago)
+  | fetch again**, cached by default; the pages to fetch again go as
+  `url_refresh` (library ids). While a question reads sources the chat
+  says "reading 2 sources…"; an output waiting for its sources says so;
+  both reload the Sources list after.
 - Prices: before anything billed runs, its estimated charge from rag's
   `POST /api/rag/estimate` stands next to the button that starts it, in
   euro as the balance: before Create (for the kind with its options, a

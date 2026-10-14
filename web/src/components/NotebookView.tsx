@@ -76,7 +76,11 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     writeExcluded(browserStorage(), notebookId, next)
   }
   const picked = selection(uploads?.map((s) => s.id) ?? [], excluded)
-  const hasReadySource = uploads?.some((s) => s.status === 'ready' && !excluded.has(s.id)) ?? false
+  // an unread source counts: an output reads it first
+  const hasReadySource = uploads?.some((s) => (s.status === 'ready' || s.status === 'added') && !excluded.has(s.id)) ?? false
+  const selectedSources = uploads?.filter((s) => !excluded.has(s.id)) ?? []
+  const webPages = selectedSources.filter((s) => s.kind === 'url' && s.status !== 'added')
+  const unreadSelected = selectedSources.filter((s) => s.status === 'added').length
   // viewer/chat split, remembered per browser; full view hides the chat behind a toggle
   const [ratio, setRatio] = useState(() => readRatio(browserStorage()))
   const [fullView, setFullView] = useState(false)
@@ -150,11 +154,13 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     if (ok) removeOutput(o.id)
   }
 
-  async function createOutput(kind: OutputKind, options: OutputOptions) {
-    const created = await run(() => rag.createOutput(notebookId, kind, options, picked.sourceIds))
+  async function createOutput(kind: OutputKind, options: OutputOptions, urlRefresh: string[] = []) {
+    const created = await run(() => rag.createOutput(notebookId, kind, options, picked.sourceIds, urlRefresh))
     if (created) {
       setOutputs((prev) => [created, ...prev])
       openOutput(created.id)
+      // unread sources start reading, pages may be fetched again: the list follows
+      setSourcesVersion((v) => v + 1)
     }
   }
 
@@ -271,7 +277,9 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             noneSelected={picked.total > 0 && picked.selected === 0}
             busy={busy}
             onSelect={setFormat}
-            onCreate={(k, o) => void createOutput(k, o)}
+            onCreate={(k, o, refresh) => void createOutput(k, o, refresh)}
+            sourceIds={picked.sourceIds}
+            webPages={webPages}
           />
           <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={openOutput} onDelete={(o) => void deleteOutput(o)} onRename={(o, title) => void renameOutput(o, title)} />
         </div>
@@ -334,6 +342,8 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
               scope={scope}
               presentSources={presentSources}
               sources={picked}
+              webPages={webPages}
+              unreadSelected={unreadSelected}
               onClearScope={() => setScope(null)}
               onCitationSelected={onCitation}
               onOpenSource={openSource}

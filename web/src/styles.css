@@ -180,6 +180,17 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .sources .add { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
 .sources .item { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.3rem 0.4rem; min-width: 0; }
 .sources .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* a source row on one line: checkbox, the name cut with an ellipsis, then kind,
+   capture, status, play and remove as one group that never wraps inside; its
+   basis of half the row means the row breaks only when the group alone needs half
+   or more, and then the whole group (with the ×) goes below the name */
+.sources .list li { flex-wrap: wrap; }
+.sources .src-name { flex: 1 1 50%; min-width: 0; display: flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.2rem; }
+.sources .src-name .name { flex: 0 1 auto; min-width: 0; }
+.sources .src-name .badge { flex: none; }
+.sources .src-badges { flex: none; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.25rem; margin-left: auto; }
+.sources .src-badges .badge { font-size: 0.75em; padding: 0 0.35rem; }
+.sources .src-player { flex: 1 0 100%; }
 .badge { font-size: 0.75em; padding: 0.05rem 0.4rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .badge.ready { color: var(--ok); border-color: var(--ok); }
 .badge.processing { color: var(--warn); border-color: var(--warn); }
@@ -636,7 +647,7 @@ button.link.copy { font-size: 0.85em; }
 
 /* source selection: a checkbox per row, all/none in the header, an off row muted */
 .source-check { flex: none; margin: 0 0.15rem 0 0.2rem; }
-.sources .list li.off .item { opacity: 0.55; }
+.sources .list li.off .src-name, .sources .list li.off .src-badges { opacity: 0.55; }
 .source-all { display: inline-flex; align-items: center; gap: 0.3rem; margin-left: auto; margin-right: 0.5rem; }
 .source-all button.link:disabled { color: var(--muted); cursor: default; }
 .source-count { margin: 0.25rem 0; }
@@ -968,3 +979,15 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .tour-actions { align-items: center; }
 .tour-actions .grow { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
+/* read when used: an unread source is neutral, like one waiting for credit */
+.badge.added { color: var(--muted); border-color: var(--line); }
+.sources .src-fetched { flex: none; }
+/* reading unread sources and re-reading pages: their own lines under the price */
+.price-tag .price-separate { display: block; }
+/* the selected web pages, each cached or fetched again */
+.url-refresh { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.4rem 0; }
+.url-refresh ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.url-refresh li { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.url-refresh-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.url-refresh .presets { flex: none; }
+@media (max-width: 900px) { .url-refresh .presets { display: inline-flex; } }

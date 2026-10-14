@@ -11,7 +11,7 @@ export const rag = {
   /** Every question belongs to a conversation; `scope.output_id` restricts
    *  retrieval to one generated document ("ask about this"), `source_ids`
    *  to the selected sources (left out when all are selected). */
-  ask: (notebookId: string, conversationId: string, question: string, outputId?: string, sourceIds?: string[]) =>
+  ask: (notebookId: string, conversationId: string, question: string, outputId?: string, sourceIds?: string[], urlRefresh?: string[]) =>
     request<Answer>(`${nb(notebookId)}/ask`, {
       method: 'POST',
       json: {
@@ -19,6 +19,8 @@ export const rag = {
         conversation_id: conversationId,
         ...(outputId ? { scope: { output_id: outputId } } : {}),
         ...(sourceIds ? { source_ids: sourceIds } : {}),
+        // selected web pages to fetch again first (library ids); the others answer from the cache
+        ...(urlRefresh && urlRefresh.length > 0 ? { url_refresh: urlRefresh } : {}),
       },
     }),
 
@@ -59,13 +61,14 @@ export const rag = {
   /** `options` only with the keys the kind takes; missing ones fall back to
    *  defaults. `sourceIds` limits the document to the selected sources
    *  (left out when all are selected). */
-  createOutput: (notebookId: string, kind: OutputKind, options?: OutputOptions, sourceIds?: string[]) =>
+  createOutput: (notebookId: string, kind: OutputKind, options?: OutputOptions, sourceIds?: string[], urlRefresh?: string[]) =>
     request<Output>(`${nb(notebookId)}/outputs`, {
       method: 'POST',
       json: {
         kind,
         ...(options && Object.keys(options).length > 0 ? { options } : {}),
         ...(sourceIds ? { source_ids: sourceIds } : {}),
+        ...(urlRefresh && urlRefresh.length > 0 ? { url_refresh: urlRefresh } : {}),
       },
     }),
 

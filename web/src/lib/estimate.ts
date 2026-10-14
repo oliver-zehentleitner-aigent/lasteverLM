@@ -3,9 +3,15 @@ import { formatCents } from './format'
 
 /** What rag's estimate is asked for: an output by its kind and options, or
  *  another action. */
-export type EstimateRequest =
+export type EstimateRequest = (
   | { kind: string; options?: Record<string, unknown> }
   | { action: 'chat_answer' | 'chart_propose' | 'voice_sample' | 'judge'; options?: Record<string, unknown> }
+) & {
+  /** with the notebook, the answer lists reading its unread sources (and re-reading pages) apart */
+  notebook_id?: string
+  source_ids?: string[]
+  url_refresh?: string[]
+}
 
 /** rag's answer; the charge is what the user pays, in euro cents like
  *  their credit, to a hundredth of a cent and rounded outwards. */
@@ -13,6 +19,8 @@ export interface Estimate {
   action: string
   charge_cents_min: number
   charge_cents_max: number
+  /** billed apart by ingest, not in the charge: reading an unread source, re-reading a page */
+  separate?: { library_id: string; label: string; basis?: string | null; min: number; max: number }[]
 }
 
 /** The charge as a user reads it, in whole cents and still rounded
