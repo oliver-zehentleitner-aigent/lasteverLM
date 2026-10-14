@@ -151,6 +151,8 @@ export interface Answer {
   check?: Check | null
   /** up to three follow-up questions */
   suggestions?: string[]
+  /** set when the answer proposes steps; `answer` then lists them in short */
+  plan?: Plan | null
 }
 
 /** One chat of a notebook, shown as a tab; messages belong to exactly one. */
@@ -174,6 +176,50 @@ export interface Message {
   suggestions?: string[]
   /** the user's rating of an answer; null until rated */
   feedback?: MessageFeedback | null
+  /** an answer that proposes steps; kept current while they run */
+  plan?: Plan | null
+}
+
+/** Steps the chat proposes and runs on a confirm (rag's agent). Amounts
+ *  are euro cents; the total covers the valid steps only. */
+export interface Plan {
+  plan_id: string
+  status: 'proposed' | 'running' | 'done' | 'failed' | 'cancelled'
+  steps: PlanStep[]
+  /** the plan's own total; web pages' processing is billed apart (`separate`) */
+  estimate: { min: number; max: number }
+  /** one line per web page an add_url step adds: ingest bills its processing at the price list's price */
+  separate?: { n: number; label: string; min: number; max: number }[]
+}
+
+export type PlanTool = 'add_url' | 'add_from_library' | 'create_output' | 'explain_output' | 'list_sources' | 'list_outputs'
+
+export interface PlanStep {
+  n: number
+  tool: PlanTool
+  args: Record<string, unknown>
+  label: string
+  /** an invalid step shows its reason and never runs */
+  valid: boolean
+  invalid_reason?: string | null
+  estimate: { min: number; max: number }
+  /** add_url: the page's processing, billed by ingest apart from the step */
+  processing?: { label: string; estimate: { min: number; max: number } } | null
+  state: 'proposed' | 'running' | 'waiting' | 'done' | 'failed' | 'skipped'
+  error?: string | null
+  /** what a done step made: add_url {source_id}, add_from_library {added, already},
+   *  create_output {output_id, title?}, explain_output {output_id, message_id},
+   *  list_sources {sources}, list_outputs {outputs} */
+  result?: {
+    source_id?: string
+    added?: string[]
+    already?: string[]
+    output_id?: string
+    title?: string
+    message_id?: string
+    sources?: { name: string; kind: string }[]
+    outputs?: { output_id: string; title: string; kind: string; status: string }[]
+  } | null
 }
 
 export interface MessageFeedback {

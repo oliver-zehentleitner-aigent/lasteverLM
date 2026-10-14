@@ -202,6 +202,14 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     [outputs, openOutput],
   )
 
+  /** A plan in the chat added a source or made an output: both lists reload. */
+  const planWork = useCallback(() => {
+    setSourcesVersion((v) => v + 1)
+    void reloadOutputs().catch(() => {
+      // the outputs' own poll or the next action shows them
+    })
+  }, [reloadOutputs])
+
   /** "Open document" on a citation into a generated document: that
    *  document's tab, and a request for the viewer to show the passage. An
    *  upload's "open in source" opens its source tab at the cited page and
@@ -328,6 +336,11 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
               onClearScope={() => setScope(null)}
               onCitationSelected={onCitation}
               onOpenSource={openSource}
+              onOpenTab={(target) => {
+                const src = target.type === 'source' ? uploads?.find((s) => s.id === target.id) : undefined
+                open({ type: target.type, id: target.id, ...(src ? { url: src.preview_url ?? null, urlAt: Date.now() } : {}) })
+              }}
+              onWork={planWork}
               tools={
                 fullView ? undefined : (
                   <span className="presets" role="group" aria-label={t('ws.chatHeight')}>
