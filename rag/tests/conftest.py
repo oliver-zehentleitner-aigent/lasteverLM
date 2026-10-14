@@ -578,6 +578,7 @@ def make_client(
     llm: FakeLLM,
     tts: FakeTTS | None = None,
     objects: FakeObjects | None = None,
+    dependency_probe: Any = None,
 ) -> TestClient:
     generators = registry(tts_available=tts is not None)
     outputs = OutputService(
@@ -601,6 +602,7 @@ def make_client(
         output_service=outputs,
         rate_limit_store=MemoryRateLimitStore(),
         voice_samples=VoiceSamples(store, tts, objects),
+        dependency_probe=dependency_probe,
     )
     client = TestClient(app, raise_server_exceptions=False)
     client.worker = Worker(store, outputs, worker_id="test-worker")  # type: ignore[attr-defined]

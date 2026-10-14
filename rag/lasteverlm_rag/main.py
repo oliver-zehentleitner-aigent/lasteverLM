@@ -41,6 +41,15 @@ from lasteverlm_core import (
     current_user,
     make_client,
 )
+from lasteverlm_core.health import (
+    DEPENDENCY_TIMEOUT_SECONDS,
+    Check,
+    DependencyProbe,
+    inference_check,
+    postgres_check,
+    storage_check,
+)
+from lasteverlm_core.models import Dependency
 from lasteverlm_core.web import admin_only, admin_read
 
 from . import __version__
@@ -102,18 +111,25 @@ def create_app(
     output_service: OutputService | None = None,
     rate_limit_store: RateLimitStore | None = None,
     voice_samples: VoiceSamples | None = None,
+    dependency_probe: DependencyProbe | None = None,
 ) -> FastAPI:
     """Build the app. Dependencies can be injected for tests; otherwise they come from settings."""
     settings = settings or Settings.from_env()
     logging.basicConfig(level=settings.log_level)
+    # /healthz reports the state of what this app built itself
+    checks: dict[Dependency, Check] = {}
 
     if store is None or retriever is None or rate_limit_store is None:
         pool = make_pool(settings.database_url)
+        checks["postgres"] = postgres_check(
+            lambda: pool.connection(timeout=DEPENDENCY_TIMEOUT_SECONDS)
+        )
         store = store or PostgresStore(pool, settings.model_prices)
         retriever = retriever or PgVectorRetriever(pool)
         rate_limit_store = rate_limit_store or PostgresRateLimitStore(partial(core_connect, pool))
     if embedder is None or llm is None:
         client = make_client(settings.inference)
+        checks["inference"] = inference_check(client)
         embedder = embedder or OpenAICompatibleEmbedder(
             client, settings.inference.embedding_model, settings.inference.embedding_dimension
         )
@@ -132,6 +148,9 @@ def create_app(
         generated_slots=settings.retrieval_generated_slots,
     )
     objects = S3Storage(settings.s3) if settings.s3 else None
+    if objects is not None:
+        checks["storage"] = storage_check(objects)
+    probe = dependency_probe or (DependencyProbe(checks) if checks else None)
     # outputs are synthesized by the worker; the API presigns and deletes their files
     outputs = output_service or OutputService(
         store,
@@ -192,12 +211,16 @@ def create_app(
         Depends(admin_only(principal, lambda r, uid: role_lookup(r, uid) == "admin")),
     ]
 
-    health = Health.from_env()  # the build is fixed for the life of the process
+    build = Health.from_env()  # the build is fixed for the life of the process
 
     @app.get("/healthz", response_model=Health)
     @app.get(f"{PREFIX}/healthz", response_model=Health)
-    def healthz() -> Health:
-        return health
+    async def healthz() -> Health:
+        # cached for 15 s, 2 s per check; a dependency that is down is
+        # reported, the probe itself stays "ok"
+        if probe is None:
+            return build
+        return build.model_copy(update={"dependencies": await probe.states()})
 
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/ask", response_model=Answer)
     def ask(notebook_id: NotebookId, body: AskRequest, user: User) -> Answer:
