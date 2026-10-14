@@ -189,6 +189,19 @@ async def remove_viewer_domain(domain: str, service: Service, _: AdminUserDep) -
     return Response(status_code=204)
 
 
+@router.post("/settings/viewer-addresses", response_model=Allowlist, status_code=201)
+async def add_viewer_address(body: AddressAdd, service: Service, _: AdminUserDep) -> Allowlist:
+    """A first sign-in of this address gets the viewer role (it must be allowed to sign in
+    too, as a listed address or through its domain)."""
+    return await service.add_allow_entry("viewer_address", body.address)
+
+
+@router.delete("/settings/viewer-addresses/{address}", status_code=204)
+async def remove_viewer_address(address: str, service: Service, _: AdminUserDep) -> Response:
+    await service.remove_allow_entry("viewer_address", address)
+    return Response(status_code=204)
+
+
 @router.get("/vouchers", response_model=list[AdminVoucher])
 async def vouchers(
     service: Service, _: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)

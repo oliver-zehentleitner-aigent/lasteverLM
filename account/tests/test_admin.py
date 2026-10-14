@@ -22,6 +22,8 @@ ADMIN_ROUTES = [
     ("PATCH", "/api/account/admin/users/00000000-0000-4000-8000-000000000099", {"role": "viewer"}),
     ("DELETE", "/api/account/admin/users/00000000-0000-4000-8000-000000000099", None),
     ("POST", "/api/account/admin/settings/viewer-domains", {"domain": "x.test"}),
+    ("POST", "/api/account/admin/settings/viewer-addresses", {"address": "a@x.test"}),
+    ("DELETE", "/api/account/admin/settings/viewer-addresses/a@x.test", None),
     ("DELETE", "/api/account/admin/settings/viewer-domains/x.test", None),
     ("GET", "/api/account/admin/logins", None),
     ("GET", "/api/account/admin/login-attempts", None),
@@ -79,6 +81,7 @@ def test_allowlist_entries_are_added_and_removed_one_at_a_time(
         "allowed_domains": ["example.org"],
         "allowed_addresses": [],
         "viewer_domains": [],
+        "viewer_addresses": [],
     }
 
     r = client.post(
@@ -130,6 +133,7 @@ def test_allowlist_entries_are_added_and_removed_one_at_a_time(
         "allowed_domains": ["example.org"],
         "allowed_addresses": [],
         "viewer_domains": [],
+        "viewer_addresses": [],
     }
     assert (
         client.post("/api/account/auth/request-link", json={"email": "x@acme.test"}).status_code

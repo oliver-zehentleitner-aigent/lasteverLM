@@ -75,10 +75,12 @@ SETTING_SMTP = "smtp"  # no longer written; a leftover row is deleted at start
 SETTING_DOMAINS = "allowed_domains"
 SETTING_ADDRESSES = "allowed_addresses"
 SETTING_VIEWER_DOMAINS = "viewer_domains"
+SETTING_VIEWER_ADDRESSES = "viewer_addresses"
 _SETTING_KEYS: dict[str, tuple[str, str]] = {  # kind -> (setting key, list key inside the value)
     "domain": (SETTING_DOMAINS, "allowed_domains"),
     "address": (SETTING_ADDRESSES, "allowed_addresses"),
     "viewer": (SETTING_VIEWER_DOMAINS, "viewer_domains"),
+    "viewer_address": (SETTING_VIEWER_ADDRESSES, "viewer_addresses"),
 }
 _DOMAIN_RE = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
 
@@ -280,19 +282,25 @@ class AccountService:
     async def viewer_domains(self) -> list[str]:
         return await self._list("viewer")
 
+    async def viewer_addresses(self) -> list[str]:
+        return await self._list("viewer_address")
+
     async def allowlist(self) -> Allowlist:
         return Allowlist(
             allowed_domains=await self.allowed_domains(),
             allowed_addresses=await self.allowed_addresses(),
             viewer_domains=await self.viewer_domains(),
+            viewer_addresses=await self.viewer_addresses(),
         )
 
     async def initial_role(self, email: str) -> Role:
         """The role a first sign-in gets: admin from ADMIN_EMAILS, viewer from a listed
-        domain, user otherwise. The repository still turns the very first real user into
-        an admin."""
+        address or domain, user otherwise. The repository still turns the very first real
+        user into an admin."""
         if email in self.settings.admin_emails:
             return "admin"
+        if email in await self.viewer_addresses():
+            return "viewer"
         if email.rsplit("@", 1)[-1] in await self.viewer_domains():
             return "viewer"
         return "user"

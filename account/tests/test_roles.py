@@ -112,3 +112,41 @@ def test_demo_user_keeps_the_user_role(
     assert r.status_code == 409
     assert client.get(USERS, headers=bearer(DEMO_TOKEN)).status_code == 403
     assert client.get("/api/account/me", headers=bearer(DEMO_TOKEN)).json()["role"] == "user"
+
+
+def test_viewer_address_gets_viewer_at_first_sign_in(
+    client: TestClient, mailer: FakeMailer
+) -> None:
+    admin_token, _ = login(client, mailer, "admin@example.org")
+    url = "/api/account/admin/settings/viewer-addresses"
+    r = client.post(url, json={"address": "Reviewer@Example.org"}, headers=bearer(admin_token))
+    assert r.status_code == 201 and r.json()["viewer_addresses"] == ["reviewer@example.org"]
+    assert (
+        client.post(
+            url, json={"address": "reviewer@example.org"}, headers=bearer(admin_token)
+        ).status_code
+        == 409
+    )
+    assert (
+        client.post(url, json={"address": "nope"}, headers=bearer(admin_token)).status_code == 422
+    )
+    _, reviewer = login(client, mailer, "reviewer@example.org")  # allowed through its domain
+    assert reviewer["role"] == "viewer"
+    _, colleague = login(client, mailer, "colleague@example.org")
+    assert colleague["role"] == "user"  # the address, not its domain
+    # a listed viewer address alone does not let anyone sign in
+    client.post(url, json={"address": "outsider@elsewhere.test"}, headers=bearer(admin_token))
+    r = client.post("/api/account/auth/request-link", json={"email": "outsider@elsewhere.test"})
+    assert r.status_code == 403 and r.json()["code"] == "not_allowed"
+    # removing it later keeps the existing user's role
+    assert (
+        client.delete(f"{url}/reviewer@example.org", headers=bearer(admin_token)).status_code == 204
+    )
+    assert (
+        client.delete(f"{url}/reviewer@example.org", headers=bearer(admin_token)).status_code == 404
+    )
+    users = {
+        u["email"]: u
+        for u in client.get("/api/account/admin/users", headers=bearer(admin_token)).json()
+    }
+    assert users["reviewer@example.org"]["role"] == "viewer"
