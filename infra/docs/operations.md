@@ -164,11 +164,20 @@ To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 | `lasteverlm-s3` | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest, rag (audio files) |
 | `lasteverlm-inference` | `INFERENCE_API_KEY` | ingest, rag |
 | `lasteverlm-auth` | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | account, ingest, rag |
-| `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | account |
+| `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET`, `VOUCHER_KEY` | account |
 | `lasteverlm-smtp` (optional) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | account |
 
 Re-running `make secrets` updates the objects in place; pods pick the
 new values up on their next restart (`kubectl -n lasteverlm rollout restart deployment`).
+
+`VOUCHER_KEY` (32 random bytes, standard base64) encrypts the voucher
+codes account keeps so an admin can show and resend them; account
+refuses to start without a valid one. `make env` generates it once and
+keeps it in `build/cluster.env` like `AUTH_JWT_SECRET`. Never replace
+it: with a new key every stored code is unrecoverable (the vouchers stay
+redeemable, showing and sending them fails), and there is no
+re-encryption. Losing `build/cluster.env` loses it too; the live value
+is in the Secret.
 
 Mail works the same way: account reads its SMTP configuration from
 `lasteverlm-smtp`. Set the `SMTP_*` values in the env file, run
