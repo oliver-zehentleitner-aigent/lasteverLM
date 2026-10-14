@@ -255,10 +255,16 @@ await step('source tab with an inline PDF', async () => {
   const origin = await frame.evaluate((el) => new URL(el.src).origin)
   storageLoads.push({ what: 'inline PDF frame', origin, violations: violations.size - before, ok: origin === STORAGE && violations.size === before })
 })
+// The admin panel renders only for an admin or viewer; for anyone else /admin
+// falls back to the notebook view, so a page counts as walked only with the panel.
+let adminRendered = 0
 for (const path of ['/library', '/settings', ...adminPages, ...financePages]) {
   await step(path, async () => {
     await page.goto(WEB + path)
     await settle()
+    if (!path.startsWith('/admin')) return
+    if (!(await page.$('main.admin'))) throw new Error('no admin panel: the token\'s user is not an admin or viewer')
+    adminRendered++
   })
 }
 for (const [kind, token] of shares) {
@@ -280,6 +286,7 @@ for (const theme of ['toggle 1', 'toggle 2']) {
 await browser.close()
 
 const seconds = (Date.now() - started) / 1000
+console.log(`\nadmin panel rendered on ${adminRendered} of ${adminPages.length + financePages.length} admin pages`)
 console.log(`\nAPI requests: ${sent} in ${Math.round(seconds)} s (${Math.round((sent / seconds) * 60)} a minute, WALK_RPS ${RPS})`)
 console.log('\nvisited:')
 for (const v of visited) console.log('  ' + v)
