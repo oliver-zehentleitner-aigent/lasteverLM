@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /sources/{id}/chunks?offset&limit` for the "As read" view: the source's chunks in order, each with `chunk_id`, `index` (as citations carry them), `page` and `text`, plus `chunk_count` and the capture mode; paged (limit 1–200), owner only.
+
 ### Changed
 
 - A new user gets a copy of the starter notebook an admin marks (account's settings `starter_notebook`) on their first library access or upload, instead of the Zeltavia demo seeds: its uploads are copied with their stored objects, chunks and embeddings, ready at once, flagged `starter`, without processing or charge; rag copies the outputs from the id maps ingest writes to `output_copies` in the same transaction. Without a starter nothing is seeded. The `demo` field and column are now `starter` (migration 0012).

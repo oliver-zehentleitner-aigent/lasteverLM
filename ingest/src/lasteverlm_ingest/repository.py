@@ -204,6 +204,16 @@ class StarterCopy(BaseModel):
     sources: list[tuple[StarterSource, UUID, UUID, str | None, str | None]]
 
 
+class ChunkText(BaseModel):
+    """One chunk as read: its id and `index` (`chunks.idx`, what a citation
+    carries as `chunk_id` / `chunk_index`), its page (PDFs), its text."""
+
+    chunk_id: UUID
+    index: int
+    page: int | None
+    text: str
+
+
 # Family rule: after three attempts a job is failed with its last error.
 MAX_ATTEMPTS = 3
 STALLED = f"processing did not finish in {MAX_ATTEMPTS} attempts (the worker stopped or hung)"
@@ -381,6 +391,11 @@ class Repository(Protocol):
         ...
 
     def set_library_summary(self, library_id: UUID, summary: str) -> None: ...
+
+    def list_chunks(self, library_id: UUID, offset: int, limit: int) -> tuple[int, list[ChunkText]]:
+        """The library source's chunks in order, a page of them, and how many
+        there are in all."""
+        ...
 
     def set_transcribed_path(self, library_id: UUID, key: str) -> None:
         """The stored converted recording of an audio source."""
@@ -1036,6 +1051,18 @@ class PostgresRepository:
                 "update library_sources set summary = %(summary)s where id = %(id)s",
                 {"summary": summary, "id": library_id},
             )
+
+    def list_chunks(self, library_id: UUID, offset: int, limit: int) -> tuple[int, list[ChunkText]]:
+        count = self._one(
+            "select count(*) as n from chunks where library_source_id = %(lib)s",
+            {"lib": library_id},
+        )
+        rows = self._all(
+            "select id as chunk_id, idx as index, page, text from chunks "
+            "where library_source_id = %(lib)s order by idx offset %(offset)s limit %(limit)s",
+            {"lib": library_id, "offset": offset, "limit": limit},
+        )
+        return (int(count["n"]) if count else 0), [ChunkText(**row) for row in rows]
 
     def set_transcribed_path(self, library_id: UUID, key: str) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
