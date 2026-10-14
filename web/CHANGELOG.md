@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.7] - 2026-10-14
+
 ### Fixed
 
 - A selected source rag cannot read shows its reason in place of the price, with "turn it off" and, for a web page, "fetch the page again"; Create stays disabled until it is resolved instead of failing with "price unavailable". An output being retried shows rag's error (which attempt follows) under "Generating…".
