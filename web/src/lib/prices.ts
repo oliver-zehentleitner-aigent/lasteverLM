@@ -20,6 +20,9 @@ export function priceGroup(action: string): PriceGroup {
  *  does not know yet goes last in its group rather than being dropped. */
 export function groupPrices(rows: PublicPriceRow[]): { group: PriceGroup; rows: PublicPriceRow[] }[] {
   const order = (a: string): number => {
+    // a way of reading a kind ("source:pdf:vision") right after the kind
+    const way = /^source:([^:]+):/.exec(a)
+    if (way) return SOURCE_FORMS.findIndex((f) => f.kind === way[1]) + 0.5
     const sourceIdx = SOURCE_FORMS.findIndex((f) => `source:${f.kind}` === a)
     const outputIdx = OUTPUT_FORMS.findIndex((f) => `output:${f.kind}` === a)
     const i = sourceIdx >= 0 ? sourceIdx : outputIdx >= 0 ? outputIdx : EXTRAS_ORDER.indexOf(a)
@@ -35,6 +38,8 @@ export function groupPrices(rows: PublicPriceRow[]): { group: PriceGroup; rows: 
 export function actionLabel(action: string): string {
   const judge = /^judge:(low|medium|high)$/.exec(action)
   if (judge) return t('prices.action.judgeLevel', { level: t(`judge.level.${judge[1] as 'low' | 'medium' | 'high'}`).toLowerCase() })
+  if (action === 'source:pdf') return `${sourceKindLabel('pdf')} (${t('capture.text')})`
+  if (action === 'source:pdf:vision') return `${sourceKindLabel('pdf')} (${t('capture.vision')})`
   if (action.startsWith('source:')) return sourceKindLabel(action.slice(7) as SourceKind)
   if (action.startsWith('output:')) {
     const kind = action.slice(7) as OutputKind
@@ -67,4 +72,19 @@ export function typicalText(row: PublicPriceRow): string | null {
   const tc = row.typical_cents
   if (!tc) return null
   return t('prices.typicalRange', { p25: formatPrice(tc.p25), p75: formatPrice(tc.p75), median: formatPrice(tc.median) })
+}
+
+/** The price cell: a range "€0.01–€0.05" when min and max differ as shown,
+ *  else the one price; the per-source part ("+ €0.01 per source") and
+ *  whether it is an estimate apart. `price` null: no price could be made. */
+export function priceText(row: PublicPriceRow): { price: string | null; perSource: string | null; estimated: boolean } {
+  const mid = row.price_per_unit_cents
+  const min = row.price_min_cents
+  const max = row.price_max_cents
+  let price: string | null = null
+  if (mid !== null) {
+    price = min != null && max != null && formatPrice(min) !== formatPrice(max) ? t('prices.range', { min: formatPrice(min), max: formatPrice(max) }) : formatPrice(mid)
+  }
+  const perSource = row.per_source_cents ? t('prices.perSource', { price: formatPrice(row.per_source_cents) }) : null
+  return { price, perSource, estimated: mid !== null && row.estimated === true }
 }

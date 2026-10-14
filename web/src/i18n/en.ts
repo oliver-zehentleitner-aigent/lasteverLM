@@ -897,7 +897,7 @@ export const en = {
   'prices.group.extras': 'Extras',
   'prices.col.what': 'What',
   'prices.col.perUnit': 'Price per unit',
-  'prices.col.typical': 'Typical',
+  'prices.col.typical': 'Typical per action',
   'prices.col.model': 'Model',
   'prices.noExperience': 'no experience yet',
   'prices.typicalRange': '{p25}–{p75}, median {median}',
@@ -933,6 +933,14 @@ export const en = {
   'vch.paidVoucher': 'Paid voucher',
   'vch.notRecoverableShort': 'code not kept (before 0.18)',
   'prices.signIn': 'Sign in',
+  'prices.range': '{min}–{max}',
+  'prices.perSource': '+ {price} per source',
+  'prices.estimated': 'estimated',
+  'prices.estimatedTitle': 'Estimated from the models\' prices and typical sizes; there is not enough history yet.',
+  'prices.noPrice': 'no price yet',
+  'prices.unit.page': 'per page',
+  'prices.unit.image': 'per image',
+  'prices.unit.web_page': 'per web page',
 } as const
 
 export type MessageKey = keyof typeof en
