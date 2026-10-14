@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A first-login introduction: three steps (add sources, pick a format, Create; without credit "Redeem a voucher first"), each outlining its area with an arrow, Next/Back/Skip; shown once per user (the account's `tour_done`, this browser's note for the demo user), again from Settings.
+
 ### Changed
 
+- "+ add" only adds sources: the dialog returns to the source tiles after each batch to add more, until it is closed; the output step at the end is gone (outputs are made in the Output format area).
 - A source waiting for credit shows a muted badge "added · processed when you have credit" instead of the amber "waiting for credit", which read as an error; the voucher hint stays by Create.
 - `/prices`: the rules (adding is free, processing costs, the price shows before every action, credit does not expire) are in the intro paragraph before the tables, not under them.
+
+### Fixed
+
+- Notebook list: a row stays on one line, the name cut with an ellipsis (full name as tooltip) and the icons together at the right; a narrow row moves the whole icon group below the name instead of wrapping the × alone.
 
 ## [0.18.5] - 2026-10-14
 

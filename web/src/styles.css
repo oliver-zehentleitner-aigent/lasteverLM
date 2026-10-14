@@ -759,6 +759,13 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .out-row.editing .item-edit { grid-column: 2 / -1; }
 /* sharing a notebook: the toggle in its row, the card under it */
 .notebooks .list li { flex-wrap: wrap; }
+/* one line: the name (with its badge) takes what the icons leave and cuts with an
+   ellipsis; its basis of half the row means the row wraps only when the icons alone
+   need half or more, and then the whole icon group goes below the name */
+.notebooks .nb-name { flex: 1 1 50%; min-width: 0; display: flex; align-items: center; gap: 0.25rem; }
+.notebooks .nb-name .item { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notebooks .nb-name .badge { flex: none; }
+.notebooks .nb-actions { flex: none; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.1rem; margin-left: auto; }
 .nb-share { flex: 1 0 100%; }
 .nb-share .share.card { margin: 0.25rem 0 0.5rem; }
 .icon.share-toggle:hover, .icon.share-toggle.shared { color: var(--accent); }
@@ -947,3 +954,17 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .badge.step-state.skipped, .badge.plan-status.cancelled { color: var(--muted); }
 .plan-total { margin: 0; }
 .plan-actions { display: flex; gap: 0.5rem; }
+
+/* the first-login introduction: the area outlined over a dimmed page, a card with an arrow */
+.tour { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+.tour-dim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); pointer-events: auto; }
+.tour-spot { position: fixed; border-radius: var(--radius); box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.45); outline: 2px solid var(--accent); pointer-events: none; transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s; }
+.tour-card { position: fixed; width: min(20rem, calc(100vw - 32px)); box-sizing: border-box; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 0.9rem; box-shadow: 0 6px 24px rgb(0 0 0 / 0.25); pointer-events: auto; }
+.tour-card h2 { font-size: 1.05rem; margin: 0.1rem 0 0.3rem; }
+.tour-card p { margin: 0 0 0.4rem; }
+.tour-card::before { content: ''; position: absolute; left: 1.2rem; border: 8px solid transparent; }
+.tour-card.arrow-up::before { top: -16px; border-bottom-color: var(--panel); }
+.tour-card.arrow-down::before { bottom: -16px; border-top-color: var(--panel); }
+.tour-actions { align-items: center; }
+.tour-actions .grow { flex: 1; }
+@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
