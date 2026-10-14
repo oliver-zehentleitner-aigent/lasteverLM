@@ -441,9 +441,12 @@ def test_a_web_page_is_versioned_and_purged_with_its_older_versions(repo):
     repo.link_source(notebook.id, page.id)
     _claim_all(repo)
     repo.replace_chunks(page.id, [Chunk(idx=0, text="old", page=None)], [[1.0, 0.0, 0.0]])
-    repo.set_fetched(page.id, "hash-1")
+    snapshot = f"{owner}/{page.id}/_snapshot.html"
+    repo.set_fetched(page.id, "hash-1", "https://x.test/final", snapshot)
     repo.set_library_status(page.id, "ready")
-    assert repo.get_library_source(page.id).content_hash == "hash-1"
+    fetched = repo.get_library_source(page.id)
+    assert (fetched.content_hash, fetched.final_url) == ("hash-1", "https://x.test/final")
+    assert fetched.snapshot_path == snapshot and fetched.checked_at == fetched.fetched_at
 
     # Unchanged: ready again, fetched_at moves.
     asked = repo.request_refetch(page.id)
@@ -452,6 +455,7 @@ def test_a_web_page_is_versioned_and_purged_with_its_older_versions(repo):
     repo.refetch_unchanged(page.id)
     same = repo.get_library_source(page.id)
     assert same.status == "ready" and same.refetch_requested_at is None and same.version == 1
+    assert same.fetched_at == fetched.fetched_at and same.checked_at > fetched.checked_at
 
     # Changed: a new version takes the key and the links; the old stays readable.
     repo.request_refetch(page.id)
@@ -466,7 +470,8 @@ def test_a_web_page_is_versioned_and_purged_with_its_older_versions(repo):
 
     repo.trash_library_source(owner, new_id)
     found, keys = repo.purge_library_source(owner, new_id)
-    assert found and keys == [page.storage_path]  # one object, shared by both versions
+    # The url object (shared by both versions) and the old version's snapshot.
+    assert found and keys == [page.storage_path, snapshot]
     assert repo.get_library_source(page.id) is None and repo.get_library_source(new_id) is None
 
 
@@ -643,7 +648,7 @@ def test_the_starter_notebook_is_copied_once_with_chunks_and_the_handover(repo):
         source_notebook=starter.id,
         notebook_id=new_nb,
         title="Getting started",
-        sources=[(source, new_lib, new_link, f"{user}/{new_lib}/handbook.pdf", None)],
+        sources=[(source, new_lib, new_link, f"{user}/{new_lib}/handbook.pdf", None, None)],
     )
     maps = repo.copy_starter(plan)
     assert maps is not None and repo.is_seeded(user)

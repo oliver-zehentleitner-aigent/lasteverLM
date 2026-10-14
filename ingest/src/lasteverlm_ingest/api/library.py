@@ -15,6 +15,7 @@ from lasteverlm_ingest.api.deps import (
     preview_url,
     repository,
     seed_if_new,
+    snapshot_url,
     worker_deps,
 )
 from lasteverlm_ingest.auth import CurrentUser
@@ -33,6 +34,7 @@ def _with_preview[E: (LibraryEntry, TrashEntry)](
     entry.preview_url = preview_url(
         storage, entry.kind, entry.storage_path, entry.url, entry.transcribed_path
     )
+    entry.snapshot_url = snapshot_url(storage, entry.snapshot_path)
     entry.original_url = original_url(
         storage, entry.name, entry.storage_path, entry.transcribed_path
     )

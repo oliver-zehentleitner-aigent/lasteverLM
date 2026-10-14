@@ -110,6 +110,9 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
         "starter",
         "version",
         "fetched_at",
+        "final_url",
+        "checked_at",
+        "snapshot_url",
         "preview_url",
         "original_url",
     }

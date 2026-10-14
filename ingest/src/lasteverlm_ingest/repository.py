@@ -68,6 +68,9 @@ class StoredSource(Source):
     starter: bool = False
     version: int = 1
     fetched_at: datetime | None = None
+    final_url: str | None = None
+    checked_at: datetime | None = None
+    snapshot_path: str | None = None
     transcribed_path: str | None = None
 
 
@@ -100,6 +103,9 @@ class LibrarySource(BaseModel):
     content_hash: str | None = None
     refetch_requested_at: datetime | None = None
     superseded_by: UUID | None = None
+    snapshot_path: str | None = None
+    final_url: str | None = None
+    checked_at: datetime | None = None
 
 
 class NotebookUse(BaseModel):
@@ -150,6 +156,9 @@ class LibraryEntry(BaseModel):
     starter: bool = False
     version: int = 1
     fetched_at: datetime | None = None
+    final_url: str | None = None
+    checked_at: datetime | None = None
+    snapshot_path: str | None = Field(default=None, exclude=True)
     notebooks: list[NotebookUse]
     origin: Origin | None = None
     # A generated entry's output in rag (`GET /outputs/{id}`); null otherwise.
@@ -158,6 +167,7 @@ class LibraryEntry(BaseModel):
     # converted recording the original as a download.
     preview_url: str | None = None
     original_url: str | None = None
+    snapshot_url: str | None = None
     storage_path: str | None = Field(default=None, exclude=True)
     transcribed_path: str | None = Field(default=None, exclude=True)
 
@@ -179,8 +189,12 @@ class TrashEntry(BaseModel):
     starter: bool = False
     version: int = 1
     fetched_at: datetime | None = None
+    final_url: str | None = None
+    checked_at: datetime | None = None
+    snapshot_path: str | None = Field(default=None, exclude=True)
     preview_url: str | None = None
     original_url: str | None = None
+    snapshot_url: str | None = None
     storage_path: str | None = Field(default=None, exclude=True)
     transcribed_path: str | None = Field(default=None, exclude=True)
 
@@ -224,8 +238,9 @@ class StarterCopy(BaseModel):
     source_notebook: UUID
     notebook_id: UUID
     title: str
-    # old library id -> (new library id, new link id, storage key, converted key)
-    sources: list[tuple[StarterSource, UUID, UUID, str | None, str | None]]
+    # (source, new library id, new link id, storage key, converted key,
+    # snapshot key)
+    sources: list[tuple[StarterSource, UUID, UUID, str | None, str | None, str | None]]
 
 
 class ChunkText(BaseModel):
@@ -324,12 +339,20 @@ class Repository(Protocol):
         version, or being read already."""
         ...
 
-    def set_fetched(self, library_id: UUID, content_hash: str) -> None:
-        """A web page was read: when, and the hash of its extracted text."""
+    def set_fetched(
+        self,
+        library_id: UUID,
+        content_hash: str,
+        final_url: str | None,
+        snapshot_path: str | None,
+    ) -> None:
+        """A web page was read: when, the hash of its extracted text, the
+        address after redirects and the key of its snapshot."""
         ...
 
     def refetch_unchanged(self, library_id: UUID) -> None:
-        """The page is as it was: ready again, `fetched_at` now, no charge."""
+        """The page is as it was: ready again, `checked_at` now, the snapshot
+        and `fetched_at` of this version kept, no charge."""
         ...
 
     def new_version(self, library_id: UUID) -> UUID:
@@ -638,7 +661,8 @@ class PostgresRepository:
     _SELECT_SOURCES = (
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
         "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
-        "l.capture, l.starter, l.transcribed_path, l.version, l.fetched_at "
+        "l.capture, l.starter, l.transcribed_path, l.version, l.fetched_at, l.final_url, "
+        "l.checked_at, l.snapshot_path "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -749,7 +773,8 @@ class PostgresRepository:
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
         "l.starter, l.transcribed_path, l.page_count, l.duration_seconds, l.version, "
-        "l.fetched_at, l.content_hash, l.refetch_requested_at, l.superseded_by"
+        "l.fetched_at, l.content_hash, l.refetch_requested_at, l.superseded_by, "
+        "l.snapshot_path, l.final_url, l.checked_at"
     )
     # Library sources in the library (not in the trash).
     # Older versions of a web page are kept read-only, out of every list.
@@ -807,18 +832,30 @@ class PostgresRepository:
         )
         return self.get_library_source(library_id) if row else None
 
-    def set_fetched(self, library_id: UUID, content_hash: str) -> None:
+    def set_fetched(
+        self,
+        library_id: UUID,
+        content_hash: str,
+        final_url: str | None,
+        snapshot_path: str | None,
+    ) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
-                "update library_sources set fetched_at = now(), content_hash = %(hash)s "
+                "update library_sources set fetched_at = now(), checked_at = now(), "
+                "content_hash = %(hash)s, final_url = %(final)s, snapshot_path = %(snap)s "
                 "where id = %(id)s",
-                {"id": library_id, "hash": content_hash},
+                {
+                    "id": library_id,
+                    "hash": content_hash,
+                    "final": final_url,
+                    "snap": snapshot_path,
+                },
             )
 
     def refetch_unchanged(self, library_id: UUID) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
-                "update library_sources set status = 'ready', fetched_at = now(), "
+                "update library_sources set status = 'ready', checked_at = now(), "
                 "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null "
                 "where id = %(id)s",
                 {"id": library_id},
@@ -942,14 +979,16 @@ class PostgresRepository:
                 "insert into notebooks (id, owner, title) values (%(id)s, %(owner)s, %(title)s)",
                 {"id": plan.notebook_id, "owner": plan.owner, "title": plan.title},
             )
-            for source, library_id, link_id, key, converted in plan.sources:
+            for source, library_id, link_id, key, converted, snapshot in plan.sources:
                 old = source.library
                 cur.execute(
                     "insert into library_sources (id, owner, name, kind, dedupe_key, url, "
                     "size_bytes, storage_path, transcribed_path, capture, starter, status, "
-                    "summary, page_count, duration_seconds) values (%(id)s, %(owner)s, %(name)s, "
-                    "%(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(converted)s, %(capture)s, "
-                    "true, 'ready', %(summary)s, %(pages)s, %(seconds)s)",
+                    "summary, page_count, duration_seconds, version, fetched_at, checked_at, "
+                    "content_hash, final_url, snapshot_path) values (%(id)s, %(owner)s, "
+                    "%(name)s, %(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(converted)s, "
+                    "%(capture)s, true, 'ready', %(summary)s, %(pages)s, %(seconds)s, "
+                    "%(version)s, %(fetched)s, %(checked)s, %(hash)s, %(final)s, %(snapshot)s)",
                     {
                         "id": library_id,
                         "owner": plan.owner,
@@ -964,6 +1003,12 @@ class PostgresRepository:
                         "summary": old.summary,
                         "pages": old.page_count,
                         "seconds": old.duration_seconds,
+                        "version": old.version,
+                        "fetched": old.fetched_at,
+                        "checked": old.checked_at,
+                        "hash": old.content_hash,
+                        "final": old.final_url,
+                        "snapshot": snapshot,
                     },
                 )
                 cur.execute(
@@ -1007,6 +1052,7 @@ class PostgresRepository:
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
            l.capture, l.starter, l.storage_path, l.transcribed_path, l.version, l.fetched_at,
+           l.final_url, l.checked_at, l.snapshot_path,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -1045,7 +1091,7 @@ class PostgresRepository:
         rows = self._all(
             f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
             f"l.capture, l.starter, l.storage_path, l.transcribed_path, l.version, l.fetched_at, "
-            f"l.deleted_at, "
+            f"l.final_url, l.checked_at, l.snapshot_path, l.deleted_at, "
             f"l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
             f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
             f"and l.deleted_at is not null order by l.deleted_at desc, l.id",
@@ -1071,14 +1117,14 @@ class PostgresRepository:
             f"  union select older.id from library_sources older join gone g"
             f"  on older.superseded_by = g.id) "
             f"delete from library_sources l using gone where l.id = gone.id "
-            f"returning l.storage_path, l.transcribed_path",
+            f"returning l.storage_path, l.transcribed_path, l.snapshot_path",
             {"id": library_id, "owner": owner},
         )
         return (bool(rows), list(dict.fromkeys(_keys(rows))))
 
     def user_object_keys(self, owner: UUID) -> list[str]:
         rows = self._all(
-            "select l.storage_path, l.transcribed_path from library_sources l "
+            "select l.storage_path, l.transcribed_path, l.snapshot_path from library_sources l "
             "where l.owner = %(owner)s and l.kind <> 'generated' order by l.created_at, l.id",
             {"owner": owner},
         )
@@ -1099,7 +1145,7 @@ class PostgresRepository:
             f"  union select older.id from library_sources older join gone g"
             f"  on older.superseded_by = g.id) "
             f"delete from library_sources l using gone where l.id = gone.id "
-            f"returning l.storage_path, l.transcribed_path",
+            f"returning l.storage_path, l.transcribed_path, l.snapshot_path",
             {},
         )
         return list(dict.fromkeys(_keys(rows)))
@@ -1351,13 +1397,13 @@ class PostgresRepository:
 
 
 def _keys(rows: list[dict[str, Any]]) -> list[str]:
-    """The stored objects of deleted library rows: the original and, for a
-    converted recording, the converted file."""
+    """The stored objects of deleted library rows: the original, a converted
+    recording's MP3, a web page's snapshot."""
     return [
         row[column]
         for row in rows
-        for column in ("storage_path", "transcribed_path")
-        if row[column]
+        for column in ("storage_path", "transcribed_path", "snapshot_path")
+        if row.get(column)
     ]
 
 
