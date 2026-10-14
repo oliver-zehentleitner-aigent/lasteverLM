@@ -238,3 +238,28 @@ def test_an_output_still_waiting_for_a_source_fails_after_the_timeout_uncharged(
     final = client.get(plan_path(plan["plan_id"]), headers=AUTH).json()
     assert final["status"] == "failed" and final["steps"][0]["error"] == TIMEOUT_ERROR
     assert len(store.usage) == usage  # nothing ran, nothing was charged
+
+
+SMOKE_QUESTION = "What is the capital of Zeltavia and on which river does it lie?"
+
+
+def test_a_question_met_with_read_tools_only_is_answered_not_planned(settings):
+    # v0.18.5: the smoke test's question came back as a one-step plan of an
+    # explain_output that could not run; read tools alone never make a plan
+    for calls in (
+        [("explain_output", {"output_id": "step:1"})],
+        [("list_sources", {}), ("list_outputs", {})],
+        [("explain_output", {"output_id": "step:1"}), ("list_sources", {})],
+    ):
+        store, _, ingest, client = setup(settings, [calls], "Marrow Bay, on the Quill [1].")
+        body = ask(client, SMOKE_QUESTION)
+        assert body["plan"] is None, body
+        assert body["answer"] == "Marrow Bay, on the Quill [1]." and body["citations"]
+        assert store.plans == {} and ingest.calls == []
+
+
+def test_one_action_tool_is_enough_for_a_plan(settings):
+    calls = [("list_sources", {}), ("create_output", {"kind": "report"})]
+    _, _, _, client = setup(settings, [calls])
+    plan = ask(client, "Make a report.")["plan"]
+    assert [s["tool"] for s in plan["steps"]] == ["list_sources", "create_output"]

@@ -340,7 +340,10 @@ never a passage.
   and none touches the account.
 - **No tool call:** the message is answered as before. The planning call
   and the answer book under one `chat_answer` action.
-- **Tool calls:** they become a plan of at most six steps:
+- **Tool calls:** a reply that calls at least one tool that changes the
+  notebook (`add_url`, `add_from_library`, `create_output`) becomes a plan.
+  Read tools alone (`explain_output`, `list_sources`, `list_outputs`) get
+  the normal answer. A plan has at most six steps:
   `Answer.plan` = `{"plan_id", "status", "steps": [{"n", "tool", "args",
   "label", "valid", "invalid_reason"?, "estimate": {"min", "max"},
   "state", "error"?, "result"?, "processing"?}], "estimate": {"min",
