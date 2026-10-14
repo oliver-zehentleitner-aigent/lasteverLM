@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Library: a ready output's row has "share", opening the viewer's share card under the row (create the read-only link, copy or revoke it); the card is one component for the viewer and the library.
+
 ### Changed
 
 - "Redeem a voucher" moved out of the rows: in a notebook it sits in the hint next to Create ("No credit: sources wait, outputs cannot be created.", Create disabled), in the library in one notice above the table ("N sources wait for credit"); the amber "waiting for credit" badge stays in the rows.

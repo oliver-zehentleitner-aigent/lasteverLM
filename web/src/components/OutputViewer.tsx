@@ -10,6 +10,7 @@ import { optionsLabel, speakerName } from '../lib/outputOptions'
 import { bestMatchIndex, flash, type LocateRequest } from '../lib/locate'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
+import { ShareCard } from './ShareCard'
 import { OutputProvenance } from './OutputProvenance'
 import { checkSummary } from '../lib/outputProvenance'
 import { t } from '../i18n'
@@ -101,19 +102,6 @@ export function OutputViewer({
   const [shareOpen, setShareOpen] = useState(false)
   const { busy, error: actionError, run } = useAsync()
 
-  async function share() {
-    if (!selected) return
-    const r = await run(() => rag.share(selected.id))
-    if (r) onChanged({ ...selected, share_token: r.share_token })
-  }
-  async function unshare() {
-    if (!selected) return
-    const ok = await run(async () => {
-      await rag.unshare(selected.id)
-      return true
-    })
-    if (ok) onChanged({ ...selected, share_token: null })
-  }
   async function remove() {
     if (!selected || !confirm(t('ws.deleteDoc', { title: selected.title || formFor(selected.kind).label }))) return
     const ok = await run(async () => {
@@ -123,7 +111,6 @@ export function OutputViewer({
     if (ok) onDeleted(selected.id)
   }
 
-  const shareUrl = selected?.share_token ? `${window.location.origin}/s/${selected.share_token}` : null
   const printable = selected ? formFor(selected.kind).printable && selected.status === 'ready' : false
 
   return (
@@ -203,31 +190,7 @@ export function OutputViewer({
                 </button>
               </span>
             </header>
-            {shareOpen && (
-              <div className="share card no-print">
-                {shareUrl ? (
-                  <>
-                    <p className="small">{t('viewer.shareInfo')}</p>
-                    <div className="row">
-                      <input readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
-                      <button type="button" className="secondary" onClick={() => void navigator.clipboard?.writeText(shareUrl)}>
-                        {t('viewer.copy')}
-                      </button>
-                      <button type="button" className="secondary" disabled={busy} onClick={() => void unshare()}>
-                        {t('viewer.revoke')}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="row">
-                    <p className="small">{t('viewer.shareCreateInfo')}</p>
-                    <button type="button" disabled={busy} onClick={() => void share()}>
-                      {t('viewer.createLink')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            {shareOpen && <ShareCard output={selected} onChanged={(token) => onChanged({ ...selected, share_token: token })} />}
             <OutputProvenance key={selected.id} output={selected} provenance={selected.provenance} presentSources={presentSources} onOpenSource={onOpenSource}>
               <OutputContent
                 kind={selected.kind}

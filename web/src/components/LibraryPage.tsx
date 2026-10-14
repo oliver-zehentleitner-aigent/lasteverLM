@@ -14,6 +14,7 @@ import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
 import { ReadOnlyOutput, TrashedOutputs } from './LibraryOutputs'
 import { RedeemLink } from './RedeemLink'
+import { ShareCard } from './ShareCard'
 import { t, tn } from '../i18n'
 
 interface Props {
@@ -114,6 +115,8 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   const [progress, setProgress] = useState<{ kind: 'delete' | 'add'; done: number; total: number } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [reading, setReading] = useState<Output | null>(null)
+  // the output row whose share card is open
+  const [sharing, setSharing] = useState<string | null>(null)
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
@@ -394,6 +397,11 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                   </td>
                   <td className="row-actions">
                     {files && <PlayButton open={playing?.id === e.id} name={e.name} onToggle={() => setPlaying((p) => (p?.id === e.id ? null : { id: e.id, files }))} />}
+                    {doc && out && out.status === 'ready' && (
+                      <button type="button" className="link" aria-expanded={sharing === e.id} onClick={() => setSharing((s) => (s === e.id ? null : e.id))}>
+                        {out.share_token ? t('viewer.shared') : t('viewer.share')}
+                      </button>
+                    )}
                     {doc ? (
                       <button type="button" className="link" disabled={busy || !e.output_id} title={e.origin?.id ? t('lib.out.openTitle', { title: e.name }) : t('lib.out.openReadOnly', { title: e.name })} onClick={() => void open(e)}>
                         {t('lib.open')}
@@ -412,6 +420,13 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                     </button>
                   </td>
                 </tr>
+                {sharing === e.id && out && (
+                  <tr className="share-row">
+                    <td colSpan={8}>
+                      <ShareCard output={out} onChanged={(token) => setOutputs((m) => new Map(m).set(out.id, { ...out, share_token: token }))} />
+                    </td>
+                  </tr>
+                )}
                 {playing?.id === e.id && (
                   <tr className="audio-row">
                     <td colSpan={8}>
