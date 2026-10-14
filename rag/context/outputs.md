@@ -519,3 +519,32 @@ unsupported.
   did not choose.
 - Caching the proposal for 30 minutes under its ids: server state and an
   expiry for no gain over re-validation.
+
+## A starter notebook's outputs are copied by rag's worker from a queue row ingest writes
+
+**Id:** 10b15d37-d52b-46a7-b4ce-36460711e118
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer go relayed by the coordinator, 2026-10-14 (copy the outputs, remap ids, drop the unmappable, no share tokens, keep judge annotations, no charge, idempotent; the handover left to rag and ingest); agreed with ingest the same day
+**Revisit when:** the starter grows large enough that copying in the worker delays a new user noticeably, or a copied output needs anything the queue row does not carry
+
+Ingest copies the starter's uploads for a new user and, in the same
+transaction, inserts an `output_copies` row with its id maps. rag's
+worker claims the row (before output jobs, with attempts like them),
+copies the ready outputs and deletes the row. `outputs.copied_from` with
+a unique (notebook, copied_from) makes every copy happen once.
+
+**Reason:** the row makes the handover atomic with ingest's copy, which
+either commits both or neither, without ingest running rag's SQL or
+importing rag's code. It also needs no new service-to-service auth,
+which an HTTP call would. The audio files cannot be copied inside a
+database transaction anyway. A queue the worker retries handles a storage
+failure without rolling back the user's notebook. The outputs appear a
+few seconds after the notebook, which a new user does not notice.
+
+**Rejected alternatives:**
+- A shared function in ingest's transaction: cross-service code, and a
+  failed file copy would undo the user's notebook.
+- An internal HTTP call from ingest: new auth between services, and not
+  atomic with ingest's copy.
