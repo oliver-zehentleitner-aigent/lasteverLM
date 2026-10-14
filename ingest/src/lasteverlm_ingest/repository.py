@@ -41,6 +41,7 @@ class StoredSource(Source):
     size_bytes: int | None = None
     capture: str | None = None
     demo: bool = False
+    transcribed_path: str | None = None
 
 
 class LibrarySource(BaseModel):
@@ -64,6 +65,7 @@ class LibrarySource(BaseModel):
     deleted_at: datetime | None = None
     capture: str | None = None
     demo: bool = False
+    transcribed_path: str | None = None
 
 
 class NotebookUse(BaseModel):
@@ -86,9 +88,12 @@ class LibraryEntry(BaseModel):
     capture: str | None = None
     demo: bool = False
     notebooks: list[NotebookUse]
-    # Set by the API for images: a presigned GET of the stored object.
+    # Set by the API (api/deps.py): where the source opens, and for a
+    # converted recording the original as a download.
     preview_url: str | None = None
+    original_url: str | None = None
     storage_path: str | None = Field(default=None, exclude=True)
+    transcribed_path: str | None = Field(default=None, exclude=True)
 
 
 class TrashEntry(BaseModel):
@@ -107,7 +112,9 @@ class TrashEntry(BaseModel):
     capture: str | None = None
     demo: bool = False
     preview_url: str | None = None
+    original_url: str | None = None
     storage_path: str | None = Field(default=None, exclude=True)
+    transcribed_path: str | None = Field(default=None, exclude=True)
 
 
 class NewLibrarySource(BaseModel):
@@ -189,9 +196,10 @@ class Repository(Protocol):
         """Back from the trash into the library (in no notebook)."""
         ...
 
-    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, str | None]:
+    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, list[str]]:
         """Delete a trashed entry now (chunks cascade); returns whether it
-        was in the trash and its storage key for the caller to remove."""
+        was in the trash and its storage keys (the original, and a
+        converted recording) for the caller to remove."""
         ...
 
     def purge_expired(self) -> list[str]:
@@ -231,6 +239,10 @@ class Repository(Protocol):
         ...
 
     def set_library_summary(self, library_id: UUID, summary: str) -> None: ...
+
+    def set_transcribed_path(self, library_id: UUID, key: str) -> None:
+        """The stored converted recording of an audio source."""
+        ...
 
     def replace_chunks(
         self, library_id: UUID, chunks: list[Chunk], vectors: list[list[float]]
@@ -383,7 +395,7 @@ class PostgresRepository:
     _SELECT_SOURCES = (
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
         "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
-        "l.capture, l.demo "
+        "l.capture, l.demo, l.transcribed_path "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -432,7 +444,7 @@ class PostgresRepository:
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
-        "l.demo"
+        "l.demo, l.transcribed_path"
     )
     # Library sources in the library (not in the trash).
     _ACTIVE = f"{_LISTED} and l.deleted_at is null"
@@ -504,7 +516,7 @@ class PostgresRepository:
 
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
-           l.capture, l.demo, l.storage_path,
+           l.capture, l.demo, l.storage_path, l.transcribed_path,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -542,7 +554,7 @@ class PostgresRepository:
     def list_trash(self, owner: UUID) -> list[TrashEntry]:
         rows = self._all(
             f"select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at, "
-            f"l.capture, l.demo, l.storage_path, l.deleted_at, "
+            f"l.capture, l.demo, l.storage_path, l.transcribed_path, l.deleted_at, "
             f"l.deleted_at + make_interval(days => {self._TRASH_DAYS}) as purge_at "
             f"from library_sources l where l.owner = %(owner)s and {self._LISTED} "
             f"and l.deleted_at is not null order by l.deleted_at desc, l.id",
@@ -560,22 +572,23 @@ class PostgresRepository:
             )
             return cur.rowcount > 0
 
-    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, str | None]:
+    def purge_library_source(self, owner: UUID, library_id: UUID) -> tuple[bool, list[str]]:
         row = self._one(
             f"delete from library_sources l where l.id = %(id)s and l.owner = %(owner)s "
-            f"and {self._LISTED} and l.deleted_at is not null returning l.storage_path",
+            f"and {self._LISTED} and l.deleted_at is not null "
+            f"returning l.storage_path, l.transcribed_path",
             {"id": library_id, "owner": owner},
         )
-        return (row is not None, row["storage_path"] if row else None)
+        return (row is not None, _keys([row] if row else []))
 
     def purge_expired(self) -> list[str]:
         rows = self._all(
             f"delete from library_sources l where {self._LISTED} and l.deleted_at is not null "
             f"and l.deleted_at + make_interval(days => {self._TRASH_DAYS}) <= now() "
-            f"returning l.storage_path",
+            f"returning l.storage_path, l.transcribed_path",
             {},
         )
-        return [row["storage_path"] for row in rows if row["storage_path"]]
+        return _keys(rows)
 
     # -- the worker ------------------------------------------------------------
 
@@ -664,6 +677,13 @@ class PostgresRepository:
             cur.execute(
                 "update library_sources set summary = %(summary)s where id = %(id)s",
                 {"summary": summary, "id": library_id},
+            )
+
+    def set_transcribed_path(self, library_id: UUID, key: str) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set transcribed_path = %(key)s where id = %(id)s",
+                {"key": key, "id": library_id},
             )
 
     def replace_chunks(
@@ -774,3 +794,14 @@ class PostgresRepository:
             )
             for row in rows
         ]
+
+
+def _keys(rows: list[dict[str, Any]]) -> list[str]:
+    """The stored objects of deleted library rows: the original and, for a
+    converted recording, the converted file."""
+    return [
+        row[column]
+        for row in rows
+        for column in ("storage_path", "transcribed_path")
+        if row[column]
+    ]

@@ -35,6 +35,7 @@ class Settings:
     auth: AuthSettings
     rate_limit: RateLimitSettings
     max_upload_bytes: int
+    max_audio_upload_bytes: int
     stt_timeout_seconds: int
     chunk_tokens: int | None  # None: core's default
     chunk_overlap_tokens: int | None  # None: core's default
@@ -97,6 +98,10 @@ class Settings:
             auth=AuthSettings.from_env(env),
             rate_limit=RateLimitSettings.from_env(env),
             max_upload_bytes=env_int("MAX_UPLOAD_BYTES", 20 * 1024 * 1024, env),
+            # An original that is converted before transcription; MP3 and
+            # WAV stay within core's MAX_AUDIO_BYTES. Below the ingress
+            # body limit (64m).
+            max_audio_upload_bytes=env_int("MAX_AUDIO_UPLOAD_BYTES", 60 * 1024 * 1024, env),
             stt_timeout_seconds=stt_timeout,
             chunk_tokens=chunk_tokens,
             chunk_overlap_tokens=overlap,
