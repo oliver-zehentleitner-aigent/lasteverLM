@@ -83,6 +83,22 @@ class JsonGenerator:
         style: str | None = None,
     ) -> GeneratedOutput:
         instructions, schema = self.prompt(style)
+        document = self.ask(
+            complete, notebook_title, summaries, passages, instructions, schema, language
+        )
+        return self.to_output(document)
+
+    def ask(
+        self,
+        complete: CompleteFn,
+        notebook_title: str,
+        summaries: list[SourceSummary],
+        passages: list[Passage],
+        instructions: str,
+        schema: type[BaseModel],
+        language: str | None,
+    ) -> BaseModel:
+        """One JSON document matching ``schema``, with one corrective retry."""
         user = render_material(notebook_title, summaries, passages) + "\n\n" + instructions
         system = system_rules(language)
         last_error = ""
@@ -102,7 +118,7 @@ class JsonGenerator:
             except (ValueError, ValidationError) as exc:
                 last_error = str(exc)[:500]
                 continue
-            return self.to_output(document)
+            return document
         # the validation detail (it quotes model output) goes to the log only
         log.warning("%s: model output did not match the schema: %s", self.kind, last_error)
         raise GenerationFailed(f"{self.kind}: the model's answer did not match the document format")

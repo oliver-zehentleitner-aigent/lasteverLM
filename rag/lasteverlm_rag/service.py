@@ -8,6 +8,7 @@ generates, and indexes the result as a generated source so chat can cite it.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import secrets
@@ -21,6 +22,8 @@ from lasteverlm_core import (
     Answer,
     ChunkView,
     CompletionResult,
+    DecisionModel,
+    DecisionResult,
     Embedder,
     EmbeddingResult,
     Message,
@@ -50,9 +53,22 @@ from .models import (
     SpeechTurn,
 )
 from .options import OutputOptions, language_name, resolve
-from .outputs import OutputGenerator
+from .outputs import CompleteFn, OutputGenerator
 from .outputs._base import GenerationFailed
-from .provenance import GenerationLog, check_answer, check_units, shared_provenance
+from .outputs.decision import (
+    QUESTION_ID,
+    STATE_VERSION,
+    DecisionGenerator,
+    Evidence,
+    decision_content,
+    decision_index_text,
+    decision_question,
+    decision_state,
+    decision_title,
+    finish_decision,
+    model_answer,
+)
+from .provenance import GenerationLog, check_answer, check_units, now, shared_provenance
 from .speech import split_for_speech
 from .store import Retriever, Store
 
@@ -113,6 +129,10 @@ DEFAULT_TITLE = re.compile(r"^Chat (\d+)$")
 AUDIO_URL_EXPIRES_S = 3600
 AUDIO_FILE = "audio.mp3"
 ERROR_LOG_CHARS = 1000
+
+
+# a job's material; an alias because OutputService.list shadows the builtin in its body
+Summaries = list[SourceSummary]
 
 
 class NotebookNotFound(Exception):
@@ -400,6 +420,7 @@ class OutputService:
         similarity_floor: float,
         chunker: TokenWindowChunker | None = None,
         tts: TextToSpeech | None = None,
+        decision: DecisionModel | None = None,
         objects: Storage | None = None,
         default_voice: str = DEFAULT_TTS_VOICE,
     ) -> None:
@@ -412,6 +433,7 @@ class OutputService:
         self._floor = similarity_floor
         self._chunker = chunker or TokenWindowChunker()
         self._tts = tts
+        self._decision = decision
         self._objects = objects
         self._default_voice = default_voice
 
@@ -578,6 +600,8 @@ class OutputService:
                 generated.units, trace.passages, translated="language" in job.options
             )
             content = generated.content
+            if job.kind == "decision":
+                trace.llm_verdict_text = finish_decision(content)
             if generated.speech is not None:
                 key = self._speak(job, notebook_id, generated.speech, trace)
                 content = {**content, "key": key}
@@ -657,16 +681,12 @@ class OutputService:
     def _generate(
         self, user_id: str, notebook_id: str, row: OutputRow, trace: GenerationLog
     ) -> GeneratedOutput:
+        if row.kind == "decision":
+            return self._decide(user_id, notebook_id, row, trace)
         generator = self._generators[row.kind]
         notebook = self._store.get_notebook(notebook_id) or {}
-        summaries = self._store.source_summaries(notebook_id)
+        summaries = self._material(notebook_id, row.options)
         selected = row.options.get("sources")
-        if selected:
-            summaries = [s for s in summaries if s.source_id in selected]
-            if not summaries:
-                raise GenerationFailed("none of the selected sources is ready")
-        if not summaries:
-            raise GenerationFailed("the notebook has no ready source")
 
         embedded = embed_billed(
             self._store, self._embedder, user_id, notebook_id, [generator.focus_query]
@@ -682,6 +702,39 @@ class OutputService:
             selected,
         )
         trace.passages = number_passages(chunks)
+
+        generated = generator.generate(
+            self._completer(user_id, notebook_id, trace),
+            str(notebook.get("title", "")),
+            summaries,
+            trace.passages,
+            language=language_name(row.options.get("language")),
+            style=row.options.get("audio_style"),
+        )
+        for name in uncovered_sources(generated.index_text, summaries, chunks):
+            # fail-loud light: the document is kept, the gap is visible in the log
+            log.warning(
+                "output %s (%s) does not mention source %r of its input",
+                row.id,
+                row.kind,
+                inline(name),
+            )
+        return generated
+
+    def _material(self, notebook_id: str, options: dict[str, Any]) -> Summaries:
+        """The ready uploads a job reads: its selection, or all of them."""
+        summaries = self._store.source_summaries(notebook_id)
+        selected = options.get("sources")
+        if selected:
+            summaries = [s for s in summaries if s.source_id in selected]
+            if not summaries:
+                raise GenerationFailed("none of the selected sources is ready")
+        if not summaries:
+            raise GenerationFailed("the notebook has no ready source")
+        return summaries
+
+    def _completer(self, user_id: str, notebook_id: str, trace: GenerationLog) -> CompleteFn:
+        """``LLM.complete`` with its usage row written and counted in the log."""
 
         def complete(
             system: str,
@@ -704,23 +757,91 @@ class OutputService:
             trace.llm_out += result.usage.tokens_out
             return result
 
-        generated = generator.generate(
-            complete,
+        return complete
+
+    def _decide(
+        self, user_id: str, notebook_id: str, row: OutputRow, trace: GenerationLog
+    ) -> GeneratedOutput:
+        """Two independent calls over the same passages: the decision model's
+        number, then the LLM's evidence, which never sees that number."""
+        generator = self._generators["decision"]
+        assert isinstance(generator, DecisionGenerator)
+        if self._decision is None:
+            raise GenerationFailed("decision: no decision model on this deployment")
+        options = row.options
+        notebook = self._store.get_notebook(notebook_id) or {}
+        summaries = self._material(notebook_id, options)
+        question = options["question"]
+        embedded = embed_billed(self._store, self._embedder, user_id, notebook_id, [question])
+        trace.embedding_in += embedded.usage.tokens_in
+        trace.focus_query = question
+        chunks, trace.candidates = balanced_chunks(
+            self._retriever,
+            notebook_id,
+            embedded.vectors[0],
+            summaries,
+            self._k,
+            self._floor,
+            options.get("sources"),
+        )
+        trace.passages = number_passages(chunks)
+
+        state = decision_state(question, trace.passages)
+        started = now()
+        decided = decide_billed(
+            self._store,
+            self._decision,
+            user_id,
+            notebook_id,
+            state,
+            decision_question(options),
+        )
+        trace.decision_in += decided.usage.tokens_in
+        trace.calls.append(
+            {
+                "role": "decision",
+                "model": self._decision.model,
+                "prompt_version": STATE_VERSION,
+                "usage": {"tokens_in": decided.usage.tokens_in},
+                "state": {"passages": len(trace.passages), "chars": len(json.dumps(state))},
+                "started_at": started,
+                "finished_at": now(),
+            }
+        )
+        answer = model_answer(options, decided.answers[QUESTION_ID])
+
+        started, before_in, before_out = now(), trace.llm_in, trace.llm_out
+        instructions, schema = generator.evidence_prompt(options)
+        evidence = generator.ask(
+            self._completer(user_id, notebook_id, trace),
             str(notebook.get("title", "")),
             summaries,
             trace.passages,
-            language=language_name(row.options.get("language")),
-            style=row.options.get("audio_style"),
+            instructions,
+            schema,
+            language_name(options.get("language")),
         )
-        for name in uncovered_sources(generated.index_text, summaries, chunks):
-            # fail-loud light: the document is kept, the gap is visible in the log
-            log.warning(
-                "output %s (%s) does not mention source %r of its input",
-                row.id,
-                row.kind,
-                inline(name),
-            )
-        return generated
+        assert isinstance(evidence, Evidence)
+        trace.calls.append(
+            {
+                "role": "evidence",
+                "model": self._llm.model,
+                "prompt_version": f"decision-v{generator.prompt_version}",
+                "usage": {
+                    "tokens_in": trace.llm_in - before_in,
+                    "tokens_out": trace.llm_out - before_out,
+                },
+                "started_at": started,
+                "finished_at": now(),
+            }
+        )
+        content, units = decision_content(options, answer, evidence)
+        return GeneratedOutput(
+            title=decision_title(question),
+            content=content,
+            index_text=decision_index_text(content),
+            units=units,
+        )
 
     def _index(
         self, user_id: str, notebook_id: str, generated: GeneratedOutput, trace: GenerationLog
@@ -879,6 +1000,21 @@ def complete_billed(
     """Complete and write the usage row, also when the call fails after billing."""
     with _billed_on_failure(store, user_id, notebook_id):
         result = llm.complete(system, user, max_tokens, thinking=thinking)
+    store.record_usage(user_id, notebook_id, result.usage)
+    return result
+
+
+def decide_billed(
+    store: Store,
+    model: DecisionModel,
+    user_id: str,
+    notebook_id: str | None,
+    state: dict[str, Any],
+    questions: dict[str, dict[str, Any]],
+) -> DecisionResult:
+    """Decide and write the usage row, also when the call fails after billing."""
+    with _billed_on_failure(store, user_id, notebook_id):
+        result = model.decide(state, questions)
     store.record_usage(user_id, notebook_id, result.usage)
     return result
 

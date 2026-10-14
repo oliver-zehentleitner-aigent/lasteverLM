@@ -696,3 +696,8 @@ def test_an_answers_support_round_trips(store, notebook):
     assert (answer.units, answer.check) == (support["units"], support["check"])
     listed = store.list_messages(conversation)
     assert listed[1].units == support["units"] and listed[0].check is None
+
+
+def test_the_decision_kind_is_allowed(store, notebook):
+    row = store.create_output(notebook, "decision", "processing", {"question": "q"})
+    assert row.kind == "decision"

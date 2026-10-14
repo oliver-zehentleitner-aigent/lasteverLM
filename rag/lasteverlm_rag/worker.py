@@ -24,6 +24,7 @@ import uuid
 from collections.abc import Callable
 
 from lasteverlm_core import (
+    OpenAICompatibleDecision,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
     OpenAICompatibleTextToSpeech,
@@ -136,6 +137,8 @@ def main() -> None:
         ),
         objects=S3Storage(settings.s3) if settings.s3 else None,
         default_voice=settings.tts_voice,
+        # the worker's client timeout also covers a long state (26 s at 112k tokens)
+        decision=OpenAICompatibleDecision(client, settings.inference.decision_model),
     )
     worker = Worker(store, outputs)
     for sig in (signal.SIGTERM, signal.SIGINT):

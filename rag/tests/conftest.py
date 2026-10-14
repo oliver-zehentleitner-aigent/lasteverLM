@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from lasteverlm_core import (
     DEMO_USER_ID,
     CompletionResult,
+    DecisionResult,
     EmbeddingResult,
     MemoryRateLimitStore,
     Message,
@@ -43,7 +44,10 @@ NOTEBOOK = str(uuid.uuid4())
 OTHER_NOTEBOOK = str(uuid.uuid4())
 CONVERSATION = str(uuid.uuid4())
 AUTH = {"Authorization": f"Bearer {DEMO_TOKEN}"}
-PRICES = '{"test-llm": {"in": 100, "out": 300}, "test-embedding": {"in": 10, "out": 0}}'
+PRICES = (
+    '{"test-llm": {"in": 100, "out": 300}, "test-embedding": {"in": 10, "out": 0}, '
+    '"test-decision": {"in": 10, "out": 0}}'
+)
 
 BASE_ENV = {
     "DATABASE_URL": "postgresql://test",
@@ -51,6 +55,7 @@ BASE_ENV = {
     "INFERENCE_API_KEY": "key",
     "LLM_MODEL": "test-llm",
     "EMBEDDING_MODEL": "test-embedding",
+    "DECISION_MODEL": "test-decision",
     "MODEL_PRICES": PRICES,
 }
 
@@ -552,6 +557,23 @@ class FakeTTS:
         return SpeechResult(b"\xff\xf3" + text[:4].encode(), usage)
 
 
+class FakeDecision:
+    """Answers every question with ``answer`` (raw, the platform's shape) and
+    bills 100 input tokens; records each state and question set it got."""
+
+    model = "test-decision"
+
+    def __init__(self, answer: dict[str, Any] | None = None) -> None:
+        self.answer = answer or {"type": "noul", "noul": 0.8}
+        self.calls: list[tuple[Any, dict[str, Any]]] = []
+
+    def decide(self, state: Any, questions: Any) -> DecisionResult:
+        self.calls.append((state, dict(questions)))
+        return DecisionResult(
+            {qid: self.answer for qid in questions}, Usage("decision", self.model, 100, 0)
+        )
+
+
 class FakeObjects:
     def __init__(self, fail_delete: bool = False) -> None:
         self.objects: dict[str, tuple[bytes, str]] = {}
@@ -591,6 +613,7 @@ def make_client(
     tts: FakeTTS | None = None,
     objects: FakeObjects | None = None,
     dependency_probe: Any = None,
+    decision: FakeDecision | None = None,
 ) -> TestClient:
     generators = registry(tts_available=tts is not None)
     outputs = OutputService(
@@ -603,6 +626,7 @@ def make_client(
         settings.similarity_floor,
         tts=tts,
         objects=objects,
+        decision=decision,
     )
     app = create_app(
         settings=settings,
