@@ -30,6 +30,7 @@ from .mail import Mailer, SmtpMailer
 from .repository import Repository
 from .repository_postgres import PostgresRepository
 from .service import AccountError, AccountService
+from .services import ServiceClient
 from .system import SystemProbe, kubernetes_api_base
 
 API_PREFIX = "/api/account"
@@ -44,6 +45,7 @@ def create_app(
     rate_limit_store: RateLimitStore | None = None,
     rate_limit_settings: RateLimitSettings | None = None,
     system: SystemProbe | None = None,
+    services: ServiceClient | None = None,
 ) -> FastAPI:
     resolved = settings or Settings.from_env()
     logging.basicConfig(level=resolved.log_level)
@@ -73,6 +75,7 @@ def create_app(
             mailer or SmtpMailer(),
             rate_limit=limits,
             system=system or SystemProbe(resolved.system_services, api_base=kubernetes_api_base()),
+            services=services,
         )
         await service.startup()
         app.state.service = service
@@ -85,7 +88,7 @@ def create_app(
 
     @app.exception_handler(AccountError)
     async def _account_error(_: Request, exc: AccountError) -> JSONResponse:
-        content: dict[str, str] = {"error": exc.message}
+        content: dict[str, str] = {"error": exc.message, **exc.details}
         if exc.code:
             content["code"] = exc.code
         return JSONResponse(status_code=exc.status, content=content)

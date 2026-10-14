@@ -57,6 +57,7 @@ from .models import (
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
 from .repository import LoginAttemptRecord, Repository, UserRecord, VisitRecord
+from .services import PurgeError, ServiceClient
 from .system import ServiceStatus, SystemProbe
 
 log = logging.getLogger("lasteverlm_account")
@@ -78,11 +79,18 @@ _VOUCHER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I
 class AccountError(Exception):
     """A request the service refuses; carries the HTTP status the API should answer."""
 
-    def __init__(self, status: int, message: str, code: str | None = None) -> None:
+    def __init__(
+        self,
+        status: int,
+        message: str,
+        code: str | None = None,
+        details: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.status = status
         self.message = message
         self.code = code  # stable marker for clients that must tell refusals apart
+        self.details = details or {}  # extra fields the client renders (e.g. step, message)
 
 
 @dataclass(frozen=True)
@@ -146,11 +154,15 @@ class AccountService:
         salt: DailySalt | None = None,
         rate_limit: RateLimitSettings | None = None,
         system: SystemProbe | None = None,
+        services: ServiceClient | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
         self.mailer = mailer
         self.system = system or SystemProbe(settings.system_services)
+        self.services = services or ServiceClient(
+            ingest_url=settings.ingest_url, rag_url=settings.rag_url
+        )
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
         self.rate_limit = rate_limit or RateLimitSettings()
@@ -437,6 +449,40 @@ class AccountService:
         if user.role not in ("viewer", "admin") or user.id == DEMO_USER_ID:
             raise AccountError(403, "admin only")
         return user
+
+    async def delete_user(self, caller: UserRecord, user_id: uuid.UUID, bearer: str) -> None:
+        """Orchestrated hard delete (context/deletion.md): rag, then ingest purge the user's
+        data on the admin's bearer; only when both answered does account delete its rows.
+        A failing step stops everything, nothing of account's is touched, 502 names the step."""
+        user = await self.repo.get_user(user_id)
+        if user is None:
+            raise AccountError(404, "unknown user")
+        if user.id == caller.id:
+            raise AccountError(409, "you cannot delete your own account; ask another admin")
+        if user.id == DEMO_USER_ID:
+            raise AccountError(409, "the shared demo user cannot be deleted")
+        for step in ("rag", "ingest"):
+            try:
+                await self.services.purge_user(step, user.id, bearer)
+            except PurgeError as exc:
+                log.error("user %s not deleted, %s failed: %s", user.id, exc.step, exc.message)
+                raise AccountError(
+                    502,
+                    f"{exc.step} could not purge the user's data: {exc.message}",
+                    "purge_failed",
+                    {"step": exc.step, "message": exc.message},
+                ) from exc
+        try:
+            await self.repo.delete_user(user.id)
+        except Exception as exc:  # the other services are done; say so, the repeat finishes it
+            log.error("user %s: rag and ingest purged, account's delete failed: %s", user.id, exc)
+            raise AccountError(
+                502,
+                "account could not delete the user's rows; repeat the call",
+                "purge_failed",
+                {"step": "account", "message": type(exc).__name__},
+            ) from exc
+        log.info("user %s deleted by %s", user.email, caller.email)
 
     async def set_user_role(self, user_id: uuid.UUID, role: Role) -> AdminUserView:
         user = await self.repo.get_user(user_id)

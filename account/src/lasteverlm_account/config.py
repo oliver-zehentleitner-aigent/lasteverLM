@@ -43,6 +43,8 @@ class Settings:
         UNKNOWN_BUILD  # APP_VERSION, from the ConfigMap; shown on /healthz and /admin/system
     )
     app_commit: str = UNKNOWN_BUILD  # APP_COMMIT
+    ingest_url: str = "http://ingest"  # the chart's Service names; account calls them to
+    rag_url: str = "http://rag"  # purge a deleted user's data (INGEST_URL, RAG_URL)
     # name=healthz URL of the other services, probed by /admin/system over the cluster DNS
     system_services: tuple[tuple[str, str], ...] = (
         ("ingest", "http://ingest/healthz"),
@@ -104,6 +106,8 @@ class Settings:
             app_version=env.get("APP_VERSION", "").strip() or UNKNOWN_BUILD,
             app_commit=env.get("APP_COMMIT", "").strip() or UNKNOWN_BUILD,
             system_services=_services(env.get("SYSTEM_SERVICES")),
+            ingest_url=env.get("INGEST_URL", "").strip() or "http://ingest",
+            rag_url=env.get("RAG_URL", "").strip() or "http://rag",
         )
 
 

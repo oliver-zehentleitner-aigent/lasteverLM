@@ -18,6 +18,7 @@ from lasteverlm_account.mail import SmtpConfig
 from lasteverlm_account.main import create_app
 from lasteverlm_account.repository_memory import MemoryRepository
 from lasteverlm_account.service import AccountService
+from lasteverlm_account.services import ServiceClient
 from lasteverlm_account.system import SystemProbe
 
 ADMIN_EMAIL = "root@example.org"
@@ -136,6 +137,11 @@ def client(
             transport=httpx.MockTransport(
                 lambda request: httpx.Response(200, json={"status": "ok"})
             ),
+        ),
+        services=ServiceClient(
+            ingest_url="http://ingest",
+            rag_url="http://rag",
+            transport=httpx.MockTransport(lambda request: httpx.Response(204)),
         ),
     )
     with TestClient(app) as c:

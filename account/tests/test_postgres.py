@@ -313,3 +313,41 @@ async def test_roles_round_trip_and_is_admin_stays_in_sync(repo: PostgresReposit
     stored = await repo.get_user(plain.id)
     assert stored is not None and (stored.role, stored.is_admin) == ("admin", True)
     assert await repo.set_role(uuid.uuid4(), "viewer") is False
+
+
+async def test_delete_user_keeps_vouchers_and_attempts_as_history(repo: PostgresRepository) -> None:
+    now = datetime.now(UTC)
+    admin = await repo.create_user("del-admin@pg.test", role="admin", now=now)
+    user = await repo.create_user("del-user@pg.test", role="user", now=now)
+    await repo.record_login(user.id, now)
+    await repo.add_login_attempt(
+        LoginAttemptRecord(now, "del-user@pg.test", "203.0.113.1", "allowed")
+    )
+    await repo.create_voucher("hash-del-by-admin", 100, admin.id, now)
+    await repo.create_voucher("hash-del-by-user", 100, user.id, now)
+    assert await repo.redeem_voucher("hash-del-by-admin", user.id, now) == 100
+    await repo.add_visit(VisitRecord(now, "/", user.id, "h", "other"))
+    async with repo._pool.connection() as conn:
+        await conn.execute(
+            """insert into usage (user_id, service, kind, model, cost_cents, created_at)
+               values (%s, 'rag', 'llm', 'm', 3, %s)""",
+            (user.id, now),
+        )
+
+    assert await repo.delete_user(user.id) is True
+    assert await repo.delete_user(user.id) is False
+    assert await repo.get_user(user.id) is None
+    vouchers = {v.created_by: v for v in await repo.list_vouchers(50) if v.redeemed_by is None}
+    assert "" in vouchers  # the voucher the deleted user created, creator blank
+    assert any(a.email == "del-user@pg.test" for a in await repo.list_login_attempts(50))
+    async with repo._pool.connection() as conn:
+        cur = await conn.execute("select count(*) as n from usage where user_id = %s", (user.id,))
+        assert (await cur.fetchone())["n"] == 0  # type: ignore[index]
+        cur = await conn.execute(
+            "select count(*) as n from visit_log where user_id = %s", (user.id,)
+        )
+        assert (await cur.fetchone())["n"] == 0  # type: ignore[index]
+        cur = await conn.execute(
+            "select count(*) as n from login_log where user_id = %s", (user.id,)
+        )
+        assert (await cur.fetchone())["n"] == 0  # type: ignore[index]
