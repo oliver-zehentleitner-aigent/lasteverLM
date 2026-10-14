@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/project.md`: the FAQ audio style and IP addresses masked for viewers.
+
 ## [0.19.4] - 2026-10-14
 
 ### Changed

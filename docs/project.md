@@ -52,7 +52,8 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
 - **Kinds:** report, quiz, flashcards, data table, chart, mind map,
   infographic, audio, decision.
 - **Options:** output language, for audio the style (overview, story,
-  conversation with two voices), voice and speed; for reports style
+  conversation with two voices, FAQ with one voice asking and one
+  answering), voice and speed; for reports style
   and length; for quizzes number of questions, difficulty and audience;
   for every kind free notes that steer focus and tone but never the
   citation rules.
@@ -191,8 +192,8 @@ bans per address (IPv6 by /64) behind the PROXY protocol, so a client
 cannot choose its address; SSRF protection on URL sources; HTML from
 models sanitised before rendering; pods without root, with read-only
 file systems and NetworkPolicies; secrets in Kubernetes Secrets only; voucher codes encrypted at rest
-with a separate key; e-mail addresses and answer texts masked for
-read-only viewers at the server; no paid model call without a configured exchange
+with a separate key; e-mail addresses, IP addresses and answer texts
+masked for read-only viewers at the server; no paid model call without a configured exchange
 rate, so nothing is paid upstream and left unbooked; actions pinned by
 commit with Dependabot, images with provenance and SBOM; code scanning
 at zero open alerts.
