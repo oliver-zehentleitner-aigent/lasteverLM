@@ -14,7 +14,6 @@ import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
 import { ReadOnlyOutput, TrashedOutputs } from './LibraryOutputs'
 import { PendingReason } from './PendingReason'
-import { RedeemLink } from './RedeemLink'
 import { ShareCard } from './ShareCard'
 import { t, tn } from '../i18n'
 
@@ -175,7 +174,6 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   }
 
   const shown = filterLibrary(entries, filter, docKind)
-  const waiting = entries.filter((e) => e.status === 'waiting_for_credit').length
   const selected = entries.filter((e) => picked.has(e.id))
   const toggle = (id: string) =>
     setPicked((prev) => {
@@ -285,11 +283,6 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
       </div>
       {error && <p className="error">{error}</p>}
       {notice && <p className="notice small">{notice}</p>}
-      {waiting > 0 && (
-        <p className="notice small waiting">
-          {tn('lib.waitingN', waiting)} · <RedeemLink />
-        </p>
-      )}
       {selected.length > 0 && (
         <div className="selection-bar" role="region" aria-label={tn('lib.selected', selected.length)}>
           <span className="muted small">{progress ? t(progress.kind === 'delete' ? 'lib.progressDelete' : 'lib.progressAdd', { done: progress.done, total: progress.total }) : tn('lib.selected', selected.length)}</span>

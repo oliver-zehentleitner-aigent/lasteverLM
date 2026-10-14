@@ -647,8 +647,6 @@ export const en = {
   'lib.alreadyInN.other': '{n} were already in {title}',
   'lib.out.from': 'Made in',
   'tiles.noCredit': 'No credit: sources wait, outputs cannot be created.',
-  'lib.waitingN.one': '{n} source waits for credit',
-  'lib.waitingN.other': '{n} sources wait for credit',
   'nb.renameLabel': 'Notebook name',
   'nb.renameHint': 'Double-click or F2 to rename',
   'outputs.renameLabel': 'Output title',
