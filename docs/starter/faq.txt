@@ -1,0 +1,175 @@
+lasteverLM - Frequently asked questions
+
+This file is one of the sources in the "Getting started with lasteverLM"
+notebook. Ask the chat about it, or open the handbook PDF beside it for
+the complete technical description.
+
+
+1. What is lasteverLM?
+
+An assistant that turns material into understanding you can check. You
+add sources (PDF, text, web pages, images, audio), then ask questions or
+choose an output form: report, quiz, data table, chart, mind map,
+infographic, spoken audio, or a decision. Every claim in an answer or an
+output points to the passage it came from.
+
+
+2. What does "checkable" mean here?
+
+Every unit of an output (a report paragraph, a table row, a mind-map
+node, a sentence of an audio transcript) carries the numbered passages
+it rests on. Click a marker and you see the passage word for word, its
+page, and how similar it was to the question. Every output also has a
+"How this was made" panel: which passages were retrieved, which went
+into the prompt, which model wrote it, what it cost, and how the check
+came out.
+
+
+3. What do "supported", "unsupported" and "unverified" mean?
+
+After an output is written, a deterministic check (no second model)
+compares each unit with the passages it cites. "Supported": at least
+half of its content words appear in its best cited passage.
+"Unsupported": they do not. "Unverified": the output was written in
+another language than the sources, so word overlap cannot tell. Charts
+are checked more strictly: a number counts as supported only if it is
+written in the cited passage. Nothing is hidden: a unit that fails is
+marked, never silently dropped.
+
+
+4. What does the judge do, and do I need it?
+
+The word check sees words, not meaning: "the lamp was not electrified
+in 1906" passes against "electrified in 1906". The optional judge is a
+second model, from another family than the author, that reads each
+claim against its passages and says "supported", "contradicted" or "not
+in the source". At creation it can revise failing claims, at most three
+rounds; a claim that still fails is removed and listed as removed. Three
+levels (low, medium, high) differ in model and price. The models were
+chosen by a published evaluation, linked in the handbook. Use it when a
+wrong sentence would cost you more than the check does.
+
+
+5. What is a decision?
+
+You ask a question (yes/no, a choice between options, or a scale) and
+two things happen independently: the platform's decision model gives a
+number, and the language model writes the evidence for and against
+from the same passages. Both are checked, and the page tells you
+whether they agree. If no evidence on either side holds up, the answer
+is "The sources do not decide this."
+
+
+6. What does it cost?
+
+The public price list shows every price before you sign in:
+https://lasteverlm.zehentleitner.co/prices
+Before every paid action the app shows you the price. Adding a source
+is free; processing it (reading, transcribing, indexing) costs once.
+Asking about sources that are already processed costs only the answer.
+
+
+7. What happens without credit?
+
+You can still add sources; they wait with the status "waiting for
+credit" and are processed as soon as you redeem a voucher. Creating
+outputs and asking questions need credit.
+
+
+8. Which files can I add?
+
+PDF (read by its text layer, or by a vision model for scanned pages, or
+"auto" for both), plain text and Markdown, web pages by URL, images
+(text in the image is transcribed and the image described), and audio:
+MP3 and WAV directly, M4A, AAC, OGG, Opus, FLAC, WebM and the sound of
+an MP4 converted first. Converted audio can be played and downloaded
+beside the original, so you can check what was transcribed.
+
+
+9. Is a file I upload twice charged twice?
+
+No. Your library stores each file once (recognised by its content, a
+URL by its address) and links it into as many notebooks as you like.
+
+
+10. What happens when I delete something?
+
+Deleting from a notebook only removes the link. Deleting from the
+library moves the entry to the trash, where it stays for the number of
+days set in Settings (14 by default) and can be restored. Deleting a
+notebook asks whether its outputs go too or stay in your library.
+
+
+11. Can I use an output as a source?
+
+Yes. Outputs live in your library and can be added to any notebook,
+where they are searched like any other source.
+
+
+12. Can others see my files?
+
+No. Nothing is shared between users. When you share an output or a
+notebook, the link shows the output with its evidence, and for a
+notebook the names of its sources, never the files themselves.
+
+
+13. Where does my data go?
+
+Everything runs on Vultr: the application in a Kubernetes cluster in
+Amsterdam, the database and file storage in Amsterdam. The models
+(language, embedding, decision, judge and the speech models) run in
+Vultr's US regions, so the text or audio a model reads leaves the EU
+for that call; nothing is stored there.
+
+
+14. Why did my answer say "the sources do not contain this"?
+
+The assistant answers from your selected sources only. If the
+retrieved passages do not hold the answer, it says so instead of
+guessing. Check which sources are ticked in the Sources list, or ask
+more specifically.
+
+
+15. Why is a source marked "failed"?
+
+The error is shown in the row: a page with no readable text, a web page
+that blocks reading, an image without text, or a recording without
+speech. A failed source costs only what was already processed.
+
+
+16. What languages are supported?
+
+The interface speaks English and German. Outputs can be written in
+other languages (Output language in the options or in Settings); the
+check then marks units as "unverified" where it cannot compare words
+across languages.
+
+
+17. Why do I see "price unavailable"?
+
+The price estimate could not be computed (for example while the
+service is restarting). The action still costs credit; the price shows
+again on the next try.
+
+
+18. What does "pricing has no exchange rate" mean?
+
+Model costs are in US dollars and credits in euro. The exchange rate is
+taken from the European Central Bank every hour. If it is missing, no
+paid call starts at all, so nothing is charged without a rate; sources
+wait and run once it is set.
+
+
+19. Who built this, and how?
+
+One maintainer with seven AI coding agents in three days, every change
+as a reviewed pull request that only merged when every check passed,
+every decision written down with the alternatives it rejected. The
+handbook and the "Keep the Why" dashboard linked from the docs show the
+whole history.
+
+
+20. Can I delete this starter notebook?
+
+Yes. It is your own copy: delete it, rename it, or add your own sources
+to it.
