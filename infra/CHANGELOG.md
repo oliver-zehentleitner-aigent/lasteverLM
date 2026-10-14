@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.4] - 2026-10-14
+
 ### Fixed
 
 - `make web-csp-check` switches a web page's source tab to "Original" before looking for the snapshot frame: the tab can open on "As read", and the walk on 0.19.3 reported "no snapshot frame" although the snapshot existed.

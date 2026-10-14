@@ -6,6 +6,8 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.19.4] - 2026-10-14
+
 ### Changed
 
 - `docs/project.md` and `docs/architecture.md`: sources read when used, web page versions with inert snapshots, the first-login introduction, text and snapshot originals in the viewer, the cheaper path by default as a principle, the internal service paths (rag to ingest, account to ingest and rag), current pull request and tag counts.
