@@ -182,7 +182,9 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .sources .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .badge { font-size: 0.75em; padding: 0.05rem 0.4rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .badge.ready { color: var(--ok); border-color: var(--ok); }
-.badge.processing, .badge.waiting_for_credit { color: var(--warn); border-color: var(--warn); }
+.badge.processing { color: var(--warn); border-color: var(--warn); }
+/* not an error: added, and processed once there is credit */
+.badge.waiting_for_credit { color: var(--muted); border-color: var(--line); }
 .badge.failed { color: var(--danger); border-color: var(--danger); }
 
 /* output tiles */
