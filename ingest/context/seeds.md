@@ -9,8 +9,13 @@
 **Source:** the maintainer's request through the fleet lead, 2026-10-13 (one source per kind, the Zeltavia theme, the sponsor billing); seeding trigger and marker table chosen by the ingest author
 **Revisit when:** sign-ups are open to the public at a volume where the sponsored processing becomes a cost worth limiting, or the demo content changes often enough to want re-seeding
 
-Every new user's library starts with four demo sources, one per kind,
-written as one fictional set so questions across sources work. They are
+Every new user's library starts with demo sources, one per kind (five
+since 2026-10-14, when a recording was added at the maintainer's request:
+a radio interview whose facts are in no other source, so a question
+about it has to come from the transcript), written as one fictional set
+so questions across sources work. Owners seeded before a source was
+added do not get it: the marker means "considered once", and the demo
+reset gives existing accounts the current set. They are
 inserted on the owner's first library access or upload as ordinary
 library sources flagged `demo`, and the worker processes them like any
 upload. Their processing skips the owner's credit check and its usage
