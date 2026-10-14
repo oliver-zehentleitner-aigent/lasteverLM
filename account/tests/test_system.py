@@ -207,7 +207,18 @@ def test_admin_system_route_and_healthz_carry_version(
     r = client.get("/api/account/admin/system", headers=bearer(token))
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {"version", "commit", "cluster", "services", "pods", "deployments"}
+    assert set(body) == {
+        "version",
+        "commit",
+        "cluster",
+        "services",
+        "pods",
+        "deployments",
+        "ingress",
+    }
+    assert body["ingress"]["status"] == "ok" and body["ingress"]["tls_expires_at"].startswith(
+        "2027-01-01"
+    )
     assert body["cluster"] is False and body["pods"] == [] and body["deployments"] == []
     assert body["services"][0] == {
         "name": "account",
@@ -315,3 +326,45 @@ async def test_dependency_states_reach_healthz_and_the_system_page(
 
 def probe_system() -> SystemProbe:
     return SystemProbe([], transport=httpx.MockTransport(lambda r: httpx.Response(200, json={})))
+
+
+@pytest.mark.anyio
+async def test_ingress_probe_ok_down_and_cache() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from lasteverlm_account.ingress import IngressProbe
+
+    state = {"code": 200, "fail_tls": False, "calls": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        state["calls"] += 1
+        assert str(request.url) == "https://lasteverlm.test/api/account/healthz"
+        if state["code"] == 0:
+            raise httpx.ConnectTimeout("timed out")
+        return httpx.Response(state["code"], json={})
+
+    async def cert(host: str, port: int) -> datetime:
+        assert (host, port) == ("lasteverlm.test", 443)
+        if state["fail_tls"]:
+            raise OSError("handshake failed")
+        return datetime(2027, 1, 11, 7, 1, 5, tzinfo=UTC)
+
+    probe = IngressProbe(
+        "https://lasteverlm.test/", transport=httpx.MockTransport(handler), cert=cert
+    )
+    now = datetime(2026, 10, 14, 12, 0, tzinfo=UTC)
+    ok = await probe.status(now)
+    assert (ok.status, ok.error) == ("ok", None)
+    assert ok.tls_expires_at == datetime(2027, 1, 11, 7, 1, 5, tzinfo=UTC)
+    state["code"] = 502
+    assert (await probe.status(now + timedelta(seconds=30))).status == "ok"  # cached 60 s
+    down = await probe.status(now + timedelta(seconds=61))
+    assert (down.status, down.error) == ("down", "HTTP 502")
+    state["code"] = 0
+    down = await probe.status(now + timedelta(seconds=200))
+    assert down.status == "down" and down.error.startswith("ConnectTimeout")
+    state["code"], state["fail_tls"] = 200, True
+    tls = await probe.status(now + timedelta(seconds=300))
+    assert (
+        tls.status == "down" and tls.error.startswith("TLS: OSError") and tls.tls_expires_at is None
+    )

@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from lasteverlm_core import (
     DEFAULT_PRICING_RULES,
@@ -26,6 +26,7 @@ from lasteverlm_core import (
     USAGE_ACTIONS,
     AuthSettings,
     DependencyProbe,
+    OutputKind,
     PricingRules,
     RateLimitRules,
     RateLimitSettings,
@@ -37,6 +38,7 @@ from lasteverlm_core import (
 from .config import Settings
 from .crypto import VoucherCipher
 from .ecb import EcbError, EcbRates
+from .ingress import IngressProbe
 from .mail import Mailer, MailError, magic_link_mail, voucher_mail
 from .models import (
     AdminAccess,
@@ -74,6 +76,7 @@ from .models import (
     Smtp,
     SystemDeployment,
     SystemInfo,
+    SystemIngress,
     SystemPod,
     SystemService,
     TypicalPrice,
@@ -95,7 +98,7 @@ from .repository import (
     VisitRecord,
     VoucherRecord,
 )
-from .services import PurgeError, ServiceClient
+from .services import EstimateClient, EstimateError, PurgeError, ServiceClient
 from .system import ServiceStatus, SystemProbe
 from .vultr import VultrBilling, VultrError
 
@@ -201,6 +204,8 @@ class AccountService:
         dependencies: DependencyProbe | None = None,
         vultr: VultrBilling | None = None,
         ecb: EcbRates | None = None,
+        estimates: EstimateClient | None = None,
+        ingress: IngressProbe | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
@@ -214,6 +219,10 @@ class AccountService:
         key = settings.vultr_billing_api_key
         self.vultr = vultr or (VultrBilling(key) if key else None)
         self.ecb = ecb or EcbRates()
+        self.estimates = estimates or EstimateClient(
+            ingest_url=settings.ingest_url, rag_url=settings.rag_url
+        )
+        self.ingress = ingress or IngressProbe(settings.public_base_url)
         self._prices: tuple[datetime, PublicPrices] | None = None  # the 5-minute cache
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
@@ -664,6 +673,7 @@ class AccountService:
             services=[SystemService(**s.__dict__) for s in snap.services],
             pods=[SystemPod(**p.__dict__) for p in snap.pods],
             deployments=[SystemDeployment(**d.__dict__) for d in snap.deployments],
+            ingress=_ingress(await self.ingress.status(self.now())),
         )
 
     async def admin_stats(self) -> AdminStats:
@@ -1174,52 +1184,32 @@ class AccountService:
             return self._prices[1]
         rules = await self.pricing_rules()
         status = await self.rate_status(rules.usd_per_eur)
-        samples: dict[str, list[ActionSampleRecord]] = {}
-        for sample in await self.repo.action_samples(now - timedelta(days=self.PRICE_WINDOW_DAYS)):
-            samples.setdefault(sample.action, []).append(sample)
-        # The judge costs very different amounts per level (model); one price would mislead,
-        # so its samples are split by the level whose model ran them.
-        levels = {model: level for level, model in self.settings.judge_models.items()}
-        groups: list[tuple[str, str | None, Any, list[ActionSampleRecord]]] = []
-        for action, unit in sorted(USAGE_ACTION_UNITS.items()):
-            if action in self.PRIVATE_ACTIONS:
-                continue
-            seen = samples.get(action, [])
-            if action == "judge":
-                for level, model in self.settings.judge_models.items():
-                    picked = [x for x in seen if x.model == model and levels.get(x.model) == level]
-                    groups.append((f"judge:{level}", level, unit, picked))
-                continue
-            groups.append((action, None, unit, seen))
+        history = await self._price_history(rules, now)
+        bearer = "Bearer " + issue_jwt(
+            DEMO_USER_ID, self.settings.auth_jwt_secret, timedelta(seconds=60), now
+        )
+        catalogue = _price_catalogue(self.settings.judge_models)
+        estimates = await asyncio.gather(*(self._estimate(spec, bearer) for *_, spec in catalogue))
         rows = []
-        for key, judge_level, unit, seen in groups:
-            action = "judge" if judge_level is not None else key
-            charges, per_unit = [], []
-            for x in seen:
-                charge = charge_for(rules, action, x.cost_cents)  # today's rules, measured cost
-                units = Decimal(x.seconds) / 60 if unit.measure == "seconds" else Decimal(1)
-                charges.append(charge)
-                if units > 0:
-                    per_unit.append(charge / units)
-            models = [x.model for x in seen if x.model]
-            enough = len(charges) >= self.PRICE_MIN_ACTIONS
-            typical = None
-            if enough:
-                p25, median, p75 = statistics.quantiles(charges, n=4, method="inclusive")
-                typical = TypicalPrice(p25=_money(p25), median=_money(median), p75=_money(p75))
+        for (key, level, unit, typical_key, _), estimate in zip(catalogue, estimates, strict=True):
+            typical, count, model = history.get(typical_key or "", (None, 0, None))
             rows.append(
                 PublicPriceRow(
                     action=key,
-                    level=judge_level,
-                    unit=unit.unit,
+                    level=level,
+                    unit=unit,
                     price_per_unit_cents=(
-                        _money(statistics.median(per_unit))
-                        if enough and len(per_unit) >= self.PRICE_MIN_ACTIONS
-                        else None
+                        _money((estimate[0] + estimate[1]) / 2) if estimate else None
+                    ),
+                    price_min_cents=_money(estimate[0]) if estimate else None,
+                    price_max_cents=_money(estimate[1]) if estimate else None,
+                    estimated=estimate is not None,
+                    per_source_cents=(
+                        _money(estimate[2]) if estimate and estimate[2] is not None else None
                     ),
                     typical_cents=typical,
-                    count=len(charges),
-                    model=max(set(models), key=models.count) if models else None,
+                    count=count,
+                    model=model,
                 )
             )
         prices = PublicPrices(
@@ -1231,6 +1221,59 @@ class AccountService:
         )
         self._prices = (now, prices)
         return prices
+
+    async def _estimate(
+        self, spec: tuple[str, Any], bearer: str
+    ) -> tuple[Decimal, Decimal, Decimal | None] | None:
+        """One row's (min, max, per source) from rag or ingest; None when it cannot be had —
+        never a guess."""
+        source, request = spec
+        try:
+            if source == "ingest":
+                unit, per_source = await self.estimates.ingest(request, bearer)
+                return unit, unit, per_source
+            if source == "rag+":  # several rag estimates that make up one row (chart)
+                parts = [await self.estimates.rag(body, bearer) for body in request]
+                low = sum((part[0] for part in parts), Decimal(0))
+                return low, sum((part[1] for part in parts), Decimal(0)), None
+            if source == "rag":
+                low, high = await self.estimates.rag(request, bearer)
+                return low, high, None
+        except EstimateError as exc:
+            log.warning("price estimate for %s failed: %s", request, exc)
+        return None
+
+    async def _price_history(
+        self, rules: PricingRules, now: datetime
+    ) -> dict[str, tuple[TypicalPrice | None, int, str | None]]:
+        """Per action (the judge per level) the typical charge of the last window's actions
+        under today's rules, the count, and the model most calls used."""
+        samples: dict[str, list[ActionSampleRecord]] = {}
+        for sample in await self.repo.action_samples(now - timedelta(days=self.PRICE_WINDOW_DAYS)):
+            samples.setdefault(sample.action, []).append(sample)
+        groups: dict[str, tuple[str, list[ActionSampleRecord]]] = {}
+        for action, seen in samples.items():
+            if action == "judge":
+                for level, model in self.settings.judge_models.items():
+                    groups[f"judge:{level}"] = ("judge", [x for x in seen if x.model == model])
+            else:
+                groups[action] = (action, seen)
+        out: dict[str, tuple[TypicalPrice | None, int, str | None]] = {}
+        for key, (action, seen) in groups.items():
+            if action not in USAGE_ACTION_UNITS:
+                continue
+            charges = [charge_for(rules, action, x.cost_cents) for x in seen]
+            models = [x.model for x in seen if x.model]
+            typical = None
+            if len(charges) >= self.PRICE_MIN_ACTIONS:
+                p25, median, p75 = statistics.quantiles(charges, n=4, method="inclusive")
+                typical = TypicalPrice(p25=_money(p25), median=_money(median), p75=_money(p75))
+            out[key] = (
+                typical,
+                len(charges),
+                max(set(models), key=models.count) if models else None,
+            )
+        return out
 
     # finance: costs, revenue, profit -----------------------------------------
     async def finance_costs(self, since: date, until: date, group: str) -> FinanceCosts:
@@ -1356,3 +1399,52 @@ def _periods(since: date, until: date, group: str) -> list[date]:
         months.append(cur)
         cur = (cur.replace(day=28) + timedelta(days=4)).replace(day=1)
     return months
+
+
+# The public price list's rows: (key, judge level, unit, history key, (source, request)).
+# Outputs, chat and the judge come from rag's estimate with default options; sources from
+# ingest's estimate of one nominal unit. A chart is its proposal plus the chart itself.
+_SOURCE_ROWS = (  # (row key, unit key, history key, ingest's estimate kind)
+    ("source:text", "page", "source:text", "text"),
+    ("source:pdf", "page", "source:pdf", "pdf_text"),
+    ("source:pdf:vision", "page", None, "pdf_vision"),
+    ("source:image", "image", "source:image", "image"),
+    ("source:audio", "audio_minute", "source:audio", "audio"),
+    ("source:url", "web_page", "source:url", "url"),
+)
+
+
+def _price_catalogue(
+    judge_models: dict[str, str],
+) -> list[tuple[str, str | None, str, str | None, tuple[str, Any]]]:
+    rows: list[tuple[str, str | None, str, str | None, tuple[str, Any]]] = [
+        ("chat_answer", None, "question", "chat_answer", ("rag", {"action": "chat_answer"})),
+    ]
+    for kind in get_args(OutputKind):
+        key = f"output:{kind}"
+        if kind == "chart":
+            spec: tuple[str, Any] = ("rag+", [{"action": "chart_propose"}, {"kind": "chart"}])
+        elif kind == "decision":
+            spec = ("rag", {"kind": "decision", "options": {"question": "x"}})
+        else:
+            spec = ("rag", {"kind": kind, "options": {}})
+        rows.append((key, None, "output", key, spec))
+    for level in judge_models:
+        body = {"action": "judge", "options": {"level": level, "kind": "report"}}
+        rows.append((f"judge:{level}", level, "output", f"judge:{level}", ("rag", body)))
+    rows.append(
+        ("voice_sample", None, "voice_sample", "voice_sample", ("rag", {"action": "voice_sample"}))
+    )
+    for key, unit, history, kind in _SOURCE_ROWS:
+        rows.append((key, None, unit, history, ("ingest", kind)))
+    return rows
+
+
+def _ingress(status: Any) -> SystemIngress:
+    return SystemIngress(
+        status="ok" if status.status == "ok" else "down",
+        url=status.url,
+        tls_expires_at=status.tls_expires_at,
+        checked_at=status.checked_at,
+        error=status.error,
+    )

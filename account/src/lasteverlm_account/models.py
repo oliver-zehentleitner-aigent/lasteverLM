@@ -254,11 +254,15 @@ class TypicalPrice(BaseModel):
 
 
 class PublicPriceRow(BaseModel):
-    action: str  # core's action, or "judge:<level>" — the judge is priced per level
+    action: str  # core's action, "judge:<level>", or "source:pdf:vision" (the vision way)
     level: str | None  # the judge level (low|medium|high) for judge rows, else null
-    unit: str  # a stable key ("question", "output", "audio_minute", …); web translates it
-    price_per_unit_cents: float | None  # the median action under today's rules per unit
-    typical_cents: TypicalPrice | None  # per action under today's rules; null below 5
+    unit: str  # a stable key ("question", "output", "page", "audio_minute", …); web translates
+    price_per_unit_cents: float | None  # estimated: the midpoint of min and max below
+    price_min_cents: float | None
+    price_max_cents: float | None
+    estimated: bool  # the price comes from rag's or ingest's estimate (null price: false)
+    per_source_cents: float | None  # sources: added once per source on top of the units
+    typical_cents: TypicalPrice | None  # per whole action, from history; null below 5
     count: int  # actions in the window
     model: str | None
 
@@ -500,6 +504,17 @@ class SystemDeployment(BaseModel):
     replica_sets: int  # ReplicaSets that have pods; 2 during a rollout
 
 
+class SystemIngress(BaseModel):
+    """The public entrance as a browser meets it: PUBLIC_BASE_URL's healthz requested from
+    inside the cluster through the load balancer, and the certificate it serves."""
+
+    status: Literal["ok", "down"]
+    url: str
+    tls_expires_at: datetime | None
+    checked_at: datetime
+    error: str | None
+
+
 class SystemInfo(BaseModel):
     """The admin System page. Outside a cluster `cluster` is false and the Kubernetes lists
     are empty; the services are probed either way, an unreachable one is `healthy: false`."""
@@ -510,3 +525,4 @@ class SystemInfo(BaseModel):
     services: list[SystemService]
     pods: list[SystemPod]
     deployments: list[SystemDeployment]
+    ingress: SystemIngress

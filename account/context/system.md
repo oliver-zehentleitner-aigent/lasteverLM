@@ -38,3 +38,12 @@ would put a cluster credential next to the frontend.
 
 **Consequence:** the Role is infra's; a deployment without it still serves
 the page, with empty lists and one warning per request in the log.
+
+The ingress is checked from outside in rather than read from the cluster (added
+2026-10-14): `PUBLIC_BASE_URL` + `/api/account/healthz` through the load balancer, the
+certificate's notAfter from that handshake. Reading the ingress-nginx pods would need a
+Role in another namespace. The check depends on in-cluster traffic taking the load
+balancer path — infra keeps only the hostname in the Service status on purpose (PROXY
+protocol, infra's cluster.md); removing that annotation would turn this check into a
+shortcut past the load balancer or break it.
+

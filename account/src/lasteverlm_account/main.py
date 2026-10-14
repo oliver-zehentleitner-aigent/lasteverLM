@@ -29,11 +29,12 @@ from lasteverlm_core import (
 
 from .api import account, admin, auth
 from .config import Settings
+from .ingress import IngressProbe
 from .mail import Mailer, SmtpMailer
 from .repository import Repository
 from .repository_postgres import PostgresRepository
 from .service import AccountError, AccountService
-from .services import ServiceClient
+from .services import EstimateClient, ServiceClient
 from .system import SystemProbe, kubernetes_api_base
 
 API_PREFIX = "/api/account"
@@ -49,6 +50,8 @@ def create_app(
     rate_limit_settings: RateLimitSettings | None = None,
     system: SystemProbe | None = None,
     services: ServiceClient | None = None,
+    estimates: EstimateClient | None = None,
+    ingress: IngressProbe | None = None,
 ) -> FastAPI:
     resolved = settings or Settings.from_env()
     logging.basicConfig(level=resolved.log_level)
@@ -85,6 +88,8 @@ def create_app(
             rate_limit=limits,
             system=system or SystemProbe(resolved.system_services, api_base=kubernetes_api_base()),
             services=services,
+            estimates=estimates,
+            ingress=ingress,
             dependencies=dependencies,
         )
         await service.startup()

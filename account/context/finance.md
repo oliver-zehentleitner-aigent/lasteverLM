@@ -130,6 +130,12 @@ costs are what actions really need; today's rules make a margin change visible a
 which past charges would hide for weeks. Five actions is the least that makes a median
 mean something; below that a number would be a guess presented as a price.
 
+Corrected the same day: the per-unit price now comes from the services' own estimates —
+rag's `POST /estimate` with default options and ingest's `GET /estimate` of one nominal
+unit — marked `estimated`, because history alone left almost every row empty (most past
+usage predates the action tags). History still gives the typical range. Account calls
+both as the demo user with a 60-second token and reads only their charge fields.
+
 **Rejected alternatives:** publishing the margin and the fees beside the price —
 rejected, the page is for buyers, the admin finance area keeps the margins; quoting
 past charges — they show yesterday's rules; a per-token estimate from model prices —
