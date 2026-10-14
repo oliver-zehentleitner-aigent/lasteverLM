@@ -20,7 +20,7 @@ import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
 import { takeOpenOutput } from '../lib/lastNotebook'
-import { afterClose, dropMissing, openTab, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
+import { afterClose, dropMissing, heldUrl, openTab, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
 import { ChatPane } from './ChatPane'
 import { SourceLinks } from './SourceLinks'
 import { citationTarget } from '../lib/openEntry'
@@ -209,7 +209,8 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   const [locate, setLocate] = useState<LocateRequest | null>(null)
   function openSource(c: Citation) {
     if (c.source_kind !== 'generated') {
-      open({ type: 'source', id: c.source_id, page: c.page, chunkId: c.chunk_id, chunkIndex: c.chunk_index ?? null })
+      const src = uploads?.find((s) => s.id === c.source_id)
+      open({ type: 'source', id: c.source_id, page: c.page, chunkId: c.chunk_id, chunkIndex: c.chunk_index ?? null, url: src?.preview_url ?? null, urlAt: Date.now() })
       onCitation(c)
       return
     }
@@ -244,10 +245,15 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             ownGenerated={ownGenerated}
             onSourcesChange={(list) => {
               setUploads(list)
-              // a removed source's tab goes
-              setTabs((prev) => dropMissing(prev, 'source', new Set(list.map((s) => s.id))))
+              // a removed source's tab goes; an open one keeps its address unless it runs out
+              const now = Date.now()
+              setTabs((prev) => {
+                const kept = dropMissing(prev, 'source', new Set(list.map((s) => s.id)))
+                const next = kept.map((x) => heldUrl(x, list.find((s) => s.id === x.id)?.preview_url ?? null, now))
+                return next.every((x, i) => x === kept[i]) ? kept : next
+              })
             }}
-            onOpen={(s) => open({ type: 'source', id: s.id })}
+            onOpen={(s) => open({ type: 'source', id: s.id, url: s.preview_url ?? null, urlAt: Date.now() })}
           />
           <OutputTiles
             notebookId={notebookId}

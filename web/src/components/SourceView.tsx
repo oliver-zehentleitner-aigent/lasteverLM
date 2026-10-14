@@ -15,7 +15,9 @@ import { StarterBadge } from './StarterBadge'
  *  the system extracted, chunk by chunk, the cited chunk marked. */
 export function SourceView({ source, tab }: { source: Source; tab: ViewerTab }) {
   const [mode, setMode] = useState<SourceViewMode>(() => defaultView(source.kind))
-  const external = citationTarget(source, tab.page ?? null)
+  // the address the tab holds, not the list's newest: a new presigned src would load the file again
+  const held = { ...source, preview_url: tab.url ?? source.preview_url }
+  const external = citationTarget(held, tab.page ?? null)
   return (
     <>
       <header className="viewer-head">
@@ -35,7 +37,7 @@ export function SourceView({ source, tab }: { source: Source; tab: ViewerTab }) 
           </a>
         )}
       </header>
-      {mode === 'original' ? <Original source={source} page={tab.page ?? null} nonce={tab.nonce ?? 0} /> : <SourceRead key={`${source.id}:${tab.nonce ?? 0}`} sourceId={source.id} chunkId={tab.chunkId ?? null} chunkIndex={tab.chunkIndex ?? null} />}
+      {mode === 'original' ? <Original source={held} page={tab.page ?? null} nonce={tab.nonce ?? 0} /> : <SourceRead key={`${source.id}:${tab.nonce ?? 0}`} sourceId={source.id} chunkId={tab.chunkId ?? null} chunkIndex={tab.chunkIndex ?? null} />}
     </>
   )
 }
