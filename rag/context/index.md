@@ -29,7 +29,7 @@ repository root's `context/`.
 
 ## C
 
-- [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why an unmatched question still reaches the model (only an empty notebook is refused without it); provenance (verbatim chunk, score, position) on every citation; why marker-shaped text from sources is rewritten before prompts; generated outputs: units checked by word overlap without a model, marked never blocked; the user's instructions steer a generator but never override the rules or the citation rules
+- [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why an unmatched question still reaches the model (only an empty notebook is refused without it); provenance (verbatim chunk, score, position) on every citation; why marker-shaped text from sources is rewritten before prompts; generated outputs: units checked by word overlap without a model, marked never blocked; the user's instructions steer a generator but never override the rules or the citation rules (and stay visible when shared); a chart's values get an exact number check, not word overlap
 
 - [contracts.md](contracts.md) — why the shared contract types are mirrored locally until the core library ships
 
@@ -61,7 +61,7 @@ repository root's `context/`.
 
 ## O
 
-- [outputs.md](outputs.md) — generated documents: what a generator sees, why a ready output becomes a generated source, the outputs table as the worker's job queue, and how audio is synthesized and stored; output options per kind (language, voice, speed), cached voice previews, passages balanced across sources for generators; outputs belong to the user (library, trash, origin may be deleted) and rag owns their generated rows; three audio styles and two voices for a conversation; report style and length and quiz count, difficulty and audience as prompt variants with stored defaults; a shared notebook shows uploads by name and ready outputs as their shared view; a decision: number from the decision model, evidence from the LLM independently, agreement shown; deleting a user removes output files before rows; a shared output is a capability URL whose token reaches access logs (known, mitigated)
+- [outputs.md](outputs.md) — generated documents: what a generator sees, why a ready output becomes a generated source, the outputs table as the worker's job queue, and how audio is synthesized and stored; output options per kind (language, voice, speed), cached voice previews, passages balanced across sources for generators; outputs belong to the user (library, trash, origin may be deleted) and rag owns their generated rows; three audio styles and two voices for a conversation; report style and length and quiz count, difficulty and audience as prompt variants with stored defaults; a shared notebook shows uploads by name and ready outputs as their shared view; a chart in two steps, from candidates the client sends back and rag checks again; a decision: number from the decision model, evidence from the LLM independently, agreement shown; deleting a user removes output files before rows; a shared output is a capability URL whose token reaches access logs (known, mitigated)
 
 ## P
 
