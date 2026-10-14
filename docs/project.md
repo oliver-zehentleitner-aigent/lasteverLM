@@ -125,7 +125,9 @@ output price; the platform prices in US dollars while credits are in
 euro. Each is recorded with the measurement. The judge's models were
 chosen by an evaluation rather than by reputation: on 24 hand-written
 claims the word check alone caught none of the negated, swapped or
-off-by-one claims, every judge level caught all of them.
+off-by-one claims; no judge level missed a negation, and two of the
+three scored every claim correctly (details and limits in the
+evaluation).
 
 **One platform.** Kubernetes, PostgreSQL with pgvector, object storage
 and every model run on Vultr. Web search was considered and left out
