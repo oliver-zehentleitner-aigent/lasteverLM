@@ -35,14 +35,16 @@ passages the kind does not need.
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12; implementation session, 2026-10-12
 **Revisit when:** the schema gains a generic link table or ingest takes over indexing
+**See:** outputs.md#outputs-belong-to-the-user-and-live-in-the-library-rag-owns-their-generated-rows — d9bf964d-ec53-4cd7-8bd1-adfc9a5772f2 — as of 2026-10-14
 
 When generation succeeds, the service writes a `sources` row of kind
 `generated` in the same notebook (name = the output's title, summary =
 the start of its text), chunks the document with the same 800/100 token
 windows ingest uses, embeds the chunks and inserts them. `outputs.source_id`
-holds that source so deleting the output deletes the source (and its
-chunks by cascade) and `scope.output_id` on `/ask` can restrict retrieval
-to it. The column is this service's addition to the family's data model.
+holds that source (since 2026-10-14 its library row, which follows the
+output into the trash and is purged with it) and `scope.output_id` on
+`/ask` can restrict retrieval to it. The column is this service's
+addition to the family's data model.
 
 **Reason:** indexing the document as an ordinary source lets the chat
 answer about and cite generated documents with the same retrieval and
