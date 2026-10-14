@@ -38,7 +38,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/admin/stats` | viewers and admins | `AdminStats`, see below |
 | GET | `/api/rag/admin/stats/daily?days=` | viewers and admins; `days` 1–365, default 30 | `DailyStats`, see below |
 | DELETE | `/api/rag/admin/users/{id}` | admins only | 204, see below |
-| GET | `/healthz`, `/api/rag/healthz` | no auth | core's `Health`: `{"status": "ok", "version", "commit"}` |
+| GET | `/healthz`, `/api/rag/healthz` | no auth | core's `Health`: `{"status": "ok", "version", "commit", "dependencies": {"postgres", "storage", "inference"}}`, each `ok` or `down` (core's `DependencyProbe`: 2 s per check, cached 15 s; `storage` only with object storage configured); a dependency that is down never fails the probe |
 
 Every other endpoint takes `Authorization: Bearer <token>`. Errors are
 `{"error": "<message>"}`: 401 unauthenticated, 402 credit exhausted,

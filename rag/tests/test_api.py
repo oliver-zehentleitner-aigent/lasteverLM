@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 from lasteverlm_core import DEMO_USER_ID, ConfigError, ProviderError, Usage, issue_jwt
+from lasteverlm_core.health import DependencyProbe
 
 from lasteverlm_rag.config import Settings
 from lasteverlm_rag.service import REFUSAL
@@ -33,6 +34,29 @@ def test_healthz_needs_no_auth_and_reports_the_build(settings, monkeypatch):
     build = {"status": "ok", "version": "0.6.1", "commit": "abc1234"}
     assert client.get("/api/rag/healthz").json() == build
     assert client.get("/healthz").json() == build
+
+
+def test_healthz_reports_dependencies_and_stays_ok_when_one_is_down(settings, monkeypatch):
+    monkeypatch.delenv("APP_VERSION", raising=False)
+    monkeypatch.delenv("APP_COMMIT", raising=False)
+
+    def broken() -> None:
+        raise ConnectionError("no route to the bucket")
+
+    probe = DependencyProbe(
+        {"postgres": lambda: None, "storage": broken, "inference": lambda: None}
+    )
+    client = make_client(
+        settings, FakeStore(), FakeRetriever([]), FakeLLM(), dependency_probe=probe
+    )
+    r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.json() == {
+        "status": "ok",
+        "version": "unknown",
+        "commit": "unknown",
+        "dependencies": {"postgres": "ok", "storage": "down", "inference": "ok"},
+    }
 
 
 def test_healthz_without_build_labels_says_unknown(settings, monkeypatch):
