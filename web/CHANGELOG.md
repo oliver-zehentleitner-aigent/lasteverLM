@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Audio sources: the wizard has an Audio tile (MP3 or WAV, `.mp3,.wav,audio/mpeg,audio/wav,audio/x-wav`, the 25 MB cap named in the hint), the kind `audio` is in the library's kind column and filter and in the wizard's library picker, and the open link plays the file in a new tab through its `preview_url` like a PDF (no thumbnail: those stay images-only). Every source in a notebook's Sources list now shows its kind as a badge. A citation into an audio source has no page, so "open in source" opens the file without an anchor. The admin overview's sources-per-day chart has an audio series; a day without a kind may now omit it.
+
 ## [0.10.3] - 2026-10-14
 
 ### Fixed

@@ -18,7 +18,8 @@ two: it ends after the sources, with a short note and "Done" when some
 were in the notebook already.
 
 1. **What goes in?** Tiles: **From library** first, for something
-   added before to another notebook, then PDF, Text, Web page, Image. A
+   added before to another notebook, then PDF, Text, Web page, Image,
+   Audio (MP3 or WAV, up to 25 MB; what is said is transcribed). A
    kind that is not available yet is shown greyed with "Soon.", so the
    extension points stay visible.
 2. **How does it get in?** Only the ways that fit the type: drop or
@@ -73,7 +74,8 @@ is closed. After the wizard the notebook view opens.
 └───────────────────┴──────────────────────────────────────┘
 ```
 
-- **Sources** (left, top): the uploads (PDF, text, web page, image)
+- **Sources** (left, top): the uploads (PDF, text, web page, image,
+  audio), each with its kind as a badge
   with status and remove; the add button opens the wizard at step 1,
   without the output step.
   Removing only detaches the source from this notebook, it stays in the
@@ -233,7 +235,8 @@ entries added before sizes were recorded), date and the
 notebooks it is in as links (or "not in any notebook"). Filters by kind
 and by part of the name or address. **Open** (a row action, and the
 name itself) shows the entry in a new tab: a web page at its address,
-an upload (PDF, text, image) through its presigned `preview_url`; an
+an upload (PDF, text, image, audio, which the browser plays) through
+its presigned `preview_url`; an
 image also keeps the hover preview below. Only `http(s)` addresses are
 linked, and without a preview the action is disabled with a note.
 Each row has a checkbox ("all / none" in the column header acts on the

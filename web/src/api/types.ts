@@ -1,7 +1,7 @@
 // Mirrors the API contract in the parent's docs/architecture.md (v1.1).
 // A change here is a change there first.
 
-export type SourceKind = 'pdf' | 'text' | 'url' | 'image' | 'generated'
+export type SourceKind = 'pdf' | 'text' | 'url' | 'image' | 'audio' | 'generated'
 export type SourceStatus = 'processing' | 'ready' | 'failed'
 export type Role = 'user' | 'assistant'
 
@@ -382,7 +382,8 @@ export interface IngestDay {
   day: string
   /** library sources created that day; generated documents not counted */
   sources_created: number
-  by_kind: Record<Exclude<SourceKind, 'generated'>, number>
+  /** a kind with no sources that day, or newer than the service, is absent */
+  by_kind: Partial<Record<Exclude<SourceKind, 'generated'>, number>>
   /** of that day's sources, the ones that are failed now */
   failed: number
 }

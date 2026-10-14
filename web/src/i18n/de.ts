@@ -23,6 +23,8 @@ export const de: Record<MessageKey, string> = {
   'source.url.note': 'Die Adresse einer Webseite, einer PDF- oder Textdatei.',
   'source.image': 'Bild',
   'source.image.note': 'PNG, JPEG, WebP oder GIF; der Text darin wird abgeschrieben und das Bild beschrieben.',
+  'source.audio': 'Audio',
+  'source.audio.note': 'MP3 oder WAV, bis 25 MB; das Gesprochene wird transkribiert.',
   'tile.soon': 'Bald.',
   'create.needSource': 'Eine Quelle hinzufügen und warten, bis sie bereit ist.',
   'create.needFormat': 'Oben ein Format wählen.',
