@@ -90,6 +90,9 @@ class QuizGenerator(JsonGenerator):
     def budget(self, options: Mapping[str, Any]) -> int:
         return max(MIN_BUDGET, TOKENS_PER_QUESTION * int(options.get("question_count", 10)))
 
+    def unit_lists(self, document: BaseModel) -> tuple[str, ...]:
+        return ("questions",)
+
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         assert isinstance(document, Quiz)
         lines = [document.title, ""]

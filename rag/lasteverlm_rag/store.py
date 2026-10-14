@@ -97,6 +97,12 @@ class Store(Protocol):
         support: dict[str, Any] | None = None,
     ) -> Message: ...
 
+    def get_message(self, message_id: str) -> tuple[str, Message] | None:
+        """The message with its notebook's id."""
+        ...
+
+    def update_message_support(self, message_id: str, support: dict[str, Any]) -> None: ...
+
     # outputs
     def create_output(
         self,
@@ -468,6 +474,24 @@ class PostgresStore:
             ).fetchone()
         assert row is not None
         return _to_message(row)
+
+    def get_message(self, message_id: str) -> tuple[str, Message] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select notebook_id::text as notebook_id, id::text as id, role, content, "
+                "citations, support, created_at from messages where id = %s",
+                (message_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        notebook_id = row.pop("notebook_id")
+        return notebook_id, _to_message(row)
+
+    def update_message_support(self, message_id: str, support: dict[str, Any]) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update messages set support = %s where id = %s", (_jsonb(support), message_id)
+            )
 
     # -- outputs ----------------------------------------------------------
 

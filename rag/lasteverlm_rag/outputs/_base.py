@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Set
+from dataclasses import replace
 from typing import Any
 
 from lasteverlm_core import OutputKind, ProviderError
@@ -116,7 +117,7 @@ class JsonGenerator:
             user_instructions=options.get("instructions"),
             max_tokens=self.budget(options),
         )
-        return self.to_output(document)
+        return replace(self.to_output(document), document=document)
 
     def ask(
         self,
@@ -158,6 +159,58 @@ class JsonGenerator:
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         raise NotImplementedError
+
+    # -- editing, for the judge's revisions ---------------------------------
+    #
+    # Unit ``index`` is the position in ``to_output(document).units``. An edit
+    # keeps the document's structure, so indexes stay valid until ``remove``,
+    # which the judge calls once, at the end. These defaults serve kinds whose
+    # units are the items of lists of the document, in unit order.
+
+    def unit_lists(self, document: BaseModel) -> tuple[str, ...]:
+        """The document's lists whose items are the units, in unit order."""
+        return ()
+
+    # what the reviser may not change in a unit (an audio turn's speaker)
+    fixed_fields: tuple[str, ...] = ()
+
+    def _slots(self, document: BaseModel) -> list[tuple[str, int]]:
+        return [
+            (name, i)
+            for name in self.unit_lists(document)
+            for i in range(len(getattr(document, name)))
+        ]
+
+    def editable(self, document: BaseModel, index: int) -> dict[str, Any]:
+        """The unit as the reviser sees it and gives it back."""
+        name, i = self._slots(document)[index]
+        item: BaseModel = getattr(document, name)[i]
+        return item.model_dump(exclude=set(self.fixed_fields))
+
+    def edit(self, document: BaseModel, index: int, fields: Mapping[str, Any]) -> BaseModel:
+        """The document with the unit replaced; raises ``ValueError`` (or a
+        ``ValidationError``) when ``fields`` do not make a valid unit."""
+        name, i = self._slots(document)[index]
+        items = list(getattr(document, name))
+        old = items[i]
+        fixed = {k: getattr(old, k) for k in self.fixed_fields if hasattr(old, k)}
+        items[i] = type(old).model_validate({**fields, **fixed})
+        return document.model_copy(update={name: items})
+
+    def remove(self, document: BaseModel, indexes: Set[int]) -> BaseModel:
+        """The document without those units."""
+        slots = self._slots(document)
+        gone = {slots[i] for i in indexes}
+        return document.model_copy(
+            update={
+                name: [x for i, x in enumerate(getattr(document, name)) if (name, i) not in gone]
+                for name in self.unit_lists(document)
+            }
+        )
+
+    def rebuild(self, document: BaseModel, passages: list[Passage]) -> GeneratedOutput:
+        """The output from an edited document."""
+        return replace(self.to_output(document), document=document)
 
 
 def parse_json(text: str) -> Any:

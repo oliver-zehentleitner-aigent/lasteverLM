@@ -13,9 +13,10 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, get_args
+from typing import Any, Literal, get_args
 
-from lasteverlm_core import CompletionResult, ProviderError
+from lasteverlm_core import CompletionResult, OpenAICompatibleLLM, ProviderError
+from openai import OpenAI
 
 from .citations import defuse_markers, strip_markers
 from .outputs import CompleteFn
@@ -96,6 +97,14 @@ def parse_judgement(result: CompletionResult, passages: Mapping[int, str]) -> Ju
         quote=quote,
         quote_verbatim=bool(quote) and any(quote in t for t in flat),
     )
+
+
+def judge_models(client: OpenAI, models: Mapping[Any, str]) -> dict[str, OpenAICompatibleLLM]:
+    """One judge model per level (``JUDGE_MODELS``), thinking off, temperature 0."""
+    return {
+        level: OpenAICompatibleLLM(client, model, max_tokens=JUDGE_MAX_TOKENS)
+        for level, model in models.items()
+    }
 
 
 def judge_unit(

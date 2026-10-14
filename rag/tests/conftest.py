@@ -48,8 +48,10 @@ CONVERSATION = str(uuid.uuid4())
 AUTH = {"Authorization": f"Bearer {DEMO_TOKEN}"}
 PRICES = (
     '{"test-llm": {"in": 100, "out": 300}, "test-embedding": {"in": 10, "out": 0}, '
-    '"test-decision": {"in": 10, "out": 0}}'
+    '"test-decision": {"in": 10, "out": 0}, "test-judge-low": {"in": 10, "out": 30}, '
+    '"test-judge-medium": {"in": 20, "out": 60}, "test-judge-high": {"in": 80, "out": 300}}'
 )
+JUDGE_MODELS = '{"low": "test-judge-low", "medium": "test-judge-medium", "high": "test-judge-high"}'
 
 BASE_ENV = {
     "DATABASE_URL": "postgresql://test",
@@ -59,6 +61,7 @@ BASE_ENV = {
     "EMBEDDING_MODEL": "test-embedding",
     "DECISION_MODEL": "test-decision",
     "MODEL_PRICES": PRICES,
+    "JUDGE_MODELS": JUDGE_MODELS,
 }
 
 
@@ -189,6 +192,15 @@ class FakeStore:
         }
         self.messages.append(row)
         return self._message(row)
+
+    def get_message(self, message_id: str) -> tuple[str, Message] | None:
+        for row in self.messages:
+            if row["id"] == message_id:
+                return row["notebook_id"], self._message(row)
+        return None
+
+    def update_message_support(self, message_id: str, support: dict[str, Any]) -> None:
+        next(m for m in self.messages if m["id"] == message_id)["support"] = support
 
     @staticmethod
     def _message(row: dict[str, Any]) -> Message:
@@ -634,6 +646,7 @@ def make_client(
     objects: FakeObjects | None = None,
     dependency_probe: Any = None,
     decision: FakeDecision | None = None,
+    judges: dict[str, Any] | None = None,
 ) -> TestClient:
     generators = registry(tts_available=tts is not None)
     outputs = OutputService(
@@ -647,6 +660,7 @@ def make_client(
         tts=tts,
         objects=objects,
         decision=decision,
+        judges=judges,
     )
     app = create_app(
         settings=settings,

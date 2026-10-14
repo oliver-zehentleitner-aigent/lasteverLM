@@ -106,6 +106,10 @@ class GenerationLog:
     embedding_in: int = 0
     tts_seconds: int = 0
     decision_in: int = 0
+    judge_in: int = 0
+    judge_out: int = 0
+    # the judge's rounds and what it removed, when the output was judged
+    judge: dict[str, Any] | None = None
     # one entry per model call that shaped the content (a decision's two)
     calls: list[dict[str, Any]] = field(default_factory=list)
     # a decision's own verdict when "the sources do not decide this" replaced it
@@ -154,9 +158,15 @@ class GenerationLog:
                 "embedding": {"tokens_in": self.embedding_in},
                 "tts": {"seconds": self.tts_seconds},
                 **({"decision": {"tokens_in": self.decision_in}} if self.decision_in else {}),
+                **(
+                    {"judge": {"tokens_in": self.judge_in, "tokens_out": self.judge_out}}
+                    if self.judge
+                    else {}
+                ),
             },
             **({"calls": self.calls} if self.calls else {}),
             **({"llm_verdict_text": self.llm_verdict_text} if self.llm_verdict_text else {}),
+            **({"judge": self.judge} if self.judge else {}),
             "started_at": self.started_at,
             "finished_at": now(),
             "check": check,

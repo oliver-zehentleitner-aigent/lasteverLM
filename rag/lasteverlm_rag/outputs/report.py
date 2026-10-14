@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Set
+from dataclasses import replace
 from typing import Any
 
 from lasteverlm_core import OutputKind
@@ -93,7 +94,41 @@ class ReportGenerator(JsonGenerator):
         # a marker no passage has is dropped from the text, as in a chat answer;
         # the check marks its paragraph unsupported
         markdown = keep_markers(generated.content["markdown"], {p.n for p in passages})
-        return self._document(generated.title, markdown, generated.units)
+        output = self._document(generated.title, markdown, generated.units)
+        return replace(output, document=Report(title=generated.title, markdown=markdown))
+
+    # -- editing: a unit is a paragraph that is not a heading ---------------
+
+    def _paragraphs(self, document: BaseModel) -> tuple[list[str], list[int]]:
+        assert isinstance(document, Report)
+        paragraphs = [p for p in _PARAGRAPH.split(document.markdown.strip()) if p.strip()]
+        claims = [i for i, p in enumerate(paragraphs) if not p.lstrip().startswith("#")]
+        return paragraphs, claims
+
+    def editable(self, document: BaseModel, index: int) -> dict[str, Any]:
+        paragraphs, claims = self._paragraphs(document)
+        return {"text": paragraphs[claims[index]]}
+
+    def edit(self, document: BaseModel, index: int, fields: Mapping[str, Any]) -> BaseModel:
+        paragraphs, claims = self._paragraphs(document)
+        # one paragraph stays one paragraph, and never turns into a heading
+        text = " ".join(str(fields.get("text", "")).split()).lstrip("#").strip()
+        if not text:
+            raise ValueError("a revised paragraph needs text")
+        paragraphs[claims[index]] = text
+        return document.model_copy(update={"markdown": "\n\n".join(paragraphs)})
+
+    def remove(self, document: BaseModel, indexes: Set[int]) -> BaseModel:
+        paragraphs, claims = self._paragraphs(document)
+        gone = {claims[i] for i in indexes}
+        kept = [p for i, p in enumerate(paragraphs) if i not in gone]
+        return document.model_copy(update={"markdown": "\n\n".join(kept)})
+
+    def rebuild(self, document: BaseModel, passages: list[Passage]) -> GeneratedOutput:
+        assert isinstance(document, Report)
+        markdown = keep_markers(document.markdown, {p.n for p in passages})
+        output = self._document(document.title, markdown, None)
+        return replace(output, document=document.model_copy(update={"markdown": markdown}))
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         assert isinstance(document, Report)

@@ -68,6 +68,7 @@ def test_the_catalogue_lists_the_new_options(settings):
     assert body["kinds"]["quiz"] == [
         "language",
         "instructions",
+        "judge",
         "question_count",
         "difficulty",
         "audience",

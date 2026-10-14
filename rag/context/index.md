@@ -51,7 +51,7 @@ repository root's `context/`.
 
 ## J
 
-- [judge.md](judge.md) — the opt-in judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer
+- [judge.md](judge.md) — the opt-in judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer; opt-in with the word check as the default (no judge for charts); at most three rounds of revision, then removal listed in the provenance
 
 ## K
 

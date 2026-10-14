@@ -99,6 +99,9 @@ class DecisionGenerator(JsonGenerator):
     def to_output(self, document: BaseModel) -> GeneratedOutput:
         raise NotImplementedError("a decision is joined by decision_content")
 
+    def unit_lists(self, document: BaseModel) -> tuple[str, ...]:
+        return ("evidence_for", "evidence_against")
+
 
 def decision_content(
     options: dict[str, Any], model_answer: dict[str, Any], evidence: Evidence
