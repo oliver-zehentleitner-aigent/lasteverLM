@@ -186,14 +186,28 @@ def test_url_to_an_internal_address_fails_in_the_worker(client, run_queue):
     assert "not a public address" in source["error"]
 
 
-def test_no_credit_is_402_before_anything_is_stored(client, repo, storage):
+def test_without_credit_a_source_is_stored_and_waits_until_there_is_credit(client, repo, storage):
     repo.default_balance = 0
     nb = _notebook(client)
-    r = client.post(
-        f"/api/ingest/notebooks/{nb}/sources", files={"file": ("a.txt", b"text", "text/plain")}
-    )
-    assert r.status_code == 402 and r.json() == {"error": "credit exhausted"}
-    assert storage.objects == {} and repo.library == {}
+    url = f"/api/ingest/notebooks/{nb}/sources"
+    r = client.post(url, files={"file": ("a.txt", b"text", "text/plain")})
+    # Adding is always allowed: stored, queued, shown as waiting.
+    assert r.status_code == 202 and r.json()["status"] == "waiting_for_credit"
+    lib = UUID(r.json()["library_id"])
+    assert len(storage.objects) == 1 and repo.library[lib].status == "processing"
+    assert [s["status"] for s in client.get(url).json()] == ["waiting_for_credit"]
+    [entry] = client.get("/api/ingest/library").json()
+    assert entry["status"] == "waiting_for_credit"
+    assert client.get(f"/api/ingest/library/{lib}").json()["status"] == "waiting_for_credit"
+    # No worker takes it, no attempt is counted.
+    assert repo.claim_library_source("w", 600) is None and repo.library[lib].attempts == 0
+    # Credit arrives: it is shown and claimed as processing again.
+    repo.credits[DEMO_USER_ID] = 100
+    assert [s["status"] for s in client.get(url).json()] == ["processing"]
+    assert repo.claim_library_source("w", 600) == lib
+    # Uploading the same bytes again links the entry at no cost either way.
+    again = client.post(url, files={"file": ("a.txt", b"text", "text/plain")})
+    assert again.status_code == 200 and len(storage.objects) == 1
 
 
 def test_delete_source_detaches_and_other_users_cannot(client, repo, storage):

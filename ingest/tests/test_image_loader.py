@@ -106,7 +106,7 @@ def test_no_credit_means_no_image_call():
     sid = _add_image(repo, storage)
     process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), fake))
     source = repo.library[sid]
-    assert source.status == "failed" and source.error == "credit exhausted"
+    assert source.status == "processing" and source.error is None
     assert fake.calls == [] and repo.usage == []
 
 

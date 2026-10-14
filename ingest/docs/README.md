@@ -122,14 +122,16 @@ again restores it and links it, without processing it again.
 
 ```json
 {"sources": {"processing": 3, "ready": 120, "failed": 4},
- "jobs": {"pending": 1, "running": 2, "failed": 4},
+ "jobs": {"pending": 1, "running": 2, "waiting_for_credit": 0, "failed": 4},
  "chunks": 5821,
  "source_bytes": 73400320}
 ```
 
 `sources` counts library sources (not generated ones) by status. `jobs` splits the `processing` rows:
 `pending` waits for a worker (unclaimed, or its claim is older than
-`CLAIM_TIMEOUT_SECONDS`), `running` is claimed by a worker; `failed` is
+`CLAIM_TIMEOUT_SECONDS`) and its owner has credit, `waiting_for_credit`
+waits for its owner's credit (no worker takes it), `running` is claimed
+by a worker; `failed` is
 the failed ones. `source_bytes` sums `library_sources.size_bytes`; rows
 created before migration 0002 have no size and count 0. One read-only query.
 
@@ -146,8 +148,7 @@ It counts library sources by their creation day (generated ones
 excluded); `failed` is how many of that day's are failed now. One
 read-only query.
 
-Errors are `{"error": "<message>"}`: 400 bad upload, 401 token, 402
-credit exhausted, 403 admin only, 404 not yours or missing, 413 too large, 415
+Errors are `{"error": "<message>"}`: 400 bad upload, 401 token, 403 admin only, 404 not yours or missing, 413 too large, 415
 unsupported type, 422 invalid body.
 
 ## Processing
@@ -157,8 +158,8 @@ unsupported type, 422 invalid body.
 and host lowercased, default port and fragment dropped, path and query
 kept). Found, it only links it into the notebook — nothing is stored or
 processed again, and a failed one is put back into the queue, since
-uploading again is how a user retries. Not found, it checks the caller's
-credit, uploads the file to the bucket at `<owner>/<library_id>/<name>`
+uploading again is how a user retries. Not found, it uploads the file
+to the bucket at `<owner>/<library_id>/<name>`
 (objects from before migration 0003 keep their
 `<notebook_id>/<source_id>/<name>` keys), and only then writes the library
 source with `status: processing`, links it and returns. The order matters:
@@ -189,17 +190,29 @@ source (the first `SUMMARY_INPUT_TOKENS` tokens go into the prompt),
 records a second `usage` row of kind `llm`, stores the summary in
 `library_sources.summary` for the output generators, and sets `ready`.
 Usage rows name the notebook the library source was first added to. A failure
-that a retry cannot change (unreadable file, no text, credit exhausted)
-sets `failed` at once. A failure that may pass next time (object
+that a retry cannot change (unreadable file, no text) sets `failed` at
+once. A failure that may pass next time (object
 storage, the embedding or summary request, an unexpected error) leaves
 the row `processing` with the error text and releases the claim with a
 backoff (`retry_at`, migration 0008): no worker takes it for 5 seconds
 after the first failure and 15 after the second, so the next attempt
 follows promptly instead of after the claim timeout; the third failed
-attempt sets `failed` for good. The user sees the `error` either way. Credit is checked
-with core's `has_credit` before the upload is stored, before an image is
-read or a recording transcribed, before the embedding call and before the summary call; every user needs
-a positive balance, admins included (core's rule). The API pods never process
+attempt sets `failed` for good. The user sees the `error` either way.
+
+Adding a source never needs credit; processing does. Every user needs a
+positive balance, admins included (core's rule); the demo seeds are
+sponsored. The claim query takes a row only when its owner's balance
+(ledger minus usage, in the same SQL) is positive, so a source added
+without credit stays `processing` in the table, unclaimed and with no
+attempt counted, and the API shows it as `waiting_for_credit` in
+sources and library entries (never stored; core's `SourceStatus`). The
+moment the owner has credit again the next claim takes it: no hook on
+account's ledger, no periodic pass. The worker also checks credit before
+every model call (an image, a PDF page, a transcription, the
+embeddings, the summary); when it has run out, the source goes back to
+the queue the same way (claim released, attempt not counted, error
+cleared) instead of failing, and the work done so far is redone when it
+resumes. The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
 
@@ -248,7 +261,7 @@ language of the text in the image. Because that call is billed, the
 image loader is a `ModelLoader`: the worker checks the credit before it,
 and the loader hands the call's usage to the worker's `bill` callback as
 soon as it returns, which records a `usage` row of kind `llm` before the
-embedding and summary rows and stops the source when the credit is gone. The text is then chunked, embedded and summarized like any
+embedding and summary rows and puts the source back to wait when the credit is gone. The text is then chunked, embedded and summarized like any
 other source. A model refusing the image (HTTP 400) fails the source at
 once, and so does an empty answer (a blank image: "the image holds no
 readable content"), whose call is still recorded as usage; other

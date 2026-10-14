@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
 from lasteverlm_ingest.api.deps import (
+    CreditView,
     original_url,
     owned_notebook,
     owned_source,
@@ -33,7 +34,7 @@ from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture
 from lasteverlm_ingest.loaders.url import check_url
 from lasteverlm_ingest.repository import NewLibrarySource, StoredSource
-from lasteverlm_ingest.worker import CREDIT_EXHAUSTED, WorkerDeps
+from lasteverlm_ingest.worker import WorkerDeps
 
 router = APIRouter()
 
@@ -102,7 +103,9 @@ class SourceFromJson(BaseModel):
 
 
 class LinkedSource(Source):
-    """A source in a notebook, with the library source it links."""
+    """A source in a notebook, with the library source it links. `status`
+    is `waiting_for_credit` for a queued source whose owner has no credit
+    (shown, never stored)."""
 
     library_id: UUID
     capture: str | None = None
@@ -123,8 +126,9 @@ def _capture(value: object) -> Capture:
     return value
 
 
-def _out(source: StoredSource, storage: Storage) -> LinkedSource:
+def _out(source: StoredSource, storage: Storage, credit: CreditView) -> LinkedSource:
     out = LinkedSource.model_validate(source, from_attributes=True)
+    out.status = credit.status(source.status, source.demo)
     out.preview_url = preview_url(
         storage, source.kind, source.storage_path, source.url, source.transcribed_path
     )
@@ -165,7 +169,8 @@ def safe_name(filename: str) -> str:
 def list_sources(request: Request, user: CurrentUser, notebook_id: UUID) -> list[LinkedSource]:
     deps = worker_deps(request)
     owned_notebook(deps.repository, user, notebook_id)
-    return [_out(s, deps.storage) for s in deps.repository.list_sources(notebook_id)]
+    credit = CreditView(deps.repository, user)
+    return [_out(s, deps.storage, credit) for s in deps.repository.list_sources(notebook_id)]
 
 
 @router.post("/notebooks/{notebook_id}/sources", response_model=LinkedSource, status_code=202)
@@ -225,7 +230,7 @@ async def create_source(
             # their chunks are reused, nothing is processed or billed.
             if not repo.linkable(user, body.library_id):
                 raise HTTPException(status_code=404, detail="library source not found")
-            return _link(deps, response, notebook_id, body.library_id)
+            return _link(deps, response, user, notebook_id, body.library_id)
         assert body.url is not None
         if "url" not in deps.loaders.kinds:
             raise HTTPException(status_code=501, detail="URL sources are not supported yet")
@@ -250,12 +255,10 @@ async def create_source(
         if existing.status == "failed":
             # Uploading again is the user's way to retry.
             repo.retry_library_source(existing.id)
-        return _link(deps, response, notebook_id, existing.id)
+        return _link(deps, response, user, notebook_id, existing.id)
 
-    # Only a new library source costs anything (its processing).
-    if not repo.has_credit(user):
-        raise HTTPException(status_code=402, detail=CREDIT_EXHAUSTED)
-
+    # Adding is always allowed; processing needs credit. Without it the
+    # source is stored and queued, and waits (see the claim query).
     library_id = uuid4()
     key = object_key(user, library_id, "url" if kind == "url" else name)
     # The object first, the row after: a `processing` row is claimable the
@@ -290,16 +293,16 @@ async def create_source(
             deps.storage.delete(key)
     # Nothing else happens here: the library source is in the queue, a
     # worker claims it (see worker.run_worker).
-    return _link(deps, response, notebook_id, created.id)
+    return _link(deps, response, user, notebook_id, created.id)
 
 
 def _link(
-    deps: WorkerDeps, response: Response, notebook_id: UUID, library_id: UUID
+    deps: WorkerDeps, response: Response, user: UUID, notebook_id: UUID, library_id: UUID
 ) -> LinkedSource:
     source, new = deps.repository.link_source(notebook_id, library_id)
     if not new:
         response.status_code = 200
-    return _out(source, deps.storage)
+    return _out(source, deps.storage, CreditView(deps.repository, user))
 
 
 @router.delete("/sources/{source_id}", status_code=204)

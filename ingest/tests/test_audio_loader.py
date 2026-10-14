@@ -94,7 +94,7 @@ def test_no_credit_means_no_transcription():
     sid = _add_audio(repo, storage)
     process_source(sid, _audio_deps(repo, storage, transcriber))
     source = repo.library[sid]
-    assert source.status == "failed" and source.error == "credit exhausted"
+    assert source.status == "processing" and source.error is None
     assert transcriber.calls == [] and repo.usage == []
 
 

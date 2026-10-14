@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from lasteverlm_ingest.api.deps import (
+    CreditView,
     original_url,
     preview_url,
     repository,
@@ -22,8 +23,12 @@ from lasteverlm_ingest.repository import LibraryEntry, TrashEntry
 router = APIRouter()
 
 
-def _with_preview[E: (LibraryEntry, TrashEntry)](request: Request, entry: E) -> E:
+def _with_preview[E: (LibraryEntry, TrashEntry)](
+    request: Request, entry: E, credit: CreditView | None = None
+) -> E:
     storage = worker_deps(request).storage
+    if credit is not None:
+        entry.status = credit.status(entry.status, entry.demo)
     entry.preview_url = preview_url(
         storage, entry.kind, entry.storage_path, entry.url, entry.transcribed_path
     )
@@ -47,7 +52,8 @@ def list_library(
     if kind == "generated":
         return list(repository(request).list_generated(user))
     seed_if_new(request, user)
-    return [_with_preview(request, e) for e in repository(request).list_library(user)]
+    credit = CreditView(repository(request), user)
+    return [_with_preview(request, e, credit) for e in repository(request).list_library(user)]
 
 
 # Before /library/{library_id}, which would take "trash" for an id.
@@ -61,7 +67,7 @@ def get_library_entry(request: Request, user: CurrentUser, library_id: UUID) -> 
     entry = repository(request).get_library_entry(user, library_id)
     if entry is None:
         raise _not_found()
-    return _with_preview(request, entry)
+    return _with_preview(request, entry, CreditView(repository(request), user))
 
 
 @router.delete("/library/{library_id}", status_code=204)

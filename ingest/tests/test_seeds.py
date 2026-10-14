@@ -138,4 +138,5 @@ def test_the_demo_user_pays_for_processing_the_seeds():
     own = repo.add_source(nb.id, "own.txt", "text", "own")
     storage.put("own", b"my own text", "text/plain")
     process_source(own.library_id, d)
-    assert repo.library[own.library_id].error == "credit exhausted"
+    assert repo.library[own.library_id].status == "processing"  # waits for credit
+    assert repo.usage[-1].user_id == DEMO_USER_ID  # nothing billed to the new user

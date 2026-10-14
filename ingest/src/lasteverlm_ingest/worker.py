@@ -47,7 +47,9 @@ from lasteverlm_ingest.summarizer import Summarizer
 log = logging.getLogger(__name__)
 
 _ERROR_MAX = 500
-CREDIT_EXHAUSTED = "credit exhausted"
+# How the API shows a `processing` source whose owner has no credit: it
+# is not claimed until the owner has credit again (see the claim query).
+WAITING_FOR_CREDIT = "waiting_for_credit"
 # Backoff after a transient failure: 5 s after the first, 15 s after the second.
 RETRY_BASE_SECONDS = 5.0
 RETRY_FACTOR = 3.0
@@ -70,6 +72,12 @@ class ProcessingError(Exception):
     """A failure whose message is safe to show to the user."""
 
 
+class WaitForCredit(Exception):
+    """The owner's credit ran out: the source goes back to the queue
+    without counting the attempt and is claimed again once there is
+    credit."""
+
+
 def process_source(library_id: UUID, deps: WorkerDeps) -> None:
     repo = deps.repository
     source = repo.get_library_source(library_id)
@@ -78,6 +86,9 @@ def process_source(library_id: UUID, deps: WorkerDeps) -> None:
         return
     try:
         _run(source, deps)
+    except WaitForCredit:
+        log.info("library source %s waits for its owner's credit", library_id)
+        repo.wait_for_credit(library_id)
     except (LoaderError, ProcessingError) as exc:
         # Will not change on a retry: the source is failed at once.
         log.warning("library source %s failed: %s", library_id, exc)
@@ -142,7 +153,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         # pages): each one is recorded as it returns, and the next one is
         # only made while the owner still has credit.
         if not _has_credit(repo, source):
-            raise ProcessingError(CREDIT_EXHAUSTED)
+            raise WaitForCredit
 
         def bill(usage: Usage) -> None:
             _record(repo, source, notebook_id, usage)
@@ -150,7 +161,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
             # answered call shows the job is alive (see refresh_claim).
             repo.refresh_claim(source_id)
             if not _has_credit(repo, source):
-                raise ProcessingError(CREDIT_EXHAUSTED)
+                raise WaitForCredit
 
         passages = loader.load_billed(data, bill)
     else:
@@ -159,7 +170,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     if not chunks:
         raise ProcessingError("no text to index")
     if not _has_credit(repo, source):
-        raise ProcessingError(CREDIT_EXHAUSTED)
+        raise WaitForCredit
 
     vectors: list[list[float]] = []
     tokens = 0
@@ -184,7 +195,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     # and its own usage row. Without a summary the source is not usable by
     # the output generators, so a failure here fails the source.
     if not _has_credit(repo, source):
-        raise ProcessingError(CREDIT_EXHAUSTED)
+        raise WaitForCredit
     summary = deps.summarizer.summarize(source.name, passages)
     repo.record_usage(
         user_id=_payer(source),

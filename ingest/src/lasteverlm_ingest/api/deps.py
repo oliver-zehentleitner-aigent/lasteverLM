@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from typing import overload
 from uuid import UUID
 
 from fastapi import HTTPException, Request
-from lasteverlm_core import Notebook, Storage
+from lasteverlm_core import Notebook, SourceStatus, Storage
 
 from lasteverlm_ingest.repository import Repository, StoredSource
 from lasteverlm_ingest.seeds import ensure_seeded
-from lasteverlm_ingest.worker import WorkerDeps
+from lasteverlm_ingest.worker import WAITING_FOR_CREDIT, WorkerDeps
 
 
 def worker_deps(request: Request) -> WorkerDeps:
@@ -75,3 +76,28 @@ def original_url(
     if not transcribed_path or not storage_path:
         return None
     return storage.presigned_get(storage_path, download_name=name)
+
+
+class CreditView:
+    """How a listing shows a queued source: `processing` while its owner
+    has credit (or it is a sponsored demo seed), `waiting_for_credit`
+    otherwise; the worker does not claim it then (see the claim query).
+    The owner's credit is read at most once per request."""
+
+    def __init__(self, repo: Repository, owner: UUID) -> None:
+        self._repo = repo
+        self._owner = owner
+        self._credit: bool | None = None
+
+    @overload
+    def status(self, status: SourceStatus, demo: bool) -> SourceStatus: ...
+
+    @overload
+    def status(self, status: str, demo: bool) -> str: ...
+
+    def status(self, status: str, demo: bool) -> str:
+        if status != "processing" or demo:
+            return status
+        if self._credit is None:
+            self._credit = self._repo.has_credit(self._owner)
+        return status if self._credit else WAITING_FOR_CREDIT
