@@ -5,11 +5,15 @@ export class ApiError extends Error {
   readonly status: number
   /** the service's stable machine-readable `code`, when it sends one */
   readonly code: string | null
-  constructor(status: number, message: string, code: string | null = null) {
+  /** the failed response's body as JSON, for the few calls whose error
+   *  carries more than a sentence; null when it was not JSON */
+  readonly body: unknown
+  constructor(status: number, message: string, code: string | null = null, body: unknown = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.body = body
   }
 }
 
@@ -64,7 +68,7 @@ export async function requestWithStatus<T>(url: string, opts: RequestOptions = {
   if (res.status === 204) return { status: 204, body: undefined as T }
 
   const text = await res.text()
-  if (!res.ok) throw new ApiError(res.status, failureMessage(res.status, text), serviceCode(text))
+  if (!res.ok) throw new ApiError(res.status, failureMessage(res.status, text), serviceCode(text), jsonOrNull(text))
 
   if (!text) return { status: res.status, body: undefined as T }
   try {
@@ -121,3 +125,11 @@ export function serviceCode(bodyText: string): string | null {
  *  ingress in front of the services, plus the contract's codes as a
  *  fallback when a service answers without a message. */
 const STATUS_TEXT = new Set([400, 401, 402, 403, 404, 409, 413, 415, 422, 429, 500, 501, 502, 503, 504])
+
+function jsonOrNull(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return null
+  }
+}

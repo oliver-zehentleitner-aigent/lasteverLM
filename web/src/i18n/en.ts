@@ -511,6 +511,13 @@ export const en = {
   'audio.close': 'Close the player for {name}',
   'audio.transcribed': 'transcribed audio',
   'audio.original': 'original',
+  'adm.delUser.title': 'Delete user',
+  'adm.delUser.what': 'This deletes {email} and everything that belongs to the account: its notebooks, sources and generated documents, and its credit history. It cannot be undone.',
+  'adm.delUser.type': 'Type the e-mail address to confirm',
+  'adm.delUser.confirm': 'Delete user',
+  'adm.delUser.deleting': 'Deleting…',
+  'adm.delUser.failedStep': 'Not deleted: the step "{step}" failed ({message}). The user is still there; try again.',
+  'adm.delUser.of': 'Delete {email}',
 } as const
 
 export type MessageKey = keyof typeof en

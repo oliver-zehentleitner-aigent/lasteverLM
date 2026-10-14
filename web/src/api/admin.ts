@@ -1,5 +1,5 @@
 import { ACCOUNT_PREFIX, ADMIN_MOCK, INGEST_PREFIX, RAG_PREFIX } from '../config'
-import { request } from './client'
+import { ApiError, request } from './client'
 import type {
   AccessEntry,
   AccountDay,
@@ -52,6 +52,10 @@ export interface AdminApi {
   addAllowed(kind: AllowKind, value: string): Promise<Allowlist>
   /** admin only; 409 for the last admin or the demo user */
   setRole(userId: string, role: UserRole): Promise<AdminUser>
+  /** The account and everything it owns, in every service. 409 for the
+   *  caller's own account and the demo user; 502 with `{step, message}`
+   *  when a service failed, and then the user is still there. */
+  deleteUser(userId: string): Promise<void>
   removeAllowed(kind: AllowKind, value: string): Promise<void>
   /** Codes are shown once; the server stores only their hashes. */
   createVouchers(amountCents: number, count: number): Promise<string[]>
@@ -85,6 +89,7 @@ const httpAdmin: AdminApi = {
   ragDaily: (days) => request<{ days: RagDay[] }>(`${RAG_PREFIX}/admin/stats/daily?days=${days}`).then((r) => r.days),
   listUsers: () => request<AdminUser[]>(`${A}/users`),
   setRole: (userId, role) => request<AdminUser>(`${A}/users/${encodeURIComponent(userId)}`, { method: 'PATCH', json: { role } }),
+  deleteUser: (userId) => request<void>(`${A}/users/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
   listLogins: (limit) => request<LoginEvent[]>(`${A}/logins?limit=${limit}`),
   listLoginAttempts: (limit) => request<LoginAttempt[]>(`${A}/login-attempts?limit=${limit}`),
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
@@ -232,6 +237,14 @@ function mockAdmin(): AdminApi {
       if (u.role === 'admin' && role !== 'admin' && users.filter((x) => x.role === 'admin').length === 1) return Promise.reject(new Error('the last admin cannot be demoted'))
       Object.assign(u, { role, is_admin: role === 'admin' })
       return delay({ ...u })
+    },
+    deleteUser: (userId) => {
+      const i = users.findIndex((x) => x.id === userId)
+      // the mock's signed-in admin is the first user
+      if (i === 0) return Promise.reject(new ApiError(409, 'you cannot delete your own account'))
+      if (i < 0) return Promise.reject(new ApiError(404, 'unknown user'))
+      users.splice(i, 1)
+      return delay(undefined)
     },
     listLogins: (limit) => delay(logins.slice(0, limit)),
     listLoginAttempts: (limit) => delay(attempts.slice(0, limit)),
