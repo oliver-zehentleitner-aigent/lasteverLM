@@ -823,9 +823,12 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 /* admin finance: its pages as pills, the shared date range, the price table */
 .finance-nav { margin: 0.25rem 0 0.75rem; }
 .finance-nav a.preset { text-decoration: none; }
-.range-picker { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4rem 0.75rem; margin-bottom: 0.75rem; }
-.range-picker label { flex-direction: row; align-items: center; gap: 0.35rem; }
+/* one row, one height: pills, labels and date fields at the inputs' 2.3rem, centred on one line */
+.range-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin-bottom: 0.75rem; }
+.range-picker .preset { height: 2.3rem; box-sizing: border-box; padding: 0 0.7rem; font-size: 0.9em; border: 1px solid var(--line); border-radius: var(--radius); }
+.range-picker label { flex-direction: row; align-items: center; gap: 0.35rem; height: 2.3rem; margin: 0; }
 .range-picker input[type='date'] { width: auto; }
+.range-picker .preset.active { border-color: var(--accent); }
 label.inline { flex-direction: row; align-items: center; gap: 0.4rem; margin: 0.3rem 0; }
 label.inline select, label.inline input { width: auto; }
 input.narrow { width: 6.5rem; }

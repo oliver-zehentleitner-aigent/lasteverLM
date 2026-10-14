@@ -7,7 +7,8 @@ import { useLoad } from '../../hooks/useLoad'
 import { FINANCE_PAGES, financePageFromPath, financePath, type FinancePageId } from '../../lib/adminPages'
 import { formatTime } from '../../lib/format'
 import { rateLine } from '../../lib/exchangeRate'
-import { charge, formatMoney, lastDays } from '../../lib/money'
+import { charge, exactMoney, formatMoney, lastDays } from '../../lib/money'
+import { Money } from '../Money'
 import { t } from '../../i18n'
 import { useCanWrite } from './canWrite'
 import { Vouchers } from './Credits'
@@ -99,7 +100,7 @@ function CostsPage({ range }: { range: Range }) {
       {error && <p className="error">{error}</p>}
       {data && (
         <>
-          <p>
+          <p title={t('fin.costTotals', { cost: exactMoney(data.total_cost_cents), usd: exactMoney(data.total_cost_usd_cents, 'USD'), charge: exactMoney(data.total_charge_cents) })}>
             {t('fin.costTotals', { cost: eur(data.total_cost_cents), usd: usd(data.total_cost_usd_cents), charge: eur(data.total_charge_cents) })}
           </p>
           <Table
@@ -108,9 +109,9 @@ function CostsPage({ range }: { range: Range }) {
               r.key,
               r.calls,
               r.actions,
-              eur(r.cost_cents),
-              usd(r.cost_usd_cents),
-              eur(r.charge_cents),
+              <Money key="cost_cents" cents={r.cost_cents} />,
+              <Money key="cost_usd_cents" cents={r.cost_usd_cents} currency="USD" />,
+              <Money key="charge_cents" cents={r.charge_cents} />,
               r.cost_cents > 0 ? `${Math.round(((r.charge_cents - r.cost_cents) / r.cost_cents) * 100)} %` : '—',
             ])}
           />
@@ -279,7 +280,7 @@ function PricesPage() {
                             <code>{a}</code>
                           </td>
                           <td>{p?.actions ?? 0}</td>
-                          <td>{p?.avg_cost_cents == null ? '—' : eur(p.avg_cost_cents)}</td>
+                          <td>{p?.avg_cost_cents == null ? '—' : <Money cents={p.avg_cost_cents} />}</td>
                           <td>
                             <input type="number" className="narrow" min={0} max={1000} placeholder={String(draft.default_margin_pct)} value={rule.margin_pct ?? ''} aria-label={t('fin.price.marginOf', { action: a })} onChange={(e) => setAction(a, { margin_pct: num(e.target.value) })} />
                           </td>
@@ -341,10 +342,10 @@ function RevenuePage({ range, onPrices }: { range: Range; onPrices: () => void }
         {revError && <p className="error">{revError}</p>}
         {rev && (
           <div className="stat-grid finance-tiles">
-            <Tile label={t('fin.rev.charged')} value={eur(rev.charged_cents)} detail={t('fin.rev.demo', { value: eur(rev.demo_charged_cents) })} />
-            <Tile label={t('fin.rev.paidIssued')} value={eur(rev.vouchers.issued_paid_cents)} detail={t('fin.rev.redeemed', { value: eur(rev.vouchers.redeemed_paid_cents) })} />
-            <Tile label={t('fin.rev.freeIssued')} value={eur(rev.vouchers.issued_free_cents)} detail={t('fin.rev.redeemed', { value: eur(rev.vouchers.redeemed_free_cents) })} />
-            <Tile label={t('fin.rev.outstanding')} value={eur(rev.outstanding_credit_cents)} />
+            <Tile label={t('fin.rev.charged')} cents={rev.charged_cents} detail={t('fin.rev.demo', { value: eur(rev.demo_charged_cents) })} />
+            <Tile label={t('fin.rev.paidIssued')} cents={rev.vouchers.issued_paid_cents} detail={t('fin.rev.redeemed', { value: eur(rev.vouchers.redeemed_paid_cents) })} />
+            <Tile label={t('fin.rev.freeIssued')} cents={rev.vouchers.issued_free_cents} detail={t('fin.rev.redeemed', { value: eur(rev.vouchers.redeemed_free_cents) })} />
+            <Tile label={t('fin.rev.outstanding')} cents={rev.outstanding_credit_cents} />
           </div>
         )}
         <p className="muted small">{t('fin.rev.note')}</p>
@@ -369,10 +370,10 @@ function RevenuePage({ range, onPrices }: { range: Range; onPrices: () => void }
             head={[t(`fin.group.${group}`), t('fin.col.charged'), t('fin.col.modelCost'), t('fin.col.infra'), t('fin.col.profit'), t('fin.col.demo')]}
             rows={[...profit.rows, ...(profit.total ? [{ ...profit.total, period: t('fin.total') }] : [])].map((r) => [
               r.period,
-              eur(r.charged_cents),
-              eur(r.model_cost_cents),
-              r.infra_cost_cents === null ? <span key="infra" className="muted">{t('fin.needsRate')}</span> : eur(r.infra_cost_cents),
-              r.profit_cents === null ? <span key="profit" className="muted">{t('fin.needsRate')}</span> : <strong key="profit" className={r.profit_cents < 0 ? 'loss' : undefined}>{eur(r.profit_cents)}</strong>,
+              <Money key="charged_cents" cents={r.charged_cents} />,
+              <Money key="model_cost_cents" cents={r.model_cost_cents} />,
+              r.infra_cost_cents === null ? <span key="infra" className="muted">{t('fin.needsRate')}</span> : <Money key="infra_cost_cents" cents={r.infra_cost_cents} />,
+              r.profit_cents === null ? <span key="profit" className="muted">{t('fin.needsRate')}</span> : <strong key="profit" className={r.profit_cents < 0 ? 'loss' : undefined}><Money cents={r.profit_cents} /></strong>,
               t('fin.demoCell', { charged: eur(r.demo_charged_cents), cost: eur(r.demo_cost_cents) }),
             ])}
           />
@@ -382,10 +383,13 @@ function RevenuePage({ range, onPrices }: { range: Range; onPrices: () => void }
   )
 }
 
-function Tile({ label, value, detail }: { label: string; value: string; detail?: string }) {
+/** A finance tile: the amount by the one rule, its exact value as tooltip. */
+function Tile({ label, cents, detail }: { label: string; cents: number; detail?: string }) {
   return (
     <div className="stat">
-      <span className="stat-value">{value}</span>
+      <span className="stat-value">
+        <Money cents={cents} />
+      </span>
       <span className="muted small">{label}</span>
       {detail && <span className="muted small">{detail}</span>}
     </div>
@@ -472,8 +476,8 @@ function InfraPage({ range }: { range: Range }) {
               x.date,
               x.item,
               t(`fin.source.${x.source}`),
-              formatMoney(x.amount_cents, x.currency),
-              x.amount_eur_cents === null ? <span key="eur" className="muted">{t('fin.needsRate')}</span> : eur(x.amount_eur_cents),
+              <Money key="amount_cents" cents={x.amount_cents} currency={x.currency} />,
+              x.amount_eur_cents === null ? <span key="eur" className="muted">{t('fin.needsRate')}</span> : <Money key="amount_eur_cents" cents={x.amount_eur_cents} />,
               x.source === 'manual' && canWrite ? (
                 <button key="del" type="button" className="link danger" disabled={busy} onClick={() => void remove(x.id, x.item)}>
                   {t('common.delete')}
