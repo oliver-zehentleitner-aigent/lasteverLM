@@ -41,7 +41,7 @@ export KUBECONFIG := $(BUILD)/kubeconfig
 # $(call require,VAR) fails loud when VAR is unset or empty.
 require = $(if $(strip $($(1))),,$(error $(1) is not set))
 
-.PHONY: tag-check help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations deploy package status down check test smoke web-csp-check local-up local-down local-reset local-smoke
+.PHONY: tag-check help up vke-versions env kubeconfig bucket platform secrets db-trust db-bootstrap migrations deploy package status down check test smoke web-csp-check handbook local-up local-down local-reset local-smoke
 
 help: ## list targets
 > @grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s $$'\t'
@@ -195,6 +195,12 @@ web-csp-check: ## walk the web image in headless Chromium against URL, list ever
 > $(call require,URL)
 > $(call require,DEMO_TOKEN)
 > API_URL=$(URL) REPO_ROOT=$(REPO_ROOT) PLAYWRIGHT_IMAGE=$(PLAYWRIGHT_IMAGE) PLAYWRIGHT_VERSION=$(PLAYWRIGHT_VERSION) sh scripts/web-csp-check.sh
+
+# Markdown to HTML for the handbook, in the Playwright image.
+MARKED_VERSION := 18.0.14
+
+handbook: ## render build/lasteverlm-handbook.pdf from the repository's docs (Docker; title page with the latest tag, contents, A4, page numbers)
+> OUT_DIR=$(CURDIR)/build REPO_ROOT=$(REPO_ROOT) PLAYWRIGHT_IMAGE=$(PLAYWRIGHT_IMAGE) PLAYWRIGHT_VERSION=$(PLAYWRIGHT_VERSION) MARKED_VERSION=$(MARKED_VERSION) sh scripts/handbook.sh
 
 smoke: ## end-to-end smoke test against URL (default https://<domain in VALUES>; token from DEMO_TOKEN; SMOKE_ARGS="--host d --insecure" before DNS exists)
 > $(call require,URL)
