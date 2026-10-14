@@ -35,6 +35,8 @@ repository root's `context/`.
 
 - [core.md](core.md) — core installed from `../core` as a uv path source; the account service purges core's rate-limit tables at start; the superseded tuple-row detour; the rate-limit rule written by account and read by every service
 
+- [credits.md](credits.md) — voucher codes stored AES-GCM-encrypted under a key outside the database, beside the hash the redeem uses
+
 ## D
 
 - [deletion.md](deletion.md) — deleting a user is an orchestrated hard delete: rag and ingest purge first on the admin's bearer, account deletes its rows last
