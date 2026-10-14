@@ -99,6 +99,15 @@ they existed have them as `null`. `GET /api/rag/chunks/{chunk_id}`
 returns one chunk for its owner (`{"chunk_id", "source_id",
 "source_name", "source_kind", "page", "chunk_index", "chunk_count",
 "text"}`, 404 otherwise), so a reader can open the exact passage.
+An answer that cites goes through the same support check as a generated
+output (see Provenance): `units` holds one `{"text", "refs", "support"}`
+per paragraph (its text as in `answer`, markers included) and `check`
+the counts; both are stored with the assistant message and are `null`
+for an answer without citations (one from the document list, the
+refusal) and for messages from before. An answer in another language
+than its cited passages (told apart by frequent English and German
+words) is "translated": a paragraph with low overlap there is
+`unverified`, not `unsupported`.
 Text from the user's files is data in every prompt: both system prompts
 say so, a name (file, document, notebook) is one line of at most 120
 characters, and marker-shaped text in sources and summaries (`[2]`,
@@ -328,7 +337,9 @@ into one conversation `Chat 1`; `0003_rag_output_options.sql` adds
 generated library row instead of its link (expand only: `owner` stays
 nullable for pods of the previous release, and reads fall back to the
 notebook's owner); `0005_rag_output_provenance.sql` adds
-`outputs.provenance`, the generation log. The migrations runner applies them after
+`outputs.provenance`, the generation log; `0006_rag_message_support.sql`
+adds `messages.support` (`{"units", "check"}` of an answer). The
+migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
 `chunks`. A library source is a file, text, URL or image processed once

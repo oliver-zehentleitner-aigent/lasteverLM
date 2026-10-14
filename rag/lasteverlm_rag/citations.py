@@ -158,6 +158,25 @@ _STOPWORDS = frozenset("""
     """.split())
 
 
+# A few words frequent in one of the two languages and absent from the other,
+# enough to tell an English text from a German one; anything else is unknown.
+_ENGLISH = frozenset("the and is are was were this that with which of to in it".split())
+_GERMAN = frozenset("der die das und ist sind war nicht mit ein eine zu im den dem".split())
+
+
+def language_of(text: str) -> str | None:
+    """``en``, ``de`` or ``None`` when the text says too little to tell:
+    one language's marker words must outnumber the other's twice."""
+    words = _WORD.findall(text.lower())
+    english = sum(w in _ENGLISH for w in words)
+    german = sum(w in _GERMAN for w in words)
+    if english >= 3 and english >= 2 * german:
+        return "en"
+    if german >= 3 and german >= 2 * english:
+        return "de"
+    return None
+
+
 def content_words(text: str) -> set[str]:
     words = set()
     for raw in _WORD.findall(strip_markers(text).lower()):

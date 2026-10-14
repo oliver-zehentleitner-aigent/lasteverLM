@@ -167,7 +167,9 @@ class FakeStore:
         rows = [m for m in self.messages if m["conversation_id"] == conversation_id]
         return [self._message(m) for m in (rows[-last:] if last else rows)]
 
-    def insert_message(self, notebook_id, conversation_id, role, content, citations) -> Message:
+    def insert_message(
+        self, notebook_id, conversation_id, role, content, citations, support=None
+    ) -> Message:
         row = {
             "id": str(uuid.uuid4()),
             "notebook_id": notebook_id,
@@ -175,6 +177,7 @@ class FakeStore:
             "role": role,
             "content": content,
             "citations": citations,
+            "support": support,
             "created_at": f"2026-01-01T00:00:{len(self.messages) % 60:02d}Z",
         }
         self.messages.append(row)
@@ -182,7 +185,16 @@ class FakeStore:
 
     @staticmethod
     def _message(row: dict[str, Any]) -> Message:
-        return Message.model_validate({**row, "citations": row["citations"] or []})
+        support = row.get("support") or {}
+        fields = {k: v for k, v in row.items() if k != "support"}
+        return Message.model_validate(
+            {
+                **fields,
+                "citations": row["citations"] or [],
+                "units": support.get("units"),
+                "check": support.get("check"),
+            }
+        )
 
     # outputs
     def create_output(

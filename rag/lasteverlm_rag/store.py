@@ -89,6 +89,7 @@ class Store(Protocol):
         role: str,
         content: str,
         citations: list[dict[str, Any]] | None,
+        support: dict[str, Any] | None = None,
     ) -> Message: ...
 
     # outputs
@@ -388,7 +389,8 @@ class PostgresStore:
         """Oldest first; with ``last``, only the newest ``last`` messages."""
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "select * from (select id::text as id, role, content, citations, created_at "
+                "select * from (select id::text as id, role, content, citations, support, "
+                "created_at "
                 "from messages where conversation_id = %s "
                 "order by created_at desc, id desc limit %s) m order by created_at, id",
                 (conversation_id, last),
@@ -402,13 +404,23 @@ class PostgresStore:
         role: str,
         content: str,
         citations: list[dict[str, Any]] | None,
+        support: dict[str, Any] | None = None,
     ) -> Message:
         with self._pool.connection() as conn:
             row = conn.execute(
-                "insert into messages (id, notebook_id, conversation_id, role, content, citations) "
-                "values (%s, %s, %s, %s, %s, %s) "
-                "returning id::text as id, role, content, citations, created_at",
-                (_new_id(), notebook_id, conversation_id, role, content, _jsonb(citations)),
+                "insert into messages "
+                "(id, notebook_id, conversation_id, role, content, citations, support) "
+                "values (%s, %s, %s, %s, %s, %s, %s) "
+                "returning id::text as id, role, content, citations, support, created_at",
+                (
+                    _new_id(),
+                    notebook_id,
+                    conversation_id,
+                    role,
+                    content,
+                    _jsonb(citations),
+                    _jsonb(support),
+                ),
             ).fetchone()
         assert row is not None
         return _to_message(row)
@@ -789,7 +801,16 @@ def _jsonb(value: Any) -> Any:
 
 
 def _to_message(row: dict[str, Any]) -> Message:
-    return Message.model_validate({**row, "citations": row.get("citations") or []})
+    support = row.get("support") or {}
+    fields = {k: v for k, v in row.items() if k != "support"}
+    return Message.model_validate(
+        {
+            **fields,
+            "citations": row.get("citations") or [],
+            "units": support.get("units"),
+            "check": support.get("check"),
+        }
+    )
 
 
 def _str_or_none(value: Any) -> str | None:
