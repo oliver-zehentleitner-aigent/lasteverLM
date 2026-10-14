@@ -67,7 +67,7 @@ repository root's `context/`.
 
 ## S
 
-- [security.md](security.md) — response headers of the web image, the Content-Security-Policy behind a build switch (off, report, enforce) with the inline script's hash derived at build (frame-ancestors-only superseded)
+- [security.md](security.md) — response headers of the web image, the Content-Security-Policy behind a build switch (off, report, enforce) with the inline script's hash derived at build (frame-ancestors-only superseded), the sign-in code field exchanging the mail's code instead of taking a Bearer token
 
 ## T
 
