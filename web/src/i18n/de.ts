@@ -892,7 +892,6 @@ export const de: Record<MessageKey, string> = {
   'fin.rate.checkNow': 'Jetzt prüfen',
   'fin.rate.stale': 'Seit mehr als drei Tagen keine erfolgreiche EZB-Prüfung; der Kurs ist womöglich veraltet.',
   'fin.rate.error': 'Letzte Prüfung fehlgeschlagen: {error}',
-  'prices.label': 'Preise',
   'prices.title': 'Was es kostet',
   'prices.intro': 'Alle Preise sind in Euro und beruhen darauf, was diese Aktionen in den letzten {days} Tagen wirklich gebraucht haben, zu den heutigen Preisen. Die Schätzung für deine eigene Auswahl siehst du vor jeder Aktion.',
   'prices.group.sources': 'Quellen',
@@ -936,4 +935,5 @@ export const de: Record<MessageKey, string> = {
   'prices.judgeNote': 'Die Judge-Zeilen sind eine Prüfung, die du für eine bestehende Ausgabe oder Chat-Antwort anforderst. Ein beim Erstellen einer Ausgabe gewählter Judge ist im Preis der Ausgabe enthalten.',
   'vch.paidVoucher': 'Bezahlter Gutschein',
   'vch.notRecoverableShort': 'Code nicht aufbewahrt (vor 0.18)',
+  'prices.signIn': 'Anmelden',
 }

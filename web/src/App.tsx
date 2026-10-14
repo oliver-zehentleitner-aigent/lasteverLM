@@ -11,7 +11,7 @@ import { LibraryPage } from './components/LibraryPage'
 import { SettingsPage } from './components/SettingsPage'
 import { LoginPage } from './components/LoginPage'
 import { SharePage, SharedNotebookPage } from './components/SharePage'
-import { PricesPage } from './components/PricesPage'
+import { PriceList, PricesPage } from './components/PricesPage'
 import { VoucherDialog } from './components/VoucherDialog'
 import { Workspace } from './components/Workspace'
 import { MeContext } from './hooks/useMe'
@@ -92,7 +92,8 @@ export default function App() {
 
   if (route.name === 'shared') return <SharePage token={route.token} />
   if (route.name === 'shared-notebook') return <SharedNotebookPage token={route.token} />
-  if (route.name === 'prices') return <PricesPage />
+  // public: without a session the reduced header, with one the app's own
+  if (route.name === 'prices' && session.state === 'anonymous') return <PricesPage />
   if (route.name === 'auth-callback') return <AuthCallback token={route.token} onDone={loggedIn} />
   if (session.state === 'anonymous') return <LoginPage onLoggedIn={loggedIn} />
   if (session.state === 'checking') return <main className="login"><p className="muted">{t('common.loading')}</p></main>
@@ -100,7 +101,7 @@ export default function App() {
   const me = session.me
   const adminPage = route.name === 'admin' && canSeeAdmin(me) ? route.page : null
   const setMe = (u: User) => setSession({ state: 'in', me: u })
-  const headerRoute = adminPage ? 'admin' : route.name === 'library' || route.name === 'settings' ? route.name : 'home'
+  const headerRoute = adminPage ? 'admin' : route.name === 'library' || route.name === 'settings' || route.name === 'prices' ? route.name : 'home'
 
   return (
     <MeContext.Provider value={{ me, setMe }}>
@@ -113,6 +114,10 @@ export default function App() {
       />
       {adminPage ? (
         <AdminPage page={adminPage} canWrite={canWriteAdmin(me)} onNavigate={navigate} />
+      ) : route.name === 'prices' ? (
+        <main className="prices-page">
+          <PriceList />
+        </main>
       ) : route.name === 'settings' ? (
         <SettingsPage />
       ) : route.name === 'library' ? (
