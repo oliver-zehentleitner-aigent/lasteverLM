@@ -40,6 +40,7 @@ from lasteverlm_ingest.repository import (
     NotebookUse,
     Origin,
     OwnedNotebook,
+    ProcessResult,
     StarterRef,
     StarterSource,
     StoredSource,
@@ -247,6 +248,24 @@ class InMemoryRepository:
         assert self.library[lib.library_id].owner == owner
         return lib.library_id
 
+    def queue_for_processing(self, owner, library_ids):
+        missing = [
+            i
+            for i in library_ids
+            if (lib := self.library.get(i)) is None or lib.owner != owner or lib.deleted_at
+        ]
+        if missing:
+            return ProcessResult(missing=missing)
+        result = ProcessResult()
+        for library_id in library_ids:
+            lib = self.library[library_id]
+            if lib.status == "added":
+                self.library[library_id] = lib.model_copy(update={"status": "processing"})
+                result.queued.append(library_id)
+            else:
+                result.unchanged.append(library_id)
+        return result
+
     def link_many(self, owner, notebook_id, library_ids):
         missing = [i for i in library_ids if not self.linkable(owner, i)]
         if missing:
@@ -293,7 +312,7 @@ class InMemoryRepository:
         for lib in self.library.values():
             if lib.owner == new.owner and lib.dedupe_key == new.dedupe_key:
                 return lib
-        lib = LibrarySource(**new.model_dump(), status="processing", created_at=datetime.now(UTC))
+        lib = LibrarySource(**new.model_dump(), status="added", created_at=datetime.now(UTC))
         self.library[lib.id] = lib
         return lib
 
@@ -354,7 +373,7 @@ class InMemoryRepository:
         lib = self.library[library_id]
         if lib.status == "failed":
             self.library[library_id] = lib.model_copy(
-                update={"status": "processing", "error": None, "attempts": 0}
+                update={"status": "added", "error": None, "attempts": 0}
             )
             self.claimed.pop(library_id, None)
             self.retry_at.pop(library_id, None)
@@ -581,7 +600,7 @@ class InMemoryRepository:
 
     def admin_stats(self, stale_after_seconds: int) -> AdminStats:
         listed = [lib for lib in self.library.values() if self._listed(lib)]
-        counts = {status: 0 for status in ("processing", "ready", "failed")}
+        counts = {status: 0 for status in ("added", "processing", "ready", "failed")}
         for lib in listed:
             counts[lib.status] += 1
         running = sum(1 for lib in listed if lib.status == "processing" and lib.id in self.claimed)

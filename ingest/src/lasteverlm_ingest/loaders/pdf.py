@@ -68,6 +68,18 @@ def legible(page: str) -> bool:
     return bool(visible) and sum(c.isalpha() for c in visible) >= MIN_LETTER_SHARE * len(visible)
 
 
+def pdf_page_count(data: bytes) -> int | None:
+    """The number of pages, for estimating what reading the PDF costs; None
+    when it cannot be read here (the worker then fails it with the reason)."""
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        return None if reader.is_encrypted else len(reader.pages)
+    except Exception:
+        # Only an estimate: any file pypdf cannot count is read (and, if
+        # broken, failed with the reason) by the worker.
+        return None
+
+
 def has_text(page: str) -> bool:
     """A usable text layer: enough characters, and legible ones."""
     return sum(not c.isspace() for c in page) >= MIN_PAGE_CHARS and legible(page)

@@ -114,7 +114,8 @@ def client(repo, storage, embedder, summarizer, vision_chat, checks) -> TestClie
 
 @pytest.fixture
 def run_queue(repo, storage, embedder, summarizer, vision_chat):
-    """Process everything currently queued, the way a worker pod would."""
+    """Read every source added so far, the way a worker pod would once
+    they are used."""
     import threading
 
     from lasteverlm_ingest.main import build_worker_deps
@@ -130,6 +131,11 @@ def run_queue(repo, storage, embedder, summarizer, vision_chat):
     )
 
     def run() -> int:
+        # Sources are read when used: ask for every unread one first, as rag
+        # (before an answer) or the web's "read now" would.
+        for lib in list(repo.library.values()):
+            if lib.status == "added":
+                repo.queue_for_processing(lib.owner, [lib.id])
         return run_worker(deps, threading.Event(), worker_id="test", max_jobs=repo.pending())
 
     return run

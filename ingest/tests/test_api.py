@@ -96,7 +96,7 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
     assert r.status_code == 202, r.text
     body = r.json()
     assert body["kind"] == "text" and body["name"] == "notes.txt" and body["notebook_id"] == nb
-    assert body["status"] == "processing"
+    assert body["status"] == "added"  # stored, read when used
     assert set(body) == {
         "id",
         "notebook_id",
@@ -116,8 +116,8 @@ def test_upload_text_source_is_queued_then_processed(client, repo, storage, embe
     assert list(storage.objects) == [f"{DEMO_USER_ID}/{body['library_id']}/notes.txt"]
     assert embedder.calls == [] and repo.usage == []
     listed = client.get(f"/api/ingest/notebooks/{nb}/sources").json()
-    assert listed[0]["status"] == "processing"
-    # A worker picks it up.
+    assert listed[0]["status"] == "added" and repo.pending() == 0
+    # Used (asked for), a worker picks it up.
     assert run_queue() == 1
     listed = client.get(f"/api/ingest/notebooks/{nb}/sources").json()
     assert len(listed) == 1 and listed[0]["status"] == "ready"
@@ -161,7 +161,7 @@ def test_url_source_stores_the_url_for_the_worker(client, storage):
     r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"url": url})
     assert r.status_code == 202
     body = r.json()
-    assert body["kind"] == "url" and body["name"] == url and body["status"] == "processing"
+    assert body["kind"] == "url" and body["name"] == url and body["status"] == "added"
     assert storage.objects == {f"{DEMO_USER_ID}/{body['library_id']}/url": url.encode()}
 
 
@@ -192,9 +192,12 @@ def test_without_credit_a_source_is_stored_and_waits_until_there_is_credit(clien
     nb = _notebook(client)
     url = f"/api/ingest/notebooks/{nb}/sources"
     r = client.post(url, files={"file": ("a.txt", b"text", "text/plain")})
-    # Adding is always allowed: stored, queued, shown as waiting.
-    assert r.status_code == 202 and r.json()["status"] == "waiting_for_credit"
+    # Adding is always allowed and free: stored, not read yet.
+    assert r.status_code == 202 and r.json()["status"] == "added"
     lib = UUID(r.json()["library_id"])
+    # Asked for without credit: queued, shown as waiting.
+    process = client.post("/api/ingest/sources/process", json={"library_ids": [str(lib)]})
+    assert process.json() == {"queued": [str(lib)], "unchanged": []}
     assert len(storage.objects) == 1 and repo.library[lib].status == "processing"
     assert [s["status"] for s in client.get(url).json()] == ["waiting_for_credit"]
     [entry] = client.get("/api/ingest/library").json()
@@ -271,6 +274,7 @@ def test_a_missing_exchange_rate_is_shown_on_every_queued_source(client, repo):
     nb = client.post("/api/ingest/notebooks", json={"title": "nb"}).json()["id"]
     url = f"/api/ingest/notebooks/{nb}/sources"
     lib = client.post(url, files={"file": ("a.txt", b"text", "text/plain")}).json()["library_id"]
+    client.post("/api/ingest/sources/process", json={"library_ids": [lib]})
     rules, repo.rules = repo.rules, PricingRules()
     reason = "pricing has no exchange rate, ask an admin"
     [source] = client.get(url).json()

@@ -99,9 +99,13 @@ def _user(repo: PostgresRepository, preferences: str = "{}", cents: int = 1000) 
     return user
 
 
-def _library(repo: PostgresRepository, owner: UUID, key: str | None = None, **fields):
+def _library(
+    repo: PostgresRepository, owner: UUID, key: str | None = None, queued: bool = True, **fields
+):
+    """A library source of `owner`; `queued` asks for it to be read (as rag
+    would when it is used), otherwise it stays `added`."""
     library_id = uuid4()
-    return repo.create_library_source(
+    created = repo.create_library_source(
         NewLibrarySource(
             id=library_id,
             owner=owner,
@@ -114,6 +118,12 @@ def _library(repo: PostgresRepository, owner: UUID, key: str | None = None, **fi
             **fields,
         )
     )
+    if queued and created.id == library_id:
+        repo.queue_for_processing(owner, [created.id])
+        refreshed = repo.get_library_source(created.id)
+        assert refreshed is not None
+        return refreshed
+    return created
 
 
 def _generated(repo: PostgresRepository, notebook_id: UUID, owner: UUID) -> UUID:
@@ -407,6 +417,22 @@ def test_list_chunks_in_order_and_paged(repo):
     assert page[0].chunk_id == chunks[1].chunk_id
 
 
+def test_a_new_source_is_added_and_read_only_when_queued(repo):
+    _claim_all(repo)
+    owner, stranger = _user(repo), _user(repo)
+    entry = _library(repo, owner, queued=False, kind="pdf", page_count=12)
+    assert entry.status == "added" and _claim_all(repo) == set()
+    assert entry.page_count == 12 and entry.duration_seconds is None
+    theirs = _library(repo, stranger, queued=False)
+    refused = repo.queue_for_processing(owner, [entry.id, theirs.id])
+    assert refused.missing == [theirs.id] and repo.get_library_source(entry.id).status == "added"
+    done = repo.queue_for_processing(owner, [entry.id])
+    assert (done.queued, done.unchanged) == ([entry.id], [])
+    again = repo.queue_for_processing(owner, [entry.id])
+    assert (again.queued, again.unchanged) == ([], [entry.id])
+    assert _claim_all(repo) == {entry.id}
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)
@@ -540,8 +566,10 @@ def test_retry_after_failure_resets_the_row(repo):
     repo.set_library_status(entry.id, "failed", "boom")
     repo.retry_library_source(entry.id)
     source = repo.get_library_source(entry.id)
-    assert source is not None and source.status == "processing" and source.error is None
-    assert source.attempts == 0
+    # Back to unread, the backoff and the attempts cleared; read when used.
+    assert source is not None and source.status == "added" and source.error is None
+    assert source.attempts == 0 and _claim_all(repo) == set()
+    repo.queue_for_processing(source.owner, [entry.id])
     assert _claim_all(repo) == {entry.id}
 
 
