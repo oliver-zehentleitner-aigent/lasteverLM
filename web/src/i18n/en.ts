@@ -928,6 +928,8 @@ export const en = {
   'settings.prices': 'What things cost: the price list',
   'prices.action.judgeLevel': 'Judge, {level}',
   'prices.judgeNote': 'The judge rows are a check you ask for on an existing output or chat answer. A judge chosen while creating an output is included in that output\'s price.',
+  'vch.paidVoucher': 'Paid voucher',
+  'vch.notRecoverableShort': 'code not kept (before 0.18)',
 } as const
 
 export type MessageKey = keyof typeof en
