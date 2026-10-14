@@ -451,3 +451,28 @@ new source would start unticked until the user noticed.
 **Rejected alternative:** sending an empty list when nothing is ticked.
 Rejected for the reason above: the request would mean the opposite of
 what the screen shows.
+
+## Deleting a notebook with "delete them too" trashes its documents in rag before ingest deletes the notebook
+
+**Id:** f372b0d1-2501-469f-8d60-370365d0bbbe
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the family lead, 2026-10-14 (documents become library items; deleting a notebook asks whether they go too or stay); rag's contract (`DELETE /api/rag/notebooks/{id}/outputs`, the notebook reference set to null by a foreign key when ingest deletes the notebook); the order was this directory's call
+**Revisit when:** one service deletes a notebook and its documents together, or the documents' delete can run after the notebook is gone
+
+With "delete them too" the web first calls rag to move the notebook's
+documents to the trash, then ingest's notebook delete; with "keep" only
+ingest's. When rag fails, the notebook is untouched and the dialog shows
+the error, so the user can try again or choose differently.
+
+**Reason:** the two calls go to different services and cannot be one
+transaction. In this order a failure leaves the state the user started
+from. The other way round, a failed second call would leave the
+documents in the library although the user asked for them to go, which
+is the outcome of the other button.
+
+**Rejected alternative:** ingest's notebook delete first, then rag's.
+Rejected because rag's endpoint takes the notebook id, which no longer
+resolves once ingest has deleted the notebook and the foreign key has
+set the documents' notebook to null.
