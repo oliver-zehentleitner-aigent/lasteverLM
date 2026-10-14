@@ -14,6 +14,7 @@ when the budget is small, so thinking is off unless a caller asks.
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Mapping
 from typing import Any
@@ -28,6 +29,8 @@ from .base import (
     EmbeddingResult,
     ProviderError,
     SpeechResult,
+    ToolCall,
+    ToolCompletion,
     TranscriptionResult,
     Usage,
 )
@@ -161,25 +164,22 @@ class OpenAICompatibleLLM:
     def model(self) -> str:
         return self._model
 
-    def complete(
+    def _chat(
         self,
-        system: str,
-        user: str,
-        max_tokens: int | None = None,
-        *,
-        thinking: bool | None = None,
-    ) -> CompletionResult:
-        think = self._thinking if thinking is None else thinking
+        messages: list[dict[str, Any]],
+        max_tokens: int | None,
+        think: bool,
+        **extra: Any,
+    ) -> tuple[Any, Usage]:
+        """One chat completion: the first choice and the usage to record."""
         try:
             response = self._client.chat.completions.create(
                 model=self._model,
                 max_tokens=self._max_tokens if max_tokens is None else max_tokens,
                 temperature=self._temperature,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+                messages=messages,  # type: ignore[arg-type]  # plain dicts, as the API takes them
                 extra_body=thinking_body(think),
+                **extra,
             )
         except APIError as exc:
             raise _request_failed("completion", exc) from exc
@@ -190,7 +190,22 @@ class OpenAICompatibleLLM:
         )
         if not response.choices:
             raise ProviderError("provider returned no choices", usage)
-        choice = response.choices[0]
+        return response.choices[0], usage
+
+    def complete(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int | None = None,
+        *,
+        thinking: bool | None = None,
+    ) -> CompletionResult:
+        think = self._thinking if thinking is None else thinking
+        choice, usage = self._chat(
+            [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens,
+            think,
+        )
         text = (choice.message.content or "").strip()
         if not text and not think:
             # billed all the same: the caller records `usage` before re-raising
@@ -199,6 +214,61 @@ class OpenAICompatibleLLM:
                 usage,
             )
         return CompletionResult(text, usage, finish_reason=choice.finish_reason)
+
+    def complete_tools(
+        self,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int | None = None,
+        *,
+        thinking: bool | None = None,
+        tool_choice: str = "auto",
+    ) -> ToolCompletion:
+        """A chat turn with tools on offer.
+
+        `messages` is the history after the system prompt (user, assistant
+        and tool turns, as the API takes them); `tools` is the API's
+        `[{"type": "function", "function": {name, description,
+        parameters}}]`. The calls come back with their arguments parsed; an
+        argument string that is not a JSON object is a `ProviderError`
+        carrying the usage, as is, with thinking off, a reply with neither
+        text nor calls. Timeout, retries and errors are those of `complete`.
+        """
+        think = self._thinking if thinking is None else thinking
+        choice, usage = self._chat(
+            [{"role": "system", "content": system}, *messages],
+            max_tokens,
+            think,
+            tools=tools,
+            tool_choice=tool_choice,
+        )
+        calls = [_tool_call(call, usage) for call in choice.message.tool_calls or []]
+        text = (choice.message.content or "").strip()
+        if not text and not calls and not think:
+            raise ProviderError(
+                f"provider returned an empty answer (finish_reason={choice.finish_reason!r})",
+                usage,
+            )
+        return ToolCompletion(text, calls, usage, finish_reason=choice.finish_reason)
+
+
+def _tool_call(call: Any, usage: Usage) -> ToolCall:
+    function = getattr(call, "function", None)
+    if function is None:
+        raise ProviderError(f"provider returned a tool call of type {call.type!r}", usage)
+    raw = function.arguments or "{}"  # a call without parameters may send ""
+    try:
+        arguments = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ProviderError(
+            f"tool call {function.name!r} has arguments that are not JSON: {exc}", usage
+        ) from exc
+    if not isinstance(arguments, dict):
+        raise ProviderError(
+            f"tool call {function.name!r} has arguments that are not an object", usage
+        )
+    return ToolCall(call.id, function.name, arguments)
 
 
 DEFAULT_TTS_VOICE = "ryan"

@@ -22,6 +22,7 @@ from lasteverlm_core import (
     OpenAICompatibleTextToSpeech,
     ProviderError,
     SpeechResult,
+    ToolCall,
     Usage,
     make_client,
     thinking_body,
@@ -90,6 +91,83 @@ def completion(
             "completion_tokens_details": {"reasoning_tokens": reasoning_tokens},
         },
     }
+
+
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_output",
+            "description": "Create an output",
+            "parameters": {"type": "object", "properties": {"kind": {"type": "string"}}},
+        },
+    }
+]
+
+
+def tool_call(n: int, name: str, arguments: str) -> dict[str, Any]:
+    return {
+        "id": f"call_{n}",
+        "type": "function",
+        "function": {"name": name, "arguments": arguments},
+    }
+
+
+def test_complete_tools_sends_history_and_tools_and_parses_the_calls() -> None:
+    server = FakeServer()
+    server.responses.append(
+        completion(
+            None,
+            finish="tool_calls",
+            tool_calls=[
+                tool_call(1, "create_output", '{"kind": "report"}'),
+                tool_call(2, "create_output", '{"kind": "quiz"}'),
+                tool_call(3, "list_sources", ""),
+            ],
+        )
+    )
+    history = [
+        {"role": "user", "content": "Make a report and a quiz"},
+    ]
+    result = OpenAICompatibleLLM(server.client(), "llm").complete_tools("sys", history, TOOLS)
+    sent = server.requests[0]
+    assert sent["messages"] == [{"role": "system", "content": "sys"}, *history]
+    assert sent["tools"] == TOOLS and sent["tool_choice"] == "auto"
+    assert sent["chat_template_kwargs"] == {"enable_thinking": False}
+    assert result.tool_calls == [
+        ToolCall("call_1", "create_output", {"kind": "report"}),
+        ToolCall("call_2", "create_output", {"kind": "quiz"}),
+        ToolCall("call_3", "list_sources", {}),  # no parameters may come as ""
+    ]
+    assert (result.text, result.finish_reason) == ("", "tool_calls")
+    assert result.usage == Usage("llm", "llm", 11, 5)
+
+
+def test_complete_tools_returns_text_when_the_model_answers_directly() -> None:
+    server = FakeServer()
+    server.responses.append(completion("Done."))
+    llm = OpenAICompatibleLLM(server.client(), "llm")
+    result = llm.complete_tools("sys", [], TOOLS, 50, tool_choice="none", thinking=True)
+    assert (result.text, result.tool_calls, result.finish_reason) == ("Done.", [], "stop")
+    sent = server.requests[0]
+    assert (sent["max_tokens"], sent["tool_choice"]) == (50, "none")
+    assert sent["chat_template_kwargs"] == {"enable_thinking": True}
+
+
+@pytest.mark.parametrize(
+    ("message", "match"),
+    [
+        ({"tool_calls": [tool_call(1, "x", "{not json")]}, "'x' has arguments that are not JSON"),
+        ({"tool_calls": [tool_call(1, "x", "[1, 2]")]}, "'x' has arguments that are not an object"),
+        ({}, "empty answer"),
+    ],
+)
+def test_complete_tools_failures_carry_the_usage(message: dict[str, Any], match: str) -> None:
+    server = FakeServer()
+    server.responses.append(completion(None, finish="tool_calls", **message))
+    with pytest.raises(ProviderError, match=match) as caught:
+        OpenAICompatibleLLM(server.client(), "llm").complete_tools("sys", [], TOOLS)
+    assert caught.value.usage == Usage("llm", "llm", 11, 5)
 
 
 def test_embedder_requests_the_configured_dimension() -> None:

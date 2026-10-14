@@ -11,6 +11,9 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Tool calling for the agent chat: `OpenAICompatibleLLM.complete_tools(system, messages, tools, max_tokens=None, *, thinking=None, tool_choice="auto") -> ToolCompletion(text, tool_calls, usage, finish_reason)`, on the new `ToolCallingLLM` protocol (an `LLM` plus `complete_tools`). `ToolCall(id, name, arguments)` carries the arguments parsed from JSON (`""` as `{}`); arguments that are not a JSON object, or with thinking off a reply with neither text nor calls, are a `ProviderError` carrying the usage. Same timeout, retries, thinking switch and usage as `complete`, which now shares its request path.
+- `Answer.plan` and `Message.plan` (`dict | None`): the agent's plan instead of an answer when a question asks for actions; rag owns its shape.
+
 - `Answer.suggestions` and `Message.suggestions` (`list[str]`, at most `MAX_SUGGESTIONS` = 3 follow-up questions; `[]` for older messages, `None` read as `[]`), and `Message.feedback: MessageFeedback | None` (`rating` `up` | `down` as `FeedbackRating`, optional `comment`, `at`); rag owns and stores both.
 
 ## [0.18.2] - 2026-10-14

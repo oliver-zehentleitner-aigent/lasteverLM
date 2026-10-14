@@ -352,6 +352,32 @@ thinking on, the result is returned as is and the caller reads
 falls back to the instance default, `LLM_MAX_TOKENS` (1024). Reasoning
 tokens are completion tokens and are billed as such through `usage`.
 
+`complete_tools(system, messages, tools, max_tokens, *, thinking,
+tool_choice="auto")` is one chat turn with tools on offer, for an agent:
+
+- `messages` is the history after the system prompt, with user,
+  assistant and `tool` turns as the API takes them.
+- `tools` uses the API's `[{"type": "function", "function": {name,
+  description, parameters}}]` format.
+- The result is a `ToolCompletion(text, tool_calls, usage,
+  finish_reason)`. Each `ToolCall(id, name, arguments)` has its JSON
+  arguments parsed into a dict, and an empty argument string becomes `{}`.
+  `finish_reason` is `"tool_calls"` when the model wants the results
+  back.
+- Arguments that are not a JSON object are a `ProviderError` carrying the
+  usage. With thinking off, so is a reply with neither text nor calls.
+- Timeout, retries, the thinking switch and the usage rules are those of
+  `complete`.
+- It is on `OpenAICompatibleLLM` and the `ToolCallingLLM` protocol, which
+  extends `LLM`. A text-only `LLM` and its test doubles need not
+  implement it.
+
+```python
+turn = llm.complete_tools(system, history, tools)  # ToolCompletion
+for call in turn.tool_calls:  # ToolCall(id, name, arguments: dict)
+    ...  # run it, then append {"role": "tool", "tool_call_id": call.id, "content": ...}
+```
+
 Both raise `ProviderError` on a failed request, and on a response that
 reports no usage: a call is never accounted at zero by accident. When the
 provider answered and billed the call but the answer is unusable (empty
