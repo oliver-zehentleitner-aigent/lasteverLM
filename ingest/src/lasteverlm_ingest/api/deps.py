@@ -66,6 +66,13 @@ def preview_url(
     return storage.presigned_get(transcribed_path or storage_path)
 
 
+def snapshot_url(storage: Storage, snapshot_path: str | None) -> str | None:
+    """A web page version's snapshot (the inert HTML of what was read),
+    presigned for one hour, shown inline as `text/html`; None before the
+    first fetch and for every other kind."""
+    return storage.presigned_get(snapshot_path) if snapshot_path else None
+
+
 def original_url(
     storage: Storage, name: str, storage_path: str | None, transcribed_path: str | None
 ) -> str | None:

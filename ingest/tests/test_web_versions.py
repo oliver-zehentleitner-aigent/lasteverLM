@@ -46,12 +46,15 @@ def _read_page(repo, storage, site):
 def test_an_unchanged_page_costs_nothing_and_keeps_its_version():
     repo, storage, site = InMemoryRepository(), InMemoryStorage(), Site("Big news today.")
     nb, link, lib = _read_page(repo, storage, site)
-    first_fetch, usage = repo.library[lib].fetched_at, len(repo.usage)
+    first, usage = repo.library[lib], len(repo.usage)
     assert repo.request_refetch(lib).status == "processing"
     # The same text with other spacing: no new version.
     process_source(lib, _deps(repo, storage, Site("Big  news\n today.")))
     page = repo.library[lib]
-    assert page.status == "ready" and page.version == 1 and page.fetched_at >= first_fetch
+    assert page.status == "ready" and page.version == 1
+    # The version's fetch time and snapshot stay; only the check is newer.
+    assert page.fetched_at == first.fetched_at and page.snapshot_path == first.snapshot_path
+    assert page.checked_at >= first.checked_at
     assert page.superseded_by is None and page.refetch_requested_at is None
     assert len(repo.usage) == usage  # nothing read, nothing charged
     assert [s.library_id for s in repo.list_sources(nb.id)] == [lib]

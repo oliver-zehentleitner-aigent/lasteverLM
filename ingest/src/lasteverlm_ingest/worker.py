@@ -20,6 +20,7 @@ import socket
 import threading
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 from lasteverlm_core import (
@@ -42,6 +43,8 @@ from lasteverlm_ingest.loaders import (
     loader_key,
 )
 from lasteverlm_ingest.loaders.convert import convert_to_mp3, sniff_container
+from lasteverlm_ingest.loaders.snapshot import html_snapshot, text_snapshot
+from lasteverlm_ingest.loaders.url import Fetched, UrlLoader
 from lasteverlm_ingest.repository import MAX_ATTEMPTS, LibrarySource, Repository
 from lasteverlm_ingest.summarizer import Summarizer
 
@@ -161,6 +164,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     if key not in deps.loaders.kinds and key != source.kind:
         raise ProcessingError(f"capture mode {source.capture} needs a vision model")
     loader = deps.loaders.get(key)
+    fetched: Fetched | None = None
     if isinstance(loader, ModelLoader):
         # Reading this source takes model calls of its own (images, PDF
         # pages): each one is recorded as it returns, and the next one is
@@ -175,8 +179,10 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
             _may_call(repo, source)
 
         passages = loader.load_billed(data, bill)
+    elif isinstance(loader, UrlLoader):
+        fetched, passages = loader.load_page(data)
     else:
-        passages = loader.load(data)
+        fetched, passages = None, loader.load(data)
     if source.kind == "url":
         # A web page is compared before any model call: fetched again and
         # unchanged, it costs nothing; changed, it becomes a new version.
@@ -189,7 +195,8 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
                 new_id = repo.new_version(source_id)
                 log.info("web page %s changed: version %s queued", source_id, new_id)
             return
-        repo.set_fetched(source_id, digest)
+        snapshot = _store_snapshot(source, fetched, passages, deps) if fetched else None
+        repo.set_fetched(source_id, digest, fetched.url if fetched else None, snapshot)
     chunks = deps.chunker.chunk(passages)
     if not chunks:
         raise ProcessingError("no text to index")
@@ -248,6 +255,32 @@ def _transcribable(source: LibrarySource, data: bytes, deps: WorkerDeps) -> byte
     deps.repository.set_transcribed_path(source.id, key)
     deps.repository.refresh_claim(source.id)
     return mp3
+
+
+# The snapshot's object name; safe_name never yields a leading underscore.
+SNAPSHOT_NAME = "_snapshot.html"
+
+
+def _store_snapshot(
+    source: LibrarySource, fetched: Fetched, passages: list[Passage], deps: WorkerDeps
+) -> str | None:
+    """Keep what was read as an inert HTML file beside the source (see
+    loaders/snapshot.py); None for a PDF behind a URL, whose own file is
+    what was read."""
+    when = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    if fetched.media_type in ("text/html", "application/xhtml+xml"):
+        try:
+            html = fetched.body.decode(fetched.charset or "utf-8", errors="replace")
+        except LookupError:  # a charset Python does not know
+            html = fetched.body.decode("utf-8", errors="replace")
+        page = html_snapshot(html, fetched.url, when)
+    elif fetched.media_type.startswith("text/"):
+        page = text_snapshot("\n\n".join(p.text for p in passages), fetched.url, when)
+    else:
+        return None
+    key = object_key(source.owner, source.id, SNAPSHOT_NAME)
+    deps.storage.put(key, page.encode("utf-8"), "text/html; charset=utf-8")
+    return key
 
 
 def content_digest(passages: list[Passage]) -> str:

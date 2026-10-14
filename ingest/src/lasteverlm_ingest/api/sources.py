@@ -28,6 +28,7 @@ from lasteverlm_ingest.api.deps import (
     preview_url,
     repository,
     seed_if_new,
+    snapshot_url,
     worker_deps,
 )
 from lasteverlm_ingest.auth import CurrentUser
@@ -118,9 +119,14 @@ class LinkedSource(Source):
     library_id: UUID
     capture: str | None = None
     starter: bool = False
-    # Web pages: which version, fetched when (null until the first fetch).
+    # Web pages: which version, fetched when (null until the first fetch),
+    # from where after redirects, last compared when, and the snapshot of
+    # what was read.
     version: int = 1
     fetched_at: datetime | None = None
+    final_url: str | None = None
+    checked_at: datetime | None = None
+    snapshot_url: str | None = None
     preview_url: str | None = None
     original_url: str | None = None
 
@@ -144,6 +150,7 @@ def _out(source: StoredSource, storage: Storage, credit: CreditView) -> LinkedSo
     out.preview_url = preview_url(
         storage, source.kind, source.storage_path, source.url, source.transcribed_path
     )
+    out.snapshot_url = snapshot_url(storage, source.snapshot_path)
     out.original_url = original_url(
         storage, source.name, source.storage_path, source.transcribed_path
     )

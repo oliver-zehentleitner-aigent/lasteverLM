@@ -208,6 +208,9 @@ class InMemoryRepository:
             starter=lib.starter,
             version=lib.version,
             fetched_at=lib.fetched_at,
+            final_url=lib.final_url,
+            checked_at=lib.checked_at,
+            snapshot_path=lib.snapshot_path,
             transcribed_path=lib.transcribed_path,
         )
 
@@ -272,16 +275,23 @@ class InMemoryRepository:
         self.claimed.pop(library_id, None)
         return self.library[library_id]
 
-    def set_fetched(self, library_id, content_hash):
+    def set_fetched(self, library_id, content_hash, final_url, snapshot_path):
+        now = datetime.now(UTC)
         self.library[library_id] = self.library[library_id].model_copy(
-            update={"fetched_at": datetime.now(UTC), "content_hash": content_hash}
+            update={
+                "fetched_at": now,
+                "checked_at": now,
+                "content_hash": content_hash,
+                "final_url": final_url,
+                "snapshot_path": snapshot_path,
+            }
         )
 
     def refetch_unchanged(self, library_id):
         self.library[library_id] = self.library[library_id].model_copy(
             update={
                 "status": "ready",
-                "fetched_at": datetime.now(UTC),
+                "checked_at": datetime.now(UTC),
                 "refetch_requested_at": None,
                 "error": None,
             }
@@ -297,6 +307,9 @@ class InMemoryRepository:
                 "status": "processing",
                 "version": old.version + 1,
                 "fetched_at": None,
+                "checked_at": None,
+                "final_url": None,
+                "snapshot_path": None,
                 "content_hash": None,
                 "refetch_requested_at": None,
                 "summary": None,
@@ -416,7 +429,7 @@ class InMemoryRepository:
             OwnedNotebook(id=plan.notebook_id, title=plan.title, created_at=datetime.now(UTC)),
         )
         source_map, chunk_map = {}, {}
-        for source, library_id, link_id, key, converted in plan.sources:
+        for source, library_id, link_id, key, converted, snapshot in plan.sources:
             old = source.library
             self.library[library_id] = old.model_copy(
                 update={
@@ -424,6 +437,7 @@ class InMemoryRepository:
                     "owner": plan.owner,
                     "storage_path": key,
                     "transcribed_path": converted,
+                    "snapshot_path": snapshot,
                     "starter": True,
                     "status": "ready",
                     "attempts": 0,
@@ -467,6 +481,9 @@ class InMemoryRepository:
             starter=lib.starter,
             version=lib.version,
             fetched_at=lib.fetched_at,
+            final_url=lib.final_url,
+            checked_at=lib.checked_at,
+            snapshot_path=lib.snapshot_path,
             storage_path=lib.storage_path,
             transcribed_path=lib.transcribed_path,
             notebooks=[
@@ -833,4 +850,6 @@ class FakeTranscriber:
 
 
 def _keys(libs: list[LibrarySource]) -> list[str]:
-    return [k for lib in libs for k in (lib.storage_path, lib.transcribed_path) if k]
+    return [
+        k for lib in libs for k in (lib.storage_path, lib.transcribed_path, lib.snapshot_path) if k
+    ]

@@ -24,7 +24,7 @@ from lasteverlm_core import Storage, StorageError, object_key
 from lasteverlm_ingest.loaders.convert import MEDIA_TYPES, sniff_container
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.repository import Repository, StarterCopy
-from lasteverlm_ingest.worker import TRANSCRIBED_NAME
+from lasteverlm_ingest.worker import SNAPSHOT_NAME, TRANSCRIBED_NAME
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def ensure_starter(repo: Repository, storage: Storage, owner: UUID) -> int:
         for source in sources:
             old = source.library
             library_id = uuid4()
-            key = converted = None
+            key = converted = snapshot = None
             if old.storage_path:
                 key = object_key(owner, library_id, "url" if old.kind == "url" else old.name)
                 data = storage.get(old.storage_path)
@@ -73,7 +73,11 @@ def ensure_starter(repo: Repository, storage: Storage, owner: UUID) -> int:
                 converted = object_key(owner, library_id, TRANSCRIBED_NAME)
                 storage.put(converted, storage.get(old.transcribed_path), "audio/mpeg")
                 copied.append(converted)
-            plan.sources.append((source, library_id, uuid4(), key, converted))
+            if old.snapshot_path:
+                snapshot = object_key(owner, library_id, SNAPSHOT_NAME)
+                storage.put(snapshot, storage.get(old.snapshot_path), "text/html; charset=utf-8")
+                copied.append(snapshot)
+            plan.sources.append((source, library_id, uuid4(), key, converted, snapshot))
     except StorageError as exc:
         log.warning("starter copy for %s failed, tried again next time: %s", owner, exc)
         _remove(storage, copied)

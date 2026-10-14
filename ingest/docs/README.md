@@ -83,7 +83,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/admin/users/{id}` | 204 | admins only (viewers 403): everything the user owns in ingest. The stored objects of their library (trash and converted recordings included) are deleted first, then their library rows (generated ones too, chunks cascade), notebooks (links and rag's rows cascade) and seed mark in one transaction. A storage failure is 503 `{"error"}` naming the count and the first key, with every row kept for a retry. Idempotent: 204 also when nothing is left or the user never existed. Account calls it, with the admin's bearer, after rag's purge and before deleting the user |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
-"created_at", "library_id", "capture", "starter", "version", "fetched_at", "preview_url", "original_url"}`; name,
+"created_at", "library_id", "capture", "starter", "version", "fetched_at", "final_url", "checked_at", "snapshot_url", "preview_url", "original_url"}`; name,
 kind, status, error, capture and starter are the library source's. A
 library entry is
 
@@ -312,6 +312,25 @@ model call:
   checkable.
 
 Purging a page removes its older versions with it.
+
+Every read of a web page version keeps a snapshot of what was read
+(migration 0016): the fetched HTML rebuilt from an allowlist, so it
+renders inert (`loaders/snapshot.py`). Only text and structure tags are
+kept, with links to http(s) pages. Scripts, styles and their `url()`
+imports, frames, forms, objects, images and other external resources,
+event handlers and `style` attributes are dropped. A content security
+policy in the document allows nothing but its own inline stylesheet. A
+plain-text page becomes the same kind of document with its text in a
+`<pre>`; a PDF behind a URL has no snapshot.
+
+The snapshot is stored as `text/html; charset=utf-8` at
+`<owner>/<library_id>/_snapshot.html`, with the address after redirects
+(`final_url`) and `fetched_at`. Sources, library and trash entries carry
+`snapshot_url`, presigned for one hour and inline. A refetch that finds
+the page unchanged keeps the version's snapshot and `fetched_at` and
+only moves `checked_at`. A new version gets its own snapshot, and a
+purge removes the snapshots with their versions. The starter copy
+copies a page's snapshot too.
 
 ## Image sources
 

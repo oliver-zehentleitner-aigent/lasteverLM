@@ -244,9 +244,14 @@ class UrlLoader:
         self._html = html or HtmlLoader()
 
     def load(self, data: bytes) -> list[Passage]:
+        return self.load_page(data)[1]
+
+    def load_page(self, data: bytes) -> tuple[Fetched, list[Passage]]:
+        """The fetch itself (final URL, type, body) and what was read from
+        it; the worker keeps a snapshot of the former."""
         fetched = self._fetch(data.decode("utf-8").strip())
         if fetched.media_type in _HTML_TYPES:
-            return self._html.load(fetched.body, fetched.charset)
+            return fetched, self._html.load(fetched.body, fetched.charset)
         if fetched.media_type in _PDF_TYPES:
-            return self._pdf.load(fetched.body)
-        return self._text.load(fetched.body)
+            return fetched, self._pdf.load(fetched.body)
+        return fetched, self._text.load(fetched.body)

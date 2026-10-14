@@ -33,6 +33,10 @@ def _starter(repo, storage):
         repo.replace_chunks(lib, [Chunk(idx=0, text=name, page=1)], [[1.0, 0.0]])
         made[name] = lib
     storage.put(f"{ADMIN}/converted", b"ID3mp3", "audio/mpeg")
+    storage.put(f"{ADMIN}/snapshot", b"<html>prices</html>", "text/html; charset=utf-8")
+    repo.set_fetched(
+        made["https://x.test/prices"], "h", "https://x.test/prices", f"{ADMIN}/snapshot"
+    )
     repo.set_transcribed_path(made["talk.m4a"], f"{ADMIN}/converted")
     repo.add_source(nb.id, "busy.txt", "text", "busy")  # still processing: not copied
     gone = repo.add_source(nb.id, "old.txt", "text", "old").library_id
@@ -63,6 +67,10 @@ def test_a_new_user_gets_a_ready_copy_of_the_starter_notebook():
     audio = next(repo.library[s.library_id] for s in sources if s.kind == "audio")
     assert audio.transcribed_path == f"{user}/{audio.id}/{TRANSCRIBED_NAME}"
     assert storage.types[audio.transcribed_path] == "audio/mpeg"
+    page = next(repo.library[s.library_id] for s in sources if s.kind == "url")
+    assert page.snapshot_path == f"{user}/{page.id}/_snapshot.html"
+    assert storage.objects[page.snapshot_path] == b"<html>prices</html>"
+    assert page.final_url == "https://x.test/prices" and page.fetched_at
     image = next(repo.library[s.library_id] for s in sources if s.kind == "image")
     assert storage.types[image.storage_path] == "image/png"
     # No processing, no charge.

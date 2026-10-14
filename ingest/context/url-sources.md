@@ -97,3 +97,31 @@ existed have no hash; their first refetch counts as changed.
 - Re-embedding on every refetch without comparing: charges for a page
   that did not change.
 
+## Each read web page keeps an inert snapshot of what was read
+
+**Id:** 7415f6ff-549f-4580-aaad-092b42bae168
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's go through the coordinating agent, 2026-10-14 (snapshot as the cache, "Original" shows what was read); the allowlist chosen by the ingest author
+**Revisit when:** users need the page's images or layout in the snapshot, or the viewer shows snapshots outside a sandbox
+
+Every read of a web page version stores the fetched HTML beside the
+source, so the viewer's "Original" shows exactly the page the chunks
+came from. The snapshot is rebuilt from an allowlist of text and
+structure tags rather than cleaned with a blocklist: what is not known
+to be harmless is dropped, including images and every other resource
+that would load from elsewhere, so the file renders inert and tells no
+third party it was opened. An unchanged refetch keeps the snapshot of
+its version.
+
+**Alternatives:**
+- Linking the live page: it may have changed since it was read, or be
+  gone, and opening it reveals the reader to the site.
+- Storing the HTML as fetched and relying on the viewer's iframe sandbox
+  alone: one missing sandbox flag, or a direct open of the presigned
+  URL, would run the page's scripts.
+- Keeping images: a faithful page, but every image is a request to the
+  site, or the snapshot would have to fetch and store them, at a cost
+  for every read.
+
