@@ -1,8 +1,8 @@
 import type { LibraryEntry, OutputKind } from '../api/types'
 import { t, tn } from '../i18n'
 
-/** Which rows the library lists: everything, the uploads, or the documents. */
-export type LibraryView = 'all' | 'sources' | 'documents'
+/** Which rows the library lists: everything, the uploads, or the outputs. */
+export type LibraryView = 'all' | 'sources' | 'outputs'
 
 export interface LibraryFilter {
   view?: LibraryView
@@ -23,7 +23,7 @@ export function filterLibrary(entries: readonly LibraryEntry[], f: LibraryFilter
   return entries.filter((e) => {
     const doc = e.kind === 'generated'
     if (view === 'sources' && doc) return false
-    if (view === 'documents' && !doc) return false
+    if (view === 'outputs' && !doc) return false
     if (f.kind !== 'all' && e.kind !== f.kind && !(doc && docKind(e) === f.kind)) return false
     if (nb === 'none' ? e.notebooks.length > 0 : nb !== 'all' && !e.notebooks.some((n) => n.id === nb)) return false
     return !q || e.name.toLowerCase().includes(q) || (e.url ?? '').toLowerCase().includes(q)

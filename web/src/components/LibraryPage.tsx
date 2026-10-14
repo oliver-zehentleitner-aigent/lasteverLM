@@ -95,8 +95,8 @@ function NotebookFromSelection({ selected, busy, onCreate }: { selected: Library
 const withoutGenerated = <T extends { kind: string }>(list: T[]): T[] => list.filter((e) => e.kind !== 'generated')
 const isDoc = (e: LibraryEntry) => e.kind === 'generated'
 
-/** The library as one table: uploads and generated documents together,
- *  narrowed by a view (all, sources, documents), a kind, a notebook and a
+/** The library as one table: uploads and outputs together,
+ *  narrowed by a view (all, sources, outputs), a kind, a notebook and a
  *  part of the name. A document's kind and status come from rag's list of
  *  the user's outputs (joined by `output_id`); it opens in the notebook it
  *  was made in, or read-only here once that notebook is gone, and is
@@ -229,7 +229,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   if (reading) return <ReadOnlyOutput output={reading} onBack={() => setReading(null)} />
 
   const kinds: { value: string; label: string }[] = [
-    ...(filter.view !== 'documents' ? SOURCE_FORMS.map((f) => ({ value: f.kind, label: f.label })) : []),
+    ...(filter.view !== 'outputs' ? SOURCE_FORMS.map((f) => ({ value: f.kind, label: f.label })) : []),
     ...(filter.view !== 'sources' ? OUTPUT_FORMS.map((f) => ({ value: f.kind, label: f.label })) : []),
   ]
 
@@ -237,7 +237,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
     <>
       <p className="muted small">{t('lib.intro')}</p>
       <div className="library-views kind-chips" role="group" aria-label={t('lib.view')}>
-        {(['all', 'sources', 'documents'] as const).map((v) => (
+        {(['all', 'sources', 'outputs'] as const).map((v) => (
           <button
             key={v}
             type="button"
