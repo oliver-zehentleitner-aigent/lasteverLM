@@ -31,12 +31,13 @@ import { OutputTiles } from './OutputTiles'
 import { OutputViewer } from './OutputViewer'
 import { SourcesPane } from './SourcesPane'
 import { Wizard } from './Wizard'
+import { Tour } from './Tour'
 import { t } from '../i18n'
 
 interface ViewProps {
   notebookId: string
-  /** open with the output step (fresh) or without it; null when closed */
-  wizard: { fresh: boolean } | null
+  /** the add-sources dialog is open */
+  wizard: boolean
   onWizard: (open: boolean) => void
 }
 
@@ -367,18 +368,11 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
           </div>
         </div>
         {wizard && (
-          <Wizard
-            notebookId={notebookId}
-            withOutputs={wizard.fresh}
-            onClose={() => onWizard(false)}
-            onDone={() => {
-              onWizard(false)
-              setSourcesVersion((v) => v + 1)
-              void run(reloadOutputs)
-            }}
-          />
+          <Wizard notebookId={notebookId} onAdded={() => setSourcesVersion((v) => v + 1)} onClose={() => onWizard(false)} />
         )}
       </div>
+      {/* not over the add-sources dialog */}
+      {!wizard && <Tour />}
     </SourceLinks.Provider>
   )
 }

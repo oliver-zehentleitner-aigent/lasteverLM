@@ -1,39 +1,33 @@
 import { useState, type DragEvent } from 'react'
 import { ingest } from '../api/ingest'
-import { rag } from '../api/rag'
-import type { LibraryEntry, OutputKind, SourceKind } from '../api/types'
+import type { LibraryEntry, SourceKind } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { useMe } from '../hooks/useMe'
-import { useOutputOptions } from '../hooks/useOutputOptions'
 import { CAPTURE_MODES, preferredCapture, type CaptureMode } from '../lib/capture'
 import { filterLibrary, notInNotebook, shortUrl } from '../lib/library'
-import { buildOptions, defaultValues } from '../lib/outputOptions'
-import { afterSources, wizardSteps } from '../lib/wizard'
-import { OUTPUT_FORMS, SOURCE_FORMS, sourceKindLabel, tileNote, type SourceForm } from '../lib/outputs'
+import { SOURCE_FORMS, sourceKindLabel, tileNote, type SourceForm } from '../lib/outputs'
 import { StarterBadge } from './StarterBadge'
 import { ImageName } from './ImageName'
 import { t, tn } from '../i18n'
 
 interface Props {
   notebookId: string
-  /** the output step, for a new notebook only; adding to an existing one
-   *  ends after the sources */
-  withOutputs: boolean
-  onDone: () => void
+  /** sources went in: the list reloads while the dialog stays open */
+  onAdded: () => void
   onClose: () => void
 }
 
-type Step = 1 | 2 | 3
+type Step = 1 | 2
 
-/** Adding sources in three steps, one question each, tiles instead of a
- *  form. Step 2 uploads per file as soon as the user confirms; step 3
- *  (a new notebook only) creates one output per selected kind, and rag
- *  waits for the sources itself, so closing the browser after "Done"
- *  loses nothing. */
-export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
+/** Adding sources: what goes in (the kind tiles, or from the library),
+ *  then how (files, pasted text, an address, or the library's entries),
+ *  uploaded per file as soon as the user confirms. It then returns to the
+ *  tiles with a note on what went in, to add more, until the user closes
+ *  it. Outputs are made in the Output format area, never here. */
+export function Wizard({ notebookId, onAdded, onClose }: Props) {
   const [step, setStep] = useState<Step>(1)
-  // adding to an existing notebook: the note shown when some were there already
-  const [addedNote, setAddedNote] = useState(false)
+  // what this dialog added so far, and how many of the last batch were there already
+  const [addedTotal, setAddedTotal] = useState(0)
   const [form, setForm] = useState<SourceForm | null>(null)
   // "from library": entries of the user's library not yet in this notebook
   const [fromLibrary, setFromLibrary] = useState(false)
@@ -44,10 +38,8 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
   const [files, setFiles] = useState<File[]>([])
   const [pasted, setPasted] = useState('')
   const [url, setUrl] = useState('')
-  const [kinds, setKinds] = useState<Set<OutputKind>>(new Set())
   const [uploaded, setUploaded] = useState(0)
   const { busy, error, run } = useAsync()
-  const spec = useOutputOptions()
   const { me } = useMe()
   // how PDFs are read, preset from the preference
   const [capture, setCapture] = useState<CaptureMode>(() => preferredCapture(me?.preferences))
@@ -79,11 +71,11 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
       }
       if (fromLibrary) {
         for (const id of picked) count(await ingest.addFromLibrary(notebookId, id))
-        return already
+        return { n, already }
       }
       if (form?.input === 'url') {
         count(await ingest.addUrl(notebookId, url.trim()))
-        return already
+        return { n, already }
       }
       // a file that went in leaves the list, so after a failure (a storage
       // outage answers 503) only the rest is retried and stays selected
@@ -96,22 +88,18 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
         count(await ingest.uploadFile(notebookId, new File([pasted], name, { type: 'text/plain' })))
         setPasted('')
       }
-      return already
+      return { n, already }
     })
     if (ok === undefined) return
-    const next = afterSources(withOutputs, ok)
-    if (next === 'outputs') setStep(3)
-    else if (next === 'note') setAddedNote(true)
-    else onDone()
-  }
-
-  async function finish() {
-    const ok = await run(async () => {
-      // the wizard has no option menus: each kind gets the user's preferences
-      for (const k of kinds) await rag.createOutput(notebookId, k, spec ? buildOptions(k, spec, defaultValues(spec, me?.preferences)) : {})
-      return true
-    })
-    if (ok) onDone()
+    // back to the tiles for more; the list behind shows the new ones
+    setAddedTotal((total) => total + ok.n - ok.already)
+    setExisting(ok.already)
+    setForm(null)
+    setFromLibrary(false)
+    setPicked(new Set())
+    setUrl('')
+    setStep(1)
+    onAdded()
   }
 
   function onDrop(e: DragEvent) {
@@ -127,7 +115,7 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
     <div className="backdrop" onClick={onClose}>
       <div className="dialog wizard" onClick={(e) => e.stopPropagation()}>
         <header className="row">
-          <span className="muted small">{t('wiz.step', { step, steps: wizardSteps(withOutputs) })}</span>
+          <strong>{t('wiz.title')}</strong>
           <button type="button" className="icon" onClick={onClose} title={t('common.close')}>
             ×
           </button>
@@ -158,22 +146,17 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
                 </button>
               ))}
             </div>
-          </>
-        )}
-
-        {addedNote && (
-          <>
-            <h2>{t('wiz.added')}</h2>
-            <p className="muted small">{tn('wiz.existing', existing)}</p>
-            <div className="row">
-              <button type="button" onClick={onDone}>
-                {t('common.done')}
+            {addedTotal > 0 && <p className="muted small">{tn('wiz.addedSoFar', addedTotal)}</p>}
+            {existing > 0 && <p className="muted small">{tn('wiz.existing', existing)}</p>}
+            <div className="row wizard-done">
+              <button type="button" className={addedTotal > 0 ? undefined : 'secondary'} onClick={onClose}>
+                {addedTotal > 0 ? t('common.done') : t('common.close')}
               </button>
             </div>
           </>
         )}
 
-        {step === 2 && fromLibrary && !addedNote && (
+        {step === 2 && fromLibrary && (
           <>
             <h2>{t('wiz.whichFromLibrary')}</h2>
             <input
@@ -236,7 +219,7 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
           </>
         )}
 
-        {step === 2 && form && !fromLibrary && !addedNote && (
+        {step === 2 && form && !fromLibrary && (
           <>
             <h2>{t('wiz.howIn')}</h2>
             {form.input === 'files' && (
@@ -300,46 +283,6 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
           </>
         )}
 
-        {step === 3 && (
-          <>
-            <h2>{t('wiz.whatOut')}</h2>
-            <p className="muted small">{t('wiz.pickAny')}</p>
-            {existing > 0 && (
-              <p className="muted small">{tn('wiz.existing', existing)}</p>
-            )}
-            <div className="tile-grid">
-              {OUTPUT_FORMS.map((f) => (
-                <button
-                  key={f.kind}
-                  type="button"
-                  className={kinds.has(f.kind) ? 'tile selected' : 'tile'}
-                  disabled={!f.available}
-                  aria-pressed={kinds.has(f.kind)}
-                  onClick={() =>
-                    setKinds((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(f.kind)) next.delete(f.kind)
-                      else next.add(f.kind)
-                      return next
-                    })
-                  }
-                >
-                  <strong>{f.label}</strong>
-                  <span className="muted small">{tileNote(f)}</span>
-                </button>
-              ))}
-            </div>
-            {error && <p className="error">{error}</p>}
-            <div className="row">
-              <button type="button" className="secondary" onClick={onDone} disabled={busy}>
-                {t('wiz.skip')}
-              </button>
-              <button type="button" onClick={() => void finish()} disabled={busy || kinds.size === 0}>
-                {tn('wiz.createDocs', Math.max(kinds.size, 1))}
-              </button>
-            </div>
-          </>
-        )}
       </div>
     </div>
   )
