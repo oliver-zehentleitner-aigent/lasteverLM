@@ -358,8 +358,10 @@ ignores the device setting the user already made.
 
 The header toggle replaced a three-step cycle (light, dark, system). It
 always sets the opposite of the theme on screen, its icon shows what a
-click gives, and it writes through the one theme store like the Settings
-page. "system" can be chosen on the Settings page only.
+click gives, and it goes through the one theme store like the Settings
+page. "system" can be chosen on the Settings page only. Since
+2026-10-14 the toggle changes this browser session only and saves
+nothing in the account (see the entry on the session's theme).
 
 **Reason (inferred):** in the cycle, the step to "system" often changed
 nothing visible (the system's theme was the one already on screen), so a
@@ -476,3 +478,4 @@ is the outcome of the other button.
 Rejected because rag's endpoint takes the notebook id, which no longer
 resolves once ingest has deleted the notebook and the foreign key has
 set the documents' notebook to null.
+
