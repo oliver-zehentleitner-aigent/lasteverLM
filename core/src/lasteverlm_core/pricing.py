@@ -18,6 +18,10 @@ kind, and only the `in` side is used where there is no output:
   seconds, `tokens_out` is 0; `in` is cents per million seconds (the
   platform prices the model per second, so 0.00028 USD per second is
   `"in": 28000`).
+- `decision`: input tokens as the platform reports them
+  (`usage.input_tokens` of `/systemone`); `tokens_out` is 0, `in` is
+  cents per million tokens (`clef` at 0.0000001 USD per token is
+  `"in": 10`, `clef-flash` `"in": 5`).
 """
 
 from __future__ import annotations

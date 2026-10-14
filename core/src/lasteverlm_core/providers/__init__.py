@@ -3,6 +3,8 @@
 from .base import (
     LLM,
     CompletionResult,
+    DecisionModel,
+    DecisionResult,
     Embedder,
     EmbeddingResult,
     ProviderError,
@@ -13,23 +15,36 @@ from .base import (
     Usage,
 )
 from .openai_compat import (
+    DECISION_TYPES,
     DEFAULT_MAX_TOKENS,
     DEFAULT_TTS_VOICE,
+    MAX_CHOICE_OPTIONS,
+    MAX_DECISION_QUESTIONS,
+    MAX_SCORE_LEVELS,
+    OpenAICompatibleDecision,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
     OpenAICompatibleSpeechToText,
     OpenAICompatibleTextToSpeech,
     make_client,
     thinking_body,
+    validate_decision_questions,
 )
 
 __all__ = [
+    "DECISION_TYPES",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_TTS_VOICE",
     "LLM",
+    "MAX_CHOICE_OPTIONS",
+    "MAX_DECISION_QUESTIONS",
+    "MAX_SCORE_LEVELS",
     "CompletionResult",
+    "DecisionModel",
+    "DecisionResult",
     "Embedder",
     "EmbeddingResult",
+    "OpenAICompatibleDecision",
     "OpenAICompatibleEmbedder",
     "OpenAICompatibleLLM",
     "OpenAICompatibleSpeechToText",
@@ -42,4 +57,5 @@ __all__ = [
     "Usage",
     "make_client",
     "thinking_body",
+    "validate_decision_questions",
 ]

@@ -15,6 +15,7 @@ when the budget is small, so thinking is off unless a caller asks.
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from typing import Any
 
 from openai import APIError, APIStatusError, OpenAI
@@ -23,6 +24,7 @@ from ..audio import AudioError, billed_seconds, measure_audio, probe_audio
 from ..settings import InferenceSettings
 from .base import (
     CompletionResult,
+    DecisionResult,
     EmbeddingResult,
     ProviderError,
     SpeechResult,
@@ -312,3 +314,110 @@ class OpenAICompatibleSpeechToText:
         if not text:
             raise ProviderError(f"speech-to-text model {self._model} recognised no speech", usage)
         return TranscriptionResult(text, usage, info.seconds)
+
+
+# The platform's limits for `/systemone` (its OpenAPI, 2026-10-14).
+MAX_DECISION_QUESTIONS = 64
+MAX_CHOICE_OPTIONS = 255
+MAX_SCORE_LEVELS = 10
+DECISION_TYPES = ("noul", "choice", "score")
+_QUESTION_KEYS = frozenset({"type", "instructions", "criteria"})
+# What every answer of a type must carry.
+_ANSWER_KEYS = {
+    "noul": ("noul",),
+    "choice": ("choice", "probabilities", "confidence"),
+    "score": ("score", "legend", "probabilities", "confidence"),
+}
+
+
+def validate_decision_questions(questions: Mapping[str, Mapping[str, Any]]) -> None:
+    """`ValueError` for questions the platform would refuse with a 422, so a
+    malformed request never reaches it: 1 to 64 questions with non-empty
+    ids; `type` noul, choice or score; no keys besides `type`,
+    `instructions`, `criteria`; noul criteria at most `{"true", "false"}`,
+    choice criteria a mapping of 1 to 255 options, score criteria a list
+    of 1 to 10 levels, lowest first."""
+    if not 1 <= len(questions) <= MAX_DECISION_QUESTIONS:
+        raise ValueError(f"1 to {MAX_DECISION_QUESTIONS} questions, got {len(questions)}")
+    for qid, question in questions.items():
+        if not isinstance(qid, str) or not qid:
+            raise ValueError("question ids must be non-empty strings")
+        unknown = set(question) - _QUESTION_KEYS
+        if unknown:
+            raise ValueError(f"{qid}: unknown keys {sorted(unknown)}")
+        kind = question.get("type")
+        criteria = question.get("criteria")
+        if kind == "noul":
+            if criteria is not None and (
+                not isinstance(criteria, Mapping) or not set(criteria) <= {"true", "false"}
+            ):
+                raise ValueError(f'{qid}: noul criteria may only describe "true" and "false"')
+        elif kind == "choice":
+            if not isinstance(criteria, Mapping) or not 1 <= len(criteria) <= MAX_CHOICE_OPTIONS:
+                raise ValueError(
+                    f"{qid}: choice criteria must map 1 to {MAX_CHOICE_OPTIONS} options "
+                    "to a description or None"
+                )
+        elif kind == "score":
+            if not isinstance(criteria, list) or not 1 <= len(criteria) <= MAX_SCORE_LEVELS:
+                raise ValueError(
+                    f"{qid}: score criteria must list 1 to {MAX_SCORE_LEVELS} levels, lowest first"
+                )
+        else:
+            raise ValueError(f"{qid}: type must be one of {', '.join(DECISION_TYPES)}")
+
+
+class OpenAICompatibleDecision:
+    """Typed questions about a state over the platform's `/systemone`.
+
+    The OpenAI SDK has no such call; its generic `post` sends it, so the
+    request shares the client's key, base URL, timeout and retries, and an
+    HTTP error maps like every other call (a 422, an input over the
+    model's length or a malformed question, is `permanent`). The questions
+    are checked by `validate_decision_questions` first. Usage is the
+    response's `usage.input_tokens`, kind `decision`; a response without
+    it is a `ProviderError`. So is a response that misses a question or
+    answers it with another type, carrying the usage.
+    """
+
+    def __init__(self, client: OpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def decide(self, state: Any, questions: Mapping[str, Mapping[str, Any]]) -> DecisionResult:
+        validate_decision_questions(questions)
+        body = {
+            "model": self._model,
+            "state": state,
+            "questions": {qid: dict(q) for qid, q in questions.items()},
+        }
+        try:
+            response = self._client.post("/systemone", body=body, cast_to=object)
+        except APIError as exc:
+            raise _request_failed("decision", exc) from exc
+        if not isinstance(response, dict):
+            raise ProviderError(f"decision model {self._model} returned no JSON object")
+        tokens = (response.get("usage") or {}).get("input_tokens")
+        if not isinstance(tokens, int) or isinstance(tokens, bool) or tokens < 0:
+            raise ProviderError(f"decision model {self._model} reported no usage")
+        usage = Usage("decision", self._model, tokens, 0)
+        answers = response.get("answers")
+        if not isinstance(answers, dict):
+            raise ProviderError(f"decision model {self._model} returned no answers", usage)
+        for qid, question in questions.items():
+            answer = answers.get(qid)
+            kind = question["type"]
+            if not isinstance(answer, dict) or answer.get("type") != kind:
+                raise ProviderError(
+                    f"decision model {self._model} did not answer {qid!r} as {kind}", usage
+                )
+            missing = [key for key in _ANSWER_KEYS[kind] if key not in answer]
+            if missing:
+                raise ProviderError(
+                    f"decision model {self._model} answered {qid!r} without {missing}", usage
+                )
+        return DecisionResult({qid: answers[qid] for qid in questions}, usage)
