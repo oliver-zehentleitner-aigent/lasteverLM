@@ -3,7 +3,8 @@
 
 export type SourceKind = 'pdf' | 'text' | 'url' | 'image' | 'audio' | 'generated'
 /** waiting_for_credit: added, and processed once the account has credit again */
-export type SourceStatus = 'processing' | 'waiting_for_credit' | 'ready' | 'failed'
+/** `added`: in the notebook, read only when an output or a question uses it (or on "read now") */
+export type SourceStatus = 'added' | 'processing' | 'waiting_for_credit' | 'ready' | 'failed'
 export type Role = 'user' | 'assistant'
 
 export interface Notebook {
@@ -40,6 +41,9 @@ export interface Source {
   starter?: boolean
   /** the same flag under ingest's name before the starter notebook */
   demo?: boolean
+  /** a web page: the version read (1 for the first fetch, +1 when it changed) and when it was last fetched; absent before ingest's page versions */
+  version?: number | null
+  fetched_at?: string | null
   /** where it opens without a bearer header: an image, PDF or text as a
    *  presigned GET of the original (valid one hour), a web page at its URL */
   preview_url?: string | null

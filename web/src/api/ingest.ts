@@ -73,6 +73,16 @@ export const ingest = {
   purgeFromTrash: (id: string) =>
     request<void>(`${INGEST_PREFIX}/library/${encodeURIComponent(id)}/purge`, { method: 'DELETE' }),
 
+  /** reads unread sources now (idempotent: reading, read or failed come back unchanged); 404 for another user's */
+  processSources: (libraryIds: string[]) =>
+    request<{ queued: string[]; unchanged: string[] }>(`${INGEST_PREFIX}/sources/process`, { method: 'POST', json: { library_ids: libraryIds } }),
+  /** the price of reading them, per source */
+  readEstimate: (libraryIds: string[]) =>
+    request<{ items: { library_id: string; charge_cents_min: number; charge_cents_max: number; basis?: string | null }[] }>(`${INGEST_PREFIX}/sources/estimate`, { method: 'POST', json: { library_ids: libraryIds } }),
+  /** fetches a web page again; the version goes up when it changed */
+  refetchSource: (id: string) =>
+    request<{ library_id: string; version: number; fetched_at: string }>(`${INGEST_PREFIX}/sources/${encodeURIComponent(id)}/refetch`, { method: 'POST' }),
+
   /** the extracted text, a page of chunks (limit 1–200) in order */
   sourceChunks: (id: string, offset: number, limit: number) =>
     request<SourceChunks>(`${INGEST_PREFIX}/sources/${encodeURIComponent(id)}/chunks?offset=${offset}&limit=${limit}`),

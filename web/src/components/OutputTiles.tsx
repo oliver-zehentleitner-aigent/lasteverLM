@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState } from 'react'
-import type { Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
+import type { Source, Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
 import { useEstimate } from '../hooks/useEstimate'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
@@ -7,6 +7,8 @@ import { AUDIO_STYLES, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
 import { PriceTag } from './PriceTag'
+import { UrlRefresh } from './UrlRefresh'
+import { keptRefresh } from '../lib/urlRefresh'
 import { RedeemLink } from './RedeemLink'
 
 // recharts comes with it, loaded only when the chart kind is picked
@@ -24,14 +26,20 @@ interface Props {
   noneSelected: boolean
   busy: boolean
   onSelect: (kind: OutputKind) => void
-  onCreate: (kind: OutputKind, options: OutputOptions) => void
+  onCreate: (kind: OutputKind, options: OutputOptions, urlRefresh: string[]) => void
+  /** the selected sources (undefined: all), for the estimate's reading lines */
+  sourceIds?: string[]
+  /** the selected web pages, each cached or fetched again */
+  webPages: Source[]
 }
 
 /** The output formats as tiles under the sources. A click (or Enter on a
  *  focused tile) only selects one and shows that format's options (language,
  *  and voice and speed for audio), preset from the user's preferences; the
  *  Create button below starts the job, and says why when it cannot yet. */
-export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected, busy, onSelect, onCreate }: Props) {
+export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected, busy, onSelect, onCreate, sourceIds, webPages }: Props) {
+  const [refresh, setRefresh] = useState<Set<string>>(new Set())
+  const urlRefresh = keptRefresh(refresh, webPages)
   const blocker = createBlocker(selected, hasReadySource, noneSelected)
   const spec = useOutputOptions()
   const { me } = useMe()
@@ -60,7 +68,18 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
     ...(isChart ? { charts } : {}),
   })
   // what Create would charge; a chart's estimate does not depend on the picked charts
-  const price = useEstimate(selected && hint === null && !noCredit ? { kind: selected, ...(isChart ? {} : { options: options(selected) as Record<string, unknown> }) } : null)
+  // with the notebook, rag lists reading unread sources and re-reading pages apart
+  const price = useEstimate(
+    selected && hint === null && !noCredit
+      ? {
+          kind: selected,
+          ...(isChart ? {} : { options: options(selected) as Record<string, unknown> }),
+          notebook_id: notebookId,
+          ...(sourceIds ? { source_ids: sourceIds } : {}),
+          ...(urlRefresh.length > 0 ? { url_refresh: urlRefresh } : {}),
+        }
+      : null,
+  )
   return (
     <section className="tiles">
       <h2>{t('tiles.title')}</h2>
@@ -253,6 +272,7 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
           <ChartProposals notebookId={notebookId} spec={spec} instructions={values.instructions} picked={charts} onPick={setCharts} />
         </Suspense>
       )}
+      {selected && <UrlRefresh pages={webPages} refresh={refresh} onChange={setRefresh} />}
       <div className="create-row">
         {noCredit ? (
           <span className="muted small">
@@ -262,7 +282,7 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
           hint && <span className="muted small">{hint}</span>
         )}
         <PriceTag state={price} />
-        <button type="button" disabled={busy || hint !== null || noCredit} onClick={() => selected && onCreate(selected, options(selected))}>
+        <button type="button" disabled={busy || hint !== null || noCredit} onClick={() => selected && onCreate(selected, options(selected), urlRefresh)}>
           {t('tiles.create')}
         </button>
       </div>

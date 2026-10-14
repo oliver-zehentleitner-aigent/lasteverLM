@@ -102,6 +102,15 @@ opens the notebook.
   the whole group then below the name. The status badge is short
   ("ready", "reading", "added", "failed"); what it means, a failed
   source's error and why a waiting one is not moving are its tooltip.
+  **Read when used**: a new source is "added" (neutral; "added · read
+  when used"), read only when an output or a question first uses it; a
+  small **read now** asks ingest's price for it (`POST
+  /api/ingest/sources/estimate`) and, after a confirmation naming it,
+  reads it (`POST /api/ingest/sources/process`). Without credit the
+  source being read waits as before. A web page shows how long ago it
+  was fetched after its name ("3 h ago"), "v2" once it changed, and ↻
+  (fetch again: `POST /api/ingest/sources/{id}/refetch`, after a
+  confirmation; read again only if it changed).
   Removing only detaches the source from this notebook, it stays in the
   library. Deleting a notebook detaches its sources the same way. A
   document made in another notebook and added from the library is
@@ -619,6 +628,17 @@ deleted from the library) stays readable with its quote and is marked
   the tables the exchange rate ("1 EUR = 1.1188 USD, ECB reference rate
   of 2026-10-13"). No margins, fees or costs: the service sends end
   prices only.
+- Reading on use: Create and Ask send the notebook (and the selection)
+  with their estimate, and rag lists reading each unread selected
+  source ("Read a.pdf", its basis as tooltip) and re-reading each page
+  to fetch again on their own lines under the price ("+ Read a.pdf ≈
+  €0.03"), not in it: ingest bills them apart. Above Create (once a
+  format is picked) and above the chat's question field, each selected
+  web page that was read has its own choice, **cached (fetched 3 h ago)
+  | fetch again**, cached by default; the pages to fetch again go as
+  `url_refresh` (library ids). While a question reads sources the chat
+  says "reading 2 sources…"; an output waiting for its sources says so;
+  both reload the Sources list after.
 - Prices: before anything billed runs, its estimated charge from rag's
   `POST /api/rag/estimate` stands next to the button that starts it, in
   euro as the balance: before Create (for the kind with its options, a

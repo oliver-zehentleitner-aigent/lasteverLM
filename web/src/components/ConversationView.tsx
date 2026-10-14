@@ -12,9 +12,11 @@ import { JudgeRequest } from './JudgeRequest'
 import { AnswerActions, SuggestionCards } from './AnswerActions'
 import { StarterQuestions } from './StarterQuestions'
 import { PlanCard } from './PlanCard'
+import { UrlRefresh } from './UrlRefresh'
+import { keptRefresh } from '../lib/urlRefresh'
 import { PriceTag } from './PriceTag'
 import { ProvenancePanel } from './ProvenancePanel'
-import { t } from '../i18n'
+import { t, tn } from '../i18n'
 import type { ChatPaneProps } from './ChatPane'
 
 interface ConversationProps extends ChatPaneProps {
@@ -25,12 +27,20 @@ interface ConversationProps extends ChatPaneProps {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, onOpenTab, onWork }: ConversationProps) {
+export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, onOpenTab, onWork, webPages = [], unreadSelected = 0 }: ConversationProps) {
+  const [refresh, setRefresh] = useState<Set<string>>(new Set())
+  const urlRefresh = scope ? [] : keptRefresh(refresh, webPages)
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
   const { busy, error, run } = useAsync()
-  const price = useEstimate({ action: 'chat_answer' })
+  // with the notebook, rag lists reading unread sources and re-reading pages apart
+  const price = useEstimate({
+    action: 'chat_answer',
+    notebook_id: notebookId,
+    ...(!scope && sources.sourceIds ? { source_ids: sources.sourceIds } : {}),
+    ...(urlRefresh.length > 0 ? { url_refresh: urlRefresh } : {}),
+  })
   const pane = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
 
@@ -73,7 +83,9 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
       { id: `local-${Date.now()}`, role: 'user', content: q, citations: null, created_at: new Date().toISOString() },
     ])
     // a question about one document is scoped by it; the selection is for the notebook
-    const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id, scope ? undefined : sources.sourceIds))
+    const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id, scope ? undefined : sources.sourceIds, urlRefresh))
+    // unread sources were read, pages maybe fetched again: the lists follow
+    if (!scope && (unreadSelected > 0 || urlRefresh.length > 0)) onWork?.()
     if (answer) {
       setMessages((prev) => [
         ...prev,
@@ -181,7 +193,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
             {m.role === 'assistant' && i === messages.length - 1 && !busy && <SuggestionCards suggestions={m.suggestions ?? []} disabled={busy || blocked} onAsk={(q) => void send(q)} />}
           </article>
         ))}
-        {busy && <p className="muted">…</p>}
+        {busy && <p className="muted">{!scope && unreadSelected > 0 ? tn('chat.reading', unreadSelected) : '…'}</p>}
         {messages.length === 0 && !busy && <p className="muted">{t('chat.empty')}</p>}
         {messages.length === 0 && !busy && <StarterQuestions notebookId={notebookId} disabled={blocked} onAsk={(q) => void send(q)} />}
       </div>
@@ -201,6 +213,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           {sources.selected === 0 ? t('chat.noSources') : t('chat.sourcesOf', { n: sources.selected, total: sources.total })}
         </p>
       )}
+      {!scope && <UrlRefresh pages={webPages} refresh={refresh} onChange={setRefresh} />}
       <form className="ask row" onSubmit={ask}>
         <input
           ref={input}

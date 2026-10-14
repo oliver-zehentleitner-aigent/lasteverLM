@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { rag } from '../api/rag'
-import type { Citation, Conversation, Output } from '../api/types'
+import type { Citation, Conversation, Output, Source } from '../api/types'
 import type { Selection } from '../lib/sourceSelection'
 import { useAsync } from '../hooks/useAsync'
 import { useTabStrip } from '../hooks/useTabStrip'
@@ -27,6 +27,10 @@ export interface ChatPaneProps {
   onOpenTab?: (target: { type: 'source' | 'output'; id: string }) => void
   /** a plan's step made something: the notebook's lists reload */
   onWork?: () => void
+  /** the selected web pages, each cached or fetched again for a question */
+  webPages?: Source[]
+  /** selected sources not read yet: a question reads them first */
+  unreadSelected?: number
 }
 
 /** A notebook without conversations gets its first one when the chat opens,
@@ -47,7 +51,7 @@ function createFirst(notebookId: string): Promise<Conversation> {
 /** Right column, bottom: the chats of one notebook as tabs. "+" opens a new
  *  one, "×" deletes one with its messages after a confirmation; the last
  *  tab closed is replaced by a fresh one, so there is always a chat. */
-export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools, onOpenTab, onWork }: ChatPaneProps) {
+export function ChatPane({ notebookId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, tools, onOpenTab, onWork, webPages, unreadSelected }: ChatPaneProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // inline rename of a tab: which one, and the text being typed
@@ -187,6 +191,8 @@ export function ChatPane({ notebookId, scope, presentSources, sources, onClearSc
           onOpenSource={onOpenSource}
           onOpenTab={onOpenTab}
           onWork={onWork}
+          webPages={webPages}
+          unreadSelected={unreadSelected}
         />
       )}
     </section>

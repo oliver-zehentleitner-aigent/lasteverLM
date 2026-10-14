@@ -979,3 +979,15 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .tour-actions { align-items: center; }
 .tour-actions .grow { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
+/* read when used: an unread source is neutral, like one waiting for credit */
+.badge.added { color: var(--muted); border-color: var(--line); }
+.sources .src-fetched { flex: none; }
+/* reading unread sources and re-reading pages: their own lines under the price */
+.price-tag .price-separate { display: block; }
+/* the selected web pages, each cached or fetched again */
+.url-refresh { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.4rem 0; }
+.url-refresh ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.url-refresh li { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.url-refresh-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.url-refresh .presets { flex: none; }
+@media (max-width: 900px) { .url-refresh .presets { display: inline-flex; } }

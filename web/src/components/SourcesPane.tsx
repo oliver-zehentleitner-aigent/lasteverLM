@@ -9,6 +9,8 @@ import { AudioCheck, PlayButton } from './AudioCheck'
 import { StarterBadge } from './StarterBadge'
 import { StatusBadge } from './PendingReason'
 import { t } from '../i18n'
+import { priceLabel } from '../lib/estimate'
+import { whenLabel } from '../lib/outputsList'
 
 interface Props {
   notebookId: string
@@ -72,6 +74,31 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
     return () => clearInterval(t)
   }, [processing, notebookId])
 
+  const reload = async () => setSources(await ingest.listSources(notebookId))
+
+  /** "read now" on an unread source: its price first, then ingest reads it. */
+  async function readNow(s: Source) {
+    const lib = s.library_id ?? s.id
+    const est = await run(() => ingest.readEstimate([lib]))
+    const item = est?.items.find((x) => x.library_id === lib) ?? est?.items[0]
+    if (!est) return
+    const price = item ? priceLabel({ charge_cents_min: item.charge_cents_min, charge_cents_max: item.charge_cents_max }) : null
+    if (!confirm(t('sources.readNowConfirm', { name: s.name, price: price ?? '—', basis: item?.basis ?? '' }))) return
+    await run(async () => {
+      await ingest.processSources([lib])
+      await reload()
+    })
+  }
+
+  /** "fetch again" on a web page: read again only when it changed. */
+  async function fetchAgain(s: Source) {
+    if (!confirm(t('sources.fetchAgainConfirm', { name: s.name }))) return
+    await run(async () => {
+      await ingest.refetchSource(s.id)
+      await reload()
+    })
+  }
+
   async function remove(s: Source) {
     if (!confirm(t('sources.removeConfirm', { name: s.name }))) return
     const ok = await run(async () => {
@@ -121,6 +148,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
                 {s.name}
               </button>
               <StarterBadge item={s} />
+              {s.kind === 'url' && s.fetched_at && <span className="src-fetched muted small">{t('sources.fetchedShort', { when: whenLabel(s.fetched_at) })}</span>}
             </span>
             {/* one group that never wraps inside: kind, capture, status, play, remove */}
             <span className="src-badges">
@@ -131,6 +159,28 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
                 </span>
               )}
               <StatusBadge status={s.status} error={s.error} />
+              {s.kind === 'url' && (s.version ?? 1) > 1 && (
+                <span className="badge" title={t('sources.versionTitle', { n: s.version! })}>
+                  {t('sources.version', { n: s.version! })}
+                </span>
+              )}
+              {s.status === 'added' && (
+                <button type="button" className="link small" disabled={busy} title={t('sources.readNowTitle')} onClick={() => void readNow(s)}>
+                  {t('sources.readNow')}
+                </button>
+              )}
+              {s.kind === 'url' && s.status !== 'added' && s.status !== 'processing' && (
+                <button
+                  type="button"
+                  className="icon"
+                  disabled={busy}
+                  title={s.fetched_at ? `${t('sources.fetched', { when: whenLabel(s.fetched_at) })} · ${t('sources.fetchAgainTitle')}` : t('sources.fetchAgainTitle')}
+                  aria-label={t('sources.fetchAgain')}
+                  onClick={() => void fetchAgain(s)}
+                >
+                  ↻
+                </button>
+              )}
               {audioFiles(s) && <PlayButton open={playing?.id === s.id} name={s.name} onToggle={() => togglePlayer(s)} />}
               <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>
                 ×
