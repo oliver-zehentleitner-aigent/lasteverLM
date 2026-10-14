@@ -216,7 +216,7 @@ calibrated: no rated outputs existed when it was chosen.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** maintainer request relayed by the coordinator, 2026-10-14 (instructions below the system rules; focus and tone yes, citation rules no); the wording and where the text sits are rag's
+**Source:** maintainer request relayed by the coordinator, 2026-10-14 (instructions below the system rules; focus and tone yes, citation rules no); the coordinator's decision the same day to keep them in the shared views; the wording and where the text sits are rag's
 **Revisit when:** outputs made with instructions show markedly more unsupported units than those without, or users need instructions that change the structure the schema fixes
 
 Every kind takes `instructions`, free text of at most 500 characters,
@@ -238,10 +238,15 @@ model did, an uncited or unsupported unit is still marked, never trusted.
 Recording the note in the log lets a reader see why an output reads the
 way it does.
 
-**Rejected alternatives:** unknown. No other placement or treatment was
-weighed in the brief. Because the note is part of the options, the
-shared views show it with them. That is open with the coordinator: a
-personal note may not be meant for a link's readers.
+The note is part of the options, so the shared views show it too. The
+coordinator decided this on 2026-10-14: it steers the output, so a
+reader checking the output must see it ("everything checkable"). The web
+labels it as the author's instructions and warns, in the field, that
+anyone the output is shared with can see it.
+
+**Rejected alternatives:** stripping the note from the shared views: a
+reader could not tell what shaped the document. No other placement or
+treatment was weighed in the brief.
 
 ## A chart's values get an exact number check, not word overlap
 
