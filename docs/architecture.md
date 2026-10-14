@@ -299,12 +299,34 @@ per kind, each with a prompt, an output schema and a renderer in web.
 
 | Kind | `content` | Rendered as |
 |---|---|---|
-| `report` | `{"markdown"}` | Markdown document |
-| `quiz` | `{"questions": [{"question", "options", "answer", "explanation"}]}` | interactive quiz with reveal |
-| `table` | `{"columns": [], "rows": [[]]}` | sortable table, CSV export |
-| `mindmap` | `{"root": {"label", "children": []}}` | markmap in the browser |
-| `infographic` | `{"headline", "facts": [{"label", "value"}], "sections": [{"title", "text"}]}` | card grid |
-| `audio` | `{"url", "transcript": [{"speaker": "narrator"|"interviewer"|"expert", "text"}]}` | audio player with the transcript under it. Options: `audio_style` = `overview` (default) | `story` (one narrator, a narrative) | `conversation` (an interviewer and an expert, two voices: `voice` and `audio_voice_2`, which defaults to the next platform voice of the same language and must differ from the first; 422 otherwise or with another style); the catalogue lists `audio.styles` and `audio.default_style`. The row stores `{"key"}` (the object key); every read (GET output, the list, `shared/{token}`) replaces it with a presigned GET URL valid for one hour, because an `<audio>` element cannot send a bearer header. The script is written by the LLM and synthesized in sentence-boundary segments by `TTS_MODEL` with `TTS_VOICE`; the MP3 frames are concatenated |
+| `report` | `{"markdown", "units": [{"text", "refs", "support"}]}` | Markdown document with `[n]` markers; one unit per non-heading paragraph |
+| `quiz` | `{"questions": [{"question", "options", "answer", "explanation", "refs", "support"}]}` | interactive quiz with reveal |
+| `table` | `{"columns": [], "rows": [[]], "row_refs": [{"refs", "support"}]}` | sortable table, CSV export; `row_refs[i]` belongs to `rows[i]` |
+| `mindmap` | `{"root": {"label", "children": [], "refs", "support"}}` | markmap in the browser; every node carries its refs, the root is no claim unless it cites |
+| `infographic` | `{"headline", "facts": [{"label", "value", "refs", "support"}], "sections": [{"title", "text", "refs", "support"}]}` | card grid |
+| `audio` | `{"url", "transcript": [{"speaker": "narrator"|"interviewer"|"expert", "text", "refs", "support"}]}` | audio player with the transcript under it. Options: `audio_style` = `overview` (default) | `story` (one narrator, a narrative) | `conversation` (an interviewer and an expert, two voices: `voice` and `audio_voice_2`, which defaults to the next platform voice of the same language and must differ from the first; 422 otherwise or with another style); the catalogue lists `audio.styles` and `audio.default_style`. The row stores `{"key"}` (the object key); every read (GET output, the list, `shared/{token}`) replaces it with a presigned GET URL valid for one hour, because an `<audio>` element cannot send a bearer header. The script is written by the LLM and synthesized in sentence-boundary segments by `TTS_MODEL` with `TTS_VOICE`; the MP3 frames are concatenated |
+
+Provenance: every unit of every kind (a report paragraph, a quiz
+question, a table row, a mind-map node, an infographic fact or section,
+a transcript paragraph or turn) carries `refs`, the numbers of the
+passages it cites, and `support`: `supported` when a deterministic
+word-overlap check (`lexical-overlap-v1`, threshold 0.5, no model call)
+finds at least half of the unit's content words in its best cited
+passage, `unsupported` when it does not, `unverified` when it does not
+and the output was written in another language than the material
+(word overlap says nothing across languages); absent means the unit is
+no claim. Failing units are kept and marked, never dropped, and the
+output is never blocked. `Output.provenance` is the generation log:
+`{version, prompt_version, model, options, focus_query, retrieval: {k,
+floor, candidates: [{chunk_id, source_id, source_name, page,
+similarity, in_prompt}]}, passages: [{n, chunk_id, source_id,
+source_name, source_kind, page, chunk_index, chunk_count, similarity,
+quote}], usage: {llm, embedding, tts}, started_at, finished_at, check:
+{method, threshold, supported, unsupported, unverified}}`; the shared
+view carries it without `chunk_id`, `source_id` and the source
+selection, so a shared document is checkable without login
+(`rag/context/citations.md`). Chat answers go through the same check
+(`Message.units`, `Message.check`).
 
 How a generator gets its input: every source carries a `summary`
 written by ingest; the generator takes all summaries of the notebook

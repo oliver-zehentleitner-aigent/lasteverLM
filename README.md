@@ -2,7 +2,7 @@
 
 [![Read the Docs](https://img.shields.io/badge/read-%20docs-yellow)](https://oliver-zehentleitner.github.io/lasteverLM/) [![ci](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ci.yml) [![ktw-lint](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/ktw-lint.yml) [![black](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/black.yml/badge.svg)](https://github.com/oliver-zehentleitner/lasteverLM/actions/workflows/black.yml) [![Keep the Why · live](https://keepthewhy.com/assets/badge.svg)](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/)
 
-**Please explain this to me.** A NotebookLM-style assistant: provide documents, ask questions, get cited answers.
+**Material in. Understanding out.** PDFs, text, web pages, images and audio go in; questions, reports, quizzes, tables, mind maps and spoken overviews come out, each sentence traceable to the passage it came from. A NotebookLM-style assistant, built to be checked.
 
 One repository for the whole system. The root is the umbrella:
 architecture, the reasoning behind it, the task board and the
