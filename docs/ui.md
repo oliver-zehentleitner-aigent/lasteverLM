@@ -655,7 +655,14 @@ deleted from the library) stays readable with its quote and is marked
   format is picked) and above the chat's question field, each selected
   web page that was read has its own choice, **cached (fetched 3 h ago)
   | fetch again**, cached by default; the pages to fetch again go as
-  `url_refresh` (library ids). While a question reads sources the chat
+  `url_refresh` (library ids). A selected source rag cannot read (its
+  estimate's `blocked`, e.g. "Source '…' could not be read: the page has
+  no text without a browser") stands in for the price with its reason,
+  "turn it off" (deselects it) and, for a web page, "fetch the page
+  again" (adds it to `url_refresh`); Create stays disabled while any is
+  listed, since rag would refuse it (409). Above the question field the
+  same lines show, but Ask stays: the answer uses the rest and says what
+  it could not read. While a question reads sources the chat
   says "reading 2 sources…"; an output waiting for its sources says so;
   both reload the Sources list after.
 - Prices: before anything billed runs, its estimated charge from rag's

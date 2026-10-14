@@ -47,9 +47,13 @@ export function OutputContent({ kind, title, status, error, content, onExpired, 
   if (status === 'waiting') return <p className="muted">{t('content.waiting')}</p>
   if (status === 'processing')
     return (
-      <p className="muted">
-        {t('content.generating')} <Walker />
-      </p>
+      <>
+        <p className="muted">
+          {t('content.generating')} <Walker />
+        </p>
+        {/* processing with an error is a retry in flight; the error says which attempt follows */}
+        {error && <p className="muted small">{error}</p>}
+      </>
     )
   if (status === 'failed') return <p className="error">{error ?? t('content.failed')}</p>
   if (content === null || content === undefined) return <p className="muted">{t('content.none')}</p>

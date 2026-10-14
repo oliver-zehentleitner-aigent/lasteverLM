@@ -1107,4 +1107,6 @@ export const de: Record<MessageKey, string> = {
   'srcView.livePage': 'Live-Seite',
   'srcView.snapshotTitle': 'Momentaufnahme von {name}',
   'audioStyle.faq': 'FAQ',
+  'blocked.deselect': 'abwählen',
+  'blocked.refetch': 'Seite neu abrufen',
 }

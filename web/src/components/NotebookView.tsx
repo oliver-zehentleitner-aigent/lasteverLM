@@ -81,6 +81,11 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   const selectedSources = uploads?.filter((s) => !excluded.has(s.id)) ?? []
   const webPages = selectedSources.filter((s) => s.kind === 'url' && s.status !== 'added')
   const unreadSelected = selectedSources.filter((s) => s.status === 'added').length
+  /** turns a source off by its library id (one rag reported it cannot read) */
+  const deselect = (libraryId: string) => {
+    const s = uploads?.find((x) => (x.library_id ?? x.id) === libraryId)
+    if (s) changeExcluded(new Set(excluded).add(s.id))
+  }
   // viewer/chat split, remembered per browser; full view hides the chat behind a toggle
   const [ratio, setRatio] = useState(() => readRatio(browserStorage()))
   const [fullView, setFullView] = useState(false)
@@ -284,6 +289,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             onCreate={(k, o, refresh) => void createOutput(k, o, refresh)}
             sourceIds={picked.sourceIds}
             webPages={webPages}
+            onDeselect={deselect}
           />
           <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={openOutput} onDelete={(o) => void deleteOutput(o)} onRename={(o, title) => void renameOutput(o, title)} />
         </div>
@@ -349,6 +355,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
               sources={picked}
               webPages={webPages}
               unreadSelected={unreadSelected}
+              onDeselect={deselect}
               onClearScope={() => setScope(null)}
               onCitationSelected={onCitation}
               onOpenSource={openSource}

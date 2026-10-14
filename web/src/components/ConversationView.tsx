@@ -13,6 +13,7 @@ import { AnswerActions, SuggestionCards } from './AnswerActions'
 import { StarterQuestions } from './StarterQuestions'
 import { PlanCard } from './PlanCard'
 import { UrlRefresh } from './UrlRefresh'
+import { BlockedSources } from './BlockedSources'
 import { keptRefresh } from '../lib/urlRefresh'
 import { PriceTag } from './PriceTag'
 import { ProvenancePanel } from './ProvenancePanel'
@@ -27,7 +28,7 @@ interface ConversationProps extends ChatPaneProps {
  *  of each answer as buttons; a click shows the quote under the message and
  *  tells the parent which source to highlight (or which output tab to open,
  *  for a citation into a generated document). */
-export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, onOpenTab, onWork, webPages = [], unreadSelected = 0 }: ConversationProps) {
+export function ConversationView({ notebookId, conversationId, scope, presentSources, sources, onClearScope, onCitationSelected, onOpenSource, onOpenTab, onWork, webPages = [], unreadSelected = 0, onDeselect }: ConversationProps) {
   const [refresh, setRefresh] = useState<Set<string>>(new Set())
   const urlRefresh = scope ? [] : keptRefresh(refresh, webPages)
   const [messages, setMessages] = useState<Message[]>([])
@@ -214,6 +215,10 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
         </p>
       )}
       {!scope && <UrlRefresh pages={webPages} refresh={refresh} onChange={setRefresh} />}
+      {/* a question still answers from the rest; the reasons say what it leaves out */}
+      {!scope && onDeselect && price && 'estimate' in price && (
+        <BlockedSources blocked={price.estimate.blocked ?? []} webPages={webPages} refresh={refresh} onDeselect={onDeselect} onRefetch={(id) => setRefresh((prev) => new Set(prev).add(id))} />
+      )}
       <form className="ask row" onSubmit={ask}>
         <input
           ref={input}

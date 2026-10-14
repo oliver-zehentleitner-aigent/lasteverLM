@@ -21,6 +21,8 @@ export interface Estimate {
   charge_cents_max: number
   /** billed apart by ingest, not in the charge: reading an unread source, re-reading a page */
   separate?: { library_id: string; label: string; basis?: string | null; min: number; max: number }[]
+  /** selected sources that cannot be read; with any, the action would be refused (409) */
+  blocked?: { library_id: string; name: string; reason: string }[]
 }
 
 /** The charge as a user reads it, in whole cents and still rounded
