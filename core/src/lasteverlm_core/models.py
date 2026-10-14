@@ -277,8 +277,10 @@ class UsageRecord(BaseModel):
 
     Usage rows are the only debit; the account service sums their
     `charge_cents` against the ledger. Nothing else writes a debit.
-    `cost_cents` is the real cost, `charge_cents` what the user pays; both
-    exact and fixed when the row is booked.
+    `cost_usd_cents` is the real cost as the platform prices it,
+    `cost_cents` the same in euro cents at `usd_per_eur`, `charge_cents`
+    what the user pays in euro cents; all exact and fixed when the row is
+    booked.
     """
 
     user_id: UUID
@@ -291,5 +293,7 @@ class UsageRecord(BaseModel):
     # `integer` columns: a value past INT4_MAX fails here, named, not in the insert
     tokens_in: int = Field(ge=0, le=INT4_MAX)
     tokens_out: int = Field(ge=0, le=INT4_MAX)
+    cost_usd_cents: Decimal = Field(ge=0)
+    usd_per_eur: Decimal | None = Field(default=None, gt=0)
     cost_cents: Decimal = Field(ge=0)
     charge_cents: Decimal = Field(ge=0)

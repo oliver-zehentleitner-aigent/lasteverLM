@@ -15,13 +15,15 @@ preserves why it changed, in `context/`.
 - The ban cap is a runtime rule: `RateLimitRules` gains `ban_max_days` (bounds 1–365 in `RATE_LIMIT_RULE_BOUNDS`, default `BAN_MAX_DAYS`), and the limiter ends a ban after the current rules' value instead of the env setting. `RateLimitRules.parse(value, defaults=None)` accepts a row without `ban_max_days`, as stored before, and takes it from `defaults`. `BAN_MAX_DAYS` above 365 is now a `ConfigError` at startup.
 - Cost and charge are separate (finance redesign). Migration `0006_core_usage_billing.sql` is an expand step:
   - `usage` gains `action`, `action_id` and `charge_cents`; `cost_cents` becomes `numeric`; kind `fee`; a unique index on `action_id` for fee rows.
-  - Existing rows get `charge_cents = cost_cents`, `action_id = id`, and an action derived from their kind or `unknown`.
+  - `usage` also gains `cost_usd_cents` (the platform's price, US cents) and `usd_per_eur` (the rate applied); `cost_cents` is now euro cents.
+  - Existing rows get `charge_cents = cost_cents`, `cost_usd_cents = cost_cents` (they were charged one to one), `usd_per_eur` null, `action_id = id`, and an action derived from their kind or `unknown`.
   - The new columns stay nullable, and a trigger fills them for rows from pods of the previous release during the rolling deploy. A later migration makes them not null.
 - `record_usage(conn, user_id, notebook_id, service, action, action_id, usage, *, prices, rules)` (and `arecord_usage`) replaces the kind/model/tokens arguments with the provider's `Usage`:
   - takes the user action (`USAGE_ACTIONS`, `is_usage_action`; `unknown` is refused) and its `action_id`;
-  - fixes `cost_cents` and `charge_cents` at booking;
+  - fixes `cost_usd_cents`, `usd_per_eur`, `cost_cents` (euro) and `charge_cents` (euro) at booking;
+  - raises `ExchangeRateMissingError` when the pricing rules have no rate;
   - books an action's fixed fee once per `action_id` (`FEE_SQL`).
-- `UsageRecord` gains `action`, `action_id` and `charge_cents`; `cost_cents` is a `Decimal`.
+- `UsageRecord` gains `action`, `action_id`, `cost_usd_cents`, `usd_per_eur` and `charge_cents`; `cost_cents` is a `Decimal` in euro cents.
 - `cost_cents()` returns the exact `Decimal` instead of rounding up to a whole cent per call.
 - Balance is credits minus charges:
   - `balance_cents` / `abalance_cents` return a `Decimal`;
@@ -31,7 +33,7 @@ preserves why it changed, in `context/`.
 ### Added
 
 - `lasteverlm_core.billing`:
-  - `PricingRules` (`parse`, `as_json`, `margin_pct`, `charge_cents`, `fixed_cents`; margin 0–1000 %, fixed fee 0–100000 cents, actions from `USAGE_ACTIONS`), `ActionPricing`, `DEFAULT_PRICING_RULES` (margin 0, no fees);
+  - `PricingRules` (`parse`, `as_json`, `cost_eur_cents`, `margin_pct`, `charge_cents`, `fixed_cents`; `usd_per_eur` required, 0.1–10; margin 0–1000 %, fixed fee 0–100000 euro cents, actions from `USAGE_ACTIONS`), `ActionPricing`, `DEFAULT_PRICING_RULES` (no rate, margin 0, no fees), `ExchangeRateMissingError`;
   - `PricingRulesCache` (account's `settings` row `pricing`, `PRICING_SETTINGS_KEY`, re-read at most every `PRICING_RULES_TTL_SECONDS`; a malformed row means the defaults plus one warning; a failing read is raised);
   - `estimate_charge(prices, rules, action, model, tokens_in, tokens_out=0)`.
 

@@ -13,6 +13,7 @@ from lasteverlm_core import (
     HAS_CREDIT_SQL,
     USAGE_ACTIONS,
     USAGE_SQL,
+    ExchangeRateMissingError,
     PricingRules,
     UnpricedModelError,
     Usage,
@@ -27,7 +28,7 @@ from lasteverlm_core import (
 
 from .conftest import FakeAsyncConnection, FakeConnection
 
-FREE = PricingRules()
+FREE = PricingRules(usd_per_eur=Decimal(1))  # one to one: the numbers stay readable
 LLM = Usage("llm", "llm", 1000, 2000)
 
 
@@ -67,7 +68,7 @@ def test_actions_cover_every_output_and_uploaded_source_kind() -> None:
 def test_record_usage_prices_charges_and_inserts(prices: Any) -> None:
     user, notebook, action_id = uuid4(), uuid4(), uuid4()
     conn = FakeConnection()
-    rules = PricingRules.parse({"default_margin_pct": 50})
+    rules = PricingRules.parse({"usd_per_eur": 1, "default_margin_pct": 50})
     row = record_usage(
         conn, user, notebook, "rag", "chat_answer", action_id, LLM, prices=prices, rules=rules
     )
@@ -86,7 +87,7 @@ def test_record_usage_prices_charges_and_inserts(prices: Any) -> None:
 
 
 def test_a_fixed_fee_is_its_own_row_once_per_action(prices: Any) -> None:
-    rules = PricingRules.parse({"actions": {"output:audio": {"fixed_cents": 5}}})
+    rules = PricingRules.parse({"usd_per_eur": 1, "actions": {"output:audio": {"fixed_cents": 5}}})
     action_id = uuid4()
     conn = FakeConnection()
     tts = Usage("tts", "llm", 100, 0)
@@ -100,6 +101,39 @@ def test_a_fixed_fee_is_its_own_row_once_per_action(prices: Any) -> None:
     assert (fee["kind"], fee["model"], fee["tokens_in"], fee["cost_cents"]) == ("fee", "fee", 0, 0)
     assert fee["charge_cents"] == 5 and fee["action_id"] == action_id
     assert "on conflict (action_id) where kind = 'fee' do nothing" in FEE_SQL
+
+
+def test_the_dollar_cost_is_charged_in_euros_at_the_rate(prices: Any) -> None:
+    conn = FakeConnection()
+    rules = PricingRules.parse({"usd_per_eur": 1.25, "default_margin_pct": 10})
+    row = record_usage(
+        conn, uuid4(), None, "rag", "chat_answer", uuid4(), LLM, prices=prices, rules=rules
+    )
+    assert row.cost_usd_cents == Decimal("0.33")  # MODEL_PRICES are US cents
+    assert row.usd_per_eur == Decimal("1.25")
+    assert row.cost_cents == Decimal("0.264")  # 0.33 / 1.25, euro cents
+    assert row.charge_cents == Decimal("0.2904")  # plus 10 %
+    params = conn.executed[0][1]
+    assert params is not None and params["cost_usd_cents"] == Decimal("0.33")
+    ecb = PricingRules.parse({"usd_per_eur": 1.1188})
+    assert ecb.cost_eur_cents(Decimal(100)) == Decimal("89.3814801573")
+
+
+def test_without_a_rate_nothing_is_booked(prices: Any) -> None:
+    conn = FakeConnection()
+    with pytest.raises(ExchangeRateMissingError, match="usd_per_eur"):
+        record_usage(
+            conn,
+            uuid4(),
+            None,
+            "rag",
+            "chat_answer",
+            uuid4(),
+            LLM,
+            prices=prices,
+            rules=PricingRules(),
+        )
+    assert conn.executed == []
 
 
 def test_record_usage_refuses_before_touching_the_database(prices: Any) -> None:
@@ -128,7 +162,7 @@ async def test_async_variants(prices: Any) -> None:
     user = uuid4()
     conn = FakeAsyncConnection(rows=[(7,)])
     assert await abalance_cents(conn, user) == 7
-    rules = PricingRules.parse({"actions": {"source:pdf": {"fixed_cents": 1}}})
+    rules = PricingRules.parse({"usd_per_eur": 1, "actions": {"source:pdf": {"fixed_cents": 1}}})
     usage = await arecord_usage(
         conn,
         user,

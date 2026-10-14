@@ -76,7 +76,7 @@ PRICES = parse_model_prices(
     '{"llm": {"in": 30, "out": 150}, "tts": {"in": 2000, "out": 0},'
     ' "stt": {"in": 28000, "out": 0}, "clef": {"in": 10, "out": 0}}'
 )
-FREE = PricingRules()
+FREE = PricingRules(usd_per_eur=Decimal(1))
 T0 = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 SETTINGS = RateLimitSettings(per_minute=3, block_minutes=15, ban_after_strikes=3)
 
@@ -151,15 +151,31 @@ def test_record_usage_and_balance(conn: psycopg.Connection[Any]) -> None:
         action_id,
         Usage("llm", "llm", 1_000_000, 0),
         prices=PRICES,
-        rules=PricingRules.parse({"default_margin_pct": 10}),
+        rules=PricingRules.parse({"usd_per_eur": 1.25, "default_margin_pct": 10}),
     )
-    assert (usage.cost_cents, usage.charge_cents) == (Decimal(30), Decimal(33))
-    assert balance_cents(conn, user) == 967  # the charge, not the cost
+    # 30 US cents, 24 euro cents at 1.25, 26.4 charged with 10 %
+    assert (usage.cost_usd_cents, usage.cost_cents, usage.charge_cents) == (
+        Decimal(30),
+        Decimal(24),
+        Decimal("26.4"),
+    )
+    assert balance_cents(conn, user) == Decimal("973.6")  # the charge, not the cost
     assert balance_cents(conn, uuid4()) == 0
     row = conn.execute(
-        "select service, action, action_id, kind, model, cost_cents, charge_cents from usage"
+        "select service, action, action_id, kind, model, cost_usd_cents, usd_per_eur,"
+        " cost_cents, charge_cents from usage"
     ).fetchone()
-    assert row == ("rag", "chat_answer", action_id, "llm", "llm", 30, 33)
+    assert row == (
+        "rag",
+        "chat_answer",
+        action_id,
+        "llm",
+        "llm",
+        30,
+        Decimal("1.25"),
+        24,
+        Decimal("26.4"),
+    )
 
 
 def test_sub_cent_costs_are_kept_exactly(conn: psycopg.Connection[Any]) -> None:
@@ -173,7 +189,7 @@ def test_sub_cent_costs_are_kept_exactly(conn: psycopg.Connection[Any]) -> None:
 def test_a_fee_is_booked_once_per_action(conn: psycopg.Connection[Any]) -> None:
     user, action_id = uuid4(), uuid4()
     credit(conn, user, 100)
-    rules = PricingRules.parse({"actions": {"output:audio": {"fixed_cents": 5}}})
+    rules = PricingRules.parse({"usd_per_eur": 1, "actions": {"output:audio": {"fixed_cents": 5}}})
     for _ in range(3):  # three TTS segments of one audio output
         book(
             conn,
@@ -208,8 +224,10 @@ def test_a_row_from_the_previous_release_is_filled_by_the_trigger(
         " values (%s, 'rag', 'llm', 'llm', 1, 0, 7)",
         (user,),
     )
-    row = conn.execute("select id, action, action_id, charge_cents from usage").fetchone()
-    assert row is not None and row[1:] == ("unknown", row[0], 7)
+    row = conn.execute(
+        "select id, action, action_id, charge_cents, cost_usd_cents, usd_per_eur from usage"
+    ).fetchone()
+    assert row is not None and row[1:] == ("unknown", row[0], 7, 7, None)
     assert balance_cents(conn, user) == 93
 
 
@@ -233,16 +251,16 @@ def test_migration_0006_backfills_existing_rows(dsn: str) -> None:
             )
         c.execute(billing.read_text())
         rows = c.execute(
-            "select kind, action, action_id = id, charge_cents, cost_cents from usage"
-            " order by kind"
+            "select kind, action, action_id = id, charge_cents, cost_cents, cost_usd_cents,"
+            " usd_per_eur from usage order by kind"
         ).fetchall()
         c.execute("drop schema backfill cascade")
     assert rows == [
-        ("decision", "output:decision", True, 4, 4),
-        ("embedding", "unknown", True, 4, 4),
-        ("llm", "unknown", True, 4, 4),
-        ("stt", "source:audio", True, 4, 4),
-        ("tts", "output:audio", True, 4, 4),
+        ("decision", "output:decision", True, 4, 4, 4, None),
+        ("embedding", "unknown", True, 4, 4, 4, None),
+        ("llm", "unknown", True, 4, 4, 4, None),
+        ("stt", "source:audio", True, 4, 4, 4, None),
+        ("tts", "output:audio", True, 4, 4, 4, None),
     ]
 
 

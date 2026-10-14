@@ -1,7 +1,8 @@
 """Model prices and the cost of a call.
 
 `MODEL_PRICES` is JSON, `{"<model>": {"in": <cents per million tokens>,
-"out": <cents per million tokens>}}`. A deployment's values override the
+"out": <cents per million tokens>}}`, in US cents as the platform lists
+them; `billing.py` converts a cost to euro cents. A deployment's values override the
 defaults shipped here, model by model. A model without a price is a
 configuration error, not a free call: `cost_cents` raises, and a service
 checks its configured models with `require_prices` at startup so the
@@ -102,7 +103,7 @@ def require_prices(prices: ModelPrices, models: Iterable[str]) -> None:
 
 
 def cost_cents(prices: ModelPrices, model: str, tokens_in: int, tokens_out: int) -> Decimal:
-    """`(tokens_in * in + tokens_out * out) / 1e6`, prices per million tokens.
+    """`(tokens_in * in + tokens_out * out) / 1e6` in US cents, prices per million tokens.
 
     Exact decimal arithmetic and no rounding: the `usage` columns are
     numeric, so an embedding call worth a thousandth of a cent is booked
