@@ -1,6 +1,7 @@
 """PDFs in three capture modes.
 
-`text` reads the text layer (pypdf), one passage per page that has one.
+`text` reads the text layer (pypdf), one passage per page that has a
+legible one.
 `vision` renders every page (pypdfium2) and has the vision model
 transcribe it, one billed call per page. `auto` reads the text layer and
 renders only the pages without one, so a scanned or a mixed PDF works and
@@ -28,6 +29,12 @@ DEFAULT_CAPTURE: Capture = "auto"
 # A page with fewer visible characters than this has no usable text layer
 # (a scan with a page number or a stray OCR fragment on it).
 MIN_PAGE_CHARS = 20
+# Nor does a page whose visible characters are mostly not letters: a font
+# without a usable ToUnicode map gives pypdf its glyph codes, a salad like
+# "&MM,:N K OP&M,MM P2QL" at about half letters. Prose, umlauts included,
+# is above 0.9, a page of shell commands about 0.75. A page of bare
+# numbers falls below too and is read by the model in auto.
+MIN_LETTER_SHARE = 0.6
 # Legible for the model without paying for pixels it does not need: 150
 # dpi, A4 comes out at 1241 x 1754; the long edge is capped for large pages.
 RENDER_DPI = 150
@@ -54,8 +61,16 @@ def text_pages(data: bytes) -> list[str]:
         raise LoaderError(f"PDF could not be read: {exc}") from exc
 
 
+def legible(page: str) -> bool:
+    """True when the visible characters are mostly letters (str.isalpha,
+    so any script counts); an empty page is not legible."""
+    visible = [c for c in page if not c.isspace()]
+    return bool(visible) and sum(c.isalpha() for c in visible) >= MIN_LETTER_SHARE * len(visible)
+
+
 def has_text(page: str) -> bool:
-    return sum(not c.isspace() for c in page) >= MIN_PAGE_CHARS
+    """A usable text layer: enough characters, and legible ones."""
+    return sum(not c.isspace() for c in page) >= MIN_PAGE_CHARS and legible(page)
 
 
 def render_page(data: bytes, index: int) -> bytes:
@@ -85,11 +100,11 @@ class PdfLoader:
         passages = [
             Passage(text=text, page=number)
             for number, text in enumerate(text_pages(data), start=1)
-            if text
+            if legible(text)
         ]
         if not passages:
             raise LoaderError(
-                "PDF contains no extractable text (capture mode text; "
+                "PDF contains no legible text (capture mode text; "
                 "upload it with capture auto or vision to have the pages read)"
             )
         return passages
