@@ -163,7 +163,8 @@ for (const nb of notebooks.slice(0, Number(process.env.MAX_NOTEBOOKS ?? 6))) {
   const outputs = await api(`/api/rag/notebooks/${nb.id}/outputs`)
   const ready = outputs.filter((o) => o.status === 'ready')
   for (const o of outputs) if (o.share_token && o.status === 'ready' && !shares.has(o.kind)) shares.set(o.kind, o.share_token)
-  if (!judged) judged = ready.find((o) => o.provenance?.judge) ?? null
+  // judged while made (provenance.judge) or afterwards (provenance.judgements)
+  if (!judged) judged = ready.find((o) => o.provenance?.judge || o.provenance?.judgements?.length) ?? null
   await page.evaluate((id) => localStorage.setItem('lasteverlm.notebook', id), nb.id)
   await step(`notebook ${nb.id.slice(0, 8)}`, async () => {
     await page.goto(WEB + '/')

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `make web-csp-check` finds an output judged after it was made (`provenance.judgements`), not only one judged while it was made (`provenance.judge`); before, the judge panel of a report judged from the viewer was never walked.
+
 ## [0.18.3] - 2026-10-14
 
 ### Added
