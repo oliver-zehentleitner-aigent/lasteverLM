@@ -362,7 +362,15 @@ blocks, and the walk shares its address with everything else on the
 machine (an unthrottled walk of 0.18.0 sent about 1800 requests in a few
 minutes and got the VM's address blocked). The report gives the
 number of requests and the rate reached. Exit 0: clean; 1: violations; 2:
-the canary was not reported. On the VM: `sg docker -c "make
+the canary was not reported; 3: a storage load failed or came from
+another origin. The storage step checks the narrowed policy where it
+matters: on `/library` it hovers an image's name (the preview loads its
+presigned image) and plays an audio source if there is one; in a
+notebook it opens a ready PDF source's tab (the original in a frame).
+Each load must come from the `s3Endpoint` of the values file
+(`STORAGE_ORIGIN`) and draw no violation. A build without the inline
+PDF frame, or a demo user without such a source, is reported as such,
+not failed. On the VM: `sg docker -c "make
 web-csp-check"`. The output kinds covered are those the demo user has.
 
 `make handbook` (needs Docker) renders `build/lasteverlm-handbook.pdf`,
