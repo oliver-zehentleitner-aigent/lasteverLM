@@ -72,3 +72,33 @@ over from a dead worker.
 - One action for a proposal and its chart: the proposal may never be
   turned into a chart.
 
+
+## Without an exchange rate nothing that calls a model runs
+
+**Id:** 78aa59d2-c992-4d45-8793-0c9371e6acfe
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinator, 2026-10-14, on a finding of ingest's: booking without `usd_per_eur` fails after the model call; core's currency entry (US cents measured, euro cents charged, no default rate)
+**Revisit when:** core books in one currency again, or gives the rate a default
+
+The credit check (`require_credit`) reads the pricing rules first. When
+they have no `usd_per_eur`, every request that would call a model (an
+answer, an output, a proposal, a judgement, a preview) and the estimate
+answer 503 "pricing has no exchange rate, ask an admin" before any
+provider call. The worker reads the rules before claiming and, without a
+rate, claims no job and logs an error each pass.
+
+**Reason:** core refuses to book a dollar cost as euros without a rate,
+and the booking comes after the call. A call made without a rate is
+paid to the platform and never charged. Checking first turns that silent
+loss into a visible refusal. A claimed job counts an attempt, so a worker
+that claimed and failed would use up the user's three attempts on a
+configuration gap. Not claiming leaves the jobs waiting until the rate is
+set.
+
+**Rejected alternatives:**
+- Letting the booking fail after the call: the platform is paid, the
+  user is not charged.
+- Claiming jobs and failing them: it spends attempts and fails outputs
+  for a problem the user cannot fix.
