@@ -600,6 +600,8 @@ export const en = {
   'arch.depState': '{name}: {state} (as the services\' healthz report it)',
   'outProv.rowSources': 'Sources of the row',
   'login.taglineMore': 'PDFs, text, web pages, images and audio go in; questions, reports, quizzes, tables, mind maps and spoken overviews come out, each sentence traceable to the passage it came from.',
+  'set.themeSession': 'This session is on {session} (the header toggle); your saved choice is {saved}.',
+  'set.themeUseSaved': 'Use saved',
 } as const
 
 export type MessageKey = keyof typeof en

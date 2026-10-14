@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Theme: the header toggle switches light and dark for this browser session only and no longer saves to the account (so the demo account gets no refusal); the lasting choice is made in Settings (light, dark or like the system), where a note says when the session differs from it, with "Use saved". With nothing chosen the app is light (before: following the system).
 - Login: the new tagline, "Material in. Understanding out." in bold and what goes in and comes out as the line under it.
 
 ### Fixed

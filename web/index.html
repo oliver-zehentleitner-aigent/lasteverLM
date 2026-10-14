@@ -6,11 +6,14 @@
     <meta name="color-scheme" content="light dark" />
     <title>lasteverLM</title>
     <script>
-      // the stored theme before the first paint, so a dark choice never flashes light
+      // the theme before the first paint, so a dark choice never flashes light:
+      // this session's toggle, else the saved choice, else light
       try {
-        var theme = localStorage.getItem('lasteverlm.theme')
+        var theme = sessionStorage.getItem('lasteverlm.theme.session') || localStorage.getItem('lasteverlm.theme') || 'light'
         if (theme === 'light' || theme === 'dark') document.documentElement.setAttribute('data-theme', theme)
-      } catch (e) {}
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light')
+      }
     </script>
   </head>
   <body>

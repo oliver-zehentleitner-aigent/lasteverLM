@@ -5,8 +5,7 @@ import { t } from '../i18n'
 import { versionLine } from '../lib/build'
 import { formatCents } from '../lib/format'
 import { canSeeAdmin } from '../lib/roles'
-import { useMe } from '../hooks/useMe'
-import { setTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVersion } from '../lib/theme'
+import { setSessionTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVersion } from '../lib/theme'
 
 interface Props {
   me: User | null
@@ -35,22 +34,16 @@ function useBuild(): string | null {
   return line
 }
 
-/** Switches between light and dark, starting from what is on screen; the
- *  icon shows what a click gives. "system" is left to the settings page.
- *  Kept in this browser and, when signed in, in the account (the shared
- *  demo account cannot store preferences; then it stays in this browser). */
+/** Switches between light and dark for this browser session, starting
+ *  from what is on screen; the icon shows what a click gives. The lasting
+ *  choice, "system" included, is made on the settings page. */
 function ThemeToggle() {
   const theme = useTheme()
   useThemeVersion()
-  const { me, setMe } = useMe()
   const next = toggledTheme(theme, systemPrefersDark())
-  function toggle() {
-    setTheme(next)
-    if (me) account.savePreferences({ theme: next }).then(setMe, () => {})
-  }
   const label = next === 'dark' ? t('theme.toDark') : t('theme.toLight')
   return (
-    <button type="button" className="icon theme-toggle" title={label} aria-label={label} onClick={toggle}>
+    <button type="button" className="icon theme-toggle" title={label} aria-label={label} onClick={() => setSessionTheme(next)}>
       {next === 'dark' ? '☾' : '☀'}
     </button>
   )

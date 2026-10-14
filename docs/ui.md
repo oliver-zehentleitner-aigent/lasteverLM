@@ -470,18 +470,20 @@ everyone, from the public `/api/account/healthz`.
 
 ## Theme
 
-Light or dark: a `theme` preference "system" (the default, following the
-operating system's setting), "light" or "dark". A toggle in the header
-switches between light and dark only, starting from what is on screen
-(its icon shows what a click gives; under "system" a click sets the
-explicit opposite), and applies at once; "system" is chosen on the
-Settings page; both read and write one theme store
-(`lib/theme.ts`), so the toggle always shows what Settings saved and the
-other way round. The choice is kept in this browser
-(read by a small script in `index.html` before the first paint, so a
-dark choice never flashes light) and, when signed in, in the account,
-so it follows the user to other browsers; the shared demo account keeps
-it in the browser only. Every colour goes through the tokens in
+Light or dark: a `theme` preference "light" (the default when nothing is
+chosen), "dark" or "system" (following the operating system's setting),
+chosen on the Settings page and saved in the account when signed in, so
+it follows the user to other browsers, and in this browser. The toggle
+in the header switches between light and dark for this browser session
+only (sessionStorage; nothing is saved in the account, so the shared
+demo account can use it too), starting from what is on screen (its icon
+shows what a click gives; under "system" a click sets the explicit
+opposite). On load the session's choice wins, else the saved one, else
+light; a small script in `index.html` applies it before the first paint,
+so a dark choice never flashes light. While the session differs from
+the saved choice, the Settings page says so ("this session is on Dark;
+your saved choice is Light") with "Use saved", which drops the
+session's choice. One theme store (`lib/theme.ts`) holds both. Every colour goes through the tokens in
 `styles.css` (one block per theme), the charts and the mind map
 included; the charts read the tokens again when the theme changes. A
 test computes the WCAG contrast of the token pairs in both themes (4.5:1

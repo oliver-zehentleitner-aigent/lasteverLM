@@ -603,4 +603,6 @@ export const de: Record<MessageKey, string> = {
   'arch.depState': '{name}: {state} (laut healthz der Dienste)',
   'outProv.rowSources': 'Quellen der Zeile',
   'login.taglineMore': 'PDFs, Text, Webseiten, Bilder und Audio gehen hinein; Fragen, Berichte, Quizze, Tabellen, Mindmaps und gesprochene Überblicke kommen heraus, jeder Satz zurückverfolgbar bis zur Stelle, aus der er stammt.',
+  'set.themeSession': 'Diese Sitzung ist auf {session} (der Schalter oben); deine gespeicherte Wahl ist {saved}.',
+  'set.themeUseSaved': 'Gespeicherte verwenden',
 }
