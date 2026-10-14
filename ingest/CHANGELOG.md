@@ -11,6 +11,7 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Web pages have versions: `POST /sources/{id}/refetch` fetches a page again; unchanged (by the hash of its extracted text) only `fetched_at` moves and nothing is charged, changed a new version (`version + 1`) takes the links and is read, and the old version is kept read-only (hidden, its chunks kept for old citations). Sources and library entries carry `version` and `fetched_at` (migration 0015); purging a page purges its older versions.
 - `POST /sources/process` `{"library_ids"}` reads the caller's unread sources (`added` to `processing`; `{"queued", "unchanged"}`), and `POST /sources/estimate` `{"library_ids", "refetch"}` gives what reading them would charge (min/max and a basis such as "12 pages, text layer") from the page count and recording length stored at upload (migration 0014).
 
 ### Changed

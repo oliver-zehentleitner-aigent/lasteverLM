@@ -60,6 +60,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/notebooks/{id}/share` | 204 | revokes the link; sharing again makes a new token |
 | DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library, outputs included; rag keeps an output's origin title) |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
+| POST | `/sources/{id}/refetch` | 202 | fetch a web page again (owner, the link id): `{"library_id", "version", "fetched_at"}`. A read page goes to `processing` until a worker has compared it: unchanged, `fetched_at` moves and nothing is charged; changed, a new version (`version + 1`) takes the links and is read and charged as a web page. An unread or failed page is simply read. 409 for any other source (not a web page, being read, an older version) |
 | POST | `/sources/process` | 200 | `{"library_ids": [...]}` (1–200): read the caller's unread sources now. `added` entries move to `processing` (`"queued"`), entries being read, read or failed stay as they are (`"unchanged"`): `{"queued": [library_id], "unchanged": [library_id]}`. Nothing is billed here (the worker bills the reading); without credit the queued ones show `waiting_for_credit`. One transaction: 404 naming any id that is not the caller's (unknown, someone else's, trashed). Called by rag before an answer or an output and by the web's "read now" |
 | POST | `/sources/estimate` | 200 | `{"library_ids": [...], "refetch": [...]}`: what reading them would charge, `{"items": [{"library_id", "kind", "unread", "charge_cents_min", "charge_cents_max", "basis"}]}` in euro cents (decimal strings). Unread entries from their stored size, page count (PDFs) or duration (MP3/WAV), a range where those are unknown (a web page before its fetch, an older PDF, a recording to convert); read ones 0 ("read already"), unless in `refetch` ("re-read if changed": 0 to one web page). Each includes the summary and the fixed fee. 404 naming ids not the caller's, 503 without an exchange rate |
 | POST | `/notebooks/{id}/sources/bulk` | 200 | `{"library_ids": [...]}` (1–200): links the caller's library entries into their notebook at once, uploads (any status, not trashed) and ready outputs alike; nothing is processed or billed. Answers `{"added": [library_id], "already": [library_id]}` in the order given (duplicates counted once); an existing link is `already`, never doubled (unique `sources_link_idx`). One transaction: if any id is unknown, someone else's, trashed or an unfinished output, nothing is added and the answer is 404 naming them |
@@ -81,7 +82,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/admin/users/{id}` | 204 | admins only (viewers 403): everything the user owns in ingest. The stored objects of their library (trash and converted recordings included) are deleted first, then their library rows (generated ones too, chunks cascade), notebooks (links and rag's rows cascade) and seed mark in one transaction. A storage failure is 503 `{"error"}` naming the count and the first key, with every row kept for a retry. Idempotent: 204 also when nothing is left or the user never existed. Account calls it, with the admin's bearer, after rag's purge and before deleting the user |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
-"created_at", "library_id", "capture", "starter", "preview_url", "original_url"}`; name,
+"created_at", "library_id", "capture", "starter", "version", "fetched_at", "preview_url", "original_url"}`; name,
 kind, status, error, capture and starter are the library source's. A
 library entry is
 
@@ -292,6 +293,24 @@ A provider error that core marks `permanent` (a 4xx other than 408, 409
 and 429: the platform refused the request, a retry sends the same one)
 fails the source at once, for every model call; every other provider
 error is retried.
+
+
+Web pages have versions (migration 0015). The first read stores
+`fetched_at` and `content_hash`, the sha256 of the extracted text with
+whitespace normalized. A refetch puts the page back to `processing` with
+`refetch_requested_at` set. The worker fetches and compares before any
+model call:
+
+- **Unchanged:** the page is ready again with a new `fetched_at`, and
+  nothing is charged.
+- **Changed:** in one transaction a new row (`version + 1`, `processing`)
+  takes the dedupe key and every link and is read like a new source,
+  charged as a web page. The old row is ready again, read-only, with
+  `superseded_by` naming its successor. It is hidden from the library,
+  but it keeps its chunks so the citations of existing outputs stay
+  checkable.
+
+Purging a page removes its older versions with it.
 
 ## Image sources
 

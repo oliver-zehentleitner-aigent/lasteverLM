@@ -82,6 +82,7 @@ class InMemoryRepository:
         self.starter: StarterRef | None = None
         self.output_copies: list[tuple] = []
         self.chunk_ids: dict[UUID, list[UUID]] = {}
+        self.purged_versions: list[str] = []
         # rag's outputs table as far as ingest reads it: generated library
         # id -> (origin notebook or None once deleted, origin title).
         self.outputs: dict[UUID, tuple[UUID | None, str]] = {}
@@ -127,7 +128,7 @@ class InMemoryRepository:
         return lib.kind != "generated"
 
     def _active(self, lib: LibrarySource) -> bool:
-        return self._listed(lib) and lib.deleted_at is None
+        return self._listed(lib) and lib.deleted_at is None and lib.superseded_by is None
 
     def _trashed(self, lib: LibrarySource) -> bool:
         return self._listed(lib) and lib.deleted_at is not None
@@ -205,6 +206,8 @@ class InMemoryRepository:
             size_bytes=lib.size_bytes,
             capture=lib.capture,
             starter=lib.starter,
+            version=lib.version,
+            fetched_at=lib.fetched_at,
             transcribed_path=lib.transcribed_path,
         )
 
@@ -247,6 +250,73 @@ class InMemoryRepository:
         self.output_ids[lib.library_id] = uuid4()
         assert self.library[lib.library_id].owner == owner
         return lib.library_id
+
+    def request_refetch(self, library_id):
+        lib = self.library.get(library_id)
+        if (
+            lib is None
+            or lib.kind != "url"
+            or lib.superseded_by is not None
+            or lib.deleted_at is not None
+            or lib.status not in ("ready", "added", "failed")
+        ):
+            return None
+        self.library[library_id] = lib.model_copy(
+            update={
+                "status": "processing",
+                "error": None,
+                "attempts": 0,
+                "refetch_requested_at": datetime.now(UTC) if lib.status == "ready" else None,
+            }
+        )
+        self.claimed.pop(library_id, None)
+        return self.library[library_id]
+
+    def set_fetched(self, library_id, content_hash):
+        self.library[library_id] = self.library[library_id].model_copy(
+            update={"fetched_at": datetime.now(UTC), "content_hash": content_hash}
+        )
+
+    def refetch_unchanged(self, library_id):
+        self.library[library_id] = self.library[library_id].model_copy(
+            update={
+                "status": "ready",
+                "fetched_at": datetime.now(UTC),
+                "refetch_requested_at": None,
+                "error": None,
+            }
+        )
+        self.claimed.pop(library_id, None)
+
+    def new_version(self, library_id):
+        old = self.library[library_id]
+        new_id = uuid4()
+        self.library[new_id] = old.model_copy(
+            update={
+                "id": new_id,
+                "status": "processing",
+                "version": old.version + 1,
+                "fetched_at": None,
+                "content_hash": None,
+                "refetch_requested_at": None,
+                "summary": None,
+                "attempts": 0,
+                "created_at": datetime.now(UTC),
+            }
+        )
+        self.library[library_id] = old.model_copy(
+            update={
+                "dedupe_key": None,
+                "status": "ready",
+                "refetch_requested_at": None,
+                "superseded_by": new_id,
+            }
+        )
+        self.claimed.pop(library_id, None)
+        for link_id, (nb, lib_id, created) in list(self.links.items()):
+            if lib_id == library_id:
+                self.links[link_id] = (nb, new_id, created)
+        return new_id
 
     def queue_for_processing(self, owner, library_ids):
         missing = [
@@ -395,6 +465,8 @@ class InMemoryRepository:
             created_at=lib.created_at,
             capture=lib.capture,
             starter=lib.starter,
+            version=lib.version,
+            fetched_at=lib.fetched_at,
             storage_path=lib.storage_path,
             transcribed_path=lib.transcribed_path,
             notebooks=[
@@ -444,8 +516,9 @@ class InMemoryRepository:
         lib = self.library.get(library_id)
         if lib is None or lib.owner != owner or not self._trashed(lib):
             return False, []
+        self.purged_versions = []
         self._delete_library(library_id)
-        return True, _keys([lib])
+        return True, list(dict.fromkeys([*_keys([lib]), *self.purged_versions]))
 
     def user_object_keys(self, owner: UUID) -> list[str]:
         return _keys(
@@ -473,11 +546,16 @@ class InMemoryRepository:
             for lib in self.library.values()
             if self._trashed(lib) and self._purge_at(lib) <= now
         ]
+        self.purged_versions = []
         for lib in gone:
             self._delete_library(lib.id)
-        return _keys(gone)
+        return list(dict.fromkeys([*_keys(gone), *self.purged_versions]))
 
     def _delete_library(self, library_id: UUID) -> None:
+        # Older versions of a web page go with it.
+        for older in [lib.id for lib in self.library.values() if lib.superseded_by == library_id]:
+            self.purged_versions.extend(_keys([self.library[older]]))
+            self._delete_library(older)
         self.library.pop(library_id, None)
         self.chunks.pop(library_id, None)
         for link_id, (_, lib_id, _) in list(self.links.items()):
