@@ -1,4 +1,4 @@
-import type { Citation, Claim, Output, Passage, Provenance, Support } from '../api/types'
+import type { AnswerUnit, Check, Citation, Claim, Output, Passage, Provenance, Support } from '../api/types'
 import { t, tn } from '../i18n'
 
 /** What a generated document's claims rest on, shaped for the views: its
@@ -34,7 +34,7 @@ export function supportBadge(s: Support | undefined): Exclude<Support, 'supporte
 
 /** "7 of 9 claims supported", with the ones that could not be measured
  *  named after it; null without a check or without claims. */
-export function checkSummary(check: Provenance['check'] | undefined): string | null {
+export function checkSummary(check: Check | null | undefined): string | null {
   if (!check) return null
   const total = check.supported + check.unsupported + check.unverified
   if (total === 0) return null
@@ -95,4 +95,19 @@ export function provenanceExport(o: Pick<Output, 'kind' | 'title' | 'created_at'
 export function exportName(title: string): string {
   const base = title.normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase().slice(0, 60)
   return `${base || 'document'}-provenance.json`
+}
+
+/** Where an answer's badges go: after each citing paragraph the check did
+ *  not back, found by its exact text in order. Offsets into the answer. */
+export function unitBadges(answer: string, units: readonly AnswerUnit[] | null | undefined): { end: number; badge: Exclude<Support, 'supported'> }[] {
+  const out: { end: number; badge: Exclude<Support, 'supported'> }[] = []
+  let from = 0
+  for (const u of units ?? []) {
+    const at = u.text ? answer.indexOf(u.text, from) : -1
+    if (at < 0) continue
+    from = at + u.text.length
+    const badge = supportBadge(u.support)
+    if (badge) out.push({ end: from, badge })
+  }
+  return out
 }

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
 import { rag } from '../api/rag'
 import type { Citation, Message } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { isRemoved, splitCitations } from '../lib/citations'
 import { isStacked } from '../lib/layout'
 import { similarityLabel } from '../lib/provenance'
+import { checkSummary, unitBadges } from '../lib/outputProvenance'
 import { ProvenancePanel } from './ProvenancePanel'
 import { t } from '../i18n'
 import type { ChatPaneProps } from './ChatPane'
@@ -69,6 +70,8 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           role: 'assistant',
           content: answer.answer,
           citations: answer.citations,
+          units: answer.units ?? null,
+          check: answer.check ?? null,
           created_at: new Date().toISOString(),
         },
       ])
@@ -87,6 +90,14 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
         {messages.map((m) => (
           <article key={m.id} className={`msg ${m.role}`}>
             <AnswerText message={m} onCite={(c) => toggle(m, c)} openN={open?.messageId === m.id ? open.n : null} />
+            {m.role === 'assistant' && checkSummary(m.check) && (
+              <p
+                className="muted small check-line"
+                title={m.check?.method ? t('outProv.checkTitle', { method: m.check.method, threshold: m.check.threshold ?? '' }) : undefined}
+              >
+                {checkSummary(m.check)}
+              </p>
+            )}
             {m.role === 'assistant' && m.citations && m.citations.length > 0 && (
               <footer className="cites">
                 {m.citations.map((c) => (
@@ -173,23 +184,43 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   )
 }
 
+/** An answer with its [n] markers as buttons and, after each citing
+ *  paragraph the check did not back, its badge (the paragraph stays). */
 function AnswerText({ message, onCite, openN }: { message: Message; onCite: (c: Citation) => void; openN: number | null }) {
   if (message.role !== 'assistant' || !message.citations || message.citations.length === 0) {
     return <p>{message.content}</p>
   }
   const byN = new Map(message.citations.map((c) => [c.n, c]))
-  const parts = splitCitations(message.content, new Set(byN.keys()))
+  const known = new Set(byN.keys())
+  // the answer cut after each badged paragraph, each piece with its markers
+  const badges = unitBadges(message.content, message.units)
+  const pieces: { text: string; badge: (typeof badges)[number]['badge'] | null }[] = []
+  let at = 0
+  for (const b of badges) {
+    pieces.push({ text: message.content.slice(at, b.end), badge: b.badge })
+    at = b.end
+  }
+  pieces.push({ text: message.content.slice(at), badge: null })
   return (
     <p>
-      {parts.map((p, i) =>
-        p.kind === 'text' ? (
-          <span key={i}>{p.text}</span>
-        ) : (
-          <button key={i} type="button" className={openN === p.n ? 'marker open' : 'marker'} onClick={() => onCite(byN.get(p.n)!)}>
-            [{p.n}]
-          </button>
-        ),
-      )}
+      {pieces.map((piece, k) => (
+        <Fragment key={k}>
+          {splitCitations(piece.text, known).map((p, i) =>
+            p.kind === 'text' ? (
+              <span key={i}>{p.text}</span>
+            ) : (
+              <button key={i} type="button" className={openN === p.n ? 'marker open' : 'marker'} onClick={() => onCite(byN.get(p.n)!)}>
+                [{p.n}]
+              </button>
+            ),
+          )}
+          {piece.badge && (
+            <span className={`badge support-${piece.badge}`} title={t(`outProv.${piece.badge}Title`)}>
+              {t(`outProv.${piece.badge}`)}
+            </span>
+          )}
+        </Fragment>
+      ))}
     </p>
   )
 }
