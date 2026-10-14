@@ -29,9 +29,10 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   shared between users.
 - **Adding is free, processing costs:** without credit a source is
   stored and waits; it is processed as soon as credit is there.
-- **Demo set:** every new user gets five sources from one fictional
-  world (a PDF, a text, a map, a web page, a radio interview), each
-  carrying facts the others do not, so questions have to combine them.
+- **Starter notebook:** every new user gets their own copy of a notebook
+  about lasteverLM itself: the complete technical handbook as a PDF, an
+  FAQ, the public price list as a web page, a screenshot of the app, and
+  finished outputs of every kind, ready to ask and to check.
 
 ### Outputs
 
