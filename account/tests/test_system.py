@@ -214,11 +214,16 @@ def test_admin_system_route_and_healthz_carry_version(
         "version": settings.app_version,
         "commit": settings.app_commit,
         "healthy": True,
-        "dependencies": {"postgres": "ok"},
+        "dependencies": {},  # the memory repository has no postgres to probe
     }
     assert set(body["services"][1]) == {"name", "version", "commit", "healthy", "dependencies"}
     h = client.get("/api/account/healthz").json()
-    assert h == {"status": "ok", "version": settings.app_version, "commit": settings.app_commit}
+    assert {k: v for k, v in h.items() if k != "dependencies"} == {
+        "status": "ok",
+        "version": settings.app_version,
+        "commit": settings.app_commit,
+    }
+    assert h.get("dependencies") in (None, {})  # nothing to probe on the memory repository
 
 
 @pytest.mark.anyio
@@ -286,3 +291,26 @@ def test_recent_termination_still_shows_its_reason() -> None:
     assert _container_reason([{"state": {"waiting": {"reason": "CrashLoopBackOff"}}}], now) == (
         "CrashLoopBackOff"
     )
+
+
+@pytest.mark.anyio
+async def test_dependency_states_reach_healthz_and_the_system_page(
+    settings: Settings, repo: MemoryRepository, mailer: FakeMailer
+) -> None:
+    from lasteverlm_core import DependencyProbe
+
+    async def down() -> None:
+        raise RuntimeError("connection refused")
+
+    async def up() -> None:
+        return None
+
+    probe = DependencyProbe({"postgres": down, "storage": up})
+    service = AccountService(settings, repo, mailer, system=probe_system(), dependencies=probe)
+    info = await service.admin_system()
+    assert info.services[0].healthy is True  # the process answers
+    assert info.services[0].dependencies == {"postgres": "down", "storage": "ok"}
+
+
+def probe_system() -> SystemProbe:
+    return SystemProbe([], transport=httpx.MockTransport(lambda r: httpx.Response(200, json={})))

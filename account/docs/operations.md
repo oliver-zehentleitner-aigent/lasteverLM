@@ -45,8 +45,12 @@ warning per request and returns the page with empty lists. `APP_VERSION` and
 
 ## Health
 
-`GET /healthz` (also under `/api/account/`) runs `select 1` against the database and
-answers `{"status": "ok"}`. The Kubernetes probe uses the root path.
+`GET /healthz` (also under `/api/account/`) answers `{"status": "ok", "version",
+"commit", "dependencies": {"postgres": "ok"|"down"}}`. The dependency state is core's
+probe: `select 1` with a 2-second timeout, cached for 15 seconds; a failing database
+reads `"down"` while the status stays `"ok"`, so the Kubernetes probe keeps the pod
+(it answers) and the System page shows what is wrong. The Kubernetes probe uses the
+root path.
 
 ## Behind the ingress
 
