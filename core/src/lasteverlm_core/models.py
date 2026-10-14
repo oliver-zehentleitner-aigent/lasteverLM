@@ -33,9 +33,11 @@ DEMO_USER_ID = UUID("00000000-0000-4000-8000-000000000001")
 DEMO_USER_EMAIL = "demo@localhost"
 
 SourceKind = Literal["pdf", "text", "url", "image", "audio", "generated"]
+# "added" is stored: the source is kept but not read yet, and no worker
+# claims it until it is used (ingest's POST /sources/process).
 # "waiting_for_credit" is never stored: ingest shows it for a queued
 # ("processing") source whose owner has no credit, which its worker skips.
-SourceStatus = Literal["processing", "waiting_for_credit", "ready", "failed"]
+SourceStatus = Literal["added", "processing", "waiting_for_credit", "ready", "failed"]
 OutputKind = Literal[
     "report", "quiz", "table", "mindmap", "infographic", "audio", "decision", "chart", "flashcards"
 ]
