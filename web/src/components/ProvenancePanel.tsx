@@ -3,6 +3,7 @@ import { rag } from '../api/rag'
 import type { Citation, JudgeNote } from '../api/types'
 import { chunkPosition, claimFor, highlightPassage, similarityLabel, similarityPercent } from '../lib/provenance'
 import { t } from '../i18n'
+import { useSourceLink } from './SourceLinks'
 
 interface Props {
   citation: Citation
@@ -23,6 +24,8 @@ interface Props {
  *  Citations written before positions existed are completed from
  *  GET /chunks/{id} when the chunk is still there. */
 export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource, judge }: Props) {
+  const sourceLink = useSourceLink()
+  const external = citation.source_kind === 'generated' ? null : sourceLink(citation.source_id, citation.page)
   const [chunk, setChunk] = useState<{ text: string; index: number | null; count: number | null } | null>(null)
   const old = (citation.chunk_index === null || citation.chunk_index === undefined) && citation.chunk_id !== ''
 
@@ -90,9 +93,16 @@ export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource
           <span className="muted small">{t('prov.gone')}</span>
         ) : (
           onOpenSource && (
-            <button type="button" className="link" onClick={() => onOpenSource(citation)}>
-              {citation.source_kind === 'generated' ? t('prov.openDoc') : t('prov.open')}
-            </button>
+            <>
+              <button type="button" className="link" onClick={() => onOpenSource(citation)}>
+                {citation.source_kind === 'generated' ? t('prov.openDoc') : t('prov.open')}
+              </button>
+              {external && (
+                <a className="icon-link" href={external} target="_blank" rel="noopener noreferrer" title={t('srcView.newTab')} aria-label={t('srcView.newTab')}>
+                  ↗
+                </a>
+              )}
+            </>
           )
         )}
         {passage.match && <span className="muted small">{t('prov.marked')}</span>}

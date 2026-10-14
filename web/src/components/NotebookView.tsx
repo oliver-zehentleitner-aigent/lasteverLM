@@ -20,8 +20,10 @@ import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
 import { takeOpenOutput } from '../lib/lastNotebook'
-import { citationTarget } from '../lib/openEntry'
+import { afterClose, dropMissing, openTab, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
 import { ChatPane } from './ChatPane'
+import { SourceLinks } from './SourceLinks'
+import { citationTarget } from '../lib/openEntry'
 import { ColumnDivider } from './ColumnDivider'
 import { Divider } from './Divider'
 import { OutputsPane } from './OutputsPane'
@@ -43,7 +45,21 @@ interface ViewProps {
  *  the chat cites them. */
 export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   const [outputs, setOutputs] = useState<Output[]>([])
-  const [selectedOutput, setSelectedOutput] = useState<string | null>(null)
+  // the viewer's tabs: what was opened, in that order, kept for the browser session
+  const [tabs, setTabs] = useState<ViewerTab[]>(() => readTabs(sessionStore(), notebookId).tabs)
+  const [activeKey, setActiveKey] = useState<string | null>(() => readTabs(sessionStore(), notebookId).active)
+  useEffect(() => writeTabs(sessionStore(), notebookId, { tabs, active: activeKey }), [notebookId, tabs, activeKey])
+  const open = useCallback((tab: ViewerTab) => {
+    setTabs((prev) => openTab(prev, tab))
+    setActiveKey(tabKey(tab))
+  }, [])
+  function closeTab(key: string) {
+    setActiveKey((cur) => (cur === key ? afterClose(tabs.map(tabKey), key) : cur))
+    setTabs((prev) => prev.filter((x) => tabKey(x) !== key))
+  }
+  const openOutput = useCallback((id: string) => open({ type: 'output', id }), [open])
+  // the output whose tab is in front, for the Outputs list's mark and a located passage
+  const selectedOutput = activeKey?.startsWith('output:') ? activeKey.slice('output:'.length) : null
   const [scope, setScope] = useState<Output | null>(null)
   const [highlight, setHighlight] = useState<string | null>(null)
   const [sourcesVersion, setSourcesVersion] = useState(0)
@@ -93,10 +109,12 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     const list = await rag.listOutputs(notebookId)
     setOutputs(list)
     setOutputsLoaded(true)
+    // a deleted output's tab goes; the document the library asked for opens
+    setTabs((prev) => dropMissing(prev, 'output', new Set(list.map((o) => o.id))))
     const wanted = requested.current
     requested.current = null
-    setSelectedOutput((cur) => (cur && list.some((o) => o.id === cur) ? cur : wanted && list.some((o) => o.id === wanted) ? wanted : (list[0]?.id ?? null)))
-  }, [notebookId])
+    if (wanted && list.some((o) => o.id === wanted)) openOutput(wanted)
+  }, [notebookId, openOutput])
 
   useEffect(() => {
     void run(reloadOutputs)
@@ -118,6 +136,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
 
   function removeOutput(id: string) {
     setOutputs((prev) => prev.filter((x) => x.id !== id))
+    closeTab(tabKey({ type: 'output', id }))
     if (scope?.id === id) setScope(null)
   }
 
@@ -134,7 +153,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     const created = await run(() => rag.createOutput(notebookId, kind, options, picked.sourceIds))
     if (created) {
       setOutputs((prev) => [created, ...prev])
-      setSelectedOutput(created.id)
+      openOutput(created.id)
     }
   }
 
@@ -172,7 +191,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
       if (c.source_kind === 'generated') {
         const match = outputs.find((o) => o.source_id === c.source_id)
         if (match) {
-          setSelectedOutput(match.id)
+          openOutput(match.id)
           document.getElementById(`output-${match.id}`)?.scrollIntoView({ block: 'nearest' })
           return
         }
@@ -180,18 +199,17 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
       }
       document.getElementById(`source-${c.source_id}`)?.scrollIntoView({ block: 'nearest' })
     },
-    [outputs],
+    [outputs, openOutput],
   )
 
   /** "Open document" on a citation into a generated document: that
    *  document's tab, and a request for the viewer to show the passage. An
-   *  upload's "open in source" opens it in a new tab (a PDF on the cited
-   *  page) when it has a preview, and highlights it in the list either way. */
+   *  upload's "open in source" opens its source tab at the cited page and
+   *  chunk, and highlights it in the list. */
   const [locate, setLocate] = useState<LocateRequest | null>(null)
   function openSource(c: Citation) {
     if (c.source_kind !== 'generated') {
-      const href = citationTarget(uploads?.find((s) => s.id === c.source_id), c.page)
-      if (href) window.open(href, '_blank', 'noopener,noreferrer')
+      open({ type: 'source', id: c.source_id, page: c.page, chunkId: c.chunk_id, chunkIndex: c.chunk_index ?? null })
       onCitation(c)
       return
     }
@@ -201,136 +219,147 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
       onCitation(c)
       return
     }
-    setSelectedOutput(match.id)
+    openOutput(match.id)
     setLocate((prev) => ({ outputId: match.id, text: c.quote, nonce: (prev?.nonce ?? 0) + 1 }))
   }
 
+  const sourceLink = useCallback((id: string, page: number | null) => citationTarget(uploads?.find((s) => s.id === id), page), [uploads])
+
   return (
-    <div
-      ref={columnsRef}
-      className={['columns', fullView ? 'full' : '', fullView && chatOpen ? 'chat-open' : ''].join(' ').trim()}
-      style={leftWidth === null ? undefined : ({ '--left-w': `${leftWidth}px` } as CSSProperties)}
-    >
-      <div className="column left no-print">
-        <SourcesPane
-          notebookId={notebookId}
-          highlightedSourceId={highlight}
-          version={sourcesVersion}
-          onAdd={() => onWizard(true)}
-          excluded={excluded}
-          onToggle={(id) => changeExcluded(toggled(excluded, id))}
-          onAll={(on) => changeExcluded(on ? new Set() : new Set(uploads?.map((s) => s.id) ?? []))}
-          ownGenerated={ownGenerated}
-          onSourcesChange={setUploads}
-        />
-        <OutputTiles
-          notebookId={notebookId}
-          selected={format}
-          hasReadySource={hasReadySource}
-          noneSelected={picked.total > 0 && picked.selected === 0}
-          busy={busy}
-          onSelect={setFormat}
-          onCreate={(k, o) => void createOutput(k, o)}
-        />
-        <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={setSelectedOutput} onDelete={(o) => void deleteOutput(o)} onRename={(o, title) => void renameOutput(o, title)} />
-      </div>
-      <ColumnDivider
-        label={t('ws.resizeLeft')}
-        width={leftWidth}
-        min={LEFT_WIDTH.min}
-        max={() => {
-          const total = columnsRef.current?.getBoundingClientRect().width ?? 0
-          return Math.max(LEFT_WIDTH.min, Math.min(LEFT_WIDTH.max, total - MIN_RIGHT_WIDTH))
-        }}
-        origin={() => columnsRef.current?.getBoundingClientRect().left ?? 0}
-        onChange={setLeftWidth}
-        onCommit={(px) => writeWidth(browserStorage(), LEFT_WIDTH.key, px)}
-        onReset={() => {
-          setLeftWidth(null)
-          writeWidth(browserStorage(), LEFT_WIDTH.key, null)
-        }}
-      />
-      <div className="column right" ref={rightColumn}>
-        <OutputViewer
-          sources={uploads}
-          outputs={outputs}
-          selectedId={selectedOutput}
-          onSelect={setSelectedOutput}
-          onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
-          onRename={(o, title) => void renameOutput(o, title)}
-          onDeleted={removeOutput}
-          locate={locate && locate.outputId === selectedOutput ? locate : null}
-          onAskAbout={(o) => {
-            setScope(o)
-            if (fullView) setChatOpen(true)
+    <SourceLinks.Provider value={sourceLink}>
+      <div
+        ref={columnsRef}
+        className={['columns', fullView ? 'full' : '', fullView && chatOpen ? 'chat-open' : ''].join(' ').trim()}
+        style={leftWidth === null ? undefined : ({ '--left-w': `${leftWidth}px` } as CSSProperties)}
+      >
+        <div className="column left no-print">
+          <SourcesPane
+            notebookId={notebookId}
+            highlightedSourceId={highlight}
+            version={sourcesVersion}
+            onAdd={() => onWizard(true)}
+            excluded={excluded}
+            onToggle={(id) => changeExcluded(toggled(excluded, id))}
+            onAll={(on) => changeExcluded(on ? new Set() : new Set(uploads?.map((s) => s.id) ?? []))}
+            ownGenerated={ownGenerated}
+            onSourcesChange={(list) => {
+              setUploads(list)
+              // a removed source's tab goes
+              setTabs((prev) => dropMissing(prev, 'source', new Set(list.map((s) => s.id))))
+            }}
+            onOpen={(s) => open({ type: 'source', id: s.id })}
+          />
+          <OutputTiles
+            notebookId={notebookId}
+            selected={format}
+            hasReadySource={hasReadySource}
+            noneSelected={picked.total > 0 && picked.selected === 0}
+            busy={busy}
+            onSelect={setFormat}
+            onCreate={(k, o) => void createOutput(k, o)}
+          />
+          <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={openOutput} onDelete={(o) => void deleteOutput(o)} onRename={(o, title) => void renameOutput(o, title)} />
+        </div>
+        <ColumnDivider
+          label={t('ws.resizeLeft')}
+          width={leftWidth}
+          min={LEFT_WIDTH.min}
+          max={() => {
+            const total = columnsRef.current?.getBoundingClientRect().width ?? 0
+            return Math.max(LEFT_WIDTH.min, Math.min(LEFT_WIDTH.max, total - MIN_RIGHT_WIDTH))
           }}
-          error={error}
-          fullView={fullView}
-          onFullView={(on) => (on ? setFullView(true) : leaveFullView())}
-          chatOpen={chatOpen}
-          onToggleChat={() => setChatOpen((v) => !v)}
-          style={fullView ? undefined : { flexBasis: `${ratio * 100}%` }}
-          onOpenSource={openSource}
-          presentSources={presentSources}
+          origin={() => columnsRef.current?.getBoundingClientRect().left ?? 0}
+          onChange={setLeftWidth}
+          onCommit={(px) => writeWidth(browserStorage(), LEFT_WIDTH.key, px)}
+          onReset={() => {
+            setLeftWidth(null)
+            writeWidth(browserStorage(), LEFT_WIDTH.key, null)
+          }}
         />
-        {!fullView && (
-          <Divider
-            ratio={ratio}
-            container={() => rightColumn.current}
-            onChange={setRatio}
-            onCommit={(r) => writeRatio(browserStorage(), r)}
-            onReset={() => {
-              setRatio(DEFAULT_VIEWER_RATIO)
-              writeRatio(browserStorage(), null)
+        <div className="column right" ref={rightColumn}>
+          <OutputViewer
+            sources={uploads}
+            outputs={outputs}
+            tabs={tabs}
+            activeKey={activeKey}
+            onActivate={setActiveKey}
+            onClose={closeTab}
+            onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
+            onRename={(o, title) => void renameOutput(o, title)}
+            onDeleted={removeOutput}
+            locate={locate && locate.outputId === selectedOutput ? locate : null}
+            onAskAbout={(o) => {
+              setScope(o)
+              if (fullView) setChatOpen(true)
+            }}
+            error={error}
+            fullView={fullView}
+            onFullView={(on) => (on ? setFullView(true) : leaveFullView())}
+            chatOpen={chatOpen}
+            onToggleChat={() => setChatOpen((v) => !v)}
+            style={fullView ? undefined : { flexBasis: `${ratio * 100}%` }}
+            onOpenSource={openSource}
+            presentSources={presentSources}
+          />
+          {!fullView && (
+            <Divider
+              ratio={ratio}
+              container={() => rightColumn.current}
+              onChange={setRatio}
+              onCommit={(r) => writeRatio(browserStorage(), r)}
+              onReset={() => {
+                setRatio(DEFAULT_VIEWER_RATIO)
+                writeRatio(browserStorage(), null)
+              }}
+            />
+          )}
+          <div className="no-print chat-wrap">
+            <ChatPane
+              notebookId={notebookId}
+              scope={scope}
+              presentSources={presentSources}
+              sources={picked}
+              onClearScope={() => setScope(null)}
+              onCitationSelected={onCitation}
+              onOpenSource={openSource}
+              tools={
+                fullView ? undefined : (
+                  <span className="presets" role="group" aria-label={t('ws.chatHeight')}>
+                    {CHAT_PRESETS.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        className={activePreset(ratio) === p.label ? 'preset active' : 'preset'}
+                        aria-pressed={activePreset(ratio) === p.label}
+                        title={t('ws.chatAt', { pct: Math.round(p.chat * 100) })}
+                        onClick={() => {
+                          const r = presetRatio(p.chat)
+                          setRatio(r)
+                          writeRatio(browserStorage(), r)
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </span>
+                )
+              }
+            />
+          </div>
+        </div>
+        {wizard && (
+          <Wizard
+            notebookId={notebookId}
+            withOutputs={wizard.fresh}
+            onClose={() => onWizard(false)}
+            onDone={() => {
+              onWizard(false)
+              setSourcesVersion((v) => v + 1)
+              void run(reloadOutputs)
             }}
           />
         )}
-        <div className="no-print chat-wrap">
-          <ChatPane
-            notebookId={notebookId}
-            scope={scope}
-            presentSources={presentSources}
-            sources={picked}
-            onClearScope={() => setScope(null)}
-            onCitationSelected={onCitation}
-            onOpenSource={openSource}
-            tools={
-              fullView ? undefined : (
-                <span className="presets" role="group" aria-label={t('ws.chatHeight')}>
-                  {CHAT_PRESETS.map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      className={activePreset(ratio) === p.label ? 'preset active' : 'preset'}
-                      aria-pressed={activePreset(ratio) === p.label}
-                      title={t('ws.chatAt', { pct: Math.round(p.chat * 100) })}
-                      onClick={() => {
-                        const r = presetRatio(p.chat)
-                        setRatio(r)
-                        writeRatio(browserStorage(), r)
-                      }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </span>
-              )
-            }
-          />
-        </div>
       </div>
-      {wizard && (
-        <Wizard
-          notebookId={notebookId}
-          withOutputs={wizard.fresh}
-          onClose={() => onWizard(false)}
-          onDone={() => {
-            onWizard(false)
-            setSourcesVersion((v) => v + 1)
-            void run(reloadOutputs)
-          }}
-        />
-      )}
-    </div>
+    </SourceLinks.Provider>
   )
 }

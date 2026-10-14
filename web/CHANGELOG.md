@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Sources open in the viewer: a click on a source's name (or "open in source" on a citation) opens it as a tab with two views, **Original** (image, audio player, the PDF inline at the cited page, a web page's address) and **As read** (the extracted text chunk by chunk with numbers and pages, the cited chunk marked; from ingest's `GET /sources/{id}/chunks`). The new-tab link stays as a small ↗.
 - Starter notebook: admins mark one of their notebooks with ☆ "Use as starter notebook" (the account service's `PUT /admin/settings/starter-notebook`); it carries a "Starter" badge in the notebook list, and Admin > Access shows it with a link, who set it and Remove.
 
 ### Changed
 
+- The viewer's tabs are what the user opened, sources and outputs, in the order opened, each closable, kept per notebook for the browser session; no longer every output of the notebook. Empty: "Sources and outputs you open appear here as tabs." The policy allows frames from the media sources (`frame-src`) for the inline PDF.
 - The "demo" badge on copied entries reads "Starter" (ingest's `starter` flag, `demo` still read); the demo sources' first question in an empty chat is gone.
 - Admin: Finance comes right after Overview in the sub-navigation (Overview · Finance · Users · Access · Security · Visits · Mail · System).
 

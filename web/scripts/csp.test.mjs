@@ -37,6 +37,7 @@ describe('nginxLines', () => {
     const lines = nginxLines('enforce', html, 'https://ams1.vultrobjects.com')
     expect(lines).toContain(`script-src 'self' ${hash}`)
     expect(lines).toContain('media-src \'self\' blob: https://ams1.vultrobjects.com')
+    expect(lines).toContain("frame-src 'self' https://ams1.vultrobjects.com")
     expect(lines).not.toContain('Report-Only')
     expect(lines).toContain("frame-ancestors 'none'")
   })

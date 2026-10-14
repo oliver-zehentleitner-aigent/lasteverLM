@@ -103,6 +103,19 @@ export interface Citation {
   chunk_count?: number | null
 }
 
+/** `GET /api/ingest/sources/{id}/chunks`: a page of the text the system
+ *  extracted from a source, in order; `index` and `chunk_id` are what a
+ *  citation carries (`chunk_index`, `chunk_id`). */
+export interface SourceChunks {
+  source_id: string
+  library_id: string
+  kind: SourceKind
+  capture: 'auto' | 'text' | 'vision' | null
+  chunk_count: number
+  offset: number
+  chunks: { chunk_id: string; index: number; page: number | null; text: string }[]
+}
+
 /** `GET /api/rag/chunks/{id}`: one chunk with its position, for citations
  *  written before they carried it. */
 export interface Chunk {

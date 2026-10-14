@@ -28,8 +28,9 @@ export function inlineScriptHashes(html) {
 }
 
 /** The full policy. Styles allow inline because markmap writes a <style>
- *  element and style attributes; images and audio come from presigned
- *  object-storage URLs, hence the media sources. frame-ancestors is left
+ *  element and style attributes; images, audio and a source tab's PDF (an
+ *  iframe) come from presigned object-storage URLs, hence the media
+ *  sources in img-src, media-src and frame-src. frame-ancestors is left
  *  out of a report-only policy, where browsers ignore it with a warning. */
 export function policy(hashes, mediaSrc = 'https:', { frameAncestors = true, apiOrigin = '' } = {}) {
   const directives = [
@@ -38,6 +39,7 @@ export function policy(hashes, mediaSrc = 'https:', { frameAncestors = true, api
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${mediaSrc}`,
     `media-src 'self' blob: ${mediaSrc}`,
+    `frame-src 'self' ${mediaSrc}`,
     `connect-src 'self' ${apiOrigin}`.trim(),
     "font-src 'self' data:",
     "object-src 'none'",

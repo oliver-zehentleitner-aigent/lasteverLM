@@ -25,6 +25,8 @@ interface Props {
   /** the source ids of this notebook's own documents (listed under Outputs); null while loading */
   ownGenerated: ReadonlySet<string> | null
   onSourcesChange: (sources: Source[]) => void
+  /** a click on a source's name opens it as a tab in the viewer */
+  onOpen: (source: Source) => void
 }
 
 /** Left column, top: the sources with status and delete; the add button
@@ -32,7 +34,7 @@ interface Props {
  *  (the contract has no push channel) and stops when everything is ready
  *  or failed. Only uploads are listed: generated documents are sources of
  *  kind `generated` for the chat, but the Outputs list shows them. */
-export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, excluded, onToggle, onAll, ownGenerated, onSourcesChange }: Props) {
+export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, excluded, onToggle, onAll, ownGenerated, onSourcesChange, onOpen }: Props) {
   const [sources, setSources] = useState<Source[]>([])
   const [loaded, setLoaded] = useState(false)
   const { busy, error, run } = useAsync()
@@ -115,9 +117,9 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
               title={t('sources.useTitle')}
             />
             <div className="item">
-              <span className="name" title={s.name}>
+              <button type="button" className="link name" title={t('sources.openTitle', { name: s.name })} onClick={() => onOpen(s)}>
                 {s.name}
-              </span>
+              </button>
               <StarterBadge item={s} />
               <span className="badge">{sourceKindLabel(s.kind)}</span>
               {s.capture && (
