@@ -29,6 +29,10 @@ export interface Source {
   /** where it opens without a bearer header: an image, PDF or text as a
    *  presigned GET of the original (valid one hour), a web page at its URL */
   preview_url?: string | null
+  /** audio only: the upload as it came, presigned for an hour, when it was
+   *  converted for transcription (then preview_url is the converted MP3);
+   *  null when the file was transcribed as it came */
+  original_url?: string | null
 }
 
 /** One upload or URL of the user, with the notebooks it is in. */
@@ -48,6 +52,8 @@ export interface LibraryEntry {
   demo?: boolean
   /** images only: a presigned picture of it, valid one hour */
   preview_url?: string | null
+  /** audio only: see Source.original_url */
+  original_url?: string | null
   created_at: string
   notebooks: { id: string; title: string; source_id: string }[]
 }

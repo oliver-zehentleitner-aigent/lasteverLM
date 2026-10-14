@@ -510,4 +510,8 @@ export const de: Record<MessageKey, string> = {
   'login.codeInvalid': 'Dieser Code ist unbekannt, schon verwendet oder abgelaufen. Fordere oben einen neuen Anmeldelink an.',
   'login.showCode': 'Code anzeigen',
   'login.hideCode': 'Code verbergen',
+  'audio.play': '{name} abspielen',
+  'audio.close': 'Player für {name} schließen',
+  'audio.transcribed': 'transkribiertes Audio',
+  'audio.original': 'Original',
 }

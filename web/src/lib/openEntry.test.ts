@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { citationTarget, openTarget } from './openEntry'
+import { audioFiles, citationTarget, openTarget } from './openEntry'
 
 describe('openTarget', () => {
   it('opens a web page at its address', () => {
@@ -51,5 +51,23 @@ describe('citationTarget', () => {
 
   it('never opens a script address', () => {
     expect(citationTarget({ kind: 'url', preview_url: 'javascript:alert(1)' }, null)).toBeNull()
+  })
+})
+
+describe('audioFiles', () => {
+  const mp3 = 'https://ams1.vultrobjects.com/bucket/a.mp3?X-Amz-Signature=abc'
+  const m4a = 'https://ams1.vultrobjects.com/bucket/a.m4a?X-Amz-Signature=def'
+
+  it('names the transcribed file and, after a conversion, the original', () => {
+    expect(audioFiles({ kind: 'audio', preview_url: mp3, original_url: m4a })).toEqual({ transcribed: mp3, original: m4a })
+    expect(audioFiles({ kind: 'audio', preview_url: mp3, original_url: null })).toEqual({ transcribed: mp3, original: null })
+    expect(audioFiles({ kind: 'audio', preview_url: mp3 })).toEqual({ transcribed: mp3, original: null })
+  })
+
+  it('is null for other kinds and without a usable preview', () => {
+    expect(audioFiles({ kind: 'pdf', preview_url: mp3 })).toBeNull()
+    expect(audioFiles({ kind: 'audio', preview_url: null, original_url: m4a })).toBeNull()
+    expect(audioFiles({ kind: 'audio', preview_url: 'javascript:alert(1)' })).toBeNull()
+    expect(audioFiles({ kind: 'audio', preview_url: mp3, original_url: 'data:audio/mp4,x' })).toEqual({ transcribed: mp3, original: null })
   })
 })

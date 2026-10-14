@@ -507,6 +507,10 @@ export const en = {
   'login.codeInvalid': 'This code is unknown, already used or expired. Request a new sign-in link above.',
   'login.showCode': 'Show code',
   'login.hideCode': 'Hide code',
+  'audio.play': 'Play {name}',
+  'audio.close': 'Close the player for {name}',
+  'audio.transcribed': 'transcribed audio',
+  'audio.original': 'original',
 } as const
 
 export type MessageKey = keyof typeof en
