@@ -135,6 +135,12 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
             <dd>{optionsLabel(p.options, null)}</dd>
           </>
         )}
+        {p.options.instructions && (
+          <>
+            <dt>{t('opt.authorInstructions')}</dt>
+            <dd>{p.options.instructions}</dd>
+          </>
+        )}
         {p.focus_query && (
           <>
             <dt>{t('outProv.focus')}</dt>

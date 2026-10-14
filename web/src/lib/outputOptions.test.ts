@@ -23,8 +23,8 @@ const spec: OutputOptionsSpec = {
 
 describe('output options', () => {
   it('starts from the preferences, else the defaults; language follows the sources without one', () => {
-    expect(defaultValues(spec, undefined)).toEqual({ language: '', voice: 'ryan', speed: 1, style: 'overview', voice2: 'aiden' })
-    expect(defaultValues(spec, { ui_language: null, output_language: 'de', audio_voice: 'vivian' })).toEqual({
+    expect(defaultValues(spec, undefined)).toMatchObject({ language: '', voice: 'ryan', speed: 1, style: 'overview', voice2: 'aiden' })
+    expect(defaultValues(spec, { ui_language: null, output_language: 'de', audio_voice: 'vivian' })).toMatchObject({
       language: 'de',
       voice: 'vivian',
       speed: 1,
@@ -36,7 +36,7 @@ describe('output options', () => {
   })
 
   it('sends only the keys the kind takes, language only when chosen', () => {
-    const v = { language: 'de', voice: 'vivian', speed: 1.25, style: 'overview' as const, voice2: 'serena' }
+    const v = { ...defaultValues(spec, undefined), language: 'de', voice: 'vivian', speed: 1.25, style: 'overview' as const, voice2: 'serena' }
     expect(buildOptions('report', spec, v)).toEqual({ language: 'de' })
     expect(buildOptions('audio', spec, v)).toEqual({ language: 'de', voice: 'vivian', speed: 1.25, audio_style: 'overview' })
     // the second voice only for a conversation (rag refuses it otherwise)
@@ -88,5 +88,34 @@ describe('audio styles', () => {
   it('shows a conversation with both voices in the line under the title', () => {
     expect(optionsLabel({ voice: 'ryan', audio_voice_2: 'vivian', audio_style: 'conversation', speed: 1 }, spec)).toBe('Conversation · Ryan & Vivian · 1×')
     expect(optionsLabel({ voice: 'ryan', audio_style: 'overview', speed: 1 }, spec)).toBe('Ryan · 1×')
+  })
+})
+
+describe('report and quiz options, and the instructions', () => {
+  const full = {
+    ...spec,
+    report: { styles: ['briefing', 'academic'], default_style: 'briefing', lengths: ['short', 'medium', 'long'], default_length: 'medium' },
+    quiz: { question_count: { min: 5, max: 30, default: 10 }, difficulties: ['easy', 'medium', 'hard'], default_difficulty: 'medium', audiences: ['adults', 'experts'], default_audience: 'adults' },
+    kinds: {
+      report: ['language', 'instructions', 'report_style', 'length'],
+      quiz: ['language', 'instructions', 'question_count', 'difficulty', 'audience'],
+      table: ['language', 'instructions'],
+    },
+  } as OutputOptionsSpec
+
+  it("starts from rag's defaults", () => {
+    expect(defaultValues(full, undefined)).toMatchObject({ instructions: '', reportStyle: 'briefing', length: 'medium', questionCount: 10, difficulty: 'medium', audience: 'adults' })
+  })
+
+  it('sends the keys each kind takes, the instructions only when not blank', () => {
+    const v = { ...defaultValues(full, undefined), reportStyle: 'academic' as const, questionCount: 15, instructions: '  focus   on costs ' }
+    expect(buildOptions('report', full, v)).toEqual({ instructions: 'focus on costs', report_style: 'academic', length: 'medium' })
+    expect(buildOptions('quiz', full, v)).toEqual({ instructions: 'focus on costs', question_count: 15, difficulty: 'medium', audience: 'adults' })
+    expect(buildOptions('table', full, { ...v, instructions: '   ' })).toEqual({})
+  })
+
+  it('names them in the line under the title', () => {
+    expect(optionsLabel({ report_style: 'executive_summary', length: 'short' }, null)).toBe('Executive summary · short')
+    expect(optionsLabel({ question_count: 10, difficulty: 'hard', audience: 'experts' }, null)).toBe('10 questions · hard · experts')
   })
 })

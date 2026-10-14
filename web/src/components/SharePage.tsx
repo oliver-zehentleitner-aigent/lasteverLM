@@ -47,6 +47,12 @@ function SharedOutputView({ doc, refresh, level = 1 }: { doc: SharedOutput; refr
           </span>
         )}
       </header>
+      {/* the author's instructions travel with a shared output, so a reader sees what was asked for */}
+      {doc.options?.instructions && (
+        <p className="muted small author-instructions">
+          {t('opt.authorInstructions')}: {doc.options.instructions}
+        </p>
+      )}
       {/* read-only: the passages and the log, no source to open */}
       <OutputProvenance output={doc} provenance={doc.provenance}>
         <OutputContent
