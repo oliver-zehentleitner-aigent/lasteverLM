@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `DECISION_MODEL` in the ConfigMap (`config.decisionModel`, empty = core's default `clef`) for rag's decision outputs; production and `compose.yaml` set `clef` and the `MODEL_PRICES` entries for `clef` (10) and `clef-flash` (5), cents per million input tokens with `out` 0, as the platform reports the usage.
+
 ## [0.12.0] - 2026-10-14
 
 ### Changed
