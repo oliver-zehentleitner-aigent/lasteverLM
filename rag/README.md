@@ -24,6 +24,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
+| POST | `/api/rag/notebooks/{id}/charts/propose` | `{"instructions"?, "max"?}` | `{"candidates", "reason"}`: candidate charts, nothing stored, see below |
 | POST | `/api/rag/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview of a voice |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` made in that notebook, not in the trash |
 | DELETE | `/api/rag/notebooks/{id}/outputs` | | 204, every output made in that notebook into the trash |
@@ -264,7 +265,7 @@ voices (`id`, `label`, `gender`, native `language`, from the Qwen3-TTS
 model card), the default voice, the styles and the default style, the
 speed range, `instructions.max_chars`, the report's styles and lengths,
 the quiz's count range, difficulties and audiences (each with its
-default) and which options each kind takes, so clients hardcode nothing; the language preference itself
+default), the chart types and limits (`chart`) and which options each kind takes, so clients hardcode nothing; the language preference itself
 lives in account and the web sends it explicitly.
 
 **Voice previews.** `POST /api/rag/outputs/voice-sample` speaks one or
@@ -317,6 +318,44 @@ the LLM's own sentence goes into `provenance.llm_verdict_text`.
 `provenance.calls` lists both calls (`role` `decision` with the state's
 size, `role` `evidence`), `provenance.usage.decision` the decision
 model's input tokens.
+
+`chart`: a chart is made in two steps.
+
+1. `POST /api/rag/notebooks/{id}/charts/propose` takes `{"instructions"?
+   (at most 500 characters), "max"? (1–12, default 6)}`. It makes one LLM
+   call over passages retrieved for numeric material, billed as usual, and
+   returns candidates without storing anything. Each candidate is
+   `{"id", "title", "chart_type", "x_label", "y_label", "series":
+   [{"name", "points": [{"x", "y", "refs", "derived_from"?,
+   "support"}]}], "note", "passages": [{"n", "chunk_id", "source_name",
+   "page"}], "proposal": {"model", "prompt_version", "tokens_in",
+   "tokens_out", "proposed_at"}}`.
+   - `chart_type` is one of `bar`, `line`, `pie` (one series), `stacked_bar`
+     and `scatter` (numeric x).
+   - When no retrieved passage has a digit, no model call is made. An empty
+     list carries `reason` "the sources contain no number series".
+2. The user picks candidates and creates the output with `{"kind":
+   "chart", "options": {"charts": [picked candidates as returned],
+   "instructions"?}}`. 1–12 candidates are accepted. Every passage they
+   cite must be a chunk of this notebook, or the request is a 422.
+   - The worker makes no model call. It loads the cited chunks again,
+     numbers them once for all picked charts, and checks every value.
+   - The content is `{"charts": [{"title", "chart_type", "x_label",
+     "y_label", "series": [{"name", "points": [{"x", "y", "refs",
+     "support", "derived_from"?}]}], "note"}]}`.
+
+The check (`number-match-v1`, no model call) is strict:
+- A value is `supported` only when the number itself is written in a
+  passage it cites, read in every way it can be written. `1.906` is also
+  1906, `1,9 Mio.` also 1 900 000, and `12,5 %` also 0.125.
+- A computed value (a share, a sum, a difference) names its passages in
+  `derived_from` and is `derived`, never `supported`.
+- Everything else is `unsupported`: a value off by one, no refs, or a
+  passage gone since the proposal.
+
+`provenance.calls` lists the proposal call (as the candidate reported it)
+and the check. The shared views leave `options.charts` out, because it
+holds chunk ids.
 
 `audio`: the model writes a spoken-word script (three to five minutes)
 in the chosen style, with a prompt and a JSON schema per style:
@@ -400,7 +439,8 @@ nullable for pods of the previous release, and reads fall back to the
 notebook's owner); `0005_rag_output_provenance.sql` adds
 `outputs.provenance`, the generation log; `0006_rag_message_support.sql`
 adds `messages.support` (`{"units", "check"}` of an answer);
-`0007_rag_decision_kind.sql` allows the kind `decision`. The
+`0007_rag_decision_kind.sql` allows the kind `decision`;
+`0008_rag_chart_kind.sql` allows the kind `chart`. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
@@ -432,6 +472,7 @@ lasteverlm_rag/
 ├── worker.py       worker entrypoint: claim jobs, run them, release or finish
 ├── citations.py    pure marker-to-citation mapping
 ├── coverage.py     balanced generator input and the uncovered-source check
+├── numbers.py      the strict check of a chart's values (every reading of a written number)
 ├── options.py      output options catalogue (languages, voices, speeds) and validation
 ├── speech.py       splitting an audio script into synthesis segments
 ├── voice_samples.py cached voice previews

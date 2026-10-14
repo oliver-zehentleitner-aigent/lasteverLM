@@ -88,6 +88,14 @@ class SharedNotebook(BaseModel):
     outputs: list[SharedOutput]
 
 
+class ChartPropose(BaseModel):
+    """``POST /notebooks/{id}/charts/propose``: the user's instructions for
+    the proposal and how many candidates at most."""
+
+    instructions: str | None = Field(default=None, max_length=500)
+    max: int = Field(default=6, ge=1, le=12)
+
+
 class OutputCreate(BaseModel):
     kind: OutputKind
     options: OutputOptions | None = None
@@ -180,6 +188,9 @@ class GeneratedOutput:
     kind only)."""
     units: list[Unit] = field(default_factory=list)
     """The parts the provenance check marks; empty for kinds without refs."""
+    check: dict[str, Any] | None = None
+    """A check the kind ran itself (a chart's number check); the word-overlap
+    check of the units runs when this is ``None``."""
 
 
 @dataclass(frozen=True)

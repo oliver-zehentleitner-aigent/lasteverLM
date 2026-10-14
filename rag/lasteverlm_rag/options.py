@@ -70,7 +70,12 @@ KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "infographic": TEXT_OPTIONS,
     "audio": [*TEXT_OPTIONS, "voice", "speed", "audio_style", "audio_voice_2"],
     "decision": [*TEXT_OPTIONS, "question", "decision_type", "choices", "levels"],
+    # no language: a chart is made from the picked candidates without a model call
+    "chart": ["instructions", "charts"],
 }
+CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "scatter"]
+CHARTS_MAX = 12  # picked per output, and proposed per call at most
+PROPOSE_DEFAULT = 6
 INSTRUCTIONS_MAX_CHARS = 500
 REPORT_STYLES = ["briefing", "detailed", "executive_summary", "explainer", "academic"]
 DEFAULT_REPORT_STYLE = "briefing"
@@ -114,6 +119,7 @@ class OutputOptions(BaseModel):
     decision_type: str | None = None
     choices: list[str] | None = None
     levels: list[str] | None = None
+    charts: list[dict[str, Any]] | None = None
 
 
 def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str) -> dict[str, Any]:
@@ -179,7 +185,27 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
             raise ValueError("audio_voice_2: only for the conversation style")
     if kind == "decision":
         _resolve_decision(given)
+    if kind == "chart":
+        _resolve_charts(given)
     return given
+
+
+def _resolve_charts(given: dict[str, Any]) -> None:
+    """A chart output needs 1 to 12 picked candidates, each as the proposal
+    returned it; their values are checked again by the worker."""
+    from pydantic import ValidationError
+
+    from .outputs.chart import Candidate
+
+    charts = given.get("charts") or []
+    if not 1 <= len(charts) <= CHARTS_MAX:
+        raise ValueError(f"charts: 1 to {CHARTS_MAX} picked candidates")
+    try:
+        given["charts"] = [Candidate.model_validate(c).model_dump() for c in charts]
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        where = ".".join(str(p) for p in first["loc"])
+        raise ValueError(f"charts: {where}: {first['msg']}") from exc
 
 
 def _resolve_decision(given: dict[str, Any]) -> None:
@@ -274,6 +300,12 @@ def catalogue(default_voice: str) -> dict[str, Any]:
             "question_max_chars": QUESTION_MAX_CHARS,
             "choices": {"min": CHOICES_MIN, "max": CHOICES_MAX},
             "levels": {"min": LEVELS_MIN, "max": LEVELS_MAX},
+        },
+        "chart": {
+            "chart_types": CHART_TYPES,
+            "charts_max": CHARTS_MAX,
+            "propose_max": CHARTS_MAX,
+            "propose_default": PROPOSE_DEFAULT,
         },
         "kinds": KIND_OPTIONS,
     }

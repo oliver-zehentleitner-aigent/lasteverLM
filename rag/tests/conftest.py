@@ -484,7 +484,7 @@ class FakeStore:
 
 class FakeRetriever:
     def __init__(self, chunks: list[RetrievedChunk]) -> None:
-        self.chunks = chunks
+        self.found = chunks
         self.calls: list[dict[str, Any]] = []
 
     def search(
@@ -500,7 +500,7 @@ class FakeRetriever:
                 "source_ids": source_ids,
             }
         )
-        hits = [c for c in self.chunks if c.similarity >= floor]
+        hits = [c for c in self.found if c.similarity >= floor]
         if source_id is not None:
             hits = [c for c in hits if c.source_id == source_id]
         else:
@@ -508,6 +508,10 @@ class FakeRetriever:
         if source_ids is not None:
             hits = [c for c in hits if c.source_id in source_ids]
         return hits[:k]
+
+    def chunks(self, notebook_id: str, chunk_ids: list[str]) -> list[RetrievedChunk]:
+        self.calls.append({"notebook_id": notebook_id, "chunk_ids": chunk_ids})
+        return [c for c in self.found if c.chunk_id in chunk_ids]
 
 
 class FakeEmbedder:

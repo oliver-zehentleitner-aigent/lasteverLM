@@ -58,6 +58,19 @@ from .models import (
 from .options import OutputOptions, language_name, resolve
 from .outputs import CompleteFn, OutputGenerator
 from .outputs._base import GenerationFailed
+from .outputs.chart import (
+    NO_SERIES,
+    Candidate,
+    ChartGenerator,
+    ChartProposals,
+    PassageRef,
+    ProposalCall,
+    chart_index_text,
+    chart_title,
+    check_charts,
+    has_numbers,
+    renumber,
+)
 from .outputs.decision import (
     QUESTION_ID,
     STATE_VERSION,
@@ -71,7 +84,14 @@ from .outputs.decision import (
     finish_decision,
     model_answer,
 )
-from .provenance import GenerationLog, check_answer, check_units, now, shared_provenance
+from .provenance import (
+    PRIVATE_OPTIONS,
+    GenerationLog,
+    check_answer,
+    check_units,
+    now,
+    shared_provenance,
+)
 from .speech import split_for_speech
 from .store import Retriever, Store
 
@@ -459,6 +479,8 @@ class OutputService:
         if selected:
             # stored with the options, so the viewer shows what it was made from
             resolved["sources"] = selected
+        if kind == "chart":
+            self._check_cited(notebook_id, resolved["charts"])
         require_credit(self._store, user_id)
         # the job waits for the uploads it reads: the selection, or all of them
         states = self._store.source_states(notebook_id)
@@ -470,6 +492,101 @@ class OutputService:
             notebook_id, kind, "waiting" if waiting else "processing", resolved
         )
         return self._present(row)
+
+    def propose_charts(
+        self, user_id: str, notebook_id: str, instructions: str | None, limit: int
+    ) -> ChartProposals:
+        """Candidate charts from the notebook's number series: one LLM call
+        over passages retrieved for numeric material, billed as usual;
+        nothing is stored. Each value is checked as in the output, so the
+        user sees what holds before picking."""
+        notebook = require_notebook(self._store, user_id, notebook_id)
+        require_credit(self._store, user_id)
+        generator = self._generators["chart"]
+        assert isinstance(generator, ChartGenerator)
+        summaries = self._store.source_summaries(notebook_id)
+        if not summaries:
+            return ChartProposals(candidates=[], reason="the notebook has no ready source")
+        embedded = embed_billed(
+            self._store, self._embedder, user_id, notebook_id, [generator.focus_query]
+        )
+        chunks, _ = balanced_chunks(
+            self._retriever,
+            notebook_id,
+            embedded.vectors[0],
+            summaries,
+            self._k,
+            self._floor,
+            None,
+        )
+        passages = number_passages(chunks)
+        if not has_numbers(passages):
+            # no digit in any passage: nothing to draw, and no model call to pay for
+            return ChartProposals(candidates=[], reason=NO_SERIES)
+        trace = GenerationLog(
+            prompt_version=f"chart-v{generator.prompt_version}",
+            model=self._llm.model,
+            options={},
+            focus_query=generator.focus_query,
+            k=self._k,
+            floor=self._floor,
+        )
+        options: dict[str, Any] = {"max": limit}
+        if instructions:
+            options["instructions"] = instructions
+        prompt, schema = generator.prompt(options)
+        proposal = generator.ask(
+            self._completer(user_id, notebook_id, trace),
+            str(notebook.get("title", "")),
+            summaries,
+            passages,
+            prompt,
+            schema,
+            None,
+            user_instructions=instructions,
+            max_tokens=generator.max_tokens,
+        )
+        call = ProposalCall(
+            model=self._llm.model,
+            prompt_version=trace.prompt_version,
+            tokens_in=trace.llm_in,
+            tokens_out=trace.llm_out,
+            proposed_at=trace.started_at,
+        )
+        texts = {p.n: p.text for p in passages}
+        by_n = {p.n: p for p in passages}
+        candidates: list[Candidate] = []
+        for chart in getattr(proposal, "charts", [])[:limit]:
+            drawn_chart = chart.model_dump()
+            check_charts([drawn_chart], texts)
+            cited = sorted(
+                {
+                    n
+                    for s in drawn_chart["series"]
+                    for p in s["points"]
+                    for n in (p.get("refs") or []) + (p.get("derived_from") or [])
+                    if n in by_n
+                }
+            )
+            candidates.append(
+                Candidate.model_validate(
+                    {
+                        **drawn_chart,
+                        "id": secrets.token_hex(8),
+                        "passages": [
+                            PassageRef(
+                                n=n,
+                                chunk_id=by_n[n].chunk_id,
+                                source_name=by_n[n].source_name,
+                                page=by_n[n].page,
+                            )
+                            for n in cited
+                        ],
+                        "proposal": call,
+                    }
+                )
+            )
+        return ChartProposals(candidates=candidates, reason=None if candidates else NO_SERIES)
 
     def library(self, user_id: str, kind: OutputKind | None, trash: bool) -> list[Output]:
         """The user's outputs from every notebook, also from deleted ones,
@@ -598,8 +715,8 @@ class OutputService:
                 "title": row.title,
                 "content": self._public_content(row.content),
                 "created_at": row.created_at,
-                # the source selection names the owner's link ids: not for strangers
-                "options": {k: v for k, v in row.options.items() if k != "sources"},
+                # the source selection and a chart's candidates name the owner's ids
+                "options": {k: v for k, v in row.options.items() if k not in PRIVATE_OPTIONS},
                 "provenance": shared_provenance(row.provenance),
             }
         )
@@ -628,7 +745,7 @@ class OutputService:
             trace = self._log(job)
             generated = self._generate(job.owner, notebook_id, job, trace)
             # the units are marked in place, inside the content
-            check = check_units(
+            check = generated.check or check_units(
                 generated.units, trace.passages, translated="language" in job.options
             )
             content = generated.content
@@ -716,6 +833,8 @@ class OutputService:
     ) -> GeneratedOutput:
         if row.kind == "decision":
             return self._decide(user_id, notebook_id, row, trace)
+        if row.kind == "chart":
+            return self._draw(notebook_id, row, trace)
         generator = self._generators[row.kind]
         notebook = self._store.get_notebook(notebook_id) or {}
         summaries = self._material(notebook_id, row.options)
@@ -791,6 +910,51 @@ class OutputService:
             return result
 
         return complete
+
+    def _check_cited(self, notebook_id: str, charts: Sequence[dict[str, Any]]) -> None:
+        """Every passage a picked candidate cites must be a chunk of this notebook."""
+        wanted = {p["chunk_id"] for c in charts for p in c["passages"]}
+        found = {c.chunk_id for c in self._retriever.chunks(notebook_id, sorted(wanted))}
+        if wanted - found:
+            raise InvalidOptions("charts: a cited passage is not in this notebook")
+
+    def _draw(self, notebook_id: str, row: OutputRow, trace: GenerationLog) -> GeneratedOutput:
+        """The picked candidates as the output, without a model call: their
+        passages loaded again from the notebook, numbered once for all of
+        them, and every value checked against them."""
+        candidates = [Candidate.model_validate(c) for c in row.options["charts"]]
+        chunk_ids, charts = renumber(candidates)
+        found = {c.chunk_id: c for c in self._retriever.chunks(notebook_id, chunk_ids)}
+        # a chunk gone since the proposal (its source removed) is no passage:
+        # the values citing it are unsupported
+        trace.passages = [
+            Passage(
+                n=n,
+                chunk_id=c.chunk_id,
+                source_id=c.source_id,
+                source_name=c.source_name,
+                source_kind=c.source_kind,
+                page=c.page,
+                text=c.text,
+                chunk_index=c.chunk_index,
+                chunk_count=c.chunk_count,
+            )
+            for n, chunk_id in enumerate(chunk_ids, start=1)
+            if (c := found.get(chunk_id)) is not None
+        ]
+        trace.focus_query = ChartGenerator.focus_query
+        check = check_charts(charts, {p.n: p.text for p in trace.passages})
+        calls = {c.proposal.model_dump_json(): c.proposal for c in candidates}
+        trace.calls = [{"role": "proposal", **call.model_dump()} for call in calls.values()] + [
+            {"role": "check", "method": check["method"], "started_at": now()}
+        ]
+        title = chart_title(charts)
+        return GeneratedOutput(
+            title=title,
+            content={"charts": charts},
+            index_text=chart_index_text(title, charts),
+            check=check,
+        )
 
     def _decide(
         self, user_id: str, notebook_id: str, row: OutputRow, trace: GenerationLog

@@ -58,6 +58,7 @@ from .config import Settings
 from .models import (
     AdminStats,
     AskRequest,
+    ChartPropose,
     Conversation,
     ConversationCreate,
     ConversationRename,
@@ -68,6 +69,7 @@ from .models import (
 )
 from .options import catalogue
 from .outputs import OutputGenerator, registry
+from .outputs.chart import ChartProposals
 from .service import (
     ChunkNotFound,
     ConversationNotFound,
@@ -278,6 +280,12 @@ def create_app(
         return outputs.create(
             user, str(notebook_id), body.kind, body.options, [str(s) for s in body.source_ids or []]
         )
+
+    @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/charts/propose", response_model=ChartProposals)
+    def propose_charts(notebook_id: NotebookId, body: ChartPropose, user: User) -> ChartProposals:
+        """Candidate charts; nothing is stored until the user creates a chart output."""
+        instructions = " ".join((body.instructions or "").split()) or None
+        return outputs.propose_charts(user, str(notebook_id), instructions, body.max)
 
     @app.post(f"{PREFIX}/outputs/voice-sample")
     def voice_sample(body: VoiceSampleRequest, user: User) -> dict[str, Any]:
