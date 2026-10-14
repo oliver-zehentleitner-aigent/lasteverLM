@@ -167,7 +167,7 @@ would have to decode (more ways to get it wrong than parentheses).
 
 **Id:** 2ee513ba-066a-41a3-a9c7-5e906e31c52b
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** maintainer go relayed by the coordinator, 2026-10-14 ("each sentence traceable to the passage it came from"; mark, never block; a deterministic check); the method, the threshold and "unverified" were proposed by rag and approved by the coordinator the same day
 **Revisit when:** rated outputs show the 0.5 threshold marking supported units unsupported or the reverse, translated outputs need a verdict, or the chat's answers get the same check
