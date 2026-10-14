@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Audio sources: the wizard's Audio tile accepts M4A, AAC, OGG, Opus, FLAC, WEBM and MP4 besides MP3 and WAV (`.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.webm,.mp4,audio/*,video/mp4,video/webm`), converted by ingest before transcription; the hint names the 60 MB upload cap and the conversion.
+
 ## [0.11.1] - 2026-10-14
 
 ### Fixed

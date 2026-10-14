@@ -21,7 +21,7 @@ export const en = {
   'source.image': 'Image',
   'source.image.note': 'PNG, JPEG, WebP or GIF; the text in it is transcribed and the picture described.',
   'source.audio': 'Audio',
-  'source.audio.note': 'MP3 or WAV, up to 25 MB; what is said is transcribed.',
+  'source.audio.note': 'MP3, WAV, M4A, OGG, FLAC, WEBM or MP4 audio, up to 60 MB; anything but MP3 and WAV is converted first.',
   'tile.soon': 'Soon.',
   'create.needSource': 'Add a source and wait until it is ready.',
   'create.needFormat': 'Pick a format above.',
