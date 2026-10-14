@@ -25,11 +25,13 @@ jobs:
         id: filter
         with:
           # A workflow change runs every job: the filters are what the workflows test.
+          # Any directory's migrations run every Python job: each Postgres suite
+          # applies the other directories' migrations too.
           filters: |
-            core: ['core/**', '.github/workflows/**']
-            account: ['account/**', 'core/**', '.github/workflows/**']
-            ingest: ['ingest/**', 'core/**', '.github/workflows/**']
-            rag: ['rag/**', 'core/**', '.github/workflows/**']
+            core: ['core/**', '*/db/migrations/**', '.github/workflows/**']
+            account: ['account/**', 'core/**', '*/db/migrations/**', '.github/workflows/**']
+            ingest: ['ingest/**', 'core/**', '*/db/migrations/**', '.github/workflows/**']
+            rag: ['rag/**', 'core/**', '*/db/migrations/**', '.github/workflows/**']
             web: ['web/**', '.github/workflows/**']
             infra: ['infra/**', '.github/workflows/**']
 

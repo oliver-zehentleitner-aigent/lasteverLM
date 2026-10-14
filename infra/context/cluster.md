@@ -478,7 +478,11 @@ is the maintainer's call, so it is proposed separately.
 The `python` job of `ci.yml` has a `pgvector/pgvector:0.8.7-pg18-trixie`
 service container per matrix entry. After `make check` it runs the
 directory's `tests/test_postgres.py` with the connection string in the
-variable that directory reads, and fails when a test is skipped.
+variable that directory reads, and fails when a test is skipped. A
+change under any `*/db/migrations/` marks every Python directory as
+changed (as `core/` already did): the suites apply the other
+directories' migrations too, and account's 0010 (a seeded exchange rate)
+broke ingest's suite on main while CI ran only account's.
 
 **Reason:** the suites test the SQL the services run in production
 (migrations, atomic updates, vector queries) and were only run by hand.
