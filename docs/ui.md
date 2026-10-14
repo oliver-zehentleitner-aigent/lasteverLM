@@ -465,6 +465,28 @@ deleted from the library) stays readable with its quote and is marked
   used or expired code says so.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
+- **Prices** (`/prices`, no login, linked under the login page's forms,
+  in the header next to Settings and at the top of Settings): the
+  public price list from `GET /api/account/prices`. A title, a line on
+  where the prices come from (the last N days' actions at today's
+  prices), then one table per group: **Sources** (one row per source
+  kind; audio per minute), **Chat** (per question), **Outputs** (the
+  kinds; audio per minute), **Extras** (Check with a judge, Find charts,
+  the rest). The group is the action's prefix (`source:`, `output:`,
+  `chat_answer`, everything else), so an action the web does not know
+  yet is still listed, by its code, last in its group. Columns: what,
+  the price per unit (the unit translated: per question, per output, per
+  source, per check, per search, per minute of audio, …), typical (p25–p75
+  and the median, per action) and the model, muted, hidden on a phone.
+  An action with fewer than five runs in the window says "no experience
+  yet" instead of any number. Prices from ten cents up show whole
+  cents; below that two significant digits (€0.0035, €0.035). Under
+  the tables the exchange rate ("1 EUR = 1.1188 USD, ECB reference rate
+  of 2026-10-13") and the rules in plain words: adding a source is free,
+  processing it costs, the estimate is shown before every action, credit
+  does not expire. No margins, fees or costs: the service sends end
+  prices only. The source is priced per source, a judge check per
+  check: the service has no per-page or per-level price.
 - Prices: before anything billed runs, its estimated charge from rag's
   `POST /api/rag/estimate` stands next to the button that starts it, in
   euro as the balance: before Create (for the kind with its options, a

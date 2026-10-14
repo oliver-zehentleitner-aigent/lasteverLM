@@ -833,3 +833,25 @@ export interface FinanceProfit {
   rows: ProfitRow[]
   total: ProfitRow | null
 }
+
+/** The public price list (GET /api/account/prices, no login): end prices
+ *  only, in euro cents. Below five actions in the window an action has no
+ *  price and no typical range. */
+export interface PublicPrices {
+  usd_per_eur: number | null
+  rate_date: string | null
+  rate_source: 'ECB' | 'manual' | 'seed'
+  window_days: number
+  actions: PublicPriceRow[]
+}
+
+export interface PublicPriceRow {
+  action: string
+  /** a stable key from core (question, output, source, audio_minute, check, …) */
+  unit: string
+  price_per_unit_cents: number | null
+  /** per action, not per unit */
+  typical_cents: { p25: number; median: number; p75: number } | null
+  count: number
+  model: string | null
+}

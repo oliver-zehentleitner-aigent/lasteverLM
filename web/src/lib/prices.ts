@@ -1,0 +1,67 @@
+import type { OutputKind, PublicPriceRow, SourceKind } from '../api/types'
+import { hasMessage, language, t } from '../i18n'
+import { OUTPUT_FORMS, SOURCE_FORMS, formFor, sourceKindLabel } from './outputs'
+
+/** The public price list's groups, in the page's order. Pure, so it is tested. */
+export type PriceGroup = 'sources' | 'chat' | 'outputs' | 'extras'
+
+const EXTRAS_ORDER = ['judge', 'chart_propose', 'decision', 'summary', 'voice_sample']
+
+export function priceGroup(action: string): PriceGroup {
+  if (action.startsWith('source:')) return 'sources'
+  if (action.startsWith('output:')) return 'outputs'
+  if (action === 'chat_answer') return 'chat'
+  return 'extras'
+}
+
+/** The rows by group, each group in the order the app shows its kinds
+ *  (sources and outputs as in the wizard and the tiles); an action the web
+ *  does not know yet goes last in its group rather than being dropped. */
+export function groupPrices(rows: PublicPriceRow[]): { group: PriceGroup; rows: PublicPriceRow[] }[] {
+  const order = (a: string): number => {
+    const sourceIdx = SOURCE_FORMS.findIndex((f) => `source:${f.kind}` === a)
+    const outputIdx = OUTPUT_FORMS.findIndex((f) => `output:${f.kind}` === a)
+    const i = sourceIdx >= 0 ? sourceIdx : outputIdx >= 0 ? outputIdx : EXTRAS_ORDER.indexOf(a)
+    return i >= 0 ? i : 1000
+  }
+  return (['sources', 'chat', 'outputs', 'extras'] as const)
+    .map((group) => ({ group, rows: rows.filter((r) => priceGroup(r.action) === group).sort((a, b) => order(a.action) - order(b.action) || a.action.localeCompare(b.action)) }))
+    .filter((g) => g.rows.length > 0)
+}
+
+/** "PDF", "Report", "Check with a judge"; the code itself for an action the
+ *  web has no name for. */
+export function actionLabel(action: string): string {
+  if (action.startsWith('source:')) return sourceKindLabel(action.slice(7) as SourceKind)
+  if (action.startsWith('output:')) {
+    const kind = action.slice(7) as OutputKind
+    return OUTPUT_FORMS.some((f) => f.kind === kind) ? formFor(kind).label : kind
+  }
+  const key = `prices.action.${action}`
+  return hasMessage(key) ? t(key) : action
+}
+
+/** "per question", "per minute of audio"; the key itself for a unit the web does not know. */
+export function unitLabel(unit: string): string {
+  const key = `prices.unit.${unit}`
+  return hasMessage(key) ? t(key) : t('prices.unit.other', { unit })
+}
+
+/** A price as a user reads it: whole cents from 10 cents up, below that
+ *  two significant digits (€0.0034, €0.035), so a fraction of a cent is
+ *  neither shown as €0.00 nor with six decimals. */
+export function formatPrice(cents: number): string {
+  const value = cents / 100
+  const opts: Intl.NumberFormatOptions =
+    cents >= 10 || cents === 0
+      ? { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      : { style: 'currency', currency: 'EUR', maximumSignificantDigits: 2 }
+  return value.toLocaleString(language(), opts)
+}
+
+/** "€0.02–€0.05, median €0.03"; null without enough actions. */
+export function typicalText(row: PublicPriceRow): string | null {
+  const tc = row.typical_cents
+  if (!tc) return null
+  return t('prices.typicalRange', { p25: formatPrice(tc.p25), p75: formatPrice(tc.p75), median: formatPrice(tc.median) })
+}

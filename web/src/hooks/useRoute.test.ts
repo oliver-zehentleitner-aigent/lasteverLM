@@ -11,6 +11,7 @@ describe('parseRoute', () => {
     expect(parseRoute({ pathname: '/shared/notebook/', search: '' })).toEqual({ name: 'home' })
     expect(parseRoute({ pathname: '/library', search: '' })).toEqual({ name: 'library' })
     expect(parseRoute({ pathname: '/settings', search: '' })).toEqual({ name: 'settings' })
+    expect(parseRoute({ pathname: '/prices', search: '' })).toEqual({ name: 'prices' })
   })
   it('falls back to home for unknown paths and keeps a missing token empty', () => {
     expect(parseRoute({ pathname: '/nope', search: '' })).toEqual({ name: 'home' })
