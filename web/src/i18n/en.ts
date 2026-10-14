@@ -862,6 +862,14 @@ export const en = {
   'vch.free': 'free',
   'vch.paidCol': 'Paid',
   'vch.paidTitle': 'Paid: sold for its face value, counts as revenue. Free: a gift, counts as marketing cost.',
+  'price.about': '≈ {price}',
+  'price.upTo': 'up to {price}',
+  'price.range': '≈ {min}–{max}',
+  'price.title': 'Estimated charge from your credit; the booking counts what is really used.',
+  'price.noRate': 'no price set yet',
+  'price.noRateTitle': 'Pricing has no exchange rate yet, so this cannot run. Ask an admin.',
+  'price.perQuestion': 'per question',
+  'price.sample': '({price} when it is new; one played before is free)',
 } as const
 
 export type MessageKey = keyof typeof en

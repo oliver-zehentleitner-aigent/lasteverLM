@@ -865,4 +865,12 @@ export const de: Record<MessageKey, string> = {
   'vch.free': 'kostenlos',
   'vch.paidCol': 'Bezahlt',
   'vch.paidTitle': 'Bezahlt: zum Nennwert verkauft, zählt als Einnahme. Kostenlos: ein Geschenk, zählt als Marketingkosten.',
+  'price.about': '≈ {price}',
+  'price.upTo': 'bis zu {price}',
+  'price.range': '≈ {min}–{max}',
+  'price.title': 'Geschätzte Abbuchung von deinem Guthaben; gebucht wird, was wirklich verbraucht wird.',
+  'price.noRate': 'noch kein Preis festgelegt',
+  'price.noRateTitle': 'Die Preise haben noch keinen Wechselkurs, deshalb läuft das nicht. Frag einen Admin.',
+  'price.perQuestion': 'pro Frage',
+  'price.sample': '({price}, wenn sie neu ist; eine schon gespielte ist gratis)',
 }

@@ -199,7 +199,10 @@ export function OutputViewer({
               {judgeHead(selected.provenance) && <span className="muted small check-line judge-line">{judgeHead(selected.provenance)}</span>}
               {selected.status === 'ready' && selected.kind !== 'chart' && selected.provenance && (
                 <span className="no-print">
-                  <JudgeRequest onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)} />
+                  <JudgeRequest
+                    subject={{ kind: selected.kind, ...(selected.options?.question_count ? { question_count: selected.options.question_count } : {}) }}
+                    onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)}
+                  />
                 </span>
               )}
               {selected.options?.sources?.length ? (

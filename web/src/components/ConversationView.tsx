@@ -2,12 +2,14 @@ import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
 import { rag } from '../api/rag'
 import type { AnswerUnit, Citation, Message } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
+import { useEstimate } from '../hooks/useEstimate'
 import { isRemoved, splitCitations } from '../lib/citations'
 import { isStacked } from '../lib/layout'
 import { similarityLabel } from '../lib/provenance'
 import { checkSummary, unitBadges } from '../lib/outputProvenance'
 import { judgeBadge } from '../lib/judge'
 import { JudgeRequest } from './JudgeRequest'
+import { PriceTag } from './PriceTag'
 import { ProvenancePanel } from './ProvenancePanel'
 import { t } from '../i18n'
 import type { ChatPaneProps } from './ChatPane'
@@ -25,6 +27,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
   const { busy, error, run } = useAsync()
+  const price = useEstimate({ action: 'chat_answer' })
   const pane = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
 
@@ -192,6 +195,9 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           {t('chat.ask')}
         </button>
       </form>
+      <p className="ask-price no-print">
+        <PriceTag state={price} suffix={t('price.perQuestion')} />
+      </p>
     </>
   )
 }
