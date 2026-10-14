@@ -242,6 +242,11 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
   .chat-wrap { flex: none; }
   .chat .messages { min-height: 40vh; }
   .viewer-body:has(> .viewer-head) { min-height: 40vh; }
+  /* the same for the sources and outputs: flex 1 with min-height 0 left
+     them a row and a half; they take their content, their lists scroll
+     beyond half the screen */
+  .column.left .sources, .column.left .outputs { flex: none; }
+  .column.left .sources .list, .column.left .outputs .list { max-height: 50vh; }
 }
 .grid2 > .row { grid-column: 1 / -1; justify-content: flex-end; }
 
