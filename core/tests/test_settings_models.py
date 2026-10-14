@@ -224,6 +224,18 @@ def test_a_plan_is_optional_and_passed_through() -> None:
     assert Answer(message_id=uuid4(), answer="a").plan is None
 
 
+def test_a_source_can_be_added_without_being_read() -> None:
+    row = {
+        "id": str(uuid4()),
+        "notebook_id": str(uuid4()),
+        "name": "a.pdf",
+        "kind": "pdf",
+        "status": "added",
+        "created_at": "2026-10-14T00:00:00Z",
+    }
+    assert Source.model_validate(row).status == "added"
+
+
 def test_a_source_can_wait_for_credit() -> None:
     row = {
         "id": str(uuid4()),

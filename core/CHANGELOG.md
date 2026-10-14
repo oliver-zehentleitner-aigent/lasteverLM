@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- `SourceStatus` gains `added`, stored: a source kept but not read yet, which no worker claims until it is used (ingest's `POST /sources/process`).
+
 ## [0.18.5] - 2026-10-14
 
 ### Added

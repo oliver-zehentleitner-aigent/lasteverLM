@@ -101,7 +101,7 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 ```
 
 - `sources.kind`: `pdf` | `text` | `url` | `image` | `audio` | `generated` (`audio` is an MP3 or WAV upload transcribed by `STT_MODEL` into one passage without pages, the platform returns no timestamps; `generated` is a finished output indexed as a source by rag, see Outputs).
-- `sources.status`: `processing` | `ready` | `failed`. The API also shows `waiting_for_credit`, never stored: a queued (`processing`) source whose owner has no credit, which the ingest worker does not claim until the balance is positive again.
+- `sources.status`: `added` | `processing` | `ready` | `failed`. `added` means stored but not read yet: adding a source only keeps it, and the ingest worker claims it once the source is used (`POST /sources/process`); generated rows never have it. The API also shows `waiting_for_credit`, never stored: a queued (`processing`) source whose owner has no credit, which the ingest worker does not claim until the balance is positive again.
 - `sources.summary`: one summary per source, written by ingest at the end of processing, used by the output generators.
 - `outputs.kind`: `report` | `quiz` | `table` | `mindmap` | `infographic` | `audio` | `decision` | `chart` | `flashcards`. `outputs.status`: `waiting` (sources still processing) | `processing` | `ready` | `failed`.
 - `claimed_at`, `claimed_by`, `attempts` on `sources` and `outputs` make those tables the job queues of the two workers (see Workers).
