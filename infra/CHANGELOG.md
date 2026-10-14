@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `MODEL_PRICES` in production and `compose.yaml` adds the judge candidates from the platform's catalog, cents per million input and output tokens: `glm-5.3-flash` 10 / 35, `deepseek-v4.1-flash` 15 / 60, `glm-5.3` 75 / 300.
 
+### Fixed
+
+- `MODEL_PRICES` for `qwen3.8-27b` in production and `compose.yaml`: 15 cents per million input tokens and 100 per million output tokens, as the platform's catalog lists them on 2026-10-14, instead of 100 for both.
+
 ## [0.15.0] - 2026-10-14
 
 ### Added
