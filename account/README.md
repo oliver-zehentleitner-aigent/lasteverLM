@@ -67,7 +67,8 @@ Roles: every user is `user`, `viewer` or `admin` (`User.role`; `is_admin` equals
 and for the very first real user, `viewer` for an address in
 `viewer_addresses` or a domain in `viewer_domains`, `user` otherwise — and changed by an admin with
 `PATCH /admin/users/{id}`. A viewer may call every `GET` under `/admin`, with every
-person's e-mail address masked (`j***e@example.com`, core's `mask_email`); every
+person's e-mail address masked (`j***e@example.com`, core's `mask_email`) and every IP
+shortened (`203.0.113.*`, `2a05:f480:1800::*`, `*` for what does not parse); every
 write there is admin only (403). The last admin cannot step down and the demo
 user stays `user`.
 

@@ -262,16 +262,16 @@ async def delete_voucher(voucher_id: uuid.UUID, service: Service, _: AdminUserDe
 
 
 @router.get("/blocks", response_model=list[AdminBlock])
-async def blocks(service: Service, _: AdminReaderDep) -> list[AdminBlock]:
+async def blocks(service: Service, reader: AdminReaderDep) -> list[AdminBlock]:
     """Addresses currently blocked (blocked_until in the future)."""
-    return await service.admin_blocks()
+    return for_reader_list(reader, await service.admin_blocks())
 
 
 @router.get("/bans", response_model=list[AdminBan])
 async def bans(
-    service: Service, _: AdminReaderDep, include_lifted: bool = Query(default=False)
+    service: Service, reader: AdminReaderDep, include_lifted: bool = Query(default=False)
 ) -> list[AdminBan]:
-    return await service.admin_bans(include_lifted)
+    return for_reader_list(reader, await service.admin_bans(include_lifted))
 
 
 @router.delete("/bans", status_code=204)
@@ -295,9 +295,9 @@ async def lift_ban_by_path(
 
 @router.get("/access", response_model=list[AdminAccess])
 async def access(
-    service: Service, _: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
+    service: Service, reader: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
 ) -> list[AdminAccess]:
-    return await service.admin_access(limit)
+    return for_reader_list(reader, await service.admin_access(limit))
 
 
 @router.patch("/vouchers/{voucher_id}", response_model=AdminVoucher)

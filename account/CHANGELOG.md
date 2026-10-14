@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- A viewer (read-only admin) sees IP addresses shortened, like e-mails: IPv4 without its last octet (`203.0.113.*`), IPv6 to its /48 (`2a05:f480:1800::*`), a v4-mapped IPv6 as IPv4, an IPv6 ban prefix by its network, anything unparsable as `*`. Applies to sign-in attempts, blocks, bans and the access log; admins see full addresses, lifting a ban stays admin only.
+
 ## [0.19.1] - 2026-10-14
 
 ### Fixed
