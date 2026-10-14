@@ -12,6 +12,7 @@ preserves why it changed, in `context/`.
 ### Added
 
 - `Output.provenance` and `SharedOutput.provenance: dict[str, Any] | None = None`: the generation log rag stores with an output (`outputs.provenance`). rag owns and documents its shape and strips the ids before a shared output is returned; `None` for outputs made before it.
+- `Health.dependencies`, `{"postgres"?, "storage"?, "inference"?: "ok" | "down"}` (`Dependency`, `DependencyState`), omitted from the body while empty, and `lasteverlm_core.health`: `DependencyProbe` runs the checks concurrently with 2 s each, caches the states for 15 s and reports `"down"` (logged) instead of raising; `postgres_check` / `apostgres_check` (`select 1`), `storage_check` over the new `S3Storage.ping` (bucket HEAD), `inference_check` (`GET /models`, no retry). `status` stays `"ok"`.
 
 ## [0.13.0] - 2026-10-14
 
