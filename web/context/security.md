@@ -73,3 +73,27 @@ unverified. Rejected for the risk of breaking the live app on a guess.
 **Rejected alternative:** `Referrer-Policy: strict-origin-when-cross-origin`
 (the browser default). Rejected because `no-referrer` costs nothing
 here and keeps a share link's token out of every outgoing request.
+
+## The sign-in code field exchanges the mail's code; no field takes a Bearer token
+
+**Id:** 7d1f4a78-1112-4be0-92c3-5544e7d95883
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer walkthrough, 2026-10-14: the code pasted from the sign-in mail led to a 401 on every request
+
+The login page's second form takes the code the sign-in mail prints
+under the link and exchanges it at `/api/account/auth/callback`, as the
+link does; the JWT that comes back is stored. Before, the form stored
+whatever was pasted as the Bearer token, a path meant for the
+development token `demo`, so the mail's code, the one thing a user has
+to paste, could not work. The code's format is checked before it is
+sent. A raw Bearer token has no field anymore: nothing in the repository
+signs in through the form (the CSP walk sets the token in local storage,
+the smoke test sends it as a header), and docs/development.md says how
+to set one by hand.
+
+**Rejected alternative:** keep the Bearer field and add a second one for
+the code. Rejected because two fields that look alike, one of which
+works only for developers, would leave the user to pick the one that
+works.
