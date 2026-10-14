@@ -164,3 +164,28 @@ measured usage instead, so the caller records it and the source fails.
 Multipart upload is used although the catalog describes a base64 JSON
 body (`input_audio`): the probe accepted both, and multipart is what the
 SDK sends without a hand-built request.
+
+## A lasting 4xx is a permanent ProviderError
+
+**Id:** 432dac6f-122a-48ff-b263-4ade23848ff8
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** ingest's requirement, relayed by the coordinator, 2026-10-14: a refused audio file must fail its source once, not three times at full price
+**Revisit when:** a provider answers a lasting refusal with a status outside 4xx, or one of 408, 409 or 429 turns out to be final on the platform
+
+`ProviderError.permanent` is `True` when the request was refused with a
+4xx other than 408, 409 or 429, for every provider call, not only for
+transcription. A worker that retries failed jobs fails such a job at
+once.
+
+**Reason:** a file over the platform's limits, an unknown voice or a
+malformed request gets the same answer on every attempt, and with audio
+each attempt may upload and bill up to four hours. 408, 409 and 429 say
+"not now" rather than "never", and 5xx, timeouts and connection errors
+are the cases retries exist for, so they stay retryable.
+
+**Rejected alternative:** a separate exception class. Every caller
+already catches `ProviderError`, and a subclass that some caller forgot
+would be retried or, worse, escape the worker. A flag needs nothing from
+callers that ignore it.
