@@ -17,6 +17,7 @@ import os
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -33,10 +34,12 @@ from lasteverlm_core import (
     AsyncPostgresRateLimitStore,
     MemoryRateLimitStore,
     PostgresRateLimitStore,
+    PricingRules,
     RateLimiter,
     RateLimitMiddleware,
     RateLimitSettings,
     UnpricedModelError,
+    Usage,
     aadmin_role,
     abalance_cents,
     admin_role,
@@ -73,6 +76,7 @@ PRICES = parse_model_prices(
     '{"llm": {"in": 30, "out": 150}, "tts": {"in": 2000, "out": 0},'
     ' "stt": {"in": 28000, "out": 0}, "clef": {"in": 10, "out": 0}}'
 )
+FREE = PricingRules()
 T0 = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 SETTINGS = RateLimitSettings(per_minute=3, block_minutes=15, ban_after_strikes=3)
 
@@ -119,28 +123,133 @@ def credit(conn: psycopg.Connection[Any], user: Any, cents: int) -> None:
 # --- usage -------------------------------------------------------------------
 
 
+def book(
+    conn: Any,
+    user: Any,
+    usage: Usage,
+    *,
+    action: str = "chat_answer",
+    action_id: Any = None,
+    service: Any = "rag",
+    rules: PricingRules = FREE,
+) -> Any:
+    return record_usage(
+        conn, user, None, service, action, action_id or uuid4(), usage, prices=PRICES, rules=rules
+    )
+
+
 def test_record_usage_and_balance(conn: psycopg.Connection[Any]) -> None:
-    user, notebook = uuid4(), uuid4()
+    user, notebook, action_id = uuid4(), uuid4(), uuid4()
     credit(conn, user, 1000)
     assert balance_cents(conn, user) == 1000
-    usage = record_usage(conn, user, notebook, "rag", "llm", "llm", 1_000_000, 0, prices=PRICES)
-    assert usage.cost_cents == 30
-    assert balance_cents(conn, user) == 970
+    usage = record_usage(
+        conn,
+        user,
+        notebook,
+        "rag",
+        "chat_answer",
+        action_id,
+        Usage("llm", "llm", 1_000_000, 0),
+        prices=PRICES,
+        rules=PricingRules.parse({"default_margin_pct": 10}),
+    )
+    assert (usage.cost_cents, usage.charge_cents) == (Decimal(30), Decimal(33))
+    assert balance_cents(conn, user) == 967  # the charge, not the cost
     assert balance_cents(conn, uuid4()) == 0
-    row = conn.execute("select service, kind, model, cost_cents from usage").fetchone()
-    assert row == ("rag", "llm", "llm", 30)
+    row = conn.execute(
+        "select service, action, action_id, kind, model, cost_cents, charge_cents from usage"
+    ).fetchone()
+    assert row == ("rag", "chat_answer", action_id, "llm", "llm", 30, 33)
+
+
+def test_sub_cent_costs_are_kept_exactly(conn: psycopg.Connection[Any]) -> None:
+    user = uuid4()
+    credit(conn, user, 1)
+    for _ in range(3):
+        book(conn, user, Usage("embedding", "llm", 100, 0), action="source:pdf")
+    assert balance_cents(conn, user) == Decimal("0.991")  # 3 x 0.003, nothing rounded up
+
+
+def test_a_fee_is_booked_once_per_action(conn: psycopg.Connection[Any]) -> None:
+    user, action_id = uuid4(), uuid4()
+    credit(conn, user, 100)
+    rules = PricingRules.parse({"actions": {"output:audio": {"fixed_cents": 5}}})
+    for _ in range(3):  # three TTS segments of one audio output
+        book(
+            conn,
+            user,
+            Usage("tts", "tts", 500, 0),
+            action="output:audio",
+            action_id=action_id,
+            rules=rules,
+        )
+    book(conn, user, Usage("tts", "tts", 500, 0), action="output:audio", rules=rules)
+    fees = conn.execute(
+        "select count(*), sum(charge_cents), sum(cost_cents) from usage where kind = 'fee'"
+    ).fetchone()
+    assert fees == (2, 10, 0)  # one per action, two actions
+    assert balance_cents(conn, user) == 100 - 4 * 1 - 10  # 500 s x 2000 / 1e6 = 1 cent each
 
 
 def test_unpriced_model_writes_nothing(conn: psycopg.Connection[Any]) -> None:
     with pytest.raises(UnpricedModelError):
-        record_usage(conn, uuid4(), None, "ingest", "embedding", "none", 1, 0, prices=PRICES)
+        book(conn, uuid4(), Usage("embedding", "none", 1, 0), service="ingest")
     assert conn.execute("select count(*) from usage").fetchone() == (0,)
 
 
-def test_tts_usage_is_priced_per_character(conn: psycopg.Connection[Any]) -> None:
+def test_a_row_from_the_previous_release_is_filled_by_the_trigger(
+    conn: psycopg.Connection[Any],
+) -> None:
     user = uuid4()
-    usage = record_usage(conn, user, None, "rag", "tts", "tts", 1500, 0, prices=PRICES)
-    assert usage.cost_cents == 3  # ceil(1500 * 2000 / 1e6)
+    credit(conn, user, 100)
+    # the insert of a pod still on the old code, during the rolling deploy
+    conn.execute(
+        "insert into usage (user_id, service, kind, model, tokens_in, tokens_out, cost_cents)"
+        " values (%s, 'rag', 'llm', 'llm', 1, 0, 7)",
+        (user,),
+    )
+    row = conn.execute("select id, action, action_id, charge_cents from usage").fetchone()
+    assert row is not None and row[1:] == ("unknown", row[0], 7)
+    assert balance_cents(conn, user) == 93
+
+
+def test_migration_0006_backfills_existing_rows(dsn: str) -> None:
+    # The migrations up to 0005 in a schema of their own, rows as the old
+    # code booked them, then 0006 over them.
+    before = [m for m in MIGRATIONS if m.name < "0006"]
+    billing = next(m for m in MIGRATIONS if m.name.startswith("0006"))
+    with psycopg.connect(dsn, autocommit=True) as c:
+        c.execute("drop schema if exists backfill cascade")
+        c.execute("create schema backfill")
+        c.execute("set search_path to backfill")
+        for path in before:
+            c.execute(path.read_text())
+        user = uuid4()
+        for kind in ("llm", "tts", "stt", "decision", "embedding"):
+            c.execute(
+                "insert into usage (user_id, service, kind, model, tokens_in, tokens_out,"
+                " cost_cents) values (%s, 'rag', %s, 'm', 1, 0, 4)",
+                (user, kind),
+            )
+        c.execute(billing.read_text())
+        rows = c.execute(
+            "select kind, action, action_id = id, charge_cents, cost_cents from usage"
+            " order by kind"
+        ).fetchall()
+        c.execute("drop schema backfill cascade")
+    assert rows == [
+        ("decision", "output:decision", True, 4, 4),
+        ("embedding", "unknown", True, 4, 4),
+        ("llm", "unknown", True, 4, 4),
+        ("stt", "source:audio", True, 4, 4),
+        ("tts", "output:audio", True, 4, 4),
+    ]
+
+
+def test_tts_usage_is_priced_per_second(conn: psycopg.Connection[Any]) -> None:
+    user = uuid4()
+    usage = book(conn, user, Usage("tts", "tts", 1500, 0), action="output:audio")
+    assert usage.cost_cents == 3  # 1500 * 2000 / 1e6
     assert conn.execute("select kind, tokens_in from usage").fetchone() == ("tts", 1500)
     with pytest.raises(psycopg.errors.CheckViolation):
         conn.execute(
@@ -151,14 +260,16 @@ def test_tts_usage_is_priced_per_character(conn: psycopg.Connection[Any]) -> Non
 
 
 def test_stt_usage_is_priced_per_second(conn: psycopg.Connection[Any]) -> None:
-    usage = record_usage(conn, uuid4(), None, "ingest", "stt", "stt", 3600, 0, prices=PRICES)
-    assert usage.cost_cents == 101  # ceil(3600 * 28000 / 1e6): an hour at 0.00028 USD/s
+    usage = book(
+        conn, uuid4(), Usage("stt", "stt", 3600, 0), action="source:audio", service="ingest"
+    )
+    assert usage.cost_cents == Decimal("100.8")  # an hour at 0.00028 USD/s
     assert conn.execute("select kind, tokens_in from usage").fetchone() == ("stt", 3600)
 
 
 def test_decision_usage_is_priced_per_input_token(conn: psycopg.Connection[Any]) -> None:
-    usage = record_usage(conn, uuid4(), None, "rag", "decision", "clef", 2192, 0, prices=PRICES)
-    assert usage.cost_cents == 1  # ceil(2192 * 10 / 1e6)
+    usage = book(conn, uuid4(), Usage("decision", "clef", 2192, 0), action="output:decision")
+    assert usage.cost_cents == Decimal("0.02192")
     assert conn.execute("select kind, tokens_in from usage").fetchone() == ("decision", 2192)
 
 
@@ -176,11 +287,11 @@ def test_admins_need_credit_like_everyone(dsn: str, conn: psycopg.Connection[Any
     assert has_credit(conn, stranger) is False
     credit(conn, user, 5)
     assert has_credit(conn, user) is True
-    record_usage(conn, user, None, "rag", "llm", "llm", 1_000_000, 0, prices=PRICES)
+    book(conn, user, Usage("llm", "llm", 1_000_000, 0))
     assert has_credit(conn, user) is False  # 5 - 30 < 0
     credit(conn, admin, 100)  # a voucher
     assert has_credit(conn, admin) is True
-    record_usage(conn, admin, None, "rag", "llm", "llm", 4_000_000, 0, prices=PRICES)
+    book(conn, admin, Usage("llm", "llm", 4_000_000, 0))
     assert has_credit(conn, admin) is False  # 100 - 120 < 0
     with psycopg.connect(dsn, row_factory=dict_row) as dconn:
         assert has_credit(dconn, admin) is False and is_admin(dconn, admin) is True
@@ -219,9 +330,9 @@ def test_balance_on_a_dict_row_connection(dsn: str, conn: psycopg.Connection[Any
     user = uuid4()
     credit(conn, user, 500)
     with psycopg.connect(dsn, row_factory=dict_row) as dconn:
-        record_usage(dconn, user, None, "ingest", "embedding", "llm", 100, 0, prices=PRICES)
+        book(dconn, user, Usage("embedding", "llm", 100, 0), action="source:pdf")
         dconn.commit()
-        assert balance_cents(dconn, user) == 499
+        assert balance_cents(dconn, user) == Decimal("499.997")
 
 
 async def test_async_usage(dsn: str, conn: psycopg.Connection[Any]) -> None:
@@ -229,7 +340,15 @@ async def test_async_usage(dsn: str, conn: psycopg.Connection[Any]) -> None:
     credit(conn, user, 100)
     async with await psycopg.AsyncConnection.connect(dsn, row_factory=dict_row) as aconn:
         usage = await arecord_usage(
-            aconn, user, None, "rag", "llm", "llm", 0, 100_000, prices=PRICES
+            aconn,
+            user,
+            None,
+            "rag",
+            "chat_answer",
+            uuid4(),
+            Usage("llm", "llm", 0, 100_000),
+            prices=PRICES,
+            rules=FREE,
         )
         await aconn.commit()
         assert usage.cost_cents == 15

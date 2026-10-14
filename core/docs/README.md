@@ -158,13 +158,38 @@ Before a model call: `has_credit(conn, user_id)`, otherwise 402
 `{"error": "credit exhausted"}`. It is true when `balance_cents > 0`,
 for every user alike: admins top up with vouchers like everyone else, and
 the admin flag gates only the admin endpoints. After the call:
-`record_usage(...)` with the `Usage` the provider returned. `record_usage` prices the row and raises
-`UnpricedModelError` before touching the database when the model has no
-price; `require_prices` at startup makes that unreachable in a correctly
-configured deployment. The caller owns the transaction. The account
-service, which runs on an async pool, uses `abalance_cents`,
-`ahas_credit` and `arecord_usage`; `BALANCE_SQL` and `USAGE_SQL` are exported for a report
-query that needs them inline.
+`record_usage(conn, user_id, notebook_id, service, action, action_id,
+usage, prices=..., rules=...)` with the `Usage` the provider returned.
+
+- `action` is what the user did, one of `USAGE_ACTIONS`
+  (`chat_answer`, `output:<kind>`, `source:<kind>`, `summary`, `judge`,
+  ...). `action_id` is one uuid shared by every call of that action, such
+  as all TTS segments of one audio output.
+- `record_usage` fixes `cost_cents`, the call's units at `MODEL_PRICES`,
+  exact and not rounded. It also fixes `charge_cents`, the cost times
+  `1 + margin_pct / 100` under the pricing rules.
+- When the action has a fixed fee, `record_usage` books it as a row of
+  kind `fee` (cost 0, charge the fee). This happens once per `action_id`,
+  whichever call comes first.
+- `rules` comes from a `PricingRulesCache` the service keeps for its
+  process. The cache reads account's `settings` row `pricing` at most
+  every 30 seconds, and the defaults without a row are margin 0 and no
+  fees.
+- `record_usage` raises `ValueError` for an unknown action and
+  `UnpricedModelError` for a model without a price, both before touching
+  the database. `require_prices` at startup makes the second one
+  unreachable in a correctly configured deployment.
+- The caller owns the transaction.
+
+The balance is credits minus charges, a `Decimal`. The account service,
+which runs on an async pool, uses `abalance_cents`, `ahas_credit` and
+`arecord_usage`; the cache's async read is `acurrent`. `BALANCE_SQL` and
+`USAGE_SQL` are exported for a report query that needs them inline.
+`funded_sql("l.owner")` is the credit check as a SQL expression, for a
+statement over many users such as ingest's job claim.
+`estimate_charge(prices, rules, action, model, tokens_in, tokens_out)`
+is what one call would charge, its fee included, for a price shown
+before the user starts.
 
 Speech synthesis and transcription are priced per second of audio, not
 per token, as the platform bills them. A `tts` or `stt` row carries the
@@ -178,11 +203,11 @@ try:
     speech = tts.synthesize(segment)  # SpeechResult(audio, usage)
 except ProviderError as exc:
     if exc.usage is not None:
-        record_usage(conn, user_id, notebook_id, "rag", exc.usage.kind, exc.usage.model,
-                     exc.usage.tokens_in, exc.usage.tokens_out, prices=prices)
+        record_usage(conn, user_id, notebook_id, "rag", "output:audio", action_id,
+                     exc.usage, prices=prices, rules=rules)
     raise
-record_usage(conn, user_id, notebook_id, "rag", "tts", speech.usage.model,
-             speech.usage.tokens_in, 0, prices=prices)
+record_usage(conn, user_id, notebook_id, "rag", "output:audio", action_id,
+             speech.usage, prices=prices, rules=rules)
 ```
 
 ## Rate limiting
@@ -321,8 +346,8 @@ try:
     result = llm.complete(system, user, 400)
 except ProviderError as exc:
     if exc.usage is not None:
-        record_usage(conn, user_id, notebook_id, "rag", "llm", exc.usage.model,
-                     exc.usage.tokens_in, exc.usage.tokens_out, prices=prices)
+        record_usage(conn, user_id, notebook_id, "rag", "chat_answer", action_id,
+                     exc.usage, prices=prices, rules=rules)
     raise
 ```
 

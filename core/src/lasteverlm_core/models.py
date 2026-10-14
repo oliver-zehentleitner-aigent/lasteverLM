@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Literal
+from decimal import Decimal
+from typing import Any, Literal, get_args
 from uuid import UUID
 
 from pydantic import (
@@ -40,8 +41,33 @@ OutputStatus = Literal["waiting", "processing", "ready", "failed"]
 # Stored in account's `users.role`; `users.is_admin` is `role = 'admin'`.
 Role = Literal["user", "viewer", "admin"]
 ROLES: tuple[Role, ...] = ("user", "viewer", "admin")
-UsageKind = Literal["llm", "embedding", "tts", "stt", "decision"]
+# "fee" is an action's fixed fee: cost 0, charge the fee, one per action_id.
+UsageKind = Literal["llm", "embedding", "tts", "stt", "decision", "fee"]
 UsageService = Literal["ingest", "rag"]
+# What a user did that a usage row bills: one list, the services pass one
+# per booking. "unknown" marks rows booked before actions existed and is
+# never accepted for a new booking.
+USAGE_ACTIONS: frozenset[str] = frozenset(
+    {
+        "chat_answer",
+        "chart_propose",
+        "summary",
+        "judge",
+        "decision",
+        "voice_sample",
+        "demo_seed",
+        *(f"output:{kind}" for kind in get_args(OutputKind)),
+        *(f"source:{kind}" for kind in get_args(SourceKind) if kind != "generated"),
+    }
+)
+UNKNOWN_ACTION = "unknown"
+
+
+def is_usage_action(action: str) -> bool:
+    """Whether a new usage row may be booked under `action`."""
+    return action in USAGE_ACTIONS
+
+
 MessageRole = Literal["user", "assistant"]
 # What `/healthz` reports per dependency a service uses.
 Dependency = Literal["postgres", "storage", "inference"]
@@ -249,16 +275,21 @@ class Health(BaseModel):
 class UsageRecord(BaseModel):
     """One row of the shared `usage` table, priced at write time.
 
-    Usage rows are the only debit; the account service sums them against
-    the ledger. Nothing else writes a debit.
+    Usage rows are the only debit; the account service sums their
+    `charge_cents` against the ledger. Nothing else writes a debit.
+    `cost_cents` is the real cost, `charge_cents` what the user pays; both
+    exact and fixed when the row is booked.
     """
 
     user_id: UUID
     notebook_id: UUID | None
     service: UsageService
+    action: str
+    action_id: UUID
     kind: UsageKind
     model: str
     # `integer` columns: a value past INT4_MAX fails here, named, not in the insert
     tokens_in: int = Field(ge=0, le=INT4_MAX)
     tokens_out: int = Field(ge=0, le=INT4_MAX)
-    cost_cents: int = Field(ge=0, le=INT4_MAX)
+    cost_cents: Decimal = Field(ge=0)
+    charge_cents: Decimal = Field(ge=0)

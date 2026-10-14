@@ -16,18 +16,19 @@ from lasteverlm_core import (
 )
 
 
-def test_cost_is_ceil_of_cents_per_million(prices: Any) -> None:
-    # 1000 in * 30 + 2000 out * 150 = 330_000 / 1e6 = 0.33 cents -> 1
-    assert cost_cents(prices, "llm", 1000, 2000) == 1
+def test_cost_is_exact_cents_per_million(prices: Any) -> None:
+    # 1000 in * 30 + 2000 out * 150 = 330_000 / 1e6 = 0.33 cents, not rounded up
+    assert cost_cents(prices, "llm", 1000, 2000) == Decimal("0.33")
     assert cost_cents(prices, "llm", 1_000_000, 0) == 30
-    assert cost_cents(prices, "llm", 1_000_001, 0) == 31
+    assert cost_cents(prices, "llm", 1_000_001, 0) == Decimal("30.00003")
     assert cost_cents(prices, "embed", 0, 0) == 0
+    assert cost_cents(prices, "embed", 1, 0) == Decimal("0.000002")
 
 
 def test_fractional_prices_are_exact() -> None:
     prices = parse_model_prices('{"m": {"in": 0.1, "out": 0.2}}')
-    assert cost_cents(prices, "m", 1_000_000, 0) == 1
-    assert cost_cents(prices, "m", 3_000_000, 1_000_000) == 1  # 0.3 + 0.2 = 0.5 -> 1
+    assert cost_cents(prices, "m", 1_000_000, 0) == Decimal("0.1")
+    assert cost_cents(prices, "m", 3_000_000, 1_000_000) == Decimal("0.5")
     assert cost_cents(prices, "m", 10_000_000, 0) == 1
 
 
