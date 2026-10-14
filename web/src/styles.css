@@ -187,7 +187,7 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 /* output tiles */
 .tiles { padding: 0.75rem 1rem; border-top: 1px solid var(--line); }
 .tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
-/* The output formats are always 3 x 2 tiles of a fixed width: 3 * 8rem +
+/* The output formats are always three tiles to a row, of a fixed width: 3 * 8rem +
    2 * 0.5rem gap + 2 * 1rem padding = 27rem, the middle column's default
    and minimum width (LEFT_WIDTH in lib/layout.ts, kept equal by a test). */
 .tiles .tile-grid { grid-template-columns: repeat(3, 8rem); }
@@ -644,3 +644,57 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .quiz .q button.cite, .datatable button.cite, .mindmap button.cite { margin: 0 0.1rem; }
 .mindmap .markmap-foreign button.cite { font-size: 0.75em; padding: 0 0.25rem; cursor: pointer; }
 .mindmap .markmap-foreign .badge { font-size: 0.65em; }
+/* decision: the form under the tiles */
+.decision-form { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.6rem; }
+.decision-form textarea { min-height: 4.5rem; }
+.decision-form .count { align-self: flex-end; }
+.decision-list legend { font-size: 0.9em; color: var(--muted); margin-bottom: 0.25rem; }
+.decision-list ol { margin: 0 0 0.4rem; padding-left: 1.4rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.decision-list li { display: flex; align-items: center; gap: 0.25rem; }
+.decision-list li input { flex: 1; min-width: 0; }
+
+/* decision: the document */
+.decision { display: flex; flex-direction: column; gap: 1rem; }
+.decision-question { font-size: 1.25rem; color: var(--fg); text-transform: none; letter-spacing: 0; margin: 0; line-height: 1.35; }
+.verdict { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.verdict-text { margin: 0; font-size: 1.05rem; line-height: 1.5; }
+.gauge-value { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.gauge-track { position: relative; height: 0.9rem; border-radius: 999px; background: var(--line); overflow: hidden; }
+.gauge-fill { height: 100%; background: var(--accent); border-radius: 999px; transform-origin: left; animation: decision-grow 0.8s ease-out; }
+.gauge-mid { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--bg); opacity: 0.8; }
+.gauge-ends { display: flex; justify-content: space-between; }
+.choices { display: flex; flex-direction: column; gap: 0.45rem; }
+.choice { display: grid; grid-template-columns: minmax(6rem, 2fr) 3fr 3.5rem; gap: 0.6rem; align-items: center; }
+.choice-label { overflow-wrap: anywhere; }
+.choice.picked .choice-label { font-weight: 600; }
+.choice-track { height: 0.7rem; border-radius: 999px; background: var(--line); overflow: hidden; }
+.choice-fill { display: block; height: 100%; background: var(--muted); border-radius: 999px; transform-origin: left; animation: decision-grow 0.8s ease-out; }
+.choice.picked .choice-fill { background: var(--accent); }
+.choice-p { text-align: right; font-variant-numeric: tabular-nums; }
+.scale-bar { position: relative; display: flex; gap: 3px; height: 1.4rem; }
+.scale-bar .segment { flex: 1; background: var(--accent-soft); border: 1px solid var(--line); border-radius: 4px; }
+.scale-bar .segment.landed { background: var(--accent); border-color: var(--accent); }
+.scale-marker { position: absolute; top: -0.45rem; bottom: -0.45rem; width: 3px; margin-left: -1.5px; background: var(--fg); border-radius: 2px; transition: left 0.8s ease-out; }
+.scale-labels { display: grid; gap: 3px; text-align: center; }
+.scale-labels .landed { font-weight: 600; }
+.agreement { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-weight: 500; }
+.agreement .dot { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: var(--muted); flex: none; }
+.agreement-consistent .dot { background: var(--ok); }
+.agreement-conflicting { color: var(--warn); }
+.agreement-conflicting .dot { background: var(--warn); }
+.agreement-undecided .dot { background: var(--line); }
+.agreement-note { margin: -0.3rem 0 0; }
+.evidence { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
+.evidence-col h3, .gaps h3 { font-size: 0.95rem; margin: 0 0 0.4rem; }
+.evidence-col ul, .gaps ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.45rem; line-height: 1.5; }
+.evidence-col { border-top: 3px solid var(--line); padding-top: 0.5rem; }
+.evidence-col.for { border-top-color: var(--ok); }
+.evidence-col.against { border-top-color: var(--danger); }
+.decision button.cite { margin: 0 0.1rem; }
+@media (max-width: 640px) {
+  .evidence { grid-template-columns: minmax(0, 1fr); }
+  .choice { grid-template-columns: minmax(0, 1fr) 3.5rem; }
+  .choice-track { grid-column: 1 / -1; grid-row: 2; }
+}
+@keyframes decision-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .gauge-fill, .choice-fill { animation: none; } .scale-marker { transition: none; } }

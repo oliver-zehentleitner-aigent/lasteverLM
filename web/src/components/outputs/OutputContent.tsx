@@ -1,5 +1,6 @@
 import type {
   AudioContent,
+  DecisionContent,
   InfographicContent,
   MindmapContent,
   OutputKind,
@@ -9,6 +10,7 @@ import type {
   TableContent,
 } from '../../api/types'
 import { AudioView } from './AudioView'
+import { DecisionView } from './DecisionView'
 import { Walker } from './Walker'
 import { InfographicView } from './InfographicView'
 import { MindmapView } from './MindmapView'
@@ -57,6 +59,8 @@ export function OutputContent({ kind, title, status, error, content, onExpired, 
       return <InfographicView content={content as InfographicContent} />
     case 'audio':
       return <AudioView content={content as AudioContent} onExpired={onExpired} speakerName={speakerName} />
+    case 'decision':
+      return <DecisionView content={content as DecisionContent} />
     default:
       return <pre className="output-text">{JSON.stringify(content, null, 2)}</pre>
   }

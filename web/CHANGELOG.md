@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Decision, a seventh output kind: a question weighed against the sources. The tile's options take the question (required, up to rag's 500 characters) and the answer type (yes/no by default, a choice of 2–8 options, or a scale of 3–7 levels preset "very unlikely … very likely"). The document shows the decision model's answer as a gauge, a bar per option or a segmented scale, the verdict, whether model and evidence agree (a disagreement in amber, never hidden), the evidence for and against with markers and badges, and what the sources do not say; "How this was made" lists both calls.
+
 ## [0.14.0] - 2026-10-14
 
 ### Added

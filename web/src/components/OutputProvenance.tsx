@@ -154,6 +154,39 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
         <dt>{t('outProv.when')}</dt>
         <dd>{took ? t('outProv.time', { start: formatTime(p.started_at), took }) : formatTime(p.started_at)}</dd>
       </dl>
+      {p.calls && p.calls.length > 0 && (
+        <div className="table-scroll">
+          <table className="candidates calls">
+            <caption className="muted small">{t('outProv.calls')}</caption>
+            <thead>
+              <tr>
+                <th />
+                <th>{t('outProv.model')}</th>
+                <th>{t('outProv.prompt')}</th>
+                <th>{t('outProv.when')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.calls.map((c, i) => (
+                <tr key={i}>
+                  <td>
+                    {t(`outProv.call.${c.role}`)}
+                    {c.state && <span className="muted small"> · {t('outProv.callState', { passages: c.state.passages, chars: c.state.chars })}</span>}
+                  </td>
+                  <td>{c.model}</td>
+                  <td>{c.prompt_version}</td>
+                  <td>{duration(c) ?? ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {p.llm_verdict_text && (
+        <p className="small">
+          <span className="muted">{t('outProv.llmVerdict')}:</span> {p.llm_verdict_text}
+        </p>
+      )}
       <p className="muted small">{t('outProv.retrieval', { k: p.retrieval.k, floor: p.retrieval.floor })}</p>
       <div className="table-scroll">
         <table className="candidates">

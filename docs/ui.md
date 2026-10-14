@@ -70,7 +70,8 @@ is closed. After the wizard the notebook view opens.
 │ [Report] [Quiz]   ├──────────────────────────────────────┤
 │ [Table] [Mindmap] │ [Chat 1 ×] [Chat 2 ×] [+]            │
 │ [Infographic]     │  question … answer with [1] [2]      │
-│ [Audio]  [Create] │  > ask your sources                  │
+│ [Audio] [Decision]│  > ask your sources                  │
+│          [Create] │                                      │
 ├───────────────────┤                                      │
 │ Outputs           │                                      │
 │  · Report  ready  │                                      │
@@ -106,8 +107,8 @@ is closed. After the wizard the notebook view opens.
   document then sends `source_ids` (the ticked link ids) and none while
   all are ticked.
 - **Output format** (left, middle): the output kinds as tiles, always
-  three by two (Report, Quiz, Data table / Mindmap, Infographic,
-  Audio) at a fixed 8rem width; the column starts at, and cannot be
+  three to a row (Report, Quiz, Data table / Mindmap, Infographic,
+  Audio / Decision) at a fixed 8rem width; the column starts at, and cannot be
   dragged below, the width of that grid (27rem). Only on a phone,
   where the columns stack, do the three tiles share the width. A click
   (or Enter on a focused tile) only selects one, highlighted, and the
@@ -228,6 +229,27 @@ is closed. After the wizard the notebook view opens.
   narrator's paragraphs as text; a conversation with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
   none).
+- **Decision** ("a question weighed against the sources"). Its options
+  under the tiles: the question (required, multi-line, counted against
+  rag's 500 characters), "Answer as" Yes / No (default), Choice or Scale;
+  for Choice an editable list of 2–8 options, for Scale 3–7 ordered
+  levels, lowest first, preset "very unlikely … very likely". Create
+  waits for a valid form and says what is missing. The document: the
+  question as its title, then the decision model's answer in a panel:
+  yes/no as a horizontal gauge (No to Yes, the percentage of yes, a mark
+  at 50 %), a choice as one bar per option with the model's answer
+  highlighted and its confidence, a scale as segments with the level it
+  lands on filled and a mark at the weighted position; under it the
+  verdict, and whether the decision model and the evidence agree
+  (green), disagree (amber, never hidden, with "model: B, evidence: A"
+  when they name different options), cannot be told, or the sources do
+  not decide it, with rag's one-sentence reason. Then Evidence for and
+  Evidence against side by side (stacked on a phone) with their markers
+  and badges, and "What the sources do not say". "How this was made"
+  lists both calls (decision and evidence: model, prompt, duration, the
+  passages and characters the decision model read). The bars grow in on
+  opening, not under reduced motion; only the theme tokens colour it.
+  Printable; on the share page read-only like every kind.
 - **What a document rests on** (rag's `provenance`; documents made
   before it have none and show none of this). A report's `[n]` markers
   are buttons, as in a chat answer; an infographic's facts and sections
