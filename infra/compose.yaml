@@ -23,9 +23,9 @@ x-dev: &dev
   LLM_MODEL: ${LLM_MODEL:-qwen3.8-27b}
   EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding-4b}
   EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1024}
-  # Cents per million tokens of the default models (tts per million characters,
-  # stt per million seconds, decision per million input tokens), from `GET /v1/models`.
-  MODEL_PRICES: ${MODEL_PRICES:-{"qwen3.8-27b":{"in":100,"out":100},"qwen3-embedding-4b":{"in":5,"out":5},"qwen3-tts-12hz-1.7b":{"in":28000,"out":28000},"whisper-large-v3-turbo":{"in":1111,"out":1111},"clef":{"in":10,"out":0},"clef-flash":{"in":5,"out":0},"glm-5.3-flash":{"in":10,"out":35},"deepseek-v4.1-flash":{"in":15,"out":60},"glm-5.3":{"in":75,"out":300}}}
+  # Cents per million tokens of the default models (tts and stt per million seconds
+  # of audio, decision per million input tokens), from `GET /v1/models`.
+  MODEL_PRICES: ${MODEL_PRICES:-{"qwen3.8-27b":{"in":15,"out":100},"qwen3-embedding-4b":{"in":5,"out":5},"qwen3-tts-12hz-1.7b":{"in":28000,"out":28000},"whisper-large-v3-turbo":{"in":1111,"out":1111},"clef":{"in":10,"out":0},"clef-flash":{"in":5,"out":0},"glm-5.3-flash":{"in":10,"out":35},"deepseek-v4.1-flash":{"in":15,"out":60},"glm-5.3":{"in":75,"out":300}}}
   TTS_MODEL: ${TTS_MODEL:-qwen3-tts-12hz-1.7b}
   TTS_VOICE: ${TTS_VOICE:-ryan}
   STT_MODEL: ${STT_MODEL:-whisper-large-v3-turbo}
