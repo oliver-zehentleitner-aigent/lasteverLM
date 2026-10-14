@@ -93,8 +93,8 @@ that would fail on deploy fails here first. Login: the demo token
 an address in `AUTH_ALLOWED_DOMAINS` (default `example.com`; the
 admin is `admin@example.com` unless `ADMIN_EMAILS` is set). Model
 names, `MODEL_PRICES`, `EMBEDDING_DIMENSION`, `TTS_MODEL`,
-`TTS_VOICE`, `POSTGRES_PORT` and `GATEWAY_PORT` are taken from the
-shell when set. The passwords and keys in `compose.yaml` are
+`TTS_VOICE`, `STT_MODEL`, `POSTGRES_PORT` and `GATEWAY_PORT` are taken
+from the shell when set. The passwords and keys in `compose.yaml` are
 local-only values; the deployment never reads that file (`make
 secrets` generates its own). A changed `EMBEDDING_DIMENSION` needs
 `make local-reset`: the vector columns are created with it.
