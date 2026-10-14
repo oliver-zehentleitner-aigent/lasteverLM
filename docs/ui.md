@@ -500,8 +500,17 @@ deleted from the library) stays readable with its quote and is marked
   - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
     that shows the codes once as chips with a copy button each ("copy
     all" for several; without the clipboard API the text is selected
-    instead), next to the form when there is room; the list of issued
-    vouchers below (open ones can be deleted).
+    instead), next to the form when there is room; for an admin an
+    optional "Send to an address right away" (e-mail, a note, "also
+    allow this address to sign in", on by default) mails each created
+    voucher at once. The list of issued vouchers below: the code masked,
+    and for an admin "show" (fetched once, with copy and hide; a voucher
+    made before codes were kept says "not recoverable" instead), "sent
+    to … , date" under the status once mailed; open ones can be sent
+    (a dialog with the same three fields; a refusal for the quota of 5
+    mails per address and hour, a missing mail server, the mail server's
+    error or an already redeemed voucher stays in the dialog) and
+    deleted.
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
     with its four editable numbers and a reset to the deployment
     defaults, then blocks, bans (with lift) and the raw access log.
