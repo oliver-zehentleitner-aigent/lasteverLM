@@ -44,7 +44,10 @@ export function PriceList() {
   return (
     <>
       <h1 className="doc-title">{t('prices.title')}</h1>
-      <p className="muted">{t('prices.intro', { days: prices?.window_days ?? 30 })}</p>
+      {/* the rules first, in the intro: what is free, what costs, when you see a price */}
+      <p className="muted prices-intro">
+        {t('prices.intro', { days: prices?.window_days ?? 30 })} {t('prices.rule.addFree')} {t('prices.rule.processing')} {t('prices.rule.seeFirst')} {t('prices.rule.noExpiry')}
+      </p>
       {error && <p className="error">{error}</p>}
       {!prices && !error && <p className="muted">{t('common.loading')}</p>}
       {prices &&
@@ -87,13 +90,6 @@ export function PriceList() {
                 ? t('prices.rateEcb', { rate: prices.usd_per_eur, date: prices.rate_date })
                 : t('prices.rate', { rate: prices.usd_per_eur })}
           </p>
-          <h2>{t('prices.rulesTitle')}</h2>
-          <ul>
-            <li>{t('prices.rule.addFree')}</li>
-            <li>{t('prices.rule.processing')}</li>
-            <li>{t('prices.rule.seeFirst')}</li>
-            <li>{t('prices.rule.noExpiry')}</li>
-          </ul>
         </section>
       )}
     </>

@@ -96,8 +96,9 @@ is closed. After the wizard the notebook view opens.
   only deletes the notebook, and the documents stay in the library with
   their origin noted. Without outputs the plain
   confirmation as before.
-  A source added without credit is listed with the amber "waiting for
-  credit" badge; it is processed once there is credit again, and the
+  A source added without credit is listed with a muted, neutral badge
+  "added · processed when you have credit" (not amber: it is no error);
+  it is processed once there is credit again, and the
   list keeps polling until then. Adding is never blocked by credit;
   creating outputs is: without credit the hint next to Create says "No
   credit: sources wait, outputs cannot be created." with "redeem a
@@ -449,7 +450,7 @@ name or address. Columns: kind (an output's kind, from rag's
 list of the user's outputs joined by `output_id`), name, status (a
 failed entry's reason on one line next to the badge, in full as its
 tooltip; a processing or waiting entry's `error` on the same line, as
-in the notebook's source list; "waiting for credit" in amber, and one notice above the table
+in the notebook's source list; "added · processed when you have credit" muted, and one notice above the table
 "N sources wait for credit · redeem a voucher" while any does), size ("unknown"
 for entries added before sizes were recorded, none for outputs), date,
 and the notebooks it is in as links (or "not in any notebook"); a
@@ -565,9 +566,12 @@ deleted from the library) stays readable with its quote and is marked
   public price list from `GET /api/account/prices`. With a session
   (a token in storage) it sits under the app's normal header, Prices
   marked active; without one under a reduced header: the brand,
-  Prices and Sign in. A title, a line on
-  where the prices come from (the last N days' actions at today's
-  prices), then one table per group: **Sources** (text, PDF (Text),
+  Prices and Sign in. A title and one intro paragraph, before the
+  tables: where the prices come from (the last N days' actions at
+  today's prices) and the rules in plain words (adding a source is
+  free, processing it costs as listed below, the estimate for one's own
+  choice is shown before every action, credit does not expire); then
+  one table per group: **Sources** (text, PDF (Text),
   PDF (Vision) per page, image, audio per minute, web page), **Chat**
   (per question), **Outputs** (every kind, per output), **Extras** (the
   judge per level, "Judge, low", "Judge, medium", "Judge, high", from
@@ -590,9 +594,7 @@ deleted from the library) stays readable with its quote and is marked
   model, muted, hidden on a phone. Prices from ten cents up show whole
   cents; below that two significant digits (€0.0035, €0.035). Under
   the tables the exchange rate ("1 EUR = 1.1188 USD, ECB reference rate
-  of 2026-10-13") and the rules in plain words: adding a source is free,
-  processing it costs, the estimate is shown before every action, credit
-  does not expire. No margins, fees or costs: the service sends end
+  of 2026-10-13"). No margins, fees or costs: the service sends end
   prices only.
 - Prices: before anything billed runs, its estimated charge from rag's
   `POST /api/rag/estimate` stands next to the button that starts it, in
