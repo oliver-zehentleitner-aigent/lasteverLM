@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Source } from '../api/types'
-import { SOURCE_FORMS, createBlocker, tileNote, uploadedSources } from './outputs'
+import { SOURCE_FORMS, createBlocker, sourceKindLabel, tileNote, uploadedSources } from './outputs'
 
 describe('tileNote', () => {
   it('shows the description of an available form', () => {
@@ -30,8 +30,13 @@ describe('uploadedSources', () => {
   })
 
   it('drops generated documents and keeps every upload kind', () => {
-    const list = [src('a', 'pdf'), src('b', 'generated'), src('c', 'text'), src('d', 'url'), src('e', 'image')]
-    expect(uploadedSources(list).map((s) => s.id)).toEqual(['a', 'c', 'd', 'e'])
+    const list = [src('a', 'pdf'), src('b', 'generated'), src('c', 'text'), src('d', 'url'), src('e', 'image'), src('f', 'audio')]
+    expect(uploadedSources(list).map((s) => s.id)).toEqual(['a', 'c', 'd', 'e', 'f'])
+  })
+
+  it("keeps a document added from the library, drops the notebook's own", () => {
+    const list = [src('a', 'pdf'), src('own', 'generated'), src('linked', 'generated')]
+    expect(uploadedSources(list, new Set(['own'])).map((s) => s.id)).toEqual(['a', 'linked'])
   })
 })
 
@@ -44,5 +49,13 @@ describe('createBlocker', () => {
 
   it('lets a job start with a format and a ready source', () => {
     expect(createBlocker('quiz', true)).toBeNull()
+  })
+})
+
+describe('sourceKindLabel', () => {
+  it('names every kind, generated included', () => {
+    expect(sourceKindLabel('pdf')).toBe('PDF')
+    expect(sourceKindLabel('audio')).toBe('Audio')
+    expect(sourceKindLabel('generated')).toBe('Generated')
   })
 })

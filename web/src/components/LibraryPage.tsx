@@ -7,29 +7,31 @@ import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
 import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter } from '../lib/library'
 import { audioFiles, openTarget } from '../lib/openEntry'
-import { SOURCE_FORMS } from '../lib/outputs'
+import { SOURCE_FORMS, sourceKindLabel } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
+import { OutputsList, TrashedOutputs } from './LibraryOutputs'
 import { t, tn } from '../i18n'
 
 interface Props {
-  onOpenNotebook: (id: string) => void
+  /** with `outputId`, that document is selected when the notebook opens */
+  onOpenNotebook: (id: string, outputId?: string) => void
   /** the settings page, at the trash-days field */
   onOpenSettings: () => void
 }
 
 /** /library: every upload and URL of the user with the notebooks it is in,
- *  and the trash. Removing a source in a notebook only detaches it;
+ *  every generated document (Outputs), and the trash of both. Removing a source in a notebook only detaches it;
  *  deleting here moves it to the trash (out of every notebook, after a
  *  confirmation that names them), from where it is restored or purged. */
 export function LibraryPage({ onOpenNotebook, onOpenSettings }: Props) {
-  const [view, setView] = useState<'library' | 'trash'>('library')
+  const [view, setView] = useState<'library' | 'outputs' | 'trash'>('library')
   return (
     <main className="library">
       <h1>{t('lib.title')}</h1>
       <nav className="subnav" aria-label={t('lib.views')}>
-        {(['library', 'trash'] as const).map((v) => (
+        {(['library', 'outputs', 'trash'] as const).map((v) => (
           <a
             key={v}
             href="/library"
@@ -40,11 +42,20 @@ export function LibraryPage({ onOpenNotebook, onOpenSettings }: Props) {
               setView(v)
             }}
           >
-            {v === 'library' ? t('lib.sources') : t('lib.trash')}
+            {v === 'library' ? t('lib.sources') : v === 'outputs' ? t('lib.outputs') : t('lib.trash')}
           </a>
         ))}
       </nav>
-      {view === 'library' ? <LibraryList onOpenNotebook={onOpenNotebook} /> : <TrashList onOpenSettings={onOpenSettings} />}
+      {view === 'library' ? (
+        <LibraryList onOpenNotebook={onOpenNotebook} />
+      ) : view === 'outputs' ? (
+        <OutputsList onOpenNotebook={onOpenNotebook} />
+      ) : (
+        <>
+          <TrashList onOpenSettings={onOpenSettings} />
+          <TrashedOutputs />
+        </>
+      )}
     </main>
   )
 }
@@ -80,6 +91,8 @@ function NotebookFromSelection({ selected, busy, onCreate }: { selected: Library
   )
 }
 
+const withoutGenerated = <T extends { kind: string }>(list: T[]): T[] => list.filter((e) => e.kind !== 'generated')
+
 function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   const [entries, setEntries] = useState<LibraryEntry[]>([])
   const [filter, setFilter] = useState<LibraryFilter>({ kind: 'all', query: '' })
@@ -91,7 +104,8 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
-    void run(async () => setEntries(await ingest.listLibrary()))
+    // generated documents have their own tab
+    void run(async () => setEntries(withoutGenerated(await ingest.listLibrary())))
   }, [run])
 
   // new entries (a new account's demo sources, say) turn ready as the worker gets to them
@@ -99,7 +113,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   useEffect(() => {
     if (!processing) return
     const timer = setInterval(() => {
-      ingest.listLibrary().then(setEntries, () => {
+      ingest.listLibrary().then((list) => setEntries(withoutGenerated(list)), () => {
         // a failed poll is retried on the next tick
       })
     }, SOURCE_POLL_INTERVAL_MS)
@@ -248,7 +262,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                       <DemoBadge demo={e.demo} />
                     </span>
                   </td>
-                  <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
+                  <td>{kindWithCapture(sourceKindLabel(e.kind), e.capture)}</td>
                   <td className="status-cell">
                     <span className={`badge ${e.status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
                       {t(`status.${e.status}`)}
@@ -335,7 +349,7 @@ function TrashList({ onOpenSettings }: Pick<Props, 'onOpenSettings'>) {
   const { busy, error, run } = useAsync()
 
   useEffect(() => {
-    void run(async () => setEntries(await ingest.listTrash()))
+    void run(async () => setEntries(withoutGenerated(await ingest.listTrash())))
   }, [run])
 
   async function restore(e: TrashEntry) {
@@ -391,7 +405,7 @@ function TrashList({ onOpenSettings }: Pick<Props, 'onOpenSettings'>) {
                   <DemoBadge demo={e.demo} />
                 </span>
               </td>
-              <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
+              <td>{kindWithCapture(sourceKindLabel(e.kind), e.capture)}</td>
               <td>
                 {e.size_bytes === null ? (
                   <span className="muted small" title={t('lib.sizeUnknownTitle')}>

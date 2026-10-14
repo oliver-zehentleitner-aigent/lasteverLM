@@ -39,7 +39,9 @@ export interface Source {
 export interface LibraryEntry {
   id: string
   name: string
-  kind: Exclude<SourceKind, 'generated'>
+  /** `generated`: a document the user had made, usable as a source in
+   *  another notebook; listed in the library's Outputs tab, not Sources */
+  kind: SourceKind
   status: SourceStatus
   error: string | null
   /** null for URLs */
@@ -123,7 +125,14 @@ export type OutputStatus = 'waiting' | 'processing' | 'ready' | 'failed'
 
 export interface Output {
   id: string
-  notebook_id: string
+  /** the notebook it was made in; null once that notebook is deleted (the
+   *  document belongs to the user and stays in the library) */
+  notebook_id: string | null
+  /** that notebook's title when the document was made, kept after it is gone */
+  origin_title?: string | null
+  /** set only while it is in the trash */
+  deleted_at?: string | null
+  purge_at?: string | null
   kind: OutputKind
   title: string
   /** one of the content shapes below, by kind; null until ready */

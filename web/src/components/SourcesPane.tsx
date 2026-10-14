@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ingest } from '../api/ingest'
 import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
-import { SOURCE_FORMS, uploadedSources } from '../lib/outputs'
+import { sourceKindLabel, uploadedSources } from '../lib/outputs'
 import { audioFiles } from '../lib/openEntry'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { DemoBadge } from './DemoBadge'
@@ -21,6 +21,8 @@ interface Props {
   /** all on (true) or all off (false) */
   onAll: (on: boolean) => void
   /** the uploads once loaded, for the Create button and removed citations */
+  /** the source ids of this notebook's own documents (listed under Outputs); null while loading */
+  ownGenerated: ReadonlySet<string> | null
   onSourcesChange: (sources: Source[]) => void
 }
 
@@ -29,7 +31,7 @@ interface Props {
  *  (the contract has no push channel) and stops when everything is ready
  *  or failed. Only uploads are listed: generated documents are sources of
  *  kind `generated` for the chat, but the Outputs list shows them. */
-export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, excluded, onToggle, onAll, onSourcesChange }: Props) {
+export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, excluded, onToggle, onAll, ownGenerated, onSourcesChange }: Props) {
   const [sources, setSources] = useState<Source[]>([])
   const [loaded, setLoaded] = useState(false)
   const { busy, error, run } = useAsync()
@@ -43,20 +45,23 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
 
   useEffect(() => {
     void run(async () => {
-      setSources(uploadedSources(await ingest.listSources(notebookId)))
+      setSources(await ingest.listSources(notebookId))
       setLoaded(true)
     })
   }, [notebookId, version, run])
 
+  // every source of the notebook as listed; shown are the uploads and the documents added from the library
+  const shown = useMemo(() => uploadedSources(sources, ownGenerated), [sources, ownGenerated])
+
   useEffect(() => {
-    if (loaded) onSourcesChange(sources)
-  }, [loaded, sources, onSourcesChange])
+    if (loaded) onSourcesChange(shown)
+  }, [loaded, shown, onSourcesChange])
 
   const processing = sources.some((s) => s.status === 'processing')
   useEffect(() => {
     if (!processing) return
     const t = setInterval(() => {
-      ingest.listSources(notebookId).then((list) => setSources(uploadedSources(list)), () => {
+      ingest.listSources(notebookId).then(setSources, () => {
         // a failed poll is retried on the next tick; user actions surface errors through run()
       })
     }, SOURCE_POLL_INTERVAL_MS)
@@ -76,13 +81,13 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
     <section className="pane sources">
       <div className="row head">
         <h2>{t('sources.title')}</h2>
-        {sources.length > 1 && (
+        {shown.length > 1 && (
           <span className="source-all">
             <button type="button" className="link small" onClick={() => onAll(true)} disabled={excluded.size === 0}>
               {t('sources.selectAll')}
             </button>
             <span className="muted small">/</span>
-            <button type="button" className="link small" onClick={() => onAll(false)} disabled={sources.every((s) => excluded.has(s.id))}>
+            <button type="button" className="link small" onClick={() => onAll(false)} disabled={shown.every((s) => excluded.has(s.id))}>
               {t('sources.selectNone')}
             </button>
           </span>
@@ -93,7 +98,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
       </div>
       {error && <p className="error">{error}</p>}
       <ul className="list">
-        {sources.map((s) => (
+        {shown.map((s) => (
           <li
             key={s.id}
             id={`source-${s.id}`}
@@ -112,7 +117,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
                 {s.name}
               </span>
               <DemoBadge demo={s.demo} />
-              <span className="badge">{SOURCE_FORMS.find((f) => f.kind === s.kind)?.label ?? s.kind}</span>
+              <span className="badge">{sourceKindLabel(s.kind)}</span>
               {s.capture && (
                 <span className="badge" title={t('sources.captureTitle')}>
                   {t(`capture.${s.capture}`)}
@@ -129,7 +134,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
             </button>
           </li>
         ))}
-        {sources.length === 0 && !busy && <li className="muted">{t('sources.none')}</li>}
+        {shown.length === 0 && !busy && <li className="muted">{t('sources.none')}</li>}
       </ul>
     </section>
   )

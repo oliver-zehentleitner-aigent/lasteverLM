@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { rag } from '../api/rag'
 import type { Citation, Output, OutputKind, OutputOptions, Source } from '../api/types'
 import { OUTPUT_POLL_INTERVAL_MS } from '../config'
@@ -20,6 +20,7 @@ import { DEMO_QUESTION } from '../lib/demo'
 import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
+import { takeOpenOutput } from '../lib/lastNotebook'
 import { citationTarget } from '../lib/openEntry'
 import { ChatPane } from './ChatPane'
 import { ColumnDivider } from './ColumnDivider'
@@ -87,11 +88,15 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   }, [fullView, chatOpen, leaveFullView])
   const { busy, error, run } = useAsync()
 
+  // the document the library asked to open, selected once the list is in
+  const requested = useRef<string | null>(takeOpenOutput())
   const reloadOutputs = useCallback(async () => {
     const list = await rag.listOutputs(notebookId)
     setOutputs(list)
     setOutputsLoaded(true)
-    setSelectedOutput((cur) => (cur && list.some((o) => o.id === cur) ? cur : (list[0]?.id ?? null)))
+    const wanted = requested.current
+    requested.current = null
+    setSelectedOutput((cur) => (cur && list.some((o) => o.id === cur) ? cur : wanted && list.some((o) => o.id === wanted) ? wanted : (list[0]?.id ?? null)))
   }, [notebookId])
 
   useEffect(() => {
@@ -134,6 +139,11 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     }
   }
 
+  const ownGenerated = useMemo(
+    () => (outputsLoaded ? new Set(outputs.flatMap((o) => (o.source_id ? [o.source_id] : []))) : null),
+    [outputs, outputsLoaded],
+  )
+
   /** Every source a citation can still point to: the uploads and the
    *  generated documents of this notebook; null while either is loading. */
   const presentSources =
@@ -157,8 +167,9 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
         if (match) {
           setSelectedOutput(match.id)
           document.getElementById(`output-${match.id}`)?.scrollIntoView({ block: 'nearest' })
+          return
         }
-        return
+        // a document added from the library is listed among the sources
       }
       document.getElementById(`source-${c.source_id}`)?.scrollIntoView({ block: 'nearest' })
     },
@@ -178,7 +189,11 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
       return
     }
     const match = outputs.find((o) => o.source_id === c.source_id)
-    if (!match) return
+    if (!match) {
+      // made in another notebook and added from the library: shown in the sources list
+      onCitation(c)
+      return
+    }
     setSelectedOutput(match.id)
     setLocate((prev) => ({ outputId: match.id, text: c.quote, nonce: (prev?.nonce ?? 0) + 1 }))
   }
@@ -198,6 +213,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
           excluded={excluded}
           onToggle={(id) => changeExcluded(toggled(excluded, id))}
           onAll={(on) => changeExcluded(on ? new Set() : new Set(uploads?.map((s) => s.id) ?? []))}
+          ownGenerated={ownGenerated}
           onSourcesChange={setUploads}
         />
         <OutputTiles
