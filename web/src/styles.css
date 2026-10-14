@@ -991,3 +991,7 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .url-refresh-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .url-refresh .presets { flex: none; }
 @media (max-width: 900px) { .url-refresh .presets { display: inline-flex; } }
+
+/* a text source's Original: the stored file inline */
+.source-plain { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; line-height: 1.45; margin: 0; }
+.source-unread p { margin: 0.3rem 0; }

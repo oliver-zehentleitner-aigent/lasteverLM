@@ -30,6 +30,8 @@ interface Props {
   activeKey: string | null
   onActivate: (key: string) => void
   onClose: (key: string) => void
+  /** a source tab's "read now" started reading: the Sources list reloads */
+  onSourcesChanged: () => void
   onChanged: (o: Output) => void
   /** a double-click (or F2) on a tab renames the output */
   onRename: (o: Output, title: string) => void
@@ -64,6 +66,7 @@ export function OutputViewer({
   activeKey,
   onActivate,
   onClose,
+  onSourcesChanged,
   onChanged,
   onRename,
   onDeleted,
@@ -208,7 +211,7 @@ export function OutputViewer({
       </div>
       {(error || actionError) && <p className="error no-print">{error ?? actionError}</p>}
       <div className="viewer-body printable" ref={body}>
-        {active?.source && <SourceView source={active.source} tab={active.tab} />}
+        {active?.source && <SourceView source={active.source} tab={active.tab} onRead={onSourcesChanged} />}
         {selected && (
           <>
             <header className="viewer-head">

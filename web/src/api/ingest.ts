@@ -83,6 +83,9 @@ export const ingest = {
   refetchSource: (id: string) =>
     request<{ library_id: string; version: number; fetched_at: string }>(`${INGEST_PREFIX}/sources/${encodeURIComponent(id)}/refetch`, { method: 'POST' }),
 
+  /** a text or Markdown source's stored file as text (capped by the service), readable before it is read */
+  sourceText: (id: string) => request<string>(`${INGEST_PREFIX}/sources/${encodeURIComponent(id)}/text`, { text: true }),
+
   /** the extracted text, a page of chunks (limit 1–200) in order */
   sourceChunks: (id: string, offset: number, limit: number) =>
     request<SourceChunks>(`${INGEST_PREFIX}/sources/${encodeURIComponent(id)}/chunks?offset=${offset}&limit=${limit}`),

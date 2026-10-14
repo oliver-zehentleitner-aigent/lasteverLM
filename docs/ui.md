@@ -223,14 +223,19 @@ opens the notebook.
   and a small ↗ that opens it in a new browser tab. **Original**: an
   image inline, audio in a player, a PDF in the browser's viewer in an
   iframe (at the cited page when a citation opened it), a web page as
-  its address, a text file as a link. The tab keeps the presigned
+  its address, a text or Markdown file inline (`GET
+  /api/ingest/sources/{id}/text`, also before it is read: plain text in
+  monospace, Markdown rendered and sanitized like a report; over 2 MiB
+  the service's sentence with a link to the file). The tab keeps the presigned
   address it opened with (a re-listed source gets a new one, and a new
   `src` would fetch the file again) and takes the list's only after 50
   minutes, before it expires, or after a reload, when it has none. **As read**: the text the system
   extracted and answers from (`GET /api/ingest/sources/{id}/chunks`),
   50 chunks a page with previous/next, each with its number ("Chunk
   12", and the page for a PDF); opened from a citation it loads the page
-  the cited chunk is on, marks it and scrolls it into view. As read is
+  the cited chunk is on, marks it and scrolls it into view. A source not
+  read yet says "Not read yet: it is read when you ask or create." with
+  **read now** and its price (ingest's estimate; the basis beside it). As read is
   the default for text and web pages, Original for images, audio and
   PDFs. An output's header shows
   "from 3 sources" when it was made from a selection, processing tabs

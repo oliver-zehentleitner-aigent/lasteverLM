@@ -37,6 +37,8 @@ interface RequestOptions {
   form?: FormData
   /** Skip the Bearer header, for the login endpoints and the share page. */
   anonymous?: boolean
+  /** The body as plain text, not JSON (a source's stored text). */
+  text?: boolean
 }
 
 /** One place for auth, error shape and JSON handling. Errors are thrown,
@@ -77,6 +79,7 @@ export async function requestWithStatus<T>(url: string, opts: RequestOptions = {
   const text = await res.text()
   if (!res.ok) throw new ApiError(res.status, failureMessage(res.status, text), serviceCode(text), jsonOrNull(text))
 
+  if (opts.text) return { status: res.status, body: text as T }
   if (!text) return { status: res.status, body: undefined as T }
   try {
     return { status: res.status, body: JSON.parse(text) as T }

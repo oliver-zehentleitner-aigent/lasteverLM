@@ -1097,4 +1097,5 @@ export const de: Record<MessageKey, string> = {
   'sources.versionTitle': 'Version {n} dieser Seite: Sie hat sich seit dem ersten Abruf geändert',
   'sources.fetchedShort': '{when}',
   'statusShort.added': 'hinzugefügt',
+  'srcView.notRead': 'Noch nicht gelesen: Es wird gelesen, wenn du fragst oder etwas erstellst.',
 }
