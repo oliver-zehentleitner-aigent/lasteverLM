@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OutputOptionsSpec } from '../api/types'
-import { buildOptions, defaultValues, optionsLabel, sampleLanguage, secondVoice, speakerName, speedSteps, voiceGroups } from './outputOptions'
+import { buildOptions, defaultValues, optionsLabel, sampleLanguage, secondVoice, speakerName, speedSteps, voiceGroups, twoVoices } from './outputOptions'
 
 const spec: OutputOptionsSpec = {
   languages: [
@@ -127,5 +127,14 @@ describe('the judge option', () => {
     expect(v.judge).toBe('off')
     expect(buildOptions('report', judged, v)).toEqual({})
     expect(buildOptions('report', judged, { ...v, judge: 'medium' })).toEqual({ judge: 'medium' })
+  })
+})
+
+describe('twoVoices', () => {
+  it('is a conversation and an FAQ', () => {
+    expect(twoVoices('conversation')).toBe(true)
+    expect(twoVoices('faq')).toBe(true)
+    expect(twoVoices('overview')).toBe(false)
+    expect(twoVoices(undefined)).toBe(false)
   })
 })

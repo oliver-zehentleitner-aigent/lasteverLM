@@ -370,7 +370,7 @@ export interface Provenance {
 
 /** How an audio document is spoken: one voice summarising, one voice
  *  telling it as a story, or two voices in conversation. */
-export type AudioStyle = 'overview' | 'story' | 'conversation'
+export type AudioStyle = 'overview' | 'story' | 'conversation' | 'faq'
 
 /** What a document is made with; which keys a kind takes comes from the spec. */
 export interface OutputOptions {

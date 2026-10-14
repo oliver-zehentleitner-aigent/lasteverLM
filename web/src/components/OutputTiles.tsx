@@ -3,7 +3,7 @@ import type { Source, Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficul
 import { useEstimate } from '../hooks/useEstimate'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
-import { AUDIO_STYLES, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
+import { AUDIO_STYLES, twoVoices, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
 import { PriceTag } from './PriceTag'
@@ -232,7 +232,7 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
             </label>
           )}
           {shown.includes('voice') && <VoiceSample voice={values.voice} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />}
-          {shown.includes('audio_voice_2') && values.style === 'conversation' && (
+          {shown.includes('audio_voice_2') && twoVoices(values.style) && (
             <>
               <VoiceSelect label={t('tiles.voice2')} spec={spec} value={values.voice2} exclude={values.voice} onChange={(voice2) => set({ voice2 })} />
               <VoiceSample voice={values.voice2} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />
