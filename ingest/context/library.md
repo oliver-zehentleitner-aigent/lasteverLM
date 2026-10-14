@@ -75,6 +75,31 @@ runtime; the contract with account is the key name and its default.
   dedupe key, or a key that is unique only outside the trash; restoring
   is simpler and saves the processing.
 
+## Outputs are library items that rag owns
+
+**Id:** aadeec34-047c-4e27-8c7b-33de3a883a1b
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's decision (outputs become user-owned library items, usable as a source in other notebooks) through the coordinating agent, 2026-10-14; the split of the lifecycle agreed with rag the same day
+**Revisit when:** ingest has to process or change generated rows itself
+
+A generated library source (rag's output) is owned by the user and can
+be linked into any of their notebooks; linking reuses its chunks. Rag
+owns its whole lifecycle, trash, restore and purge with the audio object
+first, so the objects-before-rows order stays in one service: ingest
+keeps excluding generated rows from its trash and purge, and its notebook
+delete and detach remove only links. The origin notebook is read from
+rag's `outputs` (`notebook_id`, `origin_title`), not from a link, because
+the user can unlink an output from the notebook it was made in.
+
+**Alternatives:**
+- Ingest's purge sweeping trashed generated rows: two services deleting
+  one kind of row, and the audio object (rag's) would have to be deleted
+  by rag before ingest's sweep, an order across services.
+- The origin as the link whose id equals the library id: gone once the
+  user unlinks the output from its origin notebook.
+
 ## Deleting a user removes the objects before the rows
 
 **Id:** 74926408-01fb-42f0-9a63-83af364b450c
