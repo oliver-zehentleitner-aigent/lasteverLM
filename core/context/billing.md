@@ -11,7 +11,8 @@
 
 Every `usage` row carries two amounts:
 
-- `cost_cents`: what the call really cost, its units at `MODEL_PRICES`.
+- `cost_cents`: what the call really cost, its units at `MODEL_PRICES`
+  (converted from US cents to euro cents, see 05565ae9-d57c-4263-84d1-bf2162f8e3bb).
 - `charge_cents`: what the user pays, the cost times
   `1 + margin_pct / 100` under the pricing rules in account's `settings`
   row `pricing`.
