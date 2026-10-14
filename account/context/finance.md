@@ -38,9 +38,9 @@ compromised. Account's egress must keep 443 to api.vultr.com open.
 **Id:** f89faf54-14f5-4f28-bdba-130b0e0ff070
 **Type:** decision
 **Status:** active
-**Evidence:** inferred
-**Source:** implementation of the maintainer's finance brief, 2026-10-14
-**Revisit when:** model prices are configured in another currency than EUR, or infrastructure is billed in EUR, or the demo user gets real money behind it
+**Evidence:** confirmed
+**Source:** implementation of the maintainer's finance brief, 2026-10-14; currency of MODEL_PRICES confirmed by the coordinator, 2026-10-14
+**Revisit when:** core converts cost to EUR at booking (then usage amounts here are EUR and the note below goes), or the demo user gets real money behind it
 
 `/admin/finance/profit` is charged − model cost − infrastructure per day or month. The
 demo user's usage is reported beside it, not in it: its credit is the migration's seed,
@@ -59,7 +59,11 @@ are funded by the seed, not by anyone; converting with a built-in default rate �
 rejected as above (finance.md, the Vultr entry); attributing infrastructure to the
 first day of the month — rejected because daily profit would swing for no reason.
 
-**Open assumption:** `MODEL_PRICES` are read as EUR cents, because credits are EUR. If
-the platform's model prices are entered in USD, cost needs the same conversion as
-infrastructure; Evidence stays inferred until the maintainer confirms the currency.
+**Currency of usage amounts:** `MODEL_PRICES` are USD cents per million units, taken
+from Vultr's catalog, so `usage.cost_cents` — and the charge derived from it — are USD
+today while credits are EUR. The conversion belongs in core's booking, where the rate
+can be fixed per row at the time of the call; account does not convert usage on its own,
+so cost and charge read the same in every service. Until core books in EUR, the usage
+figures on the finance pages are USD cents as booked, and the profit row mixes them with
+EUR infrastructure — the pages say so. (An earlier version of this entry assumed EUR.)
 
