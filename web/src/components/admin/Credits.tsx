@@ -20,6 +20,7 @@ export function Vouchers() {
   const [listVersion, setListVersion] = useState(0)
   // optionally mailed right away, each created voucher to the same address
   const [sendOn, setSendOn] = useState(false)
+  const [paid, setPaid] = useState(false)
   const [send, setSend] = useState<VoucherSend>({ email: '', message: '', allow: true })
   const [sentTo, setSentTo] = useState<string | null>(null)
   const sendBad = sendOn && !plausibleEmail(send.email)
@@ -35,7 +36,7 @@ export function Vouchers() {
     const target = sendOn ? cleanSend(send) : undefined
     const created = await run(async () => {
       try {
-        return await admin.createVouchers(cents, n, target)
+        return await admin.createVouchers(cents, n, target, paid)
       } catch (err) {
         throw new Error(voucherError(err))
       }
@@ -59,6 +60,9 @@ export function Vouchers() {
           <label>
             {t('adm.count')}
             <input type="number" min={1} max={100} value={count} onChange={(e) => setCount(e.target.value)} />
+          </label>
+          <label className="check" title={t('vch.paidTitle')}>
+            <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} /> {t('vch.paid')}
           </label>
           <button type="submit" disabled={busy || sendBad}>
             {t('adm.create')}
@@ -120,6 +124,12 @@ function VoucherList() {
   const canWrite = useCanWrite()
   const [sending, setSending] = useState<Voucher | null>(null)
 
+  /** paid or free: for the revenue page, changeable after the fact */
+  async function markPaid(v: Voucher, paid: boolean) {
+    const updated = await run(() => admin.setVoucherPaid(v.id, paid))
+    if (updated) setData((list) => list.map((x) => (x.id === updated.id ? updated : x)))
+  }
+
   async function remove(v: Voucher) {
     if (!confirm(t('adm.voucherDeleteConfirm', { amount: formatCents(v.amount_cents) }))) return
     const ok = await run(async () => {
@@ -139,6 +149,7 @@ function VoucherList() {
           t('adm.col.createdBy'),
           t('adm.col.created'),
           t('adm.col.status'),
+          t('vch.paidCol'),
           t('adm.col.redeemedBy'),
           t('adm.col.redeemed'),
           '',
@@ -157,6 +168,10 @@ function VoucherList() {
               </span>
             )}
           </span>,
+          <label key="paid" className="check small" title={t('vch.paidTitle')}>
+            <input type="checkbox" checked={v.paid ?? false} disabled={busy || !canWrite} aria-label={t('vch.paid')} onChange={(e) => void markPaid(v, e.target.checked)} />{' '}
+            {v.paid ? t('vch.paid') : t('vch.free')}
+          </label>,
           v.redeemed_by ?? '—',
           v.redeemed_at ? formatTime(v.redeemed_at) : '—',
           v.status === 'open' ? (

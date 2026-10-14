@@ -23,6 +23,14 @@ import type {
   SystemInfo,
   VisitBucket,
   Voucher,
+  CostGroup,
+  FinanceCosts,
+  FinanceInfra,
+  FinanceProfit,
+  FinanceRevenue,
+  InfraEntry,
+  PricingRules,
+  PricingView,
   VoucherSend,
 } from './types'
 
@@ -45,6 +53,22 @@ export interface AdminApi {
   listLoginAttempts(limit: number): Promise<LoginAttempt[]>
   listVisits(days: number): Promise<VisitBucket[]>
   getSmtp(): Promise<Smtp>
+  /** finance: from/to are UTC dates, inclusive */
+  financeInfra(from: string, to: string): Promise<FinanceInfra>
+  addInfra(e: { date: string; item: string; amount_cents: number; currency: 'EUR' | 'USD' }): Promise<InfraEntry>
+  /** manual lines only; 409 not_manual for a Vultr line */
+  deleteInfra(id: string): Promise<void>
+  /** 409 vultr_not_connected, 502 vultr_failed */
+  syncInfra(): Promise<FinanceInfra>
+  getPricing(): Promise<PricingView>
+  savePricing(rules: PricingRules): Promise<PricingView>
+  /** the view for these rules, not stored */
+  previewPricing(rules: PricingRules): Promise<PricingView>
+  resetPricing(): Promise<void>
+  financeCosts(from: string, to: string, group: CostGroup): Promise<FinanceCosts>
+  financeRevenue(from: string, to: string): Promise<FinanceRevenue>
+  financeProfit(from: string, to: string, group: 'month' | 'day'): Promise<FinanceProfit>
+  setVoucherPaid(id: string, paid: boolean): Promise<Voucher>
   /** versions, health, pods and deployments of the running system */
   system(): Promise<SystemInfo>
   testSmtp(): Promise<{ sent_to: string }>
@@ -60,7 +84,8 @@ export interface AdminApi {
   removeAllowed(kind: AllowKind, value: string): Promise<void>
   /** Codes are shown once; the server stores only their hashes. */
   /** with `send`, each created voucher is mailed right away */
-  createVouchers(amountCents: number, count: number, send?: VoucherSend): Promise<string[]>
+  /** `paid`: sold for their face value (revenue) rather than given away */
+  createVouchers(amountCents: number, count: number, send?: VoucherSend, paid?: boolean): Promise<string[]>
   /** admin only; 404 with code `not_recoverable` for a voucher made before codes were kept */
   voucherCode(id: string): Promise<string>
   /** the updated row; 409 already_redeemed / smtp_not_configured, 404 not_recoverable, 429 too_many_mails, 502 mail_failed */
@@ -100,6 +125,18 @@ const httpAdmin: AdminApi = {
   listLoginAttempts: (limit) => request<LoginAttempt[]>(`${A}/login-attempts?limit=${limit}`),
   listVisits: (days) => request<VisitBucket[]>(`${A}/visits?days=${days}`),
   getSmtp: () => request<Smtp>(`${A}/settings/smtp`),
+  financeInfra: (from, to) => request<FinanceInfra>(`${A}/finance/infra?from=${from}&to=${to}`),
+  addInfra: (e) => request<InfraEntry>(`${A}/finance/infra`, { method: 'POST', json: e }),
+  deleteInfra: (id) => request<void>(`${A}/finance/infra/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  syncInfra: () => request<FinanceInfra>(`${A}/finance/infra/sync`, { method: 'POST' }),
+  getPricing: () => request<PricingView>(`${A}/settings/pricing`),
+  savePricing: (rules) => request<PricingView>(`${A}/settings/pricing`, { method: 'PUT', json: rules }),
+  previewPricing: (rules) => request<PricingView>(`${A}/settings/pricing/preview`, { method: 'POST', json: rules }),
+  resetPricing: () => request<void>(`${A}/settings/pricing`, { method: 'DELETE' }),
+  financeCosts: (from, to, group) => request<FinanceCosts>(`${A}/finance/costs?from=${from}&to=${to}&group=${group}`),
+  financeRevenue: (from, to) => request<FinanceRevenue>(`${A}/finance/revenue?from=${from}&to=${to}`),
+  financeProfit: (from, to, group) => request<FinanceProfit>(`${A}/finance/profit?from=${from}&to=${to}&group=${group}`),
+  setVoucherPaid: (id, paid) => request<Voucher>(`${A}/vouchers/${encodeURIComponent(id)}`, { method: 'PATCH', json: { paid } }),
   system: () => request<SystemInfo>(`${A}/system`),
   testSmtp: () => request<{ sent_to: string }>(`${A}/settings/smtp/test`, { method: 'POST' }),
   getAllowlist: () => request<Allowlist>(`${A}/settings/allowlist`),
@@ -107,10 +144,10 @@ const httpAdmin: AdminApi = {
     request<Allowlist>(`${A}/settings/${ALLOW_PATH[kind]}`, { method: 'POST', json: { [ALLOW_FIELD[kind]]: value } }),
   removeAllowed: (kind, value) =>
     request<void>(`${A}/settings/${ALLOW_PATH[kind]}/${encodeURIComponent(value)}`, { method: 'DELETE' }),
-  createVouchers: (amount_cents, count, send) =>
+  createVouchers: (amount_cents, count, send, paid) =>
     request<{ codes: string[] }>(`${A}/vouchers`, {
       method: 'POST',
-      json: { amount_cents, count, ...(send ? { send_to: send.email, message: send.message, allow: send.allow } : {}) },
+      json: { amount_cents, count, ...(paid !== undefined ? { paid } : {}), ...(send ? { send_to: send.email, message: send.message, allow: send.allow } : {}) },
     }).then((r) => r.codes),
   voucherCode: (id) => request<{ code: string }>(`${A}/vouchers/${encodeURIComponent(id)}/code`).then((r) => r.code),
   sendVoucher: (id, send) => request<Voucher>(`${A}/vouchers/${encodeURIComponent(id)}/send`, { method: 'POST', json: send }),
@@ -179,6 +216,32 @@ function mockAdmin(): AdminApi {
   let allow: Required<Allowlist> = { allowed_domains: ['example.org', 'review.example.org'], allowed_addresses: ['guest@partner.test'], viewer_domains: ['review.example.org'], viewer_addresses: [] }
   const listKey = (kind: AllowKind) =>
     kind === 'domain' ? 'allowed_domains' : kind === 'viewer' ? 'viewer_domains' : kind === 'viewer_address' ? 'viewer_addresses' : 'allowed_addresses'
+  let infra: FinanceInfra = {
+    vultr: 'not connected',
+    last_sync: null,
+    last_error: null,
+    usd_per_eur: 1.1188,
+    entries: [
+      { id: 'i1', date: '2026-10-01', source: 'manual', item: 'Domain', amount_cents: 1500, currency: 'EUR', amount_eur_cents: 1500 },
+      { id: 'i2', date: '2026-10-02', source: 'vultr', item: 'VKE cluster', amount_cents: 2400, currency: 'USD', amount_eur_cents: 2145.16 },
+    ],
+    totals_by_currency: { EUR: 1500, USD: 2400 },
+    total_eur_cents: 3645.16,
+  }
+  let pricing: PricingRules = { usd_per_eur: 1.1188, default_margin_pct: 30, actions: { 'output:audio': { fixed_cents: 2 } } }
+  const pricingView = (r: PricingRules): PricingView => {
+    const actions = ['chat_answer', 'output:report', 'output:audio', 'source:pdf', 'judge']
+    return {
+      rules: r,
+      actions,
+      preview: actions.map((a, i) => {
+        const margin = r.actions[a]?.margin_pct ?? r.default_margin_pct
+        const fixed = r.actions[a]?.fixed_cents ?? 0
+        const cost = [0.42, 2.1, 9.8, 0.35, 1.2][i]
+        return { action: a, actions: [120, 14, 3, 40, 6][i], avg_cost_cents: cost, margin_pct: margin, fixed_cents: fixed, charge_cents: cost * (1 + margin / 100) + fixed }
+      }),
+    }
+  }
   let mockCodes: Record<string, string> = {}
   let vouchers: Voucher[] = [
     { id: 'v2', amount_cents: 500, created_by: 'admin@example.org', created_at: '2026-10-12T17:30:00Z', redeemed_by: null, redeemed_at: null, status: 'open' },
@@ -296,7 +359,7 @@ function mockAdmin(): AdminApi {
       allow = { ...allow, [key]: allow[key].filter((x) => x !== value) }
       return delay(undefined)
     },
-    createVouchers: (amount, count, send) => {
+    createVouchers: (amount, count, send, paid) => {
       const codes = Array.from({ length: count }, () => `V-${Math.random().toString(36).slice(2, 8).toUpperCase()}`)
       const now = new Date().toISOString()
       vouchers = [
@@ -312,6 +375,7 @@ function mockAdmin(): AdminApi {
           recoverable: true,
           sent_to: send?.email ?? null,
           sent_at: send ? now : null,
+          paid: paid ?? false,
         })),
         ...vouchers,
       ]
@@ -347,6 +411,49 @@ function mockAdmin(): AdminApi {
     liftBan: (ip) => {
       bans = bans.map((b) => (b.ip === ip && b.lifted_at === null ? { ...b, lifted_at: new Date().toISOString() } : b))
       return delay(undefined)
+    },
+    // finance: a small world of two weeks, one Vultr line in USD, a margin of 30 %
+    financeInfra: () => delay({ ...infra, entries: [...infra.entries] }),
+    addInfra: (e) => {
+      const entry = { id: `i${infra.entries.length + 1}`, source: 'manual' as const, amount_eur_cents: e.currency === 'EUR' ? e.amount_cents : e.amount_cents / (infra.usd_per_eur ?? 1), ...e }
+      infra = { ...infra, entries: [entry, ...infra.entries] }
+      return delay(entry)
+    },
+    deleteInfra: (id) => {
+      if (infra.entries.some((x) => x.id === id && x.source === 'vultr')) return Promise.reject(new ApiError(409, 'Vultr lines cannot be deleted', 'not_manual'))
+      infra = { ...infra, entries: infra.entries.filter((x) => x.id !== id) }
+      return delay(undefined)
+    },
+    syncInfra: () => Promise.reject(new ApiError(409, 'Vultr is not connected', 'vultr_not_connected')),
+    getPricing: () => delay(pricingView(pricing)),
+    savePricing: (r) => {
+      pricing = r
+      return delay(pricingView(r))
+    },
+    previewPricing: (r) => delay(pricingView(r)),
+    resetPricing: () => {
+      pricing = { ...pricing, default_margin_pct: 0, actions: {} }
+      return delay(undefined)
+    },
+    financeCosts: (from, to, group) => {
+      const rows = [
+        { key: group === 'day' ? to : group === 'model' ? 'gpt-oss-120b' : group === 'user' ? 'admin@example.org' : group === 'service' ? 'rag' : 'chat_answer', calls: 42, actions: 30, cost_cents: 12.3456, cost_usd_cents: 13.8123, charge_cents: 16.0493 },
+        { key: group === 'day' ? from : group === 'model' ? 'tts-1' : group === 'user' ? 'reader@example.org' : group === 'service' ? 'ingest' : 'output:audio', calls: 6, actions: 3, cost_cents: 40.5, cost_usd_cents: 45.31, charge_cents: 52.65 },
+      ]
+      return delay({ from, to, group, rows, total_cost_cents: 52.8456, total_cost_usd_cents: 59.1223, total_charge_cents: 68.6993 })
+    },
+    financeRevenue: (from, to) =>
+      delay({ from, to, charged_cents: 68.6993, demo_charged_cents: 3.2, vouchers: { issued_paid_cents: 1000, issued_free_cents: 1500, redeemed_paid_cents: 500, redeemed_free_cents: 1000 }, outstanding_credit_cents: 1931.3 }),
+    financeProfit: (from, to, group) => {
+      const row = (period: string, k: number) => ({ period, charged_cents: 3400 * k, model_cost_cents: 2600 * k, infra_cost_cents: 900, profit_cents: 3400 * k - 2600 * k - 900, demo_charged_cents: 40, demo_cost_cents: 31 })
+      const rows = group === 'month' ? [row('2026-09', 1), row('2026-10', 1.4)] : [row(from, 0.1), row(to, 0.12)]
+      return delay({ from, to, group, usd_per_eur: infra.usd_per_eur, rows, total: null })
+    },
+    setVoucherPaid: (id, paid) => {
+      const v = vouchers.find((x) => x.id === id)
+      if (!v) return Promise.reject(new ApiError(404, 'unknown voucher'))
+      Object.assign(v, { paid })
+      return delay({ ...v })
     },
     listAccess: (limit) => delay(access.slice(0, limit)),
   }

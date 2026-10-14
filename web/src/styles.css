@@ -795,3 +795,20 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .judge-request select { width: auto; height: 1.9rem; padding: 0.1rem 0.4rem; }
 .judge-option { flex: 1 0 100%; }
 .judge-option select { max-width: 22rem; }
+/* admin finance: its pages as pills, the shared date range, the price table */
+.finance-nav { margin: 0.25rem 0 0.75rem; }
+.finance-nav a.preset { text-decoration: none; }
+.range-picker { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4rem 0.75rem; margin-bottom: 0.75rem; }
+.range-picker label { flex-direction: row; align-items: center; gap: 0.35rem; }
+.range-picker input[type='date'] { width: auto; }
+label.inline { flex-direction: row; align-items: center; gap: 0.4rem; margin: 0.3rem 0; }
+label.inline select, label.inline input { width: auto; }
+input.narrow { width: 6.5rem; }
+table.pricing { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--line); }
+.finance-tiles .stat-value { font-variant-numeric: tabular-nums; }
+.finance .loss { color: var(--danger); }
+.infra-add { flex-wrap: wrap; margin-top: 0.6rem; }
+.infra-add .grow { flex: 1 1 14rem; }
+.infra-add input, .infra-add select { width: auto; }
+.infra-add .grow input { width: 100%; }
