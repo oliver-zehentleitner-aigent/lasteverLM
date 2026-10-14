@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.7] - 2026-10-14
+
 ### Fixed
 
 - `make web-csp-check` reports an admin page as not walked when the admin panel did not render: the demo token's user is not an admin or viewer, so `/admin/*` fell back to the notebook view and the earlier walks listed admin and finance pages they never showed.
