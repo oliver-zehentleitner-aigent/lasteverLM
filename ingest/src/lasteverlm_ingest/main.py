@@ -20,6 +20,7 @@ from lasteverlm_core import (
     Embedder,
     OpenAICompatibleEmbedder,
     OpenAICompatibleLLM,
+    OpenAICompatibleSpeechToText,
     PostgresRateLimitStore,
     RateLimiter,
     RateLimitMiddleware,
@@ -103,6 +104,15 @@ def build_worker_deps(
                 client, settings.inference.llm_model, max_tokens=settings.image_max_tokens
             ),
             pdf_vision_max_pages=settings.pdf_vision_max_pages,
+            # A transcription can run for minutes: its own client, one
+            # attempt bounded by STT_TIMEOUT_SECONDS, which stays below the
+            # claim timeout so no other worker takes the job over mid-call.
+            transcriber=OpenAICompatibleSpeechToText(
+                make_client(
+                    settings.inference, timeout=settings.stt_timeout_seconds, max_retries=0
+                ),
+                settings.inference.stt_model,
+            ),
         ),
         chunker=chunker or TokenWindowChunker(**settings.chunker_kwargs()),
         embedder=embedder,

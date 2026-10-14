@@ -280,7 +280,7 @@ class AdminStats(BaseModel):
     source_bytes: int
 
 
-KINDS = ("pdf", "text", "url", "image")
+KINDS = ("pdf", "text", "url", "image", "audio")
 
 
 class DailyStats(BaseModel):
@@ -753,6 +753,7 @@ class PostgresRepository:
            count(l.id) filter (where l.kind = 'text') as text,
            count(l.id) filter (where l.kind = 'url') as url,
            count(l.id) filter (where l.kind = 'image') as image,
+           count(l.id) filter (where l.kind = 'audio') as audio,
            count(l.id) filter (where l.status = 'failed') as failed
       from generate_series((now() at time zone 'utc')::date - (%(days)s - 1),
                            (now() at time zone 'utc')::date, interval '1 day') as d(day)

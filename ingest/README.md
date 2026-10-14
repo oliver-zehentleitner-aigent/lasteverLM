@@ -6,7 +6,7 @@
 
 The ingest service of [lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM),
 a NotebookLM-style assistant. It owns notebooks and each user's source
-library: a source is uploaded (PDF, plain text, image) or given as a URL
+library: a source is uploaded (PDF, plain text, image, MP3/WAV recording) or given as a URL
 (web page, PDF or text behind a link) once, stored in the user's library
 and linked into any number of notebooks; worker pods claim it from the
 database once, fetch and parse it, cut it into overlapping chunks, embed and
@@ -35,9 +35,11 @@ naming the first missing or invalid value. `.env.example` is a template.
 | `EMBEDDING_MODEL` | yes | same model as the rag service uses for questions |
 | `EMBEDDING_DIMENSION` | no | default 1536; requested from the embedding model on every call (`dimensions`) and must match the `chunks.embedding` column |
 | `LLM_MODEL` | yes | writes the per-source summary; `LLM_MAX_TOKENS` optional, default 1024, the ceiling for one completion (the summary asks for 300) |
-| `MODEL_PRICES` | until core ships defaults | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`; the service refuses to start when `EMBEDDING_MODEL` or `LLM_MODEL` has no price |
+| `MODEL_PRICES` | until core ships defaults | JSON `{"<model>": {"in": <cents per million tokens>, "out": ...}}`; the service refuses to start when `EMBEDDING_MODEL`, `LLM_MODEL` or `STT_MODEL` has no price |
 | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | at least one | the HS256 secret the account service signs JWTs with (issuer `lasteverlm`), and/or the shared demo token; a JWT is checked first |
-| `MAX_UPLOAD_BYTES` | no | default 20 MiB; larger uploads get 413 |
+| `MAX_UPLOAD_BYTES` | no | default 20 MiB; larger uploads get 413; audio is capped by core's `MAX_AUDIO_BYTES` (25 MiB) instead |
+| `STT_MODEL` | no | transcribes MP3/WAV sources, core's default `whisper-large-v3-turbo`; needs a `MODEL_PRICES` entry (`in` in cents per million seconds) or the service refuses to start |
+| `STT_TIMEOUT_SECONDS` | no | one transcription call, default 300, no SDK retries; must be below `CLAIM_TIMEOUT_SECONDS` |
 | `CHUNK_TOKENS`, `CHUNK_OVERLAP_TOKENS` | no | override core's chunker defaults for one deployment; unset means core decides |
 | `EMBED_BATCH_SIZE` | no | texts per embedding request, default 64 |
 | `WORKER_POLL_SECONDS` | no | how often an idle worker looks for work, default 2 |

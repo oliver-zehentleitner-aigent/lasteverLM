@@ -75,12 +75,12 @@ def test_daily_stats_every_day_oldest_first(client, repo):
     assert days[0] == {
         "day": days[0]["day"],
         "sources_created": 1,
-        "by_kind": {"pdf": 0, "text": 1, "url": 0, "image": 0},
+        "by_kind": {"pdf": 0, "text": 1, "url": 0, "image": 0, "audio": 0},
         "failed": 0,
     }
     assert days[1]["sources_created"] == 0 and days[1]["by_kind"]["pdf"] == 0
     assert days[2]["sources_created"] == 2 and days[2]["failed"] == 1
-    assert days[2]["by_kind"] == {"pdf": 1, "text": 0, "url": 1, "image": 0}
+    assert days[2]["by_kind"] == {"pdf": 1, "text": 0, "url": 1, "image": 0, "audio": 0}
     assert pdf.library_id in repo.library
     assert len(client.get("/api/ingest/admin/stats/daily").json()["days"]) == 30
     for bad in (0, 366, "x"):

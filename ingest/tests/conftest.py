@@ -8,7 +8,14 @@ from lasteverlm_ingest.config import Settings
 from lasteverlm_ingest.loaders import LoaderRegistry, default_registry
 from lasteverlm_ingest.loaders.image import VisionReader
 from lasteverlm_ingest.main import create_app
-from tests.fakes import FakeChat, FakeEmbedder, FakeSummarizer, InMemoryRepository, InMemoryStorage
+from tests.fakes import (
+    FakeChat,
+    FakeEmbedder,
+    FakeSummarizer,
+    FakeTranscriber,
+    InMemoryRepository,
+    InMemoryStorage,
+)
 
 DEMO_TOKEN = "test-demo-token"
 
@@ -25,9 +32,11 @@ def make_settings(**overrides) -> Settings:
         "INFERENCE_API_KEY": "key",
         "EMBEDDING_MODEL": "fake-embed",
         "LLM_MODEL": "fake-llm",
+        "STT_MODEL": "fake-stt",
         "EMBEDDING_DIMENSION": "8",
         "MODEL_PRICES": (
-            '{"fake-embed": {"in": 2000, "out": 0}, "fake-llm": {"in": 30, "out": 150}}'
+            '{"fake-embed": {"in": 2000, "out": 0}, "fake-llm": {"in": 30, "out": 150},'
+            ' "fake-stt": {"in": 100, "out": 0}}'
         ),
         "DEMO_TOKEN": DEMO_TOKEN,
         # Seeding is tested on its own (test_seeds.py); elsewhere a new
@@ -62,8 +71,10 @@ def summarizer() -> FakeSummarizer:
 
 
 def fake_loaders(chat: FakeChat) -> LoaderRegistry:
-    """The default registry with a fake vision model: tests never call out."""
-    return default_registry(max_url_bytes=4000, vision=VisionReader(chat, "fake-llm"))
+    """The default registry with fake models: tests never call out."""
+    return default_registry(
+        max_url_bytes=4000, vision=VisionReader(chat, "fake-llm"), transcriber=FakeTranscriber()
+    )
 
 
 @pytest.fixture

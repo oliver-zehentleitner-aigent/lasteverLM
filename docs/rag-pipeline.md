@@ -6,7 +6,7 @@ in the `context/` directories; this page is the map. Numbers here are
 the production configuration (`infra/chart/values-prod.yaml`).
 
 ```
-upload / URL / image
+upload / URL / image / audio
    │  ingest: loader → passages (page-aware)
    ▼
 chunks (420 regex tokens, overlap 50)  ──►  embeddings (qwen3-embedding-4b, 1024 dims)
@@ -32,6 +32,7 @@ Every source kind has one loader in ingest that turns bytes into
 | text | the bytes as one passage | text |
 | URL | fetched by the worker through a guard that connects only to public addresses, HTML reduced to text with the standard library's parser | text, the URL as the name |
 | image | the platform's vision-capable chat model, one billed call: every legible piece of text transcribed verbatim, then a description of the image, in the image's language | text that can be searched and cited |
+| audio | MP3 or WAV only (up to 25 MiB), the whole file sent to the platform's transcription model in one billed call (usage kind `stt`); the platform returns no timestamps | one passage without a page number, chunked like text; an answer without speech fails the source, its call billed |
 
 **PDF capture modes.** A PDF is read in one of three modes, chosen per
 upload (default from the user's preference `pdf_capture`): `text` takes
