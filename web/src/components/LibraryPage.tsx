@@ -171,6 +171,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   }
 
   const shown = filterLibrary(entries, filter, docKind)
+  const waiting = entries.filter((e) => e.status === 'waiting_for_credit').length
   const selected = entries.filter((e) => picked.has(e.id))
   const toggle = (id: string) =>
     setPicked((prev) => {
@@ -280,6 +281,11 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
       </div>
       {error && <p className="error">{error}</p>}
       {notice && <p className="notice small">{notice}</p>}
+      {waiting > 0 && (
+        <p className="notice small waiting">
+          {tn('lib.waitingN', waiting)} · <RedeemLink />
+        </p>
+      )}
       {selected.length > 0 && (
         <div className="selection-bar" role="region" aria-label={tn('lib.selected', selected.length)}>
           <span className="muted small">{progress ? t(progress.kind === 'delete' ? 'lib.progressDelete' : 'lib.progressAdd', { done: progress.done, total: progress.total }) : tn('lib.selected', selected.length)}</span>
@@ -343,7 +349,6 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                     <span className={`badge ${status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
                       {t(`status.${status}`)}
                     </span>
-                    {e.status === 'waiting_for_credit' && <RedeemLink />}
                     {e.status === 'failed' && e.error && (
                       <span className="error small reason" title={e.error}>
                         {e.error}

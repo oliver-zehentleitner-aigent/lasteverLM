@@ -5,6 +5,7 @@ import { useOutputOptions } from '../hooks/useOutputOptions'
 import { AUDIO_STYLES, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
+import { RedeemLink } from './RedeemLink'
 import { DecisionForm } from './DecisionForm'
 import { decisionOptions, decisionProblem, defaultDecision, type DecisionValues } from '../lib/decision'
 import { language, t } from '../i18n'
@@ -38,6 +39,8 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
   // a rag that predates the catalogue entry still gets the contract's keys
   const decisionKeys = spec?.kinds.decision ?? ['language', 'question', 'decision_type', 'choices', 'levels']
   const problem = isDecision ? decisionProblem(dv, spec) : null
+  // without credit sources still go in (and wait); outputs cannot be made
+  const noCredit = me !== null && me !== undefined && me.balance_cents <= 0
   const hint = blocker ?? problem
   return (
     <section className="tiles">
@@ -118,10 +121,16 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
         </div>
       )}
       <div className="create-row">
-        {hint && <span className="muted small">{hint}</span>}
+        {noCredit ? (
+          <span className="muted small">
+            {t('tiles.noCredit')} <RedeemLink />
+          </span>
+        ) : (
+          hint && <span className="muted small">{hint}</span>
+        )}
         <button
           type="button"
-          disabled={busy || hint !== null}
+          disabled={busy || hint !== null || noCredit}
           onClick={() =>
             selected &&
             onCreate(selected, {

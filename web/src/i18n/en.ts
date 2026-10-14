@@ -660,6 +660,9 @@ export const en = {
   'lib.alreadyInN.one': '{n} was already in {title}',
   'lib.alreadyInN.other': '{n} were already in {title}',
   'lib.out.from': 'Made in',
+  'tiles.noCredit': 'No credit: sources wait, outputs cannot be created.',
+  'lib.waitingN.one': '{n} source waits for credit',
+  'lib.waitingN.other': '{n} sources wait for credit',
 } as const
 
 export type MessageKey = keyof typeof en
