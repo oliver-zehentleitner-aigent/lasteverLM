@@ -1094,6 +1094,7 @@ export const en = {
   'sources.versionTitle': 'Version {n} of this page: it changed since it was first fetched',
   'sources.fetchedShort': '{when}',
   'statusShort.added': 'added',
+  'srcView.notRead': 'Not read yet: it is read when you ask or create.',
 } as const
 
 export type MessageKey = keyof typeof en

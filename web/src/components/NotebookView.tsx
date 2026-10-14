@@ -307,6 +307,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             activeKey={activeKey}
             onActivate={setActiveKey}
             onClose={closeTab}
+          onSourcesChanged={() => setSourcesVersion((v) => v + 1)}
             onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
             onRename={(o, title) => void renameOutput(o, title)}
             onDeleted={removeOutput}

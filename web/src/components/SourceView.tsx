@@ -5,6 +5,8 @@ import { citationTarget, openTarget } from '../lib/openEntry'
 import { sourceKindLabel } from '../lib/outputs'
 import { defaultView, type SourceViewMode, type ViewerTab } from '../lib/viewerTabs'
 import { SourceRead } from './SourceRead'
+import { SourceText } from './SourceText'
+import { SourceUnread } from './SourceUnread'
 import { StarterBadge } from './StarterBadge'
 
 /** A source as a viewer tab: its head (name, kind, the Original | As read
@@ -13,7 +15,7 @@ import { StarterBadge } from './StarterBadge'
  *  player, a PDF in the browser's viewer (on the cited page when a
  *  citation opened it), a web page as its address. As read shows the text
  *  the system extracted, chunk by chunk, the cited chunk marked. */
-export function SourceView({ source, tab }: { source: Source; tab: ViewerTab }) {
+export function SourceView({ source, tab, onRead }: { source: Source; tab: ViewerTab; onRead: () => void }) {
   const [mode, setMode] = useState<SourceViewMode>(() => defaultView(source.kind))
   // the address the tab holds, not the list's newest: a new presigned src would load the file again
   const held = { ...source, preview_url: tab.url ?? source.preview_url }
@@ -37,12 +39,21 @@ export function SourceView({ source, tab }: { source: Source; tab: ViewerTab }) 
           </a>
         )}
       </header>
-      {mode === 'original' ? <Original source={held} page={tab.page ?? null} nonce={tab.nonce ?? 0} /> : <SourceRead key={`${source.id}:${tab.nonce ?? 0}`} sourceId={source.id} chunkId={tab.chunkId ?? null} chunkIndex={tab.chunkIndex ?? null} />}
+      {mode === 'original' ? (
+        <Original source={held} page={tab.page ?? null} nonce={tab.nonce ?? 0} />
+      ) : source.status === 'added' ? (
+        // not read yet: nothing to show as read, the way to read it
+        <SourceUnread source={source} onRead={onRead} />
+      ) : (
+        <SourceRead key={`${source.id}:${tab.nonce ?? 0}`} sourceId={source.id} chunkId={tab.chunkId ?? null} chunkIndex={tab.chunkIndex ?? null} />
+      )}
     </>
   )
 }
 
 function Original({ source, page, nonce }: { source: Source; page: number | null; nonce: number }) {
+  // text and Markdown inline, from ingest, also before the source is read
+  if (source.kind === 'text') return <SourceText source={source} />
   const href = openTarget({ kind: source.kind, url: source.kind === 'url' ? (source.preview_url ?? null) : null, preview_url: source.preview_url })
   if (!href) return <p className="muted">{t('srcView.noOriginal')}</p>
   switch (source.kind) {
