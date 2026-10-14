@@ -162,6 +162,7 @@ JSON in and out unless stated. Errors: `{"error": "<message>"}` with 4xx/5xx, pl
 | GET, PUT | `/admin/settings/ratelimit` | PUT: `{"per_minute","block_minutes","ban_after_strikes","strike_window_hours"}` | `RateLimitRules` |
 | DELETE | `/admin/settings/ratelimit` | | 204, back to the environment defaults |
 | GET | `/admin/stats` | | `AccountStats` |
+| DELETE | `/admin/users/{id}` | admin only | 204; deletes a user and everything they own, orchestrated: rag's purge, then ingest's purge (both on the admin's bearer, `RAG_URL`/`INGEST_URL`), then account's rows (the user, usage, the login log); vouchers and `login_attempts` stay as history. 409 for the caller's own account and the demo user; 502 `{"error", "code": "purge_failed", "step": "rag"|"ingest"|"account", "message"}` when a step fails, with nothing of account's touched, so the user is still listed and the call can be repeated |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
@@ -194,6 +195,7 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 | POST | `/library/{id}/restore` | | 204, back in the library, not re-linked |
 | DELETE | `/library/{id}/purge` | | 204 at once, from the trash only (404 otherwise): chunks and object go |
 | GET | `/admin/stats` | viewer or admin | `IngestStats` |
+| DELETE | `/admin/users/{id}` | admin only | 204; account's second step when a user is deleted: library objects (originals, converted audio), library rows, trash, notebooks and their sources (rag's rows cascade from the notebooks); idempotent; objects before rows, a storage error is a 502 naming the key |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
@@ -232,7 +234,8 @@ v1; the frontend polls `GET /sources`.
 | POST | `/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/outputs/{id}/share` | | 204 |
 | GET | `/shared/{token}` | no auth | `Output` without ids, read-only |
-| GET | `/admin/stats` | admin only | `RagStats` |
+| GET | `/admin/stats` | viewer or admin | `RagStats` |
+| DELETE | `/admin/users/{id}` | admin only | 204; account's first step when a user is deleted: the stored files of the outputs in the user's notebooks, then rag's rows there, in one transaction; idempotent; a file that cannot be deleted is a 502 naming its key and no row is touched |
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
@@ -372,6 +375,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
 | `DEMO_TOKEN` | all services; unset in production |
+| `INGEST_URL`, `RAG_URL` (defaults `http://ingest`, `http://rag`) | account (System page probes, user deletion) |
 | `JWT_TTL_DAYS` (1), `LLM_TIMEOUT_SECONDS` (60; the rag worker uses 180) | account, rag |
 | `PUBLIC_BASE_URL`, `AUTH_ALLOWED_DOMAINS` (seed only), `ADMIN_EMAILS`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | account |
 | `VISIT_HASH_SECRET` | account (shared by its replicas: daily visitor-hash salt = HMAC(secret, date); without it each process salts on its own) |
