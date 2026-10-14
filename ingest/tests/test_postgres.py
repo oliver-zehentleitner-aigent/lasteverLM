@@ -34,7 +34,7 @@ DATABASE_URL = os.environ.get("INGEST_TEST_DATABASE_URL")
 REPO = Path(__file__).resolve().parents[2]
 DIMENSION = 3
 PRICES = parse_model_prices('{"llm": {"in": 100, "out": 300}, "emb": {"in": 10, "out": 0}}')
-MIGRATION_DIRS = ["infra", "core", "account", "ingest"]
+MIGRATION_DIRS = ["infra", "core", "account", "ingest", "rag"]
 STALE = 600
 
 
@@ -185,7 +185,7 @@ def test_library_entry_lists_its_notebooks_and_storage_path(repo):
     assert [n.title for n in repo.list_library(owner)[0].notebooks] == ["B"]
 
 
-def test_deleting_a_notebook_keeps_its_library_and_drops_its_outputs(repo):
+def test_deleting_a_notebook_keeps_its_library_and_its_outputs(repo):
     owner = _user(repo)
     notebook = repo.create_notebook(owner, "nb")
     entry = _library(repo, owner)
@@ -193,7 +193,8 @@ def test_deleting_a_notebook_keeps_its_library_and_drops_its_outputs(repo):
     output = _generated(repo, notebook.id, owner)
     assert [e.id for e in repo.list_library(owner)] == [entry.id]
     repo.delete_notebook(owner, notebook.id)
-    assert repo.get_library_source(output) is None
+    # Only the links went: outputs are rag's, it trashes and purges them.
+    assert repo.get_library_source(output) is not None
     assert repo.get_library_entry(owner, entry.id) is not None
 
 
@@ -281,6 +282,64 @@ def test_deleting_a_users_data_leaves_other_users_alone(repo):
     assert repo.get_library_source(other.id) is not None
     assert repo.get_notebook(kept, other_notebook.id) is not None
     repo.delete_user_data(gone)  # nothing left: no error
+
+
+def _output(repo, notebook_id, owner, status="ready"):
+    """What rag writes for a finished output: the generated library row,
+    its link into the notebook (link id = library id) and the outputs row
+    naming both."""
+    library_id = uuid4()
+    _execute(
+        repo,
+        "insert into library_sources (id, owner, name, kind, status) "
+        "values (%s, %s, 'Report', 'generated', %s)",
+        (library_id, owner, status),
+    )
+    _execute(
+        repo,
+        "insert into sources (id, notebook_id, library_source_id) values (%s, %s, %s)",
+        (library_id, notebook_id, library_id),
+    )
+    _execute(
+        repo,
+        "insert into outputs (id, notebook_id, kind, status, source_id, owner, origin_title) "
+        "select %s, n.id, 'report', 'ready', %s, n.owner, n.title from notebooks n where n.id = %s",
+        (uuid4(), library_id, notebook_id),
+    )
+    return library_id
+
+
+def test_outputs_are_listed_with_their_origin_and_outlive_their_notebook(repo):
+    owner, stranger = _user(repo), _user(repo)
+    origin = repo.create_notebook(owner, "Thesis")
+    other = repo.create_notebook(owner, "Talk")
+    report = _output(repo, origin.id, owner)
+    _output(repo, origin.id, owner, status="processing")
+    _output(repo, repo.create_notebook(stranger, "x").id, stranger)
+    upload = _library(repo, owner)
+
+    [entry] = repo.list_generated(owner)
+    assert entry.id == report and entry.origin is not None
+    assert (entry.origin.id, entry.origin.title) == (origin.id, "Thesis")
+    assert [n.title for n in entry.notebooks] == ["Thesis"]
+    assert [e.id for e in repo.list_library(owner)] == [upload.id]  # uploads only
+
+    assert repo.linkable(owner, report) and repo.linkable(owner, upload.id)
+    assert not repo.linkable(stranger, report)
+    source, created = repo.link_source(other.id, report)
+    assert created and source.kind == "generated" and source.status == "ready"
+
+    # Unlinked from its origin: the origin still names it.
+    repo.detach_source(report)  # the origin link's id is the library id
+    [entry] = repo.list_generated(owner)
+    assert entry.origin.id == origin.id and [n.title for n in entry.notebooks] == ["Talk"]
+    # The origin deleted: rag's snapshot names it, the row stays.
+    repo.delete_notebook(owner, origin.id)
+    [entry] = repo.list_generated(owner)
+    assert (entry.origin.id, entry.origin.title) == (None, "Thesis")
+    # rag's trash marks the generated row; it is neither listed nor linkable.
+    _execute(repo, "update library_sources set deleted_at = now() where id = %s", (report,))
+    assert repo.list_generated(owner) == [] and not repo.linkable(owner, report)
 
 
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):

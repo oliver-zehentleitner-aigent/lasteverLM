@@ -7,8 +7,10 @@ other, so the tables below are the contract with rag and account.
 A library source (`library_sources`) is what a user uploaded or entered
 once, processed once, owning the chunks. A source (`sources`) is its link
 into a notebook; the link id is the public source id. Library sources of
-kind `generated` belong to rag's outputs and are never listed: every
-library read goes through `_LISTED`. A deleted library source sits in the
+kind `generated` are rag's outputs: rag writes them and owns their trash,
+restore and purge, so every read of the uploaded library goes through
+`_LISTED`; they are listed on their own (`list_generated`) and can be
+linked into any of the owner's notebooks like an upload. A deleted library source sits in the
 trash (`deleted_at`, no links, chunks kept) until the owner's retention
 has elapsed and the worker purges it.
 """
@@ -74,8 +76,17 @@ class NotebookUse(BaseModel):
     source_id: UUID
 
 
+class Origin(BaseModel):
+    """Where a generated entry was made: the notebook's id (null once it is
+    deleted) and its title (as it was then, if deleted)."""
+
+    id: UUID | None
+    title: str | None
+
+
 class LibraryEntry(BaseModel):
-    """`GET /library`: a library source with the notebooks it is in."""
+    """`GET /library`: a library source with the notebooks it is in;
+    `origin` is set for generated entries only."""
 
     id: UUID
     name: str
@@ -88,6 +99,7 @@ class LibraryEntry(BaseModel):
     capture: str | None = None
     demo: bool = False
     notebooks: list[NotebookUse]
+    origin: Origin | None = None
     # Set by the API (api/deps.py): where the source opens, and for a
     # converted recording the original as a download.
     preview_url: str | None = None
@@ -144,7 +156,8 @@ class Repository(Protocol):
 
     def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
         """Delete the notebook: its links go, its library sources stay in
-        the library, its generated library sources (rag's outputs) go."""
+        the library, generated ones included (rag's outputs live on with
+        their origin title)."""
         ...
 
     # -- sources: library sources as linked into a notebook ---------------
@@ -159,7 +172,17 @@ class Repository(Protocol):
         ...
 
     def detach_source(self, source_id: UUID) -> None:
-        """Remove the link; a generated library source goes with it."""
+        """Remove the link; the library source stays, generated ones too."""
+        ...
+
+    def linkable(self, owner: UUID, library_id: UUID) -> bool:
+        """The owner's library source can be linked into a notebook: in the
+        library (not trashed), or a ready generated one."""
+        ...
+
+    def list_generated(self, owner: UUID) -> list[LibraryEntry]:
+        """The owner's ready generated library sources (rag's outputs, not
+        trashed), newest first, each with its origin notebook."""
         ...
 
     # -- the library ---------------------------------------------------------
@@ -388,15 +411,9 @@ class PostgresRepository:
         return Notebook(**row) if row else None
 
     def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
+        # Links cascade; rag's outputs keep their generated library source
+        # (outputs.notebook_id is set null by rag's foreign key).
         with self._pool.connection() as conn, conn.cursor() as cur:
-            # Generated library sources only live through their link; the
-            # notebook cascade would leave them behind.
-            cur.execute(
-                "delete from library_sources l using sources s, notebooks n "
-                "where s.library_source_id = l.id and s.notebook_id = n.id "
-                "and n.id = %(id)s and n.owner = %(owner)s and l.kind = 'generated'",
-                {"id": notebook_id, "owner": owner},
-            )
             cur.execute(
                 "delete from notebooks where id = %(id)s and owner = %(owner)s",
                 {"id": notebook_id, "owner": owner},
@@ -442,12 +459,42 @@ class PostgresRepository:
 
     def detach_source(self, source_id: UUID) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(
-                "delete from library_sources l using sources s "
-                "where s.id = %(id)s and l.id = s.library_source_id and l.kind = 'generated'",
-                {"id": source_id},
-            )
             cur.execute("delete from sources where id = %(id)s", {"id": source_id})
+
+    def linkable(self, owner: UUID, library_id: UUID) -> bool:
+        row = self._one(
+            "select 1 as ok from library_sources l where l.id = %(id)s and l.owner = %(owner)s "
+            "and l.deleted_at is null and (l.kind <> 'generated' or l.status = 'ready')",
+            {"id": library_id, "owner": owner},
+        )
+        return row is not None
+
+    # The origin of an output is rag's: outputs.source_id is the generated
+    # row, outputs.notebook_id the notebook it was made in (null once that
+    # is deleted), outputs.origin_title the title it had then. Read from
+    # outputs, not from a link: the user can unlink an output from its
+    # origin notebook.
+    _GENERATED_ENTRIES = """
+    select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
+           l.capture, l.demo, l.storage_path, l.transcribed_path,
+           o.notebook_id as origin_id, coalesce(origin.title, o.origin_title) as origin_title,
+           coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
+                             order by s.created_at) filter (where s.id is not null),
+                    '[]') as notebooks
+      from library_sources l
+      left join outputs o on o.source_id = l.id
+      left join notebooks origin on origin.id = o.notebook_id
+      left join sources s on s.library_source_id = l.id
+      left join notebooks n on n.id = s.notebook_id
+     where l.owner = %(owner)s and l.kind = 'generated' and l.status = 'ready'
+       and l.deleted_at is null
+     group by l.id, o.notebook_id, o.origin_title, origin.title
+     order by l.created_at desc, l.id
+    """
+
+    def list_generated(self, owner: UUID) -> list[LibraryEntry]:
+        rows = self._all(self._GENERATED_ENTRIES, {"owner": owner})
+        return [_generated_entry(row) for row in rows]
 
     # -- the library -----------------------------------------------------------
 
@@ -831,3 +878,8 @@ def _keys(rows: list[dict[str, Any]]) -> list[str]:
         for column in ("storage_path", "transcribed_path")
         if row[column]
     ]
+
+
+def _generated_entry(row: dict[str, Any]) -> LibraryEntry:
+    origin = Origin(id=row.pop("origin_id"), title=row.pop("origin_title"))
+    return LibraryEntry(**row, origin=origin)

@@ -32,6 +32,7 @@ from lasteverlm_ingest.repository import (
     LibrarySource,
     NewLibrarySource,
     NotebookUse,
+    Origin,
     StoredSource,
     TrashEntry,
 )
@@ -65,6 +66,9 @@ class InMemoryRepository:
         # account's users.preferences -> 'trash_days'; missing means 14
         self.trash_days: dict[UUID, int] = {}
         self.seeded: set[UUID] = set()
+        # rag's outputs table as far as ingest reads it: generated library
+        # id -> (origin notebook or None once deleted, origin title).
+        self.outputs: dict[UUID, tuple[UUID | None, str]] = {}
         self.retry_at: dict[UUID, datetime] = {}
 
     # -- test helpers ----------------------------------------------------------
@@ -132,12 +136,14 @@ class InMemoryRepository:
     def delete_notebook(self, owner: UUID, notebook_id: UUID) -> None:
         if self.get_notebook(owner, notebook_id) is None:
             return
-        for link_id, (nb, lib_id, _) in list(self.links.items()):
+        for link_id, (nb, _, _) in list(self.links.items()):
             if nb == notebook_id:
-                if self.library[lib_id].kind == "generated":
-                    self._delete_library(lib_id)
                 self.links.pop(link_id, None)
         del self.notebooks[notebook_id]
+        # rag's foreign key: the output keeps its title snapshot.
+        for lib_id, (origin, title) in list(self.outputs.items()):
+            if origin == notebook_id:
+                self.outputs[lib_id] = (None, title)
 
     # -- sources ---------------------------------------------------------------
 
@@ -181,9 +187,45 @@ class InMemoryRepository:
     def detach_source(self, source_id: UUID) -> None:
         if source_id not in self.links:
             return
-        _, lib_id, _ = self.links.pop(source_id)
-        if self.library[lib_id].kind == "generated":
-            self._delete_library(lib_id)
+        self.links.pop(source_id)
+
+    def linkable(self, owner: UUID, library_id: UUID) -> bool:
+        lib = self.library.get(library_id)
+        return (
+            lib is not None
+            and lib.owner == owner
+            and lib.deleted_at is None
+            and (lib.kind != "generated" or lib.status == "ready")
+        )
+
+    def add_output(self, notebook_id: UUID, title: str, status: str = "ready") -> UUID:
+        """What rag does for a finished output: a generated library source
+        linked into its notebook (link id = library id) and the outputs
+        row's origin."""
+        owner = self.notebooks[notebook_id][0]
+        lib = self.add_source(notebook_id, title, "generated", None)
+        self.set_library_status(lib.library_id, status)
+        self.outputs[lib.library_id] = (notebook_id, self.notebooks[notebook_id][1].title)
+        assert self.library[lib.library_id].owner == owner
+        return lib.library_id
+
+    def list_generated(self, owner: UUID) -> list[LibraryEntry]:
+        libs = [
+            lib
+            for lib in self.library.values()
+            if lib.owner == owner
+            and lib.kind == "generated"
+            and lib.status == "ready"
+            and lib.deleted_at is None
+        ]
+        entries = []
+        for lib in sorted(libs, key=lambda x: x.created_at, reverse=True):
+            origin_id, snapshot = self.outputs.get(lib.id, (None, None))
+            title = self.notebooks[origin_id][1].title if origin_id else snapshot
+            entries.append(
+                self._entry(lib).model_copy(update={"origin": Origin(id=origin_id, title=title)})
+            )
+        return entries
 
     # -- the library -------------------------------------------------------------
 

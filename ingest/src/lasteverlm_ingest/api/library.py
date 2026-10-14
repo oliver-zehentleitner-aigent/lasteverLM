@@ -4,6 +4,7 @@ of it."""
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -37,8 +38,14 @@ def _not_found() -> HTTPException:
 
 
 @router.get("/library", response_model=list[LibraryEntry])
-def list_library(request: Request, user: CurrentUser) -> list[LibraryEntry]:
-    """A new user's first look at the library seeds the demo sources."""
+def list_library(
+    request: Request, user: CurrentUser, kind: Literal["generated"] | None = None
+) -> list[LibraryEntry]:
+    """The uploads, newest first; a new user's first look seeds the demo
+    sources. `?kind=generated` lists the user's ready outputs instead
+    (rag's, with their origin notebook), for linking into other notebooks."""
+    if kind == "generated":
+        return list(repository(request).list_generated(user))
     seed_if_new(request, user)
     return [_with_preview(request, e) for e in repository(request).list_library(user)]
 
