@@ -27,6 +27,7 @@ repository root's `context/`.
 
 - [accounting.md](accounting.md) — why an embedding model without a price fails the start instead of being billed at zero; why credit is checked per step and a document can overdraw by a few cents
 - [admin.md](admin.md) — why the admin statistics read stored bytes from a size column instead of listing the bucket
+- [audio-sources.md](audio-sources.md) — why a recording is transcribed whole into one passage without positions, and why only MP3 and WAV are accepted
 
 ## B
 
