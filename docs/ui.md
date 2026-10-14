@@ -188,7 +188,10 @@ is closed. After the wizard the notebook view opens.
   and a small ↗ that opens it in a new browser tab. **Original**: an
   image inline, audio in a player, a PDF in the browser's viewer in an
   iframe (at the cited page when a citation opened it), a web page as
-  its address, a text file as a link. **As read**: the text the system
+  its address, a text file as a link. The tab keeps the presigned
+  address it opened with (a re-listed source gets a new one, and a new
+  `src` would fetch the file again) and takes the list's only after 50
+  minutes, before it expires, or after a reload, when it has none. **As read**: the text the system
   extracted and answers from (`GET /api/ingest/sources/{id}/chunks`),
   50 chunks a page with previous/next, each with its number ("Chunk
   12", and the page for a PDF); opened from a citation it loads the page

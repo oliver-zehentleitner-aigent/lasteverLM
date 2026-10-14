@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterClose, chunkPageOffset, defaultView, dropMissing, openTab, readTabs, tabKey, writeTabs, type ViewerTab } from './viewerTabs'
+import { afterClose, chunkPageOffset, heldUrl, URL_FRESH_MS, defaultView, dropMissing, openTab, readTabs, tabKey, writeTabs, type ViewerTab } from './viewerTabs'
 
 const memory = () => {
   const m = new Map<string, string>()
@@ -61,5 +61,23 @@ describe('chunkPageOffset', () => {
     expect(chunkPageOffset(49)).toBe(0)
     expect(chunkPageOffset(50)).toBe(50)
     expect(chunkPageOffset(137)).toBe(100)
+  })
+})
+
+describe('heldUrl', () => {
+  const tab: ViewerTab = { type: 'source', id: 's1', url: 'https://s/a?sig=1', urlAt: 0 }
+
+  it('keeps the address a tab opened with while the list hands out new ones', () => {
+    expect(heldUrl(tab, 'https://s/a?sig=2', 60_000)).toBe(tab)
+  })
+
+  it('takes the list\'s when it had none or its own is about to expire', () => {
+    expect(heldUrl({ type: 'source', id: 's1' }, 'https://s/a?sig=2', 5)).toEqual({ type: 'source', id: 's1', url: 'https://s/a?sig=2', urlAt: 5 })
+    expect(heldUrl(tab, 'https://s/a?sig=3', URL_FRESH_MS + 1).url).toBe('https://s/a?sig=3')
+  })
+
+  it('leaves output tabs alone', () => {
+    const out: ViewerTab = { type: 'output', id: 'o1' }
+    expect(heldUrl(out, 'x', 1)).toBe(out)
   })
 })

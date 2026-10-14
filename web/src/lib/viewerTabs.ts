@@ -12,6 +12,9 @@ export interface ViewerTab {
   chunkId?: string | null
   /** the cited chunk's 0-based position, to load the page of chunks it is on */
   chunkIndex?: number | null
+  /** a source's presigned address as the tab took it, and when (see heldUrl) */
+  url?: string | null
+  urlAt?: number
   /** bumps on every open, so opening the same citation again scrolls and flashes */
   nonce?: number
 }
@@ -25,7 +28,10 @@ export const tabKey = (tab: Pick<ViewerTab, 'type' | 'id'>) => `${tab.type}:${ta
  *  opening); one already open keeps its place and takes the new target. */
 export function openTab(tabs: readonly ViewerTab[], next: ViewerTab): ViewerTab[] {
   const at = tabs.findIndex((x) => x.type === next.type && x.id === next.id)
-  const tab: ViewerTab = { ...next, nonce: (at >= 0 ? (tabs[at].nonce ?? 0) : 0) + 1 }
+  const prev = at >= 0 ? tabs[at] : null
+  // a reopened tab keeps the address it holds; a new open's is taken only when it had none
+  const url = prev?.url ? { url: prev.url, urlAt: prev.urlAt } : {}
+  const tab: ViewerTab = { ...next, ...url, nonce: (prev?.nonce ?? 0) + 1 }
   return at >= 0 ? tabs.map((x, i) => (i === at ? tab : x)) : [...tabs, tab]
 }
 
@@ -98,4 +104,19 @@ export const CHUNK_PAGE = 50
 /** The offset of the page a chunk is on, so a citation opens its page. */
 export function chunkPageOffset(chunkIndex: number | null | undefined, size = CHUNK_PAGE): number {
   return chunkIndex != null && chunkIndex > 0 ? Math.floor(chunkIndex / size) * size : 0
+}
+
+/** A presigned address is good for an hour; one older than this is taken
+ *  afresh from the list on the next render. */
+export const URL_FRESH_MS = 50 * 60 * 1000
+
+/** The address a source tab shows, kept on the tab. The source list hands
+ *  out a new presigned address on every load, and a changed `src` makes
+ *  the browser fetch the file again, so a tab keeps the one it opened
+ *  with: it takes the list's only when it had none (a tab restored after a
+ *  reload) or when its own is about to expire. Pure, so it is tested. */
+export function heldUrl(tab: ViewerTab, listed: string | null, now: number): ViewerTab {
+  if (tab.type !== 'source') return tab
+  if (tab.url && (listed === null || listed === tab.url || now - (tab.urlAt ?? 0) <= URL_FRESH_MS)) return tab
+  return listed === (tab.url ?? null) ? tab : { ...tab, url: listed, urlAt: now }
 }

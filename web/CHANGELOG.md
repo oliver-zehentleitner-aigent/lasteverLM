@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A source tab no longer fetches its file again whenever the source list reloads: it keeps the presigned address it opened with and takes a new one only before it expires.
 - Admin > Finance > Vouchers: the create form is a card above the list (Amount | Count | Paid voucher, then "Send to an address right away" opening the full-width recipient, message and sign-in fields below it, Create at the bottom right, stacked on a phone); checkboxes no longer stretch away from their text, and the recipient field is full width. In the list the paid toggle keeps its word on one line, and a voucher without a kept code says "code not kept (before 0.18)" with the full sentence as tooltip.
 - `/prices` shows the app's normal header (Library, Settings, Prices, Admin, theme, balance, sign out) when signed in; the reduced header (brand, Prices, Sign in) only without a session.
 - `/prices` follows the account service's new rows: PDF (Text) and PDF (Vision) per page, image, web page, audio outputs per output; a price range when there is one, "+ … per source", "estimated" muted for an estimated price, "no price yet" when none could be made, and "Typical per action" as the history column's heading.
