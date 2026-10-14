@@ -253,6 +253,16 @@ export interface OutputOptions {
   choices?: string[]
   /** scale: 3–7 ordered labels, lowest first */
   levels?: string[]
+  /** every kind: the author's own instructions, plain text up to 500
+   *  characters; visible on the share page */
+  instructions?: string
+  /** report */
+  report_style?: ReportStyle
+  length?: ReportLength
+  /** quiz */
+  question_count?: number
+  difficulty?: Difficulty
+  audience?: Audience
   /** in a response only: the source ids the document was made from,
    *  absent when all sources were used (the request sends `source_ids`) */
   sources?: string[]
@@ -276,8 +286,23 @@ export interface OutputOptionsSpec {
     choices: { min: number; max: number }
     levels: { min: number; max: number }
   }
+  /** the report's and the quiz's choices, the instructions' limit; absent from an older rag */
+  report?: { styles: ReportStyle[]; default_style: ReportStyle; lengths: ReportLength[]; default_length: ReportLength }
+  quiz?: {
+    question_count: { min: number; max: number; default: number }
+    difficulties: Difficulty[]
+    default_difficulty: Difficulty
+    audiences: Audience[]
+    default_audience: Audience
+  }
+  instructions?: { max_chars: number }
   kinds: Partial<Record<OutputKind, OutputOption[]>>
 }
+
+export type ReportStyle = 'briefing' | 'detailed' | 'executive_summary' | 'explainer' | 'academic'
+export type ReportLength = 'short' | 'medium' | 'long'
+export type Difficulty = 'easy' | 'medium' | 'hard'
+export type Audience = 'children' | 'teens' | 'adults' | 'experts'
 
 export type DecisionType = 'yes_no' | 'choice' | 'scale'
 

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { AudioStyle, OutputKind, OutputOptions, OutputOptionsSpec } from '../api/types'
+import type { Audience, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
-import { AUDIO_STYLES, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
+import { AUDIO_STYLES, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
 import { RedeemLink } from './RedeemLink'
@@ -111,12 +111,90 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
               </select>
             </label>
           )}
+          {shown.includes('report_style') && spec.report && (
+            <label>
+              {t('opt.reportStyle')}
+              <select value={values.reportStyle} onChange={(e) => set({ reportStyle: e.target.value as ReportStyle })}>
+                {spec.report.styles.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`opt.reportStyle.${v}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {shown.includes('length') && spec.report && (
+            <label>
+              {t('opt.length')}
+              <select value={values.length} onChange={(e) => set({ length: e.target.value as ReportLength })}>
+                {spec.report.lengths.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`opt.length.${v}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {shown.includes('question_count') && spec.quiz && (
+            <label>
+              {t('opt.questionCount')}
+              <input
+                type="number"
+                className="narrow"
+                min={spec.quiz.question_count.min}
+                max={spec.quiz.question_count.max}
+                value={values.questionCount}
+                onChange={(e) => {
+                  const n = Math.round(Number(e.target.value))
+                  const { min, max } = spec.quiz!.question_count
+                  if (Number.isFinite(n)) set({ questionCount: Math.min(max, Math.max(min, n)) })
+                }}
+              />
+            </label>
+          )}
+          {shown.includes('difficulty') && spec.quiz && (
+            <label>
+              {t('opt.difficulty')}
+              <select value={values.difficulty} onChange={(e) => set({ difficulty: e.target.value as Difficulty })}>
+                {spec.quiz.difficulties.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`opt.difficulty.${v}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {shown.includes('audience') && spec.quiz && (
+            <label>
+              {t('opt.audience')}
+              <select value={values.audience} onChange={(e) => set({ audience: e.target.value as Audience })}>
+                {spec.quiz.audiences.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`opt.audience.${v}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {shown.includes('voice') && <VoiceSample voice={values.voice} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />}
           {shown.includes('audio_voice_2') && values.style === 'conversation' && (
             <>
               <VoiceSelect label={t('tiles.voice2')} spec={spec} value={values.voice2} exclude={values.voice} onChange={(voice2) => set({ voice2 })} />
               <VoiceSample voice={values.voice2} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />
             </>
+          )}
+          {shown.includes('instructions') && (
+            <label className="instructions">
+              {t('opt.instructions')}
+              <textarea
+                rows={2}
+                maxLength={spec.instructions?.max_chars ?? INSTRUCTIONS_MAX}
+                placeholder={t('opt.instructionsPlaceholder')}
+                value={values.instructions}
+                onChange={(e) => set({ instructions: e.target.value })}
+              />
+              <span className="muted small">{t('opt.instructionsHint', { n: values.instructions.length, max: spec.instructions?.max_chars ?? INSTRUCTIONS_MAX })}</span>
+            </label>
           )}
         </div>
       )}

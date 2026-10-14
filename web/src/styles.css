@@ -739,3 +739,8 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .shared-sources ul, .shared-toc ol { margin: 0.3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .shared-output { border-top: 1px solid var(--line); padding-top: 1rem; }
 .shared-output .doc-title { font-size: 1.15rem; }
+/* output options: the instructions take the whole row */
+.output-options .instructions { flex: 1 0 100%; }
+.output-options .instructions textarea { min-height: 3rem; }
+.output-options input.narrow { width: 5.5rem; }
+.author-instructions { margin: -0.25rem 0 0.75rem; white-space: pre-wrap; }

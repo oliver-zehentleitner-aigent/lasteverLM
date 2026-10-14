@@ -136,6 +136,15 @@ is closed. After the wizard the notebook view opens.
   sent for a conversation only), starting with the next voice of the
   first one's language, as rag would pick it, and never the same as the
   first (changing the first to the second's voice moves the second on).
+  For a report a **Style** (Briefing, Detailed, Executive summary,
+  Explainer, Academic) and a **Length** (short, medium, long); for a quiz
+  the number of **Questions** (5–30), a **Difficulty** (easy, medium,
+  hard) and an **Audience** (children, teens, adults, experts); all from
+  rag's catalogue with its defaults. Every kind has an optional **Notes
+  for this output** field (the `instructions`, up to 500 characters,
+  counted), with the hint that whoever the output is shared with sees
+  it; blank notes are not sent. The share page and "How this was made"
+  show them as "The author's instructions".
   They start from the
   user's preferences, else rag's defaults, and go into `options` of the
   create request with only the keys the kind takes. The viewer and the

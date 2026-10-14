@@ -1,4 +1,4 @@
-import type { AudioStyle, OutputKind, OutputOption, OutputOptions, OutputOptionsSpec, Preferences } from '../api/types'
+import type { Audience, AudioStyle, Difficulty, OutputKind, OutputOption, OutputOptions, OutputOptionsSpec, Preferences, ReportLength, ReportStyle } from '../api/types'
 import { t } from '../i18n'
 
 /** The option values a form holds; '' for language means "same as the sources". */
@@ -9,7 +9,17 @@ export interface OptionValues {
   style: AudioStyle
   /** the second speaker, sent only for a conversation */
   voice2: string
+  /** the author's instructions; sent only when not blank */
+  instructions: string
+  reportStyle: ReportStyle
+  length: ReportLength
+  questionCount: number
+  difficulty: Difficulty
+  audience: Audience
 }
+
+/** rag's limit for the instructions, when the catalogue does not say. */
+export const INSTRUCTIONS_MAX = 500
 
 export const AUDIO_STYLES: AudioStyle[] = ['overview', 'story', 'conversation']
 
@@ -49,6 +59,12 @@ export function defaultValues(spec: OutputOptionsSpec, prefs: Preferences | unde
     speed: spec.audio.speed.default,
     style: 'overview',
     voice2: secondVoice(spec, voice),
+    instructions: '',
+    reportStyle: spec.report?.default_style ?? 'briefing',
+    length: spec.report?.default_length ?? 'medium',
+    questionCount: spec.quiz?.question_count.default ?? 10,
+    difficulty: spec.quiz?.default_difficulty ?? 'medium',
+    audience: spec.quiz?.default_audience ?? 'adults',
   }
 }
 
@@ -62,6 +78,12 @@ export function buildOptions(kind: OutputKind, spec: OutputOptionsSpec, v: Optio
     if (key === 'speed') out.speed = v.speed
     if (key === 'audio_style') out.audio_style = v.style
     if (key === 'audio_voice_2' && v.style === 'conversation') out.audio_voice_2 = v.voice2
+    if (key === 'instructions' && v.instructions.trim()) out.instructions = v.instructions.trim().replace(/\s+/g, ' ')
+    if (key === 'report_style') out.report_style = v.reportStyle
+    if (key === 'length') out.length = v.length
+    if (key === 'question_count') out.question_count = v.questionCount
+    if (key === 'difficulty') out.difficulty = v.difficulty
+    if (key === 'audience') out.audience = v.audience
   }
   return out
 }
@@ -88,6 +110,11 @@ export function optionsLabel(o: OutputOptions | undefined, spec: OutputOptionsSp
   const voiceLabel = (id: string) => spec?.audio.voices.find((v) => v.id === id)?.label ?? id
   if (o.voice) parts.push(o.audio_style === 'conversation' && o.audio_voice_2 ? `${voiceLabel(o.voice)} & ${voiceLabel(o.audio_voice_2)}` : voiceLabel(o.voice))
   if (o.speed !== undefined) parts.push(`${o.speed}×`)
+  if (o.report_style) parts.push(t(`opt.reportStyle.${o.report_style}`))
+  if (o.length) parts.push(t(`opt.length.${o.length}`))
+  if (o.question_count !== undefined) parts.push(t('opt.questions', { n: o.question_count }))
+  if (o.difficulty) parts.push(t(`opt.difficulty.${o.difficulty}`))
+  if (o.audience) parts.push(t(`opt.audience.${o.audience}`))
   return parts.length ? parts.join(' · ') : null
 }
 
