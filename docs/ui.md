@@ -223,6 +223,23 @@ is closed. After the wizard the notebook view opens.
   narrator's paragraphs as text; a conversation with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
   none).
+- **What a document rests on** (rag's `provenance`; documents made
+  before it have none and show none of this). A report's `[n]` markers
+  are buttons, as in a chat answer; an infographic's facts and sections
+  and an audio transcript's turns carry their markers after the text. A
+  click opens the chat's provenance panel under the document for that
+  passage (source, page, chunk position, similarity, the chunk with the
+  sentence closest to the claim marked, "open in source"). A claim the
+  check did not back has a red "unsupported" badge, one written in
+  another language than its sources an amber "not checkable"; the claim
+  stays. The head says "7 of 9 claims supported" (the check's method and
+  threshold as tooltip). Under the document, folded: **Sources (n)**, the
+  passages it cites, and **How this was made**: model, prompt version,
+  options, the retrieval query, usage, when and how long, the check's
+  counts, the retrieval candidates with similarity and whether they went
+  into the prompt, and the whole log as a JSON download. The share page
+  shows all of it read-only, without "open in source". Stage 1: report,
+  infographic, audio; table, quiz and mind map follow.
 - **Print**: a print stylesheet on the viewer and a button; the browser
   produces the PDF. Report and table are the printable kinds.
 - **Share**: creates a share token and shows the link `/s/<token>`; the

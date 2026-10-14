@@ -6,6 +6,8 @@ import { formatTime } from '../lib/format'
 import { optionsLabel, speakerName } from '../lib/outputOptions'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
+import { OutputProvenance } from './OutputProvenance'
+import { checkSummary } from '../lib/outputProvenance'
 import { t } from '../i18n'
 
 /** /s/<token>: one generated document, read-only, no login. The page view
@@ -38,6 +40,7 @@ export function SharePage({ token }: { token: string }) {
               <span className="muted small">{formatTime(doc.created_at)}</span>
               {/* no spec here: it needs a login, so the codes are shown as they are */}
               {optionsLabel(doc.options, null) && <span className="muted small">{optionsLabel(doc.options, null)}</span>}
+              {checkSummary(doc.provenance?.check) && <span className="muted small check-line">{checkSummary(doc.provenance?.check)}</span>}
               {formFor(doc.kind).printable && (
                 <span className="actions no-print">
                   <button type="button" className="link" onClick={() => window.print()}>
@@ -46,15 +49,18 @@ export function SharePage({ token }: { token: string }) {
                 </span>
               )}
             </header>
-            <OutputContent
-              kind={doc.kind}
-              title={doc.title}
-              status="ready"
-              error={null}
-              content={doc.content}
-              onExpired={() => rag.getShared(token).then((d) => (d.content as AudioContent).url)}
-              speakerName={(s) => speakerName(s, doc.options, null)}
-            />
+            {/* read-only: the passages and the log, no source to open */}
+            <OutputProvenance output={doc} provenance={doc.provenance}>
+              <OutputContent
+                kind={doc.kind}
+                title={doc.title}
+                status="ready"
+                error={null}
+                content={doc.content}
+                onExpired={() => rag.getShared(token).then((d) => (d.content as AudioContent).url)}
+                speakerName={(s) => speakerName(s, doc.options, null)}
+              />
+            </OutputProvenance>
           </>
         )}
       </div>

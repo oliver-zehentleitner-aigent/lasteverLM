@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AudioContent } from '../../api/types'
 import { t } from '../../i18n'
+import { ClaimMarks } from '../OutputProvenance'
 
 interface Props {
   content: AudioContent
@@ -52,7 +53,7 @@ function Transcript({ turns, speakerName }: { turns: NonNullable<AudioContent['t
       {turns.map((turn, i) => (
         <p key={i} className={labelled ? `turn ${turn.speaker}` : undefined}>
           {labelled && <strong className="speaker">{speakerName(turn.speaker)}</strong>}
-          {turn.text}
+          {turn.text} <ClaimMarks claim={turn} text={turn.text} />
         </p>
       ))}
     </section>

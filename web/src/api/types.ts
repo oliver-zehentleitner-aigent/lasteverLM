@@ -145,6 +145,54 @@ export interface Output {
   created_at: string
   /** the options it was made with, defaults filled in; {} for older outputs */
   options?: OutputOptions
+  /** how it was made and what each claim rests on; null for older outputs */
+  provenance?: Provenance | null
+}
+
+/** How the check judged a claim: backed by its passages, not backed (no
+ *  refs, a number not in the prompt, too little overlap), or not
+ *  measurable (written in another language than its sources). A unit
+ *  without `support` is no claim (a heading, a question). */
+export type Support = 'supported' | 'unsupported' | 'unverified'
+
+/** A claim's passages (numbers into `provenance.passages`) and verdict. */
+export interface Claim {
+  refs?: number[]
+  support?: Support
+}
+
+/** A passage a document cites, numbered like a chat answer's citations.
+ *  On the share page without chunk and source ids. */
+export interface Passage {
+  n: number
+  chunk_id?: string
+  source_id?: string
+  source_name: string
+  source_kind: SourceKind
+  page: number | null
+  chunk_index: number | null
+  chunk_count: number | null
+  similarity: number | null
+  quote: string
+}
+
+/** `Output.provenance`, version 1: the generation log. */
+export interface Provenance {
+  version: number
+  prompt_version: string
+  model: string
+  options: OutputOptions
+  focus_query: string | null
+  retrieval: {
+    k: number
+    floor: number
+    candidates: { chunk_id?: string; source_id?: string; source_name: string; page: number | null; similarity: number; in_prompt: boolean }[]
+  }
+  passages: Passage[]
+  usage: { llm?: { tokens_in: number; tokens_out: number }; embedding?: { tokens_in: number }; tts?: { seconds: number } }
+  started_at: string
+  finished_at: string
+  check: { method: string; threshold: number; supported: number; unsupported: number; unverified: number }
 }
 
 /** What a document is made with; which keys a kind takes comes from the spec. */
@@ -181,10 +229,13 @@ export interface OutputOptionsSpec {
  *  returns kind, title, content, created_at and options (language, voice
  *  and speed for the line under the title); a shared document is always
  *  ready, so status and error are not part of the shape. */
-export type SharedOutput = Pick<Output, 'kind' | 'title' | 'content' | 'created_at' | 'options'>
+export type SharedOutput = Pick<Output, 'kind' | 'title' | 'content' | 'created_at' | 'options' | 'provenance'>
 
 export interface ReportContent {
+  /** with [n] markers into `provenance.passages`, like a chat answer */
   markdown: string
+  /** one per paragraph that is not a heading, `text` exactly as in the markdown */
+  units?: ({ text: string } & Claim)[]
 }
 export interface QuizQuestion {
   question: string
@@ -209,15 +260,15 @@ export interface MindmapContent {
 }
 export interface InfographicContent {
   headline: string
-  facts: { label: string; value: string }[]
-  sections: { title: string; text: string }[]
+  facts: ({ label: string; value: string } & Claim)[]
+  sections: ({ title: string; text: string } & Claim)[]
 }
 export interface AudioContent {
   url: string
   /** what is said, turn by turn: `narrator` for an overview or a story (a
    *  turn per paragraph), `interviewer` and `expert` for a conversation;
    *  absent on documents made before transcripts */
-  transcript?: { speaker: string; text: string }[]
+  transcript?: ({ speaker: string; text: string } & Claim)[]
 }
 
 // account prefix

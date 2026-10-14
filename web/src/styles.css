@@ -608,3 +608,16 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 /* library: the trashed documents under the trashed sources; a document read-only */
 .library h2 { margin-top: 1.5rem; }
 .read-only-output .viewer-body { overflow: visible; }
+/* a generated document's provenance: claim badges, the passage panel, the sources and the log */
+.badge.support-unsupported { color: var(--danger); border-color: var(--danger); margin-left: 0.3rem; }
+.badge.support-unverified { color: var(--warn); border-color: var(--warn); margin-left: 0.3rem; }
+.report button.cite, .infographic button.cite, .transcript button.cite { margin: 0 0.1rem; vertical-align: baseline; }
+.infographic .marks { margin-top: 0.3rem; }
+.out-prov { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.6rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.out-prov summary { cursor: pointer; color: var(--muted); }
+.out-sources .passages { margin: 0.4rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
+.out-sources .name { overflow-wrap: anywhere; }
+.how-made .kv { margin: 0.5rem 0; }
+.how-made table.candidates { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.how-made table.candidates th, .how-made table.candidates td { text-align: left; padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--line); }
+.how-made table.candidates tr.muted td { color: var(--muted); }

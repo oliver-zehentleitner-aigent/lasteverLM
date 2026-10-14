@@ -261,6 +261,8 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
           chatOpen={chatOpen}
           onToggleChat={() => setChatOpen((v) => !v)}
           style={fullView ? undefined : { flexBasis: `${ratio * 100}%` }}
+          onOpenSource={openSource}
+          presentSources={presentSources}
         />
         {!fullView && (
           <Divider

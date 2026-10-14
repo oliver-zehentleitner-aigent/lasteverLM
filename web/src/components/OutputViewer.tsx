@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { rag } from '../api/rag'
-import type { AudioContent, Output, Source } from '../api/types'
+import type { AudioContent, Citation, Output, Source } from '../api/types'
 import { MadeFrom } from './MadeFrom'
 import { useAsync } from '../hooks/useAsync'
 import { useTabStrip } from '../hooks/useTabStrip'
@@ -10,6 +10,8 @@ import { optionsLabel, speakerName } from '../lib/outputOptions'
 import { bestMatchIndex, flash, type LocateRequest } from '../lib/locate'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
+import { OutputProvenance } from './OutputProvenance'
+import { checkSummary } from '../lib/outputProvenance'
 import { t } from '../i18n'
 
 interface Props {
@@ -30,6 +32,10 @@ interface Props {
   style?: CSSProperties
   /** show this passage of the open document ("open document" on a citation) */
   locate?: LocateRequest | null
+  /** "open in source" on a passage the document cites, as in the chat */
+  onOpenSource: (c: Citation) => void
+  /** the notebook's sources a passage can still point to; null while loading */
+  presentSources: ReadonlySet<string> | null
 }
 
 /** The blocks a cited passage can be in, across the document renderers. */
@@ -52,10 +58,13 @@ export function OutputViewer({
   onToggleChat,
   style,
   locate,
+  onOpenSource,
+  presentSources,
 }: Props) {
   const selected = outputs.find((o) => o.id === selectedId) ?? null
   const spec = useOutputOptions()
   const made = selected ? optionsLabel(selected.options, spec) : null
+  const checked = checkSummary(selected?.provenance?.check)
   const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
     outputs.map((o) => o.id),
     selectedId,
@@ -164,6 +173,11 @@ export function OutputViewer({
               <span className="badge">{formFor(selected.kind).label}</span>
               <span className="muted small">{formatTime(selected.created_at)}</span>
               {made && <span className="muted small" title={t('viewer.madeWith')}>{made}</span>}
+              {checked && selected.provenance && (
+                <span className="muted small check-line" title={t('outProv.checkTitle', { method: selected.provenance.check.method, threshold: selected.provenance.check.threshold })}>
+                  {checked}
+                </span>
+              )}
               {selected.options?.sources?.length ? (
                 <span className="muted small">
                   <MadeFrom ids={selected.options.sources} sources={sources} />
@@ -214,17 +228,18 @@ export function OutputViewer({
                 )}
               </div>
             )}
-            <OutputContent
-              key={selected.id}
-              kind={selected.kind}
-              locate={locate ?? null}
-              title={selected.title}
-              status={selected.status}
-              error={selected.error}
-              content={selected.content}
-              onExpired={() => rag.getOutput(selected.id).then((o) => (o.content as AudioContent).url)}
-              speakerName={(s) => speakerName(s, selected.options, spec)}
-            />
+            <OutputProvenance key={selected.id} output={selected} provenance={selected.provenance} presentSources={presentSources} onOpenSource={onOpenSource}>
+              <OutputContent
+                kind={selected.kind}
+                locate={locate ?? null}
+                title={selected.title}
+                status={selected.status}
+                error={selected.error}
+                content={selected.content}
+                onExpired={() => rag.getOutput(selected.id).then((o) => (o.content as AudioContent).url)}
+                speakerName={(s) => speakerName(s, selected.options, spec)}
+              />
+            </OutputProvenance>
           </>
         )}
       </div>
