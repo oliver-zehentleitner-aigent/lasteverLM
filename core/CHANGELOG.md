@@ -11,6 +11,8 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- `lasteverlm_core.privacy`: `mask_email(address)` keeps the domain and masks the local part (one character → `*`, two → first character and `*`, longer → first and last character with always three stars between, so the length does not show; no usable `@` → `***`), `masks_emails(role)` (a `viewer` sees masked addresses) and `email_for(role, address)`, for the admin area's read-only viewers.
+
 - Tool calling for the agent chat: `OpenAICompatibleLLM.complete_tools(system, messages, tools, max_tokens=None, *, thinking=None, tool_choice="auto") -> ToolCompletion(text, tool_calls, usage, finish_reason)`, on the new `ToolCallingLLM` protocol (an `LLM` plus `complete_tools`). `ToolCall(id, name, arguments)` carries the arguments parsed from JSON (`""` as `{}`); arguments that are not a JSON object, or with thinking off a reply with neither text nor calls, are a `ProviderError` carrying the usage. Same timeout, retries, thinking switch and usage as `complete`, which now shares its request path.
 - `Answer.plan` and `Message.plan` (`dict | None`): the agent's plan instead of an answer when a question asks for actions; rag owns its shape.
 
