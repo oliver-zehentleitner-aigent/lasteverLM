@@ -12,6 +12,7 @@ preserves why it changed, in `context/`.
 ### Changed
 
 - Adding a source no longer needs credit; processing does. Without credit an upload, URL or text is stored and queued (no more 402) and shown as `waiting_for_credit` in sources and library entries; the worker's claim query skips sources whose owner has no positive balance (no attempt counted) and takes them once there is credit again. Credit running out mid-job puts the source back to wait instead of failing it. `GET /admin/stats` `jobs` gains `waiting_for_credit`; `pending` counts only sources a worker can take.
+- A WAV over the transcription model's 25 MiB is converted to MP3 like the other formats (mono 16 kHz, 32 kbit/s, the original kept and offered as `original_url`) instead of being refused; a WAV within the cap and every MP3 pass through untouched. Transcription is billed per second, so the cost is the same; a 44.1 kHz stereo WAV hits the cap after about 2.5 minutes. The image's ffmpeg gains the WAV demuxer and PCM decoders (+1.4 MB).
 
 ## [0.14.0] - 2026-10-14
 

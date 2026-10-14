@@ -156,7 +156,7 @@ def _audio_type(data: bytes) -> str:
     try:
         return probe_audio(data).mime
     except AudioError as exc:
-        # Not a recording we can read, or an MP3/WAV over core's limits.
+        # Not a recording we can read, or an MP3 over core's limits.
         raise HTTPException(status_code=415, detail=f"{exc} (accepted: {AUDIO_FORMATS})") from None
 
 

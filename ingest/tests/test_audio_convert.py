@@ -28,7 +28,7 @@ M4A = b"\x00\x00\x00\x20ftypM4A " + b"\x00" * 64
         (b"\x1a\x45\xdf\xa3\x01\x00", "webm"),
         (b"\xff\xf1\x50\x80\x00", "aac"),
         (MP3, None),  # passes through
-        (WAV, None),
+        (WAV, None),  # within the cap
         (b"%PDF-1.4", None),
         (b"", None),
     ],
@@ -227,4 +227,52 @@ def test_the_images_ffmpeg_converts_every_format_to_a_file_core_accepts(name, co
     data = (FIXTURES / name).read_bytes()
     assert sniff_container(data) == container
     info = probe_audio(convert_to_mp3(data, container))
+    assert info.format == "mp3" and 1.8 < info.seconds < 2.3
+
+
+def test_a_wav_over_the_cap_is_converted_one_within_it_passes(monkeypatch):
+    from lasteverlm_ingest.loaders import convert
+
+    monkeypatch.setattr(convert, "MAX_AUDIO_BYTES", len(WAV) - 1)
+    assert sniff_container(WAV) == "wav"
+    monkeypatch.setattr(convert, "MAX_AUDIO_BYTES", len(WAV))
+    assert sniff_container(WAV) is None
+
+
+def test_the_worker_converts_a_wav_over_the_cap_and_keeps_it(monkeypatch):
+    from lasteverlm_ingest.loaders import convert
+
+    monkeypatch.setattr(convert, "MAX_AUDIO_BYTES", len(WAV) - 1)
+    repo, storage, transcriber = InMemoryRepository(), InMemoryStorage(), FakeTranscriber()
+    calls = []
+    monkeypatch.setattr(worker, "convert_to_mp3", lambda data, c: calls.append(c) or MP3)
+    sid = _add(repo, storage, WAV)
+    process_source(sid, _audio_deps(repo, storage, transcriber))
+    assert repo.library[sid].status == "ready" and calls == ["wav"]
+    assert transcriber.calls == [(MP3, "audio.mp3")]
+    assert storage.objects[f"{USER}/orig/talk.m4a"] == WAV  # the original stays
+
+
+def test_a_wav_over_the_cap_is_accepted_at_upload(client, storage, monkeypatch):
+    from lasteverlm_ingest.loaders import convert
+
+    monkeypatch.setattr(convert, "MAX_AUDIO_BYTES", len(WAV) - 1)
+    r = client.post(_url(client), files={"file": ("long.wav", WAV, "audio/wav")})
+    assert r.status_code == 202 and r.json()["kind"] == "audio"
+    assert storage.types[f"{DEMO_USER_ID}/{r.json()['library_id']}/long.wav"] == "audio/wav"
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg (the ingest image has it)")
+@pytest.mark.parametrize("sample_width", [1, 2, 3, 4])
+def test_the_images_ffmpeg_converts_a_wav(sample_width):
+    import io
+    import wave
+
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as w:
+        w.setnchannels(2)
+        w.setsampwidth(sample_width)
+        w.setframerate(44100)
+        w.writeframes(b"\x10" * sample_width * 2 * 44100 * 2)
+    info = probe_audio(convert_to_mp3(buffer.getvalue(), "wav"))
     assert info.format == "mp3" and 1.8 < info.seconds < 2.3

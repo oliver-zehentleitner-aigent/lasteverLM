@@ -277,20 +277,25 @@ An upload named `.mp3`, `.wav`, `.m4a`, `.mp4`, `.aac`, `.ogg`, `.oga`,
 of `MAX_UPLOAD_BYTES`. The API reads the format from the first bytes:
 an MP4/M4A (`ftyp`), ADTS AAC, Ogg (Vorbis or Opus), FLAC or
 WebM/Matroska container is stored as `audio/mp4`, `audio/aac`,
-`audio/ogg`, `audio/flac` or `audio/webm`; anything else goes through
-core's `probe_audio`, which accepts WAV and MP3 within the transcription
-model's limits (25 MiB, four hours) and stores them as `audio/wav` or
-`audio/mpeg`. Bytes that are none of these get 415 with the reason and
+`audio/ogg`, `audio/flac` or `audio/webm`, and a WAV over the
+transcription model's 25 MiB as `audio/wav` (both are converted, see
+below); anything else goes through core's `probe_audio`, which accepts a
+WAV within the limits and an MP3 within 25 MiB and four hours and stores
+them as `audio/wav` or `audio/mpeg`. Bytes that are none of these get 415 with the reason and
 the accepted list. Audio is deduplicated by the sha256 of the original's
 bytes like every file.
 
-The platform's transcription model takes WAV and MP3 only. The worker
-transcribes those as uploaded; every other container it converts first
+The platform's transcription model takes WAV and MP3 only, at most
+25 MiB. The worker transcribes every MP3 and a WAV within the cap as
+uploaded; a WAV over the cap and every other container it converts first
 with ffmpeg into mono 16 kHz MP3 at 32 kbit/s from the first audio track
 (a video's audio track included). ffmpeg runs as a subprocess with the
 demuxer forced from the sniffed bytes and only the `file` protocol, in a
 private directory under `/tmp`, for at most 300 s; a failure fails the
-source at once with ffmpeg's last line of output. The converted MP3 is
+source at once with ffmpeg's last line of output. The format does not
+change the cost (transcription is billed per second of audio), only
+whether a recording fits the cap: a 44.1 kHz stereo WAV reaches 25 MiB
+after about 2.5 minutes, the 32 kbit/s MP3 after about two hours. The converted MP3 is
 stored beside the original (`<owner>/<library_id>/_transcribed.mp3`,
 `library_sources.transcribed_path`, migration 0010) and is what is
 transcribed: core's limits apply to it, not to the original, and a retry
