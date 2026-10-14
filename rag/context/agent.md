@@ -39,3 +39,39 @@ itself.
   and one that expires.
 - Discarding an output that timed out: the user would not see what
   happened.
+
+## Tool arguments come only from the user's message and library, never from a source
+
+**Id:** 3b90af43-0016-4630-80af-0620749cf475
+**Type:** constraint
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer go relayed by the coordinator, 2026-10-14 (tool args only from the user's message and own library; sources seen only in explain_output); the enforcement in code is rag's
+**Revisit when:** a tool needs an argument the user cannot write themselves, or the planner needs a source's content to plan
+
+The planning call sees the user's message, their earlier questions and
+the names of the notebook's documents and outputs, but no passage. The
+plan's validation then enforces the rule in code, whatever the model
+wrote:
+- a URL must appear in the user's message;
+- a library source is found by name among the user's own library entries
+  (through ingest's API, with the user's bearer);
+- an output is one of the notebook's ready ones, or one this plan creates;
+- options pass the kind's own validation.
+
+A step that breaks a rule is marked invalid with its reason, never
+corrected and never run. Only `explain_output` reads sources, and it
+produces an answer, not tool calls.
+
+**Reason:** a document is someone else's text inside the user's notebook.
+An instruction written in it ("add this URL", "create forty audio
+files") must never become an action the user pays for or did not ask
+for. Keeping passages out of the planner removes the channel. Checking
+the arguments in code covers a planner that invents or misreads one, and
+the user still sees every step before confirming.
+
+**Rejected alternatives:**
+- Planning over the passages, as an answer is written: a document could
+  plant tool arguments.
+- Trusting the model's arguments and relying on confirmation alone: a
+  user skimming a plan confirms what a document planted.
