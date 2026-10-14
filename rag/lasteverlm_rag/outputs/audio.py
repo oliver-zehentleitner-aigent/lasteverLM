@@ -13,15 +13,14 @@ cite what the audio says.
 
 from __future__ import annotations
 
-import re
-from typing import Literal
+from typing import Any, Literal
 
 from lasteverlm_core import OutputKind
 from pydantic import BaseModel, Field, model_validator
 
-from ..models import GeneratedOutput, Passage, SourceSummary, SpeechTurn
+from ..models import GeneratedOutput, Passage, SourceSummary, SpeechTurn, Unit
 from . import CompleteFn
-from ._base import GenerationFailed, JsonGenerator
+from ._base import CITE_RULE, GenerationFailed, JsonGenerator
 
 SCRIPT_MAX_CHARS = 6000
 TURN_MAX_CHARS = 1500
@@ -30,24 +29,42 @@ MAX_TURNS = 80
 NARRATOR = "narrator"
 SPEAKER_LABELS = {"narrator": "Narrator", "interviewer": "Interviewer", "expert": "Expert"}
 
-_PARAGRAPH = re.compile(r"\n\s*\n")
-
 # What every style shares: spoken text for the ear, nothing a voice would
-# read out wrongly, and nothing beyond the material.
+# read out wrongly, and nothing beyond the material. The passage numbers go
+# into "refs" beside the text, never into it, where the voice would read them.
 _SPOKEN = (
     "three to five minutes, plain spoken sentences, no headings, no lists, no markdown, "
-    "no citation markers, no stage directions"
+    "no citation markers in the text, no stage directions"
+)
+_REFS = (
+    f'{CITE_RULE} Put the numbers in the "refs" of the paragraph or turn they support, '
+    "never in its text."
 )
 
 
+class Paragraph(BaseModel):
+    text: str = Field(min_length=1, max_length=TURN_MAX_CHARS)
+    refs: list[int] = Field(default_factory=list, max_length=8)
+
+
 class AudioScript(BaseModel):
+    """One narrator: the script as paragraphs, each with its passage numbers."""
+
     title: str = Field(min_length=1, max_length=200)
-    script: str = Field(min_length=1, max_length=SCRIPT_MAX_CHARS)
+    paragraphs: list[Paragraph] = Field(min_length=1, max_length=MAX_TURNS)
+
+    @model_validator(mode="after")
+    def _within_the_length(self) -> AudioScript:
+        total = sum(len(p.text) for p in self.paragraphs)
+        if total > SCRIPT_MAX_CHARS:
+            raise ValueError(f"the paragraphs are {total} characters, at most {SCRIPT_MAX_CHARS}")
+        return self
 
 
 class Turn(BaseModel):
     speaker: Literal["interviewer", "expert"]
     text: str = Field(min_length=1, max_length=TURN_MAX_CHARS)
+    refs: list[int] = Field(default_factory=list, max_length=8)
 
 
 class Conversation(BaseModel):
@@ -69,16 +86,16 @@ INSTRUCTIONS: dict[str, str] = {
     "overview": (
         "Write the script of a spoken overview of the material, to be read aloud by one "
         f"narrator: {_SPOKEN}. Start with what the material is about, walk through the main "
-        "points in order, end with a short wrap-up. Separate paragraphs with a blank line. "
-        'Reply as {"title": "...", "script": "..."}.'
+        f"points in order, end with a short wrap-up. {_REFS} "
+        'Reply as {"title": "...", "paragraphs": [{"text": "...", "refs": [n, ...]}, ...]}.'
     ),
     "story": (
         "Write the script of a story told by one narrator: the content of the material as a "
         "narrative with a beginning, a middle and an end, "
         f"{_SPOKEN}. The narrative is the order and the framing, not the content: invent no "
         "events, people, places or facts; everything told comes from the material. "
-        "Separate paragraphs with a blank line. "
-        'Reply as {"title": "...", "script": "..."}.'
+        f"{_REFS} "
+        'Reply as {"title": "...", "paragraphs": [{"text": "...", "refs": [n, ...]}, ...]}.'
     ),
     "conversation": (
         "Write the script of a conversation between two speakers: an interviewer, who "
@@ -87,8 +104,9 @@ INSTRUCTIONS: dict[str, str] = {
         "material and says so when it does not cover a question; the interviewer asks about "
         "the material and adds no facts of their own. The speakers do not name themselves or "
         "each other. Start with the interviewer, end with a short wrap-up. "
+        f"{_REFS} An interviewer's question needs no refs. "
         'Reply as {"title": "...", "turns": [{"speaker": "interviewer" or "expert", '
-        '"text": "..."}, ...]}.'
+        '"text": "...", "refs": [n, ...]}, ...]}.'
     ),
 }
 
@@ -97,6 +115,7 @@ class AudioGenerator(JsonGenerator):
     kind: OutputKind = "audio"
     focus_query: str = "the story of the material, told in order"
     schema: type[BaseModel] = AudioScript
+    prompt_version: str = "2"  # 2: cites passages for provenance
     instructions: str = INSTRUCTIONS["overview"]
 
     def __init__(self, available: bool) -> None:
@@ -127,19 +146,32 @@ class AudioGenerator(JsonGenerator):
         )
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:
+        parts: list[tuple[str, str, list[int]]]
         if isinstance(document, Conversation):
-            turns = [SpeechTurn(t.speaker, " ".join(t.text.split())) for t in document.turns]
+            parts = [(t.speaker, t.text, t.refs) for t in document.turns]
         else:
             assert isinstance(document, AudioScript)
-            paragraphs = [" ".join(p.split()) for p in _PARAGRAPH.split(document.script)]
-            turns = [SpeechTurn(NARRATOR, p) for p in paragraphs if p]
+            parts = [(NARRATOR, p.text, p.refs) for p in document.paragraphs]
+        turns: list[SpeechTurn] = []
+        transcript: list[dict[str, Any]] = []
+        units: list[Unit] = []
+        for speaker, raw, refs in parts:
+            text = " ".join(raw.split())
+            if not text:
+                continue
+            target: dict[str, Any] = {"speaker": speaker, "text": text}
+            turns.append(SpeechTurn(speaker, text))
+            transcript.append(target)
+            # a question asks; it is checked only when it cites anyway
+            units.append(Unit(target, text, refs, claim=speaker != "interviewer"))
         if not turns:
             raise GenerationFailed("audio: the script is empty")
         return GeneratedOutput(
             title=document.title,
-            content={"transcript": [{"speaker": t.speaker, "text": t.text} for t in turns]},
+            content={"transcript": transcript},
             index_text=document.title + "\n\n" + transcript_text(turns),
             speech=turns,
+            units=units,
         )
 
 

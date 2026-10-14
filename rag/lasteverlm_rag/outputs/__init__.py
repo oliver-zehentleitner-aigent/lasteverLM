@@ -18,6 +18,8 @@ from ..models import GeneratedOutput, Passage, SourceSummary
 class OutputGenerator(Protocol):
     kind: OutputKind
     focus_query: str
+    # bumped whenever the prompt or the schema changes; named in the output's log
+    prompt_version: str
 
     def generate(
         self,

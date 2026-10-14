@@ -31,7 +31,13 @@ CONVERSATION = json.dumps(
     }
 )
 STORY = json.dumps(
-    {"title": "A day of sky", "script": "It began at dawn.\n\nBy noon the sky was blue."}
+    {
+        "title": "A day of sky",
+        "paragraphs": [
+            {"text": "It began at dawn.", "refs": [1]},
+            {"text": "By noon the sky was blue.", "refs": [1]},
+        ],
+    }
 )
 
 
@@ -79,9 +85,15 @@ def test_a_story_is_told_by_one_narrator_in_paragraphs(settings):
     out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
     assert "a narrative with a beginning, a middle and an end" in llm.calls[0][1]
     assert "invent no events" in llm.calls[0][1]
+    # refs to passages the prompt never had: kept as text, marked unsupported
     assert out["content"]["transcript"] == [
-        {"speaker": "narrator", "text": "It began at dawn."},
-        {"speaker": "narrator", "text": "By noon the sky was blue."},
+        {"speaker": "narrator", "text": "It began at dawn.", "refs": [], "support": "unsupported"},
+        {
+            "speaker": "narrator",
+            "text": "By noon the sky was blue.",
+            "refs": [],
+            "support": "unsupported",
+        },
     ]
     assert tts.inputs == ["It began at dawn. By noon the sky was blue."]
     assert tts.settings == [("ryan", 1.0)]

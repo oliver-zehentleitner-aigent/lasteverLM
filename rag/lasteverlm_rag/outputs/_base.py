@@ -20,6 +20,13 @@ _FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
 
 SOURCE_LANGUAGE = "Write in the language the material is written in."
 
+# How a generator with provenance cites, the same discipline as a chat answer.
+CITE_RULE = (
+    'Cite the "Relevant passages" by their numbers: every statement taken from the '
+    "material names the passage or passages it comes from. Use only numbers listed under "
+    '"Relevant passages"; state nothing that none of them supports.'
+)
+
 SYSTEM_RULES = """You create documents strictly from the material the user provides.
 
 Rules:
@@ -59,6 +66,7 @@ class JsonGenerator:
     instructions: str
     schema: type[BaseModel]
     max_tokens: int = 4000
+    prompt_version: str = "1"
 
     def prompt(self, style: str | None) -> tuple[str, type[BaseModel]]:
         """The instructions and the schema; a kind with styles picks them by style."""

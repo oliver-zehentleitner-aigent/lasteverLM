@@ -58,6 +58,17 @@ def number_passages(chunks: list[RetrievedChunk]) -> list[Passage]:
     ]
 
 
+def keep_markers(text: str, valid: set[int]) -> str:
+    """Drop the numbers no passage has from every marker group; a group left
+    empty goes with the space before it."""
+
+    def rewrite(match: re.Match[str]) -> str:
+        kept = [raw.strip() for raw in match.group(2).split(",") if int(raw) in valid]
+        return f"{match.group(1)}[{', '.join(kept)}]" if kept else ""
+
+    return re.sub(r"(\s*)" + _MARKER_GROUP.pattern, rewrite, text)
+
+
 def extract_markers(answer: str) -> list[int]:
     """Marker numbers in order of first appearance, duplicates removed."""
     seen: list[int] = []
@@ -117,3 +128,52 @@ def _to_citation(p: Passage, n: int) -> Citation:
             "chunk_count": p.chunk_count,
         }
     )
+
+
+# -- support of a generated unit by the passages it cites ---------------------
+
+# The check that a unit of a generated output (a paragraph, a fact, a turn)
+# says what its cited passages say: deterministic, no model call. A unit's
+# content words are compared with the words of all its cited chunks taken
+# together; the unit is supported when at least ``OVERLAP_THRESHOLD`` of its
+# words occur there. Words are lowercased letters and digits, at least three
+# characters or containing a digit, without the commonest English and German
+# function words, and cut to their first ``WORD_PREFIX`` characters so that
+# "cloud" and "clouds" match. The threshold is set, not calibrated on rated
+# outputs (see rag/context/citations.md).
+CHECK_METHOD = "lexical-overlap-v1"
+OVERLAP_THRESHOLD = 0.5
+WORD_PREFIX = 5
+_WORD = re.compile(r"\w+")
+_STOPWORDS = frozenset("""
+    the and for are but not you all any can had has her was one our out his how its may new
+    now old see two way who did get him let say she too use that with have this will your from
+    they been were said each which their there what about would make like into than them then
+    these some could other more very after also only over such most even when where while
+    being does both because through under again those should just
+    der die das und ist ein eine einer eines einem einen den dem des sich mit auf für von
+    nicht auch als wie bei aus nach oder wird sind war hat zum zur noch nur über unter durch
+    wenn dann dass sein seine ihre ihr wir sie ihm ihn uns kann können werden wurde wurden
+    haben hatte diese dieser dieses diesem diesen einem einer vom beim
+    """.split())
+
+
+def content_words(text: str) -> set[str]:
+    words = set()
+    for raw in _WORD.findall(strip_markers(text).lower()):
+        if raw in _STOPWORDS or (len(raw) < 3 and not any(c.isdigit() for c in raw)):
+            continue
+        words.add(raw[:WORD_PREFIX])
+    return words
+
+
+def overlap(text: str, sources: list[str]) -> float:
+    """The share of the text's content words found in the sources together;
+    1.0 for a text without content words (there is nothing to support)."""
+    words = content_words(text)
+    if not words:
+        return 1.0
+    pool: set[str] = set()
+    for source in sources:
+        pool |= content_words(source)
+    return len(words & pool) / len(words)

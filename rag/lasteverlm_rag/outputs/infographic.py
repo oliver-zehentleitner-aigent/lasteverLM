@@ -3,18 +3,20 @@ from __future__ import annotations
 from lasteverlm_core import OutputKind
 from pydantic import BaseModel, Field
 
-from ..models import GeneratedOutput
-from ._base import JsonGenerator
+from ..models import GeneratedOutput, Unit
+from ._base import CITE_RULE, JsonGenerator
 
 
 class Fact(BaseModel):
     label: str = Field(min_length=1)
     value: str = Field(min_length=1)
+    refs: list[int] = Field(default_factory=list, max_length=8)
 
 
 class Section(BaseModel):
     title: str = Field(min_length=1)
     text: str = Field(min_length=1)
+    refs: list[int] = Field(default_factory=list, max_length=8)
 
 
 class Infographic(BaseModel):
@@ -28,11 +30,13 @@ class InfographicGenerator(JsonGenerator):
     kind: OutputKind = "infographic"
     focus_query: str = "striking numbers, key facts, the one-line message"
     schema: type[BaseModel] = Infographic
+    prompt_version: str = "2"  # 2: cites passages for provenance
     instructions: str = (
         "Design an infographic from the material: one headline, 4 to 8 key facts as short "
         "label/value pairs (numbers where the material has them), and 3 to 5 short sections "
-        'of two or three sentences. Reply as {"title", "headline", "facts": [{"label", '
-        '"value"}], "sections": [{"title", "text"}]}.'
+        f"of two or three sentences. {CITE_RULE} Each fact and each section lists its "
+        'passage numbers in "refs". Reply as {"title", "headline", "facts": [{"label", '
+        '"value", "refs": [n, ...]}], "sections": [{"title", "text", "refs": [n, ...]}]}.'
     )
 
     def to_output(self, document: BaseModel) -> GeneratedOutput:
@@ -40,12 +44,18 @@ class InfographicGenerator(JsonGenerator):
         lines = [document.title, document.headline, ""]
         lines += [f"{f.label}: {f.value}" for f in document.facts]
         lines += [f"\n{s.title}\n{s.text}" for s in document.sections]
+        facts = [{"label": f.label, "value": f.value} for f in document.facts]
+        sections = [{"title": s.title, "text": s.text} for s in document.sections]
+        units = [
+            Unit(target, f"{f.label}: {f.value}", f.refs)
+            for target, f in zip(facts, document.facts, strict=True)
+        ] + [
+            Unit(target, f"{s.title}. {s.text}", s.refs)
+            for target, s in zip(sections, document.sections, strict=True)
+        ]
         return GeneratedOutput(
             title=document.title,
-            content={
-                "headline": document.headline,
-                "facts": [f.model_dump() for f in document.facts],
-                "sections": [s.model_dump() for s in document.sections],
-            },
+            content={"headline": document.headline, "facts": facts, "sections": sections},
             index_text="\n".join(lines),
+            units=units,
         )

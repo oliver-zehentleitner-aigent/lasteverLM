@@ -143,6 +143,39 @@ indexes the result as a source of kind `generated` in the same notebook
 (chunked with core's token-window chunker, the same one ingest uses),
 so the chat can cite it; `Output.source_id` names that source.
 
+**Provenance.** Report, infographic and audio cite the numbered passages
+of their prompt, the same discipline as a chat answer: every unit (a
+report paragraph that is not a heading, an infographic fact or section,
+an audio paragraph or turn) carries `refs` (passage numbers) and
+`support`, the result of a deterministic check after generation, with no
+second model call. A unit is `supported` when every ref names a passage
+of the prompt and at least half (`OVERLAP_THRESHOLD = 0.5`) of its
+content words occur in its cited passages together (method
+`lexical-overlap-v1`: lowercased words of three or more characters or
+with a digit, common English and German function words left out, cut to
+five characters); `unsupported` without refs, with a ref no passage has,
+or below the threshold; `unverified` when the refs are valid but the
+overlap is low and the output was written in a chosen `language`, where
+word overlap cannot tell. An interviewer's question without refs is no
+claim and gets no `support`. A failing unit is kept and marked, never
+dropped, and never fails the output. The report keeps `[n]` markers in
+`content.markdown` (unknown numbers are removed) and lists
+`content.units: [{"text", "refs", "support"}]`; infographic facts and
+sections and the audio transcript entries carry the two fields
+themselves. `Output.provenance` is the generation log, written when the
+output is ready, for every kind (`null` for outputs from before; table,
+quiz and mind map have the log but no units yet): `{"version", "prompt_version", "model", "options",
+"focus_query", "retrieval": {"k", "floor", "candidates": [{"chunk_id",
+"source_id", "source_name", "page", "similarity", "in_prompt"}]},
+"passages": [{"n", "chunk_id", "source_id", "source_name",
+"source_kind", "page", "chunk_index", "chunk_count", "similarity",
+"quote"}], "usage": {"llm": {"tokens_in", "tokens_out"}, "embedding":
+{"tokens_in"}, "tts": {"seconds"}}, "started_at", "finished_at",
+"check": {"method", "threshold", "supported", "unsupported",
+"unverified"}}`. The shared view carries it too, without `chunk_id`,
+`source_id` and the source selection, so a shared document can be
+checked without logging in.
+
 **Library and trash.** An output belongs to the user, not the notebook:
 `Output.notebook_id` is the notebook it was made in and turns `null`
 when ingest deletes that notebook (the foreign key sets it), while
@@ -215,10 +248,10 @@ hour. 503 when the deployment has no text-to-speech.
 
 `audio`: the model writes a spoken-word script (three to five minutes)
 in the chosen style, with a prompt and a JSON schema per style:
-`overview` and `story` are `{"title", "script"}` read by one narrator
-(paragraphs separated by blank lines; the story frames the material as a
-narrative but invents nothing), `conversation` is `{"title", "turns":
-[{"speaker": "interviewer" | "expert", "text"}]}`, where the expert
+`overview` and `story` are `{"title", "paragraphs": [{"text", "refs"}]}`
+read by one narrator (the story frames the material as a narrative but
+invents nothing), `conversation` is `{"title", "turns": [{"speaker":
+"interviewer" | "expert", "text", "refs"}]}`, where the expert
 answers only from the material and both must speak (at most 6000
 characters in all). The worker reads the turns with `TTS_MODEL`, the
 narrator and the interviewer with `voice`, the expert with
@@ -291,7 +324,8 @@ into one conversation `Chat 1`; `0003_rag_output_options.sql` adds
 (set to null when the notebook is deleted) and points `source_id` at the
 generated library row instead of its link (expand only: `owner` stays
 nullable for pods of the previous release, and reads fall back to the
-notebook's owner). The migrations runner applies them after
+notebook's owner); `0005_rag_output_provenance.sql` adds
+`outputs.provenance`, the generation log. The migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
 `chunks`. A library source is a file, text, URL or image processed once
