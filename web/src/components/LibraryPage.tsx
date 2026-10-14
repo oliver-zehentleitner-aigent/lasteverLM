@@ -235,10 +235,10 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                   <span className="name-cell">
                     {href ? (
                       <a className="open-name" href={href} target="_blank" rel="noopener noreferrer" title={t('lib.openTitle', { name: e.name })}>
-                        <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                        <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
                       </a>
                     ) : (
-                      <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                      <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
                     )}
                     <DemoBadge demo={e.demo} />
                   </span>
@@ -373,7 +373,7 @@ function TrashList({ onOpenSettings }: Pick<Props, 'onOpenSettings'>) {
             <tr key={e.id}>
               <td className="name">
                 <span className="name-cell">
-                  <ImageName previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                  <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
                   <DemoBadge demo={e.demo} />
                 </span>
               </td>

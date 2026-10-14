@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
+import type { SourceKind } from '../api/types'
 import { previewPosition } from '../lib/preview'
 
 interface Props {
+  /** only an image gets a thumbnail: for a PDF or text the preview is the
+   *  presigned original, for a web page its address, neither a picture */
+  kind: SourceKind
   /** presigned for an hour; absent for entries without a picture */
   previewUrl?: string | null
   /** the text shown next to the thumbnail */
@@ -18,7 +22,8 @@ const SIZE = 320
  *  shows a medium preview that stays inside the viewport; Esc or leaving
  *  hides it. On touch a tap on the thumbnail opens it (and does not toggle
  *  a surrounding checkbox row), a tap elsewhere closes it. */
-export function ImageName({ previewUrl, label, title }: Props) {
+export function ImageName({ kind, previewUrl: preview, label, title }: Props) {
+  const previewUrl = kind === 'image' ? preview : null
   const thumb = useRef<HTMLImageElement>(null)
   const touched = useRef(false)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)

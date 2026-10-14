@@ -203,7 +203,7 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
                         }
                       />
                       <span className="pick-name">
-                        <ImageName previewUrl={e.preview_url} label={e.url ? shortUrl(e.url) : e.name} title={e.url ?? e.name} />
+                        <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.url ? shortUrl(e.url) : e.name} title={e.url ?? e.name} />
                       </span>
                       <span className="pick-badges">
                         <DemoBadge demo={e.demo} />
