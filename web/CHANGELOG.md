@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/prices` shows the app's normal header (Library, Settings, Prices, Admin, theme, balance, sign out) when signed in; the reduced header (brand, Prices, Sign in) only without a session.
 - `/prices` follows the account service's new rows: PDF (Text) and PDF (Vision) per page, image, web page, audio outputs per output; a price range when there is one, "+ … per source", "estimated" muted for an estimated price, "no price yet" when none could be made, and "Typical per action" as the history column's heading.
 - Admin > System: the ingress box is coloured from the account service's outside probe (red down, amber when the certificate ends within 14 days, grey without a probe) with "TLS until <date>" and the probe in its tooltip; the web box shows its pods' image tags as its build.
+- Admin overview: the meta line read "vv0.18.3"; the version keeps the Git tag's own "v" and gets one only when it has none.
 - Admin > Finance: the range bar's day pills, labels and date fields share one height and line; every money cell, tile and total follows one rule (two decimals from 1 € up, two to four below, the exact value in the tooltip) instead of €0.90 next to €0.622125.
 
 ## [0.18.3] - 2026-10-14
