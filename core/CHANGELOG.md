@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-10-14
+
 ### Added
 
 - `USAGE_ACTION_UNITS`, `ActionUnit(unit, measure)` and `UnitMeasure` (`action`: once per `action_id`; `seconds`: minutes of the action's `tts`/`stt` seconds) give a price list one unit per action: `question`, `output`, `source`, `audio_minute`, `check`, …; PDFs per source.
