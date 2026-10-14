@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-10-14
+
 ### Fixed
 
 - A text or Markdown source's Original shows the file inline (monospace, or rendered Markdown), also before it is read, instead of only "Open the file"; As read of an unread source says when it is read, with "read now" and its price.
