@@ -152,9 +152,12 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
             </span>
             {/* one group that never wraps inside: kind, capture, status, play, remove */}
             <span className="src-badges">
-              <span className="badge">{sourceKindLabel(s.kind)}</span>
+              <span className="badge kind" title={sourceKindLabel(s.kind)}>
+                <span className="long">{sourceKindLabel(s.kind)}</span>
+                <span className="short">{t(`kindShort.${s.kind}`)}</span>
+              </span>
               {s.capture && (
-                <span className="badge" title={t('sources.captureTitle')}>
+                <span className="badge capture" title={t('sources.captureTitle')}>
                   {t(`capture.${s.capture}`)}
                 </span>
               )}

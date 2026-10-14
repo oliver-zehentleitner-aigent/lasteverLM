@@ -180,12 +180,12 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .sources .add { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
 .sources .item { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.3rem 0.4rem; min-width: 0; }
 .sources .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-/* a source row on one line: checkbox, the name cut with an ellipsis, then kind,
-   capture, status, play and remove as one group that never wraps inside; its
-   basis of half the row means the row breaks only when the group alone needs half
-   or more, and then the whole group (with the ×) goes below the name */
+/* a source row never wraps: checkbox, the name (basis 0, so it gives way first
+   and cuts with an ellipsis), then kind, capture, status, play and remove as one
+   group at its natural width; a narrow pane shortens the badges instead (below).
+   Only the open audio player takes its own line. */
 .sources .list li { flex-wrap: wrap; }
-.sources .src-name { flex: 1 1 50%; min-width: 0; display: flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.2rem; }
+.sources .src-name { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.2rem; }
 .sources .src-name .name { flex: 0 1 auto; min-width: 0; }
 .sources .src-name .badge { flex: none; }
 .sources .src-badges { flex: none; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.25rem; margin-left: auto; }
@@ -603,7 +603,7 @@ button.link.copy { font-size: 0.85em; }
 .kind-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
 .kind-chips .preset { border: 1px solid var(--line); border-radius: 999px; }
 .out-list li { gap: 0; }
-.out-row { flex: 1; min-width: 0; display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) 6.5rem; grid-template-rows: auto auto; align-items: center; column-gap: 0.5rem; row-gap: 0.05rem; padding: 0.35rem 0.4rem; background: none; border: none; color: inherit; text-align: left; white-space: normal; }
+.out-row { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 0.5rem; row-gap: 0.05rem; padding: 0.35rem 0.4rem; background: none; border: none; color: inherit; text-align: left; white-space: normal; }
 .out-kind, .out-status { display: flex; min-width: 0; }
 .out-status { justify-content: flex-end; }
 .out-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -770,10 +770,9 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .out-row.editing .item-edit { grid-column: 2 / -1; }
 /* sharing a notebook: the toggle in its row, the card under it */
 .notebooks .list li { flex-wrap: wrap; }
-/* one line: the name (with its badge) takes what the icons leave and cuts with an
-   ellipsis; its basis of half the row means the row wraps only when the icons alone
-   need half or more, and then the whole icon group goes below the name */
-.notebooks .nb-name { flex: 1 1 50%; min-width: 0; display: flex; align-items: center; gap: 0.25rem; }
+/* one line, never wrapped: the name (with its badge, basis 0) takes what the icons
+   leave and cuts with an ellipsis; only the share card takes its own line */
+.notebooks .nb-name { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 0.25rem; }
 .notebooks .nb-name .item { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notebooks .nb-name .badge { flex: none; }
 .notebooks .nb-actions { flex: none; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.1rem; margin-left: auto; }
@@ -995,3 +994,21 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 /* a text source's Original: the stored file inline */
 .source-plain { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; line-height: 1.45; margin: 0; }
 .source-unread p { margin: 0.3rem 0; }
+
+/* a narrow Sources pane shortens its badges rather than wrapping a row:
+   first the kind as a code and the capture dropped, then the status as an icon */
+.pane.sources { container-type: inline-size; }
+.src-badges .short { display: none; }
+@container (max-width: 24rem) {
+  .src-badges .kind .long { display: none; }
+  .src-badges .kind .short { display: inline; }
+  .src-badges .capture { display: none; }
+}
+@container (max-width: 18rem) {
+  .src-badges .status .long { display: none; }
+  .src-badges .status .short { display: inline; }
+}
+/* stacked (phone) layout: a row may put its whole badge group, × included, under the name */
+@media (max-width: 900px) {
+  .sources .src-name, .notebooks .nb-name { flex-basis: 50%; }
+}

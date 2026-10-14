@@ -97,9 +97,13 @@ opens the notebook.
   "Checking an audio source" under Library). Each source is one line:
   its checkbox, the name cut with an ellipsis (the full name as
   tooltip), then kind, capture and status as compact badges, the play
-  button and × as one group that never wraps inside. Only when that
-  group alone needs half the row or more does the row take two lines,
-  the whole group then below the name. The status badge is short
+  button and × as one group at its natural width. The row never wraps
+  on a desktop: the name gives way first; in a narrow pane the badges
+  shorten instead (below 24rem the kind as a code, PDF, TXT, WEB, IMG,
+  AUD, and no capture badge; below 18rem the status as an icon, ✓ … +
+  € !, its word in the tooltip). In the stacked phone layout (below 900
+  px) a row may put the whole group, × included, under the name. The
+  status badge is short
   ("ready", "reading", "added", "failed"); what it means, a failed
   source's error and why a waiting one is not moving are its tooltip.
   **Read when used**: a new source is "added" (neutral; "added · read
@@ -185,11 +189,13 @@ opens the notebook.
   create request with only the keys the kind takes. The viewer and the
   shared page show what a document was made with ("Deutsch · Ryan ·
   1.25×", "Conversation · Ryan & Aiden · 1×").
-- **Notebook list** rows stay on one line: the name (with the Starter
-  badge) cuts with an ellipsis and shows in full as tooltip, and its
-  icons (☆ for an admin, share, ×) stay together at the right. Only when
-  the icons alone need half the row or more does the row take two
-  lines, the whole icon group then below the name, never one icon alone.
+- **Notebook list** rows never wrap on a desktop: the name (with the
+  Starter badge) gives way and cuts with an ellipsis, shown in full as
+  tooltip, and its icons (☆ for an admin, share, ×) keep their width at
+  the right. In the stacked phone layout a row may put the whole icon
+  group under the name, never one icon alone. The **Outputs** rows keep
+  the kind and status at their natural width with the title between
+  them, cut with an ellipsis.
 - **Renaming**: a double-click (or F2) on a notebook in the notebook
   list, on an output's row in Outputs or on its tab in the viewer turns
   the title into a field, as on the chat tabs: Enter or leaving the

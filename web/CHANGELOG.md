@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Sources, Outputs and notebook rows no longer wrap on a desktop: the name gives way and cuts with an ellipsis, the badge or icon group keeps its width, and a narrow Sources pane shortens the badges (kind as a code, then the status as an icon) instead; only the stacked phone layout may put the whole group under the name.
+
 ## [0.19.1] - 2026-10-14
 
 ### Fixed
