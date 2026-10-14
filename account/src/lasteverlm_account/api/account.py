@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse
 
 from ..models import (
     MyCredit,
@@ -16,6 +17,8 @@ from ..models import (
     User,
     VisitBody,
 )
+from ..prices_page import CSP as PRICES_PAGE_CSP
+from ..prices_page import render as render_prices
 from .deps import ClientIp, CurrentUserId, OptionalUserId, Service
 
 router = APIRouter(tags=["account"])
@@ -58,6 +61,20 @@ async def prices(service: Service, response: Response) -> PublicPrices:
     days' measured costs through the current rules. End prices only (context/finance.md)."""
     response.headers["Cache-Control"] = "public, max-age=300"
     return await service.public_prices()
+
+
+@router.get("/prices/page", response_class=HTMLResponse)
+async def prices_page(service: Service) -> HTMLResponse:
+    """The same price list as server-rendered HTML without scripts, for readers that run
+    no JavaScript (the URL loader). Built from ``GET /prices``'s data; no login."""
+    return HTMLResponse(
+        render_prices(await service.public_prices()),
+        headers={
+            "Cache-Control": "public, max-age=300",
+            "Content-Security-Policy": PRICES_PAGE_CSP,
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/me/credit", response_model=MyCredit, response_model_by_alias=True)
