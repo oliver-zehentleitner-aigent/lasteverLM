@@ -45,7 +45,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/shared/notebooks/{token}` | no auth | `{"title", "sources": [{"name", "kind"}], "outputs": [SharedOutput]}`, see below |
 | GET | `/api/rag/admin/stats` | viewers and admins | `AdminStats`, see below |
 | GET | `/api/rag/admin/stats/daily?days=` | viewers and admins; `days` 1–365, default 30 | `DailyStats`, see below |
-| GET | `/api/rag/admin/feedback?days=` | viewers and admins; `days` 1–365, default 30 | `{"days": [{"day", "up", "down"}], "latest_down": [{"message_id", "notebook_id", "at", "comment", "answer", "question"}]}`, the 20 newest down-rated answers |
+| GET | `/api/rag/admin/feedback?days=` | viewers and admins; `days` 1–365, default 30 | `{"days": [{"day", "up", "down"}], "latest_down": [{"message_id", "notebook_id", "at", "comment", "answer", "question"}]}`, the 20 newest down-rated answers; a viewer gets the counts with `latest_down: []` and `"detail": "admins only"` |
 | DELETE | `/api/rag/admin/users/{id}` | admins only | 204, see below |
 | GET | `/healthz`, `/api/rag/healthz` | no auth | core's `Health`: `{"status": "ok", "version", "commit", "dependencies": {"postgres", "storage", "inference"}}`, each `ok` or `down` (core's `DependencyProbe`: 2 s per check, cached 15 s; `storage` only with object storage configured); a dependency that is down never fails the probe |
 
@@ -346,7 +346,9 @@ Both are synchronous, need credit, and run four judge calls at a time.
 1000 characters). The rating is stored on the message as `feedback:
 {"rating", "comment", "at"}`. `GET /admin/feedback` counts the ratings
 per UTC day and lists the newest down-rated answers with the question
-before them.
+before them. The answers and questions are the users' own words, so a
+viewer gets the counts only (`latest_down` empty, `"detail": "admins
+only"`).
 
 **Starter notebook.** A new user gets a copy of the maintainer's starter
 notebook. Ingest copies its uploads (files, links, chunks) and, in the

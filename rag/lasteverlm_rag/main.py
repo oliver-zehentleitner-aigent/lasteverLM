@@ -436,11 +436,16 @@ def create_app(
 
     @app.get(f"{PREFIX}/admin/feedback")
     def feedback(
-        _: AdminReader, days: Annotated[int, Query(ge=1, le=MAX_DAILY_DAYS)] = 30
+        reader: AdminReader, days: Annotated[int, Query(ge=1, le=MAX_DAILY_DAYS)] = 30
     ) -> dict[str, Any]:
-        """Ratings per day and the latest down-rated answers with their question."""
+        """Ratings per day and the latest down-rated answers with their question.
+        A viewer gets the counts only: the answers and questions are the users'
+        own words, which may hold personal data, so they are for admins."""
         assert store is not None
-        return store.feedback_overview(days, FEEDBACK_LATEST)
+        overview = store.feedback_overview(days, FEEDBACK_LATEST)
+        if store.admin_role(str(reader)) != "admin":
+            return {**overview, "latest_down": [], "detail": "admins only"}
+        return overview
 
     @app.delete(f"{PREFIX}/admin/users/{{target}}", status_code=204)
     def delete_user_data(target: uuid.UUID, _: AdminWriter) -> Response:
