@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `docker.yml` keeps the BuildKit cache in the registry (`ghcr.io/oliver-zehentleitner/lasteverlm-<service>:buildcache`, every stage) instead of the GitHub Actions cache: the repository's Actions caches stood at 11.3 GB against GitHub's 10 GB cap, so stages were evicted and rebuilt (a main build of v0.11.0's commit reused one step of ingest). A long stage, such as a compiled tool, now reruns only when it changes.
+
 ## [0.11.0] - 2026-10-14
 
 ### Added
