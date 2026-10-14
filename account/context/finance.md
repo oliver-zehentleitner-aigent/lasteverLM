@@ -72,3 +72,33 @@ until the maintainer confirms one, and the pricing reset keeps the rate. (Earlie
 versions of this entry first assumed EUR prices, then described USD usage amounts
 before core converted at booking.)
 
+## The exchange rate is the ECB's, fetched hourly, with a manual override that pauses it
+
+**Id:** 8295ff9e-786e-43a5-9ae7-c0f50fa7fca5
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-14
+**Revisit when:** the platform bills in another currency, or the ECB stops publishing the daily XML
+
+The account process reads the ECB's daily reference rates
+(`eurofxref-daily.xml`) every hour; the USD rate is dollars per euro, exactly the
+pricing rules' `usd_per_eur`. When it differs from the stored one it is written into the
+pricing row; its ECB day, the last check, the last success and any error live in the
+setting `exchange_rate` (core's `PricingRules.parse` accepts no extra keys in the pricing
+row). A failed fetch keeps the stored rate and records the error; the status turns
+stale after three days without a successful fetch. An admin who stores another rate
+overrides it: the mode turns manual and the hourly update pauses until switched back.
+Bookings keep the rate they were made with (core stores it per row).
+
+**Reason:** the maintainer wants the rate to follow the market without anyone keeping
+it. The ECB publishes once per working day, so an hourly check changes the rate at most
+once a day and costs a small public download; checking hourly instead of daily means a
+missed publication is picked up within the hour.
+
+**Rejected alternative:** a fixed rate maintained by hand — the maintainer's choice
+against it; a hand-kept rate drifts silently between updates. Fetching inside core at
+booking time — rejected because every booking would depend on an outside service being
+up; the rules row is read with a 30-second cache and the fetch runs beside the booking,
+not in it.
+

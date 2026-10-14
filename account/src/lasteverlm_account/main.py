@@ -89,12 +89,16 @@ def create_app(
         )
         await service.startup()
         app.state.service = service
-        sync = asyncio.create_task(service.vultr_loop()) if service.vultr is not None else None
+        tasks = []
+        if service.vultr is not None:
+            tasks.append(asyncio.create_task(service.vultr_loop()))
+        if resolved.exchange_rate_sync:
+            tasks.append(asyncio.create_task(service.exchange_rate_loop()))
         try:
             yield
         finally:
-            if sync is not None:
-                sync.cancel()
+            for task in tasks:
+                task.cancel()
             await repo.close()
 
     app = FastAPI(title="lasteverLM account", version=resolved.app_version, lifespan=lifespan)

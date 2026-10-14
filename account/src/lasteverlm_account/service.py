@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from lasteverlm_core import (
     DEFAULT_PRICING_RULES,
@@ -33,6 +33,7 @@ from lasteverlm_core import (
 
 from .config import Settings
 from .crypto import VoucherCipher
+from .ecb import EcbError, EcbRates
 from .mail import Mailer, MailError, magic_link_mail, voucher_mail
 from .models import (
     AdminAccess,
@@ -48,6 +49,7 @@ from .models import (
     Allowlist,
     DailyStat,
     DailyStats,
+    ExchangeRateStatus,
     FinanceCosts,
     FinanceGroupRow,
     FinanceProfit,
@@ -97,6 +99,7 @@ SETTING_DOMAINS = "allowed_domains"
 SETTING_ADDRESSES = "allowed_addresses"
 SETTING_VIEWER_DOMAINS = "viewer_domains"
 SETTING_VIEWER_ADDRESSES = "viewer_addresses"
+SETTING_EXCHANGE_RATE = "exchange_rate"  # {"mode", "source", "rate_date", "last_checked", ...}
 SETTING_VULTR_SYNC = "vultr_sync"  # {"last_sync", "last_error", "rows"}
 _SETTING_KEYS: dict[str, tuple[str, str]] = {  # kind -> (setting key, list key inside the value)
     "domain": (SETTING_DOMAINS, "allowed_domains"),
@@ -190,6 +193,7 @@ class AccountService:
         services: ServiceClient | None = None,
         dependencies: DependencyProbe | None = None,
         vultr: VultrBilling | None = None,
+        ecb: EcbRates | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
@@ -202,6 +206,7 @@ class AccountService:
         self._cipher = VoucherCipher(settings.voucher_key)
         key = settings.vultr_billing_api_key
         self.vultr = vultr or (VultrBilling(key) if key else None)
+        self.ecb = ecb or EcbRates()
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
         self.rate_limit = rate_limit or RateLimitSettings()
@@ -1006,7 +1011,12 @@ class AccountService:
                     charge_cents=_money(charge) if charge is not None else None,
                 )
             )
-        return PricingView(rules=rules.as_json(), actions=sorted(USAGE_ACTIONS), preview=preview)
+        return PricingView(
+            rules=rules.as_json(),
+            actions=sorted(USAGE_ACTIONS),
+            preview=preview,
+            rate=await self.rate_status(rules.usd_per_eur),
+        )
 
     def _parse_pricing(self, body: dict[str, Any]) -> PricingRules:
         try:
@@ -1015,7 +1025,13 @@ class AccountService:
             raise AccountError(422, str(exc)) from exc
 
     async def update_pricing(self, body: dict[str, Any]) -> PricingView:
+        """Store the rules. A rate different from the stored one is an admin's override: the
+        mode turns manual, so the hourly ECB update does not overwrite it."""
         rules = self._parse_pricing(body)
+        if rules.usd_per_eur != await self.usd_per_eur():
+            meta = await self._rate_meta()
+            meta.update(mode="manual", source="manual", rate_date=None)
+            await self.repo.set_setting(SETTING_EXCHANGE_RATE, meta)
         await self.repo.set_setting(PRICING_SETTINGS_KEY, rules.as_json())
         return await self.pricing_view(rules)
 
@@ -1036,6 +1052,93 @@ class AccountService:
                 {"usd_per_eur": float(rate), "default_margin_pct": 0, "actions": {}}
             ).as_json(),
         )
+
+    # finance: the exchange rate ----------------------------------------------
+    async def _rate_meta(self) -> dict[str, Any]:
+        meta = dict(await self.repo.get_setting(SETTING_EXCHANGE_RATE) or {})
+        meta.setdefault("mode", "automatic")
+        meta.setdefault("source", "seed")
+        return meta
+
+    async def rate_status(self, rate: Decimal | None = None) -> ExchangeRateStatus:
+        rate = rate if rate is not None else await self.usd_per_eur()
+        meta = await self._rate_meta()
+
+        def at(key: str) -> datetime | None:
+            raw = meta.get(key)
+            return datetime.fromisoformat(raw) if raw else None
+
+        success = at("last_success")
+        mode: Literal["automatic", "manual"] = "manual" if meta["mode"] == "manual" else "automatic"
+        stale = mode == "automatic" and (
+            success is None or self.now() - success > timedelta(days=3)
+        )
+        source: Literal["ECB", "manual", "seed"] = (
+            "ECB" if meta["source"] == "ECB" else "manual" if meta["source"] == "manual" else "seed"
+        )
+        return ExchangeRateStatus(
+            usd_per_eur=float(rate) if rate is not None else None,
+            mode=mode,
+            source=source,
+            rate_date=date.fromisoformat(meta["rate_date"]) if meta.get("rate_date") else None,
+            last_checked=at("last_checked"),
+            last_success=success,
+            last_error=meta.get("last_error"),
+            stale=stale,
+        )
+
+    async def sync_exchange_rate(self) -> bool:
+        """Fetch the ECB rate; write it into the pricing rules when it differs. Manual mode
+        skips. A failure keeps the stored rate and is kept for the page. True on a write."""
+        meta = await self._rate_meta()
+        if meta["mode"] == "manual":
+            return False
+        now = self.now()
+        meta["last_checked"] = now.isoformat()
+        try:
+            day, rate = await self.ecb.usd_per_eur()
+        except EcbError as exc:
+            meta["last_error"] = str(exc)
+            await self.repo.set_setting(SETTING_EXCHANGE_RATE, meta)
+            log.warning("ECB rate fetch failed, keeping the stored rate: %s", exc)
+            return False
+        meta.update(last_success=now.isoformat(), last_error=None)
+        current = await self.pricing_rules()
+        changed = current.usd_per_eur != rate
+        if changed:
+            body = {**current.as_json(), "usd_per_eur": float(rate)}
+            try:
+                rules = PricingRules.parse(body)
+            except ValueError as exc:  # outside core's bounds: keep the stored rate, say so
+                meta["last_error"] = f"ECB rate {rate} rejected: {exc}"
+                await self.repo.set_setting(SETTING_EXCHANGE_RATE, meta)
+                log.warning("ECB rate rejected: %s", exc)
+                return False
+            await self.repo.set_setting(PRICING_SETTINGS_KEY, rules.as_json())
+            log.info("exchange rate: usd_per_eur %s from ECB (%s)", rate, day)
+        meta.update(source="ECB", rate_date=day.isoformat())
+        await self.repo.set_setting(SETTING_EXCHANGE_RATE, meta)
+        return changed
+
+    async def exchange_rate_loop(self, interval_seconds: float = 3600) -> None:
+        """Hourly; the ECB publishes once per working day, so most runs change nothing."""
+        while True:
+            try:
+                await self.sync_exchange_rate()
+            except Exception as exc:  # never let the loop die; the status shows the error
+                log.warning("exchange rate sync crashed: %s", exc)
+            await asyncio.sleep(interval_seconds)
+
+    async def set_rate_mode(self, mode: str) -> PricingView:
+        """Manual pauses the hourly update; automatic resumes it and fetches right away."""
+        meta = await self._rate_meta()
+        meta["mode"] = "manual" if mode == "manual" else "automatic"
+        if meta["mode"] == "manual":
+            meta["source"] = "manual"
+        await self.repo.set_setting(SETTING_EXCHANGE_RATE, meta)
+        if meta["mode"] == "automatic":
+            await self.sync_exchange_rate()
+        return await self.pricing_view()
 
     # finance: costs, revenue, profit -----------------------------------------
     async def finance_costs(self, since: date, until: date, group: str) -> FinanceCosts:

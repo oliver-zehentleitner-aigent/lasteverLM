@@ -254,15 +254,35 @@ class PricingPreviewRow(BaseModel):
     charge_cents: float | None  # what one average action charges under these rules
 
 
+class ExchangeRateStatus(BaseModel):
+    """Where ``usd_per_eur`` comes from. ``automatic``: the ECB reference rate, checked every
+    hour; ``manual``: set by an admin, the hourly update paused. ``stale`` is true when the
+    last successful ECB check is older than three days (automatic mode only)."""
+
+    usd_per_eur: float | None
+    mode: Literal["automatic", "manual"]
+    source: Literal["ECB", "manual", "seed"]
+    rate_date: date | None  # the ECB day the rate is for
+    last_checked: datetime | None  # last attempt
+    last_success: datetime | None
+    last_error: str | None
+    stale: bool
+
+
+class RateMode(BaseModel):
+    mode: Literal["automatic", "manual"]
+
+
 class PricingView(BaseModel):
-    """Core's pricing rules (settings key ``pricing``), the actions they can name, and an
-    example charge per action from the last 30 days' average cost."""
+    """Core's pricing rules (settings key ``pricing``), the actions they can name, an
+    example charge per action from the last 30 days' average cost, and the rate's origin."""
 
     rules: dict[
         str, Any
     ]  # {"default_margin_pct", "actions": {action: {margin_pct?, fixed_cents?}}}
     actions: list[str]
     preview: list[PricingPreviewRow]
+    rate: ExchangeRateStatus
 
 
 class FinanceGroupRow(BaseModel):
