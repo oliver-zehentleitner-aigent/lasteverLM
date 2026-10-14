@@ -16,6 +16,7 @@ from lasteverlm_core import (
     OutputStatus,
     ProviderError,
     Role,
+    SpeechResult,
     Usage,
 )
 from lasteverlm_core.chunking import Chunk
@@ -421,7 +422,8 @@ class FakeLLM:
 
 
 class FakeTTS:
-    """Returns one fake MP3 frame per segment."""
+    """Returns one fake MP3 frame per segment and bills one second per 15
+    characters, rounded up, as the platform's header would report."""
 
     model = "test-tts"
 
@@ -431,14 +433,21 @@ class FakeTTS:
         self.inputs: list[str] = []
         self.settings: list[tuple[str | None, float | None]] = []
 
+    @staticmethod
+    def seconds(text: str) -> int:
+        return -(-len(text) // 15)
+
     def synthesize(
         self, text: str, *, voice: str | None = None, speed: float | None = None
-    ) -> bytes:
+    ) -> SpeechResult:
         if self.fail:
             raise ProviderError("speech request failed: boom")
         self.inputs.append(text)
         self.settings.append((voice, speed))
-        return b"" if self.silent else b"\xff\xf3" + text[:4].encode()
+        usage = Usage("tts", self.model, self.seconds(text), 0)
+        if self.silent:
+            raise ProviderError("speech model test-tts returned no audio", usage=usage)
+        return SpeechResult(b"\xff\xf3" + text[:4].encode(), usage)
 
 
 class FakeObjects:

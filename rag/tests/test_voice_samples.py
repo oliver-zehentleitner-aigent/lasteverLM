@@ -23,7 +23,7 @@ def test_a_sample_is_synthesized_once_and_then_served_from_storage(settings):
     assert tts.inputs == [text] and tts.settings == [("serena", 1.25)]
     assert objects.objects[key][1] == "audio/mpeg"
     (row,) = [u for _, _, u in store.usage if u.kind == "tts"]
-    assert (row.tokens_in, row.tokens_out) == (len(text), 0)
+    assert (row.tokens_in, row.tokens_out) == (FakeTTS.seconds(text), 0)
 
     # same combination, any user: no model call, no usage
     second = client.post(SAMPLE, json=body, headers=AUTH)
@@ -82,4 +82,6 @@ def test_a_synthesis_without_audio_is_a_502_billed_and_not_cached(settings):
         {"error": "the model did not answer; please try again"},
     )
     assert objects.objects == {}
-    assert [u.kind for _, _, u in store.usage] == ["tts"]
+    assert [(u.kind, u.tokens_in) for _, _, u in store.usage] == [
+        ("tts", FakeTTS.seconds(SAMPLE_TEXT["en"].format(name="Ryan")))
+    ]

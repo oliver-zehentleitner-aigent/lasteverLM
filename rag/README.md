@@ -173,8 +173,9 @@ hour. 503 when the deployment has no text-to-speech.
 `audio`: the model writes a spoken-word script (three to five minutes);
 the worker reads it with `TTS_MODEL` and `TTS_VOICE` in segments of at
 most 1500 characters that end at a sentence, one `tts` usage row per
-segment priced per input character, and stores the joined MP3 at
-`<notebook_id>/<output_id>/audio.mp3` in object storage. The row keeps
+segment priced per second of generated audio as the platform reports
+it, and stores the joined MP3 at `<notebook_id>/<output_id>/audio.mp3`
+in object storage. The row keeps
 `{"key"}`; every read (the output, the list, the shared view) returns
 `{"url"}`, a presigned GET URL valid for one hour. The script is the
 indexed text, so the chat can cite what the audio says. Without
@@ -195,7 +196,7 @@ missing or a configured model has no price.
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | yes / default 1536 | query and chunk embedding, requested at that width (`dimensions`); identical to the ingest service |
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
-| `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million characters |
+| `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million seconds of generated audio |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
 | `RETRIEVAL_K` | no | chunks per question, default 8 |
 | `RETRIEVAL_GENERATED_SLOTS` | no; default `2` | how many of an unscoped question's k passages may come from generated documents (above the floor, listed after the uploads); `0` leaves them out |

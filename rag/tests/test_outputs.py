@@ -210,7 +210,7 @@ def test_audio_is_synthesized_in_segments_stored_and_served_presigned(settings):
     data, content_type = objects.objects[key]
     assert content_type == "audio/mpeg" and data.count(b"\xff\xf3") == len(tts.inputs) > 1
     tts_rows = [u for _, _, u in store.usage if u.kind == "tts"]
-    assert [u.tokens_in for u in tts_rows] == [len(t) for t in tts.inputs]
+    assert [u.tokens_in for u in tts_rows] == [FakeTTS.seconds(t) for t in tts.inputs]
 
     out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
     assert out["status"] == "ready" and out["title"] == "The sky, read aloud"

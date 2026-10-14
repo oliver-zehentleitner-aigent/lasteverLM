@@ -28,11 +28,11 @@ from lasteverlm_core import (
     OutputKind,
     ProviderError,
     SharedOutput,
+    SpeechResult,
     Storage,
     StorageError,
     TextToSpeech,
     TokenWindowChunker,
-    Usage,
     object_key,
 )
 
@@ -602,7 +602,8 @@ class OutputService:
 
     def _speak(self, job: OutputRow, script: str) -> str:
         """Synthesize the script segment by segment (one usage row each, priced
-        per input character) and store the joined MP3; returns the object key."""
+        per second of generated speech) and store the joined MP3; returns the
+        object key."""
         if self._tts is None or self._objects is None:
             raise GenerationFailed("audio: text-to-speech is not available on this deployment")
         segments = split_for_speech(script)
@@ -610,15 +611,16 @@ class OutputService:
             raise GenerationFailed("audio: the script is empty")
         parts: list[bytes] = []
         for segment in segments:
-            audio = self._tts.synthesize(
-                segment, voice=job.options.get("voice"), speed=job.options.get("speed")
+            result = synthesize_billed(
+                self._store,
+                self._tts,
+                job.owner,
+                job.notebook_id,
+                segment,
+                voice=job.options.get("voice"),
+                speed=job.options.get("speed"),
             )
-            usage = Usage(kind="tts", model=self._tts.model, tokens_in=len(segment), tokens_out=0)
-            self._store.record_usage(job.owner, job.notebook_id, usage)
-            # recorded first: the characters were sent and billed either way
-            if not audio:
-                raise ProviderError("text-to-speech returned no audio")
-            parts.append(audio)
+            parts.append(result.audio)
         key = object_key(job.notebook_id, job.id, AUDIO_FILE)
         # MP3 frames are self-contained: the segments concatenate into one stream
         self._objects.put(key, b"".join(parts), "audio/mpeg")
@@ -714,6 +716,24 @@ def complete_billed(
     """Complete and write the usage row, also when the call fails after billing."""
     with _billed_on_failure(store, user_id, notebook_id):
         result = llm.complete(system, user, max_tokens, thinking=thinking)
+    store.record_usage(user_id, notebook_id, result.usage)
+    return result
+
+
+def synthesize_billed(
+    store: Store,
+    tts: TextToSpeech,
+    user_id: str,
+    notebook_id: str | None,
+    text: str,
+    *,
+    voice: str | None = None,
+    speed: float | None = None,
+) -> SpeechResult:
+    """Synthesize and write the usage row (the seconds the platform billed),
+    also when the call fails after billing, such as an answer without audio."""
+    with _billed_on_failure(store, user_id, notebook_id):
+        result = tts.synthesize(text, voice=voice, speed=speed)
     store.record_usage(user_id, notebook_id, result.usage)
     return result
 

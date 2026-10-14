@@ -18,6 +18,7 @@ from .audio import (
     AudioFormat,
     AudioInfo,
     billed_seconds,
+    measure_audio,
     probe_audio,
 )
 from .auth import (
@@ -82,6 +83,7 @@ from .providers import (
     OpenAICompatibleSpeechToText,
     OpenAICompatibleTextToSpeech,
     ProviderError,
+    SpeechResult,
     SpeechToText,
     TextToSpeech,
     TranscriptionResult,
@@ -227,6 +229,7 @@ __all__ = [
     "Source",
     "SourceKind",
     "SourceStatus",
+    "SpeechResult",
     "SpeechToText",
     "Storage",
     "StorageError",
@@ -263,6 +266,7 @@ __all__ = [
     "limit_key",
     "load_model_prices",
     "make_client",
+    "measure_audio",
     "object_key",
     "parse_model_prices",
     "probe_audio",
