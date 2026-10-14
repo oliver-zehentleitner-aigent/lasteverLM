@@ -1,6 +1,6 @@
-import type { SystemInfo } from '../../api/types'
+import type { Dependency, SystemInfo } from '../../api/types'
 import { t } from '../../i18n'
-import { architectureNodes, type DeploymentName } from '../../lib/architecture'
+import { architectureNodes, dependencyState, type DeploymentName, type NodeHealth, type NodeState } from '../../lib/architecture'
 
 /** Box positions in the 760 x 420 drawing; the layout is static, the
  *  numbers in the boxes are live. */
@@ -23,11 +23,13 @@ const BUS = 322
 const cx = (n: DeploymentName) => BOX[n].x + W / 2
 
 /** The running system as a diagram: who talks to whom, with the replicas,
- *  build and health of each deployment filled in from the System data. A
- *  deployment that is short of replicas or does not answer is drawn in the
- *  attention colour. */
-export function ArchitectureDiagram({ system }: { system: SystemInfo }) {
-  const nodes = architectureNodes(system)
+ *  build and health of each deployment filled in from the System data and
+ *  each box coloured by its state (see `architectureNodes`); the lines into
+ *  a box that is down are drawn dashed red. The external services take
+ *  the colour the services' healthz report for them, grey until any does. */
+export function ArchitectureDiagram({ system, previous = null }: { system: SystemInfo; previous?: SystemInfo | null }) {
+  const nodes = architectureNodes(system, previous)
+  const line = (n: DeploymentName, soft = false) => ['arch-line', soft ? 'soft' : '', nodes[n].state === 'down' ? 'down' : ''].filter(Boolean).join(' ')
   return (
     <div className="arch-wrap">
       <svg className="arch" viewBox="0 0 760 420" role="img" aria-label={t('arch.label')}>
@@ -48,36 +50,38 @@ export function ArchitectureDiagram({ system }: { system: SystemInfo }) {
           {t('arch.ingress')}
         </text>
         {(['web', 'account', 'ingest', 'rag'] as const).map((n) => (
-          <path key={n} className="arch-line" d={`M380,104 V122 H${cx(n)} V138`} markerEnd="url(#arch-arrow)" />
+          <path key={n} className={line(n)} d={`M380,104 V122 H${cx(n)} V138`} markerEnd="url(#arch-arrow)" />
         ))}
 
         {/* account, ingest and rag reach PostgreSQL over one bus; the workers' job queue is there too */}
-        <path className="arch-line" d={`M${cx('account')},198 V${BUS}`} />
-        <path className="arch-line" d={`M400,176 H380 V${BUS}`} />
-        <path className="arch-line" d={`M590,176 H570 V${BUS}`} />
-        <path className="arch-line" d={`M${cx('ingest-worker')},294 V${BUS}`} markerStart="url(#arch-arrow)" />
-        <path className="arch-line" d={`M${cx('rag-worker')},294 V${BUS}`} markerStart="url(#arch-arrow)" />
+        <path className={line('account')} d={`M${cx('account')},198 V${BUS}`} />
+        <path className={line('ingest')} d={`M400,176 H380 V${BUS}`} />
+        <path className={line('rag')} d={`M590,176 H570 V${BUS}`} />
+        <path className={line('ingest-worker')} d={`M${cx('ingest-worker')},294 V${BUS}`} markerStart="url(#arch-arrow)" />
+        <path className={line('rag-worker')} d={`M${cx('rag-worker')},294 V${BUS}`} markerStart="url(#arch-arrow)" />
         <path className="arch-line" d={`M${cx('rag-worker')},${BUS} H${EXT.postgres.x + EXT.postgres.w / 2} V342`} markerEnd="url(#arch-arrow)" />
 
         {/* the workers read and write objects and call the models; rag's API calls them for answers */}
-        <path className="arch-line soft" d={`M${cx('ingest-worker') - 30},294 V310 H${EXT.storage.x + 60} V342`} markerEnd="url(#arch-arrow)" />
-        <path className="arch-line soft" d={`M${cx('ingest-worker') + 30},294 V306 H${EXT.inference.x + 40} V342`} markerEnd="url(#arch-arrow)" />
-        <path className="arch-line soft" d={`M${cx('rag-worker') - 30},294 V302 H${EXT.storage.x + 120} V342`} markerEnd="url(#arch-arrow)" />
-        <path className="arch-line soft" d={`M${cx('rag-worker') + 30},294 V342`} markerEnd="url(#arch-arrow)" />
-        <path className="arch-line soft" d={`M740,170 H752 V372 H742`} markerEnd="url(#arch-arrow)" />
+        <path className={line('ingest-worker', true)} d={`M${cx('ingest-worker') - 30},294 V310 H${EXT.storage.x + 60} V342`} markerEnd="url(#arch-arrow)" />
+        <path className={line('ingest-worker', true)} d={`M${cx('ingest-worker') + 30},294 V306 H${EXT.inference.x + 40} V342`} markerEnd="url(#arch-arrow)" />
+        <path className={line('rag-worker', true)} d={`M${cx('rag-worker') - 30},294 V302 H${EXT.storage.x + 120} V342`} markerEnd="url(#arch-arrow)" />
+        <path className={line('rag-worker', true)} d={`M${cx('rag-worker') + 30},294 V342`} markerEnd="url(#arch-arrow)" />
+        <path className={line('rag', true)} d={`M740,170 H752 V372 H742`} markerEnd="url(#arch-arrow)" />
 
         {/* the six deployments, live */}
         {(Object.keys(BOX) as DeploymentName[]).map((n) => {
           const s = nodes[n]
           const { x, y } = BOX[n]
           return (
-            <g key={n} className={s.healthy ? 'arch-node' : 'arch-node down'}>
+            <g key={n} className={`arch-node state-${s.state}`}>
+              <title>{nodeTitle(n, s)}</title>
               <rect className="arch-box" x={x} y={y} width={W} height={H} rx={6} />
               <text className="arch-title" x={x + 10} y={y + 18}>
                 {n}
               </text>
               <text className="arch-meta" x={x + 10} y={y + 35}>
                 {s.replicas ? t('arch.ready', { n: s.replicas }) : '—'}
+                {s.restarts > 0 ? ` · ${t('arch.restarts', { n: s.restarts })}` : ''}
               </text>
               <text className="arch-meta" x={x + 10} y={y + 50}>
                 {s.build ?? ''}
@@ -96,7 +100,12 @@ export function ArchitectureDiagram({ system }: { system: SystemInfo }) {
         ).map(([key, title, note]) => {
           const e = EXT[key]
           return (
-            <g key={key}>
+            <g key={key} className={`arch-node state-${dependencyState(system, key as Dependency)}`}>
+              <title>
+                {dependencyState(system, key as Dependency) === 'unknown'
+                  ? t('arch.notProbed', { name: title })
+                  : t('arch.depState', { name: title, state: t(`arch.state.${dependencyState(system, key as Dependency)}`) })}
+              </title>
               <rect className="arch-box ext" x={e.x} y={e.y} width={e.w} height={H} rx={6} />
               <text className="arch-title" x={e.x + 10} y={e.y + 20}>
                 {title}
@@ -111,6 +120,20 @@ export function ArchitectureDiagram({ system }: { system: SystemInfo }) {
           )
         })}
       </svg>
+      <p className="arch-legend small muted">
+        {(['ok', 'warn', 'down', 'unknown'] as NodeHealth[]).map((s) => (
+          <span key={s} className={`legend-item state-${s}`}>
+            <span className="swatch" aria-hidden="true" />
+            {t(`arch.state.${s}`)}
+          </span>
+        ))}
+      </p>
     </div>
   )
+}
+
+/** The box's tooltip: its state and why. */
+function nodeTitle(name: string, s: NodeState): string {
+  const why = s.reasons.map((r) => t(`arch.why.${r}`)).join(', ')
+  return why ? `${name}: ${t(`arch.state.${s.state}`)} (${why})` : `${name}: ${t(`arch.state.${s.state}`)}`
 }

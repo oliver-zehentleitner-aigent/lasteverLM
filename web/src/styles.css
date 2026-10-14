@@ -572,12 +572,25 @@ button.link.copy { font-size: 0.85em; }
 .arch { display: block; width: 100%; max-width: 900px; height: auto; margin: 0 auto; }
 .arch-box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; }
 .arch-box.ext { fill: var(--bg); stroke-dasharray: 4 3; }
-.arch-node.down .arch-box { stroke: var(--danger); stroke-width: 2; }
+.arch-box, .arch-line, .arch-meta { transition: stroke 0.6s ease, fill 0.6s ease; }
+.arch-node.state-ok .arch-box { stroke: var(--ok); stroke-width: 1.6; }
+.arch-node.state-warn .arch-box { stroke: var(--warn); stroke-width: 2; }
+.arch-node.state-down .arch-box { stroke: var(--danger); stroke-width: 2; }
+.arch-node.state-warn .arch-meta { fill: var(--warn); }
 .arch-title { fill: var(--fg); font-size: 13px; font-weight: 600; }
 .arch-meta { fill: var(--muted); font-size: 11px; }
-.arch-node.down .arch-meta { fill: var(--danger); }
+.arch-node.state-down .arch-meta { fill: var(--danger); }
 .arch-line { fill: none; stroke: var(--muted); stroke-width: 1.2; }
 .arch-line.soft { stroke-dasharray: 3 3; }
+.arch-line.down { stroke: var(--danger); stroke-dasharray: 5 3; }
+.arch-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; justify-content: center; margin: 0.4rem 0 0; }
+.legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+.legend-item .swatch { width: 0.9rem; height: 0.6rem; border-radius: 2px; border: 2px solid var(--line); }
+.legend-item.state-ok .swatch { border-color: var(--ok); }
+.legend-item.state-warn .swatch { border-color: var(--warn); }
+.legend-item.state-down .swatch { border-color: var(--danger); }
+.legend-item.state-unknown .swatch { border-style: dashed; }
+@media (prefers-reduced-motion: reduce) { .arch-box, .arch-line, .arch-meta { transition: none; } }
 .arch-head { fill: var(--muted); }
 
 /* source selection: a checkbox per row, all/none in the header, an off row muted */

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Admin > System, "Architecture and monitoring": the diagram's boxes are coloured by the live state: green all ready; amber while rolling out, partly ready or restarted; red only for failure (a crash-looping, erroring or OOM-killed pod, restarts climbing between refreshes, nothing ready outside a rollout, healthz not answering); grey unknown; the reason as tooltip. Restarts appear under the replicas, the lines into a red box are dashed red, a legend explains the colours, and the data reloads every 15 s while the tab is visible. The external services take the state the services' healthz report (`dependencies`) and stay grey ("not probed") until they do; pod reasons and the Progressing condition are used when `/admin/system` reports them.
 - Provenance on generated documents (report, infographic, audio): each claim's `[n]` markers open the chat's provenance panel for that passage, a claim the check did not back is badged "unsupported" (or "not checkable" when written in another language than its sources), the viewer head says "N of M claims supported", and under the document a folded list of the cited passages and a folded "How this was made" (model, prompt version, options, retrieval query and candidates, usage, timing, check) with a JSON download. Also on the share page, read-only.
 
 ## [0.13.0] - 2026-10-14

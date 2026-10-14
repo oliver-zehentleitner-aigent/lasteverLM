@@ -474,13 +474,40 @@ export interface RagDay {
 
 /** `GET /api/account/admin/system`: what runs where. `cluster: false` (a
  *  local run) comes with empty pods and deployments. */
+/** The external services the diagram draws. */
+export type Dependency = 'postgres' | 'storage' | 'inference'
+
 export interface SystemInfo {
   version: string
   commit: string
   cluster: boolean
-  services: { name: 'account' | 'ingest' | 'rag'; version: string | null; commit: string | null; healthy: boolean }[]
-  pods: { name: string; service: string; image_tag: string | null; ready: boolean; restarts: number; node: string | null; started_at: string | null }[]
-  deployments: { name: string; replicas: number; ready: number; updated: number }[]
+  services: {
+    name: 'account' | 'ingest' | 'rag'
+    version: string | null
+    commit: string | null
+    healthy: boolean
+    /** what the service's healthz says about what it uses; absent until core reports it */
+    dependencies?: Partial<Record<Dependency, 'ok' | 'down'>>
+  }[]
+  pods: {
+    name: string
+    service: string
+    image_tag: string | null
+    ready: boolean
+    restarts: number
+    node: string | null
+    started_at: string | null
+    /** a container's waiting or terminated reason (CrashLoopBackOff, Error, OOMKilled, …); absent when not reported */
+    reason?: string | null
+  }[]
+  deployments: {
+    name: string
+    replicas: number
+    ready: number
+    updated: number
+    /** the Progressing condition is true: a rollout is under way; absent when not reported */
+    progressing?: boolean
+  }[]
 }
 
 /** A service's public `/healthz`; version and commit are "unknown" when unset. */

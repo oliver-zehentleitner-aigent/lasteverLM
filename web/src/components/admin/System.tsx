@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { admin } from '../../api/admin'
 import type { SystemInfo } from '../../api/types'
 import { ArchitectureDiagram } from './ArchitectureDiagram'
@@ -7,10 +8,36 @@ import { t } from '../../i18n'
 import { Section, Table } from './shared'
 import { useLoad } from '../../hooks/useLoad'
 
+const SYSTEM_REFRESH_MS = 15_000
+
 /** What runs where: per service its build and health, then the cluster's
  *  pods and deployments, or a note for a local run without a cluster. */
 export function SystemView() {
-  const { data, error } = useLoad<SystemInfo | null>(admin.system, null)
+  const { data, setData, error } = useLoad<SystemInfo | null>(admin.system, null)
+  const [refreshed, setRefreshed] = useState(() => new Date().toISOString())
+  // the picture before the last refresh: restarts that grew since are climbing
+  const [previous, setPrevious] = useState<SystemInfo | null>(null)
+  const current = useRef(data)
+  useEffect(() => {
+    current.current = data
+  }, [data])
+
+  // the diagram follows the cluster: every 15 s while the tab is visible;
+  // a failed refresh keeps the last picture
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.hidden) return
+      admin.system().then(
+        (s) => {
+          setPrevious(current.current)
+          setData(s)
+          setRefreshed(new Date().toISOString())
+        },
+        () => {},
+      )
+    }, SYSTEM_REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [setData])
   return (
     <>
       <Section title={t('sys.services')}>
@@ -34,7 +61,8 @@ export function SystemView() {
       </Section>
       {data && (
         <Section title={t('arch.title')}>
-          <ArchitectureDiagram system={data} />
+          <ArchitectureDiagram system={data} previous={previous} />
+          <p className="muted small">{t('arch.refreshed', { time: formatTime(refreshed) })}</p>
         </Section>
       )}
       {data && clusterGap(data) === 'no-cluster' && <p className="notice">{t('sys.noCluster')}</p>}
