@@ -13,6 +13,8 @@ import { OutputContent } from './outputs/OutputContent'
 import { ShareCard } from './ShareCard'
 import { OutputProvenance } from './OutputProvenance'
 import { checkSummary } from '../lib/outputProvenance'
+import { judgeHead } from '../lib/judge'
+import { JudgeRequest } from './JudgeRequest'
 import { t } from '../i18n'
 import { renamedTitle } from '../lib/conversations'
 import { InlineRename } from './InlineRename'
@@ -192,6 +194,12 @@ export function OutputViewer({
               {checked && selected.provenance && (
                 <span className="muted small check-line" title={t('outProv.checkTitle', { method: selected.provenance.check.method, threshold: selected.provenance.check.threshold })}>
                   {checked}
+                </span>
+              )}
+              {judgeHead(selected.provenance) && <span className="muted small check-line judge-line">{judgeHead(selected.provenance)}</span>}
+              {selected.status === 'ready' && selected.kind !== 'chart' && selected.provenance && (
+                <span className="no-print">
+                  <JudgeRequest onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)} />
                 </span>
               )}
               {selected.options?.sources?.length ? (

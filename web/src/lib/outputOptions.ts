@@ -1,4 +1,4 @@
-import type { Audience, AudioStyle, Difficulty, OutputKind, OutputOption, OutputOptions, OutputOptionsSpec, Preferences, ReportLength, ReportStyle } from '../api/types'
+import type { Audience, AudioStyle, Difficulty, JudgeLevel, OutputKind, OutputOption, OutputOptions, OutputOptionsSpec, Preferences, ReportLength, ReportStyle } from '../api/types'
 import { t } from '../i18n'
 
 /** The option values a form holds; '' for language means "same as the sources". */
@@ -16,6 +16,8 @@ export interface OptionValues {
   questionCount: number
   difficulty: Difficulty
   audience: Audience
+  /** a judge while the output is made; sent only when not off */
+  judge: JudgeLevel
 }
 
 /** rag's limit for the instructions, when the catalogue does not say. */
@@ -65,6 +67,7 @@ export function defaultValues(spec: OutputOptionsSpec, prefs: Preferences | unde
     questionCount: spec.quiz?.question_count.default ?? 10,
     difficulty: spec.quiz?.default_difficulty ?? 'medium',
     audience: spec.quiz?.default_audience ?? 'adults',
+    judge: spec.judge?.default ?? 'off',
   }
 }
 
@@ -84,6 +87,7 @@ export function buildOptions(kind: OutputKind, spec: OutputOptionsSpec, v: Optio
     if (key === 'question_count') out.question_count = v.questionCount
     if (key === 'difficulty') out.difficulty = v.difficulty
     if (key === 'audience') out.audience = v.audience
+    if (key === 'judge' && v.judge !== 'off') out.judge = v.judge
   }
   return out
 }

@@ -8,6 +8,7 @@ import { formFor, sourceKindLabel } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
 import { OutputProvenance } from './OutputProvenance'
 import { checkSummary } from '../lib/outputProvenance'
+import { judgeHead } from '../lib/judge'
 import { t } from '../i18n'
 
 function SharedShell({ label, children }: { label: string; children: ReactNode }) {
@@ -39,6 +40,7 @@ function SharedOutputView({ doc, refresh, level = 1 }: { doc: SharedOutput; refr
         {/* no spec here: it needs a login, so the codes are shown as they are */}
         {optionsLabel(doc.options, null) && <span className="muted small">{optionsLabel(doc.options, null)}</span>}
         {checkSummary(doc.provenance?.check) && <span className="muted small check-line">{checkSummary(doc.provenance?.check)}</span>}
+        {judgeHead(doc.provenance) && <span className="muted small check-line judge-line">{judgeHead(doc.provenance)}</span>}
         {level === 1 && formFor(doc.kind).printable && (
           <span className="actions no-print">
             <button type="button" className="link" onClick={() => window.print()}>

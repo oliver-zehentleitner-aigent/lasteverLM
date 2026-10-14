@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { Markmap } from 'markmap-view'
-import type { MindmapContent } from '../../api/types'
+import type { MindmapContent, MindmapNode } from '../../api/types'
 import { t } from '../../i18n'
 import { bestMatchIndex, firstLine, type LocateRequest } from '../../lib/locate'
 import { mapAction } from '../../lib/mapKeys'
@@ -33,7 +33,8 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
       .then(([{ Transformer }, { Markmap }]) => {
         if (cancelled || !svg.current) return
         // with provenance each node carries its markers and badge, as HTML in its label
-        const { root } = new Transformer().transform(toMarkdown(content.root, 0, known ? (n) => claimHtml(n, known) : undefined))
+        const order = nodeOrder(content.root)
+        const { root } = new Transformer().transform(toMarkdown(content.root, 0, known ? (n) => claimHtml(n, known, order.indexOf(n)) : undefined))
         // the labels are the model's text and markmap renders them as HTML
         const clean = cleanTree(root, sanitizeHtml)
         const mm = Markmap.create(svg.current, { autoFit: true }, clean)
@@ -104,6 +105,14 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
       className="mindmap"
       ref={box}
       onClick={(e) => {
+        const judge = (e.target as HTMLElement).closest<HTMLButtonElement>('button.judge[data-u]')
+        if (judge && cite) {
+          e.stopPropagation()
+          const node = nodeOrder(content.root)[Number(judge.dataset.u)]
+          const n = node?.refs?.find((r) => cite.known.has(r))
+          if (node?.judge && n !== undefined) cite.cite(n, node.label, node.judge)
+          return
+        }
         const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button.cite[data-n]')
         if (!button || !cite) return
         e.stopPropagation()
@@ -125,4 +134,10 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
       <p ref={error} className="error" />
     </div>
   )
+}
+
+/** The nodes in the order toMarkdown writes them, root first: a judge
+ *  badge's index into this list finds its node again. */
+function nodeOrder(root: MindmapNode): MindmapNode[] {
+  return [root, ...(root.children ?? []).flatMap(nodeOrder)]
 }

@@ -102,7 +102,7 @@ describe('unitBadges', () => {
       { text: 'Second one [2].', support: 'unsupported' as const },
       { text: 'Third [1, 2].', support: 'unverified' as const },
     ]
-    expect(unitBadges(answer, units)).toEqual([
+    expect(unitBadges(answer, units).map(({ end, badge }) => ({ end, badge }))).toEqual([
       { end: answer.indexOf('Second one [2].') + 'Second one [2].'.length, badge: 'unsupported' },
       { end: answer.length, badge: 'unverified' },
     ])
@@ -118,5 +118,17 @@ describe('claimHtml', () => {
     expect(claimHtml({ refs: [1, 3], support: 'supported' }, new Set([1]))).toBe(' <button type="button" class="cite" data-n="1">1</button>')
     expect(claimHtml({ refs: [], support: 'unsupported' }, new Set([1]))).toContain('class="badge support-unsupported"')
     expect(claimHtml({}, new Set([1]))).toBe('')
+  })
+})
+
+describe('judge badges in the report', () => {
+  it('adds an escaped judge badge with the unit index after a judged paragraph', () => {
+    const md = 'First claim [1].\n'
+    const units = [{ text: 'First claim [1].', refs: [1], support: 'supported' as const, judge: { level: 'low' as const, model: 'm', verdict: 'contradicted' as const, reason: 'says <b>"no"</b>', quote: '', round: 1 } }]
+    const html = decorateReport(marked.parse(markUnsupported(md, units), { async: false }) as string, new Set([1]), units)
+    expect(html).toContain('data-u="0"')
+    expect(html).toContain('class="badge judge judge-contradicted disagree"')
+    expect(html).toContain('says &lt;b&gt;&quot;no&quot;&lt;/b&gt;')
+    expect(html).not.toContain('⟦')
   })
 })

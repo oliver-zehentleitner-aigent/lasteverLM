@@ -1,11 +1,13 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
 import { rag } from '../api/rag'
-import type { Citation, Message } from '../api/types'
+import type { AnswerUnit, Citation, Message } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { isRemoved, splitCitations } from '../lib/citations'
 import { isStacked } from '../lib/layout'
 import { similarityLabel } from '../lib/provenance'
 import { checkSummary, unitBadges } from '../lib/outputProvenance'
+import { judgeBadge } from '../lib/judge'
+import { JudgeRequest } from './JudgeRequest'
 import { ProvenancePanel } from './ProvenancePanel'
 import { t } from '../i18n'
 import type { ChatPaneProps } from './ChatPane'
@@ -96,6 +98,16 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
                 title={m.check?.method ? t('outProv.checkTitle', { method: m.check.method, threshold: m.check.threshold ?? '' }) : undefined}
               >
                 {checkSummary(m.check)}
+              </p>
+            )}
+            {m.role === 'assistant' && m.citations && m.citations.length > 0 && !m.id.startsWith('local-') && (
+              <p className="small no-print">
+                <JudgeRequest
+                  compact
+                  onJudge={(level) =>
+                    rag.judgeMessage(m.id, level).then((judged) => setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, units: judged.units, check: judged.check ?? x.check } : x))))
+                  }
+                />
               </p>
             )}
             {m.role === 'assistant' && m.citations && m.citations.length > 0 && (
@@ -194,13 +206,13 @@ function AnswerText({ message, onCite, openN }: { message: Message; onCite: (c: 
   const known = new Set(byN.keys())
   // the answer cut after each badged paragraph, each piece with its markers
   const badges = unitBadges(message.content, message.units)
-  const pieces: { text: string; badge: (typeof badges)[number]['badge'] | null }[] = []
+  const pieces: { text: string; badge: (typeof badges)[number]['badge']; unit: AnswerUnit | null }[] = []
   let at = 0
   for (const b of badges) {
-    pieces.push({ text: message.content.slice(at, b.end), badge: b.badge })
+    pieces.push({ text: message.content.slice(at, b.end), badge: b.badge, unit: b.unit })
     at = b.end
   }
-  pieces.push({ text: message.content.slice(at), badge: null })
+  pieces.push({ text: message.content.slice(at), badge: null, unit: null })
   return (
     <p>
       {pieces.map((piece, k) => (
@@ -219,8 +231,22 @@ function AnswerText({ message, onCite, openN }: { message: Message; onCite: (c: 
               {t(`outProv.${piece.badge}`)}
             </span>
           )}
+          {piece.unit && <ChatJudgeBadge unit={piece.unit} />}
         </Fragment>
       ))}
     </p>
+  )
+}
+
+/** A judged paragraph's verdict; the reason and the decisive passage as
+ *  its tooltip (the chat's panel is per citation, not per paragraph). */
+function ChatJudgeBadge({ unit }: { unit: AnswerUnit }) {
+  const b = judgeBadge(unit)
+  if (!b || !unit.judge) return null
+  const title = unit.judge.quote ? `${b.title}\n${t('judge.quote')}: “${unit.judge.quote}”` : b.title
+  return (
+    <span className={`badge judge judge-${b.verdict}${b.disagree ? ' disagree' : ''}`} title={title}>
+      {t('judge.section')}: {b.label}
+    </span>
   )
 }

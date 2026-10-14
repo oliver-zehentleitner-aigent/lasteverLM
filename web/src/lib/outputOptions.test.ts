@@ -119,3 +119,13 @@ describe('report and quiz options, and the instructions', () => {
     expect(optionsLabel({ question_count: 10, difficulty: 'hard', audience: 'experts' }, null)).toBe('10 questions · hard · experts')
   })
 })
+
+describe('the judge option', () => {
+  const judged = { ...spec, judge: { levels: ['off', 'low', 'medium', 'high'], default: 'off', models: { low: 'small' } }, kinds: { report: ['language', 'instructions', 'judge'] } } as OutputOptionsSpec
+  it('sends a level only when it is not off', () => {
+    const v = defaultValues(judged, undefined)
+    expect(v.judge).toBe('off')
+    expect(buildOptions('report', judged, v)).toEqual({})
+    expect(buildOptions('report', judged, { ...v, judge: 'medium' })).toEqual({ judge: 'medium' })
+  })
+})

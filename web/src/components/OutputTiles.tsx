@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState } from 'react'
-import type { Audience, ChartCandidate, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
+import type { Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { AUDIO_STYLES, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
@@ -190,6 +190,20 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
               <VoiceSelect label={t('tiles.voice2')} spec={spec} value={values.voice2} exclude={values.voice} onChange={(voice2) => set({ voice2 })} />
               <VoiceSample voice={values.voice2} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />
             </>
+          )}
+          {shown.includes('judge') && spec.judge && (
+            <label className="judge-option">
+              {t('judge.label')}
+              <select value={values.judge} onChange={(e) => set({ judge: e.target.value as JudgeLevel })}>
+                {spec.judge.levels.map((l) => (
+                  <option key={l} value={l}>
+                    {t(`judge.level.${l}`)}
+                    {spec.judge?.models[l] ? ` (${spec.judge.models[l]})` : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="muted small">{t(`judge.explain.${values.judge}`)}</span>
+            </label>
           )}
           {shown.includes('instructions') && (
             <label className="instructions">

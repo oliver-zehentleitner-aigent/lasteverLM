@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { rag } from '../api/rag'
-import type { Citation } from '../api/types'
+import type { Citation, JudgeNote } from '../api/types'
 import { chunkPosition, claimFor, highlightPassage, similarityLabel, similarityPercent } from '../lib/provenance'
 import { t } from '../i18n'
 
@@ -13,6 +13,8 @@ interface Props {
   removed: boolean
   /** absent on the share page: no source to open there */
   onOpenSource?: (c: Citation) => void
+  /** the judge's reading of the claim, when it was judged */
+  judge?: JudgeNote
 }
 
 /** Where a cited statement comes from: the source, its page and chunk
@@ -20,7 +22,7 @@ interface Props {
  *  text verbatim with the sentence that best matches the claim marked.
  *  Citations written before positions existed are completed from
  *  GET /chunks/{id} when the chunk is still there. */
-export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource }: Props) {
+export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource, judge }: Props) {
   const [chunk, setChunk] = useState<{ text: string; index: number | null; count: number | null } | null>(null)
   const old = (citation.chunk_index === null || citation.chunk_index === undefined) && citation.chunk_id !== ''
 
@@ -60,6 +62,22 @@ export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource
             <span style={{ width: `${similarityPercent(citation.similarity)}%` }} />
           </span>
           <span className="value">{sim}</span>
+        </div>
+      )}
+      {judge && (
+        <div className={`judge-note judge-${judge.verdict}`}>
+          <strong>
+            {t('judge.panelTitle')}: {t(`judge.verdict.${judge.verdict}`)}
+          </strong>{' '}
+          <span className="muted small">
+            ({t(`judge.level.${judge.level}`).toLowerCase()}, {judge.model}, {t('judge.removedRound', { n: judge.round })})
+          </span>
+          <p>{judge.reason}</p>
+          {judge.quote && (
+            <p className="small">
+              <span className="muted">{t('judge.quote')}:</span> <q>{judge.quote}</q>
+            </p>
+          )}
         </div>
       )}
       <blockquote className="chunk">
