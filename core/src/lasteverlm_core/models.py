@@ -37,7 +37,7 @@ SourceKind = Literal["pdf", "text", "url", "image", "audio", "generated"]
 # ("processing") source whose owner has no credit, which its worker skips.
 SourceStatus = Literal["processing", "waiting_for_credit", "ready", "failed"]
 OutputKind = Literal[
-    "report", "quiz", "table", "mindmap", "infographic", "audio", "decision", "chart"
+    "report", "quiz", "table", "mindmap", "infographic", "audio", "decision", "chart", "flashcards"
 ]
 OutputStatus = Literal["waiting", "processing", "ready", "failed"]
 # Access to the admin area: a viewer reads it, an admin also changes it.
