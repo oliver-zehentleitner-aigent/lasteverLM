@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `POST /notebooks/{id}/sources/bulk` `{"library_ids"}` links up to 200 library entries (uploads in any state, ready outputs) into a notebook in one transaction, without processing or cost; answers `{"added", "already"}` (library ids), an existing link is never doubled, and an id that cannot be linked makes it a 404 that adds nothing. `GET /library?kind=all` lists uploads and outputs together; output entries carry `output_id`.
+
 ### Changed
 
 - Adding a source no longer needs credit; processing does. Without credit an upload, URL or text is stored and queued (no more 402) and shown as `waiting_for_credit` in sources and library entries; the worker's claim query skips sources whose owner has no positive balance (no attempt counted) and takes them once there is credit again. Credit running out mid-job puts the source back to wait instead of failing it. `GET /admin/stats` `jobs` gains `waiting_for_credit`; `pending` counts only sources a worker can take.
