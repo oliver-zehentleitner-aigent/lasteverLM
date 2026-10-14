@@ -470,7 +470,8 @@ export interface AccountStats {
 
 export interface IngestStats {
   sources: { processing: number; ready: number; failed: number }
-  jobs: { pending: number; running: number; failed: number }
+  /** waiting_for_credit: jobs held until their owner has credit; absent from an older ingest */
+  jobs: { pending: number; running: number; failed: number; waiting_for_credit?: number }
   chunks: number
   /** bytes in object storage, for sources uploaded since the size is stored */
   source_bytes: number
