@@ -30,11 +30,18 @@ pytestmark = [
 # announced by core (core/db/migrations/0002_core_rate_limit.sql).
 CORE_TABLES = """
 create table if not exists usage (
-    id bigserial primary key, user_id uuid not null, notebook_id uuid, service text not null,
+    id uuid primary key default gen_random_uuid(), user_id uuid not null, notebook_id uuid,
+    service text not null,
     kind text not null, model text not null, tokens_in integer not null default 0,
     tokens_out integer not null default 0, cost_cents integer not null default 0,
     created_at timestamptz not null default now()
 );
+alter table usage alter column cost_cents type numeric using cost_cents::numeric;
+alter table usage add column if not exists action text;
+alter table usage add column if not exists action_id uuid;
+alter table usage add column if not exists charge_cents numeric;
+alter table usage add column if not exists cost_usd_cents numeric;
+alter table usage add column if not exists usd_per_eur numeric;
 create table if not exists access_log (
     id bigserial primary key, at timestamptz not null default now(), ip inet not null,
     path text not null, method text not null, status integer not null, user_id uuid,
@@ -369,3 +376,90 @@ async def test_voucher_code_enc_and_sent_fields(repo: PostgresRepository) -> Non
     assert await repo.count_voucher_mails("friend@pg.test", now + timedelta(seconds=1)) == 0
     listed = {v.id: v for v in await repo.list_vouchers(200)}
     assert listed[vid].code_enc == "sealed" and listed[vid].sent_to == "friend@pg.test"
+
+
+async def test_infra_costs_and_paid_vouchers(repo: PostgresRepository) -> None:
+    from datetime import date
+
+    from lasteverlm_account.repository import InfraCostRecord
+
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from infra_costs")
+    month = date(2026, 9, 1)
+    line = InfraCostRecord(uuid.uuid4(), month, "vultr", "postgres", 1500, "USD")
+    assert await repo.upsert_infra_costs("vultr", [line]) == 1
+    await repo.upsert_infra_costs(
+        "vultr", [InfraCostRecord(uuid.uuid4(), month, "vultr", "postgres", 1600, "USD")]
+    )
+    rows = await repo.list_infra_costs(month, date(2026, 9, 30))
+    assert [(r.item, r.amount_cents) for r in rows] == [("postgres", 1600)]
+    manual = InfraCostRecord(uuid.uuid4(), date(2026, 9, 15), "manual", "domain", 1200, "EUR")
+    assert await repo.add_infra_cost(manual) is True
+    assert (
+        await repo.add_infra_cost(
+            InfraCostRecord(uuid.uuid4(), date(2026, 9, 15), "manual", "domain", 1, "EUR")
+        )
+        is False
+    )
+    assert await repo.delete_infra_cost(rows[0].id) == "not_manual"
+    assert await repo.delete_infra_cost(manual.id) == "deleted"
+    assert await repo.delete_infra_cost(manual.id) == "missing"
+
+    now = datetime.now(UTC)
+    admin = await repo.create_user("fin-admin@pg.test", role="admin", now=now)
+    vid = await repo.create_voucher("hash-fin-paid", 500, admin.id, now, paid=True)
+    assert (await repo.get_voucher(vid)).paid is True  # type: ignore[union-attr]
+    assert await repo.set_voucher_paid(vid, False) is True
+    assert (await repo.get_voucher(vid)).paid is False  # type: ignore[union-attr]
+    assert await repo.set_voucher_paid(uuid.uuid4(), True) is False
+
+
+async def test_finance_aggregates_on_charge_and_cost(repo: PostgresRepository) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    now = datetime.now(UTC)
+    today = now.astimezone(UTC).date()
+    user = await repo.create_user("fin-user@pg.test", role="user", now=now)
+    a1 = uuid.uuid4()
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from usage")
+        await conn.execute(
+            """insert into usage (user_id, service, kind, model, cost_cents, charge_cents,
+                                  action, action_id, created_at)
+               values (%s, 'rag', 'llm', 'big', 4, 5.5, 'chat_answer', %s, %s),
+                      (%s, 'rag', 'fee', 'fee', 0, 2, 'chat_answer', %s, %s),
+                      (%s, 'rag', 'llm', 'big', 3, 3, 'demo_seed', %s, %s)""",
+            (user.id, a1, now, user.id, a1, now, DEMO_USER_ID, uuid.uuid4(), now),
+        )
+    totals = await repo.credit_totals(user.id)
+    assert totals.usage_cents == Decimal("7.5")
+    groups = {g.key: g for g in await repo.usage_groups(today, today, "action")}
+    assert groups["chat_answer"].calls == 1 and groups["chat_answer"].actions == 1
+    assert groups["chat_answer"].charge_cents == Decimal("7.5")
+    assert {g.key for g in await repo.usage_groups(today, today, "user")} >= {"fin-user@pg.test"}
+    periods = await repo.usage_periods(today, today, "month")
+    demo = [p for p in periods if p.demo]
+    assert demo and demo[0].cost_cents == 3 and demo[0].period == today.replace(day=1)
+    averages = {a.action: a for a in await repo.action_averages(now - timedelta(days=1))}
+    assert averages["chat_answer"].avg_cost_cents == 4  # the fee row is excluded
+    money = await repo.voucher_money(date(2000, 1, 1), today)
+    assert money.issued_paid_cents >= 0
+
+
+async def test_migrations_seed_the_pricing_rate_once(repo: PostgresRepository) -> None:
+    from lasteverlm_core import PRICING_SETTINGS_KEY, PricingRules
+
+    seeded = await repo.get_setting(PRICING_SETTINGS_KEY)
+    assert seeded is not None and PricingRules.parse(seeded).usd_per_eur is not None
+    await repo.set_setting(
+        PRICING_SETTINGS_KEY, {"usd_per_eur": 1.2, "default_margin_pct": 5, "actions": {}}
+    )
+    async with repo._pool.connection() as conn:
+        for path in MIGRATIONS:
+            await conn.execute(path.read_text())  # a re-run never overwrites the admin's row
+    assert (await repo.get_setting(PRICING_SETTINGS_KEY)) == {
+        "usd_per_eur": 1.2,
+        "default_margin_pct": 5,
+        "actions": {},
+    }

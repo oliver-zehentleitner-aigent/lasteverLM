@@ -6,10 +6,12 @@ one connection. The schema is ``db/migrations/``; the infra repository applies i
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Literal
 
 from lasteverlm_core import DEMO_USER_ID
@@ -21,18 +23,23 @@ from psycopg_pool import AsyncConnectionPool
 
 from .repository import (
     AccessRecord,
+    ActionAverageRecord,
     BanRecord,
     BlockRecord,
     CreditTotals,
     DailyStatsRecord,
+    InfraCostRecord,
     LoginAttemptRecord,
     LoginRecord,
     ModelUsageRecord,
     StatsRecord,
+    UsageGroupRecord,
+    UsagePeriodRecord,
     UserRecord,
     UserUsageRecord,
     VisitRecord,
     VisitSummary,
+    VoucherMoneyRecord,
     VoucherRecord,
 )
 
@@ -269,20 +276,21 @@ class PostgresRepository:
         created_by: uuid.UUID,
         now: datetime,
         code_enc: str | None = None,
+        paid: bool = False,
     ) -> uuid.UUID:
         voucher_id = uuid.uuid4()
         async with self._pool.connection() as conn:
             await conn.execute(
                 """insert into vouchers
-                       (id, code_hash, code_enc, amount_cents, created_by, created_at)
-                   values (%s, %s, %s, %s, %s, %s)""",
-                (voucher_id, code_hash, code_enc, amount_cents, created_by, now),
+                       (id, code_hash, code_enc, amount_cents, created_by, created_at, paid)
+                   values (%s, %s, %s, %s, %s, %s, %s)""",
+                (voucher_id, code_hash, code_enc, amount_cents, created_by, now, paid),
             )
         return voucher_id
 
     _VOUCHER_SELECT = """select v.id, v.amount_cents, c.email as created_by, v.created_at,
                                 r.email as redeemed_by, v.redeemed_at, v.code_enc, v.sent_to,
-                                v.sent_at
+                                v.sent_at, v.paid
                          from vouchers v
                          left join users c on c.id = v.created_by
                          left join users r on r.id = v.redeemed_by"""
@@ -299,7 +307,70 @@ class PostgresRepository:
             r["code_enc"],
             r["sent_to"],
             r["sent_at"],
+            bool(r["paid"]),
         )
+
+    async def set_voucher_paid(self, voucher_id: uuid.UUID, paid: bool) -> bool:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "update vouchers set paid = %s where id = %s", (paid, voucher_id)
+            )
+            return cur.rowcount == 1
+
+    async def upsert_infra_costs(self, source: str, lines: list[InfraCostRecord]) -> int:
+        async with self._pool.connection() as conn, conn.transaction():
+            for line in lines:
+                await conn.execute(
+                    """insert into infra_costs (id, date, source, item, amount_cents, currency)
+                       values (%s, %s, %s, %s, %s, %s)
+                       on conflict (date, source, item) do update
+                       set amount_cents = excluded.amount_cents,
+                           currency = excluded.currency, updated_at = now()""",
+                    (line.id, line.date, source, line.item, line.amount_cents, line.currency),
+                )
+        return len(lines)
+
+    async def add_infra_cost(self, record: InfraCostRecord) -> bool:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """insert into infra_costs (id, date, source, item, amount_cents, currency)
+                   values (%s, %s, %s, %s, %s, %s)
+                   on conflict (date, source, item) do nothing""",
+                (
+                    record.id,
+                    record.date,
+                    record.source,
+                    record.item,
+                    record.amount_cents,
+                    record.currency,
+                ),
+            )
+            return cur.rowcount == 1
+
+    async def delete_infra_cost(self, cost_id: uuid.UUID) -> str:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "delete from infra_costs where id = %s and source = 'manual'", (cost_id,)
+            )
+            if cur.rowcount == 1:
+                return "deleted"
+            cur = await conn.execute("select 1 from infra_costs where id = %s", (cost_id,))
+            return "not_manual" if await cur.fetchone() else "missing"
+
+    async def list_infra_costs(self, since: date, until: date) -> list[InfraCostRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select id, date, source, item, amount_cents, currency from infra_costs
+                   where date between %s and %s order by date, source, item""",
+                (since, until),
+            )
+            rows = await cur.fetchall()
+        return [
+            InfraCostRecord(
+                r["id"], r["date"], r["source"], r["item"], int(r["amount_cents"]), r["currency"]
+            )
+            for r in rows
+        ]
 
     async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None:
         async with self._pool.connection() as conn:
@@ -349,13 +420,13 @@ class PostgresRepository:
             cur = await conn.execute(
                 """select coalesce((select sum(amount_cents) from ledger where user_id = %s), 0)
                           as credited,
-                          coalesce((select sum(cost_cents) from usage where user_id = %s), 0)
-                          as spent""",
+                          coalesce((select sum(coalesce(charge_cents, cost_cents)) from usage
+                                    where user_id = %s), 0) as spent""",
                 (user_id, user_id),
             )
             row = await cur.fetchone()
         assert row is not None
-        return CreditTotals(int(row["credited"]), int(row["spent"]))
+        return CreditTotals(int(row["credited"]), Decimal(row["spent"]))
 
     async def all_credit_totals(self) -> dict[uuid.UUID, CreditTotals]:
         async with self._pool.connection() as conn:
@@ -364,11 +435,11 @@ class PostgresRepository:
                    from users u
                    left join (select user_id, sum(amount_cents) credited from ledger
                               group by user_id) l on l.user_id = u.id
-                   left join (select user_id, sum(cost_cents) spent from usage
-                              group by user_id) c on c.user_id = u.id"""
+                   left join (select user_id, sum(coalesce(charge_cents, cost_cents)) spent
+                              from usage group by user_id) c on c.user_id = u.id"""
             )
             rows = await cur.fetchall()
-        return {r["id"]: CreditTotals(int(r["credited"]), int(r["spent"])) for r in rows}
+        return {r["id"]: CreditTotals(int(r["credited"]), Decimal(r["spent"])) for r in rows}
 
     async def delete_voucher(
         self, voucher_id: uuid.UUID
@@ -416,8 +487,8 @@ class PostgresRepository:
             vouchers_issued=int(r["vouchers_issued"]),
             vouchers_redeemed=int(r["vouchers_redeemed"]),
             credits_granted_cents=int(r["credits_granted"]),
-            usage_cost_cents_total=int(r["usage_total"]),
-            usage_cost_cents_since=int(r["usage_since"]),
+            usage_cost_cents_total=round(Decimal(r["usage_total"])),
+            usage_cost_cents_since=round(Decimal(r["usage_since"])),
             blocks_active=int(r["blocks_active"]),
             bans_active=int(r["bans_active"]),
         )
@@ -446,7 +517,11 @@ class PostgresRepository:
             rows = await cur.fetchall()
         return [
             DailyStatsRecord(
-                r["d"], int(r["logins"]), int(r["visits"]), int(r["usage_cost"]), int(r["granted"])
+                r["d"],
+                int(r["logins"]),
+                int(r["visits"]),
+                round(Decimal(r["usage_cost"])),
+                int(r["granted"]),
             )
             for r in rows
         ]
@@ -457,7 +532,8 @@ class PostgresRepository:
                    from usage group by model, kind order by cost desc, model, kind""")
             rows = await cur.fetchall()
         return [
-            ModelUsageRecord(r["model"], r["kind"], int(r["calls"]), int(r["cost"])) for r in rows
+            ModelUsageRecord(r["model"], r["kind"], int(r["calls"]), round(Decimal(r["cost"])))
+            for r in rows
         ]
 
     async def top_users_by_usage(self, limit: int) -> list[UserUsageRecord]:
@@ -465,7 +541,8 @@ class PostgresRepository:
             cur = await conn.execute(
                 """select u.email, c.spent as usage_cents,
                           coalesce(l.credited, 0) - c.spent as balance_cents
-                   from (select user_id, sum(cost_cents) spent from usage group by user_id) c
+                   from (select user_id, sum(coalesce(charge_cents, cost_cents)) spent
+                         from usage group by user_id) c
                    join users u on u.id = c.user_id
                    left join (select user_id, sum(amount_cents) credited from ledger
                               group by user_id) l on l.user_id = u.id
@@ -474,7 +551,11 @@ class PostgresRepository:
             )
             rows = await cur.fetchall()
         return [
-            UserUsageRecord(r["email"], int(r["usage_cents"]), int(r["balance_cents"]))
+            UserUsageRecord(
+                r["email"],
+                math.ceil(Decimal(r["usage_cents"])),
+                math.floor(Decimal(r["balance_cents"])),
+            )
             for r in rows
         ]
 
@@ -579,3 +660,102 @@ class PostgresRepository:
 
     async def close(self) -> None:
         await self._pool.close()
+
+    # finance ------------------------------------------------------------------
+    _GROUP_KEYS = {  # whitelisted SQL for the group parameter, never interpolated from input
+        "day": "((u.created_at at time zone 'UTC')::date)::text",
+        "action": "u.action",
+        "model": "u.model",
+        "user": "coalesce(us.email, u.user_id::text)",
+        "service": "u.service",
+    }
+
+    async def usage_groups(self, since: date, until: date, group: str) -> list[UsageGroupRecord]:
+        key = self._GROUP_KEYS[group]
+        order = "key" if group == "day" else "cost desc, key"
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"""select {key} as key,
+                           count(*) filter (where u.kind <> 'fee') as calls,
+                           count(distinct coalesce(u.action_id, u.id)) as actions,
+                           coalesce(sum(u.cost_cents), 0) as cost,
+                           coalesce(sum(coalesce(u.charge_cents, u.cost_cents)), 0) as charge,
+                           coalesce(sum(coalesce(u.cost_usd_cents, u.cost_cents)), 0) as cost_usd
+                    from usage u left join users us on us.id = u.user_id
+                    where (u.created_at at time zone 'UTC')::date between %s and %s
+                    group by 1 order by {order}""",  # noqa: S608 - key/order from the whitelist
+                (since, until),
+            )
+            rows = await cur.fetchall()
+        return [
+            UsageGroupRecord(
+                str(r["key"]),
+                int(r["calls"]),
+                int(r["actions"]),
+                Decimal(r["cost"]),
+                Decimal(r["charge"]),
+                Decimal(r["cost_usd"]),
+            )
+            for r in rows
+        ]
+
+    async def usage_periods(self, since: date, until: date, period: str) -> list[UsagePeriodRecord]:
+        trunc = "month" if period == "month" else "day"
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select date_trunc(%(trunc)s, created_at at time zone 'UTC')::date as period,
+                          user_id = %(demo)s as demo,
+                          coalesce(sum(cost_cents), 0) as cost,
+                          coalesce(sum(coalesce(charge_cents, cost_cents)), 0) as charge
+                   from usage
+                   where (created_at at time zone 'UTC')::date between %(since)s and %(until)s
+                   group by 1, 2 order by 1, 2""",
+                {"trunc": trunc, "demo": DEMO_USER_ID, "since": since, "until": until},
+            )
+            rows = await cur.fetchall()
+        return [
+            UsagePeriodRecord(
+                r["period"], bool(r["demo"]), Decimal(r["cost"]), Decimal(r["charge"])
+            )
+            for r in rows
+        ]
+
+    async def action_averages(self, since: datetime) -> list[ActionAverageRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select action, count(distinct action_id) as n,
+                          sum(cost_cents) / nullif(count(distinct action_id), 0) as avg_cost
+                   from usage
+                   where created_at >= %s and kind <> 'fee'
+                         and action is not null and action <> 'unknown'
+                   group by action order by action""",
+                (since,),
+            )
+            rows = await cur.fetchall()
+        return [
+            ActionAverageRecord(r["action"], int(r["n"]), Decimal(r["avg_cost"] or 0)) for r in rows
+        ]
+
+    async def voucher_money(self, since: date, until: date) -> VoucherMoneyRecord:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """select
+                     coalesce(sum(amount_cents) filter (where paid and created_at::date
+                              between %(s)s and %(u)s), 0) as issued_paid,
+                     coalesce(sum(amount_cents) filter (where not paid and created_at::date
+                              between %(s)s and %(u)s), 0) as issued_free,
+                     coalesce(sum(amount_cents) filter (where paid and redeemed_at::date
+                              between %(s)s and %(u)s), 0) as redeemed_paid,
+                     coalesce(sum(amount_cents) filter (where not paid and redeemed_at::date
+                              between %(s)s and %(u)s), 0) as redeemed_free
+                   from vouchers""",
+                {"s": since, "u": until},
+            )
+            r = await cur.fetchone()
+        assert r is not None
+        return VoucherMoneyRecord(
+            int(r["issued_paid"]),
+            int(r["issued_free"]),
+            int(r["redeemed_paid"]),
+            int(r["redeemed_free"]),
+        )

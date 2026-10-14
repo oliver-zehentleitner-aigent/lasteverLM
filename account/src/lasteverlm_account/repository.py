@@ -8,10 +8,12 @@ free of transaction handling.
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Literal, Protocol
 
 
@@ -107,6 +109,17 @@ class VoucherRecord:
     code_enc: str | None = None
     sent_to: str | None = None
     sent_at: datetime | None = None
+    paid: bool = False
+
+
+@dataclass(frozen=True)
+class InfraCostRecord:
+    id: uuid.UUID
+    date: date  # first day of the month for 'vultr', any day for 'manual'
+    source: str  # 'vultr' | 'manual'
+    item: str
+    amount_cents: int
+    currency: str  # 'USD' | 'EUR'
 
 
 @dataclass(frozen=True)
@@ -152,12 +165,52 @@ class StatsRecord:
 
 @dataclass(frozen=True)
 class CreditTotals:
+    """Credits and what the user was charged (core's usage.charge_cents, sub-cent exact)."""
+
     credited_cents: int
-    usage_cents: int
+    usage_cents: Decimal  # charged, not the real cost
 
     @property
     def balance_cents(self) -> int:
-        return self.credited_cents - self.usage_cents
+        """Whole cents the user can still spend: rounded down, never in the user's favour."""
+        return math.floor(self.credited_cents - Decimal(self.usage_cents))
+
+    @property
+    def usage_cents_whole(self) -> int:
+        return math.ceil(Decimal(self.usage_cents))
+
+
+@dataclass(frozen=True)
+class UsageGroupRecord:
+    key: str
+    calls: int  # usage rows except fixed fees
+    actions: int  # distinct actions
+    cost_cents: Decimal  # real cost in euro cents, at the rate of each booking
+    charge_cents: Decimal  # charged to users, euro cents
+    cost_usd_cents: Decimal = Decimal(0)  # real cost as measured, US cents
+
+
+@dataclass(frozen=True)
+class UsagePeriodRecord:
+    period: date  # first day of the day or month
+    demo: bool  # the shared demo user's usage, paid by seed credit, not money
+    cost_cents: Decimal
+    charge_cents: Decimal
+
+
+@dataclass(frozen=True)
+class ActionAverageRecord:
+    action: str
+    actions: int
+    avg_cost_cents: Decimal  # mean real cost of one action, fees excluded
+
+
+@dataclass(frozen=True)
+class VoucherMoneyRecord:
+    issued_paid_cents: int
+    issued_free_cents: int
+    redeemed_paid_cents: int
+    redeemed_free_cents: int
 
 
 class Repository(Protocol):
@@ -218,7 +271,32 @@ class Repository(Protocol):
         created_by: uuid.UUID,
         now: datetime,
         code_enc: str | None = None,
+        paid: bool = False,
     ) -> uuid.UUID: ...
+    async def set_voucher_paid(self, voucher_id: uuid.UUID, paid: bool) -> bool: ...
+    async def upsert_infra_costs(self, source: str, lines: list[InfraCostRecord]) -> int:
+        """Insert or update by (date, source, item); returns the rows written."""
+        ...
+
+    async def add_infra_cost(self, record: InfraCostRecord) -> bool:
+        """False when (date, source, item) exists already."""
+        ...
+
+    async def delete_infra_cost(self, cost_id: uuid.UUID) -> str:
+        """'deleted' | 'not_manual' | 'missing'."""
+        ...
+
+    async def list_infra_costs(self, since: date, until: date) -> list[InfraCostRecord]: ...
+    async def usage_groups(self, since: date, until: date, group: str) -> list[UsageGroupRecord]:
+        """Usage of [since, until] (UTC days) grouped by day | action | model | user | service."""
+        ...
+
+    async def usage_periods(self, since: date, until: date, period: str) -> list[UsagePeriodRecord]:
+        """Cost and charge per day or month, the demo user's share apart."""
+        ...
+
+    async def action_averages(self, since: datetime) -> list[ActionAverageRecord]: ...
+    async def voucher_money(self, since: date, until: date) -> VoucherMoneyRecord: ...
     async def get_voucher(self, voucher_id: uuid.UUID) -> VoucherRecord | None: ...
     async def mark_voucher_sent(self, voucher_id: uuid.UUID, email: str, at: datetime) -> None: ...
     async def count_voucher_mails(self, email: str, since: datetime) -> int:

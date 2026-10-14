@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import calendar
+import contextlib
 import hashlib
 import logging
 import re
@@ -9,14 +12,19 @@ import secrets
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal
 from typing import Any
 
 from lasteverlm_core import (
+    DEFAULT_PRICING_RULES,
     DEMO_USER_ID,
+    PRICING_SETTINGS_KEY,
     RATE_LIMIT_SETTINGS_KEY,
+    USAGE_ACTIONS,
     AuthSettings,
     DependencyProbe,
+    PricingRules,
     RateLimitRules,
     RateLimitSettings,
     issue_jwt,
@@ -40,9 +48,19 @@ from .models import (
     Allowlist,
     DailyStat,
     DailyStats,
+    FinanceCosts,
+    FinanceGroupRow,
+    FinanceProfit,
+    FinanceRevenue,
+    InfraCost,
+    InfraCostAdd,
+    InfraCosts,
     ModelUsage,
     Preferences,
     PreferencesUpdate,
+    PricingPreviewRow,
+    PricingView,
+    ProfitRow,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     Role,
@@ -57,9 +75,11 @@ from .models import (
     UserUsage,
     VoucherCode,
     VoucherCounts,
+    VoucherMoney,
 )
 from .privacy import DailySalt, ua_family, utc_today, visitor_hash
 from .repository import (
+    InfraCostRecord,
     LoginAttemptRecord,
     Repository,
     UserRecord,
@@ -68,6 +88,7 @@ from .repository import (
 )
 from .services import PurgeError, ServiceClient
 from .system import ServiceStatus, SystemProbe
+from .vultr import VultrBilling, VultrError
 
 log = logging.getLogger("lasteverlm_account")
 
@@ -76,6 +97,7 @@ SETTING_DOMAINS = "allowed_domains"
 SETTING_ADDRESSES = "allowed_addresses"
 SETTING_VIEWER_DOMAINS = "viewer_domains"
 SETTING_VIEWER_ADDRESSES = "viewer_addresses"
+SETTING_VULTR_SYNC = "vultr_sync"  # {"last_sync", "last_error", "rows"}
 _SETTING_KEYS: dict[str, tuple[str, str]] = {  # kind -> (setting key, list key inside the value)
     "domain": (SETTING_DOMAINS, "allowed_domains"),
     "address": (SETTING_ADDRESSES, "allowed_addresses"),
@@ -167,6 +189,7 @@ class AccountService:
         system: SystemProbe | None = None,
         services: ServiceClient | None = None,
         dependencies: DependencyProbe | None = None,
+        vultr: VultrBilling | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
@@ -177,6 +200,8 @@ class AccountService:
         )
         self.dependencies = dependencies or DependencyProbe({})
         self._cipher = VoucherCipher(settings.voucher_key)
+        key = settings.vultr_billing_api_key
+        self.vultr = vultr or (VultrBilling(key) if key else None)
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
         self.rate_limit = rate_limit or RateLimitSettings()
@@ -559,7 +584,7 @@ class AccountService:
                     created_at=user.created_at,
                     last_login_at=user.last_login_at,
                     balance_cents=t.balance_cents if t else 0,
-                    usage_cents=t.usage_cents if t else 0,
+                    usage_cents=t.usage_cents_whole if t else 0,
                     granted_cents=t.credited_cents if t else 0,
                     role=_role(user),
                 )
@@ -739,6 +764,7 @@ class AccountService:
         send_to: str | None = None,
         message: str | None = None,
         allow: bool = True,
+        paid: bool = False,
     ) -> list[str]:
         """Create `count` vouchers; the plain codes come back once. The code is stored hashed
         (for the redeem) and encrypted (so an admin can show or mail it again). With
@@ -754,6 +780,7 @@ class AccountService:
                 admin.id,
                 now,
                 code_enc=self._cipher.encrypt(code),
+                paid=paid,
             )
             codes.append(code)
             if send_to:
@@ -842,4 +869,295 @@ class AccountService:
             recoverable=code is not None,
             sent_to=v.sent_to,
             sent_at=v.sent_at,
+            paid=v.paid,
         )
+
+    async def set_voucher_paid(self, voucher_id: uuid.UUID, paid: bool) -> AdminVoucher:
+        if not await self.repo.set_voucher_paid(voucher_id, paid):
+            raise AccountError(404, "unknown voucher")
+        voucher = await self.repo.get_voucher(voucher_id)
+        assert voucher is not None
+        return self._admin_voucher(voucher)
+
+    # finance: infrastructure costs -------------------------------------------
+    async def usd_per_eur(self) -> Decimal | None:
+        """The one exchange rate: the pricing rules' usd_per_eur, which core books with."""
+        return (await self.pricing_rules()).usd_per_eur
+
+    async def sync_vultr(self) -> int:
+        """Read Vultr's billing and upsert the monthly lines; the outcome is kept for the
+        page. Raises 409 ``vultr_not_connected`` without a key."""
+        if self.vultr is None:
+            raise AccountError(
+                409, "Vultr billing is not connected (VULTR_BILLING_API_KEY)", "vultr_not_connected"
+            )
+        now = self.now()
+        try:
+            lines = await self.vultr.cost_lines()
+        except VultrError as exc:
+            await self.repo.set_setting(
+                SETTING_VULTR_SYNC, {"last_sync": None, "last_error": str(exc), "rows": 0}
+            )
+            log.warning("vultr billing sync failed: %s", exc)
+            raise AccountError(502, f"Vultr billing sync failed: {exc}", "vultr_failed") from exc
+        rows = await self.repo.upsert_infra_costs(
+            "vultr",
+            [
+                InfraCostRecord(
+                    uuid.uuid4(), ln.month, "vultr", ln.item, ln.amount_cents, ln.currency
+                )
+                for ln in lines
+            ],
+        )
+        await self.repo.set_setting(
+            SETTING_VULTR_SYNC, {"last_sync": now.isoformat(), "last_error": None, "rows": rows}
+        )
+        log.info("vultr billing sync: %d monthly lines", rows)
+        return rows
+
+    async def vultr_loop(self, interval_seconds: float = 24 * 3600) -> None:
+        """The daily sync, started by the app when a key is set. Upserts are idempotent, so
+        every replica may run it; a failure is logged and kept for the page, never raised."""
+        while True:
+            with contextlib.suppress(AccountError):  # logged and kept by sync_vultr
+                await self.sync_vultr()
+            await asyncio.sleep(interval_seconds)
+
+    def _eur(self, cents: int, currency: str, usd_per_eur: Decimal | None) -> int | None:
+        if currency == "EUR":
+            return cents
+        return round(Decimal(cents) / usd_per_eur) if usd_per_eur else None
+
+    def _infra_cost(self, r: InfraCostRecord, rate: Decimal | None) -> InfraCost:
+        return InfraCost(
+            id=r.id,
+            date=r.date,
+            source="vultr" if r.source == "vultr" else "manual",
+            item=r.item,
+            amount_cents=r.amount_cents,
+            currency="USD" if r.currency == "USD" else "EUR",
+            amount_eur_cents=self._eur(r.amount_cents, r.currency, rate),
+        )
+
+    async def admin_infra(self, since: date, until: date) -> InfraCosts:
+        rate = await self.usd_per_eur()
+        sync = await self.repo.get_setting(SETTING_VULTR_SYNC) or {}
+        rows = await self.repo.list_infra_costs(since, until)
+        totals: dict[str, int] = {}
+        for r in rows:
+            totals[r.currency] = totals.get(r.currency, 0) + r.amount_cents
+        converted = [self._eur(r.amount_cents, r.currency, rate) for r in rows]
+        last = sync.get("last_sync")
+        return InfraCosts(
+            vultr="connected" if self.vultr is not None else "not connected",
+            last_sync=datetime.fromisoformat(last) if last else None,
+            last_error=sync.get("last_error"),
+            usd_per_eur=float(rate) if rate is not None else None,
+            entries=[self._infra_cost(r, rate) for r in rows],
+            totals_by_currency=totals,
+            total_eur_cents=None if None in converted else sum(c or 0 for c in converted),
+        )
+
+    async def add_infra_cost(self, body: InfraCostAdd) -> InfraCost:
+        record = InfraCostRecord(
+            uuid.uuid4(), body.date, "manual", body.item, body.amount_cents, body.currency
+        )
+        if not await self.repo.add_infra_cost(record):
+            raise AccountError(409, "an entry with this date and item exists already")
+        return self._infra_cost(record, await self.usd_per_eur())
+
+    async def delete_infra_cost(self, cost_id: uuid.UUID) -> None:
+        outcome = await self.repo.delete_infra_cost(cost_id)
+        if outcome == "missing":
+            raise AccountError(404, "unknown entry")
+        if outcome == "not_manual":
+            raise AccountError(
+                409, "Vultr entries come from the billing sync and cannot be deleted", "not_manual"
+            )
+
+    # finance: pricing ---------------------------------------------------------
+    async def pricing_rules(self) -> PricingRules:
+        raw = await self.repo.get_setting(PRICING_SETTINGS_KEY)
+        if raw is None:
+            return DEFAULT_PRICING_RULES
+        try:
+            return PricingRules.parse(raw)
+        except ValueError as exc:
+            log.warning("stored pricing rules unusable, showing the defaults: %s", exc)
+            return DEFAULT_PRICING_RULES
+
+    async def pricing_view(self, rules: PricingRules | None = None) -> PricingView:
+        rules = rules or await self.pricing_rules()
+        averages = {
+            a.action: a for a in await self.repo.action_averages(self.now() - timedelta(days=30))
+        }
+        preview = []
+        for action in sorted(USAGE_ACTIONS):
+            avg = averages.get(action)
+            fixed = rules.fixed_cents(action)
+            charge = rules.charge_cents(action, avg.avg_cost_cents) + fixed if avg else None
+            preview.append(
+                PricingPreviewRow(
+                    action=action,
+                    actions=avg.actions if avg else 0,
+                    avg_cost_cents=_money(avg.avg_cost_cents) if avg else None,
+                    margin_pct=_money(rules.margin_pct(action)),
+                    fixed_cents=_money(fixed),
+                    charge_cents=_money(charge) if charge is not None else None,
+                )
+            )
+        return PricingView(rules=rules.as_json(), actions=sorted(USAGE_ACTIONS), preview=preview)
+
+    def _parse_pricing(self, body: dict[str, Any]) -> PricingRules:
+        try:
+            return PricingRules.parse(body)  # core's validator, the one the services trust
+        except ValueError as exc:
+            raise AccountError(422, str(exc)) from exc
+
+    async def update_pricing(self, body: dict[str, Any]) -> PricingView:
+        rules = self._parse_pricing(body)
+        await self.repo.set_setting(PRICING_SETTINGS_KEY, rules.as_json())
+        return await self.pricing_view(rules)
+
+    async def preview_pricing(self, body: dict[str, Any]) -> PricingView:
+        """What the proposed rules would charge, without storing them."""
+        return await self.pricing_view(self._parse_pricing(body))
+
+    async def reset_pricing(self) -> None:
+        """Margins and fees back to zero. The exchange rate stays: without it core refuses
+        to book, so a reset must not take it away."""
+        rate = await self.usd_per_eur()
+        if rate is None:
+            await self.repo.delete_setting(PRICING_SETTINGS_KEY)
+            return
+        await self.repo.set_setting(
+            PRICING_SETTINGS_KEY,
+            PricingRules.parse(
+                {"usd_per_eur": float(rate), "default_margin_pct": 0, "actions": {}}
+            ).as_json(),
+        )
+
+    # finance: costs, revenue, profit -----------------------------------------
+    async def finance_costs(self, since: date, until: date, group: str) -> FinanceCosts:
+        rows = await self.repo.usage_groups(since, until, group)
+        return FinanceCosts(
+            from_=since,
+            to=until,
+            group=group,
+            rows=[
+                FinanceGroupRow(
+                    key=r.key,
+                    calls=r.calls,
+                    actions=r.actions,
+                    cost_cents=_money(r.cost_cents),
+                    charge_cents=_money(r.charge_cents),
+                    cost_usd_cents=_money(r.cost_usd_cents),
+                )
+                for r in rows
+            ],
+            total_cost_cents=_money(sum((r.cost_cents for r in rows), Decimal(0))),
+            total_charge_cents=_money(sum((r.charge_cents for r in rows), Decimal(0))),
+            total_cost_usd_cents=_money(sum((r.cost_usd_cents for r in rows), Decimal(0))),
+        )
+
+    async def finance_revenue(self, since: date, until: date) -> FinanceRevenue:
+        periods = await self.repo.usage_periods(since, until, "month")
+        money = await self.repo.voucher_money(since, until)
+        totals = await self.repo.all_credit_totals()
+        return FinanceRevenue(
+            from_=since,
+            to=until,
+            charged_cents=_money(sum((p.charge_cents for p in periods if not p.demo), Decimal(0))),
+            demo_charged_cents=_money(sum((p.charge_cents for p in periods if p.demo), Decimal(0))),
+            vouchers=VoucherMoney(**money.__dict__),
+            outstanding_credit_cents=sum(
+                max(t.balance_cents, 0) for uid, t in totals.items() if uid != DEMO_USER_ID
+            ),
+        )
+
+    async def finance_profit(self, since: date, until: date, group: str) -> FinanceProfit:
+        rate = await self.usd_per_eur()
+        first_month = since.replace(day=1)
+        infra_rows = await self.repo.list_infra_costs(first_month, until)
+        infra: dict[date, Decimal | None] = {}
+        for r in infra_rows:
+            month = r.date.replace(day=1)
+            eur = self._eur(r.amount_cents, r.currency, rate)
+            prev = infra.get(month, Decimal(0))
+            infra[month] = None if eur is None or prev is None else prev + Decimal(eur)
+
+        def infra_for(period: date) -> Decimal | None:
+            month_total = infra.get(period.replace(day=1), Decimal(0))
+            if month_total is None or group == "month":
+                return month_total
+            return month_total / calendar.monthrange(period.year, period.month)[1]
+
+        sums: dict[date, list[Decimal]] = {}
+        for p in await self.repo.usage_periods(since, until, group):
+            row = sums.setdefault(p.period, [Decimal(0)] * 4)
+            if p.demo:
+                row[2] += p.charge_cents
+                row[3] += p.cost_cents
+            else:
+                row[0] += p.charge_cents
+                row[1] += p.cost_cents
+        periods = _periods(since, until, group)
+        rows = []
+        for period in periods:
+            charged, cost, demo_charged, demo_cost = sums.get(period, [Decimal(0)] * 4)
+            infra_cost = infra_for(period)
+            rows.append(
+                ProfitRow(
+                    period=period,
+                    charged_cents=_money(charged),
+                    model_cost_cents=_money(cost),
+                    infra_cost_cents=_money(infra_cost) if infra_cost is not None else None,
+                    profit_cents=(
+                        _money(charged - cost - infra_cost) if infra_cost is not None else None
+                    ),
+                    demo_charged_cents=_money(demo_charged),
+                    demo_cost_cents=_money(demo_cost),
+                )
+            )
+        total = None
+        if rows:
+            infra_vals = [r.infra_cost_cents for r in rows]
+            infra_total = None if None in infra_vals else sum(v or 0 for v in infra_vals)
+            charged_total = sum(r.charged_cents for r in rows)
+            cost_total = sum(r.model_cost_cents for r in rows)
+            total = ProfitRow(
+                period=since,
+                charged_cents=round(charged_total, 4),
+                model_cost_cents=round(cost_total, 4),
+                infra_cost_cents=round(infra_total, 4) if infra_total is not None else None,
+                profit_cents=(
+                    round(charged_total - cost_total - infra_total, 4)
+                    if infra_total is not None
+                    else None
+                ),
+                demo_charged_cents=round(sum(r.demo_charged_cents for r in rows), 4),
+                demo_cost_cents=round(sum(r.demo_cost_cents for r in rows), 4),
+            )
+        return FinanceProfit(
+            from_=since,
+            to=until,
+            group="month" if group == "month" else "day",
+            usd_per_eur=float(rate) if rate is not None else None,
+            rows=rows,
+            total=total,
+        )
+
+
+def _money(value: Decimal | float | int) -> float:
+    """Cents as a JSON number, sub-cent exact to four places."""
+    return float(round(Decimal(value), 4))
+
+
+def _periods(since: date, until: date, group: str) -> list[date]:
+    if group == "day":
+        return [since + timedelta(days=i) for i in range((until - since).days + 1)]
+    months, cur = [], since.replace(day=1)
+    while cur <= until:
+        months.append(cur)
+        cur = (cur.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return months

@@ -36,6 +36,7 @@ class Settings:
     jwt_ttl_days: int = 1  # sign-out is client-side; a token lives at most this long
     voucher_default_cents: int = 1000
     voucher_mail_quota_per_hour: int = 5  # voucher mails to one address per hour, then 429
+    vultr_billing_api_key: str | None = None  # empty or unset: the billing sync does not run
     visit_retention_days: int = 30
     access_retention_days: int = 30  # core's RETENTION_DAYS, for the tables its middleware writes
     ban_max_days: int = 90  # core's BAN_MAX_DAYS: a ban holds until lifted, at most this long
@@ -78,6 +79,7 @@ class Settings:
             auth_jwt_secret=required("AUTH_JWT_SECRET"),
             public_base_url=required("PUBLIC_BASE_URL").rstrip("/"),
             voucher_key=_voucher_key(env.get("VOUCHER_KEY")),
+            vultr_billing_api_key=env.get("VULTR_BILLING_API_KEY", "").strip() or None,
             demo_token=env.get("DEMO_TOKEN", "").strip() or None,
             admin_emails=frozenset(_csv_lower(env.get("ADMIN_EMAILS", ""))),
             allowed_domains_seed=tuple(_csv_lower(env.get("AUTH_ALLOWED_DOMAINS", ""))),

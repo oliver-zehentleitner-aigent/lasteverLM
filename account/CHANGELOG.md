@@ -11,6 +11,10 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- Migration 0010 seeds the pricing row core's booking needs: `usd_per_eur` 1.1188 (ECB reference rate of 2026-10-13, until the maintainer confirms one), no margin, no fees; an existing row is never touched.
+- Pricing and finance on core's split of cost and charge (core #394): `GET/PUT/DELETE /admin/settings/pricing` and `POST /admin/settings/pricing/preview` (core's rules, an example charge per action from the last 30 days), `GET /admin/finance/costs` (group by day, action, model, user, service; real cost in EUR and the measured USD), `/admin/finance/revenue` (charged, paid vs. free vouchers, credit outstanding, demo apart), `/admin/finance/profit` (charged − model cost − infrastructure per day or month).
+- Infrastructure costs for the finance pages (migration 0009, `infra_costs`): a daily Vultr billing sync inside the service with `VULTR_BILLING_API_KEY` (pending charges and the last three invoices, monthly lines in USD, idempotent), manual entries, `GET/POST /admin/finance/infra`, `DELETE /admin/finance/infra/{id}`, `POST /admin/finance/infra/sync`; without a key the API says `"vultr": "not connected"`. USD lines are converted at the pricing rules' `usd_per_eur`; EUR figures stay null without a rate.
+- Vouchers carry `paid` (default false; on create and via `PATCH /admin/vouchers/{id}`).
 - Voucher codes stay recoverable for admins: new vouchers store the code AES-GCM-encrypted under `VOUCHER_KEY` (required, 32 bytes base64; migration 0008 adds `code_enc`, `sent_to`, `sent_at`). `GET /admin/vouchers/{id}/code` shows it (admin only), the list shows it masked with `recoverable`, `sent_to`, `sent_at`.
 - `POST /admin/vouchers/{id}/send` `{email, message?, allow?}` mails a voucher with the sign-in link (German or English by the sending admin's `ui_language`), adds the address to the allowlist first unless `allow` is false, records `sent_to`/`sent_at`; 409 `already_redeemed`, 429 `too_many_mails` (5 per address per hour), 502 `mail_failed`. `POST /admin/vouchers` takes the same `send_to`, `message`, `allow` to send each created voucher right away.
 - `viewer_addresses` beside `viewer_domains`: a first sign-in of a listed address gets the viewer role (`POST/DELETE /admin/settings/viewer-addresses`, listed in `GET /admin/settings/allowlist`); the address must be allowed to sign in as well, existing users keep their role.
@@ -18,6 +22,7 @@ preserves why it changed, in `context/`.
 ### Changed
 
 - `ban_max_days` (1–365) is part of the editable rate-limit rule: `PUT /admin/settings/ratelimit` accepts it (omitted keeps the `BAN_MAX_DAYS` default), core's limiter and the startup purge use the stored value (core #387).
+- Balances are credits minus what users were charged (`usage.charge_cents`, falling back to the cost for rows booked before core 0006), rounded down to whole cents; the users list shows charges rounded up. `/admin/stats` keeps real cost.
 - Vouchers created before this release exist only as hashes: their codes cannot be shown or sent again (404 `not_recoverable`). They stay redeemable.
 
 ## [0.14.0] - 2026-10-14

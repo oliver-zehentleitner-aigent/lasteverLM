@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from datetime import date, timedelta
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Header, Path, Query, Response
+from fastapi import APIRouter, Header, HTTPException, Path, Query, Response
 from fastapi.responses import JSONResponse
 
 from ..models import (
@@ -24,6 +25,13 @@ from ..models import (
     CreateVouchersResponse,
     DailyStats,
     DomainAdd,
+    FinanceCosts,
+    FinanceProfit,
+    FinanceRevenue,
+    InfraCost,
+    InfraCostAdd,
+    InfraCosts,
+    PricingView,
     RateLimitRulesUpdate,
     RateLimitRulesView,
     RoleUpdate,
@@ -32,6 +40,7 @@ from ..models import (
     SystemInfo,
     UsageStats,
     VoucherCode,
+    VoucherPaid,
 )
 from .deps import AdminReaderDep, AdminUserDep, Service
 
@@ -217,7 +226,7 @@ async def create_vouchers(
     """The plain codes come back here; they stay recoverable for admins afterwards. With
     `send_to`, every created voucher is mailed right away (see `/vouchers/{id}/send`)."""
     codes = await service.create_vouchers(
-        admin, body.amount_cents, body.count, body.send_to, body.message, body.allow
+        admin, body.amount_cents, body.count, body.send_to, body.message, body.allow, body.paid
     )
     return CreateVouchersResponse(codes=codes)
 
@@ -285,3 +294,128 @@ async def access(
     service: Service, _: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
 ) -> list[AdminAccess]:
     return await service.admin_access(limit)
+
+
+@router.patch("/vouchers/{voucher_id}", response_model=AdminVoucher)
+async def set_voucher_paid(
+    voucher_id: uuid.UUID, body: VoucherPaid, service: Service, _: AdminUserDep
+) -> AdminVoucher:
+    """Mark a voucher as paid (sold, counts as revenue) or free (a gift)."""
+    return await service.set_voucher_paid(voucher_id, body.paid)
+
+
+# --- finance: infrastructure costs ---------------------------------------------
+
+
+@router.get("/finance/infra", response_model=InfraCosts)
+async def infra_costs(
+    service: Service,
+    _: AdminReaderDep,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: Annotated[date | None, Query()] = None,
+) -> InfraCosts:
+    """Infrastructure costs from Vultr's billing and manual entries, by month; default the
+    last three months. ``vultr`` says whether the billing sync is connected."""
+    until = to or service.now().date()
+    since = from_ or (until.replace(day=1) - timedelta(days=62)).replace(day=1)
+    return await service.admin_infra(since, until)
+
+
+@router.post("/finance/infra", response_model=InfraCost, status_code=201)
+async def add_infra_cost(body: InfraCostAdd, service: Service, _: AdminUserDep) -> InfraCost:
+    return await service.add_infra_cost(body)
+
+
+@router.delete("/finance/infra/{cost_id}", status_code=204)
+async def delete_infra_cost(cost_id: uuid.UUID, service: Service, _: AdminUserDep) -> Response:
+    """Manual entries only; a Vultr line answers 409 not_manual."""
+    await service.delete_infra_cost(cost_id)
+    return Response(status_code=204)
+
+
+@router.post("/finance/infra/sync", response_model=InfraCosts)
+async def sync_infra(service: Service, _: AdminUserDep) -> InfraCosts:
+    """Run the Vultr billing sync now; 409 vultr_not_connected without a key."""
+    await service.sync_vultr()
+    until = service.now().date()
+    return await service.admin_infra(
+        (until.replace(day=1) - timedelta(days=62)).replace(day=1), until
+    )
+
+
+# --- finance: pricing, costs, revenue, profit -----------------------------------
+
+From = Annotated[date | None, Query(alias="from")]
+To = Annotated[date | None, Query()]
+
+
+def _range(service: Service, from_: date | None, to: date | None) -> tuple[date, date]:
+    until = to or service.now().date()
+    since = from_ or until - timedelta(days=29)
+    if since > until:
+        raise HTTPException(status_code=422, detail="from must not be after to")
+    if (until - since).days > 731:
+        raise HTTPException(status_code=422, detail="at most two years per request")
+    return since, until
+
+
+@router.get("/settings/pricing", response_model=PricingView)
+async def get_pricing(service: Service, _: AdminReaderDep) -> PricingView:
+    """Core's pricing rules in force, the actions they can name, an example per action."""
+    return await service.pricing_view()
+
+
+@router.put("/settings/pricing", response_model=PricingView)
+async def put_pricing(body: dict[str, Any], service: Service, _: AdminUserDep) -> PricingView:
+    """Replace the rules; core's PricingRules.parse validates (422 names the field). Every
+    service reads them within 30 s."""
+    return await service.update_pricing(body)
+
+
+@router.post("/settings/pricing/preview", response_model=PricingView)
+async def preview_pricing(body: dict[str, Any], service: Service, _: AdminUserDep) -> PricingView:
+    """What proposed rules would charge per action, without storing them."""
+    return await service.preview_pricing(body)
+
+
+@router.delete("/settings/pricing", status_code=204)
+async def reset_pricing(service: Service, _: AdminUserDep) -> Response:
+    """Margins and fees back to zero; the exchange rate stays (core cannot book without it)."""
+    await service.reset_pricing()
+    return Response(status_code=204)
+
+
+@router.get("/finance/costs", response_model=FinanceCosts, response_model_by_alias=True)
+async def finance_costs(
+    service: Service,
+    _: AdminReaderDep,
+    from_: From = None,
+    to: To = None,
+    group: Literal["day", "action", "model", "user", "service"] = "day",
+) -> FinanceCosts:
+    """Usage between from and to (UTC days, inclusive; default the last 30): real cost and
+    charge per group."""
+    since, until = _range(service, from_, to)
+    return await service.finance_costs(since, until, group)
+
+
+@router.get("/finance/revenue", response_model=FinanceRevenue, response_model_by_alias=True)
+async def finance_revenue(
+    service: Service, _: AdminReaderDep, from_: From = None, to: To = None
+) -> FinanceRevenue:
+    """Charged to users, paid vs. free vouchers issued and redeemed, credit outstanding."""
+    since, until = _range(service, from_, to)
+    return await service.finance_revenue(since, until)
+
+
+@router.get("/finance/profit", response_model=FinanceProfit, response_model_by_alias=True)
+async def finance_profit(
+    service: Service,
+    _: AdminReaderDep,
+    from_: From = None,
+    to: To = None,
+    group: Literal["day", "month"] = "month",
+) -> FinanceProfit:
+    """Charged − model cost − infrastructure per day or month, demo usage apart."""
+    since, until = _range(service, from_, to)
+    return await service.finance_profit(since, until, group)

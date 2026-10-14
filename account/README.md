@@ -41,7 +41,7 @@ rows, which ingest and rag write.
 |---|---|
 | Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
 | Account | `GET /me` → `User` (with `preferences`), `GET /me/preferences`, `PUT /me/preferences` (partial, returns `User`; the demo user gets 403), `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
-| Admin | `GET /admin/users`, `PATCH /admin/users/{id}` `{role}` (409 for the last admin or the demo user), `DELETE /admin/users/{id}` (204; 409 for the caller's own account or the demo user; 502 `purge_failed` with `step` and `message` when rag or ingest could not purge — then nothing was deleted), `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the five runtime fields (incl. `ban_max_days`) for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses, viewer_domains, viewer_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}`, `POST /admin/settings/viewer-domains` `{domain}` / `DELETE /admin/settings/viewer-domains/{domain}`, `POST /admin/settings/viewer-addresses` `{address}` / `DELETE /admin/settings/viewer-addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, codes masked; `recoverable`, `sent_to`, `sent_at`), `GET /admin/vouchers/{id}/code` (admin only; 404 `not_recoverable` for vouchers created before 0.10), `POST /admin/vouchers/{id}/send` `{email, message?, allow?}` (mails the code; 409 `already_redeemed`, 429 `too_many_mails`, 502 `mail_failed`), `POST /admin/vouchers`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/system` (version, commit, every service's health, the namespace's pods and deployments), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
+| Admin | `GET /admin/users`, `PATCH /admin/users/{id}` `{role}` (409 for the last admin or the demo user), `DELETE /admin/users/{id}` (204; 409 for the caller's own account or the demo user; 502 `purge_failed` with `step` and `message` when rag or ingest could not purge — then nothing was deleted), `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the five runtime fields (incl. `ban_max_days`) for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses, viewer_domains, viewer_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}`, `POST /admin/settings/viewer-domains` `{domain}` / `DELETE /admin/settings/viewer-domains/{domain}`, `POST /admin/settings/viewer-addresses` `{address}` / `DELETE /admin/settings/viewer-addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, codes masked; `recoverable`, `sent_to`, `sent_at`), `GET /admin/vouchers/{id}/code` (admin only; 404 `not_recoverable` for vouchers created before 0.10), `POST /admin/vouchers/{id}/send` `{email, message?, allow?}` (mails the code; 409 `already_redeemed`, 429 `too_many_mails`, 502 `mail_failed`), `POST /admin/vouchers` (optional `paid`), `PATCH /admin/vouchers/{id}` `{paid}`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/system` (version, commit, every service's health, the namespace's pods and deployments), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans?ip=` (the key: an IPv4 address or an IPv6 /64 prefix; the path form `DELETE /admin/bans/{ip}` stays for IPv4 one release), `GET /admin/access?limit=` |
 | Health | `GET /healthz` → `{status, version, commit, dependencies: {postgres: ok|down}}`, also at the server root for the Kubernetes probe; `status` is `ok` whenever the process answers |
 
@@ -95,6 +95,7 @@ comment.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | the mail configuration, read at start and shown read-only in the admin panel, never stored; without `SMTP_HOST` no sign-in mail can be sent (`lasteverlm-smtp`) |
 | `MAGIC_LINK_TTL_MINUTES`, `LINK_QUOTA_PER_HOUR`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 5, 1 (a session token lives a day; sign-out is client-side), 1000, 30, true, INFO |
 | `VOUCHER_KEY` | yes | 32 random bytes, base64 (`openssl rand -base64 32`): voucher codes are stored AES-GCM-encrypted under it so admins can show and mail them again; keep it stable, a new key makes stored codes unrecoverable (`lasteverlm-account`) |
+| `VULTR_BILLING_API_KEY` | no | key of a Vultr sub-user with the billing permission; set, the service reads pending charges and invoices once a day into `infra_costs`; empty or unset, nothing runs and `/admin/finance/infra` says `"vultr": "not connected"` (`lasteverlm-account`) |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100. The first four are only defaults: an admin overrides them at run time through `PUT /admin/settings/ratelimit` (settings key `ratelimit`, read by every service's middleware within 30 s) |
 | `APP_VERSION`, `APP_COMMIT` | no | shown on `/healthz` and `/admin/system`; default `unknown` for both (`lasteverlm-config`) |
@@ -115,6 +116,48 @@ creator or redeemer reference; `login_attempts` keep the e-mail. If rag or inges
 fails, nothing of account's is deleted and the answer is 502 `purge_failed`
 naming the step, so the admin sees a user that is still there, never a
 half-deleted one; the call can simply be repeated. See `context/deletion.md`.
+
+## Finance: pricing, costs, revenue, profit
+
+Core books every call with its measured cost in US cents (`cost_usd_cents`, from Vultr's
+USD `MODEL_PRICES`), that cost in euro cents at the rules' `usd_per_eur` (`cost_cents`),
+and what the user pays (`charge_cents`, euro cents) — cost plus the margin of the pricing
+rules, plus an action's fixed fee, sub-cent exact. A user's balance is credits minus
+charges, rounded down to whole cents. There is one exchange rate, `usd_per_eur` in the
+pricing rules: core books with it and the infrastructure page converts with it.
+
+- `GET /admin/settings/pricing` → `{rules, actions, preview}`: core's rules
+  (`{usd_per_eur, default_margin_pct, actions: {action: {margin_pct?, fixed_cents?}}}`;
+  `usd_per_eur` required, 0.1–10), the actions they can name, and per action the last 30
+  days' average cost with what it charges. `PUT` stores (core's `PricingRules.parse`
+  validates, 422 names the field; every service reads it within 30 s),
+  `POST /admin/settings/pricing/preview` shows proposed rules without storing, `DELETE`
+  sets margins and fees to zero and keeps the rate — without a rate core books nothing.
+  Migration 0010 seeds the row with 1.1188 (ECB reference rate of 2026-10-13) until an
+  admin sets another.
+- `GET /admin/finance/costs?from=&to=&group=day|action|model|user|service`: calls,
+  actions, real cost (EUR and the measured USD) and charge per group.
+- `GET /admin/finance/revenue?from=&to=`: charged to users, the demo user's charges apart
+  (seed credit, not money), paid vs. free vouchers issued and redeemed, credit outstanding.
+- `GET /admin/finance/profit?from=&to=&group=month|day`: charged − model cost −
+  infrastructure, demo usage shown apart; a day gets an even share of its month's
+  infrastructure; without an exchange rate for USD lines infrastructure and profit are null.
+
+Dates are UTC days, inclusive, default the last 30, at most two years per request.
+Amounts are euro cents unless a field says `usd`; rows booked before core 0006 have no
+rate and count their cost one to one.
+`GET /admin/stats` keeps showing real cost; balances and the users list show charges.
+
+## Finance: infrastructure costs
+
+`GET /admin/finance/infra?from=&to=` lists infrastructure costs per month (default the
+last three months): lines from Vultr's billing (`source: vultr`, synced daily and on
+`POST /admin/finance/infra/sync`) and manual entries (`POST /admin/finance/infra`
+`{date, item, amount_cents, currency}`, `DELETE /admin/finance/infra/{id}`; Vultr lines
+cannot be deleted). Amounts stay in the billed currency; the pricing rules' `usd_per_eur`
+converts USD for the EUR totals — without a rate the EUR fields are null, never guessed. `vultr` is `"connected"` or `"not connected"`, with
+`last_sync` and `last_error`. Vouchers carry `paid` (sold vs. given away; set on create
+or with `PATCH /admin/vouchers/{id}`). See `context/finance.md`.
 
 ## System page
 
