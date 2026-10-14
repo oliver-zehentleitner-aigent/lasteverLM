@@ -475,28 +475,33 @@ deleted from the library) stays readable with its quote and is marked
   in the header next to Settings and at the top of Settings): the
   public price list from `GET /api/account/prices`. A title, a line on
   where the prices come from (the last N days' actions at today's
-  prices), then one table per group: **Sources** (one row per source
-  kind; audio per minute), **Chat** (per question), **Outputs** (the
-  kinds; audio per minute), **Extras** (the judge per level, "Judge, low",
-  "Judge, medium", "Judge, high", from the `judge:<level>` rows and
-  their `level`, low to high; then Find charts and the rest; under the
-  table a note that these are the judge asked for on an existing output
-  or chat answer, and that a judge chosen while creating an output is in
-  that output's price). The group is the action's prefix (`source:`, `output:`,
-  `chat_answer`, everything else), so an action the web does not know
-  yet is still listed, by its code, last in its group. Columns: what,
-  the price per unit (the unit translated: per question, per output, per
-  source, per check, per search, per minute of audio, …), typical (p25–p75
-  and the median, per action) and the model, muted, hidden on a phone.
-  An action with fewer than five runs in the window says "no experience
-  yet" instead of any number. Prices from ten cents up show whole
+  prices), then one table per group: **Sources** (text, PDF (Text),
+  PDF (Vision) per page, image, audio per minute, web page), **Chat**
+  (per question), **Outputs** (every kind, per output), **Extras** (the
+  judge per level, "Judge, low", "Judge, medium", "Judge, high", from
+  the `judge:<level>` rows and their `level`, low to high; then Find
+  charts and the rest; under the table a note that these are the judge
+  asked for on an existing output or chat answer, and that a judge
+  chosen while creating an output is in that output's price). The
+  group is the action's prefix (`source:`, `output:`, `chat_answer`,
+  everything else), a way of reading a kind (`source:pdf:vision`) right
+  after the kind, so an action the web does not know yet is still
+  listed, by its code, last in its group. Columns: what; the price per
+  unit (the unit translated: per question, per output, per page, per
+  image, per web page, per minute of audio, …), as a range "€0.01–€0.05"
+  when the service sends a minimum and a maximum that differ as shown,
+  "+ €0.01 per source" when a source has a part paid once, and
+  "· estimated", muted, when the price is an estimate rather than
+  history (its tooltip says so); "no price yet" when none could be
+  made. Then "Typical per action" (p25–p75 and the median of whole
+  actions from history; "no experience yet" below five runs) and the
+  model, muted, hidden on a phone. Prices from ten cents up show whole
   cents; below that two significant digits (€0.0035, €0.035). Under
   the tables the exchange rate ("1 EUR = 1.1188 USD, ECB reference rate
   of 2026-10-13") and the rules in plain words: adding a source is free,
   processing it costs, the estimate is shown before every action, credit
   does not expire. No margins, fees or costs: the service sends end
-  prices only. A PDF is priced per source: the service has no per-page
-  price.
+  prices only.
 - Prices: before anything billed runs, its estimated charge from rag's
   `POST /api/rag/estimate` stands next to the button that starts it, in
   euro as the balance: before Create (for the kind with its options, a

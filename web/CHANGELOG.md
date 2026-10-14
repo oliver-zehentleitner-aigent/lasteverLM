@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/prices` follows the account service's new rows: PDF (Text) and PDF (Vision) per page, image, web page, audio outputs per output; a price range when there is one, "+ … per source", "estimated" muted for an estimated price, "no price yet" when none could be made, and "Typical per action" as the history column's heading.
 - Admin > Finance: the range bar's day pills, labels and date fields share one height and line; every money cell, tile and total follows one rule (two decimals from 1 € up, two to four below, the exact value in the tooltip) instead of €0.90 next to €0.622125.
 
 ## [0.18.3] - 2026-10-14

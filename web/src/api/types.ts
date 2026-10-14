@@ -849,8 +849,15 @@ export interface PublicPriceRow {
   action: string
   /** a stable key from core (question, output, source, audio_minute, check, …) */
   unit: string
+  /** for an estimate the midpoint of min and max; null only when no price could be made */
   price_per_unit_cents: number | null
-  /** per action, not per unit */
+  price_min_cents?: number | null
+  price_max_cents?: number | null
+  /** the price comes from rag's or ingest's estimate, not from history */
+  estimated?: boolean
+  /** sources: added once per source on top of the units */
+  per_source_cents?: number | null
+  /** per whole action from history, not per unit; null below five actions */
   typical_cents: { p25: number; median: number; p75: number } | null
   count: number
   model: string | null

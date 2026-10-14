@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { account } from '../api/account'
 import type { PublicPrices } from '../api/types'
 import { t } from '../i18n'
-import { actionLabel, formatPrice, groupPrices, typicalText, unitLabel } from '../lib/prices'
+import type { PublicPriceRow } from '../api/types'
+import { actionLabel, groupPrices, priceText, typicalText, unitLabel } from '../lib/prices'
 
 /** /prices: what each action costs today, for everyone, no login. One
  *  table per group (sources, chat, outputs, extras) with the price per
@@ -48,18 +49,10 @@ export function PricesPage() {
                     {rows.map((r) => (
                       <tr key={r.action}>
                         <td>{actionLabel(r.level ? `judge:${r.level}` : r.action)}</td>
-                        {r.price_per_unit_cents === null ? (
-                          <td className="muted" colSpan={2}>
-                            {t('prices.noExperience')}
-                          </td>
-                        ) : (
-                          <>
-                            <td>
-                              {formatPrice(r.price_per_unit_cents)} <span className="muted small">{unitLabel(r.unit)}</span>
-                            </td>
-                            <td>{typicalText(r) ?? <span className="muted">{t('prices.noExperience')}</span>}</td>
-                          </>
-                        )}
+                        <td>
+                          <PriceCell row={r} />
+                        </td>
+                        <td>{typicalText(r) ?? <span className="muted">{t('prices.noExperience')}</span>}</td>
                         <td className="model muted small">{r.model ?? '—'}</td>
                       </tr>
                     ))}
@@ -89,5 +82,23 @@ export function PricesPage() {
         )}
       </div>
     </main>
+  )
+}
+
+/** "€0.01–€0.05 per page + €0.01 per source · estimated", or "no price yet". */
+function PriceCell({ row }: { row: PublicPriceRow }) {
+  const p = priceText(row)
+  if (p.price === null) return <span className="muted">{t('prices.noPrice')}</span>
+  return (
+    <>
+      {p.price} <span className="muted small">{unitLabel(row.unit)}</span>
+      {p.perSource && <span className="muted small"> {p.perSource}</span>}
+      {p.estimated && (
+        <span className="muted small" title={t('prices.estimatedTitle')}>
+          {' · '}
+          {t('prices.estimated')}
+        </span>
+      )}
+    </>
   )
 }

@@ -895,7 +895,7 @@ export const en = {
   'prices.group.extras': 'Extras',
   'prices.col.what': 'What',
   'prices.col.perUnit': 'Price per unit',
-  'prices.col.typical': 'Typical',
+  'prices.col.typical': 'Typical per action',
   'prices.col.model': 'Model',
   'prices.noExperience': 'no experience yet',
   'prices.typicalRange': '{p25}–{p75}, median {median}',
@@ -928,6 +928,14 @@ export const en = {
   'settings.prices': 'What things cost: the price list',
   'prices.action.judgeLevel': 'Judge, {level}',
   'prices.judgeNote': 'The judge rows are a check you ask for on an existing output or chat answer. A judge chosen while creating an output is included in that output\'s price.',
+  'prices.range': '{min}–{max}',
+  'prices.perSource': '+ {price} per source',
+  'prices.estimated': 'estimated',
+  'prices.estimatedTitle': 'Estimated from the models\' prices and typical sizes; there is not enough history yet.',
+  'prices.noPrice': 'no price yet',
+  'prices.unit.page': 'per page',
+  'prices.unit.image': 'per image',
+  'prices.unit.web_page': 'per web page',
 } as const
 
 export type MessageKey = keyof typeof en
