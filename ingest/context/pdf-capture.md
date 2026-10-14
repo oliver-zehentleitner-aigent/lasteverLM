@@ -26,6 +26,10 @@ exact where it exists; the model's transcription of a scan is good but
 misread a running header in the measurement, which is why `auto`
 prefers the layer.
 
+"Has a text layer" means a legible one, not any characters: a page
+needs 20 visible characters, and at least 60 % of them letters (see the
+incident below for why).
+
 Pages are rendered at 150 dpi with the long edge capped at 2000 px:
 legible for the model without paying for pixels it does not need. pdfium
 is not thread-safe (the first version rendered in worker threads and
@@ -69,3 +73,44 @@ book a user would reasonably add, so the cap costs no real use.
   half an hour of three workers per hostile file.
 - A setting like `PDF_VISION_MAX_PAGES`: no deployment has a reason to
   differ yet; a constant can become one when one does.
+
+## Incident: a text layer of glyph codes was indexed as text
+
+**Id:** bc473b1e-6480-4baf-ac0a-09b63d9a3200
+**Type:** incident
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's screenshots through the coordinating agent, 2026-10-14: a citation into linux_-_VNC-Server.pdf page 2 (chunk 9 of 17) showing "&MM,:N K OP&M,MM P2QL +457$$$ LL R! 3'.SM" at similarity 0.34, and linux_-_vi.pdf page 1 cited as clean text
+**Verification:** corroborated
+**Revisit when:** a real page with a legible layer is sent to the model or skipped, or a glyph-code layer passes the check
+
+A page of the VNC document carries a text layer whose font has no usable
+ToUnicode map, so pypdf returned the glyph codes. The only test was 20
+visible characters, so in `auto` the page never reached the vision
+model: the salad was chunked, embedded and cited. This is the observed
+cause of the incident in which questions about that document were
+answered from the other PDF in the notebook (rag's incident entry
+54626e80-33da-49e5-8bfd-2a92673a654a, closed with an inferred cause):
+its chunks for those pages could not match any question. The two
+candidates that entry names, the upload race and the 0.5.0 re-keying,
+are not needed to explain it.
+
+The fix is a letter share (`str.isalpha`, so umlauts and other scripts
+count) among the visible characters, at least 0.6. Measured: the
+screenshot's salad 0.50, uniform glyph codes over printable ASCII
+0.45–0.56, the demo PDF's pages 0.94–0.95, German prose with umlauts
+0.93, a page of shell commands 0.76. The PDF bytes themselves were not
+read; the fixtures are built from the screenshot's text. Known cost: a
+page of bare numbers (a table without words, about 0.2) fails too;
+`auto` has the model read it, `text` skips it. Library rows indexed
+before the fix stay as they are: the dedupe key carries the capture
+mode, so a re-upload is a new source, and the demo reset clears the old
+ones.
+
+**Alternatives:**
+- The share of letters and digits: the salad is 0.65 on it, too close to
+  real text with numbers.
+- The share of vowels among letters (the salad has almost none): only
+  works for Latin scripts.
+- Asking the model whether a layer is readable: a billed call for every
+  page of every PDF.
