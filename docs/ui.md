@@ -393,7 +393,9 @@ is closed. After the wizard the notebook view opens.
 
 ## Settings
 
-`/settings` (in the header next to Library): interface language
+`/settings` (in the header next to Library): first a row **Credits and
+prices**, "Balance €X · View credits · Price list" (two plain links);
+then interface language
 (browser default, English, Deutsch), language of generated documents
 (same as the sources, or one of rag's languages) and the voice for
 audio (default, or one of rag's voices, with the same sample button),
@@ -513,8 +515,23 @@ deleted from the library) stays readable with its quote and is marked
   and `_`, counted while typing, Continue enabled once it matches, an
   eye toggle to show it; it is exchanged like the link, and an unknown,
   used or expired code says so.
-- Header: balance in EUR, a voucher button that opens a one-field
-  dialog. A 402 anywhere opens the same dialog.
+- Header: the balance in EUR as a pill that opens **Credits**; a 402
+  anywhere opens the one-field voucher dialog.
+- **Credits** (`/credits`, signed in; from the header's balance and
+  from Settings): the user's own credit from `GET
+  /api/account/me/credit`. On top the balance, large, with what was
+  credited and spent in the chosen range, a "Redeem a voucher" field
+  (the existing redeem call; the balance and the page reload after it)
+  and a link to the price list. **Spending**, with 7 / 30 / 90 days:
+  a small bar per day (spent, the day's amounts as tooltip) and a table
+  per action (what, count, total; the action named as on the price
+  list, the judge per level). **Entries**, newest first, 50 at a time
+  with "Show more": date, what ("Report in notebook test1", "Source
+  linux_vi.pdf processed", "Question to your sources in notebook Fog",
+  "Voucher redeemed", "Credit granted"; a deleted notebook, output or
+  source named as deleted) and the amount (charges with a minus,
+  credits with a plus). A line links to its notebook, and to its output
+  in a tab, while they exist. End prices only, no costs or margins.
 - **Prices** (`/prices`, no login, linked under the login page's forms,
   in the header next to Settings and at the top of Settings): the
   public price list from `GET /api/account/prices`. With a session

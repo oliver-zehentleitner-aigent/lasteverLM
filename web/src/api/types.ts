@@ -920,3 +920,30 @@ export interface StarterNotebook {
   set_at: string | null
   set_by: string | null
 }
+
+/** `GET /api/account/me/credit`: the user's own credit over a range of
+ *  days, in euro cents (charges negative, with sub-cent parts). A title
+ *  null means the notebook, output or source is gone. */
+export interface MyCredit {
+  balance_cents: number
+  from: string
+  to: string
+  granted_cents: number
+  spent_cents: number
+  total_entries: number
+  entries: CreditEntry[]
+  by_action: { action: string; label_key: string | null; count: number; charged_cents: number }[]
+  by_day: { day: string; charged_cents: number; credited_cents: number }[]
+}
+
+export interface CreditEntry {
+  at: string
+  type: 'voucher' | 'grant' | 'charge'
+  amount_cents: number
+  action: string | null
+  /** the action, or "judge:<level>" */
+  label_key: string | null
+  notebook: { id: string; title: string | null } | null
+  output: { id: string; title: string | null } | null
+  source: { id: string; title: string | null } | null
+}

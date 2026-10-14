@@ -1,6 +1,6 @@
 import { ACCOUNT_PREFIX } from '../config'
 import { request } from './client'
-import type { Health, Preferences, PublicPrices, User } from './types'
+import type { Health, MyCredit, Preferences, PublicPrices, User } from './types'
 
 export const account = {
   /** the public price list; no login, cached five minutes by the service */
@@ -28,6 +28,9 @@ export const account = {
   savePreferences: (p: Partial<Preferences>) =>
     request<User>(`${ACCOUNT_PREFIX}/me/preferences`, { method: 'PUT', json: p }),
 
+  /** the user's own credit for a range of days, newest entries first, a page at a time (limit ≤ 200) */
+  credit: (from: string, to: string, offset = 0, limit = 50) =>
+    request<MyCredit>(`${ACCOUNT_PREFIX}/me/credit?from=${from}&to=${to}&limit=${limit}&offset=${offset}`),
   redeemVoucher: (code: string) => request<User>(`${ACCOUNT_PREFIX}/vouchers/redeem`, { method: 'POST', json: { code } }),
 
   /** Fire-and-forget page view for the aggregated visitor log. */

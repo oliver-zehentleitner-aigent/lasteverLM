@@ -9,9 +9,8 @@ import { setSessionTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVer
 
 interface Props {
   me: User | null
-  route: 'home' | 'library' | 'settings' | 'prices' | 'admin'
+  route: 'home' | 'library' | 'settings' | 'prices' | 'credits' | 'admin'
   onNavigate: (path: string) => void
-  onVoucher: () => void
   onLogout: () => void
 }
 
@@ -49,7 +48,7 @@ function ThemeToggle() {
   )
 }
 
-export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
+export function Header({ me, route, onNavigate, onLogout }: Props) {
   const build = useBuild()
   return (
     <header className="topbar">
@@ -113,9 +112,17 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         {me && (
           <>
             <span className="muted email" title={me.email}>{me.email}</span>
-            <button type="button" className="pill" onClick={onVoucher} title={t('header.redeem')}>
+            <a
+              href="/credits"
+              className={route === 'credits' ? 'pill active' : 'pill'}
+              title={t('header.creditTitle')}
+              onClick={(e) => {
+                e.preventDefault()
+                onNavigate('/credits')
+              }}
+            >
               {formatCents(me.balance_cents)}
-            </button>
+            </a>
           </>
         )}
         <button type="button" className="link" onClick={onLogout}>
