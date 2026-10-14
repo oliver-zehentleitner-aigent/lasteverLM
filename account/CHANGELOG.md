@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-14
+
 ### Changed
 
 - One way to reach ingest and rag: `INGEST_URL` and `RAG_URL` serve the System page's health probes (`/healthz` appended) and the user purge; `SYSTEM_SERVICES` is gone.
@@ -22,24 +24,15 @@ preserves why it changed, in `context/`.
 ### Changed
 
 - Dockerfile pins `python:3.13-slim` by digest (the multi-arch index) in both stages; the refresh command is in the file.
+- Session tokens live one day by default (`JWT_TTL_DAYS=1`, was 7); sign-out is client-side, SECURITY.md says so.
+- Lifting a ban: `DELETE /admin/bans?ip=<key>` takes the key as a query parameter because IPv6 bans are keyed by a /64 prefix, which carries a slash; the path form stays for IPv4 one release, deprecated.
+- The client address for visits and sign-in attempts is resolved by core's `client_ip`, the same way the rate-limit middleware does; a malformed `X-Forwarded-For` becomes `0.0.0.0` instead of a failed insert.
+- `output_language` is capped at 35 characters, the callback token at 512; the OpenAPI version is `APP_VERSION`.
 
 ### Added
 
 - Roles `user` | `viewer` | `admin` (migration 0006, `users.role`; `is_admin` stays equal to `role = 'admin'`): a viewer reads every `GET` under `/admin`, writes stay admin only; `User` and the admin user rows carry `role`; `PATCH /admin/users/{id}` sets it (409 for the last admin or the demo user); `viewer_domains` in the allowlist (`POST/DELETE /admin/settings/viewer-domains`) makes a first sign-in from a listed domain a viewer.
-
-### Added
-
 - Per-address quota for sign-in links: more than `LINK_QUOTA_PER_HOUR` (5) within an hour answers 429 with `code: too_many_links` and a readable sentence; counted on `login_attempts`, a throttled request writes no row.
-
-### Changed
-
-- Session tokens live one day by default (`JWT_TTL_DAYS=1`, was 7); sign-out is client-side, SECURITY.md says so.
-- Lifting a ban: `DELETE /admin/bans?ip=<key>` takes the key as a query parameter because IPv6 bans are keyed by a /64 prefix, which carries a slash; the path form stays for IPv4 one release, deprecated.
-
-### Changed
-
-- The client address for visits and sign-in attempts is resolved by core's `client_ip`, the same way the rate-limit middleware does; a malformed `X-Forwarded-For` becomes `0.0.0.0` instead of a failed insert.
-- `output_language` is capped at 35 characters, the callback token at 512; the OpenAPI version is `APP_VERSION`.
 
 ### Removed
 
@@ -71,17 +64,8 @@ preserves why it changed, in `context/`.
 
 - Preference `pdf_capture` (auto|text|vision, null = auto): the default capture mode for PDF uploads; the web sends the resolved value per upload.
 - Preference `trash_days` (1–365, null = 14): how long a deleted library entry stays in the trash before ingest purges it.
-
-### Added
-
 - Per-user preferences `ui_language`, `output_language`, `audio_voice` (migration 0005, jsonb on `users`): `GET/PUT /me/preferences` (partial update, null clears), carried on `User` so the web has them at login; the shared demo user cannot change them.
-
-### Added
-
 - Chart data for the admin overview: `GET /admin/stats/daily?days=` (logins, visits, usage cost and credits granted per UTC day, every day present, zeros included, oldest first) and `GET /admin/stats/usage` (core's usage rows by model and kind, the ten users with the highest usage).
-
-### Added
-
 - `granted_cents` on each row of `GET /admin/users` (the user's ledger sum), so the "credits granted" tile can be broken down per user.
 
 ### Changed
@@ -135,14 +119,11 @@ preserves why it changed, in `context/`.
 ### Changed
 
 - A ban holds until an admin lifts it, at most `BAN_MAX_DAYS` (90): the startup purge follows core's new `purge_params` (both cutoffs) instead of a single cutoff.
+- Core's rate-limit store gets the repository's pooled connections directly; the tuple-row detour is gone since core reads scalars independently of the row factory.
 
 ### Added
 
 - Retention of core's rate-limit tables (`access_log`, stale `ip_blocks`, lifted `ip_bans`) at every start, `RETENTION_DAYS` (30); active bans stay. Core's middleware writes those tables and nobody purged them before.
-
-### Changed
-
-- Core's rate-limit store gets the repository's pooled connections directly; the tuple-row detour is gone since core reads scalars independently of the row factory.
 
 ## [0.1.0] - 2026-10-12
 
@@ -173,3 +154,4 @@ preserves why it changed, in `context/`.
 - `contracts.py` removed; `User`, `AdminUser`, token issue and resolution and the demo identity come from `lasteverlm-core`, installed by path from `../core`.
 - `make run` and the image start the app through `uvicorn --factory lasteverlm_account.main:create_app`.
 - Lifting a ban uses core's statement, so the admin action and the middleware agree.
+

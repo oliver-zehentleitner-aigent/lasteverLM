@@ -29,9 +29,6 @@ reasoning behind changes is in [`context/`](context/index.md).
 ### Changed
 
 - `docs/architecture.md`: `/admin/system` and the build in every `/healthz`, the voice preview endpoint, the demo library seeds, the token in the sign-in mail.
-
-### Changed
-
 - `docs/rag-pipeline.md` and `docs/architecture.md`: PDF capture modes text, vision and auto (vision for scanned pages, cost guard), the `capture` upload field and library field.
 
 ## [0.6.0] - 2026-10-13
@@ -40,14 +37,11 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 - `docs/architecture.md`: the library trash (delete moves to the trash, restore, purge, per-user `trash_days`).
 - `docs/architecture.md`: user preferences (`/me/preferences`), output options per kind with the catalogue endpoint, the cited chunk endpoint and the ChunkView shape.
+- `docs/architecture.md`: Citation carries the verbatim chunk text, similarity, chunk index and count (provenance).
 
 ### Added
 
 - `docs/rag-pipeline.md`: the retrieval pipeline stage by stage (loaders, chunking, embeddings, pgvector, retrieval, answering and citations, generated documents) with the choice and the reason at each stage and what is left out on purpose; linked from the README, the docs home and the nav.
-
-### Changed
-
-- `docs/architecture.md`: Citation carries the verbatim chunk text, similarity, chunk index and count (provenance).
 
 ## [0.5.0] - 2026-10-13
 
@@ -60,9 +54,6 @@ reasoning behind changes is in [`context/`](context/index.md).
 ### Changed
 
 - `docs/architecture.md`: conversations per notebook (chat tabs); `/ask` takes a `conversation_id`, the history is per conversation.
-
-### Changed
-
 - `docs/architecture.md`: voucher delete, sign-in attempts log, rate-limit thresholds editable at run time through the admin panel (settings key `ratelimit`, read by core every 30 s).
 
 ## [0.3.1] - 2026-10-13
@@ -77,9 +68,6 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 - `docs/architecture.md`: admins are exempt from the credit check (`has_credit`, `is_admin`, `admin_only` in core); `request-link` answers 403 `not_allowed` instead of a silent 202; allowlist of domains and single addresses edited per entry; voucher list and one `/admin/stats` per service (account, ingest, rag) with their shapes.
 - Wording: "provide documents" instead of "upload documents" in the README, the docs site, AGENTS.md and the walkthrough script, because sources are files, links and images; the login page follows in web.
-
-### Changed
-
 - README and docs home: the tagline "Please explain this to me" opens the description instead of standing alone below it; the docs home lists its own address next to the live system and the code.
 
 ## [0.2.1] - 2026-10-13
@@ -120,3 +108,4 @@ reasoning behind changes is in [`context/`](context/index.md).
 - Agent working conventions in `AGENTS.md`, task board in `TASKS.md`.
 - `docs/ui.md` (wizard, two-column notebook view, viewer, print, share) and `docs/repository-standard.md` (files, tests, workflows, versioning, documentation rule).
 - Keep the Why setup with the family's `children` block and the first decisions in `context/`.
+
