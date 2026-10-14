@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Citation, Claim, Output, Provenance } from '../api/types'
+import type { Citation, Claim, JudgeNote, Output, Provenance } from '../api/types'
 import { formatTime } from '../lib/format'
 import { claimRefs, duration, exportName, passageCitation, provenanceExport, supportBadge } from '../lib/outputProvenance'
 import { optionsLabel } from '../lib/outputOptions'
 import { isRemoved } from '../lib/citations'
 import { ProvenancePanel } from './ProvenancePanel'
+import { judgeBadge, verdictCounts } from '../lib/judge'
 import { CiteContext, useCite, type Cite } from '../hooks/useCite'
 import { t } from '../i18n'
 
@@ -34,7 +35,30 @@ export function ClaimMarks({ claim, text }: { claim: Claim; text: string }) {
           {t(`outProv.${badge}`)}
         </span>
       )}
+      <JudgeMark claim={claim} text={text} />
     </>
+  )
+}
+
+/** The judge's verdict next to the word check's, amber-outlined where the
+ *  two disagree; a click shows the reason and the decisive passage in the
+ *  provenance panel (at the claim's first passage). */
+export function JudgeMark({ claim, text }: { claim: Claim; text: string }) {
+  const ctx = useCite()
+  const b = judgeBadge(claim)
+  if (!b || !claim.judge) return null
+  const first = ctx ? claimRefs(claim, ctx.known)[0] : undefined
+  const judge = claim.judge
+  return (
+    <button
+      type="button"
+      className={`badge judge judge-${b.verdict}${b.disagree ? ' disagree' : ''}`}
+      title={b.title}
+      disabled={first === undefined}
+      onClick={() => first !== undefined && ctx?.cite(first, text, judge)}
+    >
+      {t('judge.section')}: {b.label}
+    </button>
   )
 }
 
@@ -53,12 +77,12 @@ interface Props {
  *  opened in the chat's provenance panel, then how it was made. Without
  *  provenance (older documents) only the renderer. */
 export function OutputProvenance({ output, provenance, presentSources = null, onOpenSource, children }: Props) {
-  const [open, setOpen] = useState<{ n: number; claim: string } | null>(null)
+  const [open, setOpen] = useState<{ n: number; claim: string; judge?: JudgeNote } | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const passages = useMemo(() => provenance?.passages ?? [], [provenance])
   const known = useMemo(() => new Set(passages.map((p) => p.n)), [passages])
   const ctx = useMemo<Cite>(
-    () => ({ known, open: open?.n ?? null, cite: (n, claim) => setOpen((cur) => (cur?.n === n && cur.claim === claim ? null : { n, claim })) }),
+    () => ({ known, open: open?.n ?? null, cite: (n, claim, judge) => setOpen((cur) => (cur?.n === n && cur.claim === claim ? null : { n, claim, judge })) }),
     [known, open],
   )
 
@@ -80,6 +104,7 @@ export function OutputProvenance({ output, provenance, presentSources = null, on
               citation={passageCitation(shown)}
               answer=""
               claim={open?.claim}
+              judge={open?.judge}
               removed={shown.source_id ? isRemoved(shown.source_id, presentSources) : false}
               onOpenSource={onOpenSource}
             />
@@ -103,6 +128,7 @@ export function OutputProvenance({ output, provenance, presentSources = null, on
             </ol>
           </details>
         )}
+        {(provenance.judge?.removed.length ?? 0) > 0 && <RemovedClaims removed={provenance.judge!.removed} />}
         <HowMade output={output} provenance={provenance} />
       </section>
     </CiteContext.Provider>
@@ -193,6 +219,33 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
           <span className="muted">{t('outProv.llmVerdict')}:</span> {p.llm_verdict_text}
         </p>
       )}
+      {(p.judge || (p.judgements?.length ?? 0) > 0) && (
+        <div className="judge-log">
+          <h4>{t('judge.section')}</h4>
+          {p.judge && (
+            <>
+              <p className="small">
+                {t(`judge.level.${p.judge.level}`)} · {t('judge.model', { model: p.judge.model })}
+              </p>
+              <ul className="small">
+                {p.judge.rounds.map((r) => (
+                  <li key={r.round}>
+                    {t('judge.roundLine', { round: r.round, judged: r.judged, counts: verdictCounts(r.verdicts), tin: r.usage.tokens_in, tout: r.usage.tokens_out })}
+                    {r.revision && ` · ${t('judge.revisionLine', { revised: r.revision.revised, dropped: r.revision.dropped })}`}
+                  </li>
+                ))}
+              </ul>
+              {/* the list itself sits under the document, outside this fold, so it is never hidden */}
+              {p.judge.removed.length > 0 && <p className="small">{t('judge.removed', { n: p.judge.removed.length })}</p>}
+            </>
+          )}
+          {(p.judgements ?? []).map((j, i) => (
+            <p key={i} className="small">
+              {t('judge.later')} · {formatTime(j.at)} · {t(`judge.level.${j.level}`)} · {t('judge.model', { model: j.model })} · {verdictCounts(j.verdicts)}
+            </p>
+          ))}
+        </div>
+      )}
       <p className="muted small">{t('outProv.retrieval', { k: p.retrieval.k, floor: p.retrieval.floor })}</p>
       <div className="table-scroll">
         <table className="candidates">
@@ -220,5 +273,26 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
         {t('outProv.export')}
       </a>
     </details>
+  )
+}
+
+/** The claims a judging took out, with the verdict and the reason; shown
+ *  under the document and again in the log, never folded away. */
+function RemovedClaims({ removed }: { removed: NonNullable<Provenance['judge']>['removed'] }) {
+  return (
+    <section className="judge-removed">
+      <h4>{t('judge.removed', { n: removed.length })}</h4>
+      <ul>
+        {removed.map((r, i) => (
+          <li key={i}>
+            <q>{r.text}</q>{' '}
+            <span className={`badge judge judge-${r.verdict === 'dropped in revision' ? 'dropped' : r.verdict}`}>{t(`judge.verdict.${r.verdict}`)}</span>{' '}
+            <span className="muted small">
+              {r.reason} · {t('judge.removedRound', { n: r.round })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

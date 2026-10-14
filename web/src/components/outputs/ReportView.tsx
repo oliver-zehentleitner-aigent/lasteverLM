@@ -15,10 +15,18 @@ export function ReportView({ content }: { content: ReportContent }) {
   const html = useMemo(() => {
     const markdown = known ? markUnsupported(content.markdown ?? '', content.units) : (content.markdown ?? '')
     const raw = marked.parse(markdown, { async: false, gfm: true }) as string
-    return sanitizeHtml(known ? decorateReport(raw, known) : raw)
+    return sanitizeHtml(known ? decorateReport(raw, known, content.units ?? []) : raw)
   }, [content.markdown, content.units, known])
 
   function onClick(e: MouseEvent<HTMLDivElement>) {
+    const judge = (e.target as HTMLElement).closest<HTMLButtonElement>('button.judge[data-u]')
+    if (judge && cite) {
+      // the judge's reading at the unit's first passage
+      const u = content.units?.[Number(judge.dataset.u)]
+      const n = u?.refs?.find((r) => cite.known.has(r))
+      if (u?.judge && n !== undefined) cite.cite(n, u.text, u.judge)
+      return
+    }
     const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button.cite[data-n]')
     if (!button || !cite) return
     // the claim is the block the marker sits in, for the panel's highlight

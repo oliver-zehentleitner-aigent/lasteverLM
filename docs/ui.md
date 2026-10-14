@@ -252,6 +252,24 @@ is closed. After the wizard the notebook view opens.
   narrator's paragraphs as text; a conversation with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
   none).
+- **Judge**. Every kind but the chart has the option **Check with a
+  judge**: Off (default), Low, Medium or High (the model per level from
+  rag's catalogue), with a line on what the level does. A judge reads
+  each claim against its passages while the output is made; claims it
+  fails are revised or taken out. In the output each claim gets a second
+  badge next to the word check's: supported (green), contradicted (red)
+  or not in source (dashed), amber-outlined where the word check reads
+  it the other way. A click on it opens the provenance panel at the
+  claim's first passage with the judge's verdict, reason and decisive
+  quote. Under the document a list **Removed after judging (N)** (text,
+  verdict, reason, round) is always shown when there is one; the head
+  says "Judge (medium, model): N of M passed after K rounds", and "How
+  this was made" lists the rounds (judged, verdicts, tokens, revisions)
+  and any later judgings. **Check with a judge** on an existing output
+  (in the viewer's head) and under a cited chat answer: a level and
+  Check, one billed call that annotates every claim and removes nothing.
+  The share page shows all of it. The estimated price per level is not
+  shown yet; it comes with rag's estimate.
 - **Chart** ("number series from the sources, drawn and checked"). Under
   the tiles: the optional notes, how many charts at most (1–12, 6 by
   default) and **Find charts**, one billed model call (`POST

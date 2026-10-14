@@ -1,6 +1,6 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
-import type { Answer, ChartCandidate, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
+import type { Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -64,6 +64,11 @@ export const rag = {
   outputOptions: () => request<OutputOptionsSpec>(`${RAG_PREFIX}/outputs/options`),
   /** also without a notebook; 404 while it is in the trash */
   getOutput: (id: string) => request<Output>(out(id)),
+  /** annotate only: every claim gets a judge note; 402 without credit, 409 without logged passages */
+  judgeOutput: (id: string, level: Exclude<JudgeLevel, 'off'>) => request<Output>(`${out(id)}/judge`, { method: 'POST', json: { level } }),
+  /** a cited answer, annotated the same way */
+  judgeMessage: (id: string, level: Exclude<JudgeLevel, 'off'>) =>
+    request<Message>(`${RAG_PREFIX}/messages/${encodeURIComponent(id)}/judge`, { method: 'POST', json: { level } }),
   renameOutput: (id: string, title: string) => request<Output>(out(id), { method: 'PATCH', json: { title } }),
   /** moves it to the trash: out of every notebook, its share link off */
   deleteOutput: (id: string) => request<void>(out(id), { method: 'DELETE' }),

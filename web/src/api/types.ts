@@ -194,6 +194,45 @@ export type Support = 'supported' | 'unsupported' | 'unverified'
 export interface Claim {
   refs?: number[]
   support?: Support
+  /** a judge model's reading of the claim against its passages */
+  judge?: JudgeNote
+}
+
+export type JudgeLevel = 'off' | 'low' | 'medium' | 'high'
+export type JudgeVerdict = 'supported' | 'contradicted' | 'not_in_source'
+
+/** One claim as a judge read it: the verdict, why, the passage text that
+ *  decided it, and the round it was judged in (1–3). */
+export interface JudgeNote {
+  level: Exclude<JudgeLevel, 'off'>
+  model: string
+  verdict: JudgeVerdict
+  reason: string
+  quote: string
+  round: number
+}
+
+/** A judging during generation: its rounds and the claims taken out. */
+export interface JudgeRun {
+  level: Exclude<JudgeLevel, 'off'>
+  model: string
+  rounds: {
+    round: number
+    judged: number
+    verdicts: Partial<Record<JudgeVerdict, number>>
+    usage: { tokens_in: number; tokens_out: number }
+    revision?: { revised: number; dropped: number; usage: { tokens_in: number; tokens_out: number } }
+  }[]
+  removed: { text: string; verdict: JudgeVerdict | 'dropped in revision'; reason: string; round: number }[]
+}
+
+/** A judging asked for later, annotate only. */
+export interface Judgement {
+  level: Exclude<JudgeLevel, 'off'>
+  model: string
+  verdicts: Partial<Record<JudgeVerdict, number>>
+  usage: { tokens_in: number; tokens_out: number }
+  at: string
 }
 
 /** A passage a document cites, numbered like a chat answer's citations.
@@ -232,6 +271,10 @@ export interface Provenance {
   calls?: { role: 'decision' | 'evidence'; model: string; prompt_version: string; usage: Record<string, unknown>; started_at: string; finished_at: string; state?: { passages: number; chars: number } }[]
   /** an undecided decision: the evidence model's own sentence */
   llm_verdict_text?: string
+  /** judged while it was made; claims it failed are removed and listed */
+  judge?: JudgeRun
+  /** judgings asked for afterwards, oldest first */
+  judgements?: Judgement[]
 }
 
 /** How an audio document is spoken: one voice summarising, one voice
@@ -263,6 +306,8 @@ export interface OutputOptions {
   question_count?: number
   difficulty?: Difficulty
   audience?: Audience
+  /** a judge reads every claim against its passages while the output is made */
+  judge?: JudgeLevel
   /** chart: the picked candidates exactly as proposed (create only) */
   charts?: ChartCandidate[]
   /** in a response only: the source ids the document was made from,
@@ -298,6 +343,7 @@ export interface OutputOptionsSpec {
     default_audience: Audience
   }
   instructions?: { max_chars: number }
+  judge?: { levels: JudgeLevel[]; default: JudgeLevel; models: Partial<Record<JudgeLevel, string>> }
   chart?: { chart_types: ChartType[]; charts_max: number; propose_max: number; propose_default: number }
   kinds: Partial<Record<OutputKind, OutputOption[]>>
 }
