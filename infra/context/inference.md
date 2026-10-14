@@ -107,3 +107,32 @@ decision would be free.
 **Known risks:** which count the platform actually invoices is not
 verified against an invoice. clef and clef-flash run only in `atl`
 (US), like the TTS model.
+
+## Judge candidates: glm-5.3-flash, deepseek-v4.1-flash and glm-5.3, priced per input and output token
+
+**Id:** 83ae95fe-51ab-4309-8fcb-3843b6035210
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** the family coordinator's request on 2026-10-14 for rag's opt-in judge (levels low, medium and high) with models of another family than the author model; prices and regions from `GET https://api.vultrinference.com/v1/models` the same day
+**Revisit when:** rag's measurement settles which candidate serves which level (`JUDGE_MODELS`), a candidate is dropped, or the catalog changes a price or region
+
+`MODEL_PRICES` carries all three candidates before the mapping is
+final, so whichever rag picks is billed from its first call:
+glm-5.3-flash `{"in":10,"out":35}`, deepseek-v4.1-flash
+`{"in":15,"out":60}`, glm-5.3 `{"in":75,"out":300}`, read from the
+catalog's `prompt` and `completion` prices per token (0.0000001 /
+0.00000035, 0.00000015 / 0.0000006, 0.00000075 / 0.000003 USD). The
+numbers have the same standing as the other prices: the API's
+`pricing` field, not an invoice.
+
+**Reason:** a judge from the author's own family (qwen) would share its
+blind spots; the three are the catalog's text models outside it, from
+cheap to strong. Which model serves which level is rag's decision after
+its measurement, not infra's.
+
+**Rejected alternatives:** unknown (the candidate list is rag's).
+
+**Known risks:** all three run only in `sea` (Seattle, US), like the
+author model qwen3.8-27b, so a judged answer and its sources go to the
+US twice.
