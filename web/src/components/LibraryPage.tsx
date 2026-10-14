@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { ingest } from '../api/ingest'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import type { LibraryEntry, TrashEntry } from '../api/types'
@@ -45,6 +45,37 @@ export function LibraryPage({ onOpenNotebook, onOpenSettings }: Props) {
       </nav>
       {view === 'library' ? <LibraryList onOpenNotebook={onOpenNotebook} /> : <TrashList onOpenSettings={onOpenSettings} />}
     </main>
+  )
+}
+
+/** The title field and the create button of the selection bar. The title
+ *  follows the selection until it is edited; Enter or the button creates,
+ *  Escape clears the field. Unmounted with the bar, so a new selection
+ *  starts from its own title again. */
+function NotebookFromSelection({ selected, busy, onCreate }: { selected: LibraryEntry[]; busy: boolean; onCreate: (title: string) => void }) {
+  const [edited, setEdited] = useState<string | null>(null)
+  const title = edited ?? notebookTitleFrom(selected)
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (title.trim()) onCreate(title.trim())
+  }
+
+  return (
+    <form className="notebook-from" onSubmit={submit}>
+      <input
+        aria-label={t('lib.notebookTitlePrompt')}
+        placeholder={t('lib.notebookTitlePrompt')}
+        value={title}
+        onChange={(e) => setEdited(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setEdited('')
+        }}
+      />
+      <button type="submit" className="secondary" disabled={busy || !title.trim()}>
+        {tn('lib.notebookFromN', selected.length)}
+      </button>
+    </form>
   )
 }
 
@@ -115,12 +146,10 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
     })
   }
 
-  /** A notebook named after the first entry (editable), the entries added
+  /** A notebook with the title from the selection bar, the entries added
    *  to it one by one, then opened. */
-  async function notebookFromSelected() {
-    if (selected.length === 0) return
-    const title = prompt(t('lib.notebookTitlePrompt'), notebookTitleFrom(selected))?.trim()
-    if (!title) return
+  async function notebookFromSelected(title: string) {
+    if (selected.length === 0 || !title) return
     const id = await run(async () => {
       const nb = await ingest.createNotebook(title)
       let done = 0
@@ -165,9 +194,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
       {selected.length > 0 && (
         <div className="selection-bar" role="region" aria-label={tn('lib.selected', selected.length)}>
           <span className="muted small">{progress ? t(progress.kind === 'delete' ? 'lib.progressDelete' : 'lib.progressAdd', { done: progress.done, total: progress.total }) : tn('lib.selected', selected.length)}</span>
-          <button type="button" className="secondary" disabled={busy} onClick={() => void notebookFromSelected()}>
-            {tn('lib.notebookFromN', selected.length)}
-          </button>
+          <NotebookFromSelection selected={selected} busy={busy} onCreate={(title) => void notebookFromSelected(title)} />
           <button type="button" className="danger" disabled={busy} onClick={() => void removeSelected()}>
             {tn('lib.deleteN', selected.length)}
           </button>

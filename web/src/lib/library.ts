@@ -61,10 +61,47 @@ export function bulkDeleteConfirmText(entries: Pick<LibraryEntry, 'notebooks'>[]
   return tn('lib.bulkTrashConfirm', entries.length, { where })
 }
 
-/** The title a notebook made from a selection starts with: the first
- *  entry's name, without a file extension. */
-export function notebookTitleFrom(entries: Pick<LibraryEntry, 'name' | 'kind'>[]): string {
-  const first = entries[0]
-  if (!first) return ''
-  return first.kind === 'url' ? first.name : first.name.replace(/\.[A-Za-z0-9]{1,5}$/, '')
+/** The title a notebook made from a selection starts with, never a raw
+ *  address: the first file's name without its extension when there is a
+ *  file among them, else the first web page's title (its name, when that
+ *  is a title rather than the address) or, derived from the address, host
+ *  and last path segment ("en.wikipedia.org · Dead reckoning"). */
+export function notebookTitleFrom(entries: Pick<LibraryEntry, 'name' | 'kind' | 'url'>[]): string {
+  const file = entries.find((e) => e.kind !== 'url')
+  if (file) return file.name.replace(/\.[A-Za-z0-9]{1,5}$/, '')
+  const page = entries[0]
+  if (!page) return ''
+  return isAddress(page.name) ? pageTitleFrom(page.url ?? page.name) : page.name
+}
+
+function isAddress(s: string): boolean {
+  try {
+    const { protocol } = new URL(s)
+    return protocol === 'https:' || protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
+/** "https://en.wikipedia.org/wiki/Dead_reckoning" -> "en.wikipedia.org ·
+ *  Dead reckoning": the host without "www.", then the last path segment
+ *  decoded, "_" and "-" as spaces, without a file extension. */
+export function pageTitleFrom(url: string): string {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return url
+  }
+  const host = u.host.replace(/^www\./, '')
+  const last = u.pathname.split('/').filter(Boolean).pop()
+  if (!last) return host
+  let segment = last
+  try {
+    segment = decodeURIComponent(last)
+  } catch {
+    // a malformed escape stays as it is
+  }
+  const words = segment.replace(/\.[A-Za-z0-9]{1,5}$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+  return words ? `${host} · ${words}` : host
 }
