@@ -9,7 +9,7 @@ import logging
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -53,7 +53,9 @@ class DeploymentStatus:
     replicas: int
     ready: int
     updated: int
-    progressing: bool | None = None  # the Progressing condition, null when absent
+    progressing: bool | None = (
+        None  # a rollout is under way (Progressing without NewReplicaSetAvailable)
+    )
     available: bool | None = None  # the Available condition
     replica_sets: int = 0  # ReplicaSets with pods, counted from the pods' template hashes
 
@@ -186,24 +188,37 @@ def _pod(item: dict[str, Any]) -> PodStatus:
     )
 
 
-def _container_reason(statuses: list[dict[str, Any]]) -> str | None:
+RECENT_TERMINATION = timedelta(minutes=10)
+
+
+def _container_reason(statuses: list[dict[str, Any]], now: datetime | None = None) -> str | None:
     """Why a container is not running: CrashLoopBackOff, ImagePullBackOff, OOMKilled, Error…
-    The first container that is waiting or terminated gives the reason; none when all run."""
+    The first container that is waiting or terminated gives the reason; a container that
+    runs again but was terminated within the last ten minutes still shows that reason
+    (the diagram's red), none when all run quietly."""
+    now = now or datetime.now(UTC)
     for c in statuses:
         state = c.get("state") or {}
         for kind in ("waiting", "terminated"):
             reason = (state.get(kind) or {}).get("reason")
             if reason:
                 return str(reason)
+    for c in statuses:
+        last = (c.get("lastState") or {}).get("terminated") or {}
+        finished = last.get("finishedAt")
+        if last.get("reason") and finished:
+            ended = datetime.fromisoformat(str(finished).replace("Z", "+00:00"))
+            if now - ended <= RECENT_TERMINATION:
+                return str(last["reason"])
     return None
 
 
 def _deployment(item: dict[str, Any], pods: list[PodStatus]) -> DeploymentStatus:
     spec, status = item.get("spec", {}), item.get("status", {})
     name = str(item.get("metadata", {}).get("name", ""))
-    conditions = {
-        str(c.get("type")): c.get("status") == "True" for c in status.get("conditions") or []
-    }
+    conditions = {str(c.get("type")): c for c in status.get("conditions") or []}
+    progressing = conditions.get("Progressing")
+    available = conditions.get("Available")
     # ReplicaSets with pods, without listing ReplicaSets (no extra RBAC): the pods of this
     # deployment carry one pod-template-hash per ReplicaSet; two hashes mean a rollout.
     hashes = {p.template_hash for p in pods if p.service == name and p.template_hash}
@@ -212,7 +227,14 @@ def _deployment(item: dict[str, Any], pods: list[PodStatus]) -> DeploymentStatus
         replicas=int(spec.get("replicas") or 0),
         ready=int(status.get("readyReplicas") or 0),
         updated=int(status.get("updatedReplicas") or 0),
-        progressing=conditions.get("Progressing"),
-        available=conditions.get("Available"),
+        # True only while a rollout is under way: the condition stays "True" after completion
+        # with reason NewReplicaSetAvailable, which the diagram must not paint amber.
+        progressing=(
+            None
+            if progressing is None
+            else progressing.get("status") == "True"
+            and progressing.get("reason") != "NewReplicaSetAvailable"
+        ),
+        available=None if available is None else available.get("status") == "True",
         replica_sets=len(hashes),
     )

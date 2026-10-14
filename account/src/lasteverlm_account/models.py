@@ -293,7 +293,9 @@ class SystemPod(BaseModel):
     node: str | None
     started_at: datetime | None
     phase: str | None  # Pending | Running | Succeeded | Failed | Unknown
-    reason: str | None  # CrashLoopBackOff, ImagePullBackOff, OOMKilled, Error, …; null when running
+    # CrashLoopBackOff, ImagePullBackOff, OOMKilled, Error, …; a termination within the last
+    # ten minutes still counts; null when the containers run quietly
+    reason: str | None
     template_hash: str | None  # which ReplicaSet the pod belongs to
 
 
@@ -302,7 +304,9 @@ class SystemDeployment(BaseModel):
     replicas: int
     ready: int
     updated: int
-    progressing: bool | None  # the Progressing condition
+    progressing: (
+        bool | None
+    )  # a rollout is under way; false once NewReplicaSetAvailable, null without the condition
     available: bool | None  # the Available condition
     replica_sets: int  # ReplicaSets that have pods; 2 during a rollout
 

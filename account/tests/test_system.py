@@ -79,7 +79,7 @@ DEPLOYMENTS = {
                 "updatedReplicas": 2,
                 "conditions": [
                     {"type": "Available", "status": "True"},
-                    {"type": "Progressing", "status": "True"},
+                    {"type": "Progressing", "status": "True", "reason": "ReplicaSetUpdated"},
                 ],
             },
         },
@@ -88,7 +88,10 @@ DEPLOYMENTS = {
             "spec": {"replicas": 1},
             "status": {
                 "readyReplicas": 0,
-                "conditions": [{"type": "Available", "status": "False"}],
+                "conditions": [
+                    {"type": "Available", "status": "False"},
+                    {"type": "Progressing", "status": "True", "reason": "NewReplicaSetAvailable"},
+                ],
             },
         },
     ]
@@ -172,7 +175,7 @@ async def test_snapshot_inside_a_cluster(sa_dir: Path) -> None:
         True,
         2,  # two template hashes among its pods: a rollout is under way
     )
-    assert (rag_dep.progressing, rag_dep.available, rag_dep.replica_sets) == (None, False, 1)
+    assert (rag_dep.progressing, rag_dep.available, rag_dep.replica_sets) == (False, False, 1)
     ingest = snap.services[1]
     assert ingest.dependencies == {"postgres": "ok", "storage": "down"}
     assert snap.services[2].dependencies is None  # unreachable rag reports nothing
@@ -252,4 +255,34 @@ def test_service_urls_drive_both_probes_and_purges() -> None:
     assert defaults.system_services == (
         ("ingest", "http://ingest/healthz"),
         ("rag", "http://rag/healthz"),
+    )
+
+
+def test_recent_termination_still_shows_its_reason() -> None:
+    from datetime import UTC, datetime
+
+    from lasteverlm_account.system import _container_reason
+
+    now = datetime(2026, 10, 14, 12, 0, tzinfo=UTC)
+    recent = [
+        {
+            "state": {"running": {}},
+            "lastState": {
+                "terminated": {"reason": "OOMKilled", "finishedAt": "2026-10-14T11:55:00Z"}
+            },
+        }
+    ]
+    old = [
+        {
+            "state": {"running": {}},
+            "lastState": {
+                "terminated": {"reason": "OOMKilled", "finishedAt": "2026-10-14T09:00:00Z"}
+            },
+        }
+    ]
+    assert _container_reason(recent, now) == "OOMKilled"
+    assert _container_reason(old, now) is None
+    assert _container_reason([{"state": {"running": {}}}], now) is None
+    assert _container_reason([{"state": {"waiting": {"reason": "CrashLoopBackOff"}}}], now) == (
+        "CrashLoopBackOff"
     )
