@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - "Open in source" on a citation into an upload opens the source in a new tab through its `preview_url` (as the library's open link does), a PDF with `#page=<n>` so the browser's viewer lands on the cited page; it still highlights the source in the list, and a source without a preview is only highlighted, as before.
+- Library, "New notebook from n sources": the title is a field in the selection bar next to the button (Enter or the button creates, Escape clears) instead of a browser prompt, and its preset is never a raw address: the first file's name without its extension when a file is selected, else the first web page's title, derived from its address as host and last path segment with `_` and `-` as spaces ("en.wikipedia.org · Dead reckoning") while ingest stores no page title.
 
 ### Fixed
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibraryEntry } from '../api/types'
-import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, purgeIn, shortUrl } from './library'
+import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, pageTitleFrom, purgeIn, shortUrl } from './library'
 
 const entry = (id: string, kind: LibraryEntry['kind'], name: string, notebooks: LibraryEntry['notebooks'] = [], url: string | null = null): LibraryEntry => ({
   id,
@@ -62,13 +62,45 @@ describe('bulkDeleteConfirmText', () => {
 })
 
 describe('notebookTitleFrom', () => {
-  it('takes the first name without its extension', () => {
-    expect(notebookTitleFrom([{ name: 'linux_-_vi.pdf', kind: 'pdf' }, { name: 'b.txt', kind: 'text' }])).toBe('linux_-_vi')
+  const page = (url: string, name = url) => ({ name, kind: 'url' as const, url })
+
+  it('takes the first file name without its extension', () => {
+    expect(notebookTitleFrom([{ name: 'linux_-_vi.pdf', kind: 'pdf', url: null }, { name: 'b.txt', kind: 'text', url: null }])).toBe('linux_-_vi')
   })
 
-  it('keeps a web page title whole and is empty for no entries', () => {
-    expect(notebookTitleFrom([{ name: 'Danube - Wikipedia', kind: 'url' }])).toBe('Danube - Wikipedia')
+  it('prefers a file to a web page among several', () => {
+    expect(notebookTitleFrom([page('https://en.wikipedia.org/wiki/Danube'), { name: 'notes.txt', kind: 'text', url: null }])).toBe('notes')
+  })
+
+  it('never offers a raw address', () => {
+    expect(notebookTitleFrom([page('https://en.wikipedia.org/wiki/Dead_reckoning')])).toBe('en.wikipedia.org · Dead reckoning')
+    expect(notebookTitleFrom([page('https://en.wikipedia.org/wiki/Dead_reckoning'), page('https://example.com/b')])).toBe('en.wikipedia.org · Dead reckoning')
+  })
+
+  it("keeps a web page's stored title whole", () => {
+    expect(notebookTitleFrom([page('https://en.wikipedia.org/wiki/Danube', 'Danube - Wikipedia')])).toBe('Danube - Wikipedia')
+  })
+
+  it('is empty for no entries', () => {
     expect(notebookTitleFrom([])).toBe('')
+  })
+})
+
+describe('pageTitleFrom', () => {
+  it('names host and last path segment', () => {
+    expect(pageTitleFrom('https://www.example.com/blog/my-first_post/')).toBe('example.com · my first post')
+    expect(pageTitleFrom('https://example.com/docs/guide.html?x=1#top')).toBe('example.com · guide')
+    expect(pageTitleFrom('https://de.wikipedia.org/wiki/K%C3%B6ln')).toBe('de.wikipedia.org · Köln')
+  })
+
+  it('is the host alone without a path', () => {
+    expect(pageTitleFrom('https://example.com/')).toBe('example.com')
+    expect(pageTitleFrom('https://example.com/---/')).toBe('example.com')
+  })
+
+  it('survives a malformed escape and a non-address', () => {
+    expect(pageTitleFrom('https://example.com/a%E0%A4%A')).toBe('example.com · a%E0%A4%A')
+    expect(pageTitleFrom('not a url')).toBe('not a url')
   })
 })
 

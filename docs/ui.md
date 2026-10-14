@@ -238,8 +238,11 @@ linked, and without a preview the action is disabled with a note.
 Each row has a checkbox ("all / none" in the column header acts on the
 rows the filter shows; ticks survive a filter change). With rows
 ticked a bar above the table offers **New notebook from n sources** (a
-title prompt, preset with the first entry's name without its extension;
-the notebook is created, each entry added from the library one by one,
+title field in the bar next to the button, Enter or the button creates,
+Escape clears it; preset with the first file's name without its
+extension, else the first web page's title or, from its address, host
+and last path segment, "en.wikipedia.org · Dead reckoning", never the
+raw address; the notebook is created, each entry added from the library one by one,
 then the notebook opens) and **Delete n** (one confirmation naming every
 notebook the entries leave, then one delete per entry with "n of m" in
 the bar; after a failure the rest stays ticked).
