@@ -30,6 +30,7 @@ x-dev: &dev
   TTS_VOICE: ${TTS_VOICE:-ryan}
   STT_MODEL: ${STT_MODEL:-whisper-large-v3-turbo}
   DECISION_MODEL: ${DECISION_MODEL:-clef}
+  JUDGE_MODELS: ${JUDGE_MODELS:-{"low":"deepseek-v4.1-flash","medium":"glm-5.3-flash","high":"glm-5.3"}}
   S3_ENDPOINT: http://storage:9000
   S3_BUCKET: lasteverlm-sources
   S3_REGION: us-east-1

@@ -22,6 +22,8 @@ config:
   ttsVoice: ryan
   sttModel: whisper-large-v3-turbo
   decisionModel: clef
+  # Judge level -> model, from rag's evaluation (rag/docs/judge-eval.md).
+  judgeModels: '{"low":"deepseek-v4.1-flash","medium":"glm-5.3-flash","high":"glm-5.3"}'
   # Credit of a new voucher in cents: 5 EUR.
   voucherDefaultCents: 500
   # Vultr Object Storage, region ams1 (tofu output s3_endpoint).

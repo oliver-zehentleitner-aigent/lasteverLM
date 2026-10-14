@@ -40,3 +40,9 @@ data:
   {{- with .Values.config.decisionModel }}
   DECISION_MODEL: {{ . | quote }}
   {{- end }}
+  {{- with .Values.config.judgeModels }}
+  {{- with (fromJson .).Error }}
+  {{- fail (printf "config.judgeModels is not valid JSON: %s" .) }}
+  {{- end }}
+  JUDGE_MODELS: {{ . | quote }}
+  {{- end }}
