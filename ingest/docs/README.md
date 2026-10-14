@@ -57,10 +57,12 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/notebooks` | 201 | `{"title"}` |
 | DELETE | `/notebooks/{id}` | 204 | detaches its sources (they stay in the library, outputs included; rag keeps an output's origin title) |
 | GET | `/notebooks/{id}/sources` | 200 | poll this for `status` |
+| POST | `/notebooks/{id}/sources/bulk` | 200 | `{"library_ids": [...]}` (1–200): links the caller's library entries into their notebook at once, uploads (any status, not trashed) and ready outputs alike; nothing is processed or billed. Answers `{"added": [library_id], "already": [library_id]}` in the order given (duplicates counted once); an existing link is `already`, never doubled (unique `sources_link_idx`). One transaction: if any id is unknown, someone else's, trashed or an unfinished output, nothing is added and the answer is 404 naming them |
 | POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF) with an optional field `capture` for PDFs (`text`, `vision`, `auto`; default `auto`), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library: an upload not in the trash, or a ready output; nothing is processed or billed, the chunks are reused; 404 otherwise); 200 with the existing source when it is already in this notebook |
 | DELETE | `/sources/{id}` | 204 | detach: removes the source from this notebook, it stays in the library |
 | GET | `/library` | 200 | the caller's library (uploads), newest first, with where-used |
-| GET | `/library?kind=generated` | 200 | the caller's ready outputs (rag's, not trashed), newest first, with where-used and `origin`: `{"id", "title"}` of the notebook it was made in, read from rag's `outputs` (`id` null once that notebook is deleted, `title` then rag's snapshot); `preview_url` null |
+| GET | `/library?kind=all` | 200 | uploads and ready outputs in one list, newest first; every entry has `notebooks` (the notebooks it is linked into, so the web can tell whether it is in a given one), outputs also `origin` and `output_id` |
+| GET | `/library?kind=generated` | 200 | the caller's ready outputs (rag's, not trashed), newest first, with where-used, `output_id` (the output in rag) and `origin`: `{"id", "title"}` of the notebook it was made in, read from rag's `outputs` (`id` null once that notebook is deleted, `title` then rag's snapshot); `preview_url` null |
 | GET | `/library/{id}` | 200 | one library source |
 | DELETE | `/library/{id}` | 204 | to the trash: removed from every notebook, chunks and stored object kept |
 | GET | `/library/trash` | 200 | the caller's trash, most recently deleted first |

@@ -76,6 +76,15 @@ class NotebookUse(BaseModel):
     source_id: UUID
 
 
+class LinkResult(BaseModel):
+    """`link_many`: what was linked, what was linked before, and the ids
+    that cannot be linked (then nothing was)."""
+
+    added: list[UUID] = []
+    already: list[UUID] = []
+    missing: list[UUID] = []
+
+
 class Origin(BaseModel):
     """Where a generated entry was made: the notebook's id (null once it is
     deleted) and its title (as it was then, if deleted)."""
@@ -100,6 +109,8 @@ class LibraryEntry(BaseModel):
     demo: bool = False
     notebooks: list[NotebookUse]
     origin: Origin | None = None
+    # A generated entry's output in rag (`GET /outputs/{id}`); null otherwise.
+    output_id: UUID | None = None
     # Set by the API (api/deps.py): where the source opens, and for a
     # converted recording the original as a download.
     preview_url: str | None = None
@@ -178,6 +189,13 @@ class Repository(Protocol):
     def linkable(self, owner: UUID, library_id: UUID) -> bool:
         """The owner's library source can be linked into a notebook: in the
         library (not trashed), or a ready generated one."""
+        ...
+
+    def link_many(self, owner: UUID, notebook_id: UUID, library_ids: list[UUID]) -> LinkResult:
+        """Link the owner's linkable library sources into the notebook in
+        one transaction, in the order given. When any id is not linkable for
+        the owner (unknown, someone else's, trashed, an output not ready),
+        nothing is linked and those ids are `missing`."""
         ...
 
     def list_generated(self, owner: UUID) -> list[LibraryEntry]:
@@ -475,6 +493,33 @@ class PostgresRepository:
         )
         return row is not None
 
+    def link_many(self, owner: UUID, notebook_id: UUID, library_ids: list[UUID]) -> LinkResult:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "select l.id from library_sources l where l.id = any(%(ids)s) "
+                "and l.owner = %(owner)s and l.deleted_at is null "
+                "and (l.kind <> 'generated' or l.status = 'ready') for share",
+                {"ids": library_ids, "owner": owner},
+            )
+            found = {row[0] for row in cur.fetchall()}
+            missing = [i for i in library_ids if i not in found]
+            if missing:
+                return LinkResult(missing=missing)
+            # sources_link_idx (notebook_id, library_source_id) is unique:
+            # a link another request made meanwhile is "already", never doubled.
+            cur.execute(
+                "insert into sources (id, notebook_id, library_source_id) "
+                "select gen_random_uuid(), %(nb)s, unnest(%(ids)s::uuid[]) "
+                "on conflict (notebook_id, library_source_id) do nothing "
+                "returning library_source_id",
+                {"nb": notebook_id, "ids": library_ids},
+            )
+            new = {row[0] for row in cur.fetchall()}
+        return LinkResult(
+            added=[i for i in library_ids if i in new],
+            already=[i for i in library_ids if i not in new],
+        )
+
     # The origin of an output is rag's: outputs.source_id is the generated
     # row, outputs.notebook_id the notebook it was made in (null once that
     # is deleted), outputs.origin_title the title it had then. Read from
@@ -483,7 +528,8 @@ class PostgresRepository:
     _GENERATED_ENTRIES = """
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
            l.capture, l.demo, l.storage_path, l.transcribed_path,
-           o.notebook_id as origin_id, coalesce(origin.title, o.origin_title) as origin_title,
+           o.id as output_id, o.notebook_id as origin_id,
+           coalesce(origin.title, o.origin_title) as origin_title,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -494,7 +540,7 @@ class PostgresRepository:
       left join notebooks n on n.id = s.notebook_id
      where l.owner = %(owner)s and l.kind = 'generated' and l.status = 'ready'
        and l.deleted_at is null
-     group by l.id, o.notebook_id, o.origin_title, origin.title
+     group by l.id, o.id, o.notebook_id, o.origin_title, origin.title
      order by l.created_at desc, l.id
     """
 

@@ -342,6 +342,32 @@ def test_outputs_are_listed_with_their_origin_and_outlive_their_notebook(repo):
     assert repo.list_generated(owner) == [] and not repo.linkable(owner, report)
 
 
+def test_link_many_links_in_one_go_and_never_doubles(repo):
+    owner, stranger = _user(repo), _user(repo)
+    origin = repo.create_notebook(owner, "Thesis")
+    target = repo.create_notebook(owner, "Talk")
+    a, b = _library(repo, owner), _library(repo, owner)
+    report = _output(repo, origin.id, owner)
+    repo.link_source(target.id, a.id)
+
+    result = repo.link_many(owner, target.id, [a.id, b.id, report])
+    assert (result.added, result.already, result.missing) == ([b.id, report], [a.id], [])
+    assert {s.library_id for s in repo.list_sources(target.id)} == {a.id, b.id, report}
+    again = repo.link_many(owner, target.id, [report, b.id])
+    assert (again.added, again.already) == ([], [report, b.id])
+    assert len(repo.list_sources(target.id)) == 3
+
+    theirs = _library(repo, stranger)
+    trashed = _library(repo, owner)
+    repo.trash_library_source(owner, trashed.id)
+    fresh = _library(repo, owner)
+    refused = repo.link_many(owner, target.id, [fresh.id, theirs.id, trashed.id])
+    assert refused.missing == [theirs.id, trashed.id] and refused.added == []
+    assert fresh.id not in {s.library_id for s in repo.list_sources(target.id)}
+    [entry] = repo.list_generated(owner)
+    assert entry.output_id is not None
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)

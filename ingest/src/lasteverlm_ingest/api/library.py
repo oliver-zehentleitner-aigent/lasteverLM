@@ -44,16 +44,23 @@ def _not_found() -> HTTPException:
 
 @router.get("/library", response_model=list[LibraryEntry])
 def list_library(
-    request: Request, user: CurrentUser, kind: Literal["generated"] | None = None
+    request: Request, user: CurrentUser, kind: Literal["generated", "all"] | None = None
 ) -> list[LibraryEntry]:
     """The uploads, newest first; a new user's first look seeds the demo
     sources. `?kind=generated` lists the user's ready outputs instead
-    (rag's, with their origin notebook), for linking into other notebooks."""
+    (rag's, with their origin notebook and output id), `?kind=all` both in
+    one list, newest first. Every entry carries `notebooks`, the notebooks
+    it is linked into."""
+    repo = repository(request)
+    generated = repo.list_generated(user) if kind in ("generated", "all") else []
     if kind == "generated":
-        return list(repository(request).list_generated(user))
+        return list(generated)
     seed_if_new(request, user)
-    credit = CreditView(repository(request), user)
-    return [_with_preview(request, e, credit) for e in repository(request).list_library(user)]
+    credit = CreditView(repo, user)
+    uploads = [_with_preview(request, e, credit) for e in repo.list_library(user)]
+    if kind is None:
+        return uploads
+    return sorted([*uploads, *generated], key=lambda e: (e.created_at, e.id), reverse=True)
 
 
 # Before /library/{library_id}, which would take "trash" for an id.

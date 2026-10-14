@@ -89,6 +89,8 @@ _CONTENT_TYPE = {
     "text": "text/plain; charset=utf-8",
     "url": "text/uri-list",
 }
+# Most library entries one bulk request links.
+MAX_BULK = 200
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -312,3 +314,34 @@ def detach_source(request: Request, user: CurrentUser, source_id: UUID) -> Respo
     owned_source(repo, user, source_id)
     repo.detach_source(source_id)
     return Response(status_code=204)
+
+
+class BulkLink(BaseModel):
+    """`POST /notebooks/{id}/sources/bulk`: library entries to add at once."""
+
+    library_ids: list[UUID] = Field(min_length=1, max_length=MAX_BULK)
+
+
+class BulkLinked(BaseModel):
+    added: list[UUID]
+    already: list[UUID]
+
+
+@router.post("/notebooks/{notebook_id}/sources/bulk", response_model=BulkLinked)
+def link_sources(
+    request: Request, user: CurrentUser, notebook_id: UUID, body: BulkLink
+) -> BulkLinked:
+    """Link several of the caller's library entries into their notebook:
+    uploads (whatever their status, not trashed) and ready outputs alike.
+    Nothing is processed or billed; the chunks are reused. A link that
+    exists is reported in `already`, never doubled. One transaction: if
+    any id is not the caller's or cannot be linked, nothing is added (404
+    naming the ids)."""
+    repo = repository(request)
+    owned_notebook(repo, user, notebook_id)
+    ids = list(dict.fromkeys(body.library_ids))  # in order, each once
+    result = repo.link_many(user, notebook_id, ids)
+    if result.missing:
+        missing = ", ".join(str(i) for i in result.missing)
+        raise HTTPException(status_code=404, detail=f"library sources not found: {missing}")
+    return BulkLinked(added=result.added, already=result.already)
