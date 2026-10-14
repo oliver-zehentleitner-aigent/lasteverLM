@@ -37,6 +37,7 @@ from lasteverlm_rag.models import (
 )
 from lasteverlm_rag.outputs import registry
 from lasteverlm_rag.service import OutputService
+from lasteverlm_rag.starter import OutputCopy
 from lasteverlm_rag.voice_samples import VoiceSamples
 from lasteverlm_rag.worker import Worker
 
@@ -117,6 +118,7 @@ class FakeStore:
         self.viewers = viewers or set()
         self.messages: list[dict[str, Any]] = []
         self.bookings: list[tuple[str, uuid.UUID]] = []
+        self.copies: dict[str, dict[str, Any]] = {}
         # a rate of 1: charges equal costs unless a test sets margins or a rate
         self.rules = PricingRules.parse({"usd_per_eur": 1})
         self.usage: list[tuple[str, str | None, Usage]] = []
@@ -445,6 +447,65 @@ class FakeStore:
     # credit
     def has_credit(self, user_id: str) -> bool:
         return self.balance > 0
+
+    # starter copies
+    def claim_output_copy(self, worker_id: str, stale_after_s: int) -> OutputCopy | None:
+        for row in self.copies.values():
+            if row["error"] is None and row["claimed_by"] is None:
+                row["claimed_by"] = worker_id
+                row["attempts"] += 1
+                return OutputCopy(
+                    row["target_notebook"],
+                    row["source_notebook"],
+                    row["owner"],
+                    row["source_map"],
+                    row["chunk_map"],
+                    row["attempts"],
+                )
+        return None
+
+    def end_output_copy(self, target_notebook: str, error: str | None, final: bool) -> None:
+        if error is None:
+            del self.copies[target_notebook]
+        else:
+            row = self.copies[target_notebook]
+            row["claimed_by"] = None
+            row["error"] = error if final else None
+
+    def copied_outputs(self, notebook_id: str) -> set[str]:
+        return {
+            r["copied_from"]
+            for r in self.outputs.values()
+            if r["notebook_id"] == notebook_id and r.get("copied_from")
+        }
+
+    def copy_output(self, row, output_id, target_notebook, content, options, provenance) -> bool:
+        if row.id in self.copied_outputs(target_notebook):
+            return False
+        notebook = self.notebooks[target_notebook]
+        source_id = None
+        if row.source_id:
+            old = self.sources[row.source_id]
+            source_id = self.add_source(
+                target_notebook, old["name"], "ready", old["summary"], "generated"
+            )
+            self.chunks[source_id] = list(self.chunks.get(row.source_id, []))
+        self.outputs[output_id] = {
+            **self.outputs[row.id],
+            "id": output_id,
+            "notebook_id": target_notebook,
+            "owner": notebook["owner"],
+            "origin_title": notebook["title"],
+            "content": content,
+            "options": options,
+            "provenance": provenance,
+            "source_id": source_id,
+            "share_token": None,
+            "deleted_at": None,
+            "claimed_by": None,
+            "copied_from": row.id,
+        }
+        return True
 
     def pricing_rules(self) -> PricingRules:
         return self.rules

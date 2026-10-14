@@ -798,3 +798,64 @@ def test_one_action_is_charged_its_margin_and_its_fee_once(store, pool, user, no
         ("llm", "output:report"),
     ]
     assert [r["charge_cents"] for r in rows] == [Decimal("1.5"), Decimal(5), Decimal(15)]
+
+
+def test_a_starter_output_is_copied_once_with_its_generated_source(store, pool, user, notebook):
+    newcomer = str(uuid4())
+    target = str(uuid4())
+    with pool.connection() as conn:
+        conn.execute("insert into users (id, email) values (%s, %s)", (newcomer, f"{newcomer}@t"))
+        conn.execute(
+            "insert into notebooks (id, owner, title) values (%s, %s, 'Welcome')",
+            (target, newcomer),
+        )
+        conn.execute(
+            "insert into output_copies (target_notebook, source_notebook, owner, chunk_map) "
+            "values (%s, %s, %s, %s)",
+            (target, notebook, newcomer, json.dumps({"a": "b"})),
+        )
+    row = store.create_output(notebook, "report", "ready")
+    generated = store.create_generated_source(notebook, "Report", "s")
+    with pool.connection() as conn:
+        conn.execute(
+            "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+            "values (%s, %s, 0, null, 'report text', '[1,0,0]')",
+            (str(uuid4()), generated),
+        )
+    store.set_source_status(generated, "ready")
+    store.update_output(row.id, title="Report", content={"markdown": "x"}, source_id=generated)
+    row = store.get_output(row.id)
+
+    job = store.claim_output_copy("w1", 600)
+    assert job is not None and job.target_notebook == target and job.chunk_map == {"a": "b"}
+    assert job.attempts == 1 and store.claim_output_copy("w2", 600) is None  # held
+    new_id = str(uuid4())
+    assert store.copy_output(row, new_id, target, row.content, {}, None)
+    copy = store.get_output(new_id)
+    assert copy is not None
+    assert (copy.owner, copy.notebook_id, copy.title, copy.status) == (
+        newcomer,
+        target,
+        "Report",
+        "ready",
+    )
+    assert copy.origin_title == "Welcome" and copy.share_token is None
+    assert store.copied_outputs(target) == {row.id}
+    with pool.connection() as conn:
+        library = conn.execute(
+            "select owner::text as owner, kind, status, "
+            "(select count(*) from chunks c where c.library_source_id = l.id) as chunks "
+            "from library_sources l where id = %s",
+            (copy.source_id,),
+        ).fetchone()
+    assert dict(library) == {"owner": newcomer, "kind": "generated", "status": "ready", "chunks": 1}
+    assert [d.name for d in store.notebook_documents(target)] == ["Report"]
+    # once only: a second copy of the same output adds nothing
+    assert not store.copy_output(row, str(uuid4()), target, row.content, {}, None)
+
+    store.end_output_copy(target, "boom", final=True)
+    assert store.claim_output_copy("w1", 600) is None  # failed for good
+    store.end_output_copy(target, None, final=True)
+    with pool.connection() as conn:
+        left = conn.execute("select count(*) as n from output_copies").fetchone()["n"]
+    assert left == 0
