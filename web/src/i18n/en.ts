@@ -926,6 +926,8 @@ export const en = {
   'header.prices': 'Prices',
   'login.prices': 'Prices',
   'settings.prices': 'What things cost: the price list',
+  'prices.action.judgeLevel': 'Judge, {level}',
+  'prices.judgeNote': 'The judge rows are a check you ask for on an existing output or chat answer. A judge chosen while creating an output is included in that output\'s price.',
 } as const
 
 export type MessageKey = keyof typeof en

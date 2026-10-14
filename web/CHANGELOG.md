@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `/prices`: the public price list (no login) from the account service's `GET /api/account/prices`: Sources, Chat, Outputs and Extras as tables with the price per unit (unit translated), the typical range (p25–p75, median) and the model, "no experience yet" below five runs, the exchange rate with its ECB date and the rules in plain words; linked from the login page, the header and Settings.
+- `/prices`: the public price list (no login) from the account service's `GET /api/account/prices`: Sources, Chat, Outputs and Extras as tables with the price per unit (unit translated), the typical range (p25–p75, median) and the model, "no experience yet" below five runs, the exchange rate with its ECB date and the rules in plain words; linked from the login page, the header and Settings; the judge per level ("Judge, low", "Judge, medium", "Judge, high") under Extras, with a note that a judge chosen while creating an output is in that output's price.
 - Admin > Finance > Prices: the exchange rate's origin as a line ("1 EUR = 1.1188 USD · ECB 2026-10-13 · checked 14:05"), amber with a sentence when the account service reports it stale, the last check's error under it, and an automatic | manual switch: automatic (the ECB's rate, hourly, with Check now) leaves the rate field read-only, manual makes it editable.
 
 ## [0.18.1] - 2026-10-14

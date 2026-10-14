@@ -929,4 +929,6 @@ export const de: Record<MessageKey, string> = {
   'header.prices': 'Preise',
   'login.prices': 'Preise',
   'settings.prices': 'Was es kostet: die Preisliste',
+  'prices.action.judgeLevel': 'Judge, {level}',
+  'prices.judgeNote': 'Die Judge-Zeilen sind eine Prüfung, die du für eine bestehende Ausgabe oder Chat-Antwort anforderst. Ein beim Erstellen einer Ausgabe gewählter Judge ist im Preis der Ausgabe enthalten.',
 }

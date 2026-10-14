@@ -47,7 +47,7 @@ export function PricesPage() {
                   <tbody>
                     {rows.map((r) => (
                       <tr key={r.action}>
-                        <td>{actionLabel(r.action)}</td>
+                        <td>{actionLabel(r.level ? `judge:${r.level}` : r.action)}</td>
                         {r.price_per_unit_cents === null ? (
                           <td className="muted" colSpan={2}>
                             {t('prices.noExperience')}
@@ -66,6 +66,7 @@ export function PricesPage() {
                   </tbody>
                 </table>
               </div>
+              {rows.some((r) => r.action.startsWith('judge:')) && <p className="muted small">{t('prices.judgeNote')}</p>}
             </section>
           ))}
         {prices && (

@@ -5,7 +5,8 @@ import { OUTPUT_FORMS, SOURCE_FORMS, formFor, sourceKindLabel } from './outputs'
 /** The public price list's groups, in the page's order. Pure, so it is tested. */
 export type PriceGroup = 'sources' | 'chat' | 'outputs' | 'extras'
 
-const EXTRAS_ORDER = ['judge', 'chart_propose', 'decision', 'summary', 'voice_sample']
+// the judge once per level, low to high, then the rest
+const EXTRAS_ORDER = ['judge:low', 'judge:medium', 'judge:high', 'judge', 'chart_propose', 'decision', 'summary', 'voice_sample']
 
 export function priceGroup(action: string): PriceGroup {
   if (action.startsWith('source:')) return 'sources'
@@ -29,9 +30,11 @@ export function groupPrices(rows: PublicPriceRow[]): { group: PriceGroup; rows: 
     .filter((g) => g.rows.length > 0)
 }
 
-/** "PDF", "Report", "Check with a judge"; the code itself for an action the
- *  web has no name for. */
+/** "PDF", "Report", "Judge, medium"; the code itself for an action the web
+ *  has no name for. */
 export function actionLabel(action: string): string {
+  const judge = /^judge:(low|medium|high)$/.exec(action)
+  if (judge) return t('prices.action.judgeLevel', { level: t(`judge.level.${judge[1] as 'low' | 'medium' | 'high'}`).toLowerCase() })
   if (action.startsWith('source:')) return sourceKindLabel(action.slice(7) as SourceKind)
   if (action.startsWith('output:')) {
     const kind = action.slice(7) as OutputKind
