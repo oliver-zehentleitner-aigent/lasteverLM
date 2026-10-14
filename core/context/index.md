@@ -27,6 +27,7 @@ repository root's `context/`.
 - [auth.md](auth.md) — one resolver for session JWT and demo token, why both schemes may be active at once and why there is no audience claim; why a secret under 32 bytes is refused; why read-only admin access is its own dependency
 
 ## B
+- [billing.md](billing.md) — why cost and charge are fixed at booking and a fixed fee is booked once per action
 
 ## C
 
