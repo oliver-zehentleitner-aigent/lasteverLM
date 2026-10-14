@@ -100,6 +100,28 @@ the user can unlink an output from the notebook it was made in.
 - The origin as the link whose id equals the library id: gone once the
   user unlinks the output from its origin notebook.
 
+## A shared notebook shows its sources by name, never their files
+
+**Id:** 9eda5c9c-7673-4343-814b-0d42feea51e1
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's wish (share a notebook read-only) through the coordinating agent, 2026-10-14, including what the public view shows
+**Revisit when:** users ask to share source files along with a notebook, or a notebook's sources include material meant to be public
+
+A notebook gets a read-only link (`notebooks.share_token`, made once,
+revoked by the owner, the scheme of rag's output links). Rag composes the
+public view: the title, the outputs shared with it, and the sources by
+name and kind only, with no file, no preview and no presigned URL. The
+source files are the owner's uploads; sharing the notebook shares what
+was made from them, not the uploads themselves.
+
+**Alternatives:**
+- Sharing the source files too (presigned links in the public view):
+  one link would hand out every upload of the notebook, including ones
+  the owner never meant to pass on, and copyrighted material they may
+  use privately but not redistribute.
+
 ## Deleting a user removes the objects before the rows
 
 **Id:** 74926408-01fb-42f0-9a63-83af364b450c
