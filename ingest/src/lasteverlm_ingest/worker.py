@@ -80,8 +80,16 @@ def process_source(library_id: UUID, deps: WorkerDeps) -> None:
         # Will not change on a retry: the source is failed at once.
         log.warning("library source %s failed: %s", library_id, exc)
         repo.set_library_status(library_id, "failed", str(exc)[:_ERROR_MAX])
-    except (StorageError, ProviderError, TransientLoaderError) as exc:
-        # May pass next time (a provider hiccup, the bucket, a web server).
+    except ProviderError as exc:
+        if exc.permanent:
+            # The platform refused the request with a 4xx a retry will not
+            # change: failing now saves the attempts.
+            log.warning("library source %s refused by the provider: %s", library_id, exc)
+            repo.set_library_status(library_id, "failed", str(exc)[:_ERROR_MAX])
+        else:
+            _retry_or_fail(source, str(exc)[:_ERROR_MAX], repo, exc)
+    except (StorageError, TransientLoaderError) as exc:
+        # May pass next time (the bucket, a web server).
         _retry_or_fail(source, str(exc)[:_ERROR_MAX], repo, exc)
     except Exception as exc:
         _retry_or_fail(source, "internal error while processing the source", repo, exc)

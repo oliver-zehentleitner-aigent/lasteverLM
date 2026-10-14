@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from lasteverlm_core import Passage, Usage
 
 if TYPE_CHECKING:
+    from lasteverlm_core import SpeechToText
+
     from lasteverlm_ingest.loaders.image import VisionReader
 
 __all__ = [
@@ -87,9 +89,12 @@ def default_registry(
     max_url_bytes: int = 20 * 1024 * 1024,
     vision: VisionReader | None = None,
     pdf_vision_max_pages: int = 100,
+    transcriber: SpeechToText | None = None,
 ) -> LoaderRegistry:
     """Without a vision reader there are no image sources and PDFs are
-    read by their text layer only."""
+    read by their text layer only; without a transcriber there are no
+    audio sources."""
+    from lasteverlm_ingest.loaders.audio import AudioLoader
     from lasteverlm_ingest.loaders.image import ImageLoader
     from lasteverlm_ingest.loaders.pdf import PdfLoader, VisionPdfLoader
     from lasteverlm_ingest.loaders.text import TextLoader
@@ -109,4 +114,6 @@ def default_registry(
                 f"pdf:{capture}",
                 VisionPdfLoader(vision, capture, max_pages=pdf_vision_max_pages),
             )
+    if transcriber is not None:
+        registry.register("audio", AudioLoader(transcriber))
     return registry

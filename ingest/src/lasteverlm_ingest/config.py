@@ -35,6 +35,7 @@ class Settings:
     auth: AuthSettings
     rate_limit: RateLimitSettings
     max_upload_bytes: int
+    stt_timeout_seconds: int
     chunk_tokens: int | None  # None: core's default
     chunk_overlap_tokens: int | None  # None: core's default
     embed_batch_size: int
@@ -72,12 +73,19 @@ class Settings:
         claim_timeout = env_int("CLAIM_TIMEOUT_SECONDS", 600, env)
         if poll_seconds <= 0 or claim_timeout <= 0:
             raise ConfigError("WORKER_POLL_SECONDS and CLAIM_TIMEOUT_SECONDS must be positive")
+        stt_timeout = env_int("STT_TIMEOUT_SECONDS", 300, env)
+        if not 0 < stt_timeout < claim_timeout:
+            raise ConfigError(
+                "STT_TIMEOUT_SECONDS must be positive and below CLAIM_TIMEOUT_SECONDS"
+            )
         inference = InferenceSettings.from_env(env)
         if inference.embedding_dimension <= 0:
             raise ConfigError("EMBEDDING_DIMENSION must be positive")
         try:
             prices = load_model_prices(env)
-            require_prices(prices, [inference.embedding_model, inference.llm_model])
+            require_prices(
+                prices, [inference.embedding_model, inference.llm_model, inference.stt_model]
+            )
         except UnpricedModelError as exc:
             raise ConfigError(f"MODEL_PRICES: {exc}") from exc
         except ValueError as exc:
@@ -89,6 +97,7 @@ class Settings:
             auth=AuthSettings.from_env(env),
             rate_limit=RateLimitSettings.from_env(env),
             max_upload_bytes=env_int("MAX_UPLOAD_BYTES", 20 * 1024 * 1024, env),
+            stt_timeout_seconds=stt_timeout,
             chunk_tokens=chunk_tokens,
             chunk_overlap_tokens=overlap,
             embed_batch_size=env_int("EMBED_BATCH_SIZE", 64, env),

@@ -6,7 +6,15 @@ from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from lasteverlm_core import Source, Storage, StorageError, object_key
+from lasteverlm_core import (
+    MAX_AUDIO_BYTES,
+    AudioError,
+    Source,
+    Storage,
+    StorageError,
+    object_key,
+    probe_audio,
+)
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
@@ -38,6 +46,8 @@ _KIND_BY_SUFFIX = {
     ".jpeg": "image",
     ".webp": "image",
     ".gif": "image",
+    ".mp3": "audio",
+    ".wav": "audio",
 }
 _KIND_BY_MEDIA_TYPE = {
     "application/pdf": "pdf",
@@ -47,7 +57,17 @@ _KIND_BY_MEDIA_TYPE = {
     "image/jpeg": "image",
     "image/webp": "image",
     "image/gif": "image",
+    "audio/mpeg": "audio",
+    "audio/mp3": "audio",
+    "audio/wav": "audio",
+    "audio/x-wav": "audio",
 }
+# The platform's transcription model takes MP3 and WAV only; other
+# recordings are refused by name rather than transcoded.
+_OTHER_AUDIO_SUFFIXES = frozenset(
+    {".m4a", ".mp4", ".aac", ".ogg", ".oga", ".opus", ".webm", ".flac"}
+)
+AUDIO_FORMATS = "audio must be MP3 or WAV"
 _CONTENT_TYPE = {
     "pdf": "application/pdf",
     "text": "text/plain; charset=utf-8",
@@ -100,6 +120,13 @@ def detect_kind(filename: str, media_type: str | None) -> str | None:
     return kind
 
 
+def _other_audio(filename: str, media_type: str | None) -> bool:
+    """A recording in a format the transcription model does not take."""
+    if PurePosixPath(filename).suffix.lower() in _OTHER_AUDIO_SUFFIXES:
+        return True
+    return media_type is not None and media_type.split(";")[0].strip().lower().startswith("audio/")
+
+
 def safe_name(filename: str) -> str:
     name = _UNSAFE.sub("_", PurePosixPath(filename).name).strip("._") or "upload"
     return name[:200]
@@ -134,17 +161,28 @@ async def create_source(
         if not isinstance(upload, UploadFile) or not upload.filename:
             raise HTTPException(status_code=400, detail="multipart field 'file' is required")
         kind = detect_kind(upload.filename, upload.content_type)
+        if kind is None and _other_audio(upload.filename, upload.content_type):
+            raise HTTPException(status_code=415, detail=AUDIO_FORMATS)
         if kind is None or kind not in deps.loaders.kinds:
             raise HTTPException(
-                status_code=415, detail="unsupported file type; use PDF, text or an image"
+                status_code=415,
+                detail="unsupported file type; use PDF, text, an image or audio",
             )
-        data = await upload.read(deps.settings.max_upload_bytes + 1)
-        if len(data) > deps.settings.max_upload_bytes:
+        limit = MAX_AUDIO_BYTES if kind == "audio" else deps.settings.max_upload_bytes
+        data = await upload.read(limit + 1)
+        if len(data) > limit:
             raise HTTPException(status_code=413, detail="file is too large")
         if not data:
             raise HTTPException(status_code=400, detail="file is empty")
         if kind == "image" and sniff_image_type(data) is None:
             raise HTTPException(status_code=415, detail="not a PNG, JPEG, WebP or GIF image")
+        audio_type = None
+        if kind == "audio":
+            try:
+                audio_type = probe_audio(data).mime
+            except AudioError as exc:
+                # Not WAV or MP3, or over four hours: core's message names it.
+                raise HTTPException(status_code=415, detail=str(exc)) from None
         name = safe_name(upload.filename)
         url = None
         capture: Capture | None = _capture(form.get("capture")) if kind == "pdf" else None
@@ -197,7 +235,12 @@ async def create_source(
     # The object first, the row after: a `processing` row is claimable the
     # moment it exists, so a worker must never find one without its object.
     try:
-        object_type = sniff_image_type(data) if kind == "image" else _CONTENT_TYPE[kind]
+        if kind == "image":
+            object_type = sniff_image_type(data)
+        elif kind == "audio":
+            object_type = audio_type
+        else:
+            object_type = _CONTENT_TYPE[kind]
         deps.storage.put(key, data, object_type or "application/octet-stream")
     except StorageError as exc:
         raise HTTPException(status_code=503, detail=f"storage unavailable: {exc}") from exc

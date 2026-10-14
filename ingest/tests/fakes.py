@@ -16,6 +16,7 @@ from lasteverlm_core import (
     ModelPrices,
     Notebook,
     Passage,
+    TranscriptionResult,
     Usage,
     UsageRecord,
     cost_cents,
@@ -46,7 +47,8 @@ class InMemoryRepository:
             prices
             if prices is not None
             else parse_model_prices(
-                '{"fake-embed": {"in": 2000, "out": 0}, "fake-llm": {"in": 30, "out": 150}}'
+                '{"fake-embed": {"in": 2000, "out": 0}, "fake-llm": {"in": 30, "out": 150},'
+                ' "fake-stt": {"in": 100, "out": 0}}'
             )
         )
         self.notebooks: dict[UUID, tuple[UUID, Notebook]] = {}
@@ -495,3 +497,23 @@ class FakeSummarizer:
         return CompletionResult(
             f"{name}: {' '.join(words[:5])}", Usage("llm", self._model, len(words), 5)
         )
+
+
+class FakeTranscriber:
+    """Core's SpeechToText: one fixed transcript (or error) per call, every
+    recording recorded with its file name."""
+
+    def __init__(self, answer: str = "Hallo und willkommen zur Sendung.", error=None) -> None:
+        self.answer = answer
+        self.error = error
+        self.calls: list[tuple[bytes, str]] = []
+
+    @property
+    def model(self) -> str:
+        return "fake-stt"
+
+    def transcribe(self, audio: bytes, filename: str) -> TranscriptionResult:
+        self.calls.append((audio, filename))
+        if self.error is not None:
+            raise self.error
+        return TranscriptionResult(self.answer, Usage("stt", "fake-stt", 90, 0), 90.0)

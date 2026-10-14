@@ -10,7 +10,7 @@ implements is the ingest section of the family's
 
 The service owns `notebooks`, `library_sources`, `sources` and `chunks`.
 A library source is what a user uploaded or entered once (a file, an
-image, a URL), owned by that user, processed once; its chunks hang on it
+image, a recording, a URL), owned by that user, processed once; its chunks hang on it
 (`chunks.library_source_id`). A source is the link of a library source
 into a notebook (`sources.library_source_id`, unique per notebook); its
 id is the public source id. Library sources of kind `generated` are
@@ -77,10 +77,10 @@ library entry is
 no notebook has `"notebooks": []`. `capture` is set for PDFs only (see
 PDF capture modes), `demo` marks the demo library. `preview_url` is where
 the frontend opens the source without the bearer token: for an image, a
-PDF or a text a presigned GET of the stored original, valid for one hour
-and signed anew on every listing (the object carries its type, so an
-image shows in an `<img>`, a PDF in the browser's viewer, a text as
-`text/plain; charset=utf-8`); for a URL source the URL itself; `null`
+PDF, a text or a recording a presigned GET of the stored original, valid
+for one hour and signed anew on every listing (the object carries its
+type, so an image shows in an `<img>`, a PDF in the browser's viewer, a
+text as `text/plain; charset=utf-8`, a recording plays in an `<audio>`); for a URL source the URL itself; `null`
 for generated rows. Sources, library and trash entries all carry it. The
 object key itself is never returned.
 
@@ -122,7 +122,7 @@ without sources included:
 
 ```json
 {"days": [{"day": "2026-10-13", "sources_created": 3,
-           "by_kind": {"pdf": 1, "text": 0, "url": 1, "image": 1}, "failed": 1}]}
+           "by_kind": {"pdf": 1, "text": 0, "url": 1, "image": 1, "audio": 0}, "failed": 1}]}
 ```
 
 It counts library sources by their creation day (generated ones
@@ -157,7 +157,7 @@ generated rows are rag's and never claimed. Worker processes (`lasteverlm-ingest
 of them) claim one row at a time with `UPDATE ... WHERE id = (SELECT ...
 FOR UPDATE SKIP LOCKED)`, oldest first, writing `claimed_at` and
 `claimed_by`; the job moves `claimed_at` to now with every answered
-model call (an image, a PDF page) and every embedding batch, and a claim
+model call (an image, a PDF page, a transcription) and every embedding batch, and a claim
 not moved for `CLAIM_TIMEOUT_SECONDS` is treated as abandoned and taken
 over, unless the row has had three attempts: then
 the claim fails it ("processing did not finish in 3 attempts"), so a
@@ -181,7 +181,7 @@ after the first failure and 15 after the second, so the next attempt
 follows promptly instead of after the claim timeout; the third failed
 attempt sets `failed` for good. The user sees the `error` either way. Credit is checked
 with core's `has_credit` before the upload is stored, before an image is
-read, before the embedding call and before the summary call; every user needs
+read or a recording transcribed, before the embedding call and before the summary call; every user needs
 a positive balance, admins included (core's rule). The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
@@ -212,6 +212,11 @@ A 4xx answer, a blocked address, an unsupported type or a body over the
 cap fail the source at once; a timeout, a refused connection, 429 or
 5xx are retried like any other transient failure.
 
+A provider error that core marks `permanent` (a 4xx other than 408, 409
+and 429: the platform refused the request, a retry sends the same one)
+fails the source at once, for every model call; every other provider
+error is retried.
+
 ## Image sources
 
 An upload named `.png`, `.jpg`, `.jpeg`, `.webp` or `.gif` (or sent with
@@ -232,6 +237,37 @@ once, and so does an empty answer (a blank image: "the image holds no
 readable content"), whose call is still recorded as usage; other
 provider errors are retried. `IMAGE_MAX_TOKENS` (2000) caps
 the answer.
+
+## Audio sources
+
+An upload named `.mp3` or `.wav` (or sent as `audio/mpeg`, `audio/mp3`,
+`audio/wav`, `audio/x-wav`) is an audio source, capped by core's
+`MAX_AUDIO_BYTES` (25 MiB, the transcription model's own limit) instead
+of `MAX_UPLOAD_BYTES`. Those are the only formats the platform's
+transcription model takes: an M4A, MP4, AAC, Ogg, Opus, WebM, FLAC or
+any other `audio/*` upload gets 415 "audio must be MP3 or WAV", nothing
+is transcoded. The API runs core's `probe_audio` on the bytes, which
+detects WAV or MP3 from them, measures the duration and refuses a file
+that is neither, empty, or longer than four hours (`MAX_AUDIO_SECONDS`)
+with a 415 naming the reason; the stored object gets `audio/mpeg` or
+`audio/wav` from that probe, so the browser plays its `preview_url`.
+Audio is deduplicated by the sha256 of its bytes like every file.
+
+The worker sends the whole file to `STT_MODEL` (core's default
+`whisper-large-v3-turbo`, priced in `MODEL_PRICES` per million seconds)
+in one call. The loader is a `ModelLoader` like the image loader: the
+credit is checked before the call, its usage (kind `stt`, the seconds the
+platform billed) is recorded the moment it returns, the claim is
+refreshed. The call has its own client: one attempt, at most
+`STT_TIMEOUT_SECONDS` (300), which must stay below
+`CLAIM_TIMEOUT_SECONDS` so no other worker takes the job over while the
+call runs. The platform returns plain text without timestamps, so a
+recording becomes one passage without a page number, chunked, embedded
+and summarized like a text file; a citation names the recording, not a
+position in it. An answer the platform billed but that cannot be used (no
+speech recognised, no duration reported) is recorded as usage and fails
+the source at once with core's message. A registry built without a
+transcriber (tests) has no `audio` loader, and audio uploads then get 415.
 
 ## PDF capture modes
 
