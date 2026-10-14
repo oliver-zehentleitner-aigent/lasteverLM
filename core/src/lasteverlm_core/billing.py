@@ -1,21 +1,28 @@
 """What a user pays: the pricing rules over the real cost of a call.
 
-`cost_cents` (pricing.py) is what a model call really cost. The charge is
-that cost times `1 + margin_pct / 100`, the margin of the action the call
+`cost_cents` (pricing.py) is what a model call really cost, in US cents,
+as the platform prices it. Credits and charges are euro cents: the cost
+is converted at the rules' `usd_per_eur` (dollars per euro, the way the
+ECB quotes it), and the charge is that euro cost times
+`1 + margin_pct / 100`, the margin of the action the call
 belongs to or else the default margin; an action may also carry a fixed
 fee, booked once per user action as its own `usage` row (kind "fee").
-Both amounts are fixed when a row is booked (`record_usage`), so a later
-change of the rules never rewrites what a past action cost or charged.
+The dollar cost, the rate, the euro cost and the charge are fixed when a
+row is booked (`record_usage`), so a later change of the rules or the
+rate never rewrites what a past action cost or charged.
 
 The rules are one row in account's `settings` table, key `pricing`:
 
-    {"default_margin_pct": 0,
+    {"usd_per_eur": 1.1188, "default_margin_pct": 0,
      "actions": {"<action>": {"margin_pct": 20, "fixed_cents": 5}}}
+
+`usd_per_eur` is required and has no default: a booking without a rate
+fails (`ExchangeRateMissingError`) instead of charging dollars as euros.
 
 Account's admin endpoint writes it, validated by `PricingRules.parse`;
 every booking process reads it through a `PricingRulesCache`, at most
-every `PRICING_RULES_TTL_SECONDS`. Without a row the margin is 0 and
-there are no fees, so a charge equals the cost.
+every `PRICING_RULES_TTL_SECONDS`. Without a row there is no rate, so
+nothing can be booked; account's migration seeds the row.
 """
 
 from __future__ import annotations
@@ -39,9 +46,24 @@ PRICING_SETTINGS_KEY = "pricing"
 PRICING_RULES_TTL_SECONDS = 30
 MAX_MARGIN_PCT = Decimal(1000)
 MAX_FIXED_CENTS = Decimal(100_000)
+MIN_USD_PER_EUR = Decimal("0.1")
+MAX_USD_PER_EUR = Decimal(10)
 PRICING_SQL = "select value as value from settings where key = %(key)s"
 
 _HUNDRED = Decimal(100)
+# Euro cents to ten decimal places: a thousandth of a cent is still exact,
+# and a non-terminating division by the rate gets a fixed width.
+_EUR_PLACES = Decimal("1e-10")
+
+
+class ExchangeRateMissingError(RuntimeError):
+    """A booking needed `usd_per_eur` and the pricing rules have none."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "no usd_per_eur in the pricing rules (settings row 'pricing'); "
+            "a cost in US cents cannot be charged in euro cents without it"
+        )
 
 
 @dataclass(frozen=True)
@@ -54,10 +76,17 @@ class ActionPricing:
 
 @dataclass(frozen=True)
 class PricingRules:
-    """The default margin and the per-action margins and fees."""
+    """The exchange rate, the default margin and the per-action margins and fees."""
 
+    usd_per_eur: Decimal | None = None
     default_margin_pct: Decimal = Decimal(0)
     actions: Mapping[str, ActionPricing] = field(default_factory=lambda: MappingProxyType({}))
+
+    def cost_eur_cents(self, cost_usd_cents: Decimal) -> Decimal:
+        """A cost in US cents in euro cents at `usd_per_eur`; raises without a rate."""
+        if self.usd_per_eur is None:
+            raise ExchangeRateMissingError()
+        return (cost_usd_cents / self.usd_per_eur).quantize(_EUR_PLACES)
 
     def margin_pct(self, action: str) -> Decimal:
         own = self.actions.get(action)
@@ -66,7 +95,7 @@ class PricingRules:
         return self.default_margin_pct
 
     def charge_cents(self, action: str, cost: Decimal) -> Decimal:
-        """`cost * (1 + margin / 100)`, exact."""
+        """`cost * (1 + margin / 100)`, exact; `cost` in euro cents."""
         return cost * (1 + self.margin_pct(action) / _HUNDRED)
 
     def fixed_cents(self, action: str) -> Decimal:
@@ -80,9 +109,12 @@ class PricingRules:
             value = json.loads(value)
         if not isinstance(value, Mapping):
             raise ValueError("pricing rules must be an object")
-        unknown = set(value) - {"default_margin_pct", "actions"}
+        unknown = set(value) - {"usd_per_eur", "default_margin_pct", "actions"}
         if unknown:
             raise ValueError(f"pricing rules have unknown fields {', '.join(sorted(unknown))}")
+        if "usd_per_eur" not in value:
+            raise ValueError("pricing rules need usd_per_eur (US dollars per euro)")
+        rate = _number(value["usd_per_eur"], "usd_per_eur", MAX_USD_PER_EUR, MIN_USD_PER_EUR)
         default = _number(value.get("default_margin_pct", 0), "default_margin_pct", MAX_MARGIN_PCT)
         raw_actions = value.get("actions", {})
         if not isinstance(raw_actions, Mapping):
@@ -111,7 +143,7 @@ class PricingRules:
                     MAX_FIXED_CENTS,
                 ),
             )
-        return cls(default_margin_pct=default, actions=MappingProxyType(actions))
+        return cls(usd_per_eur=rate, default_margin_pct=default, actions=MappingProxyType(actions))
 
     def as_json(self) -> dict[str, Any]:
         actions: dict[str, dict[str, int | float]] = {}
@@ -122,18 +154,22 @@ class PricingRules:
             if own.fixed_cents:
                 entry["fixed_cents"] = _plain(own.fixed_cents)
             actions[action] = entry
-        return {"default_margin_pct": _plain(self.default_margin_pct), "actions": actions}
+        return {
+            "usd_per_eur": None if self.usd_per_eur is None else _plain(self.usd_per_eur),
+            "default_margin_pct": _plain(self.default_margin_pct),
+            "actions": actions,
+        }
 
 
 DEFAULT_PRICING_RULES = PricingRules()
 
 
-def _number(value: Any, name: str, high: Decimal) -> Decimal:
+def _number(value: Any, name: str, high: Decimal, low: Decimal = Decimal(0)) -> Decimal:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{name} must be a number")
     number = Decimal(str(value))
-    if not 0 <= number <= high:
-        raise ValueError(f"{name} must be between 0 and {high}")
+    if not low <= number <= high:
+        raise ValueError(f"{name} must be between {low} and {high}")
     return number
 
 
@@ -149,14 +185,15 @@ def estimate_charge(
     tokens_in: int,
     tokens_out: int = 0,
 ) -> Decimal:
-    """What one call of `action` would charge, its fixed fee included.
+    """What one call of `action` would charge in euro cents, its fixed fee included.
 
     Units as for `record_usage`: tokens, or seconds for `tts` and `stt`.
+    Raises `ExchangeRateMissingError` when the rules have no rate.
     For an action of several calls, the caller adds the calls' charges
     and counts the fee once."""
     if not is_usage_action(action):
         raise ValueError(f"unknown action {action!r}; known: {', '.join(sorted(USAGE_ACTIONS))}")
-    cost = cost_cents(prices, model, tokens_in, tokens_out)
+    cost = rules.cost_eur_cents(cost_cents(prices, model, tokens_in, tokens_out))
     return rules.charge_cents(action, cost) + rules.fixed_cents(action)
 
 
@@ -164,8 +201,9 @@ class PricingRulesCache:
     """The stored pricing rules, re-read at most every `ttl` seconds.
 
     No row means `defaults`; a malformed row means `defaults` too, with one
-    warning per distinct problem, so a broken row never stops a booking (it
-    books at the defaults' margin). A failing read is raised: the read runs
+    warning per distinct problem. The shipped defaults have no rate, so
+    either stops every booking with `ExchangeRateMissingError` rather than
+    charging at a rate nobody set. A failing read is raised: the read runs
     on the caller's connection, often inside the booking's transaction,
     which PostgreSQL has aborted by then."""
 

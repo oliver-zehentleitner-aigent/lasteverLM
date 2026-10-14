@@ -66,9 +66,10 @@ HAS_CREDIT_SQL = f"select {funded_sql('%(user_id)s')} as has_credit"
 
 USAGE_SQL = """
 insert into usage (user_id, notebook_id, service, action, action_id, kind, model,
-                   tokens_in, tokens_out, cost_cents, charge_cents)
+                   tokens_in, tokens_out, cost_usd_cents, usd_per_eur, cost_cents, charge_cents)
 values (%(user_id)s, %(notebook_id)s, %(service)s, %(action)s, %(action_id)s, %(kind)s,
-        %(model)s, %(tokens_in)s, %(tokens_out)s, %(cost_cents)s, %(charge_cents)s)
+        %(model)s, %(tokens_in)s, %(tokens_out)s, %(cost_usd_cents)s, %(usd_per_eur)s,
+        %(cost_cents)s, %(charge_cents)s)
 """
 # An action's fixed fee, once per action_id however many calls it books
 # (the partial unique index of migration 0006).
@@ -110,7 +111,8 @@ def _priced(
     """The usage row and, when the action has a fixed fee, its fee row."""
     if not is_usage_action(action):
         raise ValueError(f"unknown action {action!r}; known: {', '.join(sorted(USAGE_ACTIONS))}")
-    cost = cost_cents(prices, usage.model, usage.tokens_in, usage.tokens_out)
+    cost_usd = cost_cents(prices, usage.model, usage.tokens_in, usage.tokens_out)
+    cost = rules.cost_eur_cents(cost_usd)  # raises without a rate
     row = UsageRecord(
         user_id=user_id,
         notebook_id=notebook_id,
@@ -121,6 +123,8 @@ def _priced(
         model=usage.model,
         tokens_in=usage.tokens_in,
         tokens_out=usage.tokens_out,
+        cost_usd_cents=cost_usd,
+        usd_per_eur=rules.usd_per_eur,
         cost_cents=cost,
         charge_cents=rules.charge_cents(action, cost),
     )
@@ -133,6 +137,7 @@ def _priced(
             "model": "fee",
             "tokens_in": 0,
             "tokens_out": 0,
+            "cost_usd_cents": Decimal(0),
             "cost_cents": Decimal(0),
             "charge_cents": fixed,
         }
@@ -211,13 +216,15 @@ def record_usage(
 ) -> UsageRecord:
     """Book one model call of a user action; returns the usage row written.
 
-    Fixes `cost_cents` (the call's units at `prices`) and `charge_cents`
-    (the cost under `rules`) now, so a later change of either never
-    rewrites history. When the action has a fixed fee, books it as a
-    "fee" row once per `action_id`, whichever call comes first. Raises
-    `ValueError` for an unknown action and `UnpricedModelError` for an
-    unpriced model, both before touching the database. The caller owns
-    the transaction.
+    Fixes now, so a later change of prices, rate or rules never rewrites
+    history: `cost_usd_cents` (the call's units at `prices`, US cents),
+    `usd_per_eur` (the rules' rate), `cost_cents` (that cost in euro
+    cents) and `charge_cents` (the euro cost under `rules`). When the
+    action has a fixed fee, books it as a "fee" row once per `action_id`,
+    whichever call comes first. Raises `ValueError` for an unknown
+    action, `UnpricedModelError` for an unpriced model and
+    `ExchangeRateMissingError` when the rules have no rate, all before
+    touching the database. The caller owns the transaction.
     """
     row, fee = _priced(user_id, notebook_id, service, action, action_id, usage, prices, rules)
     with conn.cursor() as cur:

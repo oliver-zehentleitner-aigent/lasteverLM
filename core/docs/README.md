@@ -165,16 +165,22 @@ usage, prices=..., rules=...)` with the `Usage` the provider returned.
   (`chat_answer`, `output:<kind>`, `source:<kind>`, `summary`, `judge`,
   ...). `action_id` is one uuid shared by every call of that action, such
   as all TTS segments of one audio output.
-- `record_usage` fixes `cost_cents`, the call's units at `MODEL_PRICES`,
-  exact and not rounded. It also fixes `charge_cents`, the cost times
-  `1 + margin_pct / 100` under the pricing rules.
+- `record_usage` fixes four amounts, exact and not rounded:
+  - `cost_usd_cents`: the call's units at `MODEL_PRICES`, which are US
+    cents as the platform lists them;
+  - `usd_per_eur`: the rules' exchange rate;
+  - `cost_cents`: the cost in euro cents;
+  - `charge_cents`: the euro cost times `1 + margin_pct / 100` under the
+    pricing rules. Credits are euro cents.
 - When the action has a fixed fee, `record_usage` books it as a row of
   kind `fee` (cost 0, charge the fee). This happens once per `action_id`,
   whichever call comes first.
 - `rules` comes from a `PricingRulesCache` the service keeps for its
   process. The cache reads account's `settings` row `pricing` at most
-  every 30 seconds, and the defaults without a row are margin 0 and no
-  fees.
+  every 30 seconds. The row holds the rate (`usd_per_eur`, required), the
+  default margin and the per-action margins and fees. Without a row, or
+  with a malformed one, there is no rate and a booking raises
+  `ExchangeRateMissingError`. A dollar cost is never charged as euros.
 - `record_usage` raises `ValueError` for an unknown action and
   `UnpricedModelError` for a model without a price, both before touching
   the database. `require_prices` at startup makes the second one
