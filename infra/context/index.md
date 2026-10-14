@@ -45,7 +45,7 @@ repository root's `context/`.
 
 ## I
 
-- [inference.md](inference.md) — which models on Vultr Serverless Inference, why 1024 embedding dimensions, where the prices come from, whisper-large-v3-turbo for speech to text priced per second, clef for decision outputs priced per input token, three judge candidates outside the qwen family, all in sea
+- [inference.md](inference.md) — which models on Vultr Serverless Inference, why 1024 embedding dimensions, where the prices come from, whisper-large-v3-turbo for speech to text priced per second, clef for decision outputs priced per input token, three judge models outside the qwen family mapped by rag's evaluation, all in sea
 
 ## J
 
