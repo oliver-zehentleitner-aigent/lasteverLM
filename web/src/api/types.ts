@@ -139,7 +139,7 @@ export interface Message {
 
 // outputs (rag prefix)
 
-export type OutputKind = 'report' | 'quiz' | 'table' | 'mindmap' | 'infographic' | 'audio'
+export type OutputKind = 'report' | 'quiz' | 'table' | 'mindmap' | 'infographic' | 'audio' | 'decision'
 export type OutputStatus = 'waiting' | 'processing' | 'ready' | 'failed'
 
 export interface Output {
@@ -212,13 +212,17 @@ export interface Provenance {
   started_at: string
   finished_at: string
   check: Check & { method: string; threshold: number }
+  /** the decision kind's two model calls */
+  calls?: { role: 'decision' | 'evidence'; model: string; prompt_version: string; usage: Record<string, unknown>; started_at: string; finished_at: string; state?: { passages: number; chars: number } }[]
+  /** an undecided decision: the evidence model's own sentence */
+  llm_verdict_text?: string
 }
 
-/** What a document is made with; which keys a kind takes comes from the spec. */
 /** How an audio document is spoken: one voice summarising, one voice
  *  telling it as a story, or two voices in conversation. */
 export type AudioStyle = 'overview' | 'story' | 'conversation'
 
+/** What a document is made with; which keys a kind takes comes from the spec. */
 export interface OutputOptions {
   language?: string
   voice?: string
@@ -226,6 +230,13 @@ export interface OutputOptions {
   audio_style?: AudioStyle
   /** the second speaker, for a conversation only */
   audio_voice_2?: string
+  /** decision: what is weighed, how it is answered, and the answers offered */
+  question?: string
+  decision_type?: DecisionType
+  /** choice: 2–8 labels */
+  choices?: string[]
+  /** scale: 3–7 ordered labels, lowest first */
+  levels?: string[]
   /** in a response only: the source ids the document was made from,
    *  absent when all sources were used (the request sends `source_ids`) */
   sources?: string[]
@@ -241,7 +252,44 @@ export interface OutputOptionsSpec {
     default_voice: string
     speed: { min: number; max: number; step: number; default: number }
   }
+  /** the decision kind's limits; absent from a service without it */
+  decision?: {
+    types: DecisionType[]
+    default_type: DecisionType
+    question_max_chars: number
+    choices: { min: number; max: number }
+    levels: { min: number; max: number }
+  }
   kinds: Partial<Record<OutputKind, OutputOption[]>>
+}
+
+export type DecisionType = 'yes_no' | 'choice' | 'scale'
+
+/** How the decision model's answer and the evidence relate: they point
+ *  the same way, they do not, it cannot be told, or no supported evidence
+ *  decides either way. */
+export type Agreement = 'consistent' | 'conflicting' | 'unclear' | 'undecided'
+
+/** A question weighed against the sources: the decision model's answer
+ *  (all numbers 0–1, the scale's score a fractional index into its
+ *  legend), the evidence on both sides as claims, and what the sources do
+ *  not say. */
+export interface DecisionContent {
+  question: string
+  decision_type: DecisionType
+  model_answer:
+    | { probability_yes: number; answer: 'yes' | 'no' }
+    | { choice: string; distribution: Record<string, number>; confidence: number }
+    | { level: string; score: number; legend: string[]; distribution: Record<string, number>; confidence: number }
+  /** plain text, no markers */
+  verdict_text: string
+  /** choice and scale: the option the evidence argues for */
+  llm_choice?: string | null
+  evidence_for: ({ text: string } & Claim)[]
+  evidence_against: ({ text: string } & Claim)[]
+  gaps: string[]
+  agreement: Agreement
+  agreement_note?: string
 }
 
 /** `GET /shared/{token}`: the document without ids, read-only. The service
@@ -430,7 +478,7 @@ export interface IngestStats {
 export interface RagStats {
   notebooks: { total: number }
   messages: { total: number; last_24h: number }
-  outputs: { by_kind: Record<OutputKind, number>; by_status: Record<OutputStatus, number> }
+  outputs: { by_kind: Partial<Record<OutputKind, number>>; by_status: Record<OutputStatus, number> }
   jobs: { pending: number; running: number; failed: number }
   shared: { outputs: number }
 }
@@ -492,7 +540,7 @@ export interface RagDay {
   day: string
   messages: number
   outputs: number
-  outputs_by_kind: Record<OutputKind, number>
+  outputs_by_kind: Partial<Record<OutputKind, number>>
 }
 
 /** `GET /api/account/admin/system`: what runs where. `cluster: false` (a

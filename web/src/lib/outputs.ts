@@ -22,6 +22,7 @@ export const OUTPUT_FORMS: OutputForm[] = [
   { kind: 'mindmap', get label() { return t('kind.mindmap') }, get description() { return t('kind.mindmap.note') }, available: true, printable: false },
   { kind: 'infographic', get label() { return t('kind.infographic') }, get description() { return t('kind.infographic.note') }, available: true, printable: false },
   { kind: 'audio', get label() { return t('kind.audio') }, get description() { return t('kind.audio.note') }, available: true, printable: false },
+  { kind: 'decision', get label() { return t('kind.decision') }, get description() { return t('kind.decision.note') }, available: true, printable: true },
 ]
 
 export function formFor(kind: OutputKind): OutputForm {
