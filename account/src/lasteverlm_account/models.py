@@ -318,7 +318,8 @@ class ProfitRow(BaseModel):
 
 
 class FinanceProfit(BaseModel):
-    """Charged − model cost − infrastructure, per day or month, in EUR cents. Daily rows get
+    """Charged − model cost − infrastructure, per day or month, in cents. Usage amounts are
+    as core books them (USD until core converts at booking), infrastructure is EUR. Daily rows get
     an even share of their month's infrastructure. Demo usage is shown, not counted."""
 
     from_: date = Field(serialization_alias="from")

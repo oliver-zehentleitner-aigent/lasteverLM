@@ -138,7 +138,9 @@ the user pays — cost plus the margin of the pricing rules, plus an action's fi
   infrastructure; without an exchange rate for USD lines infrastructure and profit are null.
 
 Dates are UTC days, inclusive, default the last 30, at most two years per request.
-Amounts are EUR cents; model prices (`MODEL_PRICES`) are taken as EUR cents.
+Usage amounts (cost, charge) are cents as core books them: today USD, because
+`MODEL_PRICES` are Vultr's USD prices; the conversion to EUR moves into core's booking.
+Infrastructure is shown in EUR with `eur_per_usd`.
 `GET /admin/stats` keeps showing real cost; balances and the users list show charges.
 
 ## Finance: infrastructure costs
