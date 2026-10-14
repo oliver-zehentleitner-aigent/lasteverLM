@@ -18,7 +18,9 @@ from .conftest import (
 OUTPUTS = f"/api/rag/notebooks/{NOTEBOOK}/outputs"
 LIBRARY = "/api/rag/library/outputs"
 REPORT = json.dumps({"title": "Sky report", "markdown": "## Sky\n\nThe sky is blue."})
-AUDIO = json.dumps({"title": "The sky, read aloud", "script": "The sky is blue. It is."})
+AUDIO = json.dumps(
+    {"title": "The sky, read aloud", "paragraphs": [{"text": "The sky is blue. It is."}]}
+)
 
 
 def ready_output(settings, kind="report", objects=None):
@@ -88,7 +90,7 @@ def test_an_output_outlives_its_notebook(settings):
     (row,) = client.get(LIBRARY, headers=AUTH).json()
     assert row["notebook_id"] is None and row["origin_title"] == "My notebook"
     out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
-    assert out["content"] == {"markdown": "## Sky\n\nThe sky is blue."}
+    assert out["content"]["markdown"] == "## Sky\n\nThe sky is blue."
     # trash and restore work without the notebook; there is nothing to relink
     client.delete(f"/api/rag/outputs/{output_id}", headers=AUTH)
     client.post(f"/api/rag/outputs/{output_id}/restore", headers=AUTH)

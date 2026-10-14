@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Provenance for report, infographic and audio: every unit (report paragraph, infographic fact and section, audio paragraph or turn) carries `refs` (the passage numbers it cites) and `support` (`supported`, `unsupported` or `unverified`) from a deterministic word-overlap check after generation (`lexical-overlap-v1`, threshold 0.5, no model call); failing units are kept and marked, never dropped. The report keeps `[n]` markers in its markdown and lists `content.units`. `Output.provenance` (migration `0005_rag_output_provenance.sql`, core's model) is the generation log: options, retrieval candidates and which entered the prompt, the numbered passages with their text, model, prompt version, usage, timestamps and the check's counts; the shared view carries it without ids.
+
 ## [0.13.0] - 2026-10-14
 
 ### Added

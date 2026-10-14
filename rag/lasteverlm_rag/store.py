@@ -205,11 +205,11 @@ _OUTPUT_OWNER = "coalesce(o.owner, n.owner)"
 _OUTPUT_COLUMNS = f"""
 o.id::text as id, o.notebook_id::text as notebook_id, {_OUTPUT_OWNER}::text as owner, o.kind,
 o.title, o.content, o.status, o.error, o.share_token, o.source_id::text as source_id,
-o.attempts, o.created_at, o.options, o.origin_title, o.deleted_at,
+o.attempts, o.created_at, o.options, o.origin_title, o.deleted_at, o.provenance,
 o.deleted_at + make_interval(days => {_TRASH_DAYS.format(owner=_OUTPUT_OWNER)}) as purge_at
 """
 _OUTPUT_FROM = "from outputs o left join notebooks n on n.id = o.notebook_id"
-_OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_id"}
+_OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_id", "provenance"}
 
 # One job per call, oldest first; rows other workers hold are skipped, a claim
 # older than the stale limit (a worker that died mid-job) is taken over, and a
@@ -525,8 +525,9 @@ class PostgresStore:
         unknown = set(fields) - _OUTPUT_FIELDS
         if unknown:
             raise ValueError(f"not an updatable outputs column: {sorted(unknown)}")
-        if "content" in fields:
-            fields["content"] = _jsonb(fields["content"])
+        for name in ("content", "provenance"):
+            if name in fields:
+                fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
         with self._pool.connection() as conn:
             conn.execute(
@@ -813,4 +814,5 @@ def _to_output(row: dict[str, Any]) -> OutputRow:
         origin_title=row.get("origin_title") or "",
         deleted_at=_str_or_none(row.get("deleted_at")),
         purge_at=_str_or_none(row.get("purge_at")),
+        provenance=row.get("provenance"),
     )

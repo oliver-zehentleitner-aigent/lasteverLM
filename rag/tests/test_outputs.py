@@ -26,7 +26,7 @@ from .conftest import (
 )
 
 OUTPUTS = f"/api/rag/notebooks/{NOTEBOOK}/outputs"
-REPORT = json.dumps({"title": "Sky report", "markdown": "## Sky\n\nThe sky is blue."})
+REPORT = json.dumps({"title": "Sky report", "markdown": "## Sky\n\nThe sky is blue. [1] [7]"})
 QUIZ = json.dumps(
     {
         "title": "Sky quiz",
@@ -56,7 +56,26 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
     out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
     assert out["status"] == "ready", out
     assert out["title"] == "Sky report"
-    assert out["content"] == {"markdown": "## Sky\n\nThe sky is blue."}
+    # the made-up [7] is dropped from the text; the paragraph cites a number the
+    # prompt never had, so it is unsupported (kept, never dropped)
+    assert out["content"] == {
+        "markdown": "## Sky\n\nThe sky is blue. [1]",
+        "units": [{"text": "The sky is blue. [1]", "refs": [1], "support": "unsupported"}],
+    }
+    provenance = out["provenance"]
+    assert provenance["check"] == {
+        "method": "lexical-overlap-v1",
+        "threshold": 0.5,
+        "supported": 0,
+        "unsupported": 1,
+        "unverified": 0,
+    }
+    assert provenance["prompt_version"] == "report-v2" and provenance["model"] == "test-llm"
+    (passage,) = provenance["passages"]
+    assert (passage["n"], passage["quote"], passage["page"]) == (1, "The sky is blue.", 1)
+    assert [c["in_prompt"] for c in provenance["retrieval"]["candidates"]] == [True]
+    assert provenance["usage"]["llm"] == {"tokens_in": 50, "tokens_out": 20}
+    assert provenance["started_at"] <= provenance["finished_at"]
     assert out["error"] is None and out["share_token"] is None
     assert set(out) == {
         "id",
@@ -73,6 +92,7 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
         "origin_title",
         "deleted_at",
         "purge_at",
+        "provenance",
     }
     assert out["origin_title"] == "My notebook" and out["deleted_at"] is None
     # the generator saw the summaries and the focus-query passages
@@ -185,7 +205,13 @@ def test_output_without_ready_sources_fails(settings):
 
 
 AUDIO = json.dumps(
-    {"title": "The sky, read aloud", "script": " ".join(f"Point {i} is told." for i in range(300))}
+    {
+        "title": "The sky, read aloud",
+        "paragraphs": [
+            {"text": " ".join(f"Point {i} is told." for i in range(j, j + 50))}
+            for j in range(0, 300, 50)
+        ],
+    }
 )
 
 
@@ -212,7 +238,7 @@ def test_audio_is_synthesized_in_segments_stored_and_served_presigned(settings):
     key = f"{NOTEBOOK}/{output_id}/audio.mp3"
     content = store.outputs[output_id]["content"]
     assert content["key"] == key
-    assert [t["speaker"] for t in content["transcript"]] == ["narrator"]
+    assert {t["speaker"] for t in content["transcript"]} == {"narrator"}
     data, content_type = objects.objects[key]
     assert content_type == "audio/mpeg" and data.count(b"\xff\xf3") == len(tts.inputs) > 1
     tts_rows = [u for _, _, u in store.usage if u.kind == "tts"]
@@ -289,13 +315,20 @@ def test_share_and_revoke(settings):
     }
     shared = client.get(f"/api/rag/shared/{token}")
     assert shared.status_code == 200
-    assert shared.json() == {
+    body = shared.json()
+    assert body == {
         "kind": "report",
         "title": "Sky report",
-        "content": {"markdown": "## Sky\n\nThe sky is blue."},
+        # no passage was retrieved, so both markers go
+        "content": {
+            "markdown": "## Sky\n\nThe sky is blue.",
+            "units": [{"text": "The sky is blue.", "refs": [], "support": "unsupported"}],
+        },
         "options": {},
-        "created_at": shared.json()["created_at"],
+        "created_at": body["created_at"],
+        "provenance": body["provenance"],
     }
+    assert body["provenance"]["check"]["unsupported"] == 1
     assert client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()["share_token"] == token
 
     assert client.delete(f"/api/rag/outputs/{output_id}/share", headers=AUTH).status_code == 204

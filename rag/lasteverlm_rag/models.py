@@ -131,6 +131,20 @@ class SourceState:
     status: str
 
 
+@dataclass
+class Unit:
+    """One checkable part of a generated output: ``target`` is the entry in
+    the content (a paragraph, a fact, a turn) that receives ``refs`` and
+    ``support``; ``text`` is what is compared with the cited passages;
+    ``refs`` are the passage numbers the model gave. A unit that is not a
+    ``claim`` (an interviewer's question) is checked only when it cites."""
+
+    target: dict[str, Any]
+    text: str
+    refs: list[int]
+    claim: bool = True
+
+
 @dataclass(frozen=True)
 class GeneratedOutput:
     """What a generator produces: the title, the content per the kind's schema,
@@ -142,6 +156,8 @@ class GeneratedOutput:
     speech: list[SpeechTurn] | None = None
     """What to synthesize into the output's audio file, turn by turn (audio
     kind only)."""
+    units: list[Unit] = field(default_factory=list)
+    """The parts the provenance check marks; empty for kinds without refs."""
 
 
 @dataclass(frozen=True)
@@ -174,6 +190,7 @@ class OutputRow:
     origin_title: str = ""
     deleted_at: str | None = None
     purge_at: str | None = None
+    provenance: dict[str, Any] | None = None
 
 
 class NotebookStats(BaseModel):

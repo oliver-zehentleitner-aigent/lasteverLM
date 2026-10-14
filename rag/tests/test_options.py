@@ -19,7 +19,9 @@ from .conftest import (
 
 OUTPUTS = f"/api/rag/notebooks/{NOTEBOOK}/outputs"
 REPORT = json.dumps({"title": "Himmel", "markdown": "Der Himmel ist blau."})
-AUDIO = json.dumps({"title": "Gesprochen", "script": "Der Himmel ist blau. Gras ist grün."})
+AUDIO = json.dumps(
+    {"title": "Gesprochen", "paragraphs": [{"text": "Der Himmel ist blau. Gras ist grün."}]}
+)
 
 
 def ready_store() -> FakeStore:

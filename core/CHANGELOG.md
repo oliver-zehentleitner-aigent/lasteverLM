@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `Output.provenance` and `SharedOutput.provenance: dict[str, Any] | None = None`: the generation log rag stores with an output (`outputs.provenance`). rag owns and documents its shape and strips the ids before a shared output is returned; `None` for outputs made before it.
+
 ## [0.13.0] - 2026-10-14
 
 ### Changed

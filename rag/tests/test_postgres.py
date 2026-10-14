@@ -673,3 +673,12 @@ def test_deleting_a_users_data_covers_outputs_of_deleted_notebooks(store, pool, 
             "select count(*) as n from library_sources where id = %s", (generated,)
         ).fetchone()
     assert left == {"n": 0}
+
+
+def test_the_generation_log_round_trips(store, notebook):
+    row = store.create_output(notebook, "report", "processing")
+    assert row.provenance is None
+    log = {"version": 1, "check": {"supported": 2}, "passages": [{"n": 1, "quote": "q"}]}
+    store.update_output(row.id, status="ready", provenance=log)
+    kept = store.get_output(row.id)
+    assert kept is not None and kept.provenance == log

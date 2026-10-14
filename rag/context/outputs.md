@@ -370,7 +370,9 @@ voice defaults to the next one with the same native language as the
 first, so both read the material's language equally well (`ryan` →
 `aiden`), and to `ryan` when the first voice has no partner. The
 "citation discipline" of the written kinds becomes the grounding rules
-in the prompt, not `[n]` markers, which a voice would read aloud.
+in the prompt and, since provenance (2026-10-14), passage numbers in a
+`refs` list beside each paragraph or turn, never `[n]` markers in the
+text, which a voice would read aloud.
 
 **Reason:** the maintainer asked for the set and for two voices; the
 reasons below for two voices are this service's. A change of voice is

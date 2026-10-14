@@ -52,6 +52,7 @@ from .models import (
 from .options import OutputOptions, language_name, resolve
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
+from .provenance import GenerationLog, check_units, shared_provenance
 from .speech import split_for_speech
 from .store import Retriever, Store
 
@@ -537,6 +538,7 @@ class OutputService:
                 "created_at": row.created_at,
                 # the source selection names the owner's link ids: not for strangers
                 "options": {k: v for k, v in row.options.items() if k != "sources"},
+                "provenance": shared_provenance(row.provenance),
             }
         )
 
@@ -561,11 +563,17 @@ class OutputService:
             if notebook_id is None:
                 raise GenerationFailed("the notebook was deleted")
             self._store.update_output(job.id, status="processing")
-            generated = self._generate(job.owner, notebook_id, job)
+            trace = self._log(job)
+            generated = self._generate(job.owner, notebook_id, job, trace)
+            # the units are marked in place, inside the content
+            check = check_units(
+                generated.units, trace.passages, translated="language" in job.options
+            )
             content = generated.content
             if generated.speech is not None:
-                content = {**content, "key": self._speak(job, notebook_id, generated.speech)}
-            source_id = self._index(job.owner, notebook_id, generated)
+                key = self._speak(job, notebook_id, generated.speech, trace)
+                content = {**content, "key": key}
+            source_id = self._index(job.owner, notebook_id, generated, trace)
             self._store.update_output(
                 job.id,
                 status="ready",
@@ -573,6 +581,7 @@ class OutputService:
                 content=content,
                 source_id=source_id,
                 error=None,
+                provenance=trace.record(check),
             )
             log.info(
                 "output %s (%s) ready: %r, source %s", job.id, job.kind, generated.title, source_id
@@ -625,7 +634,21 @@ class OutputService:
         elif current.deleted_at is not None:
             self._store.trash_outputs([output_id])
 
-    def _generate(self, user_id: str, notebook_id: str, row: OutputRow) -> GeneratedOutput:
+    def _log(self, job: OutputRow) -> GenerationLog:
+        generator = self._generators[job.kind]
+        style = job.options.get("audio_style")
+        return GenerationLog(
+            prompt_version=f"{job.kind}{'-' + style if style else ''}-v{generator.prompt_version}",
+            model=self._llm.model,
+            options=job.options,
+            focus_query=generator.focus_query,
+            k=self._k,
+            floor=self._floor,
+        )
+
+    def _generate(
+        self, user_id: str, notebook_id: str, row: OutputRow, trace: GenerationLog
+    ) -> GeneratedOutput:
         generator = self._generators[row.kind]
         notebook = self._store.get_notebook(notebook_id) or {}
         summaries = self._store.source_summaries(notebook_id)
@@ -640,7 +663,8 @@ class OutputService:
         embedded = embed_billed(
             self._store, self._embedder, user_id, notebook_id, [generator.focus_query]
         )
-        chunks = balanced_chunks(
+        trace.embedding_in += embedded.usage.tokens_in
+        chunks, trace.candidates = balanced_chunks(
             self._retriever,
             notebook_id,
             embedded.vectors[0],
@@ -649,6 +673,7 @@ class OutputService:
             self._floor,
             selected,
         )
+        trace.passages = number_passages(chunks)
 
         def complete(
             system: str,
@@ -657,7 +682,7 @@ class OutputService:
             *,
             thinking: bool | None = None,
         ) -> CompletionResult:
-            return complete_billed(
+            result = complete_billed(
                 self._store,
                 self._llm,
                 user_id,
@@ -667,12 +692,15 @@ class OutputService:
                 max_tokens,
                 thinking=thinking,
             )
+            trace.llm_in += result.usage.tokens_in
+            trace.llm_out += result.usage.tokens_out
+            return result
 
         generated = generator.generate(
             complete,
             str(notebook.get("title", "")),
             summaries,
-            number_passages(chunks),
+            trace.passages,
             language=language_name(row.options.get("language")),
             style=row.options.get("audio_style"),
         )
@@ -686,7 +714,9 @@ class OutputService:
             )
         return generated
 
-    def _index(self, user_id: str, notebook_id: str, generated: GeneratedOutput) -> str:
+    def _index(
+        self, user_id: str, notebook_id: str, generated: GeneratedOutput, trace: GenerationLog
+    ) -> str:
         """Store the document as a source of kind ``generated`` with its chunks
         embedded, so the chat can retrieve and cite it like any upload."""
         summary = " ".join(generated.index_text.split())[:SUMMARY_MAX_CHARS]
@@ -696,11 +726,18 @@ class OutputService:
             embedded = embed_billed(
                 self._store, self._embedder, user_id, notebook_id, [c.text for c in chunks]
             )
+            trace.embedding_in += embedded.usage.tokens_in
             self._store.insert_chunks(source_id, chunks, embedded.vectors)
         self._store.set_source_status(source_id, "ready")
         return source_id
 
-    def _speak(self, job: OutputRow, notebook_id: str, turns: Sequence[SpeechTurn]) -> str:
+    def _speak(
+        self,
+        job: OutputRow,
+        notebook_id: str,
+        turns: Sequence[SpeechTurn],
+        trace: GenerationLog,
+    ) -> str:
         """Synthesize the script turn by turn, each with its speaker's voice,
         in segments (one usage row each, priced per second of generated
         speech), and store the joined MP3; returns the object key."""
@@ -724,6 +761,7 @@ class OutputService:
                 voice=voice,
                 speed=job.options.get("speed"),
             )
+            trace.tts_seconds += result.usage.tokens_in
             parts.append(result.audio)
         key = object_key(notebook_id, job.id, AUDIO_FILE)
         # MP3 frames are self-contained: the segments concatenate into one stream
@@ -772,14 +810,17 @@ def balanced_chunks(
     k: int,
     floor: float,
     selected: list[str] | None = None,
-) -> list[RetrievedChunk]:
+) -> tuple[list[RetrievedChunk], list[RetrievedChunk]]:
     """A generator's focus-query passages with every ready source represented:
-    each source's best chunks regardless of the floor, the rest by score."""
+    each source's best chunks regardless of the floor, the rest by score.
+    Also returns every chunk the searches found, best first, for the log."""
     each, total = per_source_quota(len(summaries), k)
     per_source = [retriever.search(notebook_id, vector, each, 0.0, s.source_id) for s in summaries]
     # the rest by score, within the selection when there is one
     ranked = retriever.search(notebook_id, vector, total, floor, source_ids=selected)
-    return balance(per_source, ranked, total)
+    found = {c.chunk_id: c for c in [*ranked, *(c for hits in per_source for c in hits)]}
+    candidates = sorted(found.values(), key=lambda c: c.similarity, reverse=True)
+    return balance(per_source, ranked, total), candidates
 
 
 def check_sources(store: Store, notebook_id: str, source_ids: list[str] | None) -> list[str] | None:
@@ -900,6 +941,7 @@ def to_output(row: OutputRow) -> Output:
             "origin_title": row.origin_title,
             "deleted_at": row.deleted_at,
             "purge_at": row.purge_at,
+            "provenance": row.provenance,
         }
     )
 
