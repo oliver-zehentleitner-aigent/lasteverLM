@@ -125,6 +125,7 @@ from .storage import (
     S3Storage,
     Storage,
     StorageError,
+    attachment_disposition,
     object_key,
 )
 from .usage import (
@@ -246,6 +247,7 @@ __all__ = [
     "ahas_credit",
     "ais_admin",
     "arecord_usage",
+    "attachment_disposition",
     "balance_cents",
     "billed_seconds",
     "client_ip",
