@@ -167,7 +167,9 @@ rate and count their cost one to one.
 set_by}`, all null when none is set. `PUT` `{notebook_id}` (admin) sets the notebook every
 new user gets a copy of — ingest and rag copy it. It must exist (404 `unknown_notebook`),
 belong to an admin (409 `owner_not_admin`) and have at least one source, all ready (409
-`sources_not_ready`); account reads ingest's `notebooks` and `sources` for that check.
+`sources_not_ready`; sources not read yet are named, since ingest reads a source when it is
+used: ask a question or create an output in the notebook); account reads ingest's
+`notebooks`, `sources` and `library_sources` for that check, trashed entries not counted.
 `DELETE` clears it. Stored as the settings row `starter_notebook`
 `{owner_id, notebook_id, set_at, set_by}`; ingest and rag read that row. The demo user
 stays: the smoke test signs in with the demo token; it plays no part in seeding.

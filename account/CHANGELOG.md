@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Fixed
+
+- `PUT /admin/settings/starter-notebook` answered 500: the readiness check read `sources.status`, which ingest's 0004 moved to `library_sources`. It now joins `library_sources` (trashed entries not counted), and the 409 `sources_not_ready` names sources not read yet ("3 sources are not read yet; ask a question or create an output in the notebook to read them"). The Postgres test now runs against ingest's real migrations instead of a stub.
+
 ## [0.18.7] - 2026-10-14
 
 ### Added

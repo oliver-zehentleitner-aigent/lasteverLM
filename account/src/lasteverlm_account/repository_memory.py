@@ -583,7 +583,12 @@ class MemoryRepository:
         if owner is None:
             return None
         statuses = [st for nb, st in self.sources if nb == notebook_id]
-        return NotebookReadiness(owner, len(statuses), sum(1 for st in statuses if st == "ready"))
+        return NotebookReadiness(
+            owner,
+            len(statuses),
+            sum(1 for st in statuses if st == "ready"),
+            sum(1 for st in statuses if st == "added"),
+        )
 
     def _charged_actions(
         self, user_id: uuid.UUID, since: date, until: date

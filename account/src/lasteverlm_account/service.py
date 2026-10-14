@@ -1200,6 +1200,13 @@ class AccountService:
         owner = await self.repo.get_user(nb.owner_id)
         if owner is None or owner.role != "admin":
             raise AccountError(409, "the notebook must belong to an admin", "owner_not_admin")
+        if nb.added:
+            raise AccountError(
+                409,
+                f"{nb.added} source{' is' if nb.added == 1 else 's are'} not read yet; ask a"
+                " question or create an output in the notebook to read them",
+                "sources_not_ready",
+            )
         if nb.sources == 0 or nb.ready < nb.sources:
             raise AccountError(
                 409,
