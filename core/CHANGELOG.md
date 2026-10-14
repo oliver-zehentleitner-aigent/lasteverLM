@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.18.5] - 2026-10-14
+
 ### Added
 
 - `lasteverlm_core.privacy`: `mask_email(address)` keeps the domain and masks the local part (one character → `*`, two → first character and `*`, longer → first and last character with always three stars between, so the length does not show; no usable `@` → `***`), `masks_emails(role)` (a `viewer` sees masked addresses) and `email_for(role, address)`, for the admin area's read-only viewers.
