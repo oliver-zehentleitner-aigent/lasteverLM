@@ -9,6 +9,8 @@ import { similarityLabel } from '../lib/provenance'
 import { checkSummary, unitBadges } from '../lib/outputProvenance'
 import { judgeBadge } from '../lib/judge'
 import { JudgeRequest } from './JudgeRequest'
+import { AnswerActions, SuggestionCards } from './AnswerActions'
+import { StarterQuestions } from './StarterQuestions'
 import { PriceTag } from './PriceTag'
 import { ProvenancePanel } from './ProvenancePanel'
 import { t } from '../i18n'
@@ -56,10 +58,14 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   // every source turned off: nothing to answer from, unless the question is about one document
   const blocked = !scope && sources.total > 0 && sources.selected === 0
 
-  async function ask(e: FormEvent) {
+  function ask(e: FormEvent) {
     e.preventDefault()
-    const q = question.trim()
-    if (!q || blocked) return
+    void send(question.trim())
+  }
+
+  /** Asks `q`: from the field, or a suggestion card. */
+  async function send(q: string) {
+    if (!q || blocked || busy) return
     setQuestion('')
     setMessages((prev) => [
       ...prev,
@@ -77,6 +83,8 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           citations: answer.citations,
           units: answer.units ?? null,
           check: answer.check ?? null,
+          suggestions: answer.suggestions ?? [],
+          feedback: null,
           created_at: new Date().toISOString(),
         },
       ])
@@ -92,8 +100,8 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   return (
     <>
       <div className="messages" ref={pane}>
-        {messages.map((m) => (
-          <article key={m.id} className={`msg ${m.role}`}>
+        {messages.map((m, i) => (
+          <article key={m.id} id={`msg-${m.id}`} className={`msg ${m.role}`}>
             <AnswerText message={m} onCite={(c) => toggle(m, c)} openN={open?.messageId === m.id ? open.n : null} />
             {m.role === 'assistant' && checkSummary(m.check) && (
               <p
@@ -147,10 +155,15 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
                   />
                 ) : null
               })()}
+            {m.role === 'assistant' && !m.id.startsWith('local-') && (
+              <AnswerActions message={m} target={byId(`msg-${m.id}`)} onRated={(rated) => setMessages((prev) => prev.map((x) => (x.id === rated.id ? rated : x)))} />
+            )}
+            {m.role === 'assistant' && i === messages.length - 1 && !busy && <SuggestionCards suggestions={m.suggestions ?? []} disabled={busy || blocked} onAsk={(q) => void send(q)} />}
           </article>
         ))}
         {busy && <p className="muted">…</p>}
         {messages.length === 0 && !busy && <p className="muted">{t('chat.empty')}</p>}
+        {messages.length === 0 && !busy && <StarterQuestions notebookId={notebookId} disabled={blocked} onAsk={(q) => void send(q)} />}
       </div>
       {error && <p className="error">{error}</p>}
       {scope && (
@@ -186,6 +199,14 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
     </>
   )
 }
+
+/** The element with this id, looked up when it is needed (a copy that
+ *  falls back to selecting the answer). */
+const byId = (id: string) => ({
+  get current() {
+    return document.getElementById(id)
+  },
+})
 
 /** An answer with its [n] markers as buttons and, after each citing
  *  paragraph the check did not back, its badge (the paragraph stays). */

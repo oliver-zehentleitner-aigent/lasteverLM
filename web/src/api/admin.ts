@@ -1,6 +1,7 @@
 import { ACCOUNT_PREFIX, ADMIN_MOCK, INGEST_PREFIX, RAG_PREFIX } from '../config'
 import { ApiError, request } from './client'
 import type {
+  FeedbackStats,
   StarterNotebook,
   ExchangeRateStatus,
   AccessEntry,
@@ -44,6 +45,8 @@ export interface AdminApi {
   accountStats(): Promise<AccountStats>
   ingestStats(): Promise<IngestStats>
   ragStats(): Promise<RagStats>
+  /** answer ratings per day and the newest down-rated answers */
+  feedback(days: number): Promise<FeedbackStats>
   /** daily series for the statistics charts, one endpoint per service */
   accountDaily(days: number): Promise<AccountDay[]>
   accountUsage(): Promise<AccountUsage>
@@ -125,6 +128,7 @@ const httpAdmin: AdminApi = {
   accountStats: () => request<AccountStats>(`${A}/stats`),
   ingestStats: () => request<IngestStats>(`${INGEST_PREFIX}/admin/stats`),
   ragStats: () => request<RagStats>(`${RAG_PREFIX}/admin/stats`),
+  feedback: (days) => request<FeedbackStats>(`${RAG_PREFIX}/admin/feedback?days=${days}`),
   accountDaily: (days) => request<{ days: AccountDay[] }>(`${A}/stats/daily?days=${days}`).then((r) => r.days),
   accountUsage: () => request<AccountUsage>(`${A}/stats/usage`),
   ingestDaily: (days) => request<{ days: IngestDay[] }>(`${INGEST_PREFIX}/admin/stats/daily?days=${days}`).then((r) => r.days),
@@ -282,6 +286,11 @@ function mockAdmin(): AdminApi {
       }),
     ingestStats: () =>
       delay({ sources: { processing: 1, ready: 12, failed: 1 }, jobs: { pending: 0, running: 1, failed: 1 }, chunks: 640, source_bytes: 18_400_000 }),
+    feedback: (days) =>
+      delay({
+        days: Array.from({ length: days }, (_, i) => ({ day: new Date(Date.now() - (days - 1 - i) * 86_400_000).toISOString().slice(0, 10), up: i % 3, down: i % 7 === 0 ? 1 : 0 })),
+        latest_down: [{ message_id: 'm1', notebook_id: 'nb1', at: '2026-10-14T10:00:00Z', comment: 'cites the wrong page', answer: 'The method is called dead reckoning [1].', question: 'What is the method called?' }],
+      }),
     ragStats: () =>
       delay({
         notebooks: { total: 4 },

@@ -1,7 +1,7 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
 import type { Estimate, EstimateRequest } from '../lib/estimate'
-import type { Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
+import type { FeedbackStats, Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -25,6 +25,14 @@ export const rag = {
   /** the charge range of an output or an action before it runs; 422 for
    *  options that do not fit, 503 while pricing has no exchange rate */
   estimate: (body: EstimateRequest) => request<Estimate>(`${RAG_PREFIX}/estimate`, { method: 'POST', json: body }),
+
+  /** a rating replaces the previous one; 409 for a question, answers only */
+  rateMessage: (id: string, rating: 'up' | 'down', comment?: string) =>
+    request<Message>(`${RAG_PREFIX}/messages/${encodeURIComponent(id)}/feedback`, { method: 'POST', json: { rating, ...(comment ? { comment } : {}) } }),
+  /** questions to start with; the first call is billed, then cached until the uploads change; [] before any is ready */
+  notebookSuggestions: (notebookId: string) => request<{ suggestions: string[]; cached: boolean }>(`${nb(notebookId)}/suggestions`),
+  /** viewers and admins */
+  adminFeedback: (days = 30) => request<FeedbackStats>(`${RAG_PREFIX}/admin/feedback?days=${days}`),
 
   /** oldest first; the server names a new one "Chat N" */
   listConversations: (notebookId: string) => request<Conversation[]>(`${nb(notebookId)}/conversations`),

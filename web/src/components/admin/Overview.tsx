@@ -6,6 +6,7 @@ import { adminPath } from '../../lib/adminPages'
 import { attentionItems, kpiTiles, systemMeta } from '../../lib/stats'
 import { t } from '../../i18n'
 import { useLoad } from '../../hooks/useLoad'
+import { FeedbackSummary } from './FeedbackSummary'
 
 // recharts only in the admin overview: its own chunk, loaded on demand
 const StatsCharts = lazy(() => import('./StatsCharts'))
@@ -72,6 +73,7 @@ export function Overview({ onNavigate }: { onNavigate: (path: string) => void })
           </ul>
         </div>
       )}
+      <FeedbackSummary />
       <ErrorBoundary what={t('adm.charts')}>
         <Suspense fallback={<p className="muted small">{t('adm.loadingCharts')}</p>}>
           <StatsCharts />

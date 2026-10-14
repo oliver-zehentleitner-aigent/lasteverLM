@@ -149,6 +149,8 @@ export interface Answer {
   /** null for an answer without citations */
   units?: AnswerUnit[] | null
   check?: Check | null
+  /** up to three follow-up questions */
+  suggestions?: string[]
 }
 
 /** One chat of a notebook, shown as a tab; messages belong to exactly one. */
@@ -168,6 +170,22 @@ export interface Message {
   /** assistant messages with citations only; null otherwise and on older messages */
   units?: AnswerUnit[] | null
   check?: Check | null
+  /** up to three follow-up questions for an answer; [] for questions and older messages */
+  suggestions?: string[]
+  /** the user's rating of an answer; null until rated */
+  feedback?: MessageFeedback | null
+}
+
+export interface MessageFeedback {
+  rating: 'up' | 'down'
+  comment: string | null
+  at: string
+}
+
+/** `GET /api/rag/admin/feedback`: ratings per day and the newest down-rated answers. */
+export interface FeedbackStats {
+  days: { day: string; up: number; down: number }[]
+  latest_down: { message_id: string; notebook_id: string; at: string; comment: string | null; answer: string; question: string | null }[]
 }
 
 // outputs (rag prefix)

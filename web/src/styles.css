@@ -877,3 +877,21 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .source-read .chunk.cited { border-left-color: var(--accent); background: var(--accent-soft); }
 .source-read .chunk p { margin: 0.2rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .chunk-pager { display: flex; gap: 0.8rem; align-items: center; margin: 0.3rem 0; }
+
+/* the row under an answer: copy, thumbs up and down */
+.answer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.3rem; }
+.answer-actions .rate { opacity: 0.55; filter: grayscale(1); }
+.answer-actions .rate.active, .answer-actions .rate:hover { opacity: 1; filter: none; }
+.answer-actions .rate-form { display: flex; gap: 0.35rem; flex: 1 1 16rem; }
+.answer-actions .rate-form input { flex: 1; height: 1.9rem; }
+.answer-actions .rate-comment { font-style: italic; }
+/* suggested questions: up to three cards, a click asks */
+.suggestion-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.4rem; margin-top: 0.5rem; }
+.suggestion-card { text-align: left; white-space: normal; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.45rem 0.6rem; font-size: 0.9em; line-height: 1.3; }
+.suggestion-card:hover:not(:disabled) { border-color: var(--accent); }
+.starter-questions { margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.feedback-summary summary { cursor: pointer; }
+.feedback-list { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.feedback-list li { border-top: 1px solid var(--line); padding-top: 0.4rem; }
+.feedback-list p { margin: 0.15rem 0; overflow-wrap: anywhere; }
+.feedback-answer { max-height: 6.5em; overflow: auto; }
