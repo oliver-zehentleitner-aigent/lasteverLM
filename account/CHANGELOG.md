@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Fixed
+
+- Finance → Infrastructure showed "Vultr connected" next to "HTTP 401" and hid Vultr's message. The status is now two facts, `configured` and `last_success_at` (with `last_attempt_at`); `last_error` carries Vultr's own message (trimmed, never the key) and, for an IP allow-list refusal, where to add the address. A failed sync no longer erases the time of the last success. Replaces `vultr` and `last_sync`.
+
 ## [0.18.2] - 2026-10-14
 
 ### Changed

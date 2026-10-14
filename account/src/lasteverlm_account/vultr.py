@@ -38,6 +38,7 @@ class VultrBilling:
         timeout_seconds: float = 20.0,
     ) -> None:
         self._headers = {"Authorization": f"Bearer {api_key}"}
+        self._key = api_key
         self._base = base_url.rstrip("/")
         self._transport = transport
         self._timeout = timeout_seconds
@@ -48,8 +49,22 @@ class VultrBilling:
         except httpx.HTTPError as exc:
             raise VultrError(f"{path}: unreachable ({type(exc).__name__})") from exc
         if not r.is_success:
-            raise VultrError(f"{path}: HTTP {r.status_code}")
+            raise VultrError(self._failure(path, r))
         return r.json()
+
+    def _failure(self, path: str, r: httpx.Response) -> str:
+        """Vultr's own message (its JSON "error", else the body), trimmed, never the key;
+        the IP allow-list case gets the place to fix it."""
+        try:
+            body = r.json()
+            detail = str(body.get("error") or "") if isinstance(body, dict) else ""
+        except ValueError:
+            detail = r.text
+        detail = " ".join(detail.split())[:300].replace(self._key, "***") if self._key else ""
+        message = f"{path}: HTTP {r.status_code}" + (f": {detail}" if detail else "")
+        if "unauthorized ip address" in detail.lower():
+            message += " — add this address to Vultr → Account → API → Access Control"
+        return message
 
     async def cost_lines(self) -> list[CostLine]:
         """Pending charges plus the items of the last invoices, summed per month and item."""

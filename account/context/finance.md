@@ -14,7 +14,9 @@ With `VULTR_BILLING_API_KEY` set, the account process reads
 (and on `POST /admin/finance/infra/sync`) and upserts monthly lines into `infra_costs`
 keyed by (month, source, item). Every replica may run it; the upsert makes a double
 run harmless. Without the key, or with an empty one, nothing runs and the API says
-`"vultr": "not connected"`. Amounts stay in USD as billed; the pricing rules' `usd_per_eur`
+`configured: false` (until 2026-10-14 `"vultr": "not connected"`; split then into
+`configured` and `last_success_at`, because "connected" next to an error read as a
+contradiction). A failure keeps Vultr's own message, with a hint for its IP allow-list. Amounts stay in USD as billed; the pricing rules' `usd_per_eur`
 — the one rate core also books with — converts them, and without a rate the EUR totals
 are null rather than estimated. (Until 2026-10-14 account kept its own `eur_per_usd`
 setting for this; it went when core's booking got the rate, so there are not two rates.)

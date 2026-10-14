@@ -233,11 +233,13 @@ class InfraCostAdd(BaseModel):
 
 
 class InfraCosts(BaseModel):
-    """Infrastructure costs of a period. ``vultr`` says whether the billing sync is
-    connected (VULTR_BILLING_API_KEY set) — "not connected" is stated, never implied."""
+    """Infrastructure costs of a period, and the Vultr sync as two separate facts:
+    ``configured`` (a key is set) and ``last_success_at`` (syncing has worked, when).
+    ``last_error`` is Vultr's own message from the last failed attempt, null after a success."""
 
-    vultr: Literal["connected", "not connected"]
-    last_sync: datetime | None
+    configured: bool
+    last_success_at: datetime | None
+    last_attempt_at: datetime | None
     last_error: str | None
     usd_per_eur: float | None  # the pricing rules' rate, the one core books with
     entries: list[InfraCost]
