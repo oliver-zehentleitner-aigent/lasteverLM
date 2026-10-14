@@ -227,7 +227,8 @@ service's sentence).
 ## Library
 
 `/library` (in the header next to Admin): every upload and URL of the
-user, once, newest first, with kind, status, size ("unknown" for
+user, once, newest first, with kind, status (a failed entry's reason on
+one line next to the badge, in full as its tooltip), size ("unknown" for
 entries added before sizes were recorded), date and the
 notebooks it is in as links (or "not in any notebook"). Filters by kind
 and by part of the name or address. **Open** (a row action, and the
@@ -285,6 +286,12 @@ deleted from the library) stays readable with its quote and is marked
   used or expired code says so.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
+- Narrow screens: no page scrolls sideways. Below 900 px the notebook's
+  columns stack (sources and documents, then viewer, then chat); below
+  640 px the header takes two lines, brand and account (theme, balance,
+  sign out) above, the navigation below, and leaves out the e-mail
+  address. The architecture diagram on Admin > System scales to its
+  card; wide admin tables scroll inside theirs.
 - Admin (for the roles `admin` and `viewer`): pages under `/admin` with
   a sub-navigation; each page loads only its own data, every page has
   its own URL. A **viewer** reads everything: the heading carries a
