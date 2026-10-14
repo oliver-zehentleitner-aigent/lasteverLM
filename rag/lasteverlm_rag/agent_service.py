@@ -23,6 +23,7 @@ from typing import Any, cast
 from lasteverlm_core import Answer, ToolCallingLLM
 
 from .agent import (
+    ACTION_TOOLS,
     NO_ACTION,
     PLAN_TIMEOUT_S,
     PLANNER_MAX_TOKENS,
@@ -171,6 +172,10 @@ class AgentService:
         if not result.tool_calls or result.text.strip() == NO_ACTION:
             return None
         calls = [(c.name, c.arguments) for c in result.tool_calls]
+        if not any(name in ACTION_TOOLS for name, _ in calls):
+            # reading or explaining alone is what an answer does: a question that
+            # the planner met with read tools only is answered, never turned into a plan
+            return None
         library = (
             self._library(bearer, notebook_id)
             if any(n == "add_from_library" for n, _ in calls)

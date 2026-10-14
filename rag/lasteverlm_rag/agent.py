@@ -47,6 +47,8 @@ MAX_STEPS = 6
 PLAN_TIMEOUT_S = 30 * 60
 PLANNER_MAX_TOKENS = 600
 NO_ACTION = "NO_ACTION"
+# the tools that change the notebook: only a reply with one of them becomes a plan
+ACTION_TOOLS = frozenset({"add_url", "add_from_library", "create_output"})
 LIBRARY_MATCHES_MAX = 5
 EXPLAIN_QUESTION_MAX_CHARS = 500
 # a chart is made from proposals the user picks: not a step of a plan
