@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { account } from './api/account'
-import { PAYMENT_REQUIRED, UNAUTHORIZED, apiEvents } from './api/client'
+import { OPEN_VOUCHER, PAYMENT_REQUIRED, UNAUTHORIZED, apiEvents } from './api/client'
 import { getToken, setToken } from './api/token'
 import type { User } from './api/types'
 import { canSeeAdmin, canWriteAdmin } from './lib/roles'
@@ -67,11 +67,14 @@ export default function App() {
       setSession({ state: 'anonymous' })
     }
     const onPayment = () => setVoucher({ open: true, reason: 'exhausted' })
+    const onOpenVoucher = () => setVoucher({ open: true, reason: 'manual' })
     apiEvents.addEventListener(UNAUTHORIZED, onUnauthorized)
     apiEvents.addEventListener(PAYMENT_REQUIRED, onPayment)
+    apiEvents.addEventListener(OPEN_VOUCHER, onOpenVoucher)
     return () => {
       apiEvents.removeEventListener(UNAUTHORIZED, onUnauthorized)
       apiEvents.removeEventListener(PAYMENT_REQUIRED, onPayment)
+      apiEvents.removeEventListener(OPEN_VOUCHER, onOpenVoucher)
     }
   }, [])
 

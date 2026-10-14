@@ -651,6 +651,8 @@ export const en = {
   'outProv.callState': '{passages} passages, {chars} characters',
   'outProv.llmVerdict': 'The evidence model\'s own sentence',
   'decision.labelTooLong': 'An entry is longer than {n} characters.',
+  'status.waiting_for_credit': 'waiting for credit',
+  'sources.redeem': 'redeem a voucher',
 } as const
 
 export type MessageKey = keyof typeof en

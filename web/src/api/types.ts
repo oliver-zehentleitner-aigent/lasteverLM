@@ -2,7 +2,8 @@
 // A change here is a change there first.
 
 export type SourceKind = 'pdf' | 'text' | 'url' | 'image' | 'audio' | 'generated'
-export type SourceStatus = 'processing' | 'ready' | 'failed'
+/** waiting_for_credit: added, and processed once the account has credit again */
+export type SourceStatus = 'processing' | 'waiting_for_credit' | 'ready' | 'failed'
 export type Role = 'user' | 'assistant'
 
 export interface Notebook {
