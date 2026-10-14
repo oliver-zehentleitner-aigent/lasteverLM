@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-14
+
 ### Added
 
 - Audio sources: `.mp3` and `.wav` uploads (`audio/mpeg`, `audio/mp3`, `audio/wav`, `audio/x-wav`), checked at upload with core's `probe_audio` (WAV or MP3 by the bytes, at most 25 MiB and four hours, 415 with core's reason otherwise); other audio formats get 415 "audio must be MP3 or WAV". The worker transcribes the whole file with `STT_MODEL` in one billed call (usage kind `stt` in seconds, credit checked before, claim refreshed after; own client, one attempt, `STT_TIMEOUT_SECONDS` 300, below the claim timeout) into one passage without a page, chunked like text; an answer the platform billed but without speech or duration is recorded and fails the source. `STT_MODEL` needs a price at start. Deduplicated by sha256 like every file; `preview_url` is the presigned original, so the browser plays it; the daily admin stats count `audio` in `by_kind`. Migration 0009 adds `audio` to `library_sources.kind`.
