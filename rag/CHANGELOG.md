@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.0] - 2026-10-14
-
 ### Added
 
 - Provenance for report, infographic and audio: every unit (report paragraph, infographic fact and section, audio paragraph or turn) carries `refs` (the passage numbers it cites) and `support` (`supported`, `unsupported` or `unverified`) from a deterministic word-overlap check after generation (`lexical-overlap-v1`, threshold 0.5, no model call); failing units are kept and marked, never dropped. The report keeps `[n]` markers in its markdown and lists `content.units`. `Output.provenance` (migration `0005_rag_output_provenance.sql`, core's model) is the generation log: options, retrieval candidates and which entered the prompt, the numbered passages with their text, model, prompt version, usage, timestamps and the check's counts; the shared view carries it without ids.
+
+## [0.13.0] - 2026-10-14
+
+### Added
 
 - Audio styles: option `audio_style` (`overview`, the default and the previous behaviour; `story`, the material told as a narrative by one narrator; `conversation`, an interviewer and an expert grounded in the material) with a prompt and a JSON schema per style, and `audio_voice_2` for the expert (default: another voice with the first one's native language). Each turn is read with its speaker's voice and billed per second as before; the audio content carries `transcript` (`[{"speaker", "text"}]`), also on the shared view. The options catalogue lists `styles` and `default_style`.
 
