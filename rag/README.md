@@ -343,8 +343,12 @@ never a passage.
 - **Tool calls:** they become a plan of at most six steps:
   `Answer.plan` = `{"plan_id", "status", "steps": [{"n", "tool", "args",
   "label", "valid", "invalid_reason"?, "estimate": {"min", "max"},
-  "state", "error"?, "result"?}], "estimate": {"min", "max"}}`, with
-  estimates in euro cents. The plan is also on the proposing message
+  "state", "error"?, "result"?, "processing"?}], "estimate": {"min",
+  "max"}, "separate": [{"n", "label", "min", "max"}]}`, with estimates in
+  euro cents. `estimate` is the plan's own action. Ingest's processing of
+  a page an `add_url` step adds is booked under ingest's action, at the
+  price `/prices` shows for adding a web page. So it is not in that total:
+  it is the step's `processing` and a line of `separate`. The plan is also on the proposing message
   (`Message.plan`), kept current.
 - **Invalid steps:** tool arguments come only from the user's message and
   their own library. A URL must be written in the message, a library

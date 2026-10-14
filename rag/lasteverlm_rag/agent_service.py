@@ -30,6 +30,7 @@ from .agent import (
     Context,
     Step,
     build_steps,
+    separate,
     tool_specs,
     total,
 )
@@ -72,6 +73,7 @@ def public(plan: dict[str, Any]) -> dict[str, Any]:
         "status": plan["status"],
         "steps": plan["steps"],
         "estimate": plan["estimate"],
+        "separate": separate(plan["steps"]),
     }
 
 
@@ -176,7 +178,16 @@ class AgentService:
         )
         steps = build_steps(calls, Context(question, library, outputs, self._default_voice))
         for step in steps:
-            if step.valid:
+            if not step.valid:
+                continue
+            if step.tool == "add_url":
+                # linking the page costs the plan nothing; ingest charges its processing
+                # under its own action, the price /prices shows for "add a web page"
+                step.processing = {
+                    "label": "Process the web page",
+                    "estimate": self._estimate(step, bearer),
+                }
+            else:
                 step.estimate = self._estimate(step, bearer)
         plan_id = str(uuid.uuid4())
         plan = {

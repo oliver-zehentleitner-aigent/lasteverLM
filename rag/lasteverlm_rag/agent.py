@@ -183,6 +183,8 @@ class Step:
     state: str = "proposed"
     error: str | None = None
     result: dict[str, Any] | None = None
+    # what ingest charges separately for processing a web page the step adds
+    processing: dict[str, Any] | None = None
 
     def as_json(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -194,7 +196,7 @@ class Step:
             "estimate": self.estimate,
             "state": self.state,
         }
-        for key in ("invalid_reason", "error", "result"):
+        for key in ("invalid_reason", "error", "result", "processing"):
             if getattr(self, key) is not None:
                 out[key] = getattr(self, key)
         return out
@@ -306,6 +308,16 @@ def _validate(
             n, tool, {}, "List the sources" if tool == "list_sources" else "List the outputs"
         )
     return _invalid(n, tool, args, "unknown action")
+
+
+def separate(steps: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The charges booked outside the plan's action (ingest processing an
+    added web page), one line each, as /prices shows them."""
+    return [
+        {"n": s["n"], "label": s["processing"]["label"], **s["processing"]["estimate"]}
+        for s in steps
+        if s.get("valid") and s.get("processing")
+    ]
 
 
 def total(steps: Sequence[Step]) -> dict[str, float]:

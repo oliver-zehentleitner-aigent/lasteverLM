@@ -105,9 +105,17 @@ def test_a_request_for_actions_returns_a_plan_and_runs_nothing(settings):
         ("create_output", True, "proposed"),
         ("explain_output", True, "proposed"),
     ]
-    assert plan["steps"][0]["estimate"] == {"min": 0.42, "max": 0.42}
+    # the page's processing is ingest's own action: its own line, not in the plan's total
+    assert plan["steps"][0]["estimate"] == {"min": 0.0, "max": 0.0}
+    assert plan["steps"][0]["processing"] == {
+        "label": "Process the web page",
+        "estimate": {"min": 0.42, "max": 0.42},
+    }
+    assert plan["separate"] == [{"n": 1, "label": "Process the web page", "min": 0.42, "max": 0.42}]
     assert 0 < plan["steps"][1]["estimate"]["min"] <= plan["steps"][1]["estimate"]["max"]
-    assert plan["estimate"]["max"] >= plan["steps"][1]["estimate"]["max"] + 0.42
+    assert plan["estimate"]["max"] == round(
+        plan["steps"][1]["estimate"]["max"] + plan["steps"][2]["estimate"]["max"], 2
+    )
     assert plan["steps"][1]["args"]["options"]["question_count"] == 5
     assert "Nothing runs until you confirm it." in body["answer"]
     assert ingest.calls == [] and store.outputs == {}
