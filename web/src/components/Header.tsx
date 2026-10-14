@@ -9,7 +9,7 @@ import { setSessionTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVer
 
 interface Props {
   me: User | null
-  route: 'home' | 'library' | 'settings' | 'admin'
+  route: 'home' | 'library' | 'settings' | 'prices' | 'admin'
   onNavigate: (path: string) => void
   onVoucher: () => void
   onLogout: () => void
@@ -87,6 +87,7 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         </a>
         <a
           href="/prices"
+          className={route === 'prices' ? 'active' : undefined}
           onClick={(e) => {
             e.preventDefault()
             onNavigate('/prices')

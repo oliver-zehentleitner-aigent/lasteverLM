@@ -886,7 +886,6 @@ export const en = {
   'fin.rate.checkNow': 'Check now',
   'fin.rate.stale': 'No successful ECB check for more than three days; the rate may be out of date.',
   'fin.rate.error': 'Last check failed: {error}',
-  'prices.label': 'Prices',
   'prices.title': 'What things cost',
   'prices.intro': 'Every price is in euros and comes from what these actions really took over the last {days} days, at today\'s prices. You see the estimate for your own choice before every action.',
   'prices.group.sources': 'Sources',
@@ -928,6 +927,7 @@ export const en = {
   'settings.prices': 'What things cost: the price list',
   'prices.action.judgeLevel': 'Judge, {level}',
   'prices.judgeNote': 'The judge rows are a check you ask for on an existing output or chat answer. A judge chosen while creating an output is included in that output\'s price.',
+  'prices.signIn': 'Sign in',
 } as const
 
 export type MessageKey = keyof typeof en

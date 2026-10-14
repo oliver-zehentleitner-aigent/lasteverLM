@@ -753,6 +753,8 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .shared-output .doc-title { font-size: 1.15rem; }
 
 /* /prices: the public price list */
+/* signed in, under the app's header: the same column as the public page */
+main.prices-page:not(.shared) { box-sizing: border-box; width: 100%; max-width: 56rem; margin: 0 auto; padding: 1rem; overflow: auto; }
 .prices-page .price-group { margin-top: 1.2rem; }
 .prices-page h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
 .price-table { width: 100%; border-collapse: collapse; }

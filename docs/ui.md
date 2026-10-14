@@ -473,7 +473,10 @@ deleted from the library) stays readable with its quote and is marked
   dialog. A 402 anywhere opens the same dialog.
 - **Prices** (`/prices`, no login, linked under the login page's forms,
   in the header next to Settings and at the top of Settings): the
-  public price list from `GET /api/account/prices`. A title, a line on
+  public price list from `GET /api/account/prices`. With a session
+  (a token in storage) it sits under the app's normal header, Prices
+  marked active; without one under a reduced header: the brand,
+  Prices and Sign in. A title, a line on
   where the prices come from (the last N days' actions at today's
   prices), then one table per group: **Sources** (one row per source
   kind; audio per minute), **Chat** (per question), **Outputs** (the
