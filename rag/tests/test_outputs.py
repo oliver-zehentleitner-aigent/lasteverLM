@@ -389,7 +389,8 @@ def test_table_rows_must_match_columns_and_index_text_is_pipe_separated():
     good = json.dumps({"title": "t", "columns": ["a", "b"], "rows": [["1", "2"]]})
     _, complete = complete_with(bad, good)
     out = TableGenerator().generate(complete, "nb", [], [])
-    assert out.content == {"columns": ["a", "b"], "rows": [["1", "2"]]}
+    # row_refs is filled by the provenance check, after generation
+    assert out.content == {"columns": ["a", "b"], "rows": [["1", "2"]], "row_refs": [{}]}
     assert out.index_text == "t\n\na | b\n1 | 2"
 
 

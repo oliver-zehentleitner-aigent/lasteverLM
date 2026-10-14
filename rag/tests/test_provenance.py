@@ -94,3 +94,62 @@ def test_the_shared_log_has_no_ids_and_no_source_selection():
         "check": {"supported": 1},
     }
     assert shared_provenance(None) is None
+
+
+def test_table_rows_quiz_questions_and_mindmap_nodes_are_units():
+    from lasteverlm_rag.outputs.mindmap import Mindmap, MindmapGenerator
+    from lasteverlm_rag.outputs.quiz import Quiz, QuizGenerator
+    from lasteverlm_rag.outputs.table import Table, TableGenerator
+
+    table = TableGenerator().to_output(
+        Table.model_validate(
+            {
+                "title": "Rivers",
+                "columns": ["River", "Length"],
+                "rows": [["Danube", "2850 km"], ["Rhine", "1230 km"]],
+                "row_refs": [[2], []],
+            }
+        )
+    )
+    assert check_units(table.units, PASSAGES, False)["supported"] == 1
+    assert table.content["row_refs"] == [
+        {"refs": [2], "support": "supported"},
+        {"refs": [], "support": "unsupported"},
+    ]
+
+    quiz = QuizGenerator().to_output(
+        Quiz.model_validate(
+            {
+                "title": "Q",
+                "questions": [
+                    {
+                        "question": "Where does the Danube end?",
+                        "options": ["Black Sea", "North Sea"],
+                        "answer": "Black Sea",
+                        "explanation": "It reaches the Black Sea.",
+                        "refs": [1],
+                    }
+                ],
+            }
+        )
+    )
+    check_units(quiz.units, PASSAGES, False)
+    assert quiz.content["questions"][0]["support"] == "supported"
+    assert quiz.content["questions"][0]["refs"] == [1]
+
+    mindmap = MindmapGenerator().to_output(
+        Mindmap.model_validate(
+            {
+                "title": "M",
+                "root": {
+                    "label": "European rivers",
+                    "children": [{"label": "Danube to the Black Sea", "refs": [1]}],
+                },
+            }
+        )
+    )
+    summary = check_units(mindmap.units, PASSAGES, False)
+    root = mindmap.content["root"]
+    assert "support" not in root and root["refs"] == []  # the root is no claim
+    assert root["children"][0]["support"] == "supported"
+    assert summary["supported"] == 1 and summary["unsupported"] == 0
