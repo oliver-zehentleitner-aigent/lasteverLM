@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Admin > Security: the ban cap ("a ban holds at most N days", 1–365) is a fifth editable number of the rate-limit rule, saved with the others; only the retention still comes from the deployment.
 - Admin > Access: the viewer block mirrors the sign-in block: both have a heading ("Sign-in", "Viewer (read-only admin panel)") and their line, then Domains | Single addresses side by side, stacked on a phone; viewers can now also be single addresses (`viewer_addresses`).
 
 ## [0.17.1] - 2026-10-14

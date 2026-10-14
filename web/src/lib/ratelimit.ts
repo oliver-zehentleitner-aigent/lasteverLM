@@ -8,6 +8,7 @@ export const RATE_LIMIT_BOUNDS: Record<keyof RateLimitUpdate, [number, number]> 
   block_minutes: [1, 1440],
   ban_after_strikes: [1, 100],
   strike_window_hours: [1, 720],
+  ban_max_days: [1, 365],
 }
 
 /** The rule as one readable paragraph, as the admin page shows it. */

@@ -515,7 +515,7 @@ deleted from the library) stays readable with its quote and is marked
     error or an already redeemed voucher stays in the dialog) and
     deleted.
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
-    with its four editable numbers and a reset to the deployment
+    with its five editable numbers (the ban cap, 1–365 days, among them) and a reset to the deployment
     defaults, then blocks, bans (with lift) and the raw access log.
     Blocks and bans are keyed by an IPv4 address or an IPv6 /64 prefix
     (`2001:db8:1:2::/64`), shown as is; lifting sends the key as a query
