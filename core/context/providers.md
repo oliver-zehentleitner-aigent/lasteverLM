@@ -271,3 +271,36 @@ Why a decision model gives the verdict's number while the language model
 writes the evidence is rag's decision and is recorded in rag's context.
 
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — e384d814-56f5-4990-b4af-e9da3e8b8a18 — as of 2026-10-14
+
+## Tool calling is a protocol of its own, ToolCallingLLM
+
+**Id:** 8755ecca-29e5-48a1-8fe3-8672bfabee3c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the agent chat (maintainer go, 2026-10-14), requested by rag; a live call on the platform with qwen3.8-27b, two parallel calls and the follow-up turn, 2026-10-14
+**Revisit when:** every `LLM` in the services can call tools, or a second provider implements tool calls differently
+
+`complete_tools` lives on `ToolCallingLLM`, a protocol that extends
+`LLM`, and on `OpenAICompatibleLLM`. It is not on `LLM` itself.
+
+- The calls come back as `ToolCall`s, with the JSON arguments already
+  parsed.
+- Arguments that are not a JSON object are a `ProviderError` carrying
+  the usage, because the call was billed either way.
+- `complete` and `complete_tools` share one request path, so timeout,
+  retries, the thinking switch and the usage rules cannot drift apart.
+
+**Reason:** rag has a production wrapper that implements `LLM`, and the
+services have several test doubles that do too. Putting a method on
+`LLM` would force all of them to grow a tool path they never use, or
+fail type checking. The protocol of its own puts the requirement only
+on the code that runs the agent.
+
+**Rejected alternative:** `complete_tools` on the `LLM` protocol, as
+first requested. Rejected for the reason above.
+
+**Rejected alternative:** return the raw argument strings and let the
+caller parse them. Rejected: every caller would need the same parsing
+and the same error path, and the usage of a bad reply would be easy to
+lose.
