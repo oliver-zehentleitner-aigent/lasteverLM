@@ -9,6 +9,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Header, HTTPException, Path, Query, Response
 from fastapi.responses import JSONResponse
 
+from ..masking import for_reader, for_reader_keys, for_reader_list
 from ..models import (
     AddressAdd,
     AdminAccess,
@@ -51,8 +52,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/users", response_model=list[AdminUserView])
-async def users(service: Service, _: AdminReaderDep) -> list[AdminUserView]:
-    return await service.admin_users()
+async def users(service: Service, reader: AdminReaderDep) -> list[AdminUserView]:
+    return for_reader_list(reader, await service.admin_users())
 
 
 @router.patch("/users/{user_id}", response_model=AdminUserView)
@@ -98,24 +99,24 @@ async def stats_daily(
 
 
 @router.get("/stats/usage", response_model=UsageStats)
-async def stats_usage(service: Service, _: AdminReaderDep) -> UsageStats:
+async def stats_usage(service: Service, reader: AdminReaderDep) -> UsageStats:
     """Usage by model and kind, and the ten users with the highest usage."""
-    return await service.admin_usage_stats()
+    return for_reader(reader, await service.admin_usage_stats())
 
 
 @router.get("/logins", response_model=list[AdminLogin])
 async def logins(
-    service: Service, _: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
+    service: Service, reader: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
 ) -> list[AdminLogin]:
-    return await service.admin_logins(limit)
+    return for_reader_list(reader, await service.admin_logins(limit))
 
 
 @router.get("/login-attempts", response_model=list[AdminLoginAttempt])
 async def login_attempts(
-    service: Service, _: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
+    service: Service, reader: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
 ) -> list[AdminLoginAttempt]:
     """Requests for a sign-in link, newest first, allowed and refused, with the client IP."""
-    return await service.admin_login_attempts(limit)
+    return for_reader_list(reader, await service.admin_login_attempts(limit))
 
 
 @router.get("/visits", response_model=list[AdminVisit])
@@ -163,8 +164,8 @@ async def reset_ratelimit(service: Service, _: AdminUserDep) -> Response:
 @router.get("/settings/allowlist", response_model=Allowlist)
 @router.get("/settings/domains", response_model=Allowlist)
 @router.get("/settings/addresses", response_model=Allowlist)
-async def allowlist(service: Service, _: AdminReaderDep) -> Allowlist:
-    return await service.allowlist()
+async def allowlist(service: Service, reader: AdminReaderDep) -> Allowlist:
+    return for_reader(reader, await service.allowlist())
 
 
 @router.post("/settings/domains", response_model=Allowlist, status_code=201)
@@ -216,10 +217,10 @@ async def remove_viewer_address(address: str, service: Service, _: AdminUserDep)
 
 @router.get("/vouchers", response_model=list[AdminVoucher])
 async def vouchers(
-    service: Service, _: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
+    service: Service, reader: AdminReaderDep, limit: int = Query(default=100, ge=1, le=1000)
 ) -> list[AdminVoucher]:
     """Newest first. The code is never listed: only its hash is stored."""
-    return await service.admin_vouchers(limit)
+    return for_reader_list(reader, await service.admin_vouchers(limit))
 
 
 @router.post("/vouchers", response_model=CreateVouchersResponse, status_code=201)
@@ -404,7 +405,7 @@ async def reset_pricing(service: Service, _: AdminUserDep) -> Response:
 @router.get("/finance/costs", response_model=FinanceCosts, response_model_by_alias=True)
 async def finance_costs(
     service: Service,
-    _: AdminReaderDep,
+    reader: AdminReaderDep,
     from_: From = None,
     to: To = None,
     group: Literal["day", "action", "model", "user", "service"] = "day",
@@ -412,7 +413,8 @@ async def finance_costs(
     """Usage between from and to (UTC days, inclusive; default the last 30): real cost and
     charge per group."""
     since, until = _range(service, from_, to)
-    return await service.finance_costs(since, until, group)
+    costs = await service.finance_costs(since, until, group)
+    return for_reader_keys(reader, costs) if group == "user" else costs
 
 
 @router.get("/finance/revenue", response_model=FinanceRevenue, response_model_by_alias=True)
@@ -438,9 +440,9 @@ async def finance_profit(
 
 
 @router.get("/settings/starter-notebook", response_model=StarterNotebook)
-async def get_starter_notebook(service: Service, _: AdminReaderDep) -> StarterNotebook:
+async def get_starter_notebook(service: Service, reader: AdminReaderDep) -> StarterNotebook:
     """The notebook new users get a copy of; all fields null when none is set."""
-    return await service.starter_notebook()
+    return for_reader(reader, await service.starter_notebook())
 
 
 @router.put("/settings/starter-notebook", response_model=StarterNotebook)
