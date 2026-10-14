@@ -11,6 +11,7 @@ preserves why it changed, in `context/`.
 
 ### Added
 
+- `Message.units` / `Answer.units: list[dict[str, Any]] | None` and `Message.check` / `Answer.check: dict[str, Any] | None`, default `None`: the support check rag runs on a chat answer (per paragraph its refs and support, plus method, threshold and counts), shaped as on outputs. rag owns the shapes; `None` for answers without citations and older messages.
 - `Output.provenance` and `SharedOutput.provenance: dict[str, Any] | None = None`: the generation log rag stores with an output (`outputs.provenance`). rag owns and documents its shape and strips the ids before a shared output is returned; `None` for outputs made before it.
 
 ## [0.13.0] - 2026-10-14
