@@ -412,13 +412,18 @@ silent image change in the one container that runs DDL as admin.
 **Revisit when:** a policy engine with domain-based egress rules is installed, the managed database gets a VPC address, or a service starts calling another one directly
 
 The chart denies every incoming connection in the namespace except
-from the `ingress-nginx` namespace (any pod, any port) and, on the API
-port, from `account` to the API services. Nothing restricts egress.
+from the `ingress-nginx` namespace (any pod, any port), on the API
+port from `account` to the API services, and on ingest's API port from
+`rag` and `rag-worker`. Nothing restricts egress.
 
 **Reason, ingress:** core trusts the `X-Forwarded-For` nginx sets, and
 the edge rate limits live in nginx; a pod that reached a service
-directly would bypass both. No service calls another over HTTP except
-account's health probes; the services share data through the database.
+directly would bypass both. Each service-to-service call gets its own
+policy naming caller and target: account's health probes, and since
+0.19.0 rag calling ingest with the user's bearer to have sources read
+when they are used (the "Revisit when" below fired there: 0.19.0 shipped
+without the policy, rag's calls timed out and the deploy's smoke test
+failed). The services otherwise share data through the database.
 The controller's namespace is allowed on every port because
 cert-manager's HTTP-01 solver pods run in this namespace on their own
 port and are reached through nginx.
