@@ -7,19 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.18.4] - 2026-10-14
 ### Changed
 
 - Admin: Finance comes right after Overview in the sub-navigation (Overview · Finance · Users · Access · Security · Visits · Mail · System).
 
 ### Fixed
 
-- Admin > Finance > Infrastructure: "Vultr connected" only after a successful sync; with a key that has not worked yet "Key set · last successful sync: never", the last attempt, and the failed sync's message from Vultr in red (account's `configured`, `last_success_at`, `last_attempt_at`, `last_error` replace `vultr` and `last_sync`).
 - Admin > Finance > Vouchers: the create form is a card above the list (Amount | Count | Paid voucher, then "Send to an address right away" opening the full-width recipient, message and sign-in fields below it, Create at the bottom right, stacked on a phone); checkboxes no longer stretch away from their text, and the recipient field is full width. In the list the paid toggle keeps its word on one line, and a voucher without a kept code says "code not kept (before 0.18)" with the full sentence as tooltip.
 - `/prices` shows the app's normal header (Library, Settings, Prices, Admin, theme, balance, sign out) when signed in; the reduced header (brand, Prices, Sign in) only without a session.
 - `/prices` follows the account service's new rows: PDF (Text) and PDF (Vision) per page, image, web page, audio outputs per output; a price range when there is one, "+ … per source", "estimated" muted for an estimated price, "no price yet" when none could be made, and "Typical per action" as the history column's heading.
 - Admin > System: the ingress box is coloured from the account service's outside probe (red down, amber when the certificate ends within 14 days, grey without a probe) with "TLS until <date>" and the probe in its tooltip; the web box shows its pods' image tags as its build.
 - Admin overview: the meta line read "vv0.18.3"; the version keeps the Git tag's own "v" and gets one only when it has none.
+
+## [0.18.4] - 2026-10-14
+
+### Fixed
+
+- Admin > Finance > Infrastructure: "Vultr connected" only after a successful sync; with a key that has not worked yet "Key set · last successful sync: never", the last attempt, and the failed sync's message from Vultr in red (account's `configured`, `last_success_at`, `last_attempt_at`, `last_error` replace `vultr` and `last_sync`).
 - Admin > Finance: the range bar's day pills, labels and date fields share one height and line; every money cell, tile and total follows one rule (two decimals from 1 € up, two to four below, the exact value in the tooltip) instead of €0.90 next to €0.622125.
 
 ## [0.18.3] - 2026-10-14
