@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Library: a ready output's row has "share", opening the viewer's share card under the row (create the read-only link, copy or revoke it); the card is one component for the viewer and the library.
+
 ### Changed
 
 - Wording: the library's view selector reads All | Sources | Outputs, and the library, its trash and the notebook-delete dialog say "output(s)" instead of "(generated) documents", the notebook's own term. German says "Ausgaben" for outputs everywhere (the notebook's heading, the library pill, dialogs, trash, tooltips, the admin charts), since "Dokumente" collided with sources.

@@ -324,7 +324,9 @@ through its presigned `preview_url`; the name too; only `http(s)`
 addresses are linked, without a preview the action is disabled with a
 note); an output goes to the notebook it was made in with it selected,
 or, when that notebook is deleted, shows it read-only on this page as
-the share page does (print where the kind has it, no sharing).
+the share page does (print where the kind has it, no sharing). A ready output's row also has
+**share** ("shared" once it has a link): it opens the viewer's share
+card under the row (create the read-only link, or copy and revoke it).
 **Checking an audio source** (here and in a notebook's Sources list): a
 play button per audio row mounts a player for that row only (nothing
 loads before; one player at a time, a second click closes it), with a
