@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-
 - Chat answers get the outputs' support check: `Answer.units` (one `{"text", "refs", "support"}` per paragraph) and `Answer.check` (the counts, method `lexical-overlap-v1`), stored with the assistant message (migration `0006_rag_message_support.sql`) and returned on `Message`; `null` for an answer without citations. An answer in another language than its passages marks low overlap `unverified`.
 
 - Provenance for table, quiz and mind map: `content.row_refs` (one `{"refs", "support"}` per table row), `refs` and `support` on every quiz question (checked with its answer and explanation) and on every mind-map node below the root; the same check and log as the other kinds.
