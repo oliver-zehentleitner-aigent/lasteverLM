@@ -18,6 +18,7 @@ from lasteverlm_core import (
     Health,
     InferenceSettings,
     Message,
+    MessageFeedback,
     Output,
     SharedOutput,
     Source,
@@ -175,6 +176,34 @@ def test_support_check_on_messages_and_answers_is_optional() -> None:
     answer = Answer(message_id=uuid4(), answer="a [1]", units=units, check=check)
     assert answer.check == check
     assert Answer(message_id=uuid4(), answer="a").units is None
+
+
+def test_suggestions_and_feedback_are_optional_and_bounded() -> None:
+    row = {
+        "id": str(uuid4()),
+        "role": "assistant",
+        "content": "a [1]",
+        "created_at": "2026-10-14T00:00:00Z",
+    }
+    old = Message.model_validate(row)
+    assert (old.suggestions, old.feedback) == ([], None)
+    assert Message.model_validate({**row, "suggestions": None}).suggestions == []
+    feedback = {"rating": "down", "comment": "wrong year", "at": "2026-10-14T10:00:00Z"}
+    message = Message.model_validate(
+        {**row, "suggestions": ["Why?", "Since when?"], "feedback": feedback}
+    )
+    assert message.feedback == MessageFeedback(
+        rating="down", comment="wrong year", at=datetime(2026, 10, 14, 10, tzinfo=UTC)
+    )
+    wire = message.model_dump(mode="json")
+    assert wire["suggestions"] == ["Why?", "Since when?"]
+    assert wire["feedback"] == {**feedback, "at": "2026-10-14T10:00:00Z"}
+    with pytest.raises(ValidationError):
+        Message.model_validate({**row, "suggestions": ["a", "b", "c", "d"]})
+    with pytest.raises(ValidationError):
+        MessageFeedback.model_validate({"rating": "meh", "at": "2026-10-14T10:00:00Z"})
+    assert Answer(message_id=uuid4(), answer="a").suggestions == []
+    assert Answer(message_id=uuid4(), answer="a", suggestions=["Why?"]).suggestions == ["Why?"]
 
 
 def test_a_source_can_wait_for_credit() -> None:
