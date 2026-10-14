@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Audio style `faq`: 5 to 8 questions a listener would most likely ask about the material, each followed by its answer. Two voices in strict turn, the interviewer asking with `voice` and the expert answering with `audio_voice_2` (defaults as for `conversation`). The answers are cited and checked like the other styles, and the questions carry no claim. The catalogue lists the style, and `overview` stays the default.
+
 ## [0.19.0] - 2026-10-14
 
 ### Changed

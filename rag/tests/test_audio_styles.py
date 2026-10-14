@@ -151,3 +151,60 @@ def test_voiced_stretches_join_consecutive_turns_of_one_voice():
         ("aiden", "A1 A2"),
         ("ryan", "N"),
     ]
+
+
+def faq(pairs: int, **swap) -> str:
+    turns = []
+    for i in range(pairs):
+        turns.append({"speaker": "interviewer", "text": f"Question {i}?"})
+        turns.append({"speaker": "expert", "text": "The sky is blue on a clear day.", "refs": [1]})
+    for index, speaker in swap.items():
+        turns[int(index.strip("t"))]["speaker"] = speaker
+    return json.dumps({"title": "Sky FAQ", "turns": turns})
+
+
+def test_an_faq_alternates_question_and_answer_with_two_voices(settings):
+    store, client, llm, tts, output_id = run(
+        settings, faq(5), {"audio_style": "faq", "voice": "ryan", "language": "de"}
+    )
+    out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
+    assert out["status"] == "ready", out
+    assert out["options"]["audio_style"] == "faq" and out["options"]["audio_voice_2"] == "aiden"
+    prompt = llm.calls[0][1]
+    assert "5 to 8 questions a listener would most likely ask" in prompt
+    assert "in German" in llm.calls[0][0]  # the language option
+    speakers = [t["speaker"] for t in out["content"]["transcript"]]
+    assert speakers == ["interviewer", "expert"] * 5
+    assert [s[0] for s in tts.settings] == ["ryan", "aiden"] * 5
+    # the answers are checked; a question carries no claim
+    transcript = out["content"]["transcript"]
+    assert all("support" not in t for t in transcript[::2])
+    assert all("support" in t for t in transcript[1::2])
+    assert out["provenance"]["prompt_version"] == "audio-faq-v2"
+
+
+@pytest.mark.parametrize(
+    ("reply", "error"),
+    [
+        (faq(4), "5 to 8 question-answer pairs"),
+        (faq(9), "5 to 8 question-answer pairs"),
+        (faq(5, t1="interviewer"), "the turns alternate"),
+        (faq(5, t0="expert"), "the turns alternate"),
+    ],
+)
+def test_an_faq_that_does_not_alternate_or_miscounts_gets_the_corrective_retry(
+    settings, reply, error
+):
+    _, client, llm, _, output_id = run(settings, reply, {"audio_style": "faq"})
+    assert len(llm.calls) == 2 and error in llm.calls[1][1]
+
+
+def test_the_faq_style_validates_with_its_second_voice(settings):
+    from lasteverlm_rag.options import OutputOptions, resolve
+
+    options = resolve("audio", OutputOptions(audio_style="faq", voice="vivian"), "ryan")
+    assert options["audio_voice_2"] == "serena"
+    with pytest.raises(ValueError, match="audio_voice_2: must differ from voice"):
+        resolve(
+            "audio", OutputOptions(audio_style="faq", voice="ryan", audio_voice_2="ryan"), "ryan"
+        )
