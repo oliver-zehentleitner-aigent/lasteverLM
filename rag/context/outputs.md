@@ -351,20 +351,23 @@ during the rolling deploy.
 - Keeping the notebook cascade (the previous behaviour): it deletes what
   the maintainer wants to keep.
 
-## Audio has three styles; a conversation uses two voices
+## Audio has four styles; a conversation and an FAQ use two voices
 
 **Id:** ab14b49e-b37d-421b-b9c0-231abe1a1ed2
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** maintainer wish relayed by the coordinator, 2026-10-14 (the three styles, two hosts, one voice per speaker); `GET /v1/models` on 2026-10-14 for the speech model's parameters
+**Source:** maintainer wish relayed by the coordinator, 2026-10-14 (the three styles, two hosts, one voice per speaker); maintainer order relayed by the coordinator, 2026-10-14 (the fourth style, faq, with two voices); `GET /v1/models` on 2026-10-14 for the speech model's parameters
 **Revisit when:** the platform documents its `instructions` parameter for prosody, or listeners cannot tell the two voices apart
 
 `audio_style` is `overview` (default, the earlier behaviour), `story`
-(the material as a narrative, one narrator, nothing invented) or
+(the material as a narrative, one narrator, nothing invented),
 `conversation` (an interviewer asking, an expert answering only from
-the material), each with its own prompt and JSON schema. A conversation
-is a list of turns, and each turn is read with its speaker's voice:
+the material) or `faq`, each with its own prompt and JSON schema. An FAQ
+has 5 to 8 questions a listener would most likely ask about the material,
+each answered from it. The interviewer asks and the expert answers, in
+strict turn, and the questions carry no claim. A conversation
+(or an FAQ) is a list of turns, and each turn is read with its speaker's voice:
 `voice` for the interviewer, `audio_voice_2` for the expert. The second
 voice defaults to the next one with the same native language as the
 first, so both read the material's language equally well (`ryan` →
@@ -382,8 +385,12 @@ speakers, and its `instructions` parameter, the only prosody control,
 is listed without a type and was never probed. Switching voices per
 turn costs nothing extra, because speech is billed per second.
 
-**Rejected alternative:** one voice with different prosody per speaker
-(see above); unknown whether anything else was weighed.
+**Rejected alternatives:**
+- One voice with different prosody per speaker (see above).
+- For the FAQ, one narrator reading "Question …, answer …": less clear to
+  listen to than a change of voice between question and answer.
+
+Unknown whether anything else was weighed.
 
 ## A decision's number comes from the decision model, its evidence from the LLM independently, and their agreement is shown
 
