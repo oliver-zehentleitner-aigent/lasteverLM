@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Admin: Finance comes right after Overview in the sub-navigation (Overview · Finance · Users · Access · Security · Visits · Mail · System).
+
 ### Fixed
 
 - Admin > Finance: the range bar's day pills, labels and date fields share one height and line; every money cell, tile and total follows one rule (two decimals from 1 € up, two to four below, the exact value in the tooltip) instead of €0.90 next to €0.622125.
