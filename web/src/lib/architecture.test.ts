@@ -37,6 +37,11 @@ describe('architectureNodes', () => {
     expect(n.web).toMatchObject({ state: 'warn', reasons: ['rolling'] })
   })
 
+  it('falls back to the replica counts when the Progressing condition is not reported', () => {
+    const s = { ...system, deployments: [{ name: 'account', replicas: 1, ready: 1, updated: 1, progressing: null }] }
+    expect(architectureNodes(s).account.state).toBe('ok')
+  })
+
   it('never calls a rollout a failure, even with nothing ready yet', () => {
     const s = { ...system, deployments: [{ name: 'rag-worker', replicas: 1, ready: 0, updated: 1, progressing: true }] }
     expect(architectureNodes(s)['rag-worker']).toMatchObject({ state: 'warn', reasons: ['rolling'] })

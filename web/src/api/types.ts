@@ -486,8 +486,8 @@ export interface SystemInfo {
     version: string | null
     commit: string | null
     healthy: boolean
-    /** what the service's healthz says about what it uses; absent until core reports it */
-    dependencies?: Partial<Record<Dependency, 'ok' | 'down'>>
+    /** what the service's healthz says about what it uses; null or absent until core reports it */
+    dependencies?: Partial<Record<Dependency, 'ok' | 'down'>> | null
   }[]
   pods: {
     name: string
@@ -505,8 +505,8 @@ export interface SystemInfo {
     replicas: number
     ready: number
     updated: number
-    /** the Progressing condition is true: a rollout is under way; absent when not reported */
-    progressing?: boolean
+    /** a rollout is under way (Progressing true, not yet NewReplicaSetAvailable); null or absent when not reported */
+    progressing?: boolean | null
   }[]
 }
 
