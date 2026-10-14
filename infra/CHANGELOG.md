@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `STT_MODEL` in the ConfigMap (`config.sttModel`, empty = core's default `whisper-large-v3-turbo`) for ingest's audio sources; production and `compose.yaml` set `whisper-large-v3-turbo` and its `MODEL_PRICES` entry, 1111 cents per million seconds of audio (0.00001111 USD per second in the platform's model catalog).
+
 ## [0.10.0] - 2026-10-14
 
 ### Added

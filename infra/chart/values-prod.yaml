@@ -13,11 +13,13 @@ config:
   # The migrations created vector(1024) columns with it; changing it needs
   # a new migration and every stored embedding computed again.
   embeddingDimension: 1024
-  # Cents per million tokens (core/README.md, MODEL_PRICES).
-  modelPrices: '{"qwen3.8-27b":{"in":100,"out":100},"qwen3-embedding-4b":{"in":5,"out":5},"qwen3-tts-12hz-1.7b":{"in":28000,"out":28000}}'
+  # Cents per million tokens; a tts model per million characters, an stt
+  # model per million seconds of audio (core/README.md, MODEL_PRICES).
+  modelPrices: '{"qwen3.8-27b":{"in":100,"out":100},"qwen3-embedding-4b":{"in":5,"out":5},"qwen3-tts-12hz-1.7b":{"in":28000,"out":28000},"whisper-large-v3-turbo":{"in":1111,"out":1111}}'
   similarityFloor: ""
   ttsModel: qwen3-tts-12hz-1.7b
   ttsVoice: ryan
+  sttModel: whisper-large-v3-turbo
   # Credit of a new voucher in cents: 5 EUR.
   voucherDefaultCents: 500
   # Vultr Object Storage, region ams1 (tofu output s3_endpoint).

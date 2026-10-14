@@ -34,3 +34,6 @@ data:
   {{- with .Values.config.ttsVoice }}
   TTS_VOICE: {{ . | quote }}
   {{- end }}
+  {{- with .Values.config.sttModel }}
+  STT_MODEL: {{ . | quote }}
+  {{- end }}
