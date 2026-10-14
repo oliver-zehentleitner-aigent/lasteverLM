@@ -28,8 +28,11 @@ pointing at it:
 - the login page sends the link request; the service prints the sign-in
   link to its terminal, open it in the browser to land on
   `/auth/callback` and be signed in;
-- the token `demo` on "Have an access token?" signs in as the demo user
-  (no admin);
+- the token in that link also works as the code on "Have a sign-in code
+  from the mail?" (once, like the link);
+- the token `demo` is a Bearer token for the API (curl, the smoke test),
+  not a sign-in code; to be the demo user (no admin) in the browser, set
+  `localStorage['lasteverlm.token'] = 'demo'` in the dev tools and reload;
 - the first address in the service's allowed list becomes admin and sees
   the admin page.
 

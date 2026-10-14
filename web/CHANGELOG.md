@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Notebook sources list: each row showed only its checkbox, centered, and nothing else; the global `width: 100%` for inputs applied to the new source checkbox, which then took the whole row. Checkboxes and radios now keep their own width.
+- Sign-in code: the form under the sign-in ("Have a sign-in code from the mail?") exchanges the code from the mail like the link (`GET /api/account/auth/callback?token=…`) and stores the returned JWT; before, it stored the pasted value as the Bearer token, so the mail's code led to a 401 on every request and nothing visible. The code's format (43 characters of letters, digits, `-` and `_`) is checked while typing with a count, Continue waits for it, an eye toggle shows the code, an unknown, used or expired code and a network or server failure are shown under the form. The field no longer takes a raw Bearer token (`demo` included); docs/development.md says how to use one in the browser.
 
 ## [0.10.0] - 2026-10-14
 

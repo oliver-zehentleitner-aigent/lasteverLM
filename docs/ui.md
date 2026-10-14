@@ -274,7 +274,12 @@ deleted from the library) stays readable with its quote and is marked
 - Login page: one field, the e-mail address; then "check your mail";
   the link lands on `/auth/callback` and the app is open. An address
   without access is told "This address has no access to lasteverLM."
-  and no mail goes out.
+  and no mail goes out. Under it, "Have a sign-in code from the mail?"
+  takes the code the mail prints under the link (the same single-use
+  token, for another device): 43 characters of letters, digits, `-`
+  and `_`, counted while typing, Continue enabled once it matches, an
+  eye toggle to show it; it is exchanged like the link, and an unknown,
+  used or expired code says so.
 - Header: balance in EUR, a voucher button that opens a one-field
   dialog. A 402 anywhere opens the same dialog.
 - Admin (for the roles `admin` and `viewer`): pages under `/admin` with

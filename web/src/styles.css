@@ -136,6 +136,12 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .card h2 { color: var(--fg); text-transform: none; letter-spacing: 0; font-size: 1.05rem; margin: 0; }
 .demo summary { cursor: pointer; color: var(--muted); }
 .demo form { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.6rem; }
+.demo form p { margin: 0; }
+/* the code field with its show/hide toggle; pressed = shown */
+.code-input { display: flex; align-items: center; gap: 0.25rem; }
+.code-input input { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.code-input button.icon:hover { color: var(--fg); }
+.code-input button[aria-pressed='true'] { color: var(--accent); }
 
 /* header */
 .topbar { display: flex; align-items: center; gap: 1.25rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--line); background: var(--panel); height: 48px; }

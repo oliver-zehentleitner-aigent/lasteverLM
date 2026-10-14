@@ -85,8 +85,8 @@ export const en = {
   'login.sending': 'Sending…',
   'login.send': 'Send sign-in link',
   'login.notAllowed': 'This address has no access to lasteverLM.',
-  'login.haveToken': 'Have an access token?',
-  'login.token': 'Token',
+  'login.haveToken': 'Have a sign-in code from the mail?',
+  'login.token': 'Sign-in code',
   'login.continue': 'Continue',
   'callback.noToken': 'The link is missing its token.',
   'callback.failed': 'Sign-in failed',
@@ -500,6 +500,11 @@ export const en = {
   'adm.viewerDomains': 'Viewer domains',
   'adm.viewerDomainsHint': 'A new user from one of these domains starts as viewer: the admin panel, read-only. The domain must also be allowed to sign in above; existing users keep their role.',
   'adm.removeViewerDomain': 'Remove {v} from the viewer domains?',
+  'login.codeHint': '{total} characters: letters, digits, - and _ · {n} so far',
+  'login.codeChars': 'The code has only letters, digits, - and _. Copy it again from the mail.',
+  'login.codeInvalid': 'This code is unknown, already used or expired. Request a new sign-in link above.',
+  'login.showCode': 'Show code',
+  'login.hideCode': 'Hide code',
 } as const
 
 export type MessageKey = keyof typeof en
