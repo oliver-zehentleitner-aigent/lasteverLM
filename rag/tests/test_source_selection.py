@@ -7,6 +7,7 @@ from .conftest import (
     CONVERSATION,
     NOTEBOOK,
     OTHER_NOTEBOOK,
+    REPORT_DEFAULTS,
     FakeLLM,
     FakeRetriever,
     FakeStore,
@@ -101,7 +102,7 @@ def test_an_output_is_made_from_the_selected_sources_and_records_them(settings):
 
     r = client.post(OUTPUTS, json={"kind": "report", "source_ids": [vnc, vnc]}, headers=AUTH)
     assert r.status_code == 202, r.text
-    assert r.json()["options"] == {"sources": [vnc]}
+    assert r.json()["options"] == {"sources": [vnc], **REPORT_DEFAULTS}
     assert client.worker.run_once() == 1
 
     prompt = llm.calls[0][1]
@@ -113,7 +114,7 @@ def test_an_output_is_made_from_the_selected_sources_and_records_them(settings):
         (None, [vnc]),
     ]
     out = client.get(f"/api/rag/outputs/{r.json()['id']}", headers=AUTH).json()
-    assert out["status"] == "ready" and out["options"] == {"sources": [vnc]}
+    assert out["status"] == "ready" and out["options"] == {"sources": [vnc], **REPORT_DEFAULTS}
 
 
 def test_an_output_whose_selected_sources_are_gone_fails_visibly(settings):
@@ -134,7 +135,7 @@ def test_the_shared_view_does_not_reveal_the_selected_source_ids(settings):
     client.worker.run_once()
     token = client.post(f"/api/rag/outputs/{output_id}/share", headers=AUTH).json()["share_token"]
     shared = client.get(f"/api/rag/shared/{token}").json()
-    assert shared["options"] == {"language": "de"}
+    assert shared["options"] == {"language": "de", **REPORT_DEFAULTS}
     assert vnc not in str(shared)
 
 

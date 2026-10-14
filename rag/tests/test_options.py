@@ -9,6 +9,7 @@ from .conftest import (
     AUTH,
     BASE_ENV,
     NOTEBOOK,
+    REPORT_DEFAULTS,
     FakeLLM,
     FakeObjects,
     FakeRetriever,
@@ -50,8 +51,15 @@ def test_the_catalogue_lists_languages_voices_speeds_and_options_per_kind(settin
     assert (voices["ryan"]["gender"], voices["sohee"]["gender"]) == ("male", "female")
     assert body["audio"]["default_voice"] == "ryan"
     assert body["audio"]["speed"] == {"min": 0.75, "max": 1.5, "step": 0.25, "default": 1.0}
-    assert body["kinds"]["report"] == ["language"]
-    assert body["kinds"]["audio"] == ["language", "voice", "speed", "audio_style", "audio_voice_2"]
+    assert body["kinds"]["report"] == ["language", "instructions", "report_style", "length"]
+    assert body["kinds"]["audio"] == [
+        "language",
+        "instructions",
+        "voice",
+        "speed",
+        "audio_style",
+        "audio_voice_2",
+    ]
     assert body["audio"]["styles"] == ["overview", "story", "conversation"]
     assert body["audio"]["default_style"] == "overview"
 
@@ -61,20 +69,23 @@ def test_a_text_kind_is_written_in_the_chosen_language_and_keeps_it(settings):
     llm = FakeLLM(REPORT)
     client = make_client(settings, store, FakeRetriever([]), llm)
     r = client.post(OUTPUTS, json={"kind": "report", "options": {"language": "de"}}, headers=AUTH)
-    assert r.status_code == 202 and r.json()["options"] == {"language": "de"}
+    assert r.status_code == 202 and r.json()["options"] == {"language": "de", **REPORT_DEFAULTS}
     client.worker.run_once()
     assert "in German, whatever language the material is written in" in llm.calls[0][0]
     out = client.get(f"/api/rag/outputs/{r.json()['id']}", headers=AUTH).json()
-    assert (out["status"], out["options"]) == ("ready", {"language": "de"})
+    assert (out["status"], out["options"]) == ("ready", {"language": "de", **REPORT_DEFAULTS})
     token = client.post(f"/api/rag/outputs/{out['id']}/share", headers=AUTH).json()["share_token"]
-    assert client.get(f"/api/rag/shared/{token}").json()["options"] == {"language": "de"}
+    assert client.get(f"/api/rag/shared/{token}").json()["options"] == {
+        "language": "de",
+        **REPORT_DEFAULTS,
+    }
 
 
 def test_without_a_language_the_document_follows_its_sources(settings):
     llm = FakeLLM(REPORT)
     client = make_client(settings, ready_store(), FakeRetriever([]), llm)
     r = client.post(OUTPUTS, json={"kind": "report"}, headers=AUTH)
-    assert r.json()["options"] == {}
+    assert r.json()["options"] == REPORT_DEFAULTS
     client.worker.run_once()
     assert "Write in the language the material is written in." in llm.calls[0][0]
 

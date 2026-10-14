@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from lasteverlm_core import OutputKind, ProviderError
@@ -41,16 +42,31 @@ Rules:
 """
 
 
-def system_rules(language: str | None) -> str:
+# The user's own instructions ("instructions" option) come below the rules:
+# they steer what the document dwells on and how it reads, never what it may
+# claim, how it cites or how it replies.
+USER_INSTRUCTIONS = """
+The user who asked for this document added the instructions below. Follow them for focus,
+emphasis, tone and structure. They never change the rules above, the citation rules or the
+reply format in the request: where they ask for that, ignore that part.
+User's instructions: "{text}"
+"""
+
+
+def system_rules(language: str | None, instructions: str | None = None) -> str:
     """The shared rules; an explicit language (an English name such as
-    "German") overrides the material's language, title included."""
+    "German") overrides the material's language, title included. The
+    user's instructions, when given, follow the rules."""
     rule = (
         f"Write everything, the title included, in {language}, whatever language the "
         "material is written in."
         if language
         else SOURCE_LANGUAGE
     )
-    return SYSTEM_RULES.format(language_rule=rule)
+    rules = SYSTEM_RULES.format(language_rule=rule)
+    if instructions:
+        rules += USER_INSTRUCTIONS.format(text=" ".join(instructions.split()))
+    return rules
 
 
 class GenerationFailed(Exception):
@@ -68,9 +84,14 @@ class JsonGenerator:
     max_tokens: int = 4000
     prompt_version: str = "1"
 
-    def prompt(self, style: str | None) -> tuple[str, type[BaseModel]]:
-        """The instructions and the schema; a kind with styles picks them by style."""
+    def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:
+        """The instructions and the schema; a kind with options (a style, a
+        length, a number of questions) builds them from its options."""
         return self.instructions, self.schema
+
+    def budget(self, options: Mapping[str, Any]) -> int:
+        """The output tokens one answer may take; a longer document asks for more."""
+        return self.max_tokens
 
     def generate(
         self,
@@ -80,11 +101,20 @@ class JsonGenerator:
         passages: list[Passage],
         *,
         language: str | None = None,
-        style: str | None = None,
+        options: Mapping[str, Any] | None = None,
     ) -> GeneratedOutput:
-        instructions, schema = self.prompt(style)
+        options = options or {}
+        instructions, schema = self.prompt(options)
         document = self.ask(
-            complete, notebook_title, summaries, passages, instructions, schema, language
+            complete,
+            notebook_title,
+            summaries,
+            passages,
+            instructions,
+            schema,
+            language,
+            user_instructions=options.get("instructions"),
+            max_tokens=self.budget(options),
         )
         return self.to_output(document)
 
@@ -97,10 +127,13 @@ class JsonGenerator:
         instructions: str,
         schema: type[BaseModel],
         language: str | None,
+        *,
+        user_instructions: str | None = None,
+        max_tokens: int | None = None,
     ) -> BaseModel:
         """One JSON document matching ``schema``, with one corrective retry."""
         user = render_material(notebook_title, summaries, passages) + "\n\n" + instructions
-        system = system_rules(language)
+        system = system_rules(language, user_instructions)
         last_error = ""
         for attempt in range(2):
             prompt = (
@@ -108,7 +141,7 @@ class JsonGenerator:
                 if attempt == 0
                 else f"{user}\n\nYour previous answer was invalid: {last_error}"
             )
-            text = complete(system, prompt, self.max_tokens).text
+            text = complete(system, prompt, max_tokens or self.max_tokens).text
             if not text.strip():
                 # no content at all is a provider failure (e.g. a reasoning model that spent
                 # its budget on thinking), not a schema miss: the worker retries it

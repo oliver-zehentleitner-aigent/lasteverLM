@@ -8,7 +8,8 @@ else changes.
 
 from __future__ import annotations
 
-from typing import Protocol
+from collections.abc import Mapping
+from typing import Any, Protocol
 
 from lasteverlm_core import CompletionResult, OutputKind
 
@@ -29,7 +30,7 @@ class OutputGenerator(Protocol):
         passages: list[Passage],
         *,
         language: str | None = None,
-        style: str | None = None,
+        options: Mapping[str, Any] | None = None,
     ) -> GeneratedOutput: ...
 
 

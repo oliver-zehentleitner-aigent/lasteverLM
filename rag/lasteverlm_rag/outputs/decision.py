@@ -18,6 +18,7 @@ the verdict is "The sources do not decide this.", whatever the number.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Literal
 
 from lasteverlm_core import OutputKind
@@ -85,7 +86,7 @@ class DecisionGenerator(JsonGenerator):
     prompt_version: str = "1"
     max_tokens: int = 3000
 
-    def prompt(self, style: str | None) -> tuple[str, type[BaseModel]]:
+    def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:
         raise NotImplementedError("a decision is prompted through evidence_prompt")
 
     def evidence_prompt(self, options: dict[str, Any]) -> tuple[str, type[BaseModel]]:

@@ -63,6 +63,8 @@ from .models import (
     ConversationRename,
     DailyStats,
     OutputCreate,
+    OutputRename,
+    SharedNotebook,
 )
 from .options import catalogue
 from .outputs import OutputGenerator, registry
@@ -333,6 +335,15 @@ def create_app(
     def unshare_output(output_id: OutputId, user: User) -> Response:
         outputs.unshare(user, str(output_id))
         return Response(status_code=204)
+
+    @app.patch(f"{PREFIX}/outputs/{{output_id}}", response_model=Output)
+    def rename_output(output_id: OutputId, body: OutputRename, user: User) -> Output:
+        return outputs.rename(user, str(output_id), body.title)
+
+    @app.get(f"{PREFIX}/shared/notebooks/{{token}}", response_model=SharedNotebook)
+    def shared_notebook(token: str) -> SharedNotebook:
+        """A notebook its owner shared through ingest; no sign-in."""
+        return outputs.shared_notebook(token)
 
     @app.get(f"{PREFIX}/shared/{{token}}", response_model=SharedOutput)
     def shared_output(token: str) -> SharedOutput:

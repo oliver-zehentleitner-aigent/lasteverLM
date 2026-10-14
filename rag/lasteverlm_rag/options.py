@@ -1,5 +1,7 @@
-"""Generation options per output kind: language for every kind; voice,
-speed, style and the second voice of a conversation for audio.
+"""Generation options per output kind: language and the user's own
+instructions for every kind; style and length for a report; the number of
+questions, difficulty and audience for a quiz; voice, speed, style and the
+second voice of a conversation for audio; the question for a decision.
 
 The catalogue is served to the web (``GET /api/rag/outputs/options``) so
 nothing is hardcoded there. Voices are the platform's (Qwen3-TTS
@@ -59,16 +61,26 @@ VOICES = [
 ]
 SPEED_MIN, SPEED_MAX, SPEED_STEP, SPEED_DEFAULT = 0.75, 1.5, 0.25, 1.0
 
-TEXT_OPTIONS = ["language"]
+TEXT_OPTIONS = ["language", "instructions"]
 KIND_OPTIONS: dict[OutputKind, list[str]] = {
-    "report": TEXT_OPTIONS,
-    "quiz": TEXT_OPTIONS,
+    "report": [*TEXT_OPTIONS, "report_style", "length"],
+    "quiz": [*TEXT_OPTIONS, "question_count", "difficulty", "audience"],
     "table": TEXT_OPTIONS,
     "mindmap": TEXT_OPTIONS,
     "infographic": TEXT_OPTIONS,
-    "audio": ["language", "voice", "speed", "audio_style", "audio_voice_2"],
-    "decision": ["language", "question", "decision_type", "choices", "levels"],
+    "audio": [*TEXT_OPTIONS, "voice", "speed", "audio_style", "audio_voice_2"],
+    "decision": [*TEXT_OPTIONS, "question", "decision_type", "choices", "levels"],
 }
+INSTRUCTIONS_MAX_CHARS = 500
+REPORT_STYLES = ["briefing", "detailed", "executive_summary", "explainer", "academic"]
+DEFAULT_REPORT_STYLE = "briefing"
+LENGTHS = ["short", "medium", "long"]
+DEFAULT_LENGTH = "medium"
+QUESTION_COUNT_MIN, QUESTION_COUNT_MAX, QUESTION_COUNT_DEFAULT = 5, 30, 10
+DIFFICULTIES = ["easy", "medium", "hard"]
+DEFAULT_DIFFICULTY = "medium"
+AUDIENCES = ["children", "teens", "adults", "experts"]
+DEFAULT_AUDIENCE = "adults"
 AUDIO_STYLES = ["overview", "story", "conversation"]
 DEFAULT_AUDIO_STYLE = "overview"
 DECISION_TYPES = ["yes_no", "choice", "scale"]
@@ -88,6 +100,12 @@ class OutputOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     language: str | None = None
+    instructions: str | None = None
+    report_style: str | None = None
+    length: str | None = None
+    question_count: int | None = None
+    difficulty: str | None = None
+    audience: str | None = None
     voice: str | None = None
     speed: float | None = None
     audio_style: str | None = None
@@ -99,9 +117,10 @@ class OutputOptions(BaseModel):
 
 
 def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str) -> dict[str, Any]:
-    """The options as stored on the output: validated for the kind, audio's
-    defaults filled in. ``language`` stays absent when not given (the
-    document follows the language of its sources). Raises ``ValueError``."""
+    """The options as stored on the output: validated for the kind, the
+    defaults of report, quiz and audio filled in. ``language`` stays absent
+    when not given (the document follows the language of its sources), and
+    so do empty ``instructions``. Raises ``ValueError``."""
     given = options.model_dump(exclude_none=True) if options else {}
     allowed = KIND_OPTIONS[kind]
     for key in given:
@@ -109,6 +128,24 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
             raise ValueError(f"{key}: not an option of {kind}")
     if "language" in given and given["language"] not in _LANGUAGE_BY_CODE:
         raise ValueError(f"language: unknown code {given['language']!r}")
+    if "instructions" in given:
+        text = " ".join(str(given.pop("instructions")).split())
+        if len(text) > INSTRUCTIONS_MAX_CHARS:
+            raise ValueError(f"instructions: at most {INSTRUCTIONS_MAX_CHARS} characters")
+        if text:
+            given["instructions"] = text
+    for key, allowed_values in (
+        ("report_style", REPORT_STYLES),
+        ("length", LENGTHS),
+        ("difficulty", DIFFICULTIES),
+        ("audience", AUDIENCES),
+    ):
+        if key in given and given[key] not in allowed_values:
+            raise ValueError(f"{key}: unknown value {given[key]!r}")
+    if "question_count" in given and not (
+        QUESTION_COUNT_MIN <= given["question_count"] <= QUESTION_COUNT_MAX
+    ):
+        raise ValueError(f"question_count: between {QUESTION_COUNT_MIN} and {QUESTION_COUNT_MAX}")
     if "voice" in given and given["voice"] not in _VOICE_IDS:
         raise ValueError(f"voice: unknown voice {given['voice']!r}")
     if "speed" in given:
@@ -123,6 +160,13 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
         raise ValueError(f"audio_style: unknown style {given['audio_style']!r}")
     if "audio_voice_2" in given and given["audio_voice_2"] not in _VOICE_IDS:
         raise ValueError(f"audio_voice_2: unknown voice {given['audio_voice_2']!r}")
+    if kind == "report":
+        given.setdefault("report_style", DEFAULT_REPORT_STYLE)
+        given.setdefault("length", DEFAULT_LENGTH)
+    if kind == "quiz":
+        given.setdefault("question_count", QUESTION_COUNT_DEFAULT)
+        given.setdefault("difficulty", DEFAULT_DIFFICULTY)
+        given.setdefault("audience", DEFAULT_AUDIENCE)
     if kind == "audio":
         given.setdefault("voice", default_voice)
         given.setdefault("speed", SPEED_DEFAULT)
@@ -191,6 +235,24 @@ def is_voice(voice_id: str) -> bool:
 def catalogue(default_voice: str) -> dict[str, Any]:
     return {
         "languages": [{"code": lang.code, "label": lang.label} for lang in LANGUAGES],
+        "instructions": {"max_chars": INSTRUCTIONS_MAX_CHARS},
+        "report": {
+            "styles": REPORT_STYLES,
+            "default_style": DEFAULT_REPORT_STYLE,
+            "lengths": LENGTHS,
+            "default_length": DEFAULT_LENGTH,
+        },
+        "quiz": {
+            "question_count": {
+                "min": QUESTION_COUNT_MIN,
+                "max": QUESTION_COUNT_MAX,
+                "default": QUESTION_COUNT_DEFAULT,
+            },
+            "difficulties": DIFFICULTIES,
+            "default_difficulty": DEFAULT_DIFFICULTY,
+            "audiences": AUDIENCES,
+            "default_audience": DEFAULT_AUDIENCE,
+        },
         "audio": {
             "voices": [
                 {"id": v.id, "label": v.label, "gender": v.gender, "language": v.language}

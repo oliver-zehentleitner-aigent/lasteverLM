@@ -29,12 +29,14 @@ this directory implements the `/api/rag` prefix.
 | DELETE | `/api/rag/notebooks/{id}/outputs` | | 204, every output made in that notebook into the trash |
 | GET | `/api/rag/library/outputs?kind=&trash=` | `kind` optional, `trash` default false | `[Output]`, the caller's outputs from every notebook, newest first; with `trash=true` the trashed ones |
 | GET | `/api/rag/outputs/{id}` | | `Output`; 404 when trashed |
+| PATCH | `/api/rag/outputs/{id}` | `{"title"}` | `Output`; title trimmed, 1–200 chars, else 422; 409 unless ready; renames its generated source too |
 | DELETE | `/api/rag/outputs/{id}` | | 204, into the trash |
 | POST | `/api/rag/outputs/{id}/restore` | | 204, out of the trash |
 | DELETE | `/api/rag/outputs/{id}/purge` | | 204, deleted for good; 409 unless in the trash |
 | POST | `/api/rag/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/api/rag/outputs/{id}/share` | | 204 |
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
+| GET | `/api/rag/shared/notebooks/{token}` | no auth | `{"title", "sources": [{"name", "kind"}], "outputs": [SharedOutput]}`, see below |
 | GET | `/api/rag/admin/stats` | viewers and admins | `AdminStats`, see below |
 | GET | `/api/rag/admin/stats/daily?days=` | viewers and admins; `days` 1–365, default 30 | `DailyStats`, see below |
 | DELETE | `/api/rag/admin/users/{id}` | admins only | 204, see below |
@@ -228,9 +230,24 @@ distinct topics. After generation, a source whose distinctive file-name
 words (words no other source's name has) appear nowhere in the document
 is logged as a warning with the output id; the document is kept.
 
-**Options.** `options` on `POST .../outputs` is `{"language"?, "voice"?,
-"speed"?, "audio_style"?, "audio_voice_2"?}`: `language` (one of ten
-codes, `de`, `en`, `fr`, ...) for every kind, the others for audio only.
+**Options.** `options` on `POST .../outputs` takes `language` (one of
+ten codes, `de`, `en`, `fr`, ...) and `instructions` for every kind;
+`report_style` and `length` for a report; `question_count`,
+`difficulty` and `audience` for a quiz; `voice`, `speed`, `audio_style`
+and `audio_voice_2` for audio; and the decision's own (below).
+`instructions` is the user's own note to the generator (at most 500
+characters, whitespace collapsed, blank dropped). It is given below the
+system rules and steers focus, emphasis and tone. It never overrides the
+rules, the citation rules or the reply format, and it is recorded with
+the options in the provenance log. A report's `report_style` is
+`briefing` (default), `detailed`, `executive_summary`, `explainer` (for
+newcomers) or `academic`, and its `length` is `short` (about 300–500
+words), `medium` (default, about 700–1200) or `long` (about 1800–2500).
+A quiz asks for exactly `question_count` questions (5–30, default 10):
+fewer gets the corrective retry, more are cut. Its `difficulty` is
+`easy`, `medium` (default) or `hard`, and its `audience` is `children`,
+`teens`, `adults` (default) or `experts`. Report and quiz defaults are
+stored on the output.
 `audio_style` is `overview` (default), `story` or `conversation`;
 `audio_voice_2` is the expert's voice and only valid for `conversation`,
 where it defaults to the next voice with the same native language as
@@ -245,7 +262,9 @@ output (`outputs.options`) and returned as `Output.options` and on the
 shared view. `GET /api/rag/outputs/options` lists the languages, the
 voices (`id`, `label`, `gender`, native `language`, from the Qwen3-TTS
 model card), the default voice, the styles and the default style, the
-speed range and which options each kind takes, so clients hardcode nothing; the language preference itself
+speed range, `instructions.max_chars`, the report's styles and lengths,
+the quiz's count range, difficulties and audiences (each with its
+default) and which options each kind takes, so clients hardcode nothing; the language preference itself
 lives in account and the web sends it explicitly.
 
 **Voice previews.** `POST /api/rag/outputs/voice-sample` speaks one or
@@ -257,6 +276,18 @@ it (one `tts` usage row for the caller, about one cent, 402 without
 credit), every later one, from any user, gets the stored file
 (`"cached": true`) without a model call. The URL is presigned for one
 hour. 503 when the deployment has no text-to-speech.
+
+**Shared notebooks.** Ingest shares a notebook under a token
+(`notebooks.share_token`, set and revoked there). `GET
+/api/rag/shared/notebooks/{token}`, without sign-in, returns three things:
+the notebook's `title`; its ready uploads as `sources` (`name` and `kind`
+only, no files, previews or ids); and its ready outputs outside the trash,
+oldest first, as `outputs`. Each output is exactly what
+`/shared/{token}` shows for a single output: no ids, no source selection,
+and the provenance without chunk and source ids. Generated sources are
+not listed among the sources, since they appear as outputs. An audio
+`url` is presigned on every call. An unknown or revoked token answers
+404 `notebook not found`.
 
 `decision`: a question answered from the sources, by two independent
 calls over the same numbered passages, retrieved with the question as

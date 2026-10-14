@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from lasteverlm_core import OutputKind
@@ -19,18 +20,62 @@ class Report(BaseModel):
     markdown: str = Field(min_length=1)
 
 
+# one per style of ``options.REPORT_STYLES``: what kind of document, for whom
+STYLES: dict[str, str] = {
+    "briefing": (
+        "Write a briefing document on the material: an introduction, one section per main "
+        "topic with headings, and a conclusion."
+    ),
+    "detailed": (
+        "Write a detailed report on the material: an introduction, one section per topic "
+        "with headings, each covering the topic in depth with the specifics the material "
+        "gives (numbers, names, conditions, exceptions), and a conclusion."
+    ),
+    "executive_summary": (
+        "Write an executive summary of the material for a reader who has to act on it: the "
+        "bottom line first, then the key findings, their implications and any risks or open "
+        "points the material names, with short headings. Lead with what matters most."
+    ),
+    "explainer": (
+        "Write an explainer of the material for a reader new to the subject: start from the "
+        "basics, explain every term when it first appears, build up step by step under "
+        "headings, and use the material's own examples. Plain words over jargon."
+    ),
+    "academic": (
+        "Write an academic-style report on the material: a formal register and precise "
+        "terminology, an introduction stating the subject and scope, sections with headings "
+        "that present and discuss the material's content, and a conclusion that includes the "
+        "limitations the material itself states. Cite no literature beyond the passages."
+    ),
+}
+# one per length of ``options.LENGTHS``: the target in words, and the answer's budget
+LENGTHS: dict[str, tuple[str, int]] = {
+    "short": ("about 300 to 500 words", 4000),
+    "medium": ("about 700 to 1200 words", 4000),
+    "long": ("about 1800 to 2500 words", 8000),
+}
+
+
 class ReportGenerator(JsonGenerator):
     kind: OutputKind = "report"
     focus_query: str = "main topics, key findings, conclusions"
     schema: type[BaseModel] = Report
-    prompt_version: str = "2"  # 2: cites passages for provenance
-    instructions: str = (
-        "Write a structured report on the material: an introduction, one section per main "
-        "topic with headings, and a conclusion. Markdown, no top-level title inside the text. "
-        f"{CITE_RULE} Put the markers in the text after the sentence they support, as [2] or "
-        "[1, 3]; headings carry none. "
-        'Reply as {"title": "...", "markdown": "..."}.'
-    )
+    prompt_version: str = "3"  # 3: styles and lengths; 2: cites passages for provenance
+    instructions: str = ""
+
+    def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:
+        style = STYLES[options.get("report_style", "briefing")]
+        words, _ = LENGTHS[options.get("length", "medium")]
+        return (
+            f"{style} Length: {words}. Markdown, no top-level title inside the text. "
+            f"{CITE_RULE} Put the markers in the text after the sentence they support, as [2] "
+            "or [1, 3]; headings carry none. "
+            'Reply as {"title": "...", "markdown": "..."}.',
+            Report,
+        )
+
+    def budget(self, options: Mapping[str, Any]) -> int:
+        return LENGTHS[options.get("length", "medium")][1]
 
     def generate(
         self,
@@ -40,10 +85,10 @@ class ReportGenerator(JsonGenerator):
         passages: list[Passage],
         *,
         language: str | None = None,
-        style: str | None = None,
+        options: Mapping[str, Any] | None = None,
     ) -> GeneratedOutput:
         generated = super().generate(
-            complete, notebook_title, summaries, passages, language=language, style=style
+            complete, notebook_title, summaries, passages, language=language, options=options
         )
         # a marker no passage has is dropped from the text, as in a chat answer;
         # the check marks its paragraph unsupported

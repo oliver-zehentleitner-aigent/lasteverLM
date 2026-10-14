@@ -8,7 +8,7 @@ from datetime import date, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from lasteverlm_core import OutputKind, OutputStatus, SourceKind
+from lasteverlm_core import OutputKind, OutputStatus, SharedOutput, SourceKind
 from pydantic import BaseModel, Field, StringConstraints
 
 from .options import OutputOptions
@@ -64,6 +64,28 @@ class ConversationRow:
                 "created_at": self.created_at,
             }
         )
+
+
+class OutputRename(BaseModel):
+    """An output's new title, trimmed before the length check."""
+
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
+
+class SharedSource(BaseModel):
+    name: str
+    kind: SourceKind
+
+
+class SharedNotebook(BaseModel):
+    """What ``GET /api/rag/shared/notebooks/{token}`` returns: the notebook's
+    title, its ready uploads by name and kind (no files, no previews, no
+    ids), and its ready outputs outside the trash, oldest first, each as the
+    shared view of one output shows it."""
+
+    title: str
+    sources: list[SharedSource]
+    outputs: list[SharedOutput]
 
 
 class OutputCreate(BaseModel):

@@ -14,6 +14,7 @@ import re
 import secrets
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
+from dataclasses import replace
 from typing import Any
 
 from lasteverlm_core import (
@@ -49,6 +50,8 @@ from .models import (
     OutputRow,
     Passage,
     RetrievedChunk,
+    SharedNotebook,
+    SharedSource,
     SourceSummary,
     SpeechTurn,
 )
@@ -556,10 +559,39 @@ class OutputService:
         row = self._active(user_id, output_id)
         self._store.update_output(row.id, share_token=None)
 
+    def rename(self, user_id: str, output_id: str, title: str) -> Output:
+        """A ready output outside the trash gets a new title; one still being
+        generated would have it overwritten by the worker, so it is 409."""
+        row = self._active(user_id, output_id)
+        if row.status != "ready":
+            raise OutputNotReady(output_id)
+        self._store.rename_output(row.id, title)
+        return self._present(replace(row, title=title))
+
     def shared(self, token: str) -> SharedOutput:
         row = self._store.get_shared_output(token) if token else None
         if row is None or row.status != "ready" or row.deleted_at is not None:
             raise OutputNotFound(token)
+        return self._shared_view(row)
+
+    def shared_notebook(self, token: str) -> SharedNotebook:
+        """A notebook its owner shared: title, uploads by name and kind, and
+        every ready output outside the trash as its shared view."""
+        notebook = self._store.get_shared_notebook(token) if token else None
+        if notebook is None:
+            raise NotebookNotFound(token)
+        documents = self._store.notebook_documents(notebook["id"])
+        rows = self._store.list_outputs(notebook["id"])
+        return SharedNotebook(
+            title=notebook["title"],
+            # generated sources are the outputs, listed below as such
+            sources=[
+                SharedSource(name=d.name, kind=d.kind) for d in documents if d.kind != "generated"
+            ],
+            outputs=[self._shared_view(r) for r in rows if r.status == "ready"],
+        )
+
+    def _shared_view(self, row: OutputRow) -> SharedOutput:
         return SharedOutput.model_validate(
             {
                 "kind": row.kind,
@@ -668,7 +700,8 @@ class OutputService:
 
     def _log(self, job: OutputRow) -> GenerationLog:
         generator = self._generators[job.kind]
-        style = job.options.get("audio_style")
+        # a kind's style names its prompt variant (the user's instructions are in the options)
+        style = job.options.get("audio_style") or job.options.get("report_style")
         return GenerationLog(
             prompt_version=f"{job.kind}{'-' + style if style else ''}-v{generator.prompt_version}",
             model=self._llm.model,
@@ -709,7 +742,7 @@ class OutputService:
             summaries,
             trace.passages,
             language=language_name(row.options.get("language")),
-            style=row.options.get("audio_style"),
+            options=row.options,
         )
         for name in uncovered_sources(generated.index_text, summaries, chunks):
             # fail-loud light: the document is kept, the gap is visible in the log
@@ -820,6 +853,7 @@ class OutputService:
             instructions,
             schema,
             language_name(options.get("language")),
+            user_instructions=options.get("instructions"),
         )
         assert isinstance(evidence, Evidence)
         trace.calls.append(

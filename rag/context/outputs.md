@@ -421,3 +421,68 @@ conflict visible.
 - The LLM seeing the model's number before writing the evidence.
 - Evidence for the model's selected option in a choice or scale: it
   breaks the independence.
+
+## A report's style and length and a quiz's count, difficulty and audience are prompt variants with stored defaults
+
+**Id:** 0ed4636e-c552-4bf8-963e-6925f6ccab29
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request relayed by the coordinator, 2026-10-14 (the option sets and their defaults); the prompts, budgets and the count rule are rag's
+**Revisit when:** quizzes of the larger counts fail on the count for small notebooks, or a long report hits the provider's output limit
+
+A report takes `report_style` (briefing, detailed, executive_summary,
+explainer, academic) and `length` (short, medium, long). A quiz takes
+`question_count` (5–30), `difficulty` and `audience`. Each value is a
+sentence in the generator's task, and the length is also a word target.
+The answer's token budget follows the size: 8000 for a long report, 250
+per question for a quiz (at least 4000). The defaults (briefing, medium;
+10, medium, adults) are stored on the output like audio's. A quiz must
+have the asked number of questions: fewer is a schema miss with the
+corrective retry, and more are cut to the first ones. The log's prompt
+version names the report style (`report-explainer-v3`).
+
+**Reason:** these options change what the model is asked for, never the
+pipeline. A variant of the same prompt keeps retrieval, the citation
+rule and the check identical for every value. The defaults go on the row
+for the reason in bd95d88e-3eb9-4ce9-ac07-510c6d9ce95f: the viewer shows
+what an output was made with. A fixed 4000-token budget would cut off a
+long report or a 30-question quiz mid-JSON, which is a failure the user
+pays for. The count is the user's explicit choice, so silently
+delivering seven of ten questions would hide that the request was not
+met (fail loud). One retry fixes a model that miscounted.
+
+**Rejected alternatives:**
+- Accepting fewer questions than asked: it hides the miss.
+- One fixed budget for every option: it cuts off long documents.
+
+Further alternatives: unknown. The coordinator's brief named the option
+sets but none that were turned down.
+
+## A shared notebook shows its uploads by name and its ready outputs as their shared view
+
+**Id:** 85dbc62d-1ee0-46eb-b0e4-fe7a6226a836
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request relayed by the coordinator, 2026-10-14 (the endpoint, sources as names and kinds, outputs as SharedOutput without ids); ingest's token and its source rule, 2026-10-14; leaving out generated sources and unready outputs is rag's
+**Revisit when:** a shared notebook should also show its chat, or outputs need to be shared from it one by one
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 9eda5c9c-7673-4343-814b-0d42feea51e1 — as of 2026-10-14
+
+`GET /api/rag/shared/notebooks/{token}` reads ingest's
+`notebooks.share_token`. It returns the title, the ready uploads by name
+and kind, and every ready output outside the trash. Each output goes
+through the same function as a single shared output, so it never shows
+more than one shared alone would. Generated sources are not listed among
+the sources, since they are the outputs below. A waiting, processing or
+failed output is not listed either.
+
+**Reason:** one code path for "an output a stranger sees" keeps the
+stripping of ids and the source selection in one place. A second shape
+would be a second place for a leak. A generated source listed as a
+source would show the same document twice under two names. An unready
+output has nothing to read, and a failed one would show an internal
+error to a stranger.
+
+**Rejected alternatives:** unknown. The brief fixed the shape, and no
+other was weighed.
