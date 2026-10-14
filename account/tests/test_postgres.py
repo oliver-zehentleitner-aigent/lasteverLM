@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -496,26 +497,66 @@ async def test_action_samples_group_per_action_id(repo: PostgresRepository) -> N
     assert samples[1].model in ("big", "voice")
 
 
-async def test_notebook_readiness_reads_ingest_tables(repo: PostgresRepository) -> None:
+def _ingest_sql(path: Path) -> str:
+    """An ingest migration as psycopg can run it: psql meta-commands dropped, the vector
+    dimension substituted (infra's runner passes it to psql), as ingest's own test does."""
+    text = re.sub(r"^\\.*$", "", path.read_text(), flags=re.MULTILINE)
+    return text.replace(":EMBEDDING_DIMENSION", "3")
+
+
+async def test_notebook_readiness_reads_ingest_schema(repo: PostgresRepository) -> None:
+    """Against ingest's real migrations, not a stub: since ingest's 0004 the status lives on
+    library_sources and `sources` only links them (a stub with `sources.status` hid that).
+    ingest's tables go into their own schema, beside the stubs the other tests use."""
+    assert DATABASE_URL
+    root = Path(__file__).resolve().parents[2]
     async with repo._pool.connection() as conn:
-        await conn.execute(
-            """create table if not exists notebooks (id uuid primary key, owner uuid not null);
-               create table if not exists sources (
-                   id uuid primary key, notebook_id uuid not null references notebooks (id)
-                   on delete cascade, status text not null)"""
-        )
+        await conn.execute((root / "infra/db/migrations/0001_extensions.sql").read_text())
+        await conn.execute("drop schema if exists ingest_real cascade; create schema ingest_real")
+        await conn.execute("set search_path to ingest_real, public")
+        for path in sorted((root / "ingest/db/migrations").glob("*.sql")):
+            await conn.execute(_ingest_sql(path))
+        await conn.execute("set search_path to default")
+    sep = "&" if "?" in DATABASE_URL else "?"
+    ingest = PostgresRepository.from_url(
+        f"{DATABASE_URL}{sep}options=-csearch_path%3Dingest_real,public", max_size=2
+    )
+    await ingest.open()
+    try:
         owner, nb, empty = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
-        await conn.execute(
-            "insert into notebooks values (%s, %s), (%s, %s)", (nb, owner, empty, owner)
-        )
-        for status in ("ready", "ready", "processing"):
+        async with ingest._pool.connection() as conn:
             await conn.execute(
-                "insert into sources values (%s, %s, %s)", (uuid.uuid4(), nb, status)
+                "insert into notebooks (id, owner, title) values (%s, %s, 'a'), (%s, %s, 'b')",
+                (nb, owner, empty, owner),
             )
-    got = await repo.notebook_readiness(nb)
-    assert got is not None and (got.owner_id, got.sources, got.ready) == (owner, 3, 2)
-    assert (await repo.notebook_readiness(empty)).sources == 0  # type: ignore[union-attr]
-    assert await repo.notebook_readiness(uuid.uuid4()) is None
+            for status, trashed in (
+                ("ready", False),
+                ("ready", False),
+                ("processing", False),
+                ("added", False),
+                ("added", False),
+                ("failed", True),  # trashed: not counted, ingest would not copy it
+            ):
+                lib = uuid.uuid4()
+                await conn.execute(
+                    "insert into library_sources (id, owner, name, kind, status, deleted_at)"
+                    " values (%s, %s, 'x', 'text', %s, case when %s then now() end)",
+                    (lib, owner, status, trashed),
+                )
+                await conn.execute(
+                    "insert into sources (id, notebook_id, library_source_id)"
+                    " values (%s, %s, %s)",
+                    (uuid.uuid4(), nb, lib),
+                )
+        got = await ingest.notebook_readiness(nb)
+        assert got is not None
+        assert (got.owner_id, got.sources, got.ready, got.added) == (owner, 5, 2, 2)
+        assert (await ingest.notebook_readiness(empty)).sources == 0  # type: ignore[union-attr]
+        assert await ingest.notebook_readiness(uuid.uuid4()) is None
+    finally:
+        await ingest.close()
+        async with repo._pool.connection() as conn:
+            await conn.execute("drop schema ingest_real cascade")
 
 
 async def test_credit_history_groups_actions_and_joins_titles(repo: PostgresRepository) -> None:

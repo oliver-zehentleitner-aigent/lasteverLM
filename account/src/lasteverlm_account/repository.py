@@ -219,11 +219,13 @@ class ActionSampleRecord:
 @dataclass(frozen=True)
 class NotebookReadiness:
     """A notebook as ingest stores it (its tables in the shared database): who owns it and
-    how many of its sources are ready."""
+    how many of its sources are ready, and how many are not read yet (``added``: ingest reads
+    a source when it is used)."""
 
     owner_id: uuid.UUID
     sources: int
     ready: int
+    added: int = 0
 
 
 @dataclass(frozen=True)

@@ -787,18 +787,26 @@ class PostgresRepository:
 
     async def notebook_readiness(self, notebook_id: uuid.UUID) -> NotebookReadiness | None:
         async with self._pool.connection() as conn:
+            # ingest's contract (its 0004): `sources` links a notebook to a library entry,
+            # the status lives on `library_sources`; a trashed entry is not copied
             cur = await conn.execute(
                 """select n.owner,
-                          count(s.id) as sources,
-                          count(s.id) filter (where s.status = 'ready') as ready
-                   from notebooks n left join sources s on s.notebook_id = n.id
+                          count(l.id) as sources,
+                          count(l.id) filter (where l.status = 'ready') as ready,
+                          count(l.id) filter (where l.status = 'added') as added
+                   from notebooks n
+                   left join sources s on s.notebook_id = n.id
+                   left join library_sources l
+                          on l.id = s.library_source_id and l.deleted_at is null
                    where n.id = %s group by n.owner""",
                 (notebook_id,),
             )
             row = await cur.fetchone()
         if row is None:
             return None
-        return NotebookReadiness(row["owner"], int(row["sources"]), int(row["ready"]))
+        return NotebookReadiness(
+            row["owner"], int(row["sources"]), int(row["ready"]), int(row["added"])
+        )
 
     # the user's credit history: usage grouped per action_id (fee included), the ledger,
     # titles from rag's outputs, ingest's notebooks and library_sources (null when gone)

@@ -51,6 +51,15 @@ def test_refusals(client: TestClient, mailer: FakeMailer, repo: MemoryRepository
     r = client.put(URL, json={"notebook_id": str(half)}, headers=bearer(token))
     assert r.status_code == 409 and r.json()["code"] == "sources_not_ready"
     assert r.json()["error"].startswith("1 of 3 sources are ready")
+    unread = uuid.uuid4()
+    repo.notebooks[unread] = uuid.UUID(admin["id"])
+    repo.sources += [(unread, "ready")] + [(unread, "added")] * 3
+    r = client.put(URL, json={"notebook_id": str(unread)}, headers=bearer(token))
+    assert r.status_code == 409 and r.json()["code"] == "sources_not_ready"
+    assert r.json()["error"] == (
+        "3 sources are not read yet; ask a question or create an output in the notebook"
+        " to read them"
+    )
     empty = uuid.uuid4()
     repo.notebooks[empty] = uuid.UUID(admin["id"])
     r = client.put(URL, json={"notebook_id": str(empty)}, headers=bearer(token))
