@@ -129,7 +129,7 @@ with a reason the frontend can show.
 The audio generator only writes the script (title plus spoken text,
 three to five minutes). The output service cuts the script into
 segments of at most 1500 characters, ending at a sentence end where
-possible, synthesizes each with `TTS_MODEL` and `TTS_VOICE`, writes one
+possible, synthesizes each with `TTS_MODEL` and its speaker's voice (since the audio styles, 2026-10-14), writes one
 `tts` usage row per segment (the seconds of speech the platform
 billed, as `tokens_in`), and
 stores the segments' bytes joined as one MP3 at
