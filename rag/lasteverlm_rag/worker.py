@@ -71,6 +71,12 @@ class Worker:
     def run_once(self) -> int:
         """One pass: claim and handle jobs until the queue has nothing runnable.
         Returns how many jobs finished (ready or failed)."""
+        # starter copies first: no model call, so they need no exchange rate
+        while (
+            copy_job := self._store.claim_output_copy(self.worker_id, STALE_CLAIM_S)
+        ) is not None:
+            if not self._outputs.copy_starter(copy_job):
+                break  # given back for a retry; the next pass takes it again
         if self._store.pricing_rules().usd_per_eur is None:
             # no job is claimed: a run would pay the platform and book nothing,
             # and the jobs keep their attempts for when the rate is set

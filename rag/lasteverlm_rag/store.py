@@ -47,6 +47,7 @@ from .models import (
     SourceState,
     SourceSummary,
 )
+from .starter import OutputCopy
 
 log = logging.getLogger(__name__)
 
@@ -146,6 +147,32 @@ class Store(Protocol):
 
     # the outputs table as a job queue (worker entrypoint)
     def claim_output(self, worker_id: str, stale_after_s: int) -> OutputRow | None: ...
+
+    # copies of a starter notebook's outputs (``output_copies``, filled by ingest)
+    def claim_output_copy(self, worker_id: str, stale_after_s: int) -> OutputCopy | None: ...
+
+    def end_output_copy(self, target_notebook: str, error: str | None, final: bool) -> None:
+        """Done: the row goes. Failed: released for another attempt, or kept
+        with its error when ``final``."""
+        ...
+
+    def copied_outputs(self, notebook_id: str) -> set[str]:
+        """The starter outputs already copied into the notebook (``copied_from``)."""
+        ...
+
+    def copy_output(
+        self,
+        row: OutputRow,
+        output_id: str,
+        target_notebook: str,
+        content: dict[str, Any] | None,
+        options: dict[str, Any],
+        provenance: dict[str, Any] | None,
+    ) -> bool:
+        """The output's copy in the target notebook (its owner's), with a copy
+        of its generated library row, link and chunks, in one transaction;
+        False when it was copied already."""
+        ...
 
     def release_output(self, output_id: str, error: str | None = None) -> None: ...
 
@@ -324,6 +351,26 @@ class PgVectorRetriever:
             for r in rows
         ]
 
+
+# One copy job per call, oldest first, as the output queue claims: rows other
+# workers hold are skipped, a stale claim is taken over, a row that failed
+# for good (its error kept) is not claimed again. The claim counts an attempt.
+_CLAIM_COPY_SQL = """
+with job as (
+    select target_notebook from output_copies
+    where error is null
+      and (claimed_at is null or claimed_at < now() - make_interval(secs => %(stale)s))
+    order by created_at, target_notebook
+    for update skip locked
+    limit 1
+)
+update output_copies c
+set claimed_at = now(), claimed_by = %(worker)s, attempts = c.attempts + 1
+from job
+where c.target_notebook = job.target_notebook
+returning c.target_notebook::text as target_notebook, c.source_notebook::text as source_notebook,
+          c.owner::text as owner, c.source_map, c.chunk_map, c.attempts
+"""
 
 # Chunks by id, only from ready sources linked into the notebook: a chart's
 # values are checked again against the passages its proposal cited.
@@ -651,6 +698,99 @@ class PostgresStore:
         with self._pool.connection() as conn:
             row = conn.execute(_CLAIM_SQL, {"worker": worker_id, "stale": stale_after_s}).fetchone()
         return self.get_output(row["id"]) if row else None
+
+    def claim_output_copy(self, worker_id: str, stale_after_s: int) -> OutputCopy | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                _CLAIM_COPY_SQL, {"worker": worker_id, "stale": stale_after_s}
+            ).fetchone()
+        if row is None:
+            return None
+        return OutputCopy(
+            target_notebook=row["target_notebook"],
+            source_notebook=row["source_notebook"],
+            owner=row["owner"],
+            source_map=row["source_map"] or {},
+            chunk_map=row["chunk_map"] or {},
+            attempts=row["attempts"],
+        )
+
+    def end_output_copy(self, target_notebook: str, error: str | None, final: bool) -> None:
+        with self._pool.connection() as conn:
+            if error is None:
+                conn.execute(
+                    "delete from output_copies where target_notebook = %s", (target_notebook,)
+                )
+            else:
+                conn.execute(
+                    "update output_copies set claimed_at = null, claimed_by = null, "
+                    "error = case when %s then %s end where target_notebook = %s",
+                    (final, error, target_notebook),
+                )
+
+    def copied_outputs(self, notebook_id: str) -> set[str]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select copied_from::text as id from outputs "
+                "where notebook_id = %s and copied_from is not null",
+                (notebook_id,),
+            ).fetchall()
+        return {r["id"] for r in rows}
+
+    def copy_output(
+        self,
+        row: OutputRow,
+        output_id: str,
+        target_notebook: str,
+        content: dict[str, Any] | None,
+        options: dict[str, Any],
+        provenance: dict[str, Any] | None,
+    ) -> bool:
+        source_id = _new_id() if row.source_id else None
+        with self._pool.connection() as conn, conn.transaction():
+            inserted = conn.execute(
+                "insert into outputs (id, notebook_id, owner, origin_title, kind, title, "
+                "content, status, options, provenance, copied_from) "
+                "select %s, n.id, n.owner, n.title, %s, %s, %s, 'ready', %s, %s, %s "
+                "from notebooks n where n.id = %s "
+                "on conflict (notebook_id, copied_from) where copied_from is not null "
+                "do nothing returning id",
+                (
+                    output_id,
+                    row.kind,
+                    row.title,
+                    _jsonb(content),
+                    Jsonb(options),
+                    _jsonb(provenance),
+                    row.id,
+                    target_notebook,
+                ),
+            ).fetchone()
+            if inserted is None:
+                return False
+            if source_id is not None:
+                # the generated row, its link (same id) and its chunks, as indexed
+                conn.execute(
+                    "insert into library_sources (id, owner, name, kind, status, summary) "
+                    "select %s, n.owner, l.name, 'generated', 'ready', l.summary "
+                    "from library_sources l, notebooks n where l.id = %s and n.id = %s",
+                    (source_id, row.source_id, target_notebook),
+                )
+                conn.execute(
+                    "insert into sources (id, notebook_id, library_source_id) "
+                    "values (%s, %s, %s)",
+                    (source_id, target_notebook, source_id),
+                )
+                conn.execute(
+                    "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                    "select gen_random_uuid(), %s, idx, page, text, embedding "
+                    "from chunks where library_source_id = %s",
+                    (source_id, row.source_id),
+                )
+                conn.execute(
+                    "update outputs set source_id = %s where id = %s", (source_id, output_id)
+                )
+        return True
 
     def release_output(self, output_id: str, error: str | None = None) -> None:
         """Give the job back to the queue, keeping the last error for the next attempt."""

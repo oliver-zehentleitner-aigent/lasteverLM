@@ -101,6 +101,7 @@ from .provenance import (
     shared_provenance,
 )
 from .speech import split_for_speech
+from .starter import MAX_COPY_ATTEMPTS, OutputCopy, remap_options, remap_provenance
 from .store import Retriever, Store
 
 log = logging.getLogger(__name__)
@@ -816,6 +817,50 @@ class OutputService:
             return True
         self._store.release_output(job.id, error=error)
         return False
+
+    def copy_starter(self, job: OutputCopy) -> bool:
+        """Copy the starter notebook's ready outputs into a new user's copy of
+        it; no model call, no charge. Returns True when the row is finished
+        (done, or failed for good), False when it goes back for a retry.
+        Outputs copied before are skipped, so a retry adds nothing twice."""
+        try:
+            done = self._store.copied_outputs(job.target_notebook)
+            for row in self._store.list_outputs(job.source_notebook):
+                if row.status != "ready" or row.id in done:
+                    continue
+                output_id = str(uuid.uuid4())
+                content = copy.deepcopy(row.content)
+                key = (content or {}).get("key")
+                if isinstance(key, str) and content is not None:
+                    if self._objects is None:
+                        raise GenerationFailed("starter: an audio output needs object storage")
+                    new_key = object_key(job.target_notebook, output_id, AUDIO_FILE)
+                    self._objects.put(new_key, self._objects.get(key), "audio/mpeg")
+                    content["key"] = new_key
+                copied = self._store.copy_output(
+                    row,
+                    output_id,
+                    job.target_notebook,
+                    content,
+                    remap_options(row.options, job),
+                    remap_provenance(row.provenance, job),
+                )
+                if not copied and content is not None and content.get("key") != key:
+                    self._delete_objects(content)  # another worker copied it first
+            self._store.end_output_copy(job.target_notebook, None, final=True)
+            log.info("starter outputs copied into notebook %s", job.target_notebook)
+            return True
+        except Exception as exc:
+            final = job.attempts >= MAX_COPY_ATTEMPTS
+            log.warning(
+                "starter copy into notebook %s attempt %d failed%s: %s",
+                job.target_notebook,
+                job.attempts,
+                "" if final else ", will retry",
+                (str(exc) or exc.__class__.__name__)[:ERROR_LOG_CHARS],
+            )
+            self._store.end_output_copy(job.target_notebook, public_error(exc), final=final)
+            return final
 
     def _discard(self, job: OutputRow, source_id: str | None, content: dict[str, Any]) -> None:
         """Remove what a failed attempt left: its generated source and its file."""

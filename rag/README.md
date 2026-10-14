@@ -318,6 +318,35 @@ passages. `POST /messages/{id}/judge` does the same for a chat answer's
 paragraphs against its citations, stored with the message's support.
 Both are synchronous, need credit, and run four judge calls at a time.
 
+**Starter notebook.** A new user gets a copy of the maintainer's starter
+notebook. Ingest copies its uploads (files, links, chunks) and, in the
+same transaction, inserts one `output_copies` row:
+
+- `target_notebook`: the copy;
+- `source_notebook`: the starter;
+- `owner`: the new user;
+- `source_map`: old link and library ids to new;
+- `chunk_map`: old chunk ids to new.
+
+The worker claims these rows before any output job and copies the
+starter's ready outputs outside the trash:
+
+- **Rows:** owned by the new user, in the copy, with the same kind, title,
+  content and options.
+- **Generated sources:** each output's generated library row, link and
+  chunks, embeddings included.
+- **Audio:** the file is copied under a new key.
+- **Ids:** the source selection, a chart's cited chunks, and the
+  provenance's passages and candidates are rewritten through the maps.
+  An id that cannot be mapped is dropped, never left pointing at the
+  maintainer's rows.
+- **Not copied or kept:** share tokens are not copied; judge annotations
+  and the support check are kept.
+
+It makes no model call and books nothing. `outputs.copied_from` makes a
+copy idempotent, so a retry adds nothing twice. A copy that fails three
+times keeps its row with the error.
+
 **Shared notebooks.** Ingest shares a notebook under a token
 (`notebooks.share_token`, set and revoked there). `GET
 /api/rag/shared/notebooks/{token}`, without sign-in, returns three things:
@@ -521,7 +550,9 @@ notebook's owner); `0005_rag_output_provenance.sql` adds
 `outputs.provenance`, the generation log; `0006_rag_message_support.sql`
 adds `messages.support` (`{"units", "check"}` of an answer);
 `0007_rag_decision_kind.sql` allows the kind `decision`;
-`0008_rag_chart_kind.sql` allows the kind `chart`. The
+`0008_rag_chart_kind.sql` allows the kind `chart`;
+`0009_rag_output_copies.sql` adds the `output_copies` queue and
+`outputs.copied_from` for the starter notebook. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
@@ -558,6 +589,7 @@ lasteverlm_rag/
 ├── judging.py      the judge in generation (rounds, revision, removal) and on request
 ├── numbers.py      the strict check of a chart's values (every reading of a written number)
 ├── options.py      output options catalogue (languages, voices, speeds) and validation
+├── starter.py      copying a starter notebook's outputs: id remapping
 ├── speech.py       splitting an audio script into synthesis segments
 ├── voice_samples.py cached voice previews
 ├── admin.py        admin statistics (totals, daily series)
