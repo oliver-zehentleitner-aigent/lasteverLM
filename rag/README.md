@@ -337,7 +337,10 @@ selected sources not read yet (`POST /api/ingest/sources/process`).
   selected web pages) is checked again (`POST
   /api/ingest/sources/{link_id}/refetch`). All other pages use the
   cached version. An unchanged page costs nothing, and anything else in
-  `url_refresh` is a 422.
+  `url_refresh` is a 422. A page not read yet or being read is fresh
+  already and is not checked. A changed page moves its link to a new
+  library row, so waiting follows the link, not the library id. Ingest
+  refusing or being down is a 502 `ingest: …`, and nothing is created.
 - **Waiting:** ingest marks these sources `processing` until it is done.
   An output job waits for them, as it waits for any processing source. An
   answer waits up to `ANSWER_READ_WAIT_SECONDS` (60) and then answers

@@ -144,3 +144,40 @@ def test_an_unread_page_in_url_refresh_is_read_once(settings):
     body = {"kind": "report", "source_ids": [ready, page], "url_refresh": [page]}
     client.post(OUTPUTS, json=body, headers=AUTH)
     assert ingest.calls == [("process", AUTH["Authorization"], [page])]
+
+
+def test_waiting_follows_the_link_when_a_changed_page_gets_a_new_library_row():
+    store = FakeStore()
+    link = store.add_source(NOTEBOOK, "news", kind="url", status="processing")
+    # the page was checked again: the link stays, the library id behind it is new
+    prepared = Prepared(refreshing=[SourceState(link, "url", "ready", "old-library-id", "news")])
+    now = [0.0]
+
+    def sleep(seconds: float) -> None:
+        now[0] += seconds
+
+    assert wait_until_read(store, NOTEBOOK, prepared, 4, sleep, lambda: now[0]) == ["news"]
+
+
+def test_a_page_being_read_is_not_checked_again(settings):
+    store, ready, _, page = notebook()
+    store.sources[page]["status"] = "processing"
+    client, ingest = client_for(settings, store)
+    body = {"kind": "report", "source_ids": [ready, page], "url_refresh": [page]}
+    assert client.post(OUTPUTS, json=body, headers=AUTH).status_code == 202
+    assert ingest.calls == []
+
+
+def test_ingest_refusing_to_read_is_a_502_and_nothing_is_created(settings):
+    from lasteverlm_rag.ingest_client import IngestError
+
+    store, _, unread, _ = notebook()
+    client, ingest = client_for(settings, store)
+
+    def refuse(bearer, library_ids):
+        raise IngestError(404, f"unknown library ids: {library_ids[0]}")
+
+    ingest.process = refuse
+    r = client.post(OUTPUTS, json={"kind": "report"}, headers=AUTH)
+    assert (r.status_code, r.json()) == (502, {"error": f"ingest: unknown library ids: {unread}"})
+    assert store.outputs == {}

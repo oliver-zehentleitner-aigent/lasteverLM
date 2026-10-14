@@ -38,8 +38,9 @@ class Prepared:
     refreshing: list[SourceState] = field(default_factory=list)
 
     @property
-    def library_ids(self) -> list[str]:
-        return [s.library_id for s in self.reading + self.refreshing]
+    def link_ids(self) -> list[str]:
+        """Waited on by link: a changed page moves its link to a new library row."""
+        return [s.source_id for s in self.reading + self.refreshing]
 
 
 def selected_uploads(
@@ -61,7 +62,8 @@ def check_refresh(uploads: Sequence[SourceState], url_refresh: Sequence[str]) ->
         page = by_library.get(library_id)
         if page is None or page.kind != "url":
             raise InvalidRefresh(f"url_refresh: {library_id} is not a selected web page")
-        if page.status != NOT_READ:
+        # not read yet: read fresh anyway; being read: fresh already (ingest refuses a check)
+        if page.status not in STILL_READING:
             pages.append(page)
     return pages
 
@@ -99,7 +101,7 @@ def wait_until_read(
 ) -> list[str]:
     """Wait until the started sources are read, at most ``timeout``; the
     names of those still being read."""
-    wanted = set(prepared.library_ids)
+    wanted = set(prepared.link_ids)
     if not wanted:
         return []
     deadline = clock() + timeout
@@ -107,7 +109,7 @@ def wait_until_read(
         pending = [
             s.name
             for s in store.source_states(notebook_id)
-            if s.library_id in wanted and s.status in STILL_READING
+            if s.source_id in wanted and s.status in STILL_READING
         ]
         if not pending or clock() >= deadline:
             return pending

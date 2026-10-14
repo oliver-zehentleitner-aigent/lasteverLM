@@ -58,7 +58,7 @@ from .admin import admin_stats, daily_stats
 from .agent_service import AgentService, PlanNotFound, PlanNotOpen
 from .config import Settings
 from .estimate import Models, action_calls, estimate, output_calls, step_estimator
-from .ingest_client import HttpIngest, Ingest
+from .ingest_client import HttpIngest, Ingest, IngestError
 from .judge import judge_models
 from .models import (
     AdminStats,
@@ -585,6 +585,12 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(MessageNotFound)
     async def message_not_found(_: Request, exc: MessageNotFound) -> JSONResponse:
         return error(404, "message not found")
+
+    @app.exception_handler(IngestError)
+    async def ingest_failed(_: Request, exc: IngestError) -> JSONResponse:
+        # reading or refreshing sources before an output or answer: ingest refused or is down
+        log.warning("ingest call failed (%s): %s", exc.status, exc)
+        return error(502, f"ingest: {exc}" if exc.status else str(exc))
 
     @app.exception_handler(PlanNotFound)
     async def plan_not_found(_: Request, exc: PlanNotFound) -> JSONResponse:
