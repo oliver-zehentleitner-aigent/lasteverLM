@@ -321,8 +321,9 @@ export default function StatsCharts() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.email}>
+                {/* a viewer gets addresses masked, and two can mask alike: the position is the key */}
+                {users.map((u, i) => (
+                  <tr key={i}>
                     <td className="name">{u.email}</td>
                     <td>{formatCents(u.usage_cents)}</td>
                     <td>{formatCents(u.balance_cents)}</td>
