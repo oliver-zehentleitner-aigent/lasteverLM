@@ -67,7 +67,9 @@ from .models import (
     ConversationRename,
     DailyStats,
     EstimateRequest,
+    FeedbackRequest,
     JudgeRequest,
+    NotebookSuggestions,
     OutputCreate,
     OutputRename,
     SharedNotebook,
@@ -82,6 +84,7 @@ from .service import (
     InvalidOptions,
     InvalidSources,
     MessageNotFound,
+    NotAnAnswer,
     NotebookNotFound,
     NothingToJudge,
     ObjectDeleteFailed,
@@ -103,6 +106,8 @@ from .voice_samples import SpeechUnavailable, VoiceSampleRequest, VoiceSamples
 
 PREFIX = "/api/rag"
 
+# how many down-rated answers the admin overview lists
+FEEDBACK_LATEST = 20
 log = logging.getLogger("lasteverlm_rag")
 
 NotebookId = Annotated[uuid.UUID, Path()]
@@ -389,6 +394,16 @@ def create_app(
         """Judge a ready output's claims with the level's model; annotate only."""
         return outputs.judge_stored_output(user, str(output_id), body.level)
 
+    @app.post(f"{PREFIX}/messages/{{message_id}}/feedback", response_model=Message)
+    def rate_message(message_id: uuid.UUID, body: FeedbackRequest, user: User) -> Message:
+        """The owner's thumbs up or down on an answer; a new rating replaces the old."""
+        return rag.rate(user, str(message_id), body.rating, body.comment)
+
+    @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/suggestions", response_model=NotebookSuggestions)
+    def notebook_suggestions(notebook_id: NotebookId, user: User) -> NotebookSuggestions:
+        """Starting questions for a notebook, cached until its uploads change."""
+        return rag.notebook_suggestions(user, str(notebook_id))
+
     @app.post(f"{PREFIX}/messages/{{message_id}}/judge", response_model=Message)
     def judge_message(message_id: uuid.UUID, body: JudgeRequest, user: User) -> Message:
         """Judge a chat answer's paragraphs against its citations; annotate only."""
@@ -418,6 +433,14 @@ def create_app(
     ) -> DailyStats:
         assert store is not None
         return daily_stats(store, days)
+
+    @app.get(f"{PREFIX}/admin/feedback")
+    def feedback(
+        _: AdminReader, days: Annotated[int, Query(ge=1, le=MAX_DAILY_DAYS)] = 30
+    ) -> dict[str, Any]:
+        """Ratings per day and the latest down-rated answers with their question."""
+        assert store is not None
+        return store.feedback_overview(days, FEEDBACK_LATEST)
 
     @app.delete(f"{PREFIX}/admin/users/{{target}}", status_code=204)
     def delete_user_data(target: uuid.UUID, _: AdminWriter) -> Response:
@@ -469,6 +492,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(MessageNotFound)
     async def message_not_found(_: Request, exc: MessageNotFound) -> JSONResponse:
         return error(404, "message not found")
+
+    @app.exception_handler(NotAnAnswer)
+    async def not_an_answer(_: Request, exc: NotAnAnswer) -> JSONResponse:
+        return error(409, "feedback is for answers only")
 
     @app.exception_handler(NothingToJudge)
     async def nothing_to_judge(_: Request, exc: NothingToJudge) -> JSONResponse:

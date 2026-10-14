@@ -16,6 +16,8 @@ this directory implements the `/api/rag` prefix.
 | Method | Path | Body | Response |
 |---|---|---|---|
 | POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?, "source_ids"?}` | `Answer` |
+| GET | `/api/rag/notebooks/{id}/suggestions` | | `{"suggestions", "cached"}`: starting questions, see **Suggestions** |
+| POST | `/api/rag/messages/{id}/feedback` | `{"rating": "up" \| "down", "comment"?}` | `Message` with its `feedback`; the owner's, for answers only (409 otherwise), a new rating replaces the old |
 | GET | `/api/rag/notebooks/{id}/conversations` | | `[Conversation]`, oldest first |
 | POST | `/api/rag/notebooks/{id}/conversations` | `{"title"?}` | 201 `Conversation`; title defaults to `Chat N` |
 | PATCH | `/api/rag/conversations/{id}` | `{"title"}` | `Conversation`; title trimmed, 1–80 chars, else 422 |
@@ -43,6 +45,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/shared/notebooks/{token}` | no auth | `{"title", "sources": [{"name", "kind"}], "outputs": [SharedOutput]}`, see below |
 | GET | `/api/rag/admin/stats` | viewers and admins | `AdminStats`, see below |
 | GET | `/api/rag/admin/stats/daily?days=` | viewers and admins; `days` 1–365, default 30 | `DailyStats`, see below |
+| GET | `/api/rag/admin/feedback?days=` | viewers and admins; `days` 1–365, default 30 | `{"days": [{"day", "up", "down"}], "latest_down": [{"message_id", "notebook_id", "at", "comment", "answer", "question"}]}`, the 20 newest down-rated answers |
 | DELETE | `/api/rag/admin/users/{id}` | admins only | 204, see below |
 | GET | `/healthz`, `/api/rag/healthz` | no auth | core's `Health`: `{"status": "ok", "version", "commit", "dependencies": {"postgres", "storage", "inference"}}`, each `ok` or `down` (core's `DependencyProbe`: 2 s per check, cached 15 s; `storage` only with object storage configured); a dependency that is down never fails the probe |
 
@@ -318,6 +321,29 @@ passages. `POST /messages/{id}/judge` does the same for a chat answer's
 paragraphs against its citations, stored with the message's support.
 Both are synchronous, need credit, and run four judge calls at a time.
 
+**Suggestions.**
+- **With every answer.** Each chat answer returns `suggestions`, up to
+  three short follow-up questions. They come from the same model call:
+  the answer prompt asks for a `Suggestions:` tail, which is cut off the
+  text before its citations are mapped, cleaned (no markers, one line, at
+  most 150 characters, distinct) and stored with the message.
+- **For a notebook.** `GET /notebooks/{id}/suggestions` gives a
+  notebook's starting questions from one call over its source summaries.
+  The call is billed as a `chat_answer` action of its own, and the result
+  is cached in `notebook_suggestions` until the set of ready uploads
+  changes (`"cached": true` then, without a call).
+  - A notebook without a ready upload gets none, without a call.
+  - An answer that does not parse is a billed 502.
+  - The estimate for it is `{"action": "chat_answer", "options":
+    {"suggestions": true}}`.
+
+**Feedback.** The owner rates an answer with `POST
+/messages/{id}/feedback` (`up` or `down`, an optional comment of at most
+1000 characters). The rating is stored on the message as `feedback:
+{"rating", "comment", "at"}`. `GET /admin/feedback` counts the ratings
+per UTC day and lists the newest down-rated answers with the question
+before them.
+
 **Starter notebook.** A new user gets a copy of the maintainer's starter
 notebook. Ingest copies its uploads (files, links, chunks) and, in the
 same transaction, inserts one `output_copies` row:
@@ -552,7 +578,9 @@ adds `messages.support` (`{"units", "check"}` of an answer);
 `0007_rag_decision_kind.sql` allows the kind `decision`;
 `0008_rag_chart_kind.sql` allows the kind `chart`;
 `0009_rag_output_copies.sql` adds the `output_copies` queue and
-`outputs.copied_from` for the starter notebook. The
+`outputs.copied_from` for the starter notebook;
+`0010_rag_suggestions_feedback.sql` adds `messages.suggestions`,
+`messages.feedback` and the `notebook_suggestions` cache. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
@@ -589,6 +617,7 @@ lasteverlm_rag/
 ├── judging.py      the judge in generation (rounds, revision, removal) and on request
 ├── numbers.py      the strict check of a chart's values (every reading of a written number)
 ├── options.py      output options catalogue (languages, voices, speeds) and validation
+├── suggestions.py  suggested questions: the answer's tail, a notebook's starting questions
 ├── starter.py      copying a starter notebook's outputs: id remapping
 ├── speech.py       splitting an audio script into synthesis segments
 ├── voice_samples.py cached voice previews

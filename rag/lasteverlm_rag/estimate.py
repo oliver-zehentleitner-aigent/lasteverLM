@@ -22,11 +22,13 @@ from lasteverlm_core import ModelPrices, PricingRules, cost_cents
 from .judging import MAX_ROUNDS
 from .outputs import OutputGenerator
 from .outputs._base import JsonGenerator
+from .suggestions import NOTEBOOK_SUGGESTIONS_MAX_TOKENS
 
 # -- assumptions (low, high) ------------------------------------------------------
 QUERY_TOKENS = 30  # a question or focus query, embedded
 PROMPT_TOKENS = (3000, 9000)  # summaries + passages (+ history) a model reads
 ANSWER_TOKENS = (150, 1024)  # a chat answer (ANSWER_MAX_TOKENS)
+SUMMARY_TOKENS = (300, 3000)  # a notebook's source summaries, for its starting questions
 TTS_SECONDS = (180, 300)  # an audio output: three to five minutes
 SAMPLE_SECONDS = (3, 8)  # a voice preview: one or two sentences
 # claim units an output has, per kind; a quiz has its question count
@@ -120,6 +122,9 @@ def judge_calls(
 
 def action_calls(action: str, options: Mapping[str, Any], models: Models, case: int) -> list[Call]:
     """The calls of an action that is not an output."""
+    if action == "chat_answer" and options.get("suggestions"):
+        # a notebook's starting questions: one call over the source summaries
+        return [Call(models.llm, SUMMARY_TOKENS[case], NOTEBOOK_SUGGESTIONS_MAX_TOKENS)]
     if action == "chat_answer":
         return [
             Call(models.embedding, QUERY_TOKENS),

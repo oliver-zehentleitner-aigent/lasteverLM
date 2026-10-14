@@ -859,3 +859,31 @@ def test_a_starter_output_is_copied_once_with_its_generated_source(store, pool, 
     with pool.connection() as conn:
         left = conn.execute("select count(*) as n from output_copies").fetchone()["n"]
     assert left == 0
+
+
+def test_suggestions_feedback_and_its_overview_round_trip(store, pool, notebook):
+    conversation = store.create_conversation(notebook, "Chat F").id
+    store.insert_message(notebook, conversation, "user", "Why is the sky blue?", None)
+    answer = store.insert_message(
+        notebook, conversation, "assistant", "Because [1].", [], None, ["And at night?"]
+    )
+    assert answer.suggestions == ["And at night?"] and answer.feedback is None
+    at = datetime.now(UTC).isoformat()
+    store.set_message_feedback(str(answer.id), {"rating": "down", "comment": "too short", "at": at})
+    listed = store.list_messages(conversation)
+    assert listed[1].feedback is not None and listed[1].feedback.rating == "down"
+    assert listed[0].suggestions == []
+
+    overview = store.feedback_overview(3, 20)
+    assert [d["down"] for d in overview["days"]][-1] >= 1 and len(overview["days"]) == 3
+    latest = next(r for r in overview["latest_down"] if r["message_id"] == str(answer.id))
+    assert (latest["question"], latest["answer"], latest["comment"]) == (
+        "Why is the sky blue?",
+        "Because [1].",
+        "too short",
+    )
+
+    assert store.notebook_suggestions(notebook) is None
+    store.save_notebook_suggestions(notebook, "k1", ["A?"])
+    store.save_notebook_suggestions(notebook, "k2", ["B?", "C?"])
+    assert store.notebook_suggestions(notebook) == ("k2", ["B?", "C?"])

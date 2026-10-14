@@ -98,6 +98,21 @@ class EstimateRequest(BaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
 
 
+class NotebookSuggestions(BaseModel):
+    """``GET /notebooks/{id}/suggestions``: starting questions; ``cached``
+    when they came from the cache, without a model call."""
+
+    suggestions: list[str]
+    cached: bool
+
+
+class FeedbackRequest(BaseModel):
+    """``POST /messages/{id}/feedback``: one rating per answer, changeable."""
+
+    rating: Literal["up", "down"]
+    comment: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] | None = None
+
+
 class JudgeRequest(BaseModel):
     """``POST /outputs/{id}/judge`` and ``POST /messages/{id}/judge``."""
 

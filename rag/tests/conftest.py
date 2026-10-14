@@ -119,6 +119,7 @@ class FakeStore:
         self.messages: list[dict[str, Any]] = []
         self.bookings: list[tuple[str, uuid.UUID]] = []
         self.copies: dict[str, dict[str, Any]] = {}
+        self.suggestions: dict[str, tuple[str, list[str]]] = {}
         # a rate of 1: charges equal costs unless a test sets margins or a rate
         self.rules = PricingRules.parse({"usd_per_eur": 1})
         self.usage: list[tuple[str, str | None, Usage]] = []
@@ -185,7 +186,7 @@ class FakeStore:
         return [self._message(m) for m in (rows[-last:] if last else rows)]
 
     def insert_message(
-        self, notebook_id, conversation_id, role, content, citations, support=None
+        self, notebook_id, conversation_id, role, content, citations, support=None, suggestions=None
     ) -> Message:
         row = {
             "id": str(uuid.uuid4()),
@@ -195,6 +196,8 @@ class FakeStore:
             "content": content,
             "citations": citations,
             "support": support,
+            "suggestions": suggestions or [],
+            "feedback": None,
             "created_at": f"2026-01-01T00:00:{len(self.messages) % 60:02d}Z",
         }
         self.messages.append(row)
@@ -208,6 +211,21 @@ class FakeStore:
 
     def update_message_support(self, message_id: str, support: dict[str, Any]) -> None:
         next(m for m in self.messages if m["id"] == message_id)["support"] = support
+
+    def set_message_feedback(self, message_id: str, feedback: dict[str, Any]) -> None:
+        next(m for m in self.messages if m["id"] == message_id)["feedback"] = feedback
+
+    def feedback_overview(self, days: int, latest: int) -> dict[str, Any]:
+        down = [m for m in self.messages if (m.get("feedback") or {}).get("rating") == "down"]
+        return {"days": [], "latest_down": [{"message_id": m["id"]} for m in down][:latest]}
+
+    def notebook_suggestions(self, notebook_id: str) -> tuple[str, list[str]] | None:
+        return self.suggestions.get(notebook_id)
+
+    def save_notebook_suggestions(
+        self, notebook_id: str, sources_key: str, suggestions: list[str]
+    ) -> None:
+        self.suggestions[notebook_id] = (sources_key, suggestions)
 
     @staticmethod
     def _message(row: dict[str, Any]) -> Message:
