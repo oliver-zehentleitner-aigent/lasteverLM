@@ -487,8 +487,9 @@ name or address. Columns: kind (an output's kind, from rag's
 list of the user's outputs joined by `output_id`), name, status (a
 failed entry's reason on one line next to the badge, in full as its
 tooltip; a processing or waiting entry's `error` on the same line, as
-in the notebook's source list; "added · processed when you have credit" muted, and one notice above the table
-"N sources wait for credit · redeem a voucher" while any does), size ("unknown"
+in the notebook's source list; "added · processed when you have credit" muted; no notice about
+credit: an action waits for credit with the sources it uses, and the
+voucher hint is at Create and Ask), size ("unknown"
 for entries added before sizes were recorded, none for outputs), date,
 and the notebooks it is in as links (or "not in any notebook"); a
 output also says where it was made ("made in test1", or "made in
