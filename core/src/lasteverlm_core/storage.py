@@ -126,16 +126,31 @@ class S3Storage:
         return True
 
     def delete(self, *keys: str) -> None:
-        """Delete one or more keys, 1000 per request (the S3 limit); missing keys are no error."""
+        """Delete one or more keys, 1000 per request (the S3 limit); missing keys are no error.
+
+        `delete_objects` answers 200 even when single keys fail and lists
+        them under `Errors` (`Quiet` only drops the `Deleted` list). Every
+        batch is sent, then a `StorageError` names the failed keys and
+        their codes, so a caller never takes a refused delete for done.
+        """
+        failed: list[str] = []
         try:
             for start in range(0, len(keys), 1000):
                 batch = keys[start : start + 1000]
-                self._client.delete_objects(
+                response = self._client.delete_objects(
                     Bucket=self._bucket,
                     Delete={"Objects": [{"Key": key} for key in batch], "Quiet": True},
                 )
+                for error in (response or {}).get("Errors", []):
+                    if error.get("Code") not in MISSING_KEY_CODES:
+                        failed.append(f"{error.get('Key')} ({error.get('Code')})")
         except Exception as exc:
             raise StorageError(f"delete failed: {exc}") from exc
+        if failed:
+            shown = ", ".join(failed[:10]) + (
+                f" and {len(failed) - 10} more" if len(failed) > 10 else ""
+            )
+            raise StorageError(f"delete failed for {len(failed)} of {len(keys)} keys: {shown}")
 
     def presigned_get(
         self, key: str, expires_s: int = PRESIGN_SECONDS, *, download_name: str | None = None

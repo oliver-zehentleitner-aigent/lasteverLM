@@ -330,7 +330,8 @@ raises `ValueError` otherwise, so a key never leaves its owner's prefix.
 One bucket for the family; keys are `<user_id>/<library_source_id>/<name>`
 for an upload (a source lives in the user's library) and `<notebook_id>/<output_id>/<name>` for a file an
 output produces. `get` returns the bytes, `delete(*keys)` takes one or more
-keys (sent 1000 per request). `exists(key)` is a HEAD request: `False`
+keys (sent 1000 per request); a key the store refuses to delete is a
+`StorageError` naming it and its code, after every batch was sent. `exists(key)` is a HEAD request: `False`
 only when the key is missing, a `StorageError` for anything else (no
 access, no bucket, endpoint down), so a cache check in front of a paid
 generation never mistakes a broken bucket for an empty one. A presigned GET is how a browser fetches

@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Fixed
+
+- `S3Storage.delete` reads the `Errors` list of `delete_objects`, which answers 200 even when single keys fail, and raises a `StorageError` naming the failed keys and their codes (at most ten, then a count) after every batch was sent. A refused delete (`AccessDenied` on one key) used to pass silently. A missing key (`NoSuchKey`) is still no error.
+
 ## [0.11.1] - 2026-10-14
 
 ### Fixed

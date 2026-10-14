@@ -39,6 +39,7 @@ class StubClient:
         self.objects: dict[str, bytes] = {}
         self.fail = fail
         self.head_error = "404"
+        self.delete_errors: list[dict[str, str]] = []
 
     def _record(self, name: str, kwargs: dict[str, Any]) -> None:
         self.calls.append((name, kwargs))
@@ -60,8 +61,10 @@ class StubClient:
             raise ClientError({"Error": {"Code": code, "Message": code}}, "HeadObject")
         return {"ContentLength": len(self.objects[kwargs["Key"]])}
 
-    def delete_objects(self, **kwargs: Any) -> None:
+    def delete_objects(self, **kwargs: Any) -> dict[str, Any]:
         self._record("delete_objects", kwargs)
+        sent = {o["Key"] for o in kwargs["Delete"]["Objects"]}
+        return {"Errors": [e for e in self.delete_errors if e["Key"] in sent]}
 
     def generate_presigned_url(self, *args: Any, **kwargs: Any) -> str:
         self._record("generate_presigned_url", {"args": args, **kwargs})
@@ -97,6 +100,27 @@ def test_delete_batches_by_thousand_and_skips_empty() -> None:
     client.calls.clear()
     storage.delete("nb/out/audio.mp3")
     assert client.calls[0][1]["Delete"]["Objects"] == [{"Key": "nb/out/audio.mp3"}]
+
+
+def test_a_key_the_store_refuses_to_delete_is_an_error() -> None:
+    client = StubClient()
+    client.delete_errors = [
+        {"Key": "u/l/b.mp3", "Code": "AccessDenied", "Message": "Access Denied"},
+        {"Key": "u/l/c.mp3", "Code": "NoSuchKey", "Message": "gone"},  # missing is fine
+    ]
+    keys = [f"u/l/{i}" for i in range(1500)] + ["u/l/b.mp3", "u/l/c.mp3"]
+    with pytest.raises(
+        StorageError, match=r"delete failed for 1 of 1502 keys: u/l/b\.mp3 \(AccessDenied\)"
+    ):
+        S3Storage(SETTINGS, client=client).delete(*keys)
+    assert len(client.calls) == 2  # every batch is still sent
+
+
+def test_many_refused_keys_are_named_up_to_ten() -> None:
+    client = StubClient()
+    client.delete_errors = [{"Key": f"k{i}", "Code": "AccessDenied"} for i in range(12)]
+    with pytest.raises(StorageError, match=r"12 of 12 keys: k0 \(AccessDenied\).* and 2 more$"):
+        S3Storage(SETTINGS, client=client).delete(*[f"k{i}" for i in range(12)])
 
 
 def test_presigned_get_defaults_to_one_hour() -> None:
