@@ -213,8 +213,8 @@ function mockAdmin(): AdminApi {
     ingestDaily: (days) =>
       delay(
         mockDays(days, (_i, w, day) => {
-          const by = { pdf: w(4), text: w(3), url: w(2), image: w(2) }
-          const created = by.pdf + by.text + by.url + by.image
+          const by = { pdf: w(4), text: w(3), url: w(2), image: w(2), audio: w(1) }
+          const created = by.pdf + by.text + by.url + by.image + by.audio
           return { day, sources_created: created, by_kind: by, failed: Math.min(created, w(1)) }
         }),
       ),

@@ -39,6 +39,7 @@ describe('citationTarget', () => {
 
   it('anchors only a PDF', () => {
     expect(citationTarget({ kind: 'text', preview_url: signed }, 3)).toBe(signed)
+    expect(citationTarget({ kind: 'audio', preview_url: signed }, null)).toBe(signed)
     expect(citationTarget({ kind: 'url', preview_url: 'https://en.wikipedia.org/wiki/Danube' }, 3)).toBe('https://en.wikipedia.org/wiki/Danube')
   })
 

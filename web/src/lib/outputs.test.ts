@@ -14,7 +14,7 @@ describe('tileNote', () => {
 
 describe('forms', () => {
   it('offers every source kind the ingest service accepts', () => {
-    expect(SOURCE_FORMS.filter((f) => f.available).map((f) => f.kind)).toEqual(['pdf', 'text', 'url', 'image'])
+    expect(SOURCE_FORMS.filter((f) => f.available).map((f) => f.kind)).toEqual(['pdf', 'text', 'url', 'image', 'audio'])
   })
 })
 

@@ -3,7 +3,7 @@ import { ingest } from '../api/ingest'
 import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
-import { uploadedSources } from '../lib/outputs'
+import { SOURCE_FORMS, uploadedSources } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { t } from '../i18n'
 
@@ -103,6 +103,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
                 {s.name}
               </span>
               <DemoBadge demo={s.demo} />
+              <span className="badge">{SOURCE_FORMS.find((f) => f.kind === s.kind)?.label ?? s.kind}</span>
               {s.capture && (
                 <span className="badge" title={t('sources.captureTitle')}>
                   {t(`capture.${s.capture}`)}

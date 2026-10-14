@@ -20,6 +20,8 @@ export const en = {
   'source.url.note': 'The address of a web page, or of a PDF or text file.',
   'source.image': 'Image',
   'source.image.note': 'PNG, JPEG, WebP or GIF; the text in it is transcribed and the picture described.',
+  'source.audio': 'Audio',
+  'source.audio.note': 'MP3 or WAV, up to 25 MB; what is said is transcribed.',
   'tile.soon': 'Soon.',
   'create.needSource': 'Add a source and wait until it is ready.',
   'create.needFormat': 'Pick a format above.',

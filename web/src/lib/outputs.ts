@@ -57,6 +57,18 @@ export const SOURCE_FORMS: SourceForm[] = [
     input: 'files',
     accept: '.png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif',
   },
+  {
+    kind: 'audio',
+    get label() {
+      return t('source.audio')
+    },
+    get description() {
+      return t('source.audio.note')
+    },
+    available: true,
+    input: 'files',
+    accept: '.mp3,.wav,audio/mpeg,audio/wav,audio/x-wav',
+  },
 ]
 
 /** The line under a tile's label: its description, or "Soon." while the
