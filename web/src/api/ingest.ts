@@ -26,6 +26,12 @@ export const ingest = {
   renameNotebook: (id: string, title: string) =>
     request<Notebook>(`${INGEST_PREFIX}/notebooks/${encodeURIComponent(id)}`, { method: 'PATCH', json: { title } }),
 
+  /** the same token on every call until it is revoked */
+  shareNotebook: (id: string) =>
+    request<{ share_token: string }>(`${INGEST_PREFIX}/notebooks/${encodeURIComponent(id)}/share`, { method: 'POST' }),
+  unshareNotebook: (id: string) =>
+    request<void>(`${INGEST_PREFIX}/notebooks/${encodeURIComponent(id)}/share`, { method: 'DELETE' }),
+
   deleteNotebook: (id: string) =>
     request<void>(`${INGEST_PREFIX}/notebooks/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 

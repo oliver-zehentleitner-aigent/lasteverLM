@@ -292,6 +292,15 @@ is closed. After the wizard the notebook view opens.
   The shared page is as tall as the window: report, quiz and
   infographic sit in a centred reading column, the mind map and the
   table use the full width, the audio player is centred.
+- **Share a notebook**: the ⤴ button in a notebook's row of the notebook
+  list (accent while shared) opens a card under it to create the
+  read-only link `/shared/notebook/<token>` (`POST
+  /api/ingest/notebooks/{id}/share`, the same token until revoked), copy
+  it or revoke it. The public page, without login: the notebook's title,
+  its sources by name and kind (no files), a list of its outputs to jump
+  to, then each output oldest first as on its own share page (passages,
+  how it was made, no source to open; `GET
+  /api/rag/shared/notebooks/{token}`).
 - **Ask about this**: switches the chat scope to the open document
   (`scope.output_id` on `/ask`); a chip above the input shows the scope
   and clears it.

@@ -1,6 +1,6 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
-import type { Answer, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedOutput } from './types'
+import type { Answer, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -77,6 +77,9 @@ export const rag = {
 
   share: (id: string) => request<{ share_token: string }>(`${out(id)}/share`, { method: 'POST' }),
   unshare: (id: string) => request<void>(`${out(id)}/share`, { method: 'DELETE' }),
+  /** No auth: a shared notebook's public page; 404 for an unknown or revoked token. */
+  getSharedNotebook: (token: string) =>
+    request<SharedNotebook>(`${RAG_PREFIX}/shared/notebooks/${encodeURIComponent(token)}`, { anonymous: true }),
   /** No auth: the share page is reachable without login. */
   getShared: (token: string) =>
     request<SharedOutput>(`${RAG_PREFIX}/shared/${encodeURIComponent(token)}`, { anonymous: true }),

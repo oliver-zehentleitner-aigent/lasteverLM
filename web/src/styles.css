@@ -729,3 +729,13 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .item-edit { flex: 1; min-width: 0; height: auto; padding: 0.25rem 0.4rem; font-size: inherit; }
 .out-row.editing { cursor: default; }
 .out-row.editing .item-edit { grid-column: 2 / -1; }
+/* sharing a notebook: the toggle in its row, the card under it */
+.notebooks .list li { flex-wrap: wrap; }
+.nb-share { flex: 1 0 100%; }
+.nb-share .share.card { margin: 0.25rem 0 0.5rem; }
+.icon.share-toggle:hover, .icon.share-toggle.shared { color: var(--accent); }
+/* the shared notebook page */
+.shared-notebook { display: flex; flex-direction: column; gap: 1rem; }
+.shared-sources ul, .shared-toc ol { margin: 0.3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.shared-output { border-top: 1px solid var(--line); padding-top: 1rem; }
+.shared-output .doc-title { font-size: 1.15rem; }
