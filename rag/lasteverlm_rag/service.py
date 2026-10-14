@@ -18,6 +18,7 @@ import uuid
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Any
 
 from lasteverlm_core import (
@@ -31,7 +32,9 @@ from lasteverlm_core import (
     Embedder,
     EmbeddingResult,
     ExchangeRateMissingError,
+    FeedbackRating,
     Message,
+    MessageFeedback,
     Output,
     OutputKind,
     ProviderError,
@@ -54,6 +57,7 @@ from .models import (
     ConversationRow,
     GeneratedOutput,
     NotebookDocument,
+    NotebookSuggestions,
     OutputRow,
     Passage,
     RetrievedChunk,
@@ -65,7 +69,7 @@ from .models import (
 )
 from .options import OutputOptions, language_name, resolve
 from .outputs import CompleteFn, OutputGenerator
-from .outputs._base import GenerationFailed, JsonGenerator
+from .outputs._base import GenerationFailed, JsonGenerator, parse_json
 from .outputs.chart import (
     NO_SERIES,
     Candidate,
@@ -103,6 +107,15 @@ from .provenance import (
 from .speech import split_for_speech
 from .starter import MAX_COPY_ATTEMPTS, OutputCopy, remap_options, remap_provenance
 from .store import Retriever, Store
+from .suggestions import (
+    ANSWER_SUGGESTIONS_RULE,
+    NOTEBOOK_SUGGESTIONS_MAX_TOKENS,
+    NOTEBOOK_SYSTEM,
+    clean,
+    notebook_prompt,
+    sources_key,
+    split_suggestions,
+)
 
 log = logging.getLogger(__name__)
 
@@ -200,6 +213,10 @@ class OutputNotReady(Exception):
     """The output exists but has no generated source to ask about yet."""
 
 
+class NotAnAnswer(Exception):
+    """Feedback is for the assistant's answers, not the user's questions."""
+
+
 class MessageNotFound(Exception):
     """No message with that id is in one of the caller's notebooks."""
 
@@ -227,7 +244,13 @@ def answer_system_prompt(
     notebook itself ("which documents can you see?") has something to go on.
     With a selection, the uploads outside it are marked "not in scope"."""
     lines = [f"- {_document_line(d, selected)}" for d in documents]
-    return ANSWER_SYSTEM_PROMPT + "\n\nDocuments in this notebook:\n" + "\n".join(lines)
+    return (
+        ANSWER_SYSTEM_PROMPT
+        + "\n"
+        + ANSWER_SUGGESTIONS_RULE
+        + "\n\nDocuments in this notebook:\n"
+        + "\n".join(lines)
+    )
 
 
 def _document_line(document: NotebookDocument, selected: list[str] | None) -> str:
@@ -330,16 +353,18 @@ class RagService:
                 render_answer_prompt(question, passages, history),
                 ANSWER_MAX_TOKENS,
             )
-            if not completion.text.strip():
+            # the follow-up questions come in the same call, as a tail cut off here
+            text, suggestions = split_suggestions(completion.text)
+            if not text.strip():
                 # A reasoning model can spend the whole budget on thinking and return no
                 # content; that is a provider failure, never a stored (empty) answer.
                 raise ProviderError("the model returned no answer")
-            answer, citations = map_citations(completion.text, passages)
+            answer, citations = map_citations(text, passages)
             support = check_answer(answer, citations)
         else:
             # An empty notebook: say so without asking the model, so the answer
             # can never come from model knowledge alone.
-            answer, citations, support = REFUSAL, [], None
+            answer, citations, support, suggestions = REFUSAL, [], None, []
 
         # Both messages are written only once the answer exists, so the history
         # never holds a question without its answer.
@@ -351,6 +376,7 @@ class RagService:
             answer,
             [c.model_dump(mode="json") for c in citations],
             support,
+            suggestions,
         )
         return Answer(
             message_id=stored.id,
@@ -358,7 +384,58 @@ class RagService:
             citations=citations,
             units=support["units"] if support else None,
             check=support["check"] if support else None,
+            suggestions=suggestions,
         )
+
+    def notebook_suggestions(self, user_id: str, notebook_id: str) -> NotebookSuggestions:
+        """Starting questions over the notebook's source summaries: one model
+        call, billed as a chat answer, cached until the ready uploads change.
+        No ready upload: none, without a call."""
+        notebook = require_notebook(self._store, user_id, notebook_id)
+        summaries = self._store.source_summaries(notebook_id)
+        if not summaries:
+            return NotebookSuggestions(suggestions=[], cached=False)
+        key = sources_key(summaries)
+        cached = self._store.notebook_suggestions(notebook_id)
+        if cached is not None and cached[0] == key:
+            return NotebookSuggestions(suggestions=cached[1], cached=True)
+        require_credit(self._store, user_id)
+        result = complete_billed(
+            self._store,
+            self._llm,
+            Booking.new(user_id, notebook_id, "chat_answer"),
+            NOTEBOOK_SYSTEM,
+            notebook_prompt(str(notebook.get("title", "")), summaries),
+            NOTEBOOK_SUGGESTIONS_MAX_TOKENS,
+        )
+        try:
+            data = parse_json(result.text)
+            questions = data.get("questions") if isinstance(data, dict) else None
+            if not isinstance(questions, list):
+                raise ValueError("no questions list")
+        except ValueError as exc:
+            # billed by now; the model's answer is unusable, so it is a provider failure
+            raise ProviderError(f"suggestions: the answer did not parse ({exc})") from exc
+        suggestions = clean([str(q) for q in questions])
+        self._store.save_notebook_suggestions(notebook_id, key, suggestions)
+        return NotebookSuggestions(suggestions=suggestions, cached=False)
+
+    def rate(
+        self, user_id: str, message_id: str, rating: FeedbackRating, comment: str | None
+    ) -> Message:
+        """The owner's rating of an answer, replacing an earlier one."""
+        found = self._store.get_message(message_id)
+        if found is None:
+            raise MessageNotFound(message_id)
+        notebook_id, message = found
+        notebook = self._store.get_notebook(notebook_id)
+        if notebook is None or notebook["owner"] != user_id:
+            raise MessageNotFound(message_id)
+        if message.role != "assistant":
+            raise NotAnAnswer(message_id)
+        feedback = MessageFeedback(rating=rating, comment=comment or None, at=datetime.now(UTC))
+        self._store.set_message_feedback(message_id, feedback.model_dump(mode="json"))
+        return message.model_copy(update={"feedback": feedback})
 
     def _retrieve(
         self,

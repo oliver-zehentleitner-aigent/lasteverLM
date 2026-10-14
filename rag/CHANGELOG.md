@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Suggested questions.
+  - Every chat answer returns `suggestions`: up to three follow-up questions written in the same model call as a `Suggestions:` tail, cut off the answer and stored on the message.
+  - `GET /api/rag/notebooks/{id}/suggestions`: a notebook's starting questions from one call over its source summaries, billed as a `chat_answer` action, cached until its ready uploads change. Estimate: `{"action": "chat_answer", "options": {"suggestions": true}}`.
+  - Migration `0010_rag_suggestions_feedback.sql`.
+
+- Feedback on answers: `POST /api/rag/messages/{id}/feedback` `{"rating": "up" | "down", "comment"?}` (the owner's, one per answer, changeable, on `Message.feedback`). `GET /api/rag/admin/feedback` (admin read) gives ratings per day and the latest down-rated answers with their question.
+
 - Starter notebook outputs. Ingest queues an `output_copies` row (migration `0009_rag_output_copies.sql`) with its id maps when it copies the starter notebook for a new user. The worker copies the starter's ready outputs into the copy: rows owned by the new user, generated library rows with links and chunks, and audio files under new keys. Provenance and option ids are rewritten through the maps, and what cannot be mapped is dropped. Share tokens are not copied; judge annotations are kept. There is no model call and no charge, and `outputs.copied_from` makes it idempotent.
 
 ## [0.18.0] - 2026-10-14

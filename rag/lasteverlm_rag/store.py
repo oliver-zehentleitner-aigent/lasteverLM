@@ -99,6 +99,7 @@ class Store(Protocol):
         content: str,
         citations: list[dict[str, Any]] | None,
         support: dict[str, Any] | None = None,
+        suggestions: list[str] | None = None,
     ) -> Message: ...
 
     def get_message(self, message_id: str) -> tuple[str, Message] | None:
@@ -106,6 +107,20 @@ class Store(Protocol):
         ...
 
     def update_message_support(self, message_id: str, support: dict[str, Any]) -> None: ...
+
+    def set_message_feedback(self, message_id: str, feedback: dict[str, Any]) -> None: ...
+
+    def feedback_overview(self, days: int, latest: int) -> dict[str, Any]:
+        """Ratings per UTC day (``days``, oldest first, each day present) and
+        the newest down-rated answers with the question before them."""
+        ...
+
+    # a notebook's starting questions, cached by the ready uploads they came from
+    def notebook_suggestions(self, notebook_id: str) -> tuple[str, list[str]] | None: ...
+
+    def save_notebook_suggestions(
+        self, notebook_id: str, sources_key: str, suggestions: list[str]
+    ) -> None: ...
 
     # outputs
     def create_output(
@@ -400,6 +415,37 @@ order by s.created_at, s.id
 limit 1
 """
 
+# Ratings per UTC day of their (last) change, every day of the window present.
+_FEEDBACK_DAYS_SQL = """
+with d as (
+    select (now() at time zone 'utc')::date - i as day
+    from generate_series(0, %(days)s - 1) as i
+)
+select d.day,
+       count(m.id) filter (where m.feedback ->> 'rating' = 'up') as up,
+       count(m.id) filter (where m.feedback ->> 'rating' = 'down') as down
+from d left join messages m
+  on m.feedback is not null
+ and ((m.feedback ->> 'at')::timestamptz at time zone 'utc')::date = d.day
+group by d.day
+order by d.day
+"""
+
+# The newest down-rated answers, each with the user's question right before it.
+_FEEDBACK_DOWN_SQL = """
+select m.id::text as message_id, m.notebook_id::text as notebook_id,
+       (m.feedback ->> 'at')::timestamptz as at, m.feedback ->> 'comment' as comment,
+       m.content as answer,
+       (select q.content from messages q
+        where q.conversation_id = m.conversation_id and q.role = 'user'
+          and (q.created_at, q.id) < (m.created_at, m.id)
+        order by q.created_at desc, q.id desc limit 1) as question
+from messages m
+where m.feedback ->> 'rating' = 'down'
+order by (m.feedback ->> 'at')::timestamptz desc, m.id
+limit %(latest)s
+"""
+
 _DAILY_SQL = """
 with span as (
     select (now() at time zone 'utc')::date - (%(days)s - 1) as first_day
@@ -498,7 +544,7 @@ class PostgresStore:
         with self._pool.connection() as conn:
             rows = conn.execute(
                 "select * from (select id::text as id, role, content, citations, support, "
-                "created_at "
+                "suggestions, feedback, created_at "
                 "from messages where conversation_id = %s "
                 "order by created_at desc, id desc limit %s) m order by created_at, id",
                 (conversation_id, last),
@@ -513,13 +559,16 @@ class PostgresStore:
         content: str,
         citations: list[dict[str, Any]] | None,
         support: dict[str, Any] | None = None,
+        suggestions: list[str] | None = None,
     ) -> Message:
         with self._pool.connection() as conn:
             row = conn.execute(
                 "insert into messages "
-                "(id, notebook_id, conversation_id, role, content, citations, support) "
-                "values (%s, %s, %s, %s, %s, %s, %s) "
-                "returning id::text as id, role, content, citations, support, created_at",
+                "(id, notebook_id, conversation_id, role, content, citations, support, "
+                "suggestions) "
+                "values (%s, %s, %s, %s, %s, %s, %s, %s) "
+                "returning id::text as id, role, content, citations, support, suggestions, "
+                "feedback, created_at",
                 (
                     _new_id(),
                     notebook_id,
@@ -528,6 +577,7 @@ class PostgresStore:
                     content,
                     _jsonb(citations),
                     _jsonb(support),
+                    Jsonb(suggestions or []),
                 ),
             ).fetchone()
         assert row is not None
@@ -537,7 +587,8 @@ class PostgresStore:
         with self._pool.connection() as conn:
             row = conn.execute(
                 "select notebook_id::text as notebook_id, id::text as id, role, content, "
-                "citations, support, created_at from messages where id = %s",
+                "citations, support, suggestions, feedback, created_at "
+                "from messages where id = %s",
                 (message_id,),
             ).fetchone()
         if row is None:
@@ -549,6 +600,39 @@ class PostgresStore:
         with self._pool.connection() as conn:
             conn.execute(
                 "update messages set support = %s where id = %s", (_jsonb(support), message_id)
+            )
+
+    def set_message_feedback(self, message_id: str, feedback: dict[str, Any]) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update messages set feedback = %s where id = %s", (Jsonb(feedback), message_id)
+            )
+
+    def feedback_overview(self, days: int, latest: int) -> dict[str, Any]:
+        with self._pool.connection() as conn:
+            per_day = conn.execute(_FEEDBACK_DAYS_SQL, {"days": days}).fetchall()
+            down = conn.execute(_FEEDBACK_DOWN_SQL, {"latest": latest}).fetchall()
+        return {"days": [dict(r) for r in per_day], "latest_down": [dict(r) for r in down]}
+
+    def notebook_suggestions(self, notebook_id: str) -> tuple[str, list[str]] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select sources_key, suggestions from notebook_suggestions "
+                "where notebook_id = %s",
+                (notebook_id,),
+            ).fetchone()
+        return (row["sources_key"], list(row["suggestions"])) if row else None
+
+    def save_notebook_suggestions(
+        self, notebook_id: str, sources_key: str, suggestions: list[str]
+    ) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "insert into notebook_suggestions (notebook_id, sources_key, suggestions) "
+                "values (%s, %s, %s) on conflict (notebook_id) do update set "
+                "sources_key = excluded.sources_key, suggestions = excluded.suggestions, "
+                "created_at = now()",
+                (notebook_id, sources_key, Jsonb(suggestions)),
             )
 
     # -- outputs ----------------------------------------------------------
