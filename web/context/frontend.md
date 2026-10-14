@@ -562,3 +562,22 @@ is no per-page number to show. A fixed list would also go stale as
 actions are added. The judge per level came later from the service
 (`judge:<level>` rows with a `level`), and those rows fall into Extras
 under the same prefix rule.
+
+## The missing exchange rate is recognised by its text, not a code
+
+**Id:** 230ffeb2-dfd7-4dc7-ba3b-4b9bc69446d9
+**Type:** workaround
+**Status:** active
+**Evidence:** confirmed
+**Source:** request relayed by the family lead and ingest's change (#414), 2026-10-14: a source waiting on the rate carries `error` "pricing has no exchange rate, ask an admin", and the source shape has no code or attempt count
+
+The source list and the library tell the missing rate from a real retry
+by comparing `error` with that exact sentence (`NO_RATE_REASON` in
+`lib/pendingReason.ts`). Rag's 503 uses the same sentence.
+
+**Reason:** the source shape gives `status` and `error` only, with no
+machine code and no attempt count. Calling the rate's wait a retry would
+tell a user that something was tried when nothing was.
+
+**Revisit when:** ingest's source shape gains a code or an attempt count
+for the error, or the sentence changes in ingest or rag
