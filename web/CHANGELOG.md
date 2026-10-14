@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Notebook list: a row stays on one line, the name cut with an ellipsis (full name as tooltip) and the icons together at the right; a narrow row moves the whole icon group below the name instead of wrapping the × alone.
+
 ## [0.18.5] - 2026-10-14
 
 ### Added
