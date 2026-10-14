@@ -16,6 +16,7 @@ from lasteverlm_core import (
     DEMO_USER_ID,
     RATE_LIMIT_SETTINGS_KEY,
     AuthSettings,
+    DependencyProbe,
     RateLimitRules,
     RateLimitSettings,
     issue_jwt,
@@ -155,6 +156,7 @@ class AccountService:
         rate_limit: RateLimitSettings | None = None,
         system: SystemProbe | None = None,
         services: ServiceClient | None = None,
+        dependencies: DependencyProbe | None = None,
     ) -> None:
         self.settings = settings
         self.repo = repository
@@ -163,6 +165,7 @@ class AccountService:
         self.services = services or ServiceClient(
             ingest_url=settings.ingest_url, rag_url=settings.rag_url
         )
+        self.dependencies = dependencies or DependencyProbe({})
         # The env defaults of the rate-limit rule, shared with the middleware; the panel
         # overrides the four runtime fields through the settings table (context/core.md).
         self.rate_limit = rate_limit or RateLimitSettings()
@@ -598,18 +601,12 @@ class AccountService:
 
     async def admin_system(self) -> SystemInfo:
         """Versions, the other services' health, and the pods and deployments of this namespace."""
-        try:
-            await self.repo.ping()
-            healthy = True
-        except Exception as exc:  # the page must render even when the database is away
-            log.warning("own health check failed: %s", exc)
-            healthy = False
         own = ServiceStatus(
             "account",
             self.settings.app_version,
             self.settings.app_commit,
-            healthy,
-            {"postgres": "ok" if healthy else "down"},  # account's one dependency
+            True,  # this process answers; what it depends on is in `dependencies`
+            {str(k): str(v) for k, v in (await self.dependencies.states()).items()},
         )
         snap = await self.system.snapshot(own)
         return SystemInfo(

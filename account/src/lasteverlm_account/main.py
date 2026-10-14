@@ -16,12 +16,14 @@ from fastapi.responses import JSONResponse
 from lasteverlm_core import (
     AsyncPostgresRateLimitStore,
     AuthSettings,
+    DependencyProbe,
     Health,
     MemoryRateLimitStore,
     RateLimiter,
     RateLimitMiddleware,
     RateLimitSettings,
     RateLimitStore,
+    apostgres_check,
 )
 
 from .api import account, admin, auth
@@ -65,6 +67,12 @@ def create_app(
 
     limits = rate_limit_settings or RateLimitSettings.from_env()
 
+    # What /healthz and /admin/system report as dependency states: core's probe, `select 1`
+    # with a 2 s timeout, cached 15 s; a failed check reads "down", the route itself stays up.
+    dependencies = DependencyProbe(
+        {"postgres": apostgres_check(postgres.connection)} if postgres is not None else {}
+    )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if postgres is not None:
@@ -76,6 +84,7 @@ def create_app(
             rate_limit=limits,
             system=system or SystemProbe(resolved.system_services, api_base=kubernetes_api_base()),
             services=services,
+            dependencies=dependencies,
         )
         await service.startup()
         app.state.service = service
@@ -107,9 +116,14 @@ def create_app(
     # At the root for the Kubernetes probe, under the prefix for the ingress.
     @app.get("/healthz", response_model=Health, tags=["health"])
     @app.get(f"{API_PREFIX}/healthz", response_model=Health, tags=["health"])
-    async def healthz(request: Request) -> Health:
-        await request.app.state.service.repo.ping()
-        return Health(version=resolved.app_version, commit=resolved.app_commit)
+    async def healthz() -> Health:
+        """Liveness plus the build and the dependency states; "ok" even with postgres down —
+        the diagram reads `dependencies`, the probe reads that the process answers."""
+        return Health(
+            version=resolved.app_version,
+            commit=resolved.app_commit,
+            dependencies=await dependencies.states(),
+        )
 
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(account.router, prefix=API_PREFIX)

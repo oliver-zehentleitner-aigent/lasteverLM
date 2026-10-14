@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- `/healthz` reports `dependencies: {"postgres": "ok"|"down"}` through core's `DependencyProbe` (2 s timeout, 15 s cache) and no longer fails when the database is away: the status says the process answers, the dependency state says what is wrong. `/admin/system` shows the same states for account.
+
 ### Added
 
 - `GET /admin/system` for the live architecture diagram: `dependencies` per service (passed through from its healthz), `phase`, `reason` (container waiting/terminated reason) and `template_hash` per pod, `progressing`, `available` and `replica_sets` (ReplicaSets with pods, from the pods' template hashes — no new RBAC) per deployment.
