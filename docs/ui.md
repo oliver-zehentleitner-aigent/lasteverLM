@@ -192,7 +192,12 @@ is closed. After the wizard the notebook view opens.
   "3 of 5 sources" line sits above the question field; a question about
   one document ("ask about this") ignores the selection. In the active tab: question, answer,
   citations as `[n]` that open the cited passage; a citation into a
-  generated document opens that tab.
+  generated document opens that tab. rag checks a cited answer like a
+  document: a paragraph it did not back gets the red "unsupported"
+  badge after it (amber "not checkable" when the answer is in another
+  language than its sources), the paragraph stays, and "N of M claims
+  supported" sits under the answer (method and threshold as tooltip).
+  Answers without citations and older messages show neither.
 
 ## Viewer, print, share
 

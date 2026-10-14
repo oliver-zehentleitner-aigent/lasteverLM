@@ -96,10 +96,26 @@ export interface Chunk {
   text: string
 }
 
+/** The check on an answer or a document: how many claims it backed. */
+export interface Check {
+  method?: string
+  threshold?: number
+  supported: number
+  unsupported: number
+  unverified: number
+}
+
+/** A citing paragraph of an answer, `text` exactly as in the answer
+ *  ([n] markers included), with the check's verdict. */
+export type AnswerUnit = { text: string } & Claim
+
 export interface Answer {
   message_id: string
   answer: string
   citations: Citation[]
+  /** null for an answer without citations */
+  units?: AnswerUnit[] | null
+  check?: Check | null
 }
 
 /** One chat of a notebook, shown as a tab; messages belong to exactly one. */
@@ -116,6 +132,9 @@ export interface Message {
   content: string
   citations: Citation[] | null
   created_at: string
+  /** assistant messages with citations only; null otherwise and on older messages */
+  units?: AnswerUnit[] | null
+  check?: Check | null
 }
 
 // outputs (rag prefix)
@@ -192,7 +211,7 @@ export interface Provenance {
   usage: { llm?: { tokens_in: number; tokens_out: number }; embedding?: { tokens_in: number }; tts?: { seconds: number } }
   started_at: string
   finished_at: string
-  check: { method: string; threshold: number; supported: number; unsupported: number; unverified: number }
+  check: Check & { method: string; threshold: number }
 }
 
 /** What a document is made with; which keys a kind takes comes from the spec. */

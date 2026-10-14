@@ -1,7 +1,7 @@
 import { marked } from 'marked'
 import { describe, expect, it } from 'vitest'
 import type { Passage } from '../api/types'
-import { checkSummary, claimRefs, decorateReport, duration, exportName, markUnsupported, passageCitation, provenanceExport, supportBadge } from './outputProvenance'
+import { checkSummary, claimRefs, decorateReport, duration, exportName, markUnsupported, passageCitation, provenanceExport, supportBadge, unitBadges } from './outputProvenance'
 
 const passage: Passage = {
   n: 2,
@@ -91,5 +91,24 @@ describe('the log', () => {
     })
     expect(exportName('Dead reckoning: a Report!')).toBe('dead-reckoning-a-report-provenance.json')
     expect(exportName('???')).toBe('document-provenance.json')
+  })
+})
+
+describe('unitBadges', () => {
+  const answer = 'First paragraph [1].\n\nSecond one [2].\n\nThird [1, 2].'
+  it('puts a badge after each paragraph the check did not back, in order', () => {
+    const units = [
+      { text: 'First paragraph [1].', support: 'supported' as const },
+      { text: 'Second one [2].', support: 'unsupported' as const },
+      { text: 'Third [1, 2].', support: 'unverified' as const },
+    ]
+    expect(unitBadges(answer, units)).toEqual([
+      { end: answer.indexOf('Second one [2].') + 'Second one [2].'.length, badge: 'unsupported' },
+      { end: answer.length, badge: 'unverified' },
+    ])
+  })
+  it('has none without units or for a text it cannot find', () => {
+    expect(unitBadges(answer, null)).toEqual([])
+    expect(unitBadges(answer, [{ text: 'elsewhere', support: 'unsupported' }])).toEqual([])
   })
 })
