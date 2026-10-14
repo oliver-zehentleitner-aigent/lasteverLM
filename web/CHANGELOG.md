@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-14
+
 ### Changed
 
 - Sources are read when used: a new source is "added · read when used" (neutral) with a small "read now" (its price first); Create and Ask list reading the unread selected sources and re-reading pages as their own lines under the price and say "reading 2 sources…" while a question waits; each selected web page has "cached (fetched 3 h ago) | fetch again" above Create and the question field (`url_refresh`); a page shows when it was fetched, "v2" once it changed, and ↻ to fetch again.

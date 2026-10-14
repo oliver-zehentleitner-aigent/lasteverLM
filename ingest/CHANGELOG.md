@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-14
+
 ### Added
 
 - Web pages have versions: `POST /sources/{id}/refetch` fetches a page again; unchanged (by the hash of its extracted text) only `fetched_at` moves and nothing is charged, changed a new version (`version + 1`) takes the links and is read, and the old version is kept read-only (hidden, its chunks kept for old citations). Sources and library entries carry `version` and `fetched_at` (migration 0015); purging a page purges its older versions.
