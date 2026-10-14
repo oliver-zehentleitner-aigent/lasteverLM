@@ -22,7 +22,7 @@ def test_stats_have_every_key_and_count_jobs_by_claim():
     store = FakeStore()
     empty = admin_stats(store).model_dump()
     assert empty["outputs"]["by_kind"] == dict.fromkeys(
-        ["report", "quiz", "table", "mindmap", "infographic", "audio", "decision"], 0
+        ["report", "quiz", "table", "mindmap", "infographic", "audio", "decision", "chart"], 0
     )
     assert empty["outputs"]["by_status"] == dict.fromkeys(
         ["waiting", "processing", "ready", "failed"], 0
@@ -101,6 +101,7 @@ def test_daily_stats_have_every_day_and_kind(settings):
         "infographic": 0,
         "audio": 1,
         "decision": 0,
+        "chart": 0,
     }
     assert days[2]["outputs"] == 0 and sum(days[2]["outputs_by_kind"].values()) == 0
     assert len(client.get(f"{STATS}/daily", headers=AUTH).json()["days"]) == 30
