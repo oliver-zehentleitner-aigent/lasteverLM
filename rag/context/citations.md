@@ -167,10 +167,10 @@ would have to decode (more ways to get it wrong than parentheses).
 
 **Id:** 2ee513ba-066a-41a3-a9c7-5e906e31c52b
 **Type:** decision
-**Status:** needs-review
+**Status:** active
 **Evidence:** confirmed
 **Source:** maintainer go relayed by the coordinator, 2026-10-14 ("each sentence traceable to the passage it came from"; mark, never block; a deterministic check); the method, the threshold and "unverified" were proposed by rag and approved by the coordinator the same day
-**Revisit when:** rated outputs show the 0.5 threshold marking supported units unsupported or the reverse, translated outputs need a verdict, or the chat's answers get the same check
+**Revisit when:** rated outputs or answers show the 0.5 threshold marking supported units unsupported or the reverse, translated text needs a verdict, or a language other than English and German needs the translation guess
 
 Every kind cites the numbered passages of its prompt (report,
 infographic and audio first; table rows, quiz questions and mind-map
@@ -183,6 +183,14 @@ unit with no refs, a ref the prompt never had, or too little overlap is
 trimmed for it. Below the threshold in a chosen output language the unit
 is `unverified`, because the overlap of words across languages says
 nothing.
+
+Chat answers share the same check (coordinator's go, 2026-10-14): one
+unit per paragraph of an answer that cites, its refs the markers in it,
+stored with the message; an answer without citations is not checked.
+The chat has no language option, so "translated" there means the answer
+and its cited passages are told apart as English and German by their
+most frequent words; for any other language, or too little text, the
+answer counts as untranslated and low overlap stays unsupported.
 
 **Reason:** the claim is meant to be checkable, so the check must give
 the same answer every time and cost nothing per unit; a reader can
