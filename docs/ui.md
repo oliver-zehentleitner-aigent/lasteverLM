@@ -169,6 +169,11 @@ opens the notebook.
   create request with only the keys the kind takes. The viewer and the
   shared page show what a document was made with ("Deutsch · Ryan ·
   1.25×", "Conversation · Ryan & Aiden · 1×").
+- **Notebook list** rows stay on one line: the name (with the Starter
+  badge) cuts with an ellipsis and shows in full as tooltip, and its
+  icons (☆ for an admin, share, ×) stay together at the right. Only when
+  the icons alone need half the row or more does the row take two
+  lines, the whole icon group then below the name, never one icon alone.
 - **Renaming**: a double-click (or F2) on a notebook in the notebook
   list, on an output's row in Outputs or on its tab in the viewer turns
   the title into a field, as on the chat tabs: Enter or leaving the

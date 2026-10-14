@@ -759,6 +759,13 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .out-row.editing .item-edit { grid-column: 2 / -1; }
 /* sharing a notebook: the toggle in its row, the card under it */
 .notebooks .list li { flex-wrap: wrap; }
+/* one line: the name (with its badge) takes what the icons leave and cuts with an
+   ellipsis; its basis of half the row means the row wraps only when the icons alone
+   need half or more, and then the whole icon group goes below the name */
+.notebooks .nb-name { flex: 1 1 50%; min-width: 0; display: flex; align-items: center; gap: 0.25rem; }
+.notebooks .nb-name .item { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notebooks .nb-name .badge { flex: none; }
+.notebooks .nb-actions { flex: none; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.1rem; margin-left: auto; }
 .nb-share { flex: 1 0 100%; }
 .nb-share .share.card { margin: 0.25rem 0 0.5rem; }
 .icon.share-toggle:hover, .icon.share-toggle.shared { color: var(--accent); }
