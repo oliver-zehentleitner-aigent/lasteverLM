@@ -13,6 +13,7 @@ preserves why it changed, in `context/`.
 
 - Voucher codes stay recoverable for admins: new vouchers store the code AES-GCM-encrypted under `VOUCHER_KEY` (required, 32 bytes base64; migration 0008 adds `code_enc`, `sent_to`, `sent_at`). `GET /admin/vouchers/{id}/code` shows it (admin only), the list shows it masked with `recoverable`, `sent_to`, `sent_at`.
 - `POST /admin/vouchers/{id}/send` `{email, message?, allow?}` mails a voucher with the sign-in link (German or English by the sending admin's `ui_language`), adds the address to the allowlist first unless `allow` is false, records `sent_to`/`sent_at`; 409 `already_redeemed`, 429 `too_many_mails` (5 per address per hour), 502 `mail_failed`. `POST /admin/vouchers` takes the same `send_to`, `message`, `allow` to send each created voucher right away.
+- `viewer_addresses` beside `viewer_domains`: a first sign-in of a listed address gets the viewer role (`POST/DELETE /admin/settings/viewer-addresses`, listed in `GET /admin/settings/allowlist`); the address must be allowed to sign in as well, existing users keep their role.
 
 ### Changed
 

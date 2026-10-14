@@ -109,7 +109,7 @@ class Smtp(BaseModel):
     starttls: bool
 
 
-AllowKind = Literal["domain", "address", "viewer"]
+AllowKind = Literal["domain", "address", "viewer", "viewer_address"]
 
 
 class Allowlist(BaseModel):
@@ -119,6 +119,7 @@ class Allowlist(BaseModel):
     allowed_domains: list[str]
     allowed_addresses: list[str]
     viewer_domains: list[str]
+    viewer_addresses: list[str]  # a first sign-in of one of these addresses gets the viewer role
 
 
 class DomainAdd(BaseModel):
