@@ -22,6 +22,7 @@ the bucket is created with curl; nothing else is needed.
 | `TAG` (default `latest`), `REGISTRY` (default `ghcr.io/oliver-zehentleitner`), `COMMIT` (default `git rev-parse HEAD`) | make variables | `make deploy`; `TAG` and `COMMIT` also become `APP_VERSION` and `APP_COMMIT` in the ConfigMap, the build every `/healthz` and the System page report. Deploy from a checkout of `TAG` so the commit matches the images; `deploy.yml` checks out that commit itself |
 | `INFERENCE_API_KEY` | environment | `make secrets` |
 | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET` | environment, optional | `make secrets` (account seeds; without an allowlist and an admin address nobody can log in) |
+| `VULTR_BILLING_API_KEY` | environment, optional; the API key of a Vultr sub-user with only the `billing` permission, created by the maintainer, never the account's `VULTR_API_KEY` | `make secrets` (account's daily fetch of pending charges and invoices; without it the finance page shows Vultr as not connected) |
 | `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` (required with a host), `SMTP_STARTTLS` (default `true`) | environment, optional | `make secrets` (account's mail configuration; without `SMTP_HOST` no Secret and no mail) |
 | `DEMO_TOKEN` | environment, for `make smoke` only; the cluster's value is generated, see below | `make smoke` |
 
@@ -164,7 +165,7 @@ To see what a run did: `kubectl -n lasteverlm logs job/lasteverlm-migrate`
 | `lasteverlm-s3` | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest, rag (audio files) |
 | `lasteverlm-inference` | `INFERENCE_API_KEY` | ingest, rag |
 | `lasteverlm-auth` | `AUTH_JWT_SECRET`, `DEMO_TOKEN` | account, ingest, rag |
-| `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET`, `VOUCHER_KEY` | account |
+| `lasteverlm-account` | `AUTH_ALLOWED_DOMAINS`, `ADMIN_EMAILS`, `VISIT_HASH_SECRET`, `VOUCHER_KEY`, `VULTR_BILLING_API_KEY` (empty when not set) | account |
 | `lasteverlm-smtp` (optional) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | account |
 
 Re-running `make secrets` updates the objects in place; pods pick the
@@ -178,6 +179,18 @@ it: with a new key every stored code is unrecoverable (the vouchers stay
 redeemable, showing and sending them fails), and there is no
 re-encryption. Losing `build/cluster.env` loses it too; the live value
 is in the Secret.
+
+`VULTR_BILLING_API_KEY` lets account read Vultr's pending charges and
+invoices once a day for the finance page. Create a sub-user in the
+Vultr console with API access and the `billing` permission only, put
+its API key into the env file, run `make secrets` and restart account. Never
+use the account's own `VULTR_API_KEY` here: it can create and delete
+every resource. Vultr's permission list has no read-only billing
+variant, so the sub-user's key is narrower than the account key, not
+read-only. Without the key the fetch does not run and the finance
+page shows Vultr as not connected. Account reaches `api.vultr.com` on
+443; egress is open (NetworkPolicies above), keep 443 outward if that
+ever changes.
 
 Mail works the same way: account reads its SMTP configuration from
 `lasteverlm-smtp`. Set the `SMTP_*` values in the env file, run
