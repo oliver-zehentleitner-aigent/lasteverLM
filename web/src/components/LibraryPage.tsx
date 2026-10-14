@@ -11,6 +11,7 @@ import { SOURCE_FORMS, sourceKindLabel } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
+import { RedeemLink } from './RedeemLink'
 import { OutputsList, TrashedOutputs } from './LibraryOutputs'
 import { t, tn } from '../i18n'
 
@@ -109,7 +110,7 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   }, [run])
 
   // new entries (a new account's demo sources, say) turn ready as the worker gets to them
-  const processing = entries.some((e) => e.status === 'processing')
+  const processing = entries.some((e) => e.status === 'processing' || e.status === 'waiting_for_credit')
   useEffect(() => {
     if (!processing) return
     const timer = setInterval(() => {
@@ -267,7 +268,8 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                     <span className={`badge ${e.status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
                       {t(`status.${e.status}`)}
                     </span>
-                    {e.status === 'failed' && e.error && (
+                    {e.status === 'waiting_for_credit' && <RedeemLink />}
+                  {e.status === 'failed' && e.error && (
                       <span className="error small reason" title={e.error}>
                         {e.error}
                       </span>

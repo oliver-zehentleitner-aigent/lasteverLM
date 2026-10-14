@@ -23,6 +23,13 @@ export class ApiError extends Error {
 export const apiEvents = new EventTarget()
 export const UNAUTHORIZED = 'unauthorized'
 export const PAYMENT_REQUIRED = 'payment-required'
+export const OPEN_VOUCHER = 'open-voucher'
+
+/** Opens the voucher dialog from anywhere ("redeem a voucher" next to a
+ *  source waiting for credit); App listens, as for a 402. */
+export function openVoucher(): void {
+  apiEvents.dispatchEvent(new Event(OPEN_VOUCHER))
+}
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH'

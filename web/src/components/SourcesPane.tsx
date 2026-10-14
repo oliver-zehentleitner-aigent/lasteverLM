@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ingest } from '../api/ingest'
+import { RedeemLink } from './RedeemLink'
 import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
@@ -57,7 +58,8 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
     if (loaded) onSourcesChange(shown)
   }, [loaded, shown, onSourcesChange])
 
-  const processing = sources.some((s) => s.status === 'processing')
+  // a source waiting for credit starts once a voucher is redeemed: keep polling for it too
+  const processing = sources.some((s) => s.status === 'processing' || s.status === 'waiting_for_credit')
   useEffect(() => {
     if (!processing) return
     const t = setInterval(() => {
@@ -127,6 +129,7 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
               {audioFiles(s) && <PlayButton open={playing?.id === s.id} name={s.name} onToggle={() => togglePlayer(s)} />}
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
               {s.status === 'processing' && s.error && <span className="muted small">{t('sources.retrying', { error: s.error })}</span>}
+              {s.status === 'waiting_for_credit' && <RedeemLink />}
               {playing?.id === s.id && <AudioCheck files={playing.files} />}
             </div>
             <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>

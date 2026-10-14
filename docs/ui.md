@@ -96,6 +96,11 @@ is closed. After the wizard the notebook view opens.
   only deletes the notebook, and the documents stay in the library with
   their origin noted. Without generated documents the plain
   confirmation as before.
+  A source added without credit is listed as "waiting for credit" with
+  "redeem a voucher" next to it (the voucher dialog); it is processed
+  once there is credit again, and the list keeps polling until then.
+  Adding is never blocked by credit; creating documents is (402, the
+  voucher dialog).
   This notebook's own generated documents are not listed here (they are
   under Outputs), although the backend keeps each one as a source of
   kind `generated` so the chat can cite it.

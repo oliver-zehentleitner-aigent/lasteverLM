@@ -2,7 +2,8 @@
 // A change here is a change there first.
 
 export type SourceKind = 'pdf' | 'text' | 'url' | 'image' | 'audio' | 'generated'
-export type SourceStatus = 'processing' | 'ready' | 'failed'
+/** waiting_for_credit: added, and processed once the account has credit again */
+export type SourceStatus = 'processing' | 'waiting_for_credit' | 'ready' | 'failed'
 export type Role = 'user' | 'assistant'
 
 export interface Notebook {
@@ -469,7 +470,8 @@ export interface AccountStats {
 
 export interface IngestStats {
   sources: { processing: number; ready: number; failed: number }
-  jobs: { pending: number; running: number; failed: number }
+  /** waiting_for_credit: jobs held until their owner has credit; absent from an older ingest */
+  jobs: { pending: number; running: number; failed: number; waiting_for_credit?: number }
   chunks: number
   /** bytes in object storage, for sources uploaded since the size is stored */
   source_bytes: number
