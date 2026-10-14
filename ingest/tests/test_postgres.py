@@ -417,7 +417,7 @@ def test_the_queue_waits_for_credit_without_counting_attempts(repo):
     )
     assert repo.claim_library_source("w", STALE) == waiting.id
     # Credit runs out mid-job: back in the queue, the attempt not counted.
-    repo.wait_for_credit(waiting.id)
+    repo.release_waiting(waiting.id)
     row = repo.get_library_source(waiting.id)
     assert row.attempts == 0 and row.status == "processing" and row.error is None
     _execute(repo, "delete from ledger where user_id = %s", (broke,))
