@@ -95,9 +95,10 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete, onRename, s
                 type="button"
                 className="out-row"
                 onClick={() => onOpen(o.id)}
-                onDoubleClick={() => setEditing(o.id)}
+                // only a ready output can be renamed (rag answers 409 before: the worker would overwrite it)
+                onDoubleClick={() => o.status === 'ready' && setEditing(o.id)}
                 onKeyDown={(e) => {
-                  if (e.key === 'F2') {
+                  if (e.key === 'F2' && o.status === 'ready') {
                     e.preventDefault()
                     setEditing(o.id)
                   }

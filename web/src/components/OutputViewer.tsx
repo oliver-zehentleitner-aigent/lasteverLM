@@ -164,9 +164,9 @@ export function OutputViewer({
               aria-selected={o.id === selectedId}
               className={`tab status-${o.status}${o.id === selectedId ? ' active' : ''}`}
               onClick={() => onSelect(o.id)}
-              onDoubleClick={() => setEditing(o.id)}
+              onDoubleClick={() => o.status === 'ready' && setEditing(o.id)}
               onKeyDown={(e) => {
-                if (e.key === 'F2') {
+                if (e.key === 'F2' && o.status === 'ready') {
                   e.preventDefault()
                   setEditing(o.id)
                 }

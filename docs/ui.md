@@ -146,7 +146,8 @@ is closed. After the wizard the notebook view opens.
   the title into a field, as on the chat tabs: Enter or leaving the
   field saves (`PATCH /api/ingest/notebooks/{id}`, `PATCH
   /api/rag/outputs/{id}` with `{title}`, up to 200 characters), Escape
-  cancels; an empty or unchanged title saves nothing. The new title
+  cancels; an empty or unchanged title saves nothing. An output is
+  renamed once it is ready (before, the worker would overwrite it). The new title
   shows at once and the old one returns if the service refuses it.
 - **Outputs** (left, bottom): the generated documents, one row each:
   the kind and the status in fixed slots, the title between them, and
