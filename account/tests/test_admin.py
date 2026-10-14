@@ -312,8 +312,19 @@ def test_ratelimit_rules_are_env_defaults_until_overridden(
     r = client.put(url, json=body, headers=h)
     assert r.status_code == 200
     assert r.json() == {**body, "ban_max_days": 90, "retention_days": 30}
-    # stored under core's key, in core's shape, so every service's middleware reads it
+    # stored under core's key, in core's shape (the env cap filled in), read by every service
+    assert repo.settings[RATE_LIMIT_SETTINGS_KEY] == {**body, "ban_max_days": 90}
+    body = {**body, "ban_max_days": 30}
+    r = client.put(url, json=body, headers=h)
+    assert r.status_code == 200 and r.json() == {**body, "retention_days": 30}
     assert repo.settings[RATE_LIMIT_SETTINGS_KEY] == body
+    for bad in (0, 366):
+        r = client.put(url, json={**body, "ban_max_days": bad}, headers=h)
+        assert r.status_code == 422 and "ban_max_days" in r.json()["error"]
+    # an old four-field row still reads, with the env cap
+    repo.settings[RATE_LIMIT_SETTINGS_KEY] = {k: v for k, v in body.items() if k != "ban_max_days"}
+    assert client.get(url, headers=h).json()["ban_max_days"] == 90
+    repo.settings[RATE_LIMIT_SETTINGS_KEY] = body
 
     r = client.put(url, json={**body, "per_minute": 0}, headers=h)
     assert r.status_code == 422

@@ -17,6 +17,7 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- `ban_max_days` (1–365) is part of the editable rate-limit rule: `PUT /admin/settings/ratelimit` accepts it (omitted keeps the `BAN_MAX_DAYS` default), core's limiter and the startup purge use the stored value (core #387).
 - Vouchers created before this release exist only as hashes: their codes cannot be shown or sent again (404 `not_recoverable`). They stay redeemable.
 
 ## [0.14.0] - 2026-10-14

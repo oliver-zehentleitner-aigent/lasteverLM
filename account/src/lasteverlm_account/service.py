@@ -247,7 +247,11 @@ class AccountService:
         # Core's middleware writes these tables and never deletes; this service owns their
         # retention (context/core.md). A ban holds until an admin lifts it, at most BAN_MAX_DAYS.
         access, blocks, bans = await self.repo.purge_access_tables(
-            purge_params(self.settings.access_retention_days, self.settings.ban_max_days, now)
+            purge_params(
+                self.settings.access_retention_days,
+                (await self.ratelimit_rules()).ban_max_days,
+                now,
+            )
         )
         log.info(
             "retention: core tables: removed %d access_log rows, %d stale blocks older than "
@@ -657,22 +661,21 @@ class AccountService:
         if raw is None:
             return defaults
         try:
-            return RateLimitRules.parse(raw)
+            return RateLimitRules.parse(raw, defaults)
         except ValueError as exc:
             log.warning("stored rate-limit rules unusable, showing env defaults: %s", exc)
             return defaults
 
     async def ratelimit_view(self) -> RateLimitRulesView:
         rules = await self.ratelimit_rules()
-        return RateLimitRulesView(
-            **rules.as_json(),
-            ban_max_days=self.rate_limit.ban_max_days,
-            retention_days=self.rate_limit.retention_days,
-        )
+        return RateLimitRulesView(**rules.as_json(), retention_days=self.rate_limit.retention_days)
 
     async def update_ratelimit(self, update: RateLimitRulesUpdate) -> RateLimitRulesView:
         try:
-            rules = RateLimitRules.parse(update.model_dump())  # core's bounds, one validator
+            # core's bounds, one validator; an omitted ban_max_days keeps the env default
+            rules = RateLimitRules.parse(
+                update.model_dump(exclude_none=True), RateLimitRules.from_settings(self.rate_limit)
+            )
         except ValueError as exc:
             raise AccountError(422, str(exc)) from exc
         await self.repo.set_setting(RATE_LIMIT_SETTINGS_KEY, rules.as_json())

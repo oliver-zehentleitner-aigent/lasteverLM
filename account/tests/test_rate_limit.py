@@ -68,3 +68,24 @@ async def test_startup_purges_core_tables_but_keeps_active_bans(
     assert [b.updated_at for b in repo.blocks] == [fresh]
     # a ban holds until an admin lifts it, at most BAN_MAX_DAYS (90)
     assert [(b.reason, b.lifted_at) for b in repo.ip_bans] == [("lifted", fresh), ("active", None)]
+
+
+@pytest.mark.anyio
+async def test_startup_purge_uses_the_stored_ban_cap(
+    service: AccountService, repo: MemoryRepository, clock: Clock
+) -> None:
+    from lasteverlm_core import RATE_LIMIT_SETTINGS_KEY
+
+    repo.settings[RATE_LIMIT_SETTINGS_KEY] = {
+        "per_minute": 120,
+        "block_minutes": 15,
+        "ban_after_strikes": 3,
+        "strike_window_hours": 24,
+        "ban_max_days": 10,
+    }
+    repo.ip_bans.append(
+        BanRecord("203.0.113.7", "eleven days", clock.now - timedelta(days=11), None)
+    )
+    repo.ip_bans.append(BanRecord("203.0.113.8", "nine days", clock.now - timedelta(days=9), None))
+    await service.startup()
+    assert [b.reason for b in repo.ip_bans] == ["nine days"]
