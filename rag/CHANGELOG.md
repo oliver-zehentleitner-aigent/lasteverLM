@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.12.0] - 2026-10-14
-
 ### Added
 
 - Outputs in the user's library: `GET /api/rag/library/outputs?kind=&trash=` lists the caller's outputs from every notebook, including deleted notebooks; `Output` carries `origin_title` (the notebook's title when the output was made), `deleted_at` and `purge_at` (core's model). The generated source of an output is the user's library row, which ingest can link into another notebook without reprocessing.
@@ -20,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DELETE /api/rag/outputs/{id}` moves the output to the trash instead of deleting it; the output and its generated source leave every notebook, `GET` and the share link answer 404 until it is restored.
 - An output survives the deletion of its notebook (`notebook_id` becomes `null`); a job whose notebook is gone fails with "the notebook was deleted".
 - `DELETE /api/rag/admin/users/{id}` deletes the user's outputs and generated sources by owner, so outputs of deleted notebooks and trashed ones go too.
+
+## [0.12.0] - 2026-10-14
 
 ### Added
 
