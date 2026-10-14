@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """End-to-end smoke test for a running lasteverLM deployment.
 
-Logs in with the demo token, creates a notebook, uploads a text source,
-waits until it is ready, opens a conversation, asks a question in it and
-asserts that the answer cites the source. The text carries a run id, so
+Logs in with the demo token, creates a notebook, uploads a text source
+(it stays `added`: sources are read when they are used), opens a
+conversation, asks a question in it with the source selected, which makes
+rag have it read first, and asserts that the answer cites the source. If
+the answer comes before the reading is done ("Still being read"), the test
+has the source read (`POST /api/ingest/sources/process`), waits until it is
+ready and asks again. The text carries a run id, so
 ingest's per-user library (deduplicated by content) takes a new source
 through the whole pipeline every time. Works against a local stack or the live cluster;
 needs only the Python standard library.
@@ -129,6 +133,25 @@ def step(name: str) -> None:
     print(f"- {name}", flush=True)
 
 
+STILL_READING = "Still being read"
+
+
+def wait_ready(client: Client, notebook_id: str, source_id: str, timeout: float) -> None:
+    deadline = time.monotonic() + timeout
+    while True:
+        sources = client.request("GET", f"/api/ingest/notebooks/{notebook_id}/sources")
+        current = next((s for s in sources if s["id"] == source_id), None)
+        if current is None:
+            raise SmokeFailure("uploaded source disappeared from the notebook")
+        if current["status"] == "ready":
+            return
+        if current["status"] == "failed":
+            raise SmokeFailure(f"source processing failed: {current.get('error')!r}")
+        if time.monotonic() > deadline:
+            raise SmokeFailure(f"source still {current['status']!r} after {timeout:.0f}s")
+        time.sleep(2)
+
+
 def run(client: Client, ready_timeout: float, keep: bool) -> None:
     step("login with the demo token")
     me = client.request("GET", "/api/account/me")
@@ -156,25 +179,10 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
         library_id = source.get("library_id")
         if not library_id:
             raise SmokeFailure(f"upload answered without a library_id: {source}")
-        if source.get("status") != "processing":
+        if source.get("status") != "added":
             raise SmokeFailure(
-                f"upload answered with status {source.get('status')!r}, expected 'processing'"
+                f"upload answered with status {source.get('status')!r}, expected 'added'"
             )
-
-        step(f"wait for the source to become ready (up to {ready_timeout:.0f}s)")
-        deadline = time.monotonic() + ready_timeout
-        while True:
-            sources = client.request("GET", f"/api/ingest/notebooks/{notebook_id}/sources")
-            current = next((s for s in sources if s["id"] == source_id), None)
-            if current is None:
-                raise SmokeFailure("uploaded source disappeared from the notebook")
-            if current["status"] == "ready":
-                break
-            if current["status"] == "failed":
-                raise SmokeFailure(f"source processing failed: {current.get('error')!r}")
-            if time.monotonic() > deadline:
-                raise SmokeFailure(f"source still {current['status']!r} after {ready_timeout:.0f}s")
-            time.sleep(2)
 
         step("open a conversation")
         conversation = client.request(
@@ -184,14 +192,26 @@ def run(client: Client, ready_timeout: float, keep: bool) -> None:
         if conversation.get("notebook_id") != notebook_id:
             raise SmokeFailure(f"conversation belongs to another notebook: {conversation}")
 
-        step("ask a question")
-        answer = client.json(
-            "POST",
-            f"/api/rag/notebooks/{notebook_id}/ask",
-            {"question": QUESTION, "conversation_id": conversation_id},
-        )
-        text = answer.get("answer") or ""
-        citations = answer.get("citations") or []
+        def ask() -> tuple[str, list]:
+            answer = client.json(
+                "POST",
+                f"/api/rag/notebooks/{notebook_id}/ask",
+                {
+                    "question": QUESTION,
+                    "conversation_id": conversation_id,
+                    "source_ids": [source_id],
+                },
+            )
+            return answer.get("answer") or "", answer.get("citations") or []
+
+        step("ask a question with the source selected (rag has it read first)")
+        text, citations = ask()
+        if not citations and STILL_READING in text:
+            step(f"the source is still being read: read it now, wait (up to {ready_timeout:.0f}s)")
+            client.json("POST", "/api/ingest/sources/process", {"library_ids": [library_id]})
+            wait_ready(client, notebook_id, source_id, ready_timeout)
+            step("ask again")
+            text, citations = ask()
         if not text.strip():
             raise SmokeFailure("empty answer")
         if not citations:
@@ -273,7 +293,9 @@ def main(argv: list[str] | None = None) -> int:
     except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
         print(f"ERROR: cannot reach {args.base_url}: {exc}", file=sys.stderr)
         return 2
-    print("OK: login, notebook, upload, ready, conversation, ask with citation, history, cleanup")
+    print(
+        "OK: login, notebook, upload, conversation, source read on use, ask with citation, history, cleanup"
+    )
     return 0
 
 

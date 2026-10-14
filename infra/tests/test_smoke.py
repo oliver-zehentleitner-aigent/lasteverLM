@@ -69,6 +69,8 @@ class Stub(BaseHTTPRequestHandler):
         if m:
             sources = store["sources"].get(m.group(1), [])
             for s in sources:
+                if s["status"] != "processing":
+                    continue
                 s["polls"] += 1
                 if s["polls"] >= 2:
                     s["status"] = "failed" if self.server.mode == "fail-source" else "ready"
@@ -93,7 +95,8 @@ class Stub(BaseHTTPRequestHandler):
                 "multipart/form-data"
             ), "multipart expected"
             assert b'name="file"' in body and b"Zeltavia" in body, "file part missing"
-            # Like ingest's library: the same bytes again are linked, already ready.
+            # Like ingest's library: the same bytes again are linked, already ready;
+            # new bytes stay `added` until something needs them.
             content = body.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n--", 1)[0]
             digest = hashlib.sha256(content).hexdigest()
             known = store["library"].get(digest)
@@ -103,7 +106,7 @@ class Stub(BaseHTTPRequestHandler):
                 "library_id": known or str(uuid.uuid4()),
                 "name": "zeltavia.txt",
                 "kind": "text",
-                "status": "ready" if known else "processing",
+                "status": "ready" if known else "added",
                 "error": None,
                 "created_at": "now",
                 "polls": 0,
@@ -122,16 +125,37 @@ class Stub(BaseHTTPRequestHandler):
             }
             store["conversations"][conv["id"]] = conv
             return self._send(201, conv)
+        if self.path == "/api/ingest/sources/process":
+            ids = json.loads(body)["library_ids"]
+            queued = []
+            for s in (s for srcs in store["sources"].values() for s in srcs):
+                if s["library_id"] in ids and s["status"] == "added":
+                    s["status"] = "processing"
+                    queued.append(s["library_id"])
+            store["processed"].extend(queued)
+            return self._send(200, {"queued": queued, "unchanged": []})
         m = re.fullmatch(r"/api/rag/notebooks/([^/]+)/ask", self.path)
         if m:
             nb_id = m.group(1)
             conv_id = json.loads(body).get("conversation_id")
+            src = store["sources"][nb_id][0]
+            assert json.loads(body).get("source_ids") == [src["id"]], "the source must be selected"
+            # rag has a selected `added` source read first; within its wait it is
+            # ready, unless the mode makes the reading outlast the answer.
+            slow = self.server.mode in ("slow-read", "fail-source")
+            if src["status"] == "added":
+                src["status"] = "processing" if slow else "ready"
             if store["conversations"].get(conv_id, {}).get("notebook_id") != nb_id:
                 return self._send(
                     422, {"detail": [{"loc": ["body", "conversation_id"], "msg": "Field required"}]}
                 )
-            src = store["sources"][nb_id][0]
-            if self.server.mode == "no-citation":
+            if src["status"] != "ready":
+                answer = {
+                    "message_id": "m0",
+                    "answer": "The ready sources do not cover this.\n\nStill being read: zeltavia.txt",
+                    "citations": [],
+                }
+            elif self.server.mode == "no-citation":
                 answer = {
                     "message_id": "m1",
                     "answer": "The sources do not cover this.",
@@ -199,6 +223,7 @@ class SmokeTest(unittest.TestCase):
             "library": {},
             "messages": {},
             "deleted": [],
+            "processed": [],
         }
         self.server.mode = "ok"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
@@ -229,6 +254,13 @@ class SmokeTest(unittest.TestCase):
         code, out, err = self._run()
         self.assertEqual(code, 0, out + err)
         self.assertEqual(len(self.server.store["library"]), 1)
+
+    def test_answer_before_the_reading_ends_falls_back_to_processing(self):
+        self.server.mode = "slow-read"
+        code, out, err = self._run()
+        self.assertEqual(code, 0, out + err)
+        self.assertIn("still being read", out)
+        self.assertEqual(len(self.server.store["processed"]), 0, "rag already queued it")
 
     def test_keep_leaves_the_notebook(self):
         code, _, _ = self._run("--keep")

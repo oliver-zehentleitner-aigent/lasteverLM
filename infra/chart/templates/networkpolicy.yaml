@@ -1,7 +1,8 @@
 {{- if .Values.networkPolicy.enabled }}
 {{- /* Ingress only. Nothing in the namespace accepts a connection except from the
-     ingress controller and, for the health probes of the System page, from
-     account to the other API services. Kubelet probes come from the node and
+     ingress controller, for the health probes of the System page from
+     account to the other API services, and from rag to ingest's API
+     (reading sources when used, the agent chat's steps). Kubelet probes come from the node and
      are always allowed. Egress stays open: see context/cluster.md. */}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -46,6 +47,30 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: account
+      ports:
+        - port: http
+---
+# rag's API and worker call ingest's API (INGEST_URL, default http://ingest):
+# sources are read when an answer or an output needs them.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rag-to-ingest
+  labels:
+    {{- include "lasteverlm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ingest
+      app.kubernetes.io/component: api
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [rag, rag-worker]
       ports:
         - port: http
 {{- end }}

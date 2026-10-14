@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- NetworkPolicy `rag-to-ingest`: `rag` and `rag-worker` reach ingest's API port. Since 0.19.0 rag calls ingest to have sources read when they are used, and the ingress-only policies blocked it, so every answer or output on an unread source failed with 502 `ingest is not reachable: ConnectTimeout`.
+- Smoke test follows reading when used: the upload answers `added`, the question selects the source so rag has it read, and if the answer comes first ("Still being read") the test has the source read (`POST /api/ingest/sources/process`), waits for `ready` and asks again.
+
 ## [0.18.7] - 2026-10-14
 
 ### Fixed

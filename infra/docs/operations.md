@@ -89,7 +89,7 @@ reaches the deployment through the load balancer address:
 | Ingress `lasteverlm` | path routing `/api/account`, `/api/ingest`, `/api/rag`, `/`; TLS via cert-manager; per-IP rate limiting (`limit-rps`, burst multiplier, `limit-connections`) |
 | ClusterIssuer `letsencrypt` | ACME http01 |
 | Job `lasteverlm-migrate` + ConfigMap | pre-install/pre-upgrade hook, see Migrations |
-| NetworkPolicies `default-deny-ingress`, `from-ingress-controller`, `account-health-probes` | no pod accepts a connection except from the `ingress-nginx` namespace (any port, including cert-manager's HTTP-01 solver) and, on the API port, from `account` (the System page's health probes); egress is open |
+| NetworkPolicies `default-deny-ingress`, `from-ingress-controller`, `account-health-probes`, `rag-to-ingest` | no pod accepts a connection except from the `ingress-nginx` namespace (any port, including cert-manager's HTTP-01 solver), on the API port from `account` (the System page's health probes), and on ingest's API port from `rag` and `rag-worker` (sources read when used, the agent chat's steps); egress is open |
 | ServiceAccount `account`, Role and RoleBinding `account-kubernetes-read` | `get`/`list` on `pods` and `apps/deployments` in this namespace only; the `account` pods mount the token (`automountServiceAccountToken: true`) for the admin System page |
 
 Values: `chart/values.yaml` holds the defaults (replicas, autoscaler
