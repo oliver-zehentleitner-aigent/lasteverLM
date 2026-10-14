@@ -55,3 +55,35 @@ batches would leave a source half indexed and its calls billed anyway.
   half embedded, with those batches still billed.
 - Reserving an estimated cost up front: needs an estimator and an
   account-side hold, for a few cents.
+
+## Adding a source is free; processing waits for credit, derived in the claim query
+
+**Id:** 8b4d8fdd-3b1f-4f35-be45-452e15385df9
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's decision through the coordinating agent, 2026-10-14 (adding always allowed, processing needs credit); the derived status chosen by the ingest author from the two options the decision named
+**Revisit when:** the claim query's balance subqueries show up in the database's slow log, or users need to see why exactly a source waits beyond the status
+
+A user without credit can add sources: the upload, URL or text is stored
+and queued like any other. Processing needs credit, so the worker's claim
+query only takes a row whose owner has a positive balance (or a sponsored
+demo seed). The row stays `processing` in the table; the API shows
+`waiting_for_credit` when the owner has no credit. As soon as a voucher
+or top-up lands in account's ledger, the next claim takes the source.
+Credit running out in the middle of a job releases the claim without
+counting the attempt, so the source waits instead of failing.
+
+**Alternatives:**
+- Refusing the add with 402, the state before: the user could not even
+  put a text into a notebook to look at it, and had to come back later
+  to add it again.
+- A stored status `waiting_for_credit` (migration for the check
+  constraint) moved back to `processing` by a hook on credit changes or a
+  periodic pass: the hook would need account to call ingest or ingest to
+  watch account's ledger, and a pass delays every resume by its interval;
+  the stored value also goes stale the moment credit arrives. Derived in
+  the claim query, it is always current and needs no migration.
+- Failing a source whose credit ran out mid-job: the user would have to
+  find and re-add it after topping up.
+
