@@ -719,3 +719,9 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .library .made-in.gone { font-style: italic; }
 .library .filters { grid-template-columns: minmax(9rem, 12rem) minmax(9rem, 14rem) minmax(0, 22rem); }
 @media (max-width: 640px) { .library .filters { grid-template-columns: minmax(0, 1fr); } }
+/* library rows stay one line: the name truncates with its full text as
+   tooltip, the demo badge follows it and never overlaps */
+.library td.name .name-cell { overflow: hidden; }
+.library td.name a.open-name { display: flex; min-width: 0; overflow: hidden; }
+.library td.name .image-name { min-width: 0; }
+.library td.name .name-cell > .badge { flex: none; }

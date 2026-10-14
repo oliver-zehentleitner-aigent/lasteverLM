@@ -364,12 +364,16 @@ too); and, under them, the trashed outputs, with restore (back into
 the notebook it was made in, if that still exists; other notebooks need
 it added again) and delete for good.
 
-Image entries show a small square thumbnail in front of their name in
-the library, the trash and the wizard's picker, loaded lazily from the
-entry's `preview_url`. Hovering the thumbnail or the name, or focusing
-the thumbnail, shows a preview up to 320 px next to it, kept inside the
-window; leaving or Esc hides it. On touch a tap on the thumbnail opens
-it without ticking the row, a tap elsewhere closes it.
+In the library and the trash every row stays one line: a long name (a
+URL, say) is cut with an ellipsis and shows in full as tooltip, and the
+demo badge follows it without overlapping. An image entry there has no
+thumbnail; hovering or focusing its name shows a preview up to 320 px
+next to it, kept inside the window (loaded only then), and leaving or
+Esc hides it. In the wizard's picker an image keeps a small square
+thumbnail in front of its name, loaded lazily from the entry's
+`preview_url`, with the same preview on hovering the thumbnail or the
+name or focusing the thumbnail; on touch a tap on the thumbnail opens it
+without ticking the row, a tap elsewhere closes it.
 
 A new account starts with four example sources in its library (a PDF,
 a Markdown glossary, an image and a Wikipedia page), marked "demo"

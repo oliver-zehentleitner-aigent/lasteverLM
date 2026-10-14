@@ -13,6 +13,9 @@ interface Props {
   label: string
   /** tooltip and alt text, e.g. the full file name */
   title: string
+  /** false: no thumbnail in front, the preview shows on hovering or
+   *  focusing the name only (the library's rows, which stay one line) */
+  thumbnail?: boolean
 }
 
 const SIZE = 320
@@ -21,15 +24,17 @@ const SIZE = 320
  *  image. Hovering the thumbnail or the name, or focusing the thumbnail,
  *  shows a medium preview that stays inside the viewport; Esc or leaving
  *  hides it. On touch a tap on the thumbnail opens it (and does not toggle
- *  a surrounding checkbox row), a tap elsewhere closes it. */
-export function ImageName({ kind, previewUrl: preview, label, title }: Props) {
+ *  a surrounding checkbox row), a tap elsewhere closes it. Without the
+ *  thumbnail only the name opens the preview, so nothing loads before. */
+export function ImageName({ kind, previewUrl: preview, label, title, thumbnail = true }: Props) {
   const previewUrl = kind === 'image' ? preview : null
   const thumb = useRef<HTMLImageElement>(null)
+  const anchor = useRef<HTMLSpanElement>(null)
   const touched = useRef(false)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
   function show() {
-    const r = thumb.current?.getBoundingClientRect()
+    const r = (thumb.current ?? anchor.current)?.getBoundingClientRect()
     if (r) setPos(previewPosition(r, { width: window.innerWidth, height: window.innerHeight }, { width: SIZE, height: SIZE }))
   }
   const hide = () => setPos(null)
@@ -47,6 +52,22 @@ export function ImageName({ kind, previewUrl: preview, label, title }: Props) {
   }, [pos])
 
   if (!previewUrl) return <span className="image-name-text" title={title}>{label}</span>
+
+  if (!thumbnail)
+    return (
+      <span className="image-name" ref={anchor} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+        <span className="image-name-text" title={title}>
+          {label}
+        </span>
+        {pos &&
+          createPortal(
+            <div className="image-preview" style={{ left: pos.left, top: pos.top }} aria-hidden="true">
+              <img src={previewUrl} alt="" />
+            </div>,
+            document.body,
+          )}
+      </span>
+    )
 
   return (
     <span className="image-name" onMouseEnter={show} onMouseLeave={hide}>
