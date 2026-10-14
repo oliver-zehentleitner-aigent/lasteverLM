@@ -908,8 +908,11 @@ class AccountService:
         try:
             lines = await self.vultr.cost_lines()
         except VultrError as exc:
+            # The last success stays what it was: a failure must not erase when syncing worked.
+            state = await self.repo.get_setting(SETTING_VULTR_SYNC) or {}
             await self.repo.set_setting(
-                SETTING_VULTR_SYNC, {"last_sync": None, "last_error": str(exc), "rows": 0}
+                SETTING_VULTR_SYNC,
+                {**state, "last_attempt_at": now.isoformat(), "last_error": str(exc)},
             )
             log.warning("vultr billing sync failed: %s", exc)
             raise AccountError(502, f"Vultr billing sync failed: {exc}", "vultr_failed") from exc
@@ -923,7 +926,13 @@ class AccountService:
             ],
         )
         await self.repo.set_setting(
-            SETTING_VULTR_SYNC, {"last_sync": now.isoformat(), "last_error": None, "rows": rows}
+            SETTING_VULTR_SYNC,
+            {
+                "last_success_at": now.isoformat(),
+                "last_attempt_at": now.isoformat(),
+                "last_error": None,
+                "rows": rows,
+            },
         )
         log.info("vultr billing sync: %d monthly lines", rows)
         return rows
@@ -960,10 +969,15 @@ class AccountService:
         for r in rows:
             totals[r.currency] = totals.get(r.currency, 0) + r.amount_cents
         converted = [self._eur(r.amount_cents, r.currency, rate) for r in rows]
-        last = sync.get("last_sync")
+
+        def at(key: str) -> datetime | None:
+            raw = sync.get(key) or (sync.get("last_sync") if key == "last_success_at" else None)
+            return datetime.fromisoformat(raw) if raw else None  # last_sync: rows before 0.x
+
         return InfraCosts(
-            vultr="connected" if self.vultr is not None else "not connected",
-            last_sync=datetime.fromisoformat(last) if last else None,
+            configured=self.vultr is not None,
+            last_success_at=at("last_success_at"),
+            last_attempt_at=at("last_attempt_at"),
             last_error=sync.get("last_error"),
             usd_per_eur=float(rate) if rate is not None else None,
             entries=[self._infra_cost(r, rate) for r in rows],

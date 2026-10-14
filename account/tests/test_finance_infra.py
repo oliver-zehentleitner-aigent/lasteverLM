@@ -64,7 +64,9 @@ class FakeVultr:
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.auth.append(request.headers.get("authorization", ""))
         if self.fail:
-            return httpx.Response(401, json={"error": "invalid key"})
+            return httpx.Response(
+                401, json={"error": "Unauthorized IP address: 199.247.6.182", "status": 401}
+            )
         path = request.url.path
         if path == "/v2/billing/pending-charges":
             return httpx.Response(200, json=PENDING)
@@ -96,7 +98,7 @@ def test_summarize_groups_by_month_and_item() -> None:
 def test_not_connected_is_said_and_sync_refuses(client: TestClient, mailer: FakeMailer) -> None:
     token, _ = login(client, mailer, "admin@example.org")
     body = client.get(INFRA, headers=bearer(token)).json()
-    assert body["vultr"] == "not connected" and body["entries"] == []
+    assert body["configured"] is False and body["last_success_at"] is None and body["entries"] == []
     r = client.post(f"{INFRA}/sync", headers=bearer(token))
     assert r.status_code == 409 and r.json()["code"] == "vultr_not_connected"
 
@@ -112,7 +114,7 @@ def test_sync_upserts_lines_and_converts_with_the_rate(
     assert r.status_code == 200
     assert all(a == "Bearer secret-key" for a in fake.auth)
     body = client.get(INFRA, params=period, headers=bearer(token)).json()
-    assert body["vultr"] == "connected" and body["last_sync"] and body["last_error"] is None
+    assert body["configured"] is True and body["last_success_at"] and body["last_error"] is None
     assert len(body["entries"]) == 4
     assert body["totals_by_currency"] == {"USD": 1334 + 1500 + 1500 + 1050}
     assert body["usd_per_eur"] is None and body["total_eur_cents"] is None  # no rate: no guess
@@ -146,7 +148,27 @@ def test_failed_sync_is_kept_and_named(client: TestClient, mailer: FakeMailer) -
     assert r.status_code == 502 and r.json()["code"] == "vultr_failed"
     assert "secret-key" not in r.text
     body = client.get(INFRA, headers=bearer(token)).json()
-    assert body["vultr"] == "connected" and "HTTP 401" in body["last_error"]
+    assert body["configured"] is True and body["last_success_at"] is None
+    assert body["last_error"] == (
+        "/v2/billing/pending-charges: HTTP 401: Unauthorized IP address: 199.247.6.182"
+        " — add this address to Vultr → Account → API → Access Control"
+    )
+    assert "secret-key" not in body["last_error"]
+
+
+def test_a_failure_keeps_the_last_success(client: TestClient, mailer: FakeMailer) -> None:
+    token, _ = login(client, mailer, "admin@example.org")
+    fake = FakeVultr()
+    connect(client, fake)
+    client.post(f"{INFRA}/sync", headers=bearer(token))
+    first = client.get(INFRA, headers=bearer(token)).json()["last_success_at"]
+    fake.fail = True
+    client.post(f"{INFRA}/sync", headers=bearer(token))
+    body = client.get(INFRA, headers=bearer(token)).json()
+    assert body["last_success_at"] == first and body["last_error"].startswith(
+        "/v2/billing/pending-charges: HTTP 401"
+    )
+    assert body["last_attempt_at"] >= first
 
 
 def test_manual_entries(client: TestClient, mailer: FakeMailer, repo: MemoryRepository) -> None:
