@@ -1,0 +1,15 @@
+# Keeps the SHA-pinned GitHub Actions current: every workflow pins each
+# action to a commit (see .github/workflows/*.yml), and without this the
+# pins would be bumped by hand or never. Package dependencies are not
+# covered on purpose: their bumps are reviewed with the code that uses
+# them, one directory at a time.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
