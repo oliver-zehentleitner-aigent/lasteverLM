@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.19.3] - 2026-10-14
+
 ### Fixed
 
 - An unchanged refetch of a web page read before snapshots existed now stores its snapshot (and `final_url`); before, such a page had no "Original" until its content changed. A page that has its snapshot keeps it, without a second write; `fetched_at` stays.
