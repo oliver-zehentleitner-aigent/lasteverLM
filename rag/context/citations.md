@@ -209,3 +209,36 @@ calibrated: no rated outputs existed when it was chosen.
   option for translated outputs.
 - Calling a low-overlap translated unit "unsupported": would mark most
   of every translated output, falsely.
+
+## The user's instructions steer a generator but never override the rules or the citation rules
+
+**Id:** e265aa18-ae7b-494f-bef6-7d88752ddb9e
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request relayed by the coordinator, 2026-10-14 (instructions below the system rules; focus and tone yes, citation rules no); the wording and where the text sits are rag's
+**Revisit when:** outputs made with instructions show markedly more unsupported units than those without, or users need instructions that change the structure the schema fixes
+
+Every kind takes `instructions`, free text of at most 500 characters,
+collapsed to one line. The generator's system prompt gets it after the
+rules, quoted and introduced as the user's addition. The introduction
+says to follow it for focus, emphasis, tone and structure, and says it
+never changes the rules above (only the material, every source covered),
+the citation rules or the reply format. A part that asks for that is
+ignored. A decision's evidence call gets it the same way. The text is
+stored in the output's options, so it appears in the provenance log, and
+the support check runs unchanged.
+
+**Reason:** the point of an output is that its claims can be traced to
+the sources. A note like "add some background from general knowledge" or
+"skip the citations" would make an output look checked while it is not.
+Placing the note after the rules and naming it as subordinate keeps the
+rules first. The check after generation is the backstop: whatever the
+model did, an uncited or unsupported unit is still marked, never trusted.
+Recording the note in the log lets a reader see why an output reads the
+way it does.
+
+**Rejected alternatives:** unknown. No other placement or treatment was
+weighed in the brief. Because the note is part of the options, the
+shared views show it with them. That is open with the coordinator: a
+personal note may not be meant for a link's readers.
