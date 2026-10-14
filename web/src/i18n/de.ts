@@ -548,4 +548,13 @@ export const de: Record<MessageKey, string> = {
   'lib.out.trashEmpty': 'Keine erzeugten Dokumente im Papierkorb.',
   'lib.out.purgeConfirm': '„{title}“ endgültig löschen? Das lässt sich nicht rückgängig machen.',
   'lib.out.restoreNote': 'Wiederhergestellt wird es in das Notebook, in dem es entstand, sofern es das noch gibt; in andere Notebooks muss es neu hinzugefügt werden.',
+  'tiles.style': 'Stil',
+  'tiles.voice2': 'Zweite Stimme',
+  'audioStyle.overview': 'Überblick',
+  'audioStyle.story': 'Geschichte',
+  'audioStyle.conversation': 'Gespräch',
+  'speaker.narrator': 'Erzähler',
+  'speaker.interviewer': 'Interviewer',
+  'speaker.expert': 'Expertin oder Experte',
+  'audio.transcript': 'Transkript',
 }

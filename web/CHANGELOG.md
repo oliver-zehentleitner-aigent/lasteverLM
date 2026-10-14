@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Audio styles: the Audio tile's options have a Style select (Overview, Story, Conversation; `audio_style`), and for a conversation a Second voice select with its own sample button (`audio_voice_2`, starting with the next voice of the first one's language and never the same). The player shows the transcript under it (`content.transcript`), a conversation with each speaker named by its voice; the line under the title names the style and both voices.
 - Generated documents belong to the user and are in the library: an Outputs view between Sources and Trash lists them with kind, the notebook they were made in ("deleted notebook "…"" once it is gone) and date; open goes to that notebook with the document selected, or shows it read-only when the notebook is deleted; tick several or one to move them to the trash, where they are restored or deleted for good. Deleting a notebook with generated documents asks whether they go too or stay in the library. In the wizard's library step a document is listed as "Generated", so it can be added to another notebook as a source, where the Sources list shows it. Deleting a document in the viewer moves it to the trash.
 
 ## [0.12.0] - 2026-10-14

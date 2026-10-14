@@ -123,11 +123,17 @@ is closed. After the wizard the notebook view opens.
   that plays a short sentence pair in that voice, speed and language
   (the interface language when "same as the sources" is chosen); the
   sample is fetched on click only, since the first one per combination
-  is synthesized. They start from the
+  is synthesized. For audio also a **Style**: Overview (the default),
+  Story or Conversation (`audio_style`); with Conversation a **Second
+  voice** select appears with its own sample button (`audio_voice_2`,
+  sent for a conversation only), starting with the next voice of the
+  first one's language, as rag would pick it, and never the same as the
+  first (changing the first to the second's voice moves the second on).
+  They start from the
   user's preferences, else rag's defaults, and go into `options` of the
   create request with only the keys the kind takes. The viewer and the
   shared page show what a document was made with ("Deutsch · Ryan ·
-  1.25×").
+  1.25×", "Conversation · Ryan & Aiden · 1×").
 - **Outputs** (left, bottom): the generated documents, one row each:
   the kind and the status in fixed slots, the title between them, and
   below the title when it was made ("14 min ago", the date and time as
@@ -213,7 +219,10 @@ is closed. After the wizard the notebook view opens.
 - **Viewer**: a clean document view with title, date, the sources it was
   made from. Report as Markdown, quiz interactive with reveal, table
   sortable with CSV export, mind map with markmap, infographic as a
-  card grid, audio as a player.
+  card grid, audio as a player with the transcript under it (a
+  narrator's paragraphs as text; a conversation with each turn's speaker,
+  named by its voice, in front; documents made before transcripts have
+  none).
 - **Print**: a print stylesheet on the viewer and a button; the browser
   produces the PDF. Report and table are the printable kinds.
 - **Share**: creates a share token and shows the link `/s/<token>`; the

@@ -148,10 +148,17 @@ export interface Output {
 }
 
 /** What a document is made with; which keys a kind takes comes from the spec. */
+/** How an audio document is spoken: one voice summarising, one voice
+ *  telling it as a story, or two voices in conversation. */
+export type AudioStyle = 'overview' | 'story' | 'conversation'
+
 export interface OutputOptions {
   language?: string
   voice?: string
   speed?: number
+  audio_style?: AudioStyle
+  /** the second speaker, for a conversation only */
+  audio_voice_2?: string
   /** in a response only: the source ids the document was made from,
    *  absent when all sources were used (the request sends `source_ids`) */
   sources?: string[]
@@ -207,6 +214,10 @@ export interface InfographicContent {
 }
 export interface AudioContent {
   url: string
+  /** what is said, turn by turn: `narrator` for an overview or a story (a
+   *  turn per paragraph), `interviewer` and `expert` for a conversation;
+   *  absent on documents made before transcripts */
+  transcript?: { speaker: string; text: string }[]
 }
 
 // account prefix
