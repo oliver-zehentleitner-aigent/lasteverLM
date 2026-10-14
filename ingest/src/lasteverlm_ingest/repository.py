@@ -202,6 +202,18 @@ class Repository(Protocol):
         converted recording) for the caller to remove."""
         ...
 
+    def user_object_keys(self, owner: UUID) -> list[str]:
+        """Every stored object of the owner's library, trash included (the
+        originals and converted recordings); generated rows' objects are
+        rag's."""
+        ...
+
+    def delete_user_data(self, owner: UUID) -> None:
+        """Delete the owner's library rows (generated ones included, chunks
+        cascade), notebooks (their links and rag's rows cascade) and seed
+        mark, in one transaction."""
+        ...
+
     def purge_expired(self) -> list[str]:
         """Delete every trashed entry whose owner's retention has elapsed;
         returns their storage keys."""
@@ -580,6 +592,20 @@ class PostgresRepository:
             {"id": library_id, "owner": owner},
         )
         return (row is not None, _keys([row] if row else []))
+
+    def user_object_keys(self, owner: UUID) -> list[str]:
+        rows = self._all(
+            "select l.storage_path, l.transcribed_path from library_sources l "
+            "where l.owner = %(owner)s and l.kind <> 'generated' order by l.created_at, l.id",
+            {"owner": owner},
+        )
+        return _keys(rows)
+
+    def delete_user_data(self, owner: UUID) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute("delete from library_sources where owner = %(owner)s", {"owner": owner})
+            cur.execute("delete from notebooks where owner = %(owner)s", {"owner": owner})
+            cur.execute("delete from library_seeds where owner = %(owner)s", {"owner": owner})
 
     def purge_expired(self) -> list[str]:
         rows = self._all(

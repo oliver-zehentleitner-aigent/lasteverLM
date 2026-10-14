@@ -10,7 +10,7 @@ from uuid import UUID
 from fastapi import Depends, Header, HTTPException, Request
 from lasteverlm_core import AuthError, Role
 from lasteverlm_core import current_user as resolve_principal
-from lasteverlm_core.web import admin_read
+from lasteverlm_core.web import admin_only, admin_read
 
 
 def current_user(request: Request, authorization: Annotated[str | None, Header()] = None) -> UUID:
@@ -28,6 +28,11 @@ def _role(request: Request, user_id: UUID) -> Role:
     return role
 
 
-# The admin endpoints of ingest only read: viewers and admins (core's
-# `admin_read`). Should one ever change something, it takes `admin_only`.
+def _is_admin(request: Request, user_id: UUID) -> bool:
+    return _role(request, user_id) == "admin"
+
+
+# Admin endpoints that only read: viewers and admins (core's `admin_read`).
 AdminReader = Annotated[UUID, Depends(admin_read(current_user, _role))]
+# Admin endpoints that change something: admins only (core's `admin_only`).
+AdminUser = Annotated[UUID, Depends(admin_only(current_user, _is_admin))]

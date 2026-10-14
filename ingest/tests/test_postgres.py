@@ -249,6 +249,40 @@ def test_a_converted_recording_is_read_and_purged_with_its_original(repo):
     )
 
 
+def test_deleting_a_users_data_leaves_other_users_alone(repo):
+    gone, kept = _user(repo), _user(repo)
+    doc = _library(repo, gone)
+    rec = _library(repo, gone, kind="audio", name="talk.m4a")
+    repo.set_transcribed_path(rec.id, f"{gone}/{rec.id}/_transcribed.mp3")
+    repo.trash_library_source(gone, rec.id)
+    notebook = repo.create_notebook(gone, "nb")
+    repo.link_source(notebook.id, doc.id)
+    repo.replace_chunks(doc.id, [Chunk(idx=0, text="hello", page=None)], [[1.0, 0.0, 0.0]])
+    _execute(
+        repo,
+        "insert into library_sources (id, owner, name, kind, status) "
+        "values (%s, %s, 'Report', 'generated', 'ready')",
+        (uuid4(), gone),
+    )
+    repo.claim_seed(gone)
+    other = _library(repo, kept)
+    other_notebook = repo.create_notebook(kept, "theirs")
+
+    assert repo.user_object_keys(gone) == [
+        doc.storage_path,
+        rec.storage_path,
+        f"{gone}/{rec.id}/_transcribed.mp3",
+    ]
+    repo.delete_user_data(gone)
+    assert repo.user_object_keys(gone) == []
+    assert repo.list_library(gone) == [] and repo.list_trash(gone) == []
+    assert repo.get_notebook(gone, notebook.id) is None
+    assert repo.claim_seed(gone)  # the seed mark went too
+    assert repo.get_library_source(other.id) is not None
+    assert repo.get_notebook(kept, other_notebook.id) is not None
+    repo.delete_user_data(gone)  # nothing left: no error
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)
