@@ -26,6 +26,11 @@ export function t(key: MessageKey, vars?: Record<string, string | number>): stri
   return interpolate(MAPS[current][key] ?? en[key], vars)
 }
 
+/** Whether a key built at run time (from a server's code) has a text. */
+export function hasMessage(key: string): key is MessageKey {
+  return key in en
+}
+
 /** A count with its noun: `${key}.one` for 1, `${key}.other` otherwise,
  *  {n} filled in. Enough for English and German. */
 export function tn(key: string, n: number, vars?: Record<string, string | number>): string {

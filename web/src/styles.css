@@ -749,6 +749,18 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .shared-sources ul, .shared-toc ol { margin: 0.3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .shared-output { border-top: 1px solid var(--line); padding-top: 1rem; }
 .shared-output .doc-title { font-size: 1.15rem; }
+
+/* /prices: the public price list */
+.prices-page .price-group { margin-top: 1.2rem; }
+.prices-page h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
+.price-table { width: 100%; border-collapse: collapse; }
+.price-table th, .price-table td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.price-table th { font-weight: 600; font-size: 0.85em; color: var(--muted); }
+.price-rules { margin-top: 1.5rem; }
+.price-rules ul { margin: 0.3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.25rem; }
+/* a phone keeps what and how much; the model is detail */
+@media (max-width: 640px) { .price-table .model { display: none; } }
+.login-prices { margin-top: 1rem; text-align: center; }
 /* output options: the instructions take the whole row */
 .output-options .instructions { flex: 1 0 100%; }
 .output-options .instructions textarea { min-height: 3rem; }

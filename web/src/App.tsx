@@ -11,6 +11,7 @@ import { LibraryPage } from './components/LibraryPage'
 import { SettingsPage } from './components/SettingsPage'
 import { LoginPage } from './components/LoginPage'
 import { SharePage, SharedNotebookPage } from './components/SharePage'
+import { PricesPage } from './components/PricesPage'
 import { VoucherDialog } from './components/VoucherDialog'
 import { Workspace } from './components/Workspace'
 import { MeContext } from './hooks/useMe'
@@ -91,6 +92,7 @@ export default function App() {
 
   if (route.name === 'shared') return <SharePage token={route.token} />
   if (route.name === 'shared-notebook') return <SharedNotebookPage token={route.token} />
+  if (route.name === 'prices') return <PricesPage />
   if (route.name === 'auth-callback') return <AuthCallback token={route.token} onDone={loggedIn} />
   if (session.state === 'anonymous') return <LoginPage onLoggedIn={loggedIn} />
   if (session.state === 'checking') return <main className="login"><p className="muted">{t('common.loading')}</p></main>

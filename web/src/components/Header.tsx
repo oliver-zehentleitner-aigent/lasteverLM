@@ -85,6 +85,15 @@ export function Header({ me, route, onNavigate, onVoucher, onLogout }: Props) {
         >
           {t('header.settings')}
         </a>
+        <a
+          href="/prices"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate('/prices')
+          }}
+        >
+          {t('header.prices')}
+        </a>
         {canSeeAdmin(me) && (
           <a
             href="/admin"

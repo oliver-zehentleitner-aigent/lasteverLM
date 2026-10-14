@@ -534,3 +534,29 @@ an admin comparing costs, not a user deciding whether to click. Also
 rejected: hiding the price when the estimate fails, the first version of
 this PR; the family lead asked for the failure to be said, since an
 empty space next to a button reads as free.
+
+## The public price list groups by the action's prefix and shows small prices with two significant digits
+
+**Id:** 21d33173-22de-490a-80d4-b7ff4a6d0030
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer go relayed by the family lead, 2026-10-14 (groups Sources, Chat, Outputs, Extras; price per unit, typical range, model; "no experience yet"; no margins); the account service's contract (`GET /api/account/prices`, units as stable keys, sub-cent amounts to four places); the grouping rule and the number format were this directory's call
+
+`/prices` puts each action into a group by its name: `source:` is
+Sources, `output:` is Outputs, `chat_answer` is Chat, and everything
+else is Extras. An action the web has no name for is still listed, by
+its code, last in its group. Prices from ten cents up are shown in whole
+cents. Below that they get two significant digits (€0.0035, €0.035).
+
+**Reason:** core adds actions over time, and a price list that silently
+dropped one would understate what things cost. The prefix rule places a
+new source or output kind correctly without a web change. Whole cents
+would show a question as €0.00, and the admin pages' up to six decimals
+would claim a precision a median over 30 days does not have.
+
+**Rejected alternative:** a fixed list of rows in the web, the way the
+request named them (PDF per page in two capture modes, the judge per
+level). Rejected because the service prices a PDF per source and the
+judge as one action, so there is no per-page or per-level number to show.
+A fixed list would also go stale as actions are added.

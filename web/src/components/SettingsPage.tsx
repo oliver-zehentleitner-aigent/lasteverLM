@@ -58,6 +58,9 @@ export function SettingsPage() {
   return (
     <main className="settings">
       <h1>{t('set.title')}</h1>
+      <p className="muted small">
+        <a href="/prices">{t('settings.prices')}</a>
+      </p>
       <form className="card" onSubmit={save}>
         <label>
           {t('set.uiLanguage')}

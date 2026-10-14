@@ -1,8 +1,11 @@
 import { ACCOUNT_PREFIX } from '../config'
 import { request } from './client'
-import type { Health, Preferences, User } from './types'
+import type { Health, Preferences, PublicPrices, User } from './types'
 
 export const account = {
+  /** the public price list; no login, cached five minutes by the service */
+  prices: () => request<PublicPrices>(`${ACCOUNT_PREFIX}/prices`, { anonymous: true }),
+
   /** Step one of the magic-link flow: 202 and a mail for an allowed address,
    *  403 with code `not_allowed` for any other. */
   requestLink: (email: string) =>

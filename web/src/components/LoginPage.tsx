@@ -70,6 +70,9 @@ export function LoginPage({ onLoggedIn }: Props) {
       )}
 
       <CodeForm onLoggedIn={onLoggedIn} />
+      <p className="muted small login-prices">
+        <a href="/prices">{t('login.prices')}</a>
+      </p>
     </main>
   )
 }

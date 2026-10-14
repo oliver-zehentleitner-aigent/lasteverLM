@@ -10,6 +10,7 @@ export type Route =
   | { name: 'admin'; page: AdminPageId }
   | { name: 'library' }
   | { name: 'settings' }
+  | { name: 'prices' }
   | { name: 'shared'; token: string }
   | { name: 'shared-notebook'; token: string }
 
@@ -24,6 +25,8 @@ export function parseRoute(loc: Pick<Location, 'pathname' | 'search'>): Route {
   }
   if (loc.pathname === '/library' || loc.pathname === '/library/') return { name: 'library' }
   if (loc.pathname === '/settings' || loc.pathname === '/settings/') return { name: 'settings' }
+  // public, like the share pages: no login needed
+  if (loc.pathname === '/prices' || loc.pathname === '/prices/') return { name: 'prices' }
   const sharedNotebook = /^\/shared\/notebook\/([^/]+)$/.exec(loc.pathname)
   if (sharedNotebook) return { name: 'shared-notebook', token: decodeURIComponent(sharedNotebook[1]) }
   const shared = /^\/s\/([^/]+)$/.exec(loc.pathname)
