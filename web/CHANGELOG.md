@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.2] - 2026-10-14
+
 ### Added
 
 - A web page's Original in the viewer is the stored snapshot of the version that was read, in a sandboxed iframe, under "Snapshot from <date>, version n · live page ↗" (ingest's `snapshot_url`, `final_url`).

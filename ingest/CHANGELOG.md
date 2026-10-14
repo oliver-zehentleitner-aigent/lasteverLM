@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.19.2] - 2026-10-14
+
 ### Added
 
 - Every read of a web page version keeps a snapshot of what was read: the fetched HTML rebuilt from an allowlist (no scripts, styles, frames, forms, images or other external resources, no event handlers), stored as `text/html` beside the source, with `final_url` after redirects (migration 0016). Sources and library entries carry `snapshot_url` (presigned, one hour, inline), `final_url` and `checked_at`; an unchanged refetch keeps the snapshot and `fetched_at` and only moves `checked_at`; purging removes the snapshots with their versions.
