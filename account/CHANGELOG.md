@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.19.6] - 2026-10-14
+
 ### Added
 
 - `GET /api/account/prices/page`: the public price list as server-rendered, script-free HTML (How it works, every action's price per unit in euro with the per-source part, the typical range, the exchange rate), built from the same data as `GET /prices`. No login, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`, cached like the JSON. The web's `/prices` is JavaScript only, so a URL source pointing at it read nothing.
