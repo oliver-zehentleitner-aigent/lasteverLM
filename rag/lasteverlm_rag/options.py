@@ -1,7 +1,7 @@
 """Generation options per output kind: language and the user's own
 instructions for every kind; style and length for a report; the number of
 questions, difficulty and audience for a quiz; voice, speed, style and the
-second voice of a conversation for audio; the question for a decision.
+second voice of a conversation or an FAQ for audio; the question for a decision.
 
 The catalogue is served to the web (``GET /api/rag/outputs/options``) so
 nothing is hardcoded there. Voices are the platform's (Qwen3-TTS
@@ -91,7 +91,9 @@ DIFFICULTIES = ["easy", "medium", "hard"]
 DEFAULT_DIFFICULTY = "medium"
 AUDIENCES = ["children", "teens", "adults", "experts"]
 DEFAULT_AUDIENCE = "adults"
-AUDIO_STYLES = ["overview", "story", "conversation"]
+AUDIO_STYLES = ["overview", "story", "conversation", "faq"]
+# the styles read by two voices: the interviewer (voice) and the expert (audio_voice_2)
+TWO_VOICE_STYLES = ("conversation", "faq")
 DEFAULT_AUDIO_STYLE = "overview"
 DECISION_TYPES = ["yes_no", "choice", "scale"]
 DEFAULT_DECISION_TYPE = "yes_no"
@@ -193,12 +195,12 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
         given.setdefault("voice", default_voice)
         given.setdefault("speed", SPEED_DEFAULT)
         given.setdefault("audio_style", DEFAULT_AUDIO_STYLE)
-        if given["audio_style"] == "conversation":
+        if given["audio_style"] in TWO_VOICE_STYLES:
             given.setdefault("audio_voice_2", second_voice(given["voice"]))
             if given["audio_voice_2"] == given["voice"]:
                 raise ValueError("audio_voice_2: must differ from voice")
         elif "audio_voice_2" in given:
-            raise ValueError("audio_voice_2: only for the conversation style")
+            raise ValueError("audio_voice_2: only for the conversation and faq styles")
     if kind == "decision":
         _resolve_decision(given)
     if kind == "chart":

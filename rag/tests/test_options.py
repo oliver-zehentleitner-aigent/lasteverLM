@@ -67,7 +67,7 @@ def test_the_catalogue_lists_languages_voices_speeds_and_options_per_kind(settin
         "audio_style",
         "audio_voice_2",
     ]
-    assert body["audio"]["styles"] == ["overview", "story", "conversation"]
+    assert body["audio"]["styles"] == ["overview", "story", "conversation", "faq"]
     assert body["audio"]["default_style"] == "overview"
 
 
@@ -121,7 +121,7 @@ def test_audio_gets_voice_and_speed_with_defaults_filled_in(settings):
         ("audio", {"speed": 1.3}, "speed: 1.3 is not between"),
         ("audio", {"speed": 2.0}, "speed: 2.0 is not between"),
         ("audio", {"audio_style": "podcast"}, "audio_style: unknown style"),
-        ("audio", {"audio_voice_2": "aiden"}, "audio_voice_2: only for the conversation style"),
+        ("audio", {"audio_voice_2": "aiden"}, "audio_voice_2: only for the conversation and faq"),
         (
             "audio",
             {"audio_style": "conversation", "voice": "aiden", "audio_voice_2": "aiden"},

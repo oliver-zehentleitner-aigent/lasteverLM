@@ -1,14 +1,15 @@
 """Audio output: a spoken-word script, synthesized by the service.
 
-The generator only writes the script, in one of three styles: ``overview``
+The generator only writes the script, in one of four styles: ``overview``
 (a spoken summary, one narrator), ``story`` (the material told as a
-narrative, one narrator) or ``conversation`` (an interviewer asking and an
-expert answering, two voices). The script comes back as turns: who speaks
-(a role) and what. Synthesis, storage and the ``{"url"}`` content happen in
-the output service, which owns the text-to-speech provider, the object
-store and the mapping of roles to voices. The turns are the transcript
-under the player, and the script is the output's index text, so chat can
-cite what the audio says.
+narrative, one narrator), ``conversation`` (an interviewer asking and an
+expert answering, two voices) or ``faq`` (the questions a listener would
+ask, each followed by its answer, the same two voices in strict turn).
+The script comes back as turns: who speaks (a role) and what. Synthesis,
+storage and the ``{"url"}`` content happen in the output service, which
+owns the text-to-speech provider, the object store and the mapping of
+roles to voices. The turns are the transcript under the player, and the
+script is the output's index text, so chat can cite what the audio says.
 """
 
 from __future__ import annotations
@@ -82,6 +83,26 @@ class Conversation(BaseModel):
         return self
 
 
+FAQ_PAIRS_MIN, FAQ_PAIRS_MAX = 5, 8
+
+
+class Faq(Conversation):
+    """Questions a listener would ask, each followed by its answer: the
+    interviewer asks, the expert answers, strictly in turn."""
+
+    @model_validator(mode="after")
+    def _question_then_answer(self) -> Faq:
+        expected = ["interviewer", "expert"] * (len(self.turns) // 2 + 1)
+        if [t.speaker for t in self.turns] != expected[: len(self.turns)]:
+            raise ValueError("the turns alternate: a question by the interviewer, then its answer")
+        pairs = len(self.turns) // 2
+        if len(self.turns) % 2 or not FAQ_PAIRS_MIN <= pairs <= FAQ_PAIRS_MAX:
+            raise ValueError(
+                f"{FAQ_PAIRS_MIN} to {FAQ_PAIRS_MAX} question-answer pairs, each answered"
+            )
+        return self
+
+
 # one per style of ``options.AUDIO_STYLES``
 INSTRUCTIONS: dict[str, str] = {
     "overview": (
@@ -109,6 +130,17 @@ INSTRUCTIONS: dict[str, str] = {
         'Reply as {"title": "...", "turns": [{"speaker": "interviewer" or "expert", '
         '"text": "...", "refs": [n, ...]}, ...]}.'
     ),
+    "faq": (
+        f"Write the script of a spoken FAQ about the material: {FAQ_PAIRS_MIN} to "
+        f"{FAQ_PAIRS_MAX} questions a listener would most likely ask about it, each followed "
+        "by its answer. Two speakers take turns: the interviewer asks one question, the "
+        "expert answers it, then the next question. Every question comes from the material, "
+        "never from outside knowledge; every answer only from the material. "
+        f"{_SPOKEN[0].upper() + _SPOKEN[1:]}. The speakers do not name themselves or each "
+        f"other. {_REFS} A question needs no refs. "
+        'Reply as {"title": "...", "turns": [{"speaker": "interviewer", "text": "question", '
+        '"refs": []}, {"speaker": "expert", "text": "answer", "refs": [n, ...]}, ...]}.'
+    ),
 }
 
 
@@ -126,6 +158,8 @@ class AudioGenerator(JsonGenerator):
         style = options.get("audio_style")
         if style == "conversation":
             return INSTRUCTIONS["conversation"], Conversation
+        if style == "faq":
+            return INSTRUCTIONS["faq"], Faq
         if style == "story":
             return INSTRUCTIONS["story"], AudioScript
         return INSTRUCTIONS["overview"], AudioScript

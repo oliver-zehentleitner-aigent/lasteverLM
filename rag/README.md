@@ -262,8 +262,12 @@ fewer gets the corrective retry, more are cut. Its `difficulty` is
 [{"front", "back", "hint"?, "refs", "support"}]}`: one unit per card,
 its back the claim checked with its front, as a quiz answer is, judge
 included. Report, quiz and flashcard defaults are stored on the output.
-`audio_style` is `overview` (default), `story` or `conversation`;
-`audio_voice_2` is the expert's voice and only valid for `conversation`,
+`audio_style` is `overview` (default), `story`, `conversation` or `faq`.
+An FAQ has 5 to 8 questions a listener would most likely ask about the
+material, each followed by its answer: the interviewer asks with `voice`,
+the expert answers with `audio_voice_2`, in strict turn. The answers get
+the support check, and the questions carry no claim.
+`audio_voice_2` is the expert's voice and only valid for `conversation` and `faq`,
 where it defaults to the next voice with the same native language as
 `voice` in catalogue order (`ryan` → `aiden`, `vivian` → `serena`), or
 `ryan` when there is none. An option the kind does not take, an unknown
