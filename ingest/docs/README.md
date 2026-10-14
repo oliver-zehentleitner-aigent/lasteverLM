@@ -27,7 +27,7 @@ source with the same id, the old columns on `sources` and `chunks` stayed
 nullable for the rolling deploy) and
 [`0004_source_library_contract.sql`](../db/migrations/0004_source_library_contract.sql)
 (the contract step, one release later: drops those columns and makes
-`library_source_id` not null; added after 0005–0008, which the runner
+`library_source_id` not null; added after 0005–0009, which the runner
 allows since it records each file by name), plain SQL for psql, applied by infra's `make migrate` after infra's extensions
 migration and core's migration; the runner wraps each file in one
 transaction, so the file has no `begin`/`commit` of its own. An applied
