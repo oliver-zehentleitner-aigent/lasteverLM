@@ -35,6 +35,9 @@ export const rag = {
   getChunk: (chunkId: string) => request<Chunk>(`${RAG_PREFIX}/chunks/${encodeURIComponent(chunkId)}`),
 
   listOutputs: (notebookId: string) => request<Output[]>(`${nb(notebookId)}/outputs`),
+  /** every generated document of the notebook, before the notebook itself
+   *  is deleted; without this call they stay in the library */
+  deleteNotebookOutputs: (notebookId: string) => request<void>(`${nb(notebookId)}/outputs`, { method: 'DELETE' }),
   /** `options` only with the keys the kind takes; missing ones fall back to
    *  defaults. `sourceIds` limits the document to the selected sources
    *  (left out when all are selected). */
@@ -59,8 +62,17 @@ export const rag = {
 
   /** the choices per kind: languages, voices, speed */
   outputOptions: () => request<OutputOptionsSpec>(`${RAG_PREFIX}/outputs/options`),
+  /** also without a notebook; 404 while it is in the trash */
   getOutput: (id: string) => request<Output>(out(id)),
+  /** moves it to the trash: out of every notebook, its share link off */
   deleteOutput: (id: string) => request<void>(out(id), { method: 'DELETE' }),
+  /** the user's generated documents, newest first; `trash` lists the trashed ones only */
+  libraryOutputs: (trash = false, kind?: OutputKind) =>
+    request<Output[]>(`${RAG_PREFIX}/library/outputs?trash=${trash}${kind ? `&kind=${encodeURIComponent(kind)}` : ''}`),
+  /** back in the library, and in its notebook when that still exists */
+  restoreOutput: (id: string) => request<void>(`${out(id)}/restore`, { method: 'POST' }),
+  /** trashed ones only, 409 otherwise */
+  purgeOutput: (id: string) => request<void>(`${out(id)}/purge`, { method: 'DELETE' }),
 
   share: (id: string) => request<{ share_token: string }>(`${out(id)}/share`, { method: 'POST' }),
   unshare: (id: string) => request<void>(`${out(id)}/share`, { method: 'DELETE' }),

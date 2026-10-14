@@ -15,7 +15,7 @@ import { VoucherDialog } from './components/VoucherDialog'
 import { Workspace } from './components/Workspace'
 import { MeContext } from './hooks/useMe'
 import { useRoute } from './hooks/useRoute'
-import { writeLastNotebook } from './lib/lastNotebook'
+import { writeLastNotebook, writeOpenOutput } from './lib/lastNotebook'
 import { getTheme, setTheme } from './lib/theme'
 import { setLanguage, t } from './i18n'
 import { pickLanguage } from './i18n/translate'
@@ -111,8 +111,9 @@ export default function App() {
       ) : route.name === 'library' ? (
         <LibraryPage
           onOpenSettings={() => navigate('/settings#trash-days')}
-          onOpenNotebook={(id) => {
+          onOpenNotebook={(id, outputId) => {
             writeLastNotebook(id)
+            if (outputId) writeOpenOutput(outputId)
             navigate('/')
           }}
         />

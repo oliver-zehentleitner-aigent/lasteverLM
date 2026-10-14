@@ -219,6 +219,7 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .backdrop { position: fixed; inset: 0; z-index: 50; background: var(--overlay); display: flex; align-items: center; justify-content: center; }
 .dialog { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.25rem; width: min(380px, 90vw); display: flex; flex-direction: column; gap: 0.75rem; }
 .dialog .row { justify-content: flex-end; }
+.dialog .row.wrap { flex-wrap: wrap; }
 
 /* admin */
 .admin { max-width: 960px; margin: 0 auto; padding: 1rem; }
@@ -599,3 +600,6 @@ th.pick-col, td.pick-col { width: 1%; white-space: nowrap; }
 h1 .badge.read-only { margin-left: 0.6rem; vertical-align: middle; font-size: 0.8rem; }
 fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; }
 fieldset.plain.span2 { grid-column: 1 / -1; }
+/* library: the trashed documents under the trashed sources; a document read-only */
+.library h2 { margin-top: 1.5rem; }
+.read-only-output .viewer-body { overflow: visible; }

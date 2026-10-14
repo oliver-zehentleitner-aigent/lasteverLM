@@ -39,9 +39,7 @@ export function NotebookList({ notebooks, selectedId, onSelect, onCreate, onDele
               type="button"
               className="icon"
               title={t('nb.delete')}
-              onClick={() => {
-                if (confirm(t('nb.deleteConfirm', { title: nb.title }))) void onDelete(nb.id)
-              }}
+              onClick={() => void onDelete(nb.id)}
             >
               ×
             </button>

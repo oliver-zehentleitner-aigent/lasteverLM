@@ -29,7 +29,9 @@ were in the notebook already.
    library, a list with one row per entry (checkbox, the name on one
    line with an ellipsis, images with a 2rem thumbnail in front, a URL
    shortened to host and path, the kind and
-   demo badges in a fixed slot on the right; the whole row toggles) and
+   demo badges in a fixed slot on the right, a generated document as
+   "Generated", so a document made in one notebook becomes a source in
+   another; the whole row toggles) and
    "n selected" next to the add button. For PDFs a
    **Capture** choice: Auto (text layer where present, the vision model
    for scanned pages), Text (text layer only, scanned pages fail) or
@@ -82,9 +84,20 @@ is closed. After the wizard the notebook view opens.
   without the output step. An audio source has a play button (see
   "Checking an audio source" under Library).
   Removing only detaches the source from this notebook, it stays in the
-  library. Deleting a notebook detaches its sources the same way.
-  Generated documents are not listed here, although the backend keeps
-  each one as a source of kind `generated` so the chat can cite it.
+  library. Deleting a notebook detaches its sources the same way. A
+  document made in another notebook and added from the library is
+  listed here too, with the kind "Generated". Deleting a notebook that
+  has generated documents asks first: "N generated documents: delete
+  them too, or keep them in the library?" (Cancel, Keep in library,
+  Delete all N too). "Delete too" moves them to the trash in rag
+  (`DELETE /api/rag/notebooks/{id}/outputs`) before ingest deletes the
+  notebook, so a failure there leaves the notebook untouched; "keep"
+  only deletes the notebook, and the documents stay in the library with
+  their origin noted. Without generated documents the plain
+  confirmation as before.
+  This notebook's own generated documents are not listed here (they are
+  under Outputs), although the backend keeps each one as a source of
+  kind `generated` so the chat can cite it.
   Each row has a checkbox: the chat and new documents use only the
   ticked sources. All are ticked by default, "all / none" sits in the
   header from two sources on, and the browser remembers per notebook
@@ -266,8 +279,22 @@ notebooks. The **Trash** view next to it lists deleted entries with
 the date they are purged (after the trash days set in the settings,
 14 by default; "settings" links to that field): restore puts one back in the library in no notebook,
 "delete for good" removes the file and its passages at once. Uploading
-the same file or URL again restores it too. Generated documents are not in the library;
-they live in their notebook.
+the same file or URL again restores it too.
+
+**Outputs** (a view between Sources and Trash): every generated document
+of the user, newest first (`GET /api/rag/library/outputs`), with title,
+kind (and status when not ready), the notebook it was made in (its
+current title; once that notebook is deleted, "deleted notebook
+"test1"" with the title it had) and the date. **Open** goes to that
+notebook with the document selected; when the notebook is deleted it
+shows the document read-only on this page, as the share page does, with
+print where the kind has it and no sharing. Checkboxes with "all /
+none", and **Delete n** in a bar (one confirmation, then one delete per
+document with progress), or delete per row: a document moves to the
+trash, leaves every notebook and its share link stops working. The
+**Trash** view lists trashed documents under the trashed sources, with
+restore (back into the notebook it was made in, if that still exists;
+other notebooks need it added again) and delete for good.
 
 Image entries show a small square thumbnail in front of their name in
 the library, the trash and the wizard's picker, loaded lazily from the

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibraryEntry } from '../api/types'
-import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, pageTitleFrom, purgeIn, shortUrl } from './library'
+import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, outputOrigin, pageTitleFrom, purgeIn, shortUrl } from './library'
 
 const entry = (id: string, kind: LibraryEntry['kind'], name: string, notebooks: LibraryEntry['notebooks'] = [], url: string | null = null): LibraryEntry => ({
   id,
@@ -120,5 +120,17 @@ describe('shortUrl', () => {
     expect(shortUrl('http://www.example.org/')).toBe('example.org')
     expect(shortUrl('https://example.org/a?b=1')).toBe('example.org/a?b=1')
     expect(shortUrl('not a url')).toBe('not a url')
+  })
+})
+
+describe('outputOrigin', () => {
+  it("names the notebook by its current title, else the one it had", () => {
+    expect(outputOrigin({ notebook_id: 'n1', origin_title: 'Old name' }, 'New name')).toBe('New name')
+    expect(outputOrigin({ notebook_id: 'n1', origin_title: 'Old name' })).toBe('Old name')
+  })
+
+  it('says when the notebook is deleted', () => {
+    expect(outputOrigin({ notebook_id: null, origin_title: 'test1' })).toBe('deleted notebook "test1"')
+    expect(outputOrigin({ notebook_id: null, origin_title: null })).toBe('a deleted notebook')
   })
 })

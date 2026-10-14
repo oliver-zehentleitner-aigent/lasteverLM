@@ -1,4 +1,4 @@
-import type { LibraryEntry } from '../api/types'
+import type { LibraryEntry, Output } from '../api/types'
 import { t, tn } from '../i18n'
 
 export interface LibraryFilter {
@@ -104,4 +104,12 @@ export function pageTitleFrom(url: string): string {
   }
   const words = segment.replace(/\.[A-Za-z0-9]{1,5}$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
   return words ? `${host} · ${words}` : host
+}
+
+/** Where a generated document was made, for the Outputs tab: the
+ *  notebook's title, or, once that notebook is deleted, saying so with the
+ *  title it had. */
+export function outputOrigin(o: Pick<Output, 'notebook_id' | 'origin_title'>, notebookTitle?: string): string {
+  if (o.notebook_id !== null) return notebookTitle ?? o.origin_title ?? ''
+  return o.origin_title ? t('lib.out.fromDeleted', { title: o.origin_title }) : t('lib.out.fromDeletedUnknown')
 }

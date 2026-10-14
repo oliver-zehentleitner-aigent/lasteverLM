@@ -71,17 +71,25 @@ export const SOURCE_FORMS: SourceForm[] = [
   },
 ]
 
+/** A source kind as the interface names it; `generated` has no tile. */
+export function sourceKindLabel(kind: SourceKind): string {
+  return SOURCE_FORMS.find((f) => f.kind === kind)?.label ?? (kind === 'generated' ? t('source.generated') : kind)
+}
+
 /** The line under a tile's label: its description, or "Soon." while the
  *  form is not available yet. */
 export function tileNote(f: { description: string; available: boolean }): string {
   return f.available ? f.description : t('tile.soon')
 }
 
-/** The sources a user added. A generated document is a source of kind
- *  `generated` too, so the chat can cite it, but it is listed under
- *  Outputs, not among the uploads. */
-export function uploadedSources(sources: readonly Source[]): Source[] {
-  return sources.filter((s) => s.kind !== 'generated')
+/** The sources a user added. A document made in this notebook is a
+ *  source of kind `generated` too, so the chat can cite it, but it is
+ *  listed under Outputs; one added from the library (made elsewhere) is
+ *  listed here like an upload. `ownGenerated` holds the source ids of this
+ *  notebook's documents; null while they are loading, then every
+ *  generated source is left out rather than shown twice for a moment. */
+export function uploadedSources(sources: readonly Source[], ownGenerated: ReadonlySet<string> | null = null): Source[] {
+  return sources.filter((s) => s.kind !== 'generated' || (ownGenerated !== null && !ownGenerated.has(s.id)))
 }
 
 /** Why the Create button is disabled, as the hint under it, or null when

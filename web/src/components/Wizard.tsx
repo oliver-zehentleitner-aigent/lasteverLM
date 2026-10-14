@@ -9,7 +9,7 @@ import { CAPTURE_MODES, preferredCapture, type CaptureMode } from '../lib/captur
 import { filterLibrary, notInNotebook, shortUrl } from '../lib/library'
 import { buildOptions, defaultValues } from '../lib/outputOptions'
 import { afterSources, wizardSteps } from '../lib/wizard'
-import { OUTPUT_FORMS, SOURCE_FORMS, tileNote, type SourceForm } from '../lib/outputs'
+import { OUTPUT_FORMS, SOURCE_FORMS, sourceKindLabel, tileNote, type SourceForm } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
 import { ImageName } from './ImageName'
 import { t, tn } from '../i18n'
@@ -207,7 +207,7 @@ export function Wizard({ notebookId, withOutputs, onDone, onClose }: Props) {
                       </span>
                       <span className="pick-badges">
                         <DemoBadge demo={e.demo} />
-                        <span className="badge">{SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind}</span>
+                        <span className="badge">{sourceKindLabel(e.kind)}</span>
                       </span>
                     </label>
                   </li>
