@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /sources/{id}/text`: a text or Markdown source's stored text as `text/plain; charset=utf-8`, read or not, for the viewer's "Original" view from the API's own origin (no presigned URL, no CSP change); 415 for other kinds, 413 above 2 MiB.
+
 ## [0.19.0] - 2026-10-14
 
 ### Added
