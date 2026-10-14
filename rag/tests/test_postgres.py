@@ -90,10 +90,11 @@ def database_url() -> str:
                         conn.execute(_sql(path))
                         if (service, path.name) == ("rag", "0001_rag.sql"):
                             conn.execute(LEGACY_SEED)
-                # a rate of 1, so costs and charges read alike (account seeds the real row)
+                # a rate of 1, so costs and charges read alike: over the row account's
+                # migration seeds with a real rate, not only when there is none
                 conn.execute(
                     "insert into settings (key, value) values ('pricing', %s) "
-                    "on conflict (key) do nothing",
+                    "on conflict (key) do update set value = excluded.value",
                     (PRICING,),
                 )
                 conn.commit()
