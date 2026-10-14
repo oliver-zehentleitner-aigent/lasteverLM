@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-14
+
 ### Added
 
 - Provenance on tables, quizzes and mind maps: a table row's markers in a last column that follows sorting, a quiz question's after the question, a mind map node's in its label, each with the unsupported or not checkable badge, opening the same passage panel.

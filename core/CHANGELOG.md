@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-14
+
 ### Added
 
 - `Message.units` / `Answer.units: list[dict[str, Any]] | None` and `Message.check` / `Answer.check: dict[str, Any] | None`, default `None`: the support check rag runs on a chat answer (per paragraph its refs and support, plus method, threshold and counts), shaped as on outputs. rag owns the shapes; `None` for answers without citations and older messages.

@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-14
+
 ### Changed
 
 - `/healthz` reports `dependencies: {"postgres": "ok"|"down"}` through core's `DependencyProbe` (2 s timeout, 15 s cache) and no longer fails when the database is away: the status says the process answers, the dependency state says what is wrong. `/admin/system` shows the same states for account.
