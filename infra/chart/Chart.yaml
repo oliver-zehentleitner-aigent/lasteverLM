@@ -1,6 +1,6 @@
 apiVersion: v2
 name: lasteverlm
-description: lasteverLM, a NotebookLM-style assistant - all application services, ingress and migrations in one chart
+description: "lasteverLM: material in, understanding out; all application services, ingress and migrations in one chart"
 type: application
 # The chart version is the repository tag (v0.1.0 -> 0.1.0); `make package` and the
 # release workflow set it with --version and --app-version. These values are placeholders.
