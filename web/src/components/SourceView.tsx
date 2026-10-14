@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Source } from '../api/types'
 import { t } from '../i18n'
+import { formatTime } from '../lib/format'
 import { citationTarget, openTarget } from '../lib/openEntry'
 import { sourceKindLabel } from '../lib/outputs'
 import { defaultView, type SourceViewMode, type ViewerTab } from '../lib/viewerTabs'
@@ -18,7 +19,8 @@ import { StarterBadge } from './StarterBadge'
 export function SourceView({ source, tab, onRead }: { source: Source; tab: ViewerTab; onRead: () => void }) {
   const [mode, setMode] = useState<SourceViewMode>(() => defaultView(source.kind))
   // the address the tab holds, not the list's newest: a new presigned src would load the file again
-  const held = { ...source, preview_url: tab.url ?? source.preview_url }
+  // a web page holds its snapshot's address, any other source its file's
+  const held = source.kind === 'url' ? { ...source, snapshot_url: tab.url ?? source.snapshot_url } : { ...source, preview_url: tab.url ?? source.preview_url }
   const external = citationTarget(held, tab.page ?? null)
   return (
     <>
@@ -65,13 +67,7 @@ function Original({ source, page, nonce }: { source: Source; page: number | null
       // keyed by the open, so a citation's page loads even when the tab was open
       return <iframe key={nonce} className="source-frame" src={citationTarget(source, page) ?? href} title={source.name} />
     case 'url':
-      return (
-        <p>
-          <a href={href} target="_blank" rel="noopener noreferrer">
-            {href}
-          </a>
-        </p>
-      )
+      return <PageSnapshot source={source} live={href} />
     default:
       return (
         <p>
@@ -81,4 +77,30 @@ function Original({ source, page, nonce }: { source: Source; page: number | null
         </p>
       )
   }
+}
+
+/** A web page's Original: the snapshot of the version that was read, in a
+ *  sandboxed iframe (no scripts, no same origin; links may open in a new
+ *  tab), with a line saying when and which version, and the live page.
+ *  Without a snapshot yet, the address alone. */
+function PageSnapshot({ source, live }: { source: Source; live: string }) {
+  const liveUrl = source.final_url ?? live
+  const head = (
+    <p className="snapshot-head muted small">
+      {source.snapshot_url && source.fetched_at
+        ? t('srcView.snapshot', { when: formatTime(source.fetched_at), version: source.version ?? 1 })
+        : t('srcView.noSnapshot')}
+      {' · '}
+      <a href={liveUrl} target="_blank" rel="noopener noreferrer">
+        {t('srcView.livePage')} ↗
+      </a>
+    </p>
+  )
+  if (!source.snapshot_url) return head
+  return (
+    <>
+      {head}
+      <iframe className="source-frame snapshot" src={source.snapshot_url} title={t('srcView.snapshotTitle', { name: source.name })} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" />
+    </>
+  )
 }

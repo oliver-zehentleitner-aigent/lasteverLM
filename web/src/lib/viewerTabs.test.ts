@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterClose, chunkPageOffset, heldUrl, URL_FRESH_MS, defaultView, dropMissing, openTab, readTabs, tabKey, writeTabs, type ViewerTab } from './viewerTabs'
+import { afterClose, chunkPageOffset, tabUrl, heldUrl, URL_FRESH_MS, defaultView, dropMissing, openTab, readTabs, tabKey, writeTabs, type ViewerTab } from './viewerTabs'
 
 const memory = () => {
   const m = new Map<string, string>()
@@ -79,5 +79,13 @@ describe('heldUrl', () => {
   it('leaves output tabs alone', () => {
     const out: ViewerTab = { type: 'output', id: 'o1' }
     expect(heldUrl(out, 'x', 1)).toBe(out)
+  })
+})
+
+describe('tabUrl', () => {
+  it('holds a web page\'s snapshot and any other source\'s file', () => {
+    expect(tabUrl({ kind: 'url', preview_url: 'https://example.org/page', snapshot_url: 'https://s/snap?sig=1' })).toBe('https://s/snap?sig=1')
+    expect(tabUrl({ kind: 'url', preview_url: 'https://example.org/page', snapshot_url: null })).toBeNull()
+    expect(tabUrl({ kind: 'pdf', preview_url: 'https://s/a.pdf?sig=1' })).toBe('https://s/a.pdf?sig=1')
   })
 })

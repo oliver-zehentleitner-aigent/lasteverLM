@@ -1012,3 +1012,5 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 @media (max-width: 900px) {
   .sources .src-name, .notebooks .nb-name { flex-basis: 50%; }
 }
+/* a web page's Original: when and which version, then the snapshot */
+.snapshot-head { margin: 0 0 0.4rem; }

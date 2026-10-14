@@ -120,3 +120,10 @@ export function heldUrl(tab: ViewerTab, listed: string | null, now: number): Vie
   if (tab.url && (listed === null || listed === tab.url || now - (tab.urlAt ?? 0) <= URL_FRESH_MS)) return tab
   return listed === (tab.url ?? null) ? tab : { ...tab, url: listed, urlAt: now }
 }
+
+/** The presigned address a source tab holds: a web page's snapshot (its
+ *  `preview_url` is the page's own address, which does not change), any
+ *  other source's file. */
+export function tabUrl(s: { kind: string; preview_url?: string | null; snapshot_url?: string | null }): string | null {
+  return (s.kind === 'url' ? s.snapshot_url : s.preview_url) ?? null
+}
