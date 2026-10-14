@@ -45,7 +45,7 @@ repository root's `context/`.
 
 ## F
 
-- [finance.md](finance.md) — Vultr billing fetched inside account with the key in account's Secret; no default exchange rate; profit counts only money (demo apart, infrastructure only with a known rate); the rate is the ECB's, fetched hourly, with a manual override
+- [finance.md](finance.md) — Vultr billing fetched inside account with the key in account's Secret; no default exchange rate; profit counts only money (demo apart, infrastructure only with a known rate); the rate is the ECB's, fetched hourly, with a manual override; the public price list shows end prices from measured costs under today's rules
 
 ## G
 
