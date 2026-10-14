@@ -1,0 +1,239 @@
+{
+  "description": "Hand-written claims about passages copied verbatim from the demo set (ingest/src/lasteverlm_ingest/demo/field-notes.txt). Each claim cites passages by key, has a category and the verdict a correct judge gives.",
+  "categories": {
+    "supported": "a fact stated in the passage, close to its wording",
+    "paraphrase": "a fact stated in the passage, in other words",
+    "negated": "the passage states the opposite",
+    "swapped": "two facts of the passage given to the wrong things",
+    "off_by_one": "a number or year of the passage off by one",
+    "not_in_source": "a plausible fact the passage does not state"
+  },
+  "passages": {
+    "town": "Marrow Bay sits where the river Quill meets the sea, and the whole town leans slightly towards the water, as if listening to it. I estimate some nine thousand souls; Pell insists it is \"twelve thousand, counting the gulls.\" The smokehouses along the Eel Steps never stop. Everything here, my coat included, now smells of smoked eel and juniper, which the Zeltavians assure me is the national dish and the national perfume.",
+    "lantern": "Climbed the Lantern Hill at dawn to take our first bearings. The old signal lantern is lit every night by whichever family lost an argument in the town council that week. Tonight it is the Pells. From the summit I fixed the mouth of the Quill at 312 degrees from the lantern and the Saltglass Reef at 205 degrees. Mr Ambrose Tull, our naturalist, spent the morning arguing with a goat.",
+    "river": "We hired two flat boats and a pilot, a girl of perhaps fifteen called Maren Holloway, who knows every sandbar of the river by name. The names are mostly insults to long-dead pilots. By evening we reached Quill Ford, where the river is wide and shallow enough to wade, and where the ferry has been \"temporarily out of service\" since 1861.",
+    "fog": "For two days the fog was so thick that Tull lost sight of his own boots. I navigated by dead reckoning alone: our speed from a knotted line and a sand-glass, our heading from the compass, the hours from my watch, and the rest from stubbornness. When the fog lifted on the 24th we were within a quarter mile of where I had reckoned us to be, which I record here because nobody else will.",
+    "juniper": "North of Quill Ford the land rises in long terraces where wild juniper grows so thickly the hills look bruised blue in the evening. The Zeltavians call them the Juniper Steps and harvest the berries every September in a festival called the Knelling, at which the first basket is offered to the river and the second to whoever sings worst. Tull has volunteered for next year.",
+    "reef": "Back at the coast, we rowed out to the Saltglass Reef at low water. The reef is named for the crust of salt that glitters on its rocks at noon; sailors claim it can be seen from the Lantern Hill on a clear day, and for once the sailors are right. Three wrecks lie inside it. The newest, the Margarethe, went aground in 1879 while her captain was, by all accounts, explaining to his crew that the reef was further east.",
+    "isles": "Two days' sail west lie the Grey Isles, low and treeless, home to more puffins than people. Hollin Lighthouse stands on the largest of them. Its keeper, Widow Agathe Strand, has kept it for thirty-one years and keeps a ledger of every ship she has seen, which she would not let me copy but did let me admire."
+  },
+  "claims": [
+    {
+      "id": "supported-1",
+      "category": "supported",
+      "expected": "supported",
+      "text": "The mouth of the Quill was fixed at 312 degrees from the lantern.",
+      "refs": [
+        "lantern"
+      ]
+    },
+    {
+      "id": "supported-2",
+      "category": "supported",
+      "expected": "supported",
+      "text": "The Margarethe went aground on the Saltglass Reef in 1879.",
+      "refs": [
+        "reef"
+      ]
+    },
+    {
+      "id": "supported-3",
+      "category": "supported",
+      "expected": "supported",
+      "text": "Widow Agathe Strand has kept Hollin Lighthouse for thirty-one years.",
+      "refs": [
+        "isles"
+      ]
+    },
+    {
+      "id": "supported-4",
+      "category": "supported",
+      "expected": "supported",
+      "text": "Three wrecks lie inside the Saltglass Reef.",
+      "refs": [
+        "reef"
+      ]
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "paraphrase",
+      "expected": "supported",
+      "text": "The author of the notes put the town's population at roughly 9,000 people.",
+      "refs": [
+        "town"
+      ]
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "paraphrase",
+      "expected": "supported",
+      "text": "When the fog cleared, the expedition was less than a quarter mile from its reckoned position.",
+      "refs": [
+        "fog"
+      ]
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "paraphrase",
+      "expected": "supported",
+      "text": "The juniper on the terraces is harvested each September at a festival called the Knelling.",
+      "refs": [
+        "juniper"
+      ]
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "paraphrase",
+      "expected": "supported",
+      "text": "The ferry at Quill Ford has not run since 1861.",
+      "refs": [
+        "river"
+      ]
+    },
+    {
+      "id": "negated-1",
+      "category": "negated",
+      "expected": "contradicted",
+      "text": "The keeper of Hollin Lighthouse let the cartographer copy her ledger.",
+      "refs": [
+        "isles"
+      ]
+    },
+    {
+      "id": "negated-2",
+      "category": "negated",
+      "expected": "contradicted",
+      "text": "The Grey Isles are thickly wooded.",
+      "refs": [
+        "isles"
+      ]
+    },
+    {
+      "id": "negated-3",
+      "category": "negated",
+      "expected": "contradicted",
+      "text": "At Quill Ford the river is too deep to wade.",
+      "refs": [
+        "river"
+      ]
+    },
+    {
+      "id": "negated-4",
+      "category": "negated",
+      "expected": "contradicted",
+      "text": "The Saltglass Reef cannot be seen from the Lantern Hill.",
+      "refs": [
+        "reef"
+      ]
+    },
+    {
+      "id": "swapped-1",
+      "category": "swapped",
+      "expected": "contradicted",
+      "text": "The Saltglass Reef was fixed at 312 degrees and the mouth of the Quill at 205 degrees from the lantern.",
+      "refs": [
+        "lantern"
+      ]
+    },
+    {
+      "id": "swapped-2",
+      "category": "swapped",
+      "expected": "contradicted",
+      "text": "At the Knelling the first basket is offered to whoever sings worst and the second to the river.",
+      "refs": [
+        "juniper"
+      ]
+    },
+    {
+      "id": "swapped-3",
+      "category": "swapped",
+      "expected": "contradicted",
+      "text": "Ambrose Tull was the expedition's river pilot, and Maren Holloway was its naturalist.",
+      "refs": [
+        "lantern",
+        "river"
+      ]
+    },
+    {
+      "id": "swapped-4",
+      "category": "swapped",
+      "expected": "contradicted",
+      "text": "Pell estimated some nine thousand inhabitants, while the author of the notes insisted on twelve thousand.",
+      "refs": [
+        "town"
+      ]
+    },
+    {
+      "id": "off_by_one-1",
+      "category": "off_by_one",
+      "expected": "contradicted",
+      "text": "The Margarethe went aground on the Saltglass Reef in 1880.",
+      "refs": [
+        "reef"
+      ]
+    },
+    {
+      "id": "off_by_one-2",
+      "category": "off_by_one",
+      "expected": "contradicted",
+      "text": "Widow Agathe Strand has kept Hollin Lighthouse for thirty-two years.",
+      "refs": [
+        "isles"
+      ]
+    },
+    {
+      "id": "off_by_one-3",
+      "category": "off_by_one",
+      "expected": "contradicted",
+      "text": "The mouth of the Quill was fixed at 313 degrees from the lantern.",
+      "refs": [
+        "lantern"
+      ]
+    },
+    {
+      "id": "off_by_one-4",
+      "category": "off_by_one",
+      "expected": "contradicted",
+      "text": "Four wrecks lie inside the Saltglass Reef.",
+      "refs": [
+        "reef"
+      ]
+    },
+    {
+      "id": "not_in_source-1",
+      "category": "not_in_source",
+      "expected": "not_in_source",
+      "text": "Maren Holloway later became the harbourmaster of Marrow Bay.",
+      "refs": [
+        "river"
+      ]
+    },
+    {
+      "id": "not_in_source-2",
+      "category": "not_in_source",
+      "expected": "not_in_source",
+      "text": "Hollin Lighthouse was built in 1850.",
+      "refs": [
+        "isles"
+      ]
+    },
+    {
+      "id": "not_in_source-3",
+      "category": "not_in_source",
+      "expected": "not_in_source",
+      "text": "The Margarethe was carrying a cargo of timber when she ran aground.",
+      "refs": [
+        "reef"
+      ]
+    },
+    {
+      "id": "not_in_source-4",
+      "category": "not_in_source",
+      "expected": "not_in_source",
+      "text": "The Knelling festival lasts three days.",
+      "refs": [
+        "juniper"
+      ]
+    }
+  ]
+}

@@ -419,6 +419,7 @@ make check          # ruff, mypy --strict, pytest; creates .venv on first run
 make run            # API: uvicorn on :8000 with reload; needs the variables above
 make worker         # worker: claims and runs output jobs; same variables
 make build          # docker image lasteverlm-rag:<git sha>, built with the repository root as context
+make judge-eval     # the judge evaluation against the platform; needs INFERENCE_API_KEY, see docs/judge-eval.md
 ```
 
 The tests need no database and no inference provider: the store, the
@@ -472,6 +473,7 @@ lasteverlm_rag/
 ├── worker.py       worker entrypoint: claim jobs, run them, release or finish
 ├── citations.py    pure marker-to-citation mapping
 ├── coverage.py     balanced generator input and the uncovered-source check
+├── judge.py        the judge's single call: prompt, deterministic parse of the verdict
 ├── numbers.py      the strict check of a chart's values (every reading of a written number)
 ├── options.py      output options catalogue (languages, voices, speeds) and validation
 ├── speech.py       splitting an audio script into synthesis segments
@@ -482,4 +484,6 @@ lasteverlm_rag/
 ├── models.py       request bodies and internal data shapes (shared models come from core)
 └── config.py       settings from the environment
 db/migrations/      the service's own tables
+evals/judge/        the judge evaluation: fixture, runner, prices, committed results
+docs/judge-eval.md  its method, results, limits and how to rerun it
 ```

@@ -1,4 +1,4 @@
-.PHONY: venv check lint types test test-postgres run worker build
+.PHONY: venv check lint types test test-postgres run worker build judge-eval
 
 VENV ?= .venv
 PY := $(VENV)/bin/python
@@ -44,3 +44,8 @@ worker: $(VENV)/bin/activate
 
 build:
 	docker build -f Dockerfile -t $(IMAGE):$(TAG) ..
+
+# The judge evaluation against the platform (rag/evals/judge): needs
+# INFERENCE_API_KEY in the environment; writes evals/judge/results/<date>.*
+judge-eval: $(VENV)/bin/activate
+	$(PY) -m evals.judge.run $(ARGS)
