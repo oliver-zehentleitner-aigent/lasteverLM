@@ -445,7 +445,7 @@ export const en = {
   'outputs.all': 'All',
   'theme.toDark': 'Switch to dark',
   'theme.toLight': 'Switch to light',
-  'arch.title': 'Architecture and monitoring',
+  'arch.title': 'Architecture',
   'arch.label': 'Architecture of the running system: browser, ingress, web and the three API services, the two workers, and PostgreSQL, object storage and the inference API',
   'arch.browser': 'Browser',
   'arch.ingress': 'Ingress (TLS, rate limit)',

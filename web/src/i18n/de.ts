@@ -448,7 +448,7 @@ export const de: Record<MessageKey, string> = {
   'outputs.all': 'Alle',
   'theme.toDark': 'Zu Dunkel wechseln',
   'theme.toLight': 'Zu Hell wechseln',
-  'arch.title': 'Architektur und Monitoring',
+  'arch.title': 'Architektur',
   'arch.label': 'Architektur des laufenden Systems: Browser, Ingress, Web und die drei API-Dienste, die zwei Worker, sowie PostgreSQL, Object Storage und die Inference-API',
   'arch.browser': 'Browser',
   'arch.ingress': 'Ingress (TLS, Rate-Limit)',

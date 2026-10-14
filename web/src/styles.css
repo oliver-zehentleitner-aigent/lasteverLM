@@ -587,6 +587,14 @@ button.link.copy { font-size: 0.85em; }
 .arch-node.state-down .arch-meta { fill: var(--danger); }
 .arch-line { fill: none; stroke: var(--muted); stroke-width: 1.2; }
 .arch-line.soft { stroke-dasharray: 3 3; }
+/* light only: the external boxes and the dashed lines thicker and longer, they
+   vanish on white otherwise; dark keeps the values above */
+:root[data-theme='light'] .arch-box.ext, :root:not([data-theme]) .arch-box.ext { stroke-width: 2; stroke-dasharray: 6 3; }
+:root[data-theme='light'] .arch-line.soft, :root:not([data-theme]) .arch-line.soft { stroke-width: 1.6; stroke-dasharray: 5 3; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .arch-box.ext { stroke-width: 1.2; stroke-dasharray: 4 3; }
+  :root:not([data-theme]) .arch-line.soft { stroke-width: 1.2; stroke-dasharray: 3 3; }
+}
 .arch-line.down { stroke: var(--danger); stroke-dasharray: 5 3; }
 .arch-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; justify-content: center; margin: 0.4rem 0 0; }
 .legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
