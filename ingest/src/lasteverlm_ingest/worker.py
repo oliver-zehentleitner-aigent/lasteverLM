@@ -50,6 +50,8 @@ _ERROR_MAX = 500
 # How the API shows a `processing` source whose owner has no credit: it
 # is not claimed until the owner has credit again (see the claim query).
 WAITING_FOR_CREDIT = "waiting_for_credit"
+# The web matches this exact sentence (shown on waiting sources): changing
+# it is a contract change, tell web.
 NO_EXCHANGE_RATE = "pricing has no exchange rate, ask an admin"
 # Backoff after a transient failure: 5 s after the first, 15 s after the second.
 RETRY_BASE_SECONDS = 5.0
