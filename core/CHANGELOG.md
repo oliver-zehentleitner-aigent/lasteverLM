@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-14
+
 ### Added
 
 - Speech to text for audio sources: `SpeechToText` and `OpenAICompatibleSpeechToText(client, model).transcribe(audio, filename)` returning `TranscriptionResult` (`text`, `usage`, `seconds`), multipart against `/audio/transcriptions` with `response_format=json`. Usage kind `stt` (`UsageKind`, migration `0004_core_usage_stt.sql`) is billed in seconds of audio, rounded up per call, from the duration the platform reports; a response without it is a `ProviderError` carrying the measured seconds, an empty transcript one carrying the reported usage. `MODEL_PRICES` prices it with `in` in cents per million seconds. `InferenceSettings.stt_model` (`STT_MODEL`, default `whisper-large-v3-turbo`, `DEFAULT_STT_MODEL`). `SourceKind` gains `audio`.
