@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Code scanning findings: the CSP build script finds inline scripts with a closing tag in any case or with whitespace (and skips any `src`), and the mind map test cleans labels with the app's own DOMPurify sanitizer (in jsdom) instead of a regex stand-in.
+- Code scanning findings: the CSP build script finds inline scripts with a closing tag in any case or with whitespace or other junk before its `>`, as browsers accept it (and skips any `src`), and the mind map test cleans labels with the app's own DOMPurify sanitizer (in jsdom) instead of a regex stand-in.
 
 ## [0.16.0] - 2026-10-14
 

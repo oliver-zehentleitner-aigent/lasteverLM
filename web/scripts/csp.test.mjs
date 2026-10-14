@@ -15,6 +15,10 @@ describe('inlineScriptHashes', () => {
     const odd = `<SCRIPT nonce="x">${body}</SCRIPT >\n<script type="module" SRC = "/a.js"></script><script\tsrc="/b.js"></script>`
     expect(inlineScriptHashes(odd)).toEqual([hash])
   })
+
+  it('ends a script at a closing tag with junk in it, as browsers do', () => {
+    expect(inlineScriptHashes(`<script>${body}</script\t\n bar>`)).toEqual([hash])
+  })
 })
 
 describe('nginxLines', () => {
