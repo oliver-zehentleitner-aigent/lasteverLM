@@ -452,3 +452,10 @@ tag from an unchanged SHA layer.
 | another output kind | one more `OutputGenerator` in rag plus its renderer in web | ingest, account, the API |
 | more throughput | replicas on the HPA or the worker Deployments | code |
 | password or OAuth login | one more auth scheme in account and core's `current_user` | ingest, rag, web beyond the login page |
+| web search as a way to add sources (not built, see below) | a search provider in core, one ingest endpoint returning hits, one wizard step; the user picks hits, each becomes a `url` source through the existing loader | the URL loader, dedupe, billing, rag |
+
+Web search was considered and left out on 2026-10-14: the platform has no
+search API, so it would add a second vendor with its own key and send
+queries to another third party, and the quality of what a search returns
+(paywalls, cookie walls, pages that are only JavaScript) is outside this
+system's control. The row above is how it would plug in.
