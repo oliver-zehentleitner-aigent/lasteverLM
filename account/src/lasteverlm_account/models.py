@@ -137,9 +137,9 @@ class AdminLogin(BaseModel):
 
 
 class RateLimitRulesView(BaseModel):
-    """The rate-limit rule in force. The first four are editable at run time (stored under
+    """The rate-limit rule in force. The first five are editable at run time (stored under
     the ``ratelimit`` settings key, read by core's middleware in every service within 30 s);
-    ``ban_max_days`` and ``retention_days`` come from the environment only."""
+    ``retention_days`` comes from the environment only."""
 
     per_minute: int
     block_minutes: int
@@ -156,6 +156,7 @@ class RateLimitRulesUpdate(BaseModel):
     block_minutes: int
     ban_after_strikes: int
     strike_window_hours: int
+    ban_max_days: int | None = None  # 1..365; omitted keeps the environment default
 
 
 class AdminLoginAttempt(BaseModel):
