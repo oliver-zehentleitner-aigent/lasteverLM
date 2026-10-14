@@ -135,12 +135,16 @@ from .ratelimit import (
 )
 from .settings import (
     DEFAULT_DECISION_MODEL,
+    DEFAULT_JUDGE_MODELS,
     DEFAULT_STT_MODEL,
+    JUDGE_LEVELS,
     ConfigError,
     InferenceSettings,
+    JudgeLevel,
     env_int,
     env_optional,
     env_required,
+    parse_judge_models,
 )
 from .storage import (
     PRESIGN_SECONDS,
@@ -176,6 +180,7 @@ __all__ = [
     "BALANCE_SQL",
     "DECISION_TYPES",
     "DEFAULT_DECISION_MODEL",
+    "DEFAULT_JUDGE_MODELS",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_MODEL_PRICES",
     "DEFAULT_STT_MODEL",
@@ -186,6 +191,7 @@ __all__ = [
     "DEPENDENCY_TIMEOUT_SECONDS",
     "HAS_CREDIT_SQL",
     "IS_ADMIN_SQL",
+    "JUDGE_LEVELS",
     "JWT_ALGORITHM",
     "JWT_ISSUER",
     "JWT_TTL",
@@ -233,6 +239,7 @@ __all__ = [
     "EmbeddingResult",
     "Health",
     "InferenceSettings",
+    "JudgeLevel",
     "MemoryRateLimitStore",
     "Message",
     "MessageRole",
@@ -305,6 +312,7 @@ __all__ = [
     "make_client",
     "measure_audio",
     "object_key",
+    "parse_judge_models",
     "parse_model_prices",
     "postgres_check",
     "probe_audio",

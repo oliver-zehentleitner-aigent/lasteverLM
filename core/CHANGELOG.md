@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `InferenceSettings.judge_models` (`JUDGE_MODELS`): JSON mapping a judge level (`JudgeLevel`, `JUDGE_LEVELS`: `low`, `medium`, `high`) to the model that checks an answer, merged over `DEFAULT_JUDGE_MODELS` (`glm-5.3-flash`, `deepseek-v4.1-flash`, `glm-5.3`) level by level by `parse_judge_models`. An unknown level, a blank model or malformed JSON is a `ConfigError` at startup. The service that runs the judge checks the prices with `require_prices`. A judge call is billed as usage kind `llm` under the judge model.
+
 ### Changed
 
 - `OutputKind` gains `chart`. The proposal is an ordinary `llm` call, so there is no new usage kind; rag owns the outputs kind constraint.
