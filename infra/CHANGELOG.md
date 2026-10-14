@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `make handbook`: renders `build/lasteverlm-handbook.pdf` from the repository's docs (ten documents in a fixed order, title page with the latest tag and date, linked table of contents and PDF bookmarks, A4 with page numbers) in the Playwright image (`scripts/handbook.sh`, `scripts/handbook/build.mjs`, `marked` 18.0.14).
+
 ## [0.18.4] - 2026-10-14
 
 ### Fixed

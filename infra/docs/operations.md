@@ -364,3 +364,18 @@ minutes and got the VM's address blocked). The report gives the
 number of requests and the rate reached. Exit 0: clean; 1: violations; 2:
 the canary was not reported. On the VM: `sg docker -c "make
 web-csp-check"`. The output kinds covered are those the demo user has.
+
+`make handbook` (needs Docker) renders `build/lasteverlm-handbook.pdf`,
+the complete technical description as one document: a title page with
+the latest tag and the date, a linked table of contents (no page
+numbers: Chromium's print cannot resolve them; the PDF's bookmarks
+carry the same entries), then `docs/project.md`,
+`docs/architecture.md`, `docs/rag-pipeline.md`, `docs/ui.md`,
+`rag/docs/judge-eval.md`, `infra/docs/operations.md`,
+`account/docs/operations.md`, `ingest/docs/README.md`,
+`core/docs/README.md` and `docs/repository-standard.md` in that order,
+each as a chapter with its path. `scripts/handbook/build.mjs` turns the
+Markdown into HTML with `marked` (pinned in the `Makefile`) and prints it
+to A4 with page numbers in the same Playwright image as the CSP check.
+The file is built from the checkout, so it is as current as the docs;
+it is not committed.
