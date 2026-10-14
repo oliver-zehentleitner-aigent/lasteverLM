@@ -114,7 +114,7 @@ is closed. After the wizard the notebook view opens.
   all are ticked.
 - **Output format** (left, middle): the output kinds as tiles, always
   three to a row (Report, Quiz, Data table / Mindmap, Infographic,
-  Audio / Decision) at a fixed 8rem width; the column starts at, and cannot be
+  Audio / Decision, Chart) at a fixed 8rem width; the column starts at, and cannot be
   dragged below, the width of that grid (27rem). Only on a phone,
   where the columns stack, do the three tiles share the width. A click
   (or Enter on a focused tile) only selects one, highlighted, and the
@@ -252,6 +252,24 @@ is closed. After the wizard the notebook view opens.
   narrator's paragraphs as text; a conversation with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
   none).
+- **Chart** ("number series from the sources, drawn and checked"). Under
+  the tiles: the optional notes, how many charts at most (1–12, 6 by
+  default) and **Find charts**, one billed model call (`POST
+  /api/rag/notebooks/{id}/charts/propose`; without credit the voucher
+  dialog). The candidates come back as small previews, each with its
+  title, type, number of values and how many the check backed, and a
+  checkbox (all ticked to start); none at all says why ("the sources
+  contain no number series"). Create sends the ticked ones as proposed.
+  The output draws each chart with recharts in the overview's style and
+  colours (bar, stacked bar, line, pie, scatter): a value the check
+  backed is filled, one it did not is hollow, one computed from other
+  values (a share, a sum) is a diamond; a click on a value opens its
+  passage in the provenance panel, a computed one at the first value it
+  was computed from. Each chart has PNG and CSV downloads and its values
+  as a folded table with their markers ("computed from [3] [5]",
+  "unsupported"); the head says "N of M values supported". Recharts is
+  loaded only when a chart is proposed or opened. Read-only on the share
+  page.
 - **Decision** ("a question weighed against the sources"). Its options
   under the tiles: the question (required, multi-line, counted against
   rag's 500 characters), "Answer as" Yes / No (default), Choice or Scale;

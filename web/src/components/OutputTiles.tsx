@@ -1,16 +1,21 @@
-import { useState } from 'react'
-import type { Audience, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
+import { Suspense, lazy, useState } from 'react'
+import type { Audience, ChartCandidate, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { AUDIO_STYLES, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
 import { RedeemLink } from './RedeemLink'
+
+// recharts comes with it, loaded only when the chart kind is picked
+const ChartProposals = lazy(() => import('./ChartProposals'))
 import { DecisionForm } from './DecisionForm'
 import { decisionOptions, decisionProblem, defaultDecision, type DecisionValues } from '../lib/decision'
 import { language, t } from '../i18n'
 
 interface Props {
+  /** for the chart kind's proposal call */
+  notebookId: string
   selected: OutputKind | null
   hasReadySource: boolean
   /** every source is turned off in the list */
@@ -24,7 +29,7 @@ interface Props {
  *  focused tile) only selects one and shows that format's options (language,
  *  and voice and speed for audio), preset from the user's preferences; the
  *  Create button below starts the job, and says why when it cannot yet. */
-export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSelect, onCreate }: Props) {
+export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected, busy, onSelect, onCreate }: Props) {
   const blocker = createBlocker(selected, hasReadySource, noneSelected)
   const spec = useOutputOptions()
   const { me } = useMe()
@@ -38,7 +43,10 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
   const isDecision = selected === 'decision'
   // a rag that predates the catalogue entry still gets the contract's keys
   const decisionKeys = spec?.kinds.decision ?? ['language', 'question', 'decision_type', 'choices', 'levels']
-  const problem = isDecision ? decisionProblem(dv, spec) : null
+  // the chart kind: the proposed charts ticked for Create
+  const isChart = selected === 'chart'
+  const [charts, setCharts] = useState<ChartCandidate[]>([])
+  const problem = isDecision ? decisionProblem(dv, spec) : isChart && charts.length === 0 ? t('chartOut.needPick') : null
   // without credit sources still go in (and wait); outputs cannot be made
   const noCredit = me !== null && me !== undefined && me.balance_cents <= 0
   const hint = blocker ?? problem
@@ -198,6 +206,11 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
           )}
         </div>
       )}
+      {isChart && values && (
+        <Suspense fallback={<p className="muted small">{t('common.loading')}</p>}>
+          <ChartProposals notebookId={notebookId} spec={spec} instructions={values.instructions} picked={charts} onPick={setCharts} />
+        </Suspense>
+      )}
       <div className="create-row">
         {noCredit ? (
           <span className="muted small">
@@ -214,6 +227,7 @@ export function OutputTiles({ selected, hasReadySource, noneSelected, busy, onSe
             onCreate(selected, {
               ...(spec && values ? buildOptions(selected, spec, values) : {}),
               ...(isDecision ? decisionOptions(dv, decisionKeys) : {}),
+              ...(isChart ? { charts } : {}),
             })
           }
         >

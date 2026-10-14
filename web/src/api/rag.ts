@@ -1,6 +1,6 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
-import type { Answer, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
+import type { Answer, ChartCandidate, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -77,6 +77,10 @@ export const rag = {
 
   share: (id: string) => request<{ share_token: string }>(`${out(id)}/share`, { method: 'POST' }),
   unshare: (id: string) => request<void>(`${out(id)}/share`, { method: 'DELETE' }),
+  /** Charts the notebook's sources could carry: one billed model call (402
+   *  without credit); an empty list says why in `reason`. */
+  proposeCharts: (notebookId: string, body: { instructions?: string; max?: number }) =>
+    request<{ candidates: ChartCandidate[]; reason: string | null }>(`${nb(notebookId)}/charts/propose`, { method: 'POST', json: body }),
   /** No auth: a shared notebook's public page; 404 for an unknown or revoked token. */
   getSharedNotebook: (token: string) =>
     request<SharedNotebook>(`${RAG_PREFIX}/shared/notebooks/${encodeURIComponent(token)}`, { anonymous: true }),
