@@ -44,3 +44,32 @@ rewrite every past balance and every report.
 the real cost would be lost, so cost and revenue could no longer be told
 apart. A margin per action, rather than per model, would also be
 impossible.
+
+## Migration 0006 is an expand step; a trigger fills rows of the previous release
+
+**Id:** ff6a81c6-6ddb-4446-af8c-4e61efa61d8e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinating agent's deploy review of the finance redesign, 2026-10-14
+**Revisit when:** the release after 0006 is deployed everywhere: then the contract migration sets the columns not null and drops the trigger
+
+`action`, `action_id` and `charge_cents` are nullable for now. A `before
+insert` trigger, `core_usage_fill_billing`, fills a missing one:
+
+- `action` becomes `unknown`;
+- `action_id` becomes the row's id;
+- `charge_cents` becomes `cost_cents`.
+
+Readers sum `coalesce(charge_cents, cost_cents)`. `record_usage` still
+refuses `unknown`, so only old code produces it.
+
+**Reason:** migrations run as a hook before the pods roll. For a minute
+or two, pods of the previous release keep booking rows without the new
+columns. A `not null` would make those inserts fail after the provider
+call had already been billed, and the cost would be lost. Ingest's
+library migrations (0003 expand, 0004 contract) set the precedent.
+
+**Rejected alternative:** `not null` with defaults in one migration.
+Rejected: no column default can give `action_id` the row's own id or
+`charge_cents` the row's cost, which is what the old rows mean.
