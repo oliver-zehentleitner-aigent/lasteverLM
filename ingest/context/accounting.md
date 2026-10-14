@@ -87,3 +87,35 @@ counting the attempt, so the source waits instead of failing.
 - Failing a source whose credit ran out mid-job: the user would have to
   find and re-add it after topping up.
 
+## Processing one source is one billed action, keyed by the library source
+
+**Id:** f6b1d5f7-5d21-43ae-a1c0-0e8aaa9ad0aa
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the finance redesign through the coordinating agent, 2026-10-14 (actions `source:<kind>` and `demo_seed`, one `action_id` per source); the key chosen by the ingest author
+**Revisit when:** a source can be processed again on purpose (re-indexing with another model), which would be a new action of its own
+
+Every usage row ingest writes goes through core's `record_usage` with
+action `source:<kind>` (`demo_seed` for the sponsored demo sources) and
+the library source's id as `action_id`. The vision pages, the
+transcription, the embeddings and the summary are one action, so the
+summary is booked as `source:<kind>` too, not as a separate `summary`.
+The library id is stable across retries and across a wait for credit,
+so a source that took three attempts is still one action and core
+books its fixed fee once.
+
+Before every model call the worker checks that the pricing rules have an
+exchange rate, next to the credit check. Core books after the call, and
+without a rate the booking fails; the call would then be paid upstream
+and never booked, the worst outcome. So without a rate the source fails
+before any provider call ("pricing has no exchange rate, ask an admin";
+the maintainer's decision through the coordinating agent). A check at
+start-up alone would not do: an admin can change the row at runtime.
+
+**Alternatives:**
+- A fresh `action_id` per processing attempt: a retry after a provider
+  hiccup would book the fixed fee again for the same user action.
+- Booking the summary as action `summary`: splits one user action (adding
+  a source) into two in the user's statement.
+

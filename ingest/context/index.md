@@ -25,7 +25,7 @@ repository root's `context/`.
 
 ## A
 
-- [accounting.md](accounting.md) — why an embedding model without a price fails the start instead of being billed at zero; why credit is checked per step and a document can overdraw by a few cents; why adding a source is free and processing waits for credit
+- [accounting.md](accounting.md) — why an embedding model without a price fails the start instead of being billed at zero; why credit is checked per step and a document can overdraw by a few cents; why adding a source is free and processing waits for credit; why processing one source is one billed action keyed by the library id
 - [admin.md](admin.md) — why the admin statistics read stored bytes from a size column instead of listing the bucket
 - [audio-sources.md](audio-sources.md) — why a recording is transcribed whole into one passage without positions; why other formats are converted by a minimal ffmpeg and the MP3 kept beside the original
 
