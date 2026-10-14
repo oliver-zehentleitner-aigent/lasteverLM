@@ -1,17 +1,22 @@
 import { language } from '../i18n'
 
-/** Cents in a currency, two decimals, or up to four more for amounts below
- *  a cent's worth of precision (a single model call costs fractions of a
- *  cent): 0.34 cents shows as $0.0034, not $0.00. */
+/** Cents in a currency, by one rule for every money cell: two decimals
+ *  from 1 € (or $1) up; below that at least two and up to four decimals
+ *  (a single model call costs fractions of a cent): €0.90, €0.6221,
+ *  $0.0034. An amount too small for four decimals is "<€0.0001", never
+ *  €0.0000. `exactMoney` has the full value for the tooltip. */
 export function formatMoney(cents: number, currency: 'EUR' | 'USD' = 'EUR'): string {
   const value = cents / 100
-  const fine = Math.abs(cents) < 100 && !Number.isInteger(cents)
-  return value.toLocaleString(language(), {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: fine ? 6 : 2,
-  })
+  const small = Math.abs(value) < 1
+  if (small && value !== 0 && Math.abs(value) < 0.00005) {
+    return `<${(value < 0 ? -0.0001 : 0.0001).toLocaleString(language(), { style: 'currency', currency, minimumFractionDigits: 4 })}`
+  }
+  return value.toLocaleString(language(), { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: small ? 4 : 2 })
+}
+
+/** The amount as stored, to a millionth of the currency, for a tooltip. */
+export function exactMoney(cents: number, currency: 'EUR' | 'USD' = 'EUR'): string {
+  return (cents / 100).toLocaleString(language(), { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 8 })
 }
 
 /** "2026-10-14": a date as the finance endpoints take it, UTC. */

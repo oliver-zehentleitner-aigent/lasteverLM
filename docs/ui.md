@@ -572,9 +572,13 @@ deleted from the library) stays readable with its quote and is marked
   - **Finance** (`/admin/finance`, in the menu where Credits was):
     pills for its five pages, each with its own URL under
     `/admin/finance/`, and one date range for those that take one
-    (7, 30 or 90 days, or two dates). Every amount is in euro, as core
-    books it; amounts under a cent show finer (€0.0034). The overview's
-    cost and voucher tiles link here.
+    (7, 30 or 90 days, or two dates), in one row at one height: the day
+    pills, the labels and the date fields are all 2.3rem, like the
+    selects. Every amount is in euro, as core books it, and every money
+    cell, tile and total follows one rule: two decimals from 1 € (or $1)
+    up, below that two to four decimals (€0.90, €0.6221, $0.0034;
+    "<€0.0001" rather than zero), the exact value in its tooltip. The
+    overview's cost and voucher tiles link here.
     - **Costs** (the default): grouped by day, action, model, user or
       service; per row the calls, actions, cost, the cost as measured
       in USD, the charge and the margin, with totals.
