@@ -724,3 +724,25 @@ def test_a_notebook_is_found_by_ingests_share_token(store, pool, notebook):
         "id": notebook,
         "title": store.get_notebook(notebook)["title"],
     }
+
+
+def test_chunks_by_id_come_only_from_ready_sources_of_the_notebook(pool, user, notebook):
+    retriever = PgVectorRetriever(pool)
+    ready, pending = add_source(pool, notebook, "ready"), add_source(pool, notebook, "processing")
+    ids = {source: str(uuid4()) for source in (ready, pending)}
+    with pool.connection() as conn:
+        for source, chunk_id in ids.items():
+            conn.execute(
+                "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                "values (%s, %s, 0, 3, '1.906 visitors', '[1,0,0]')",
+                (chunk_id, library_id_of(pool, source)),
+            )
+    found = retriever.chunks(notebook, [*ids.values(), str(uuid4())])
+    assert [(c.chunk_id, c.source_id, c.page, c.text) for c in found] == [
+        (ids[ready], ready, 3, "1.906 visitors")
+    ]
+    assert retriever.chunks(str(uuid4()), list(ids.values())) == []
+
+
+def test_the_chart_kind_is_allowed(store, notebook):
+    assert store.create_output(notebook, "chart", "processing", {"charts": []}).kind == "chart"

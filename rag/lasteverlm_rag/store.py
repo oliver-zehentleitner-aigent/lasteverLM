@@ -64,6 +64,11 @@ class Retriever(Protocol):
         source_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]: ...
 
+    def chunks(self, notebook_id: str, chunk_ids: list[str]) -> list[RetrievedChunk]:
+        """The chunks among ``chunk_ids`` that belong to a ready source linked
+        into the notebook, without a similarity (0)."""
+        ...
+
 
 class Store(Protocol):
     # notebooks (ingest's table, read only)
@@ -286,6 +291,37 @@ class PgVectorRetriever:
             for r in rows
         ]
 
+    def chunks(self, notebook_id: str, chunk_ids: list[str]) -> list[RetrievedChunk]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(_NOTEBOOK_CHUNKS_SQL, (notebook_id, chunk_ids)).fetchall()
+        return [
+            RetrievedChunk(
+                chunk_id=r["chunk_id"],
+                source_id=r["source_id"],
+                source_name=r["source_name"],
+                source_kind=r["source_kind"],
+                page=r["page"],
+                text=r["text"],
+                similarity=0.0,
+                chunk_index=r["chunk_index"],
+                chunk_count=r["chunk_count"],
+            )
+            for r in rows
+        ]
+
+
+# Chunks by id, only from ready sources linked into the notebook: a chart's
+# values are checked again against the passages its proposal cited.
+_NOTEBOOK_CHUNKS_SQL = """
+select c.id::text as chunk_id, s.id::text as source_id, l.name as source_name,
+       l.kind as source_kind, c.page, c.idx as chunk_index, c.text,
+       (select count(*) from chunks n where n.library_source_id = c.library_source_id)
+           as chunk_count
+from sources s
+join library_sources l on l.id = s.library_source_id
+join chunks c on c.library_source_id = l.id
+where s.notebook_id = %s and l.status = 'ready' and c.id = any(%s::uuid[])
+"""
 
 _CHUNK_SQL = """
 select c.id::text as chunk_id, s.id::text as source_id, l.name as source_name,

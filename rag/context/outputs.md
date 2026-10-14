@@ -486,3 +486,36 @@ error to a stranger.
 
 **Rejected alternatives:** unknown. The brief fixed the shape, and no
 other was weighed.
+
+## A chart is made in two steps, from candidates the client sends back and rag checks again
+
+**Id:** 3c4b2d51-b170-4029-8e0b-ccfa72dc1776
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer design relayed by the coordinator, 2026-10-14 (two steps and their reason); the coordinator's approval the same day of stateless re-validation over a cache
+**Revisit when:** proposals need to be reused across sessions or devices, or clients start editing candidates before creating
+
+`POST /notebooks/{id}/charts/propose` returns candidate charts from one
+LLM call and stores nothing. The user picks some, and `POST .../outputs`
+with `{"kind": "chart", "options": {"charts": [...]}}` creates the output
+from the picked objects, without a second extraction. Each candidate
+carries the chunk ids of its passages. At creation every chunk must
+belong to the notebook (else 422). The worker loads them again, numbers
+them once for all picked charts, and checks every value anew; any
+`support` the client sends is ignored.
+
+**Reason:** the user decides what is drawn, and nothing is drawn that the
+sources do not hold. Proposing first lets a person pick from what the
+material really contains, with each value's support visible before
+anything is made. Creating from the returned objects keeps both steps
+stateless. The api pods and the worker share no memory, and a cache
+would need its own table and expiry. The check reads the notebook's own
+chunks, never the client's copy, so a changed value is simply marked
+unsupported.
+
+**Rejected alternatives:**
+- One step that draws every series it finds: the user gets charts they
+  did not choose.
+- Caching the proposal for 30 minutes under its ids: server state and an
+  expiry for no gain over re-validation.

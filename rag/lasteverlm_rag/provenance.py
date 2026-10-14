@@ -35,6 +35,9 @@ _PARAGRAPH = re.compile(r"\n\s*\n")
 SUPPORTED, UNSUPPORTED, UNVERIFIED = "supported", "unsupported", "unverified"
 # what the shared view leaves out: ids of the owner's sources and chunks
 _PRIVATE_KEYS = ("chunk_id", "source_id")
+# options naming the owner's ids: the source selection, a chart's picked
+# candidates (their passages' chunk ids); the content shows the charts
+PRIVATE_OPTIONS = ("sources", "charts")
 
 
 def check_units(units: list[Unit], passages: list[Passage], translated: bool) -> dict[str, Any]:
@@ -172,7 +175,9 @@ def shared_provenance(provenance: dict[str, Any] | None) -> dict[str, Any] | Non
     retrieval = provenance.get("retrieval", {})
     return {
         **provenance,
-        "options": {k: v for k, v in provenance.get("options", {}).items() if k != "sources"},
+        "options": {
+            k: v for k, v in provenance.get("options", {}).items() if k not in PRIVATE_OPTIONS
+        },
         "retrieval": {**retrieval, "candidates": public(retrieval.get("candidates", []))},
         "passages": public(provenance.get("passages", [])),
     }

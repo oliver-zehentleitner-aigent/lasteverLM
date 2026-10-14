@@ -216,7 +216,7 @@ calibrated: no rated outputs existed when it was chosen.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** maintainer request relayed by the coordinator, 2026-10-14 (instructions below the system rules; focus and tone yes, citation rules no); the wording and where the text sits are rag's
+**Source:** maintainer request relayed by the coordinator, 2026-10-14 (instructions below the system rules; focus and tone yes, citation rules no); the coordinator's decision the same day to keep them in the shared views; the wording and where the text sits are rag's
 **Revisit when:** outputs made with instructions show markedly more unsupported units than those without, or users need instructions that change the structure the schema fixes
 
 Every kind takes `instructions`, free text of at most 500 characters,
@@ -238,7 +238,45 @@ model did, an uncited or unsupported unit is still marked, never trusted.
 Recording the note in the log lets a reader see why an output reads the
 way it does.
 
-**Rejected alternatives:** unknown. No other placement or treatment was
-weighed in the brief. Because the note is part of the options, the
-shared views show it with them. That is open with the coordinator: a
-personal note may not be meant for a link's readers.
+The note is part of the options, so the shared views show it too. The
+coordinator decided this on 2026-10-14: it steers the output, so a
+reader checking the output must see it ("everything checkable"). The web
+labels it as the author's instructions and warns, in the field, that
+anyone the output is shared with can see it.
+
+**Rejected alternatives:** stripping the note from the shared views: a
+reader could not tell what shaped the document. No other placement or
+treatment was weighed in the brief.
+
+## A chart's values get an exact number check, not word overlap
+
+**Id:** 59c7c75c-b777-4ea2-874a-8df32e31f138
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer design relayed by the coordinator, 2026-10-14 (the strict check, the normalisations, derived values never supported); the reasons are rag's
+**Revisit when:** sources write numbers in forms the readings miss (other scripts, ranges, fractions), so that correct values show as unsupported
+
+A chart value is `supported` only when the number itself is written in a
+passage it cites (`number-match-v1`, `lasteverlm_rag/numbers.py`). Every
+number in the passage is read in each way it can be written: `1.906` as
+1.906 and 1906, `1,9 Mio.` as 1.9 and 1 900 000, and `12,5 %` as 12.5
+and 0.125. Beyond float precision there is no tolerance. A computed value
+(a share, a sum, a difference) names its passages in `derived_from` and
+is `derived`, never `supported`.
+
+**Reason:** a chart is read for its numbers, and a wrong number is a
+wrong chart. The word-overlap check of the text kinds cannot see this:
+"2.411 visitors" overlaps a passage saying "2.410 visitors" in every word
+but the number, so a value off by one would pass as supported. Reading a
+written number in all its forms keeps the check strict without failing
+correct values that are only formatted differently. A computed value is
+not in any passage by definition, so calling it supported would claim
+something the check never saw. "derived" says it is arithmetic over
+cited numbers.
+
+**Rejected alternatives:**
+- The lexical overlap check: blind to the number itself.
+- A relative tolerance: it would accept a rounded or wrong value.
+- Recomputing derived values: the formula is not stated, and checking
+  it would mean guessing it.

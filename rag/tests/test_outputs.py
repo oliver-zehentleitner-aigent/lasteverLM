@@ -418,6 +418,7 @@ def test_registry_covers_every_kind():
         "infographic",
         "audio",
         "decision",
+        "chart",
     }
 
 
