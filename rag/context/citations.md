@@ -172,8 +172,9 @@ would have to decode (more ways to get it wrong than parentheses).
 **Source:** maintainer go relayed by the coordinator, 2026-10-14 ("each sentence traceable to the passage it came from"; mark, never block; a deterministic check); the method, the threshold and "unverified" were proposed by rag and approved by the coordinator the same day
 **Revisit when:** rated outputs show the 0.5 threshold marking supported units unsupported or the reverse, translated outputs need a verdict, or the chat's answers get the same check
 
-Report, infographic and audio cite the numbered passages of their prompt.
-Every unit carries `refs` and `support`, and the output stores a
+Every kind cites the numbered passages of its prompt (report,
+infographic and audio first; table rows, quiz questions and mind-map
+nodes in a second step the same day). Every unit carries `refs` and `support`, and the output stores a
 generation log (`outputs.provenance`). The check runs after generation,
 without a model: the unit's content words, against the words of its
 cited passages taken together (`lexical-overlap-v1`, threshold 0.5). A
