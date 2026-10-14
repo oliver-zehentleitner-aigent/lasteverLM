@@ -4,8 +4,10 @@ import { rag } from '../api/rag'
 import { estimateKey, type Estimate, type EstimateRequest } from '../lib/estimate'
 
 /** An estimate, or why there is none to show: `noRate` while pricing has
- *  no exchange rate (the action itself would fail the same way). */
-export type EstimateState = { estimate: Estimate } | { noRate: true } | null
+ *  no exchange rate (the action itself would fail the same way), `failed`
+ *  with the error for any other failure, so a missing price never reads
+ *  as a free action. */
+export type EstimateState = { estimate: Estimate } | { noRate: true } | { failed: string } | null
 
 // one request per distinct question for a few minutes: the chat's price is
 // asked by every conversation, and prices change rarely
@@ -19,9 +21,10 @@ function load(req: EstimateRequest): Promise<EstimateState> {
   const result = rag.estimate(req).then(
     (estimate): EstimateState => ({ estimate }),
     (e: unknown): EstimateState => {
-      // other failures (options that do not fit yet, an older rag) only hide the price
+      // a failure is asked again next time (options that do not fit yet, rag restarting)
       cache.delete(key)
-      return e instanceof ApiError && e.status === 503 ? { noRate: true } : null
+      if (e instanceof ApiError && e.status === 503) return { noRate: true }
+      return { failed: e instanceof Error ? e.message : String(e) }
     },
   )
   cache.set(key, { at: Date.now(), result })

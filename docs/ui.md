@@ -479,7 +479,10 @@ deleted from the library) stays readable with its quote and is marked
   an estimate and the booking counts what is really used. While pricing
   has no exchange rate (503) it says "no price set yet" in red, with
   "ask an admin" in the tooltip, since the action fails the same way;
-  any other failure (options that do not fit yet, 422) shows nothing.
+  any other failure (options that do not fit yet, 422) says "price
+  unavailable" muted, with the error in the tooltip and that the action
+  still costs credit, so a missing price never reads as a free one. The
+  voice sample's tooltip says either instead of the price.
   One request per distinct question for five minutes.
 - Narrow screens: no page scrolls sideways. Below 900 px the notebook's
   columns stack (sources and documents, then viewer, then chat); below

@@ -873,4 +873,6 @@ export const de: Record<MessageKey, string> = {
   'price.noRateTitle': 'Die Preise haben noch keinen Wechselkurs, deshalb läuft das nicht. Frag einen Admin.',
   'price.perQuestion': 'pro Frage',
   'price.sample': '({price}, wenn sie neu ist; eine schon gespielte ist gratis)',
+  'price.failed': 'Preis nicht verfügbar',
+  'price.failedTitle': 'Die Schätzung ist fehlgeschlagen ({error}); das kostet trotzdem Guthaben.',
 }

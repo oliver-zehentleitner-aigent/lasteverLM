@@ -870,6 +870,8 @@ export const en = {
   'price.noRateTitle': 'Pricing has no exchange rate yet, so this cannot run. Ask an admin.',
   'price.perQuestion': 'per question',
   'price.sample': '({price} when it is new; one played before is free)',
+  'price.failed': 'price unavailable',
+  'price.failedTitle': 'The estimate failed ({error}); this still costs credit.',
 } as const
 
 export type MessageKey = keyof typeof en
