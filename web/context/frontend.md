@@ -128,6 +128,13 @@ make the difference clear enough.
 backend. Rejected because citations into documents and the scoped ask
 rely on it, and the confusion is one of display only.
 
+Since documents belong to the user (2026-10-14), one made in another
+notebook can be added from the library; it is then listed among the
+sources with the kind "Generated", because the user added it here like
+an upload. The line runs between made here and added here, not by kind:
+`uploadedSources` drops only the generated sources of this notebook's
+own documents.
+
 ## An output format is selected first, a Create button starts the job
 
 **Id:** 50dbbbc8-0fe9-4037-a53c-cdaac2bdbe3f
