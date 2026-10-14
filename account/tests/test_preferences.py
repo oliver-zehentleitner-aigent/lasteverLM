@@ -18,6 +18,7 @@ UNSET = {
     "trash_days": None,
     "pdf_capture": None,
     "theme": None,
+    "tour_done": False,
 }
 
 
@@ -36,6 +37,7 @@ def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMa
         "trash_days": None,
         "pdf_capture": None,
         "theme": None,
+        "tour_done": False,
     }
 
     # absent keys are kept, a null clears
@@ -57,6 +59,7 @@ def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMa
         "trash_days": 30,
         "pdf_capture": "vision",
         "theme": "dark",
+        "tour_done": False,
     }
     assert client.get("/api/account/me", headers=h).json()["preferences"]["ui_language"] == "de"
     assert client.get(PREFS, headers=h).json()["output_language"] == "en-US"
@@ -103,6 +106,7 @@ def test_stored_values_that_no_longer_validate_read_as_unset(
         "trash_days": None,
         "pdf_capture": None,
         "theme": None,
+        "tour_done": False,
     }
 
 
@@ -124,3 +128,18 @@ def test_language_code_length_is_capped(client: TestClient, mailer: FakeMailer) 
     long_but_shaped = "de" + "-abcdefgh" * 5  # 47 chars, every subtag well-formed
     r = client.put(PREFS, json={"output_language": long_but_shaped}, headers=bearer(token))
     assert r.status_code == 422
+
+
+def test_tour_done_is_false_until_set_and_null_resets_it(
+    client: TestClient, mailer: FakeMailer
+) -> None:
+    token, _ = login(client, mailer, "tourist@example.org")
+    h = bearer(token)
+    assert client.get(PREFS, headers=h).json()["tour_done"] is False
+    r = client.put(PREFS, json={"tour_done": True}, headers=h)
+    assert r.status_code == 200 and r.json()["preferences"]["tour_done"] is True
+    client.put(PREFS, json={"theme": "light"}, headers=h)  # other keys keep it
+    assert client.get(PREFS, headers=h).json()["tour_done"] is True
+    client.put(PREFS, json={"tour_done": None}, headers=h)
+    assert client.get(PREFS, headers=h).json()["tour_done"] is False
+    assert client.put(PREFS, json={"tour_done": "yes"}, headers=h).status_code == 422

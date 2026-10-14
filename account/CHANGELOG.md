@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Preference `tour_done` (boolean, default `false`) for the web's first-login tour: set with `PUT /me/preferences`, returned in `/me`; `null` resets it to `false`.
+
 ## [0.18.5] - 2026-10-14
 
 ### Added

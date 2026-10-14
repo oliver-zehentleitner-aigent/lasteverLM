@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 
 from lasteverlm_core import AdminUser
 from lasteverlm_core import User as CoreUser
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StrictBool, StringConstraints
 
 __all__ = ["AdminUser", "CoreUser"]
 
@@ -34,7 +34,8 @@ VoiceId = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-
 class Preferences(BaseModel):
     """Per-user preferences. ``null`` means not set: the web's default language, the
     source's language for output, the platform's default voice, 14 days in the trash,
-    automatic PDF capture, the system theme."""
+    automatic PDF capture, the system theme. ``tour_done`` is false until the user finished
+    or skipped the web's first-login tour."""
 
     ui_language: Literal["de", "en"] | None = None
     output_language: LanguageCode | None = None
@@ -42,6 +43,7 @@ class Preferences(BaseModel):
     trash_days: Annotated[int, Field(ge=1, le=365)] | None = None  # null: 14, applied by ingest
     pdf_capture: Literal["auto", "text", "vision"] | None = None  # null: auto
     theme: Literal["system", "light", "dark"] | None = None  # null: system; the web applies it
+    tour_done: StrictBool = False
 
 
 class PreferencesUpdate(BaseModel):
@@ -53,6 +55,7 @@ class PreferencesUpdate(BaseModel):
     trash_days: Annotated[int, Field(ge=1, le=365)] | None = None
     pdf_capture: Literal["auto", "text", "vision"] | None = None
     theme: Literal["system", "light", "dark"] | None = None
+    tour_done: StrictBool | None = None  # null: back to false
 
 
 Role = Literal["user", "viewer", "admin"]
