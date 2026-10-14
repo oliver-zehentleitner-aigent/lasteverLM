@@ -62,6 +62,13 @@ ADMIN_ROUTES = [
     ("DELETE", "/api/account/admin/settings/pricing", None),
     ("PUT", "/api/account/admin/settings/pricing/rate-mode", {"mode": "manual"}),
     ("POST", "/api/account/admin/settings/pricing/rate/sync", None),
+    ("GET", "/api/account/admin/settings/starter-notebook", None),
+    (
+        "PUT",
+        "/api/account/admin/settings/starter-notebook",
+        {"notebook_id": "00000000-0000-4000-8000-000000000099"},
+    ),
+    ("DELETE", "/api/account/admin/settings/starter-notebook", None),
     ("GET", "/api/account/admin/finance/costs", None),
     ("GET", "/api/account/admin/finance/revenue", None),
     ("GET", "/api/account/admin/finance/profit", None),

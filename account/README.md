@@ -41,6 +41,7 @@ rows, which ingest and rag write.
 |---|---|
 | Login | `POST /auth/request-link` (202 for an allowed address, 403 with `code: not_allowed` for any other, no mail either way for the latter), `GET /auth/callback?token=` → `{jwt, user}` |
 | Public | `GET /prices` (no login; cached five minutes): the public price list, end prices only — see Finance |
+| Credits | `GET /me/credit?from=&to=&limit=&offset=` (the caller's own balance, credits and charged actions; see below) |
 | Account | `GET /me` → `User` (with `preferences`), `GET /me/preferences`, `PUT /me/preferences` (partial, returns `User`; the demo user gets 403), `POST /vouchers/redeem` → `User`, `POST /visits` (204, works without a token) |
 | Admin | `GET /admin/users`, `PATCH /admin/users/{id}` `{role}` (409 for the last admin or the demo user), `DELETE /admin/users/{id}` (204; 409 for the caller's own account or the demo user; 502 `purge_failed` with `step` and `message` when rag or ingest could not purge — then nothing was deleted), `GET /admin/logins?limit=`, `GET /admin/login-attempts?limit=` (allowed and refused link requests, with client IP), `GET /admin/visits?days=`, `GET /admin/settings/smtp` (read-only), `POST /admin/settings/smtp/test`, `GET/PUT/DELETE /admin/settings/ratelimit` (the rule in force; PUT overrides the five runtime fields (incl. `ban_max_days`) for every service, DELETE returns to the environment defaults), `GET /admin/settings/allowlist` → `{allowed_domains, allowed_addresses, viewer_domains, viewer_addresses}` (same at `/settings/domains` and `/settings/addresses`), `POST /admin/settings/domains` `{domain}` / `DELETE /admin/settings/domains/{domain}`, `POST /admin/settings/addresses` `{address}` / `DELETE /admin/settings/addresses/{address}`, `POST /admin/settings/viewer-domains` `{domain}` / `DELETE /admin/settings/viewer-domains/{domain}`, `POST /admin/settings/viewer-addresses` `{address}` / `DELETE /admin/settings/viewer-addresses/{address}` (201 with both lists, 204; 409 already listed, 404 not listed), `GET /admin/vouchers?limit=` (newest first, codes masked; `recoverable`, `sent_to`, `sent_at`), `GET /admin/vouchers/{id}/code` (admin only; 404 `not_recoverable` for vouchers created before 0.10), `POST /admin/vouchers/{id}/send` `{email, message?, allow?}` (mails the code; 409 `already_redeemed`, 429 `too_many_mails`, 502 `mail_failed`), `POST /admin/vouchers` (optional `paid`), `PATCH /admin/vouchers/{id}` `{paid}`, `DELETE /admin/vouchers/{id}` (204 open, 409 redeemed), `GET /admin/system` (version, commit, every service's health, the namespace's pods and deployments), `GET /admin/stats`, `GET /admin/stats/daily?days=` (per UTC day, every day present, oldest first), `GET /admin/stats/usage` (by model and kind, top 10 users) |
 | Access control | `GET /admin/blocks`, `GET /admin/bans?include_lifted=`, `DELETE /admin/bans?ip=` (the key: an IPv4 address or an IPv6 /64 prefix; the path form `DELETE /admin/bans/{ip}` stays for IPv4 one release), `GET /admin/access?limit=` |
@@ -157,6 +158,28 @@ Dates are UTC days, inclusive, default the last 30, at most two years per reques
 Amounts are euro cents unless a field says `usd`; rows booked before core 0006 have no
 rate and count their cost one to one.
 `GET /admin/stats` keeps showing real cost; balances and the users list show charges.
+
+## Starter notebook
+
+`GET /admin/settings/starter-notebook` (viewer and admin) → `{notebook_id, owner_id, set_at,
+set_by}`, all null when none is set. `PUT` `{notebook_id}` (admin) sets the notebook every
+new user gets a copy of — ingest and rag copy it. It must exist (404 `unknown_notebook`),
+belong to an admin (409 `owner_not_admin`) and have at least one source, all ready (409
+`sources_not_ready`); account reads ingest's `notebooks` and `sources` for that check.
+`DELETE` clears it. Stored as the settings row `starter_notebook`
+`{owner_id, notebook_id, set_at, set_by}`; ingest and rag read that row. The demo user
+stays: the smoke test signs in with the demo token; it plays no part in seeding.
+
+## The user's credit page
+
+`GET /api/account/me/credit` shows the signed-in user their own credit: `balance_cents` now,
+and for the period (`from`/`to`, UTC days, inclusive, default the last 30) `granted_cents`,
+`spent_cents`, `entries` (newest first, `limit` ≤ 200 and `offset`, `total_entries`),
+`by_action` and `by_day`. An entry is a credit (`voucher`, `grant`) or one charged action —
+all usage rows of one `action_id` summed, the fixed fee included — with its `notebook`,
+`output` or `source` (`{id, title}`; the title is null when it was deleted), read from
+ingest's and rag's tables. `label_key` is the action, or `judge:<level>` for the judge.
+Only what the user was charged appears: never costs or margins, never anyone else.
 
 ## Public price list
 

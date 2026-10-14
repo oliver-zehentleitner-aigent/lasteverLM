@@ -38,6 +38,8 @@ from ..models import (
     RoleUpdate,
     SendVoucherBody,
     Smtp,
+    StarterNotebook,
+    StarterNotebookBody,
     SystemInfo,
     UsageStats,
     VoucherCode,
@@ -433,3 +435,23 @@ async def finance_profit(
     """Charged − model cost − infrastructure per day or month, demo usage apart."""
     since, until = _range(service, from_, to)
     return await service.finance_profit(since, until, group)
+
+
+@router.get("/settings/starter-notebook", response_model=StarterNotebook)
+async def get_starter_notebook(service: Service, _: AdminReaderDep) -> StarterNotebook:
+    """The notebook new users get a copy of; all fields null when none is set."""
+    return await service.starter_notebook()
+
+
+@router.put("/settings/starter-notebook", response_model=StarterNotebook)
+async def put_starter_notebook(
+    body: StarterNotebookBody, service: Service, admin: AdminUserDep
+) -> StarterNotebook:
+    """404 unknown_notebook, 409 owner_not_admin or sources_not_ready."""
+    return await service.set_starter_notebook(admin, body.notebook_id)
+
+
+@router.delete("/settings/starter-notebook", status_code=204)
+async def delete_starter_notebook(service: Service, _: AdminUserDep) -> Response:
+    await service.clear_starter_notebook()
+    return Response(status_code=204)

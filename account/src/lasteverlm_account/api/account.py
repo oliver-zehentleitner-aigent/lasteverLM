@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Response
+from datetime import date, timedelta
+from typing import Annotated
 
-from ..models import Preferences, PreferencesUpdate, PublicPrices, RedeemBody, User, VisitBody
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+
+from ..models import (
+    MyCredit,
+    Preferences,
+    PreferencesUpdate,
+    PublicPrices,
+    RedeemBody,
+    User,
+    VisitBody,
+)
 from .deps import ClientIp, CurrentUserId, OptionalUserId, Service
 
 router = APIRouter(tags=["account"])
@@ -47,3 +58,22 @@ async def prices(service: Service, response: Response) -> PublicPrices:
     days' measured costs through the current rules. End prices only (context/finance.md)."""
     response.headers["Cache-Control"] = "public, max-age=300"
     return await service.public_prices()
+
+
+@router.get("/me/credit", response_model=MyCredit, response_model_by_alias=True)
+async def my_credit(
+    service: Service,
+    user_id: CurrentUserId,
+    from_: Annotated[date | None, Query(alias="from")] = None,
+    to: Annotated[date | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> MyCredit:
+    """The caller's own credit: balance, credits and charged actions (one per action, fee
+    included, with notebook, output or source), per action and per day. From/to are UTC
+    days, inclusive, default the last 30; entries newest first, paged."""
+    until = to or service.now().date()
+    since = from_ or until - timedelta(days=29)
+    if since > until or (until - since).days > 731:
+        raise HTTPException(status_code=422, detail="from must not be after to, two years at most")
+    return await service.my_credit(user_id, since, until, limit, offset)

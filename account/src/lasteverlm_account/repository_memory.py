@@ -22,15 +22,18 @@ from lasteverlm_core import DEMO_USER_ID
 from .repository import (
     AccessRecord,
     ActionAverageRecord,
+    ActionChargeRecord,
     ActionSampleRecord,
     BanRecord,
     BlockRecord,
+    CreditEntryRecord,
     CreditTotals,
     DailyStatsRecord,
     InfraCostRecord,
     LoginAttemptRecord,
     LoginRecord,
     ModelUsageRecord,
+    NotebookReadiness,
     StatsRecord,
     UsageGroupRecord,
     UsagePeriodRecord,
@@ -78,6 +81,7 @@ class _Usage:
     action_id: uuid.UUID | None = None
     service: str = "rag"
     cost_usd_cents: Decimal | int | None = None  # None: rows from before core 0006
+    notebook_id: uuid.UUID | None = None
     tokens_in: int = 0  # seconds for tts/stt rows
 
     @property
@@ -113,6 +117,13 @@ class MemoryRepository:
     ip_bans: list[BanRecord] = field(default_factory=list)
     access: list[AccessRecord] = field(default_factory=list)
     infra: list[InfraCostRecord] = field(default_factory=list)
+    # ingest's tables, as far as the starter-notebook check reads them (tests fill them)
+    notebooks: dict[uuid.UUID, uuid.UUID] = field(default_factory=dict)  # id -> owner
+    sources: list[tuple[uuid.UUID, str]] = field(default_factory=list)  # (notebook, status)
+    # titles from rag's and ingest's tables, for the credit history (tests fill them)
+    notebook_titles: dict[uuid.UUID, str] = field(default_factory=dict)
+    output_titles: dict[uuid.UUID, str] = field(default_factory=dict)
+    source_names: dict[uuid.UUID, str] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     # settings ---------------------------------------------------------------
@@ -566,3 +577,97 @@ class MemoryRepository:
                 )
             )
         return out
+
+    async def notebook_readiness(self, notebook_id: uuid.UUID) -> NotebookReadiness | None:
+        owner = self.notebooks.get(notebook_id)
+        if owner is None:
+            return None
+        statuses = [st for nb, st in self.sources if nb == notebook_id]
+        return NotebookReadiness(owner, len(statuses), sum(1 for st in statuses if st == "ready"))
+
+    def _charged_actions(
+        self, user_id: uuid.UUID, since: date, until: date
+    ) -> dict[object, list[_Usage]]:
+        groups: dict[object, list[_Usage]] = defaultdict(list)
+        for u in self.usage:
+            if u.user_id == user_id and since <= u.created_at.astimezone(UTC).date() <= until:
+                groups[u.action_id or id(u)].append(u)
+        return groups
+
+    async def credit_entries(
+        self, user_id: uuid.UUID, since: date, until: date, limit: int, offset: int
+    ) -> tuple[list[CreditEntryRecord], int]:
+        entries: list[CreditEntryRecord] = []
+        for key, rows in self._charged_actions(user_id, since, until).items():
+            action = rows[0].action
+            aid = key if isinstance(key, uuid.UUID) else None
+            nb = next((u.notebook_id for u in rows if u.notebook_id), None)
+            models = [u.model for u in rows if u.kind != "fee"]
+            is_output, is_source = action.startswith("output:"), action.startswith("source:")
+            entries.append(
+                CreditEntryRecord(
+                    min(u.created_at for u in rows),
+                    "charge",
+                    -sum((u.charge for u in rows), Decimal(0)),
+                    action,
+                    max(set(models), key=models.count) if models else None,
+                    nb,
+                    self.notebook_titles.get(nb) if nb else None,
+                    aid if is_output else None,
+                    self.output_titles.get(aid) if is_output and aid else None,
+                    aid if is_source else None,
+                    self.source_names.get(aid) if is_source and aid else None,
+                )
+            )
+        for e in self.ledger:
+            if e.user_id == user_id and since <= e.created_at.astimezone(UTC).date() <= until:
+                kind = "voucher" if e.reason == "voucher" else "grant"
+                entries.append(
+                    CreditEntryRecord(
+                        e.created_at,
+                        kind,
+                        Decimal(e.amount_cents),
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                )
+        entries.sort(key=lambda r: r.at, reverse=True)
+        return entries[offset : offset + limit], len(entries)
+
+    async def credit_by_action(
+        self, user_id: uuid.UUID, since: date, until: date
+    ) -> list[ActionChargeRecord]:
+        sums: dict[tuple[str, str | None], list[Decimal]] = defaultdict(
+            lambda: [Decimal(0), Decimal(0)]
+        )
+        for rows in self._charged_actions(user_id, since, until).values():
+            models = [u.model for u in rows if u.kind != "fee"]
+            model = (
+                max(set(models), key=models.count) if models and rows[0].action == "judge" else None
+            )
+            sums[(rows[0].action, model)][0] += 1
+            sums[(rows[0].action, model)][1] += sum((u.charge for u in rows), Decimal(0))
+        return [
+            ActionChargeRecord(a, int(n), c, m)
+            for (a, m), (n, c) in sorted(sums.items(), key=lambda kv: -kv[1][1])
+        ]
+
+    async def credit_by_day(
+        self, user_id: uuid.UUID, since: date, until: date
+    ) -> list[tuple[date, Decimal, Decimal]]:
+        days: dict[date, list[Decimal]] = defaultdict(lambda: [Decimal(0), Decimal(0)])
+        for u in self.usage:
+            day = u.created_at.astimezone(UTC).date()
+            if u.user_id == user_id and since <= day <= until:
+                days[day][0] += u.charge
+        for e in self.ledger:
+            day = e.created_at.astimezone(UTC).date()
+            if e.user_id == user_id and since <= day <= until:
+                days[day][1] += e.amount_cents
+        return [(d, c, g) for d, (c, g) in sorted(days.items())]

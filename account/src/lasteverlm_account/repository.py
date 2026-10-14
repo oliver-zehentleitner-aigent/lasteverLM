@@ -217,6 +217,43 @@ class ActionSampleRecord:
 
 
 @dataclass(frozen=True)
+class NotebookReadiness:
+    """A notebook as ingest stores it (its tables in the shared database): who owns it and
+    how many of its sources are ready."""
+
+    owner_id: uuid.UUID
+    sources: int
+    ready: int
+
+
+@dataclass(frozen=True)
+class CreditEntryRecord:
+    """One line of a user's credit history: a credit (voucher, grant) or one charged action
+    (all its usage rows summed, fee included). Titles come from the other services' tables;
+    None when the thing was deleted or the action has none."""
+
+    at: datetime
+    type: str  # "voucher" | "grant" | "charge"
+    amount_cents: Decimal  # credits positive, charges negative
+    action: str | None
+    model: str | None
+    notebook_id: uuid.UUID | None
+    notebook_title: str | None
+    output_id: uuid.UUID | None
+    output_title: str | None
+    source_id: uuid.UUID | None
+    source_name: str | None
+
+
+@dataclass(frozen=True)
+class ActionChargeRecord:
+    action: str
+    count: int
+    charged_cents: Decimal
+    model: str | None = None  # for the judge: its level comes from the model
+
+
+@dataclass(frozen=True)
 class VoucherMoneyRecord:
     issued_paid_cents: int
     issued_free_cents: int
@@ -308,6 +345,29 @@ class Repository(Protocol):
 
     async def action_averages(self, since: datetime) -> list[ActionAverageRecord]: ...
     async def voucher_money(self, since: date, until: date) -> VoucherMoneyRecord: ...
+    async def notebook_readiness(self, notebook_id: uuid.UUID) -> NotebookReadiness | None:
+        """Read from ingest's notebooks and sources; None when there is no such notebook."""
+        ...
+
+    async def credit_entries(
+        self, user_id: uuid.UUID, since: date, until: date, limit: int, offset: int
+    ) -> tuple[list[CreditEntryRecord], int]:
+        """A user's credits and charged actions (UTC days, inclusive), newest first, paged;
+        and how many there are."""
+        ...
+
+    async def credit_by_action(
+        self, user_id: uuid.UUID, since: date, until: date
+    ) -> list[ActionChargeRecord]:
+        """Charged actions per action (the judge per model), count and charge."""
+        ...
+
+    async def credit_by_day(
+        self, user_id: uuid.UUID, since: date, until: date
+    ) -> list[tuple[date, Decimal, Decimal]]:
+        """Per UTC day: charged, credited."""
+        ...
+
     async def action_samples(self, since: datetime) -> list[ActionSampleRecord]:
         """Every action_id booked since `since` with a known action, for the price list."""
         ...
