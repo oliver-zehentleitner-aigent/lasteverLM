@@ -31,3 +31,74 @@ yet charged.
 `has_credit` and the priced insert core's `record_usage`, called from
 `store.py` with the `MODEL_PRICES` table; the rule above is unchanged.
 The earlier mirrors in this service are gone (see `contracts.md`).
+
+**Since the finance redesign (2026-10-14):** core's `record_usage` fixes a
+cost and a charge per row (account's pricing rules), and the balance is
+the ledger minus the charges. The rule above (check before the first
+call, the usage row is the debit, no price means no start) is unchanged.
+How rag groups its rows into actions is 431fb4a0-21c6-43ef-af1f-132c10ea43c2 below.
+
+## Every usage row is booked under its user action; an output is one action, judge rounds included
+
+**Id:** 431fb4a0-21c6-43ef-af1f-132c10ea43c2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinator's finance brief, 2026-10-14 (the actions, one action_id per user action); the coordinator's decision the same day that an output's judge rounds belong to the output; core's interface from G
+**Revisit when:** an action starts to span several requests (a proposal and the chart made from it), or pricing rules need finer actions than rag books
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — d0bef660-f3ce-4834-b27e-5775151d11be — as of 2026-10-14
+
+Every model call rag makes carries a `Booking`: who pays, the notebook,
+the action (`chat_answer`, `output:<kind>`, `chart_propose`, `judge`,
+`voice_sample`) and one `action_id` per user action. An output's id is
+its `action_id`. That covers every attempt, all TTS segments, both calls
+of a decision, and the judge's rounds and revisions in generation. A
+judgement on request is a `judge` action of its own, and a chart proposal
+is separate from the chart made from it.
+
+**Reason:** core books a fixed fee once per `action_id`, so the grouping
+decides what a user is charged for. One output is one thing the user
+asked for. Retries are the service's problem, so they must not add a
+fee, and a judge chosen for an output is part of "this output with a
+judge", one price, as the coordinator decided. A judgement asked for
+later is a separate request with its own price. The proposal and the
+chart are two requests the user makes separately. An output's own id
+needs no new column and is the same in every attempt, even one taken
+over from a dead worker.
+
+**Rejected alternatives:**
+- A fresh `action_id` per attempt: a retry would charge the fee again.
+- Generation-time judge rounds under `judge`: two prices for one output.
+- One action for a proposal and its chart: the proposal may never be
+  turned into a chart.
+
+
+## Without an exchange rate nothing that calls a model runs
+
+**Id:** 78aa59d2-c992-4d45-8793-0c9371e6acfe
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the coordinator, 2026-10-14, on a finding of ingest's: booking without `usd_per_eur` fails after the model call; core's currency entry (US cents measured, euro cents charged, no default rate)
+**Revisit when:** core books in one currency again, or gives the rate a default
+
+The credit check (`require_credit`) reads the pricing rules first. When
+they have no `usd_per_eur`, every request that would call a model (an
+answer, an output, a proposal, a judgement, a preview) and the estimate
+answer 503 "pricing has no exchange rate, ask an admin" before any
+provider call. The worker reads the rules before claiming and, without a
+rate, claims no job and logs an error each pass.
+
+**Reason:** core refuses to book a dollar cost as euros without a rate,
+and the booking comes after the call. A call made without a rate is
+paid to the platform and never charged. Checking first turns that silent
+loss into a visible refusal. A claimed job counts an attempt, so a worker
+that claimed and failed would use up the user's three attempts on a
+configuration gap. Not claiming leaves the jobs waiting until the rate is
+set.
+
+**Rejected alternatives:**
+- Letting the booking fail after the call: the platform is paid, the
+  user is not charged.
+- Claiming jobs and failing them: it spends attempts and fails outputs
+  for a problem the user cannot fix.

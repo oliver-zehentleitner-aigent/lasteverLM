@@ -25,6 +25,7 @@ this directory implements the `/api/rag` prefix.
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
 | POST | `/api/rag/notebooks/{id}/charts/propose` | `{"instructions"?, "max"?}` | `{"candidates", "reason"}`: candidate charts, nothing stored, see below |
+| POST | `/api/rag/estimate` | `{"kind", "options"?}` or `{"action", "options"?}` | the charge range before it runs, see **Estimate** |
 | POST | `/api/rag/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview of a voice |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` made in that notebook, not in the trash |
 | DELETE | `/api/rag/notebooks/{id}/outputs` | | 204, every output made in that notebook into the trash |
@@ -447,9 +448,48 @@ missing or a configured model has no price.
 
 Auth, inference, prices and rate limiting are loaded by `lasteverlm_core`;
 only the rest is rag's own. Before any model call the service runs core's credit
-check (`has_credit`: a positive balance of ledger credits minus priced usage, for
-admins as for everyone else) and answers 402 otherwise. Every
-embedding and LLM call writes one priced row to the `usage` table.
+check (`has_credit`: a positive balance of ledger credits minus the charges
+of usage, for admins as for everyone else) and answers 402 otherwise. Every
+model call is booked as one row of the `usage` table through core's
+`record_usage`, under its user action. Core fixes the row's cost in US
+cents (from `MODEL_PRICES`) and in euro cents (at the pricing rules'
+`usd_per_eur`), and its charge in euro cents (the action's margin), and
+it books the action's fixed fee once per `action_id`. rag computes no
+cents of its own. Without an exchange rate nothing runs: every request
+that would call a model (and the estimate) answers 503 `pricing has no
+exchange rate, ask an admin` before any provider call, and the worker
+claims no job, so no attempt is spent, and logs an error each pass. Its actions are:
+
+| Action | One `action_id` per |
+|---|---|
+| `chat_answer` | asked question (embedding and answer) |
+| `output:<kind>` | output, which is its id: every attempt, all TTS segments, both calls of a decision, and the judge's rounds and revisions |
+| `chart_propose` | chart proposal |
+| `judge` | judgement on request of an output or a chat answer |
+| `voice_sample` | uncached voice preview |
+
+**Estimate.** `POST /api/rag/estimate` takes either `{"kind",
+"options"?}` for an output or `{"action", "options"?}` for
+`chat_answer`, `chart_propose`, `judge` (`options.level` and
+`options.kind`) or `voice_sample`. It returns `{"action",
+"charge_cents_min", "charge_cents_max", "cost_eur_cents_min",
+"cost_eur_cents_max", "cost_usd_cents_min", "cost_usd_cents_max"}`,
+rounded outwards to a hundredth of a cent. The charge is in euro cents,
+like the user's credit.
+
+- **Calls.** The calls the action makes get assumed token counts in a
+  low and a high case (`lasteverlm_rag/estimate.py`). The prompt
+  material is 3000–9000 tokens. The written text runs from a quarter of
+  the kind's token budget up to all of it. Audio is 3–5 minutes. The
+  number of claim units is assumed per kind.
+- **Judge.** With a judge level, the low case judges every unit once,
+  and all pass. The high case judges every unit in all three rounds, with
+  two revisions.
+- **Pricing.** Each call is priced with core's `cost_cents` (US cents),
+  converted at the current rules' rate and charged with the action's
+  margin. The action's fee is counted once.
+- **Not a quote.** It is an estimate; the booking uses the real counts.
+  Options that do not fit, or an action rag does not run, give a 422.
 
 ## Run locally
 
@@ -514,6 +554,7 @@ lasteverlm_rag/
 ├── citations.py    pure marker-to-citation mapping
 ├── coverage.py     balanced generator input and the uncovered-source check
 ├── judge.py        the judge's single call: prompt, deterministic parse of the verdict
+├── estimate.py     the charge range of an action before it runs
 ├── judging.py      the judge in generation (rounds, revision, removal) and on request
 ├── numbers.py      the strict check of a chart's values (every reading of a written number)
 ├── options.py      output options catalogue (languages, voices, speeds) and validation

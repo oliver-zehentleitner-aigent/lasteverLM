@@ -9,20 +9,46 @@ connections and owns no pool.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
-from typing import Any, Protocol
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
-from .models import ROLES, Role, UsageKind, UsageRecord, UsageService
+from .models import ROLES, USAGE_ACTIONS, Role, UsageRecord, UsageService, is_usage_action
 from .pricing import ModelPrices, cost_cents
 
-# Credits minus priced usage. Usage rows are the only debit.
-BALANCE_SQL = """
-select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)s), 0)
-     - coalesce((select sum(cost_cents) from usage where user_id = %(user_id)s), 0)
-    as balance_cents
-"""
+if TYPE_CHECKING:
+    from .billing import PricingRules
+    from .providers.base import Usage
+
+_COLUMN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?")
+
+
+def balance_sql(user_column: str) -> str:
+    """The balance of the user in `user_column` as a SQL expression: credits
+    minus charges. Usage rows are the only debit. `user_column` is a column
+    reference such as `l.owner` (or a placeholder such as `%(user_id)s`),
+    for a statement that checks many users at once.
+
+    Rows booked by a release before migration 0006 have no `charge_cents`
+    for the moment of the rolling deploy; their cost is their charge."""
+    if not (_COLUMN.fullmatch(user_column) or user_column == "%(user_id)s"):
+        raise ValueError(f"not a column reference: {user_column!r}")
+    return (
+        f"(coalesce((select sum(amount_cents) from ledger where user_id = {user_column}), 0)"
+        " - coalesce((select sum(coalesce(charge_cents, cost_cents)) from usage"
+        f" where user_id = {user_column}), 0))"
+    )
+
+
+def funded_sql(user_column: str) -> str:
+    """`balance_sql(user_column) > 0` as a SQL expression: may this user start a model call."""
+    return f"({balance_sql(user_column)} > 0)"
+
+
+BALANCE_SQL = f"select {balance_sql('%(user_id)s')} as balance_cents"
 
 # The admin flag gates the admin endpoints only, never the credit check.
 # `users` is account's table; a user without a row (only possible before
@@ -36,17 +62,18 @@ ROLE_SQL = """
 select coalesce((select role from users where id = %(user_id)s), 'user') as role
 """
 # The same rule for every user, admins included: a positive balance.
-HAS_CREDIT_SQL = """
-select coalesce((select sum(amount_cents) from ledger where user_id = %(user_id)s), 0)
-     - coalesce((select sum(cost_cents) from usage where user_id = %(user_id)s), 0) > 0
-    as has_credit
-"""
+HAS_CREDIT_SQL = f"select {funded_sql('%(user_id)s')} as has_credit"
 
 USAGE_SQL = """
-insert into usage (user_id, notebook_id, service, kind, model, tokens_in, tokens_out, cost_cents)
-values (%(user_id)s, %(notebook_id)s, %(service)s, %(kind)s, %(model)s,
-        %(tokens_in)s, %(tokens_out)s, %(cost_cents)s)
+insert into usage (user_id, notebook_id, service, action, action_id, kind, model,
+                   tokens_in, tokens_out, cost_usd_cents, usd_per_eur, cost_cents, charge_cents)
+values (%(user_id)s, %(notebook_id)s, %(service)s, %(action)s, %(action_id)s, %(kind)s,
+        %(model)s, %(tokens_in)s, %(tokens_out)s, %(cost_usd_cents)s, %(usd_per_eur)s,
+        %(cost_cents)s, %(charge_cents)s)
 """
+# An action's fixed fee, once per action_id however many calls it books
+# (the partial unique index of migration 0006).
+FEE_SQL = USAGE_SQL.rstrip() + "\non conflict (action_id) where kind = 'fee' do nothing\n"
 
 
 class Cursor(Protocol):
@@ -75,22 +102,47 @@ def _priced(
     user_id: UUID,
     notebook_id: UUID | None,
     service: UsageService,
-    kind: UsageKind,
-    model: str,
-    tokens_in: int,
-    tokens_out: int,
+    action: str,
+    action_id: UUID,
+    usage: Usage,
     prices: ModelPrices,
-) -> UsageRecord:
-    return UsageRecord(
+    rules: PricingRules,
+) -> tuple[UsageRecord, UsageRecord | None]:
+    """The usage row and, when the action has a fixed fee, its fee row."""
+    if not is_usage_action(action):
+        raise ValueError(f"unknown action {action!r}; known: {', '.join(sorted(USAGE_ACTIONS))}")
+    cost_usd = cost_cents(prices, usage.model, usage.tokens_in, usage.tokens_out)
+    cost = rules.cost_eur_cents(cost_usd)  # raises without a rate
+    row = UsageRecord(
         user_id=user_id,
         notebook_id=notebook_id,
         service=service,
-        kind=kind,
-        model=model,
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        cost_cents=cost_cents(prices, model, tokens_in, tokens_out),
+        action=action,
+        action_id=action_id,
+        kind=usage.kind,
+        model=usage.model,
+        tokens_in=usage.tokens_in,
+        tokens_out=usage.tokens_out,
+        cost_usd_cents=cost_usd,
+        usd_per_eur=rules.usd_per_eur,
+        cost_cents=cost,
+        charge_cents=rules.charge_cents(action, cost),
     )
+    fixed = rules.fixed_cents(action)
+    if not fixed:
+        return row, None
+    fee = row.model_copy(
+        update={
+            "kind": "fee",
+            "model": "fee",
+            "tokens_in": 0,
+            "tokens_out": 0,
+            "cost_usd_cents": Decimal(0),
+            "cost_cents": Decimal(0),
+            "charge_cents": fixed,
+        }
+    )
+    return row, fee
 
 
 def scalar(row: Any, name: str) -> Any:
@@ -107,13 +159,13 @@ def scalar(row: Any, name: str) -> Any:
     return row[0]
 
 
-def _balance(row: Any) -> int:
+def _balance(row: Any) -> Decimal:
     value = scalar(row, "balance_cents")
-    return int(value) if value is not None else 0
+    return Decimal(value) if value is not None else Decimal(0)
 
 
-def balance_cents(conn: Connection, user_id: UUID) -> int:
-    """`sum(ledger.amount_cents) - sum(usage.cost_cents)` for one user."""
+def balance_cents(conn: Connection, user_id: UUID) -> Decimal:
+    """`sum(ledger.amount_cents) - sum(usage.charge_cents)` for one user, exact."""
     with conn.cursor() as cur:
         cur.execute(BALANCE_SQL, {"user_id": user_id})
         return _balance(cur.fetchone())
@@ -155,25 +207,34 @@ def record_usage(
     user_id: UUID,
     notebook_id: UUID | None,
     service: UsageService,
-    kind: UsageKind,
-    model: str,
-    tokens_in: int,
-    tokens_out: int,
+    action: str,
+    action_id: UUID,
+    usage: Usage,
     *,
     prices: ModelPrices,
+    rules: PricingRules,
 ) -> UsageRecord:
-    """Price one model call and insert its `usage` row; returns what was written.
+    """Book one model call of a user action; returns the usage row written.
 
-    Raises `UnpricedModelError` before touching the database when the
-    model has no price. The caller owns the transaction.
+    Fixes now, so a later change of prices, rate or rules never rewrites
+    history: `cost_usd_cents` (the call's units at `prices`, US cents),
+    `usd_per_eur` (the rules' rate), `cost_cents` (that cost in euro
+    cents) and `charge_cents` (the euro cost under `rules`). When the
+    action has a fixed fee, books it as a "fee" row once per `action_id`,
+    whichever call comes first. Raises `ValueError` for an unknown
+    action, `UnpricedModelError` for an unpriced model and
+    `ExchangeRateMissingError` when the rules have no rate, all before
+    touching the database. The caller owns the transaction.
     """
-    usage = _priced(user_id, notebook_id, service, kind, model, tokens_in, tokens_out, prices)
+    row, fee = _priced(user_id, notebook_id, service, action, action_id, usage, prices, rules)
     with conn.cursor() as cur:
-        cur.execute(USAGE_SQL, usage.model_dump())
-    return usage
+        cur.execute(USAGE_SQL, row.model_dump())
+        if fee is not None:
+            cur.execute(FEE_SQL, fee.model_dump())
+    return row
 
 
-async def abalance_cents(conn: AsyncConnection, user_id: UUID) -> int:
+async def abalance_cents(conn: AsyncConnection, user_id: UUID) -> Decimal:
     """`balance_cents` for an async psycopg connection."""
     async with conn.cursor() as cur:
         await cur.execute(BALANCE_SQL, {"user_id": user_id})
@@ -206,15 +267,17 @@ async def arecord_usage(
     user_id: UUID,
     notebook_id: UUID | None,
     service: UsageService,
-    kind: UsageKind,
-    model: str,
-    tokens_in: int,
-    tokens_out: int,
+    action: str,
+    action_id: UUID,
+    usage: Usage,
     *,
     prices: ModelPrices,
+    rules: PricingRules,
 ) -> UsageRecord:
     """`record_usage` for an async psycopg connection."""
-    usage = _priced(user_id, notebook_id, service, kind, model, tokens_in, tokens_out, prices)
+    row, fee = _priced(user_id, notebook_id, service, action, action_id, usage, prices, rules)
     async with conn.cursor() as cur:
-        await cur.execute(USAGE_SQL, usage.model_dump())
-    return usage
+        await cur.execute(USAGE_SQL, row.model_dump())
+        if fee is not None:
+            await cur.execute(FEE_SQL, fee.model_dump())
+    return row

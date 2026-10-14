@@ -23,6 +23,7 @@ from lasteverlm_core import (
     AuthError,
     ChunkView,
     Embedder,
+    ExchangeRateMissingError,
     Health,
     Message,
     OpenAICompatibleEmbedder,
@@ -55,6 +56,7 @@ from lasteverlm_core.web import admin_only, admin_read
 from . import __version__
 from .admin import admin_stats, daily_stats
 from .config import Settings
+from .estimate import Models, action_calls, estimate, output_calls
 from .judge import judge_models
 from .models import (
     AdminStats,
@@ -64,12 +66,13 @@ from .models import (
     ConversationCreate,
     ConversationRename,
     DailyStats,
+    EstimateRequest,
     JudgeRequest,
     OutputCreate,
     OutputRename,
     SharedNotebook,
 )
-from .options import catalogue
+from .options import OutputOptions, catalogue, resolve
 from .outputs import OutputGenerator, registry
 from .outputs.chart import ChartProposals
 from .service import (
@@ -307,6 +310,37 @@ def create_app(
         """The options catalogue per kind: languages, voices, speeds."""
         return catalogue(settings.tts_voice, settings.inference.judge_models)
 
+    models = Models(
+        llm=settings.inference.llm_model,
+        embedding=settings.inference.embedding_model,
+        decision=settings.inference.decision_model,
+        tts=settings.tts_model,
+        judges={str(k): v for k, v in settings.inference.judge_models.items()},
+    )
+
+    @app.post(f"{PREFIX}/estimate")
+    def estimate_charge(body: EstimateRequest, _: User) -> dict[str, Any]:
+        """The charge range of an output or an action, before it runs."""
+        if (body.kind is None) == (body.action is None):
+            raise InvalidOptions("estimate: give either kind or action")
+        try:
+            if body.kind is not None:
+                options = body.options
+                if body.kind != "chart":
+                    resolved = OutputOptions.model_validate(options)
+                    options = resolve(body.kind, resolved, settings.tts_voice)
+                generator = generators[body.kind]
+                action = f"output:{body.kind}"
+                low, high = (
+                    output_calls(body.kind, options, generator, models, case) for case in (0, 1)
+                )
+            else:
+                action = body.action or ""
+                low, high = (action_calls(action, body.options, models, case) for case in (0, 1))
+        except ValueError as exc:  # a pydantic ValidationError is one too
+            raise InvalidOptions(str(exc)) from exc
+        return estimate(settings.model_prices, store.pricing_rules(), action, low, high)
+
     @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/outputs", response_model=list[Output])
     def list_outputs(notebook_id: NotebookId, user: User) -> list[Output]:
         return outputs.list(user, str(notebook_id))
@@ -457,6 +491,12 @@ def _install_error_handlers(app: FastAPI) -> None:
     async def provider_error(_: Request, exc: ProviderError) -> JSONResponse:
         log.warning("provider failure: %s", exc)
         return error(502, "the model did not answer; please try again")
+
+    @app.exception_handler(ExchangeRateMissingError)
+    async def no_exchange_rate(_: Request, exc: ExchangeRateMissingError) -> JSONResponse:
+        # nothing can be booked or estimated: a configuration gap, loud in the log
+        log.error("%s", exc)
+        return error(503, "pricing has no exchange rate, ask an admin")
 
     @app.exception_handler(InsufficientCredit)
     async def credit_exhausted(_: Request, exc: InsufficientCredit) -> JSONResponse:

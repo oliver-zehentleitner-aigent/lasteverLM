@@ -14,6 +14,7 @@ import logging
 import re
 import secrets
 import threading
+import uuid
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import replace
@@ -29,6 +30,7 @@ from lasteverlm_core import (
     DecisionResult,
     Embedder,
     EmbeddingResult,
+    ExchangeRateMissingError,
     Message,
     Output,
     OutputKind,
@@ -47,6 +49,7 @@ from .citations import defuse_markers, inline, map_citations, number_passages, s
 from .coverage import balance, per_source_quota, uncovered_sources
 from .judging import annotate, judge_output, stored_units
 from .models import (
+    Booking,
     Conversation,
     ConversationRow,
     GeneratedOutput,
@@ -308,7 +311,8 @@ class RagService:
         require_credit(self._store, user_id)
         question = question.strip()
 
-        embedded = embed_billed(self._store, self._embedder, user_id, notebook_id, [question])
+        booking = Booking.new(user_id, notebook_id, "chat_answer")
+        embedded = embed_billed(self._store, self._embedder, booking, [question])
         chunks = self._retrieve(notebook_id, embedded.vectors[0], source_id, selected)
         documents = self._store.notebook_documents(notebook_id)
 
@@ -320,8 +324,7 @@ class RagService:
             completion = complete_billed(
                 self._store,
                 self._llm,
-                user_id,
-                notebook_id,
+                booking,
                 answer_system_prompt(documents, selected),
                 render_answer_prompt(question, passages, history),
                 ANSWER_MAX_TOKENS,
@@ -523,9 +526,8 @@ class OutputService:
         summaries = self._store.source_summaries(notebook_id)
         if not summaries:
             return ChartProposals(candidates=[], reason="the notebook has no ready source")
-        embedded = embed_billed(
-            self._store, self._embedder, user_id, notebook_id, [generator.focus_query]
-        )
+        booking = Booking.new(user_id, notebook_id, "chart_propose")
+        embedded = embed_billed(self._store, self._embedder, booking, [generator.focus_query])
         chunks, _ = balanced_chunks(
             self._retriever,
             notebook_id,
@@ -552,7 +554,7 @@ class OutputService:
             options["instructions"] = instructions
         prompt, schema = generator.prompt(options)
         proposal = generator.ask(
-            self._completer(user_id, notebook_id, trace),
+            self._completer(booking, trace),
             str(notebook.get("title", "")),
             summaries,
             passages,
@@ -759,13 +761,15 @@ class OutputService:
                 raise GenerationFailed("the notebook was deleted")
             self._store.update_output(job.id, status="processing")
             trace = self._log(job)
-            generated = self._generate(job.owner, notebook_id, job, trace)
+            # every call of this output, all attempts and the judge's rounds included
+            booking = Booking(job.owner, notebook_id, f"output:{job.kind}", uuid.UUID(job.id))
+            generated = self._generate(booking, notebook_id, job, trace)
             # the units are marked in place, inside the content
             check = generated.check or check_units(
                 generated.units, trace.passages, translated="language" in job.options
             )
             if "judge" in job.options:
-                generated = self._judge(job, notebook_id, generated, trace)
+                generated = self._judge(job, booking, generated, trace)
                 # the word check again, on what is left after revision and removal
                 check = check_units(
                     generated.units, trace.passages, translated="language" in job.options
@@ -774,9 +778,9 @@ class OutputService:
             if job.kind == "decision":
                 trace.llm_verdict_text = finish_decision(content)
             if generated.speech is not None:
-                key = self._speak(job, notebook_id, generated.speech, trace)
+                key = self._speak(job, booking, notebook_id, generated.speech, trace)
                 content = {**content, "key": key}
-            source_id = self._index(job.owner, notebook_id, generated, trace)
+            source_id = self._index(booking, notebook_id, generated, trace)
             self._store.update_output(
                 job.id,
                 status="ready",
@@ -851,10 +855,10 @@ class OutputService:
         )
 
     def _generate(
-        self, user_id: str, notebook_id: str, row: OutputRow, trace: GenerationLog
+        self, booking: Booking, notebook_id: str, row: OutputRow, trace: GenerationLog
     ) -> GeneratedOutput:
         if row.kind == "decision":
-            return self._decide(user_id, notebook_id, row, trace)
+            return self._decide(booking, notebook_id, row, trace)
         if row.kind == "chart":
             return self._draw(notebook_id, row, trace)
         generator = self._generators[row.kind]
@@ -862,9 +866,7 @@ class OutputService:
         summaries = self._material(notebook_id, row.options)
         selected = row.options.get("sources")
 
-        embedded = embed_billed(
-            self._store, self._embedder, user_id, notebook_id, [generator.focus_query]
-        )
+        embedded = embed_billed(self._store, self._embedder, booking, [generator.focus_query])
         trace.embedding_in += embedded.usage.tokens_in
         chunks, trace.candidates = balanced_chunks(
             self._retriever,
@@ -878,7 +880,7 @@ class OutputService:
         trace.passages = number_passages(chunks)
 
         generated = generator.generate(
-            self._completer(user_id, notebook_id, trace),
+            self._completer(booking, trace),
             str(notebook.get("title", "")),
             summaries,
             trace.passages,
@@ -907,7 +909,7 @@ class OutputService:
             raise GenerationFailed("the notebook has no ready source")
         return summaries
 
-    def _completer(self, user_id: str, notebook_id: str, trace: GenerationLog) -> CompleteFn:
+    def _completer(self, booking: Booking, trace: GenerationLog) -> CompleteFn:
         """``LLM.complete`` with its usage row written and counted in the log."""
 
         def complete(
@@ -920,8 +922,7 @@ class OutputService:
             result = complete_billed(
                 self._store,
                 self._llm,
-                user_id,
-                notebook_id,
+                booking,
                 system,
                 user,
                 max_tokens,
@@ -934,7 +935,7 @@ class OutputService:
         return complete
 
     def _judge(
-        self, job: OutputRow, notebook_id: str, generated: GeneratedOutput, trace: GenerationLog
+        self, job: OutputRow, booking: Booking, generated: GeneratedOutput, trace: GenerationLog
     ) -> GeneratedOutput:
         """Judge every claim with the level's model, revise and judge again
         (at most three rounds), remove what still fails; logged in ``trace``."""
@@ -970,8 +971,8 @@ class OutputService:
             generator,
             generated,
             trace.passages,
-            judge=self._judge_call(judge_llm, job.owner, notebook_id, counted),
-            revise=self._completer(job.owner, notebook_id, trace),
+            judge=self._judge_call(judge_llm, booking, counted),
+            revise=self._completer(booking, trace),
             level=level,
             model=judge_llm.model,
             rebuild=rebuild,
@@ -981,8 +982,7 @@ class OutputService:
     def _judge_call(
         self,
         judge_llm: LLM,
-        user_id: str,
-        notebook_id: str | None,
+        booking: Booking,
         counted: Callable[[Usage], None],
     ) -> CompleteFn:
         """The judge model's call, billed like any LLM call, its usage counted;
@@ -992,9 +992,7 @@ class OutputService:
         def judge(
             system: str, user: str, max_tokens: int | None = None, *, thinking: bool | None = None
         ) -> CompletionResult:
-            result = complete_billed(
-                self._store, judge_llm, user_id, notebook_id, system, user, max_tokens
-            )
+            result = complete_billed(self._store, judge_llm, booking, system, user, max_tokens)
             with lock:
                 counted(result.usage)
             return result
@@ -1029,7 +1027,7 @@ class OutputService:
             usage["tokens_out"] += u.tokens_out
 
         summary = annotate(
-            self._judge_call(judge_llm, user_id, row.notebook_id, counted),
+            self._judge_call(judge_llm, Booking.new(user_id, row.notebook_id, "judge"), counted),
             stored_units(row.kind, content),
             {p["n"]: p["quote"] for p in passages},
             level=level,
@@ -1065,7 +1063,7 @@ class OutputService:
             usage["tokens_out"] += u.tokens_out
 
         summary = annotate(
-            self._judge_call(judge_llm, user_id, notebook_id, counted),
+            self._judge_call(judge_llm, Booking.new(user_id, notebook_id, "judge"), counted),
             [Unit(t, t["text"], list(t.get("refs") or [])) for t in targets],
             {c.n: c.quote for c in message.citations},
             level=level,
@@ -1125,7 +1123,7 @@ class OutputService:
         )
 
     def _decide(
-        self, user_id: str, notebook_id: str, row: OutputRow, trace: GenerationLog
+        self, booking: Booking, notebook_id: str, row: OutputRow, trace: GenerationLog
     ) -> GeneratedOutput:
         """Two independent calls over the same passages: the decision model's
         number, then the LLM's evidence, which never sees that number."""
@@ -1137,7 +1135,7 @@ class OutputService:
         notebook = self._store.get_notebook(notebook_id) or {}
         summaries = self._material(notebook_id, options)
         question = options["question"]
-        embedded = embed_billed(self._store, self._embedder, user_id, notebook_id, [question])
+        embedded = embed_billed(self._store, self._embedder, booking, [question])
         trace.embedding_in += embedded.usage.tokens_in
         trace.focus_query = question
         chunks, trace.candidates = balanced_chunks(
@@ -1156,8 +1154,7 @@ class OutputService:
         decided = decide_billed(
             self._store,
             self._decision,
-            user_id,
-            notebook_id,
+            booking,
             state,
             decision_question(options),
         )
@@ -1178,7 +1175,7 @@ class OutputService:
         started, before_in, before_out = now(), trace.llm_in, trace.llm_out
         instructions, schema = generator.evidence_prompt(options)
         evidence = generator.ask(
-            self._completer(user_id, notebook_id, trace),
+            self._completer(booking, trace),
             str(notebook.get("title", "")),
             summaries,
             trace.passages,
@@ -1211,7 +1208,7 @@ class OutputService:
         )
 
     def _index(
-        self, user_id: str, notebook_id: str, generated: GeneratedOutput, trace: GenerationLog
+        self, booking: Booking, notebook_id: str, generated: GeneratedOutput, trace: GenerationLog
     ) -> str:
         """Store the document as a source of kind ``generated`` with its chunks
         embedded, so the chat can retrieve and cite it like any upload."""
@@ -1219,9 +1216,7 @@ class OutputService:
         source_id = self._store.create_generated_source(notebook_id, generated.title, summary)
         chunks = self._chunker.chunk_text(generated.index_text)
         if chunks:
-            embedded = embed_billed(
-                self._store, self._embedder, user_id, notebook_id, [c.text for c in chunks]
-            )
+            embedded = embed_billed(self._store, self._embedder, booking, [c.text for c in chunks])
             trace.embedding_in += embedded.usage.tokens_in
             self._store.insert_chunks(source_id, chunks, embedded.vectors)
         self._store.set_source_status(source_id, "ready")
@@ -1230,6 +1225,7 @@ class OutputService:
     def _speak(
         self,
         job: OutputRow,
+        booking: Booking,
         notebook_id: str,
         turns: Sequence[SpeechTurn],
         trace: GenerationLog,
@@ -1251,8 +1247,7 @@ class OutputService:
             result = synthesize_billed(
                 self._store,
                 self._tts,
-                job.owner,
-                notebook_id,
+                booking,
                 segment,
                 voice=voice,
                 speed=job.options.get("speed"),
@@ -1332,32 +1327,31 @@ def check_sources(store: Store, notebook_id: str, source_ids: list[str] | None) 
 
 
 @contextmanager
-def _billed_on_failure(store: Store, user_id: str, notebook_id: str | None) -> Iterator[None]:
+def _billed_on_failure(store: Store, booking: Booking) -> Iterator[None]:
     """A provider error raised after the provider answered carries the usage
     it billed: record it, then let the error propagate."""
     try:
         yield
     except ProviderError as exc:
         if exc.usage is not None:
-            store.record_usage(user_id, notebook_id, exc.usage)
+            store.record_usage(booking, exc.usage)
         raise
 
 
 def embed_billed(
-    store: Store, embedder: Embedder, user_id: str, notebook_id: str | None, texts: list[str]
+    store: Store, embedder: Embedder, booking: Booking, texts: list[str]
 ) -> EmbeddingResult:
     """Embed and write the usage row, also when the call fails after billing."""
-    with _billed_on_failure(store, user_id, notebook_id):
+    with _billed_on_failure(store, booking):
         result = embedder.embed(texts)
-    store.record_usage(user_id, notebook_id, result.usage)
+    store.record_usage(booking, result.usage)
     return result
 
 
 def complete_billed(
     store: Store,
     llm: LLM,
-    user_id: str,
-    notebook_id: str | None,
+    booking: Booking,
     system: str,
     user: str,
     max_tokens: int | None = None,
@@ -1365,32 +1359,30 @@ def complete_billed(
     thinking: bool | None = None,
 ) -> CompletionResult:
     """Complete and write the usage row, also when the call fails after billing."""
-    with _billed_on_failure(store, user_id, notebook_id):
+    with _billed_on_failure(store, booking):
         result = llm.complete(system, user, max_tokens, thinking=thinking)
-    store.record_usage(user_id, notebook_id, result.usage)
+    store.record_usage(booking, result.usage)
     return result
 
 
 def decide_billed(
     store: Store,
     model: DecisionModel,
-    user_id: str,
-    notebook_id: str | None,
+    booking: Booking,
     state: dict[str, Any],
     questions: dict[str, dict[str, Any]],
 ) -> DecisionResult:
     """Decide and write the usage row, also when the call fails after billing."""
-    with _billed_on_failure(store, user_id, notebook_id):
+    with _billed_on_failure(store, booking):
         result = model.decide(state, questions)
-    store.record_usage(user_id, notebook_id, result.usage)
+    store.record_usage(booking, result.usage)
     return result
 
 
 def synthesize_billed(
     store: Store,
     tts: TextToSpeech,
-    user_id: str,
-    notebook_id: str | None,
+    booking: Booking,
     text: str,
     *,
     voice: str | None = None,
@@ -1398,9 +1390,9 @@ def synthesize_billed(
 ) -> SpeechResult:
     """Synthesize and write the usage row (the seconds the platform billed),
     also when the call fails after billing, such as an answer without audio."""
-    with _billed_on_failure(store, user_id, notebook_id):
+    with _billed_on_failure(store, booking):
         result = tts.synthesize(text, voice=voice, speed=speed)
-    store.record_usage(user_id, notebook_id, result.usage)
+    store.record_usage(booking, result.usage)
     return result
 
 
@@ -1412,7 +1404,11 @@ def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, 
 
 
 def require_credit(store: Store, user_id: str) -> None:
-    """Core's rule: a positive balance, for admins as for everyone else."""
+    """Core's rule: a positive balance, for admins as for everyone else; and
+    a rate to book with, checked first, so a missing ``usd_per_eur`` stops
+    the request before the platform is paid for a call nobody can book."""
+    if store.pricing_rules().usd_per_eur is None:
+        raise ExchangeRateMissingError()
     if not store.has_credit(user_id):
         raise InsufficientCredit(user_id)
 

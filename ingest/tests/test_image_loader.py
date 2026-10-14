@@ -96,6 +96,8 @@ def test_worker_bills_the_image_call_then_embeds_and_summarizes():
     assert repo.library[sid].status == "ready"
     assert [(u.kind, u.model, u.tokens_in) for u in repo.usage][0] == ("llm", "fake-llm", 202)
     assert [u.kind for u in repo.usage] == ["llm", "embedding", "llm"]
+    # The image call, the embeddings and the summary are one action.
+    assert {(u.action, u.action_id) for u in repo.usage} == {("source:image", sid)}
 
 
 def test_no_credit_means_no_image_call():
@@ -155,3 +157,16 @@ def test_each_answered_call_and_embedding_batch_refreshes_the_claim():
     process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), FakeChat()))
     assert repo.library[sid].status == "ready"
     assert repo.refreshed == [sid, sid]  # the image call, one embedding batch
+
+
+def test_without_an_exchange_rate_the_image_is_not_read():
+    from lasteverlm_core import PricingRules
+
+    from tests.fakes import FakeEmbedder, InMemoryRepository, InMemoryStorage
+
+    repo, storage, fake = InMemoryRepository(), InMemoryStorage(), FakeChat()
+    repo.rules = PricingRules()
+    sid = _add_image(repo, storage)
+    process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), fake))
+    assert repo.library[sid].error == "pricing has no exchange rate, ask an admin"
+    assert fake.calls == [] and repo.usage == []

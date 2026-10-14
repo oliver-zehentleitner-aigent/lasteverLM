@@ -15,6 +15,7 @@ from lasteverlm_core import (
     Message,
     OutputKind,
     OutputStatus,
+    PricingRules,
     ProviderError,
     Role,
     SpeechResult,
@@ -26,6 +27,7 @@ from lasteverlm_core.chunking import Chunk
 from lasteverlm_rag.config import Settings
 from lasteverlm_rag.main import create_app
 from lasteverlm_rag.models import (
+    Booking,
     ConversationRow,
     NotebookDocument,
     OutputRow,
@@ -114,6 +116,9 @@ class FakeStore:
         self.admins = admins or set()
         self.viewers = viewers or set()
         self.messages: list[dict[str, Any]] = []
+        self.bookings: list[tuple[str, uuid.UUID]] = []
+        # a rate of 1: charges equal costs unless a test sets margins or a rate
+        self.rules = PricingRules.parse({"usd_per_eur": 1})
         self.usage: list[tuple[str, str | None, Usage]] = []
         self.notebooks = {
             NOTEBOOK: {"id": NOTEBOOK, "owner": OWNER, "title": "My notebook"},
@@ -441,6 +446,9 @@ class FakeStore:
     def has_credit(self, user_id: str) -> bool:
         return self.balance > 0
 
+    def pricing_rules(self) -> PricingRules:
+        return self.rules
+
     def admin_role(self, user_id: str) -> Role:
         if user_id in self.admins:
             return "admin"
@@ -490,8 +498,9 @@ class FakeStore:
             "shared": {"outputs": sum(1 for r in rows if r.get("share_token"))},
         }
 
-    def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
-        self.usage.append((user_id, notebook_id, usage))
+    def record_usage(self, booking: Booking, usage: Usage) -> None:
+        self.usage.append((booking.user_id, booking.notebook_id, usage))
+        self.bookings.append((booking.action, booking.action_id))
 
 
 class FakeRetriever:

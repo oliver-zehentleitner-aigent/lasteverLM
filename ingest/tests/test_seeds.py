@@ -132,6 +132,10 @@ def test_the_demo_user_pays_for_processing_the_seeds():
     # The recording went through the normal pipeline: one billed transcription.
     assert [u.kind for u in repo.usage].count("stt") == 1
     assert repo.usage and {u.user_id for u in repo.usage} == {DEMO_USER_ID}
+    # Booked as demo_seed, one action per seeded source.
+    seeded = [u for u in repo.usage if u.user_id == DEMO_USER_ID]
+    assert {u.action for u in seeded} == {"demo_seed"}
+    assert len({u.action_id for u in seeded}) == 5
     assert repo.balance_cents(USER) == 0
     # The new user's own upload is still their own and still needs credit.
     nb = repo.create_notebook(USER, "nb")
