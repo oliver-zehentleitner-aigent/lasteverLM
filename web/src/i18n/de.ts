@@ -653,4 +653,5 @@ export const de: Record<MessageKey, string> = {
   'outProv.call.evidence': 'Belege',
   'outProv.callState': '{passages} Passagen, {chars} Zeichen',
   'outProv.llmVerdict': 'Der eigene Satz des Belegmodells',
+  'decision.labelTooLong': 'Ein Eintrag ist länger als {n} Zeichen.',
 }

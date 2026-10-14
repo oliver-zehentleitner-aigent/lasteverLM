@@ -650,6 +650,7 @@ export const en = {
   'outProv.call.evidence': 'evidence',
   'outProv.callState': '{passages} passages, {chars} characters',
   'outProv.llmVerdict': 'The evidence model\'s own sentence',
+  'decision.labelTooLong': 'An entry is longer than {n} characters.',
 } as const
 
 export type MessageKey = keyof typeof en

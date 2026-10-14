@@ -6,6 +6,9 @@ import { t } from '../i18n'
 
 export const DECISION_TYPES: DecisionType[] = ['yes_no', 'choice', 'scale']
 
+/** rag's limit for one option or level label. */
+export const LABEL_MAX = 80
+
 /** The limits the form checks, from rag's catalogue or, without one, the
  *  contract's numbers. */
 export function decisionLimits(spec: OutputOptionsSpec | null) {
@@ -41,6 +44,7 @@ export function decisionProblem(v: DecisionValues, spec: OutputOptionsSpec | nul
   const { min, max } = v.decisionType === 'choice' ? lim.choices : lim.levels
   if (list.length < min || list.length > max) return t(v.decisionType === 'choice' ? 'decision.choiceCount' : 'decision.levelCount', { min, max })
   if (list.some((s) => !s)) return t('decision.emptyEntry')
+  if (list.some((s) => s.length > LABEL_MAX)) return t('decision.labelTooLong', { n: LABEL_MAX })
   if (new Set(list.map((s) => s.toLowerCase())).size < list.length) return t('decision.duplicate')
   return null
 }

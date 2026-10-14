@@ -1,5 +1,5 @@
 import type { DecisionType, OutputOptionsSpec } from '../api/types'
-import { DECISION_TYPES, decisionLimits, type DecisionValues } from '../lib/decision'
+import { DECISION_TYPES, LABEL_MAX, decisionLimits, type DecisionValues } from '../lib/decision'
 import { t } from '../i18n'
 
 interface Props {
@@ -51,6 +51,7 @@ export function DecisionForm({ value: v, spec, onChange }: Props) {
               <li key={i}>
                 <input
                   value={item}
+                  maxLength={LABEL_MAX}
                   aria-label={v.decisionType === 'choice' ? t('decision.optionN', { n: i + 1 }) : t('decision.levelN', { n: i + 1 })}
                   onChange={(e) => set({ [listKey]: list.map((x, k) => (k === i ? e.target.value : x)) })}
                 />

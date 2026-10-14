@@ -23,6 +23,7 @@ describe('the decision form', () => {
     expect(decisionProblem({ ...choice, choices: ['A', ''] }, null)).toBe('Fill in or remove the empty entry.')
     expect(decisionProblem({ ...choice, choices: ['A'] }, null)).toBe('Give 2 to 8 options.')
     expect(decisionProblem({ ...choice, choices: ['A', 'a'] }, null)).toBe('Each entry only once.')
+    expect(decisionProblem({ ...choice, choices: ['A', 'x'.repeat(81)] }, null)).toBe('An entry is longer than 80 characters.')
     expect(decisionProblem({ ...choice, choices: ['A', 'B'] }, null)).toBeNull()
     expect(decisionProblem({ ...v, decisionType: 'scale', levels: ['low', 'high'] }, null)).toBe('Give 3 to 7 levels.')
   })
