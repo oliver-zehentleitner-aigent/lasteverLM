@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Outputs in the user's library: `GET /api/rag/library/outputs?kind=&trash=` lists the caller's outputs from every notebook, including deleted notebooks; `Output` carries `origin_title` (the notebook's title when the output was made), `deleted_at` and `purge_at` (core's model). The generated source of an output is the user's library row, which ingest can link into another notebook without reprocessing.
+- A trash for outputs: `POST /api/rag/outputs/{id}/restore`, `DELETE /api/rag/outputs/{id}/purge` (409 unless trashed), `DELETE /api/rag/notebooks/{id}/outputs` (trashes every output made in that notebook). The worker purges trashed outputs after the owner's `trash_days` (default 14), at start and then hourly: the stored file first, then the generated source, then the row; a file that cannot be deleted is logged and kept for the next sweep.
+- Migration `0004_rag_outputs_library.sql`: `outputs.owner`, `origin_title`, `deleted_at`; `notebook_id` nullable with `on delete set null`; `source_id` references the generated library row (expand only, `owner` stays nullable for the rolling deploy).
+
+### Changed
+
+- `DELETE /api/rag/outputs/{id}` moves the output to the trash instead of deleting it; the output and its generated source leave every notebook, `GET` and the share link answer 404 until it is restored.
+- An output survives the deletion of its notebook (`notebook_id` becomes `null`); a job whose notebook is gone fails with "the notebook was deleted".
+- `DELETE /api/rag/admin/users/{id}` deletes the user's outputs and generated sources by owner, so outputs of deleted notebooks and trashed ones go too.
+
+### Added
+
 - `DELETE /api/rag/admin/users/{id}` (admins only), account's first step when a user is deleted: the stored files of the outputs in the user's notebooks, then rag's rows there (generated sources, outputs, messages, conversations) in one transaction. Idempotent, always 204; a file that cannot be deleted is a 502 naming its key, with every row kept.
 
 ## [0.11.1] - 2026-10-14

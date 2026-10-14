@@ -25,9 +25,13 @@ this directory implements the `/api/rag` prefix.
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
 | POST | `/api/rag/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview of a voice |
-| GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` |
-| GET | `/api/rag/outputs/{id}` | | `Output` |
-| DELETE | `/api/rag/outputs/{id}` | | 204 |
+| GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` made in that notebook, not in the trash |
+| DELETE | `/api/rag/notebooks/{id}/outputs` | | 204, every output made in that notebook into the trash |
+| GET | `/api/rag/library/outputs?kind=&trash=` | `kind` optional, `trash` default false | `[Output]`, the caller's outputs from every notebook, newest first; with `trash=true` the trashed ones |
+| GET | `/api/rag/outputs/{id}` | | `Output`; 404 when trashed |
+| DELETE | `/api/rag/outputs/{id}` | | 204, into the trash |
+| POST | `/api/rag/outputs/{id}/restore` | | 204, out of the trash |
+| DELETE | `/api/rag/outputs/{id}/purge` | | 204, deleted for good; 409 unless in the trash |
 | POST | `/api/rag/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/api/rag/outputs/{id}/share` | | 204 |
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
@@ -75,9 +79,10 @@ plain user everywhere else in rag, credit included.
 **Deleting a user.** `DELETE /api/rag/admin/users/{id}` is account's
 first step when an admin deletes a user (core's `admin_only`, admins
 only), before ingest deletes the notebooks. It deletes the stored files
-of the outputs in the user's notebooks (the audio MP3s), then, in one
-transaction, rag's rows there: generated sources with their chunks,
-outputs, messages and conversations. Notebooks and uploads stay for
+of the user's outputs (the audio MP3s), then, in one transaction, the
+user's generated sources with their chunks, the user's outputs (also
+those of deleted notebooks and in the trash), and the messages and
+conversations of the user's notebooks. Notebooks and uploads stay for
 ingest. Always 204, also when nothing is left or the user never
 existed, so account can retry. A file that cannot be deleted is a 502
 `could not delete stored object <key>` and no row is touched.
@@ -136,8 +141,30 @@ attempts fail the job, a claim older than ten minutes is abandoned), generates t
 summaries plus the chunks retrieved for the kind's focus query, and
 indexes the result as a source of kind `generated` in the same notebook
 (chunked with core's token-window chunker, the same one ingest uses),
-so the chat can cite it; `Output.source_id` names that source. Deleting
-the output deletes the source and its stored files.
+so the chat can cite it; `Output.source_id` names that source.
+
+**Library and trash.** An output belongs to the user, not the notebook:
+`Output.notebook_id` is the notebook it was made in and turns `null`
+when ingest deletes that notebook (the foreign key sets it), while
+`origin_title` keeps the notebook's title from the moment the output was
+created. `GET /library/outputs` lists the caller's outputs from every
+notebook. Its generated source is a library row of the user's, so ingest's
+library picker can link it into another notebook, where the chat searches
+and cites it without reprocessing. Deleting an output moves it to the
+trash (`deleted_at`, `purge_at`): it and its generated source leave every
+notebook, its share link answers 404, and its file stays. Restoring
+links the source into the origin notebook again if it still exists;
+links into other notebooks are not restored, as with ingest's library
+trash. `DELETE /notebooks/{id}/outputs` trashes every output made in
+that notebook, for the web's "delete the outputs too" before ingest
+deletes the notebook. The worker purges a trashed output once the
+owner's `trash_days` preference (default 14) has passed, at start and
+then hourly; `DELETE /outputs/{id}/purge` does it at once. A purge
+deletes the stored file first, then the generated source with its chunks
+and links, then the row; a file that cannot be deleted is logged (the
+sweep) or a 502 naming its key (the endpoint), and the rows stay for the
+next try. A job whose notebook is deleted before it ran fails with "the
+notebook was deleted".
 `Output.error` is a public text: rag's own reasons (no ready source,
 none of the selected sources ready, an answer that did not match the
 document format, audio unavailable) as they are, otherwise a fixed text
@@ -242,7 +269,12 @@ through `create_app`.
 `0002_rag_conversations.sql` adds `conversations` and
 `messages.conversation_id` and moves each notebook's existing messages
 into one conversation `Chat 1`; `0003_rag_output_options.sql` adds
-`outputs.options`. The migrations runner applies them after
+`outputs.options`; `0004_rag_outputs_library.sql` gives outputs an
+`owner`, `origin_title` and `deleted_at`, makes `notebook_id` nullable
+(set to null when the notebook is deleted) and points `source_id` at the
+generated library row instead of its link (expand only: `owner` stays
+nullable for pods of the previous release, and reads fall back to the
+notebook's owner). The migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
 `chunks`. A library source is a file, text, URL or image processed once
@@ -250,10 +282,10 @@ for its owner; `sources` links it into a notebook, and the link's id is
 the source id the API and citations use. Chunks belong to the library
 source, so search goes notebook → links → library sources (status, kind,
 name, summary) → chunks. For a generated output rag writes a hidden
-library row of kind `generated` (never listed in the library) plus its
-link under one id, in one transaction, and the chunks on that row;
-deleting the output deletes the library row, and the link and chunks go
-with it.
+library row of kind `generated`, owned by the user, plus its link into
+the notebook under one id, in one transaction, and the chunks on that
+row. Ingest lists such rows only in its picker and never trashes or
+purges them; rag trashes, restores and purges them with their output.
 
 ## Deployment
 

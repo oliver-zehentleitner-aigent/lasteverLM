@@ -146,6 +146,10 @@ class OutputNotReady(Exception):
     """The output exists but has no generated source to ask about yet."""
 
 
+class OutputNotInTrash(Exception):
+    """Purging needs the output to be in the trash first."""
+
+
 class InvalidSources(Exception):
     """A selected source id is not an uploaded source of the notebook."""
 
@@ -362,7 +366,12 @@ class RagService:
         if output_id is None:
             return None
         output = self._store.get_output(output_id)
-        if output is None or output.owner != user_id or output.notebook_id != notebook_id:
+        if (
+            output is None
+            or output.owner != user_id
+            or output.notebook_id != notebook_id
+            or output.deleted_at is not None
+        ):
             raise OutputNotFound(output_id)
         if output.status != "ready" or output.source_id is None:
             raise OutputNotReady(output_id)
@@ -427,40 +436,84 @@ class OutputService:
         )
         return self._present(row)
 
+    def library(self, user_id: str, kind: OutputKind | None, trash: bool) -> list[Output]:
+        """The user's outputs from every notebook, also from deleted ones,
+        newest first; with ``trash`` the trashed ones instead."""
+        return [self._present(r) for r in self._store.list_library_outputs(user_id, kind, trash)]
+
     def list(self, user_id: str, notebook_id: str) -> list[Output]:
         require_notebook(self._store, user_id, notebook_id)
         return [self._present(r) for r in self._store.list_outputs(notebook_id)]
 
     def get(self, user_id: str, output_id: str) -> Output:
-        return self._present(self._owned(user_id, output_id))
+        return self._present(self._active(user_id, output_id))
 
     def delete(self, user_id: str, output_id: str) -> None:
+        """Into the trash, with its generated source; purged after the user's
+        ``trash_days``."""
+        self._store.trash_outputs([self._active(user_id, output_id).id])
+
+    def delete_notebook_outputs(self, user_id: str, notebook_id: str) -> None:
+        """Every output that came from the notebook into the trash: the web's
+        "delete them too" before ingest deletes the notebook."""
+        require_notebook(self._store, user_id, notebook_id)
+        self._store.trash_outputs([r.id for r in self._store.list_outputs(notebook_id)])
+
+    def restore(self, user_id: str, output_id: str) -> None:
         row = self._owned(user_id, output_id)
+        if row.deleted_at is not None:
+            self._store.restore_output(row.id)
+
+    def purge(self, user_id: str, output_id: str) -> None:
+        row = self._owned(user_id, output_id)
+        if row.deleted_at is None:
+            raise OutputNotInTrash(output_id)
+        self._purge(row)
+
+    def purge_expired(self) -> int:
+        """The worker's sweep: trashed outputs past their owner's retention.
+        A file that cannot be deleted is logged loudly and keeps its rows for
+        the next sweep; the others go on."""
+        purged = 0
+        for row in self._store.expired_outputs():
+            try:
+                self._purge(row)
+                purged += 1
+            except ObjectDeleteFailed as exc:
+                log.error("purging output %s failed: %s", row.id, exc)
+        return purged
+
+    def _purge(self, row: OutputRow) -> None:
+        # objects first: a failed delete leaves the rows for another try, not an orphan file
+        self._delete_stored(row.content)
         if row.source_id is not None:
             self._store.delete_source(row.source_id)
-        # objects first: a failed delete leaves the row for another try, not an orphan file
-        self._delete_objects(row.content)
         self._store.delete_output(row.id)
 
     def delete_user_data(self, user_id: str) -> None:
-        """Admin, when a user is deleted: the stored files of the outputs in the
-        user's notebooks, then rag's rows there. Objects first: the rows would
-        cascade from ingest's notebook delete anyway, the files would not, and a
-        failed file delete leaves the rows for the retry. Idempotent."""
+        """Admin, when a user is deleted: the stored files of the user's
+        outputs, then rag's rows (the user's outputs and generated sources, the
+        messages and conversations of their notebooks). Objects first: nothing
+        would delete the files afterwards, and a failed file delete leaves the
+        rows for the retry. Idempotent."""
         for content in self._store.user_output_contents(user_id):
-            key = content.get("key")
-            if not isinstance(key, str):
-                continue
-            if self._objects is None:
-                raise ObjectDeleteFailed(key, "no object storage configured")
-            try:
-                self._objects.delete(key)
-            except StorageError as exc:
-                raise ObjectDeleteFailed(key, str(exc)) from exc
+            self._delete_stored(content)
         self._store.delete_user_data(user_id)
 
+    def _delete_stored(self, content: dict[str, Any] | None) -> None:
+        """Delete the output's file, loudly: ``ObjectDeleteFailed`` names the key."""
+        key = (content or {}).get("key")
+        if not isinstance(key, str):
+            return
+        if self._objects is None:
+            raise ObjectDeleteFailed(key, "no object storage configured")
+        try:
+            self._objects.delete(key)
+        except StorageError as exc:
+            raise ObjectDeleteFailed(key, str(exc)) from exc
+
     def share(self, user_id: str, output_id: str) -> str:
-        row = self._owned(user_id, output_id)
+        row = self._active(user_id, output_id)
         if row.share_token:
             return row.share_token
         token = secrets.token_urlsafe(24)
@@ -468,12 +521,12 @@ class OutputService:
         return token
 
     def unshare(self, user_id: str, output_id: str) -> None:
-        row = self._owned(user_id, output_id)
+        row = self._active(user_id, output_id)
         self._store.update_output(row.id, share_token=None)
 
     def shared(self, token: str) -> SharedOutput:
         row = self._store.get_shared_output(token) if token else None
-        if row is None or row.status != "ready":
+        if row is None or row.status != "ready" or row.deleted_at is not None:
             raise OutputNotFound(token)
         return SharedOutput.model_validate(
             {
@@ -503,12 +556,15 @@ class OutputService:
         source_id: str | None = None
         content: dict[str, Any] = {}
         try:
+            notebook_id = job.notebook_id
+            if notebook_id is None:
+                raise GenerationFailed("the notebook was deleted")
             self._store.update_output(job.id, status="processing")
-            generated = self._generate(job.owner, job)
+            generated = self._generate(job.owner, notebook_id, job)
             content = generated.content
             if generated.speech is not None:
-                content = {"key": self._speak(job, generated.speech)}
-            source_id = self._index(job.owner, job.notebook_id, generated)
+                content = {"key": self._speak(job, notebook_id, generated.speech)}
+            source_id = self._index(job.owner, notebook_id, generated)
             self._store.update_output(
                 job.id,
                 status="ready",
@@ -520,6 +576,7 @@ class OutputService:
             log.info(
                 "output %s (%s) ready: %r, source %s", job.id, job.kind, generated.title, source_id
             )
+            self._settle(job.id, source_id, content)
             return True
         except Exception as exc:
             failure = exc
@@ -545,17 +602,32 @@ class OutputService:
 
     def _discard(self, job: OutputRow, source_id: str | None, content: dict[str, Any]) -> None:
         """Remove what a failed attempt left: its generated source and its file."""
+        self._discard_quietly(job.id, source_id, content)
+
+    def _discard_quietly(
+        self, output_id: str, source_id: str | None, content: dict[str, Any]
+    ) -> None:
         try:
             if source_id is not None:
                 self._store.delete_source(source_id)
             self._delete_objects(content)
         except Exception:
-            log.exception("output %s: cleanup after a failed attempt failed", job.id)
+            log.exception("output %s: cleanup after a failed attempt failed", output_id)
 
-    def _generate(self, user_id: str, row: OutputRow) -> GeneratedOutput:
+    def _settle(self, output_id: str, source_id: str, content: dict[str, Any]) -> None:
+        """The user may have trashed or purged the output while it was being
+        generated: the new generated source follows it into the trash, or goes
+        with its file when the row is gone."""
+        current = self._store.get_output(output_id)
+        if current is None:
+            self._discard_quietly(output_id, source_id, content)
+        elif current.deleted_at is not None:
+            self._store.trash_outputs([output_id])
+
+    def _generate(self, user_id: str, notebook_id: str, row: OutputRow) -> GeneratedOutput:
         generator = self._generators[row.kind]
-        notebook = self._store.get_notebook(row.notebook_id) or {}
-        summaries = self._store.source_summaries(row.notebook_id)
+        notebook = self._store.get_notebook(notebook_id) or {}
+        summaries = self._store.source_summaries(notebook_id)
         selected = row.options.get("sources")
         if selected:
             summaries = [s for s in summaries if s.source_id in selected]
@@ -565,11 +637,11 @@ class OutputService:
             raise GenerationFailed("the notebook has no ready source")
 
         embedded = embed_billed(
-            self._store, self._embedder, user_id, row.notebook_id, [generator.focus_query]
+            self._store, self._embedder, user_id, notebook_id, [generator.focus_query]
         )
         chunks = balanced_chunks(
             self._retriever,
-            row.notebook_id,
+            notebook_id,
             embedded.vectors[0],
             summaries,
             self._k,
@@ -588,7 +660,7 @@ class OutputService:
                 self._store,
                 self._llm,
                 user_id,
-                row.notebook_id,
+                notebook_id,
                 system,
                 user,
                 max_tokens,
@@ -626,7 +698,7 @@ class OutputService:
         self._store.set_source_status(source_id, "ready")
         return source_id
 
-    def _speak(self, job: OutputRow, script: str) -> str:
+    def _speak(self, job: OutputRow, notebook_id: str, script: str) -> str:
         """Synthesize the script segment by segment (one usage row each, priced
         per second of generated speech) and store the joined MP3; returns the
         object key."""
@@ -641,13 +713,13 @@ class OutputService:
                 self._store,
                 self._tts,
                 job.owner,
-                job.notebook_id,
+                notebook_id,
                 segment,
                 voice=job.options.get("voice"),
                 speed=job.options.get("speed"),
             )
             parts.append(result.audio)
-        key = object_key(job.notebook_id, job.id, AUDIO_FILE)
+        key = object_key(notebook_id, job.id, AUDIO_FILE)
         # MP3 frames are self-contained: the segments concatenate into one stream
         self._objects.put(key, b"".join(parts), "audio/mpeg")
         return key
@@ -670,8 +742,16 @@ class OutputService:
         return output.model_copy(update={"content": self._public_content(row.content)})
 
     def _owned(self, user_id: str, output_id: str) -> OutputRow:
+        """The caller's output, in the trash or not."""
         row = self._store.get_output(output_id)
         if row is None or row.owner != user_id:
+            raise OutputNotFound(output_id)
+        return row
+
+    def _active(self, user_id: str, output_id: str) -> OutputRow:
+        """The caller's output outside the trash; a trashed one is not found."""
+        row = self._owned(user_id, output_id)
+        if row.deleted_at is not None:
             raise OutputNotFound(output_id)
         return row
 
@@ -792,6 +872,9 @@ def to_output(row: OutputRow) -> Output:
             "source_id": row.source_id,
             "created_at": row.created_at,
             "options": row.options,
+            "origin_title": row.origin_title,
+            "deleted_at": row.deleted_at,
+            "purge_at": row.purge_at,
         }
     )
 

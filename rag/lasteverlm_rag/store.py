@@ -110,6 +110,17 @@ class Store(Protocol):
 
     def delete_output(self, output_id: str) -> None: ...
 
+    # the user's outputs in the library, and their trash
+    def list_library_outputs(
+        self, owner: str, kind: str | None, trash: bool
+    ) -> list[OutputRow]: ...
+
+    def trash_outputs(self, output_ids: list[str]) -> None: ...
+
+    def restore_output(self, output_id: str) -> None: ...
+
+    def expired_outputs(self) -> list[OutputRow]: ...
+
     # the outputs table as a job queue (worker entrypoint)
     def claim_output(self, worker_id: str, stale_after_s: int) -> OutputRow | None: ...
 
@@ -141,7 +152,7 @@ class Store(Protocol):
 
     def daily_stats(self, days: int) -> list[dict[str, Any]]: ...
 
-    # deleting a user (admin): rag's rows in the notebooks the user owns
+    # deleting a user (admin): the user's outputs and rag's rows in their notebooks
     def user_output_contents(self, user_id: str) -> list[dict[str, Any]]: ...
 
     def delete_user_data(self, user_id: str) -> None: ...
@@ -181,12 +192,23 @@ order by c.embedding <=> %(embedding)s::vector
 limit %(k)s
 """
 
-_OUTPUT_COLUMNS = """
-o.id::text as id, o.notebook_id::text as notebook_id, n.owner::text as owner, o.kind, o.title,
-o.content, o.status, o.error, o.share_token, o.source_id::text as source_id, o.attempts,
-o.created_at, o.options
+# Days a trashed output stays: account's per-user preference, read as ingest
+# reads it for the library; 14 without a user row or a number.
+_TRASH_DAYS = (
+    "greatest(0, coalesce((select case when jsonb_typeof(u.preferences -> 'trash_days')"
+    " = 'number' then floor((u.preferences ->> 'trash_days')::numeric)::int end"
+    " from users u where u.id = {owner}), 14))"
+)
+# The owner falls back to the notebook's for a row a pod of the previous
+# release inserted during the rolling deploy (migration 0004 is expand only).
+_OUTPUT_OWNER = "coalesce(o.owner, n.owner)"
+_OUTPUT_COLUMNS = f"""
+o.id::text as id, o.notebook_id::text as notebook_id, {_OUTPUT_OWNER}::text as owner, o.kind,
+o.title, o.content, o.status, o.error, o.share_token, o.source_id::text as source_id,
+o.attempts, o.created_at, o.options, o.origin_title, o.deleted_at,
+o.deleted_at + make_interval(days => {_TRASH_DAYS.format(owner=_OUTPUT_OWNER)}) as purge_at
 """
-_OUTPUT_FROM = "from outputs o join notebooks n on n.id = o.notebook_id"
+_OUTPUT_FROM = "from outputs o left join notebooks n on n.id = o.notebook_id"
 _OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_id"}
 
 # One job per call, oldest first; rows other workers hold are skipped, a claim
@@ -194,10 +216,10 @@ _OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_
 # waiting row is claimable only once no uploaded source of its notebook is
 # still processing (of its selection, when it has one: ``options.sources``).
 # The claim counts as an attempt.
-_CLAIM_SQL = f"""
+_CLAIM_SQL = """
 with job as (
     select id from outputs x
-    where x.status in ('waiting', 'processing')
+    where x.status in ('waiting', 'processing') and x.deleted_at is null
       and (x.claimed_at is null or x.claimed_at < now() - make_interval(secs => %(stale)s))
       and not exists (
           select 1 from sources s join library_sources l on l.id = s.library_source_id
@@ -209,9 +231,9 @@ with job as (
     limit 1
 )
 update outputs o set claimed_at = now(), claimed_by = %(worker)s, attempts = o.attempts + 1
-from job, notebooks n
-where o.id = job.id and n.id = o.notebook_id
-returning {_OUTPUT_COLUMNS}
+from job
+where o.id = job.id
+returning o.id::text as id
 """
 
 
@@ -403,9 +425,11 @@ class PostgresStore:
         output_id = _new_id()
         with self._pool.connection() as conn:
             conn.execute(
-                "insert into outputs (id, notebook_id, kind, title, status, options) "
-                "values (%s, %s, %s, '', %s, %s)",
-                (output_id, notebook_id, kind, status, Jsonb(options or {})),
+                "insert into outputs "
+                "(id, notebook_id, owner, origin_title, kind, title, status, options) "
+                "select %s, n.id, n.owner, n.title, %s, '', %s, %s "
+                "from notebooks n where n.id = %s",
+                (output_id, kind, status, Jsonb(options or {}), notebook_id),
             )
         row = self.get_output(output_id)
         assert row is not None
@@ -428,9 +452,72 @@ class PostgresStore:
     def list_outputs(self, notebook_id: str) -> list[OutputRow]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where o.notebook_id = %s "
-                "order by o.created_at, o.id",
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} "
+                "where o.notebook_id = %s and o.deleted_at is null order by o.created_at, o.id",
                 (notebook_id,),
+            ).fetchall()
+        return [_to_output(r) for r in rows]
+
+    def list_library_outputs(self, owner: str, kind: str | None, trash: bool) -> list[OutputRow]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where {_OUTPUT_OWNER} = %(owner)s "
+                "and (%(kind)s::text is null or o.kind = %(kind)s) "
+                "and (o.deleted_at is not null) = %(trash)s "
+                "order by coalesce(o.deleted_at, o.created_at) desc, o.id",
+                {"owner": owner, "kind": kind, "trash": trash},
+            ).fetchall()
+        return [_to_output(r) for r in rows]
+
+    def trash_outputs(self, output_ids: list[str]) -> None:
+        """Into the trash: ``deleted_at`` on the outputs and their generated
+        library rows, and every link of those rows removed (as ingest's
+        library trash does), in one transaction. An output already in the trash
+        keeps its date; a generated row it got since follows it."""
+        ids = {"ids": output_ids}
+        with self._pool.connection() as conn, conn.transaction():
+            conn.execute(
+                "update library_sources l set deleted_at = now() from outputs o "
+                "where o.id = any(%(ids)s::uuid[]) and l.id = o.source_id and l.deleted_at is null",
+                ids,
+            )
+            conn.execute(
+                "delete from sources s using outputs o "
+                "where o.id = any(%(ids)s::uuid[]) and s.library_source_id = o.source_id",
+                ids,
+            )
+            conn.execute(
+                "update outputs set deleted_at = now() "
+                "where id = any(%(ids)s::uuid[]) and deleted_at is null",
+                ids,
+            )
+
+    def restore_output(self, output_id: str) -> None:
+        """Out of the trash, with the generated row, linked into the origin
+        notebook again if it still exists (the link under the row's id)."""
+        with self._pool.connection() as conn, conn.transaction():
+            conn.execute(
+                "update library_sources l set deleted_at = null from outputs o "
+                "where o.id = %s and l.id = o.source_id",
+                (output_id,),
+            )
+            conn.execute(
+                "insert into sources (id, notebook_id, library_source_id) "
+                "select o.source_id, o.notebook_id, o.source_id from outputs o "
+                "where o.id = %s and o.source_id is not null and o.notebook_id is not null "
+                "on conflict do nothing",
+                (output_id,),
+            )
+            conn.execute("update outputs set deleted_at = null where id = %s", (output_id,))
+
+    def expired_outputs(self) -> list[OutputRow]:
+        """Trashed outputs whose owner's retention has elapsed, oldest first."""
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where o.deleted_at is not null "
+                f"and o.deleted_at + make_interval(days => "
+                f"{_TRASH_DAYS.format(owner=_OUTPUT_OWNER)}) <= now() "
+                "order by o.deleted_at, o.id"
             ).fetchall()
         return [_to_output(r) for r in rows]
 
@@ -453,7 +540,7 @@ class PostgresStore:
     def claim_output(self, worker_id: str, stale_after_s: int) -> OutputRow | None:
         with self._pool.connection() as conn:
             row = conn.execute(_CLAIM_SQL, {"worker": worker_id, "stale": stale_after_s}).fetchone()
-        return _to_output(row) if row else None
+        return self.get_output(row["id"]) if row else None
 
     def release_output(self, output_id: str, error: str | None = None) -> None:
         """Give the job back to the queue, keeping the last error for the next attempt."""
@@ -493,7 +580,7 @@ class PostgresStore:
             rows = conn.execute(
                 "select s.id::text as id, l.name, l.kind, o.kind as output_kind from sources s "
                 "join library_sources l on l.id = s.library_source_id "
-                "left join outputs o on o.source_id = s.id "
+                "left join outputs o on o.source_id = l.id "
                 "where s.notebook_id = %s and l.status = 'ready' "
                 "order by s.created_at, s.id",
                 (notebook_id,),
@@ -536,19 +623,17 @@ class PostgresStore:
     def set_source_status(self, source_id: str, status: str, error: str | None = None) -> None:
         with self._pool.connection() as conn:
             conn.execute(
-                "update library_sources set status = %s, error = %s "
-                "where id = (select library_source_id from sources where id = %s)",
+                "update library_sources set status = %s, error = %s where id = %s",
                 (status, error, source_id),
             )
 
     def delete_source(self, source_id: str) -> None:
-        """Delete a generated source: its library row goes, and with it (cascade)
-        the link and the chunks. Uploaded sources are ingest's to delete."""
+        """Delete a generated source by its library id (an output's
+        ``source_id``): the row goes, and with it (cascade) every link and the
+        chunks. Uploaded sources are ingest's to delete."""
         with self._pool.connection() as conn:
             conn.execute(
-                "delete from library_sources l using sources s "
-                "where s.id = %s and l.id = s.library_source_id and l.kind = 'generated'",
-                (source_id,),
+                "delete from library_sources where id = %s and kind = 'generated'", (source_id,)
             )
 
     # -- credit (core's helpers; usage rows are the only debit) -------------
@@ -611,25 +696,29 @@ class PostgresStore:
     def user_output_contents(self, user_id: str) -> list[dict[str, Any]]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                f"select content from outputs where content is not null "
-                f"and notebook_id in ({_USER_NOTEBOOKS})",
+                f"select o.content {_OUTPUT_FROM} where o.content is not null "
+                f"and {_OUTPUT_OWNER} = %(owner)s",
                 {"owner": user_id},
             ).fetchall()
         return [row["content"] for row in rows]
 
     def delete_user_data(self, user_id: str) -> None:
-        """Generated sources (library row, link, chunks), outputs, messages and
-        conversations of the user's notebooks, in one transaction. The notebooks
-        and the uploads are ingest's to delete."""
+        """The user's generated library rows (links and chunks cascade) and
+        outputs, wherever their origin, and the messages and conversations of
+        the user's notebooks, in one transaction. The notebooks and the
+        uploads are ingest's to delete."""
         owner = {"owner": user_id}
         with self._pool.connection() as conn, conn.transaction():
             conn.execute(
-                "delete from library_sources l using sources s "
-                "where l.id = s.library_source_id and l.kind = 'generated' "
-                f"and s.notebook_id in ({_USER_NOTEBOOKS})",
+                "delete from library_sources where owner = %(owner)s and kind = 'generated'", owner
+            )
+            conn.execute(
+                "delete from outputs o using notebooks n where o.owner is null "
+                "and n.id = o.notebook_id and n.owner = %(owner)s",
                 owner,
             )
-            for table in ("outputs", "messages", "conversations"):
+            conn.execute("delete from outputs where owner = %(owner)s", owner)
+            for table in ("messages", "conversations"):
                 conn.execute(f"delete from {table} where notebook_id in ({_USER_NOTEBOOKS})", owner)
 
     def admin_role(self, user_id: str) -> Role:
@@ -702,6 +791,10 @@ def _to_message(row: dict[str, Any]) -> Message:
     return Message.model_validate({**row, "citations": row.get("citations") or []})
 
 
+def _str_or_none(value: Any) -> str | None:
+    return None if value is None else str(value)
+
+
 def _to_output(row: dict[str, Any]) -> OutputRow:
     return OutputRow(
         id=row["id"],
@@ -717,4 +810,7 @@ def _to_output(row: dict[str, Any]) -> OutputRow:
         attempts=int(row.get("attempts", 0)),
         created_at=str(row["created_at"]),
         options=row.get("options") or {},
+        origin_title=row.get("origin_title") or "",
+        deleted_at=_str_or_none(row.get("deleted_at")),
+        purge_at=_str_or_none(row.get("purge_at")),
     )

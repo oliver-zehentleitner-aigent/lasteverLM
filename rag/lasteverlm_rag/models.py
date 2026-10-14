@@ -145,10 +145,11 @@ class GeneratedOutput:
 
 @dataclass(frozen=True)
 class OutputRow:
-    """The ``outputs`` row plus the notebook owner, for the ownership check."""
+    """The ``outputs`` row. ``notebook_id`` is the origin, ``None`` once that
+    notebook is deleted; ``owner`` is the user the output belongs to."""
 
     id: str
-    notebook_id: str
+    notebook_id: str | None
     owner: str
     kind: OutputKind
     title: str
@@ -160,6 +161,9 @@ class OutputRow:
     attempts: int
     created_at: str
     options: dict[str, Any] = field(default_factory=dict)
+    origin_title: str = ""
+    deleted_at: str | None = None
+    purge_at: str | None = None
 
 
 class NotebookStats(BaseModel):
