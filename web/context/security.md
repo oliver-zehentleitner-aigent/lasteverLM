@@ -43,6 +43,19 @@ same.
 build arg. Rejected because the hash belongs to the built file anyway,
 so the policy and the page it protects are fixed together in one image.
 
+A `preview_url` is only ever rendered inline (as an `<img>`) for an
+image; for a PDF or text it is the presigned original and for a web page
+the page's own address, both only for the open link in a new tab. Found
+by infra's walk on v0.10.2, 2026-10-14: thumbnails for every entry with
+a preview fetched each web page a user once added from the viewer's
+browser (third-party requests, an `http:` one tripping `img-src`) and
+showed presigned PDFs as broken images. `ImageName` checks the kind
+itself, so no call site can bring it back.
+
+**Rejected alternative:** a thumbnail for any kind with an `onError`
+fallback to the plain name. Rejected because the request still goes out
+before the fallback, which is the leak.
+
 ## Content-Security-Policy limited to frame-ancestors for now
 
 **Id:** 40aee3ef-7710-41cf-b1c7-f21dd4109882

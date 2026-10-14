@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Library and wizard: a thumbnail only for images. Since `preview_url` also carries a PDF's or text's presigned original and a web page's own address, every such entry was loaded as an `<img>`: the viewer's browser fetched each added web page from its host (an `http:` one tripped the CSP's `img-src`), and PDFs and text showed as broken thumbnails. `ImageName` now takes the entry's kind and renders the picture for `image` only; the open link is unchanged.
+
 ## [0.10.2] - 2026-10-14
 
 ### Changed
