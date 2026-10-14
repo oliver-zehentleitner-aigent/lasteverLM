@@ -225,6 +225,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
           onSourcesChange={setUploads}
         />
         <OutputTiles
+          notebookId={notebookId}
           selected={format}
           hasReadySource={hasReadySource}
           noneSelected={picked.total > 0 && picked.selected === 0}

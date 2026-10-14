@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Chart, an eighth output kind: "Find charts" proposes number series from the sources as small previews (title, type, values, how many backed) to tick; the output draws each chart with recharts in the overview's style, backed values filled, unbacked ones hollow, computed ones as a diamond ("computed from [n]"), a click on a value opening its passage, with PNG and CSV per chart and "N of M values supported" in the head.
 - Output options from rag's catalogue: a report's style and length, a quiz's number of questions, difficulty and audience, and for every kind optional notes (`instructions`, up to 500 characters) with the hint that a shared output shows them; the line under a title names the new choices, and the share page and "How this was made" show the notes as "The author's instructions".
 - Share a notebook: a button in the notebook list's row creates, copies or revokes a read-only link; the public page `/shared/notebook/<token>` shows the title, the sources by name and kind (no files) and every output as on its own share page.
 - Rename in place: a double-click (or F2) on a notebook in the notebook list, an output's row or an output's tab edits its title, as on the chat tabs (Enter or leaving saves, Escape cancels).

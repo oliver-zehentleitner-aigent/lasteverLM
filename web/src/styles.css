@@ -744,3 +744,28 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .output-options .instructions textarea { min-height: 3rem; }
 .output-options input.narrow { width: 5.5rem; }
 .author-instructions { margin: -0.25rem 0 0.75rem; white-space: pre-wrap; }
+/* chart output: one card per chart, the values' legend, the folded table */
+.chart-output { display: flex; flex-direction: column; gap: 0.9rem; }
+.one-chart header { display: flex; align-items: baseline; gap: 0.6rem; }
+.one-chart header h3 { margin: 0; font-size: 1rem; }
+.one-chart header .actions { margin-left: auto; display: flex; gap: 0.75rem; }
+.chart-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.5rem; margin: 0; }
+.chart-legend .mark { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; border: 2px solid var(--chart-1); margin-left: 0.4rem; }
+.chart-legend .mark.supported { background: var(--chart-1); }
+.chart-legend .mark.unsupported { background: var(--panel); }
+.chart-legend .mark.derived { background: var(--chart-1); border-radius: 0; transform: rotate(45deg) scale(0.85); border-color: var(--fg); }
+.chart-values table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 0.4rem; }
+.chart-values th, .chart-values td { text-align: left; padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--line); }
+.chart-values td.num { font-variant-numeric: tabular-nums; }
+.chart-values tr.support-unsupported td:first-child { color: var(--danger); }
+.chart-values .cite { margin-right: 0.15rem; }
+/* chart kind: the proposals before Create */
+.chart-proposals { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.6rem; }
+.chart-proposals .row { align-items: flex-end; }
+.chart-proposals select { width: auto; }
+.proposal-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.5rem; }
+.proposal-grid li { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem; background: var(--panel); }
+.proposal-grid li.picked { border-color: var(--accent); }
+.proposal { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 0.4rem; color: var(--fg); font-size: 0.9em; cursor: pointer; }
+.proposal input { grid-row: span 3; margin-top: 0.15rem; }
+.proposal-title { font-weight: 600; overflow-wrap: anywhere; }

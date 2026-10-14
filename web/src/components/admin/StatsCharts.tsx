@@ -16,6 +16,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useChartColors, type ChartColors } from '../../hooks/useChartColors'
 import { admin } from '../../api/admin'
 import { useAsync } from '../../hooks/useAsync'
 import {
@@ -34,7 +35,6 @@ import {
   type Range,
 } from '../../lib/charts'
 import { formatCents } from '../../lib/format'
-import { useThemeVersion } from '../../lib/theme'
 import { t, tn } from '../../i18n'
 
 /** loaded once for the longest range; the shorter one is a slice */
@@ -47,24 +47,8 @@ function once<T>(load: () => Promise<T>): () => Promise<T> {
   return () => (p ??= load())
 }
 
-/** The theme's colours as values: recharts writes them into SVG attributes,
- *  where CSS variables do not resolve. Read on every render (a handful of
- *  property reads); `useThemeVersion` re-renders when the theme or the
- *  system's light/dark setting changes. */
-function useColors() {
-  useThemeVersion()
-  const css = getComputedStyle(document.documentElement)
-  const v = (name: string) => css.getPropertyValue(name).trim()
-  return {
-    fg: v('--fg'),
-    muted: v('--muted'),
-    line: v('--line'),
-    panel: v('--panel'),
-    series: [1, 2, 3, 4, 5, 6].map((i) => v(`--chart-${i}`)),
-  }
-}
-
-type Colors = ReturnType<typeof useColors>
+const useColors = useChartColors
+type Colors = ChartColors
 
 function useSeries<T>(load: () => Promise<T>) {
   const [data, setData] = useState<T | null>(null)

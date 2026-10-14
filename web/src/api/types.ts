@@ -155,7 +155,7 @@ export interface Message {
 
 // outputs (rag prefix)
 
-export type OutputKind = 'report' | 'quiz' | 'table' | 'mindmap' | 'infographic' | 'audio' | 'decision'
+export type OutputKind = 'report' | 'quiz' | 'table' | 'mindmap' | 'infographic' | 'audio' | 'decision' | 'chart'
 export type OutputStatus = 'waiting' | 'processing' | 'ready' | 'failed'
 
 export interface Output {
@@ -263,6 +263,8 @@ export interface OutputOptions {
   question_count?: number
   difficulty?: Difficulty
   audience?: Audience
+  /** chart: the picked candidates exactly as proposed (create only) */
+  charts?: ChartCandidate[]
   /** in a response only: the source ids the document was made from,
    *  absent when all sources were used (the request sends `source_ids`) */
   sources?: string[]
@@ -296,7 +298,43 @@ export interface OutputOptionsSpec {
     default_audience: Audience
   }
   instructions?: { max_chars: number }
+  chart?: { chart_types: ChartType[]; charts_max: number; propose_max: number; propose_default: number }
   kinds: Partial<Record<OutputKind, OutputOption[]>>
+}
+
+export type ChartType = 'bar' | 'line' | 'pie' | 'stacked_bar' | 'scatter'
+
+/** A value in a chart and what it rests on: its passages, or for a value
+ *  computed from several (a share, a sum, a difference) the passages it was
+ *  computed from; the check's verdict. */
+export interface ChartPoint {
+  x: string | number
+  y: number
+  refs: number[]
+  derived_from?: number[]
+  support: 'supported' | 'unsupported' | 'derived'
+}
+
+export interface ChartSpec {
+  title: string
+  chart_type: ChartType
+  x_label: string
+  y_label: string
+  series: { name: string; points: ChartPoint[] }[]
+  note: string
+}
+
+/** `POST …/charts/propose`: a chart the sources could carry, with its own
+ *  passages (refs number into them) and how it was proposed. */
+export interface ChartCandidate extends ChartSpec {
+  id: string
+  passages: { n: number; chunk_id: string; source_name: string; page: number | null }[]
+  proposal: { model: string; prompt_version: string; tokens_in: number; tokens_out: number; proposed_at: string }
+}
+
+/** A chart output: refs number into `provenance.passages`. */
+export interface ChartContent {
+  charts: ChartSpec[]
 }
 
 export type ReportStyle = 'briefing' | 'detailed' | 'executive_summary' | 'explainer' | 'academic'

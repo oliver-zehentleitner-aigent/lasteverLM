@@ -1,5 +1,7 @@
+import { Suspense, lazy } from 'react'
 import type {
   AudioContent,
+  ChartContent,
   DecisionContent,
   InfographicContent,
   MindmapContent,
@@ -11,6 +13,9 @@ import type {
 } from '../../api/types'
 import { AudioView } from './AudioView'
 import { DecisionView } from './DecisionView'
+
+// recharts comes with it, loaded only when a chart output is opened
+const ChartView = lazy(() => import('./ChartView'))
 import { Walker } from './Walker'
 import { InfographicView } from './InfographicView'
 import { MindmapView } from './MindmapView'
@@ -61,6 +66,12 @@ export function OutputContent({ kind, title, status, error, content, onExpired, 
       return <AudioView content={content as AudioContent} onExpired={onExpired} speakerName={speakerName} />
     case 'decision':
       return <DecisionView content={content as DecisionContent} />
+    case 'chart':
+      return (
+        <Suspense fallback={<p className="muted">{t('common.loading')}</p>}>
+          <ChartView content={content as ChartContent} />
+        </Suspense>
+      )
     default:
       return <pre className="output-text">{JSON.stringify(content, null, 2)}</pre>
   }
