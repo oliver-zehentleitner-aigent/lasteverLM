@@ -20,14 +20,18 @@ gets no ``support``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from .citations import CHECK_METHOD, OVERLAP_THRESHOLD, overlap
+from lasteverlm_core import Citation
+
+from .citations import CHECK_METHOD, OVERLAP_THRESHOLD, extract_markers, language_of, overlap
 from .models import Passage, RetrievedChunk, Unit
 
 PROVENANCE_VERSION = 1
+_PARAGRAPH = re.compile(r"\n\s*\n")
 SUPPORTED, UNSUPPORTED, UNVERIFIED = "supported", "unsupported", "unverified"
 # what the shared view leaves out: ids of the owner's sources and chunks
 _PRIVATE_KEYS = ("chunk_id", "source_id")
@@ -36,23 +40,45 @@ _PRIVATE_KEYS = ("chunk_id", "source_id")
 def check_units(units: list[Unit], passages: list[Passage], translated: bool) -> dict[str, Any]:
     """Mark every unit's ``target`` with its valid ``refs`` and its ``support``;
     returns the check's summary for the log."""
-    by_n = {p.n: p for p in passages}
+    return check_against(units, {p.n: p.text for p in passages}, translated)
+
+
+def check_against(units: list[Unit], texts: dict[int, str], translated: bool) -> dict[str, Any]:
+    """``check_units`` over the cited texts by number; the chat's citations
+    and a generator's passages both come down to this."""
     counts = {SUPPORTED: 0, UNSUPPORTED: 0, UNVERIFIED: 0}
     for unit in units:
         refs = list(dict.fromkeys(unit.refs))
-        valid = [n for n in refs if n in by_n]
+        valid = [n for n in refs if n in texts]
         unit.target["refs"] = valid
         if not refs and not unit.claim:
             continue
         if not refs or len(valid) != len(refs):
             support = UNSUPPORTED
-        elif overlap(unit.text, [by_n[n].text for n in valid]) >= OVERLAP_THRESHOLD:
+        elif overlap(unit.text, [texts[n] for n in valid]) >= OVERLAP_THRESHOLD:
             support = SUPPORTED
         else:
             support = UNVERIFIED if translated else UNSUPPORTED
         unit.target["support"] = support
         counts[support] += 1
     return {"method": CHECK_METHOD, "threshold": OVERLAP_THRESHOLD, **counts}
+
+
+def check_answer(answer: str, citations: list[Citation]) -> dict[str, Any] | None:
+    """The chat's answer through the same check: one unit per paragraph, its
+    refs the markers in it. ``None`` when the answer cites nothing (an answer
+    from the document list, the refusal). An answer in another language than
+    its cited passages (a German question about English sources) is
+    "translated": low overlap there is ``unverified``."""
+    if not citations:
+        return None
+    texts = {c.n: c.quote for c in citations}
+    paragraphs = [p for p in _PARAGRAPH.split(answer.strip()) if p.strip()]
+    units = [Unit({"text": p}, p, extract_markers(p)) for p in paragraphs]
+    spoken, cited = language_of(answer), language_of(" ".join(texts.values()))
+    translated = spoken is not None and cited is not None and spoken != cited
+    check = check_against(units, texts, translated)
+    return {"units": [u.target for u in units], "check": check}
 
 
 def now() -> str:

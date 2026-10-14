@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Chat answers get the outputs' support check: `Answer.units` (one `{"text", "refs", "support"}` per paragraph) and `Answer.check` (the counts, method `lexical-overlap-v1`), stored with the assistant message (migration `0006_rag_message_support.sql`) and returned on `Message`; `null` for an answer without citations. An answer in another language than its passages marks low overlap `unverified`.
+
 - Provenance for table, quiz and mind map: `content.row_refs` (one `{"refs", "support"}` per table row), `refs` and `support` on every quiz question (checked with its answer and explanation) and on every mind-map node below the root; the same check and log as the other kinds.
 
 - Provenance for report, infographic and audio: every unit (report paragraph, infographic fact and section, audio paragraph or turn) carries `refs` (the passage numbers it cites) and `support` (`supported`, `unsupported` or `unverified`) from a deterministic word-overlap check after generation (`lexical-overlap-v1`, threshold 0.5, no model call); failing units are kept and marked, never dropped. The report keeps `[n]` markers in its markdown and lists `content.units`. `Output.provenance` (migration `0005_rag_output_provenance.sql`, core's model) is the generation log: options, retrieval candidates and which entered the prompt, the numbered passages with their text, model, prompt version, usage, timestamps and the check's counts; the shared view carries it without ids.

@@ -682,3 +682,17 @@ def test_the_generation_log_round_trips(store, notebook):
     store.update_output(row.id, status="ready", provenance=log)
     kept = store.get_output(row.id)
     assert kept is not None and kept.provenance == log
+
+
+def test_an_answers_support_round_trips(store, notebook):
+    conversation = store.create_conversation(notebook, "Chat 9").id
+    question = store.insert_message(notebook, conversation, "user", "q", None)
+    support = {
+        "units": [{"text": "a [1]", "refs": [1], "support": "supported"}],
+        "check": {"method": "lexical-overlap-v1", "supported": 1},
+    }
+    answer = store.insert_message(notebook, conversation, "assistant", "a [1]", [], support)
+    assert (question.units, question.check) == (None, None)
+    assert (answer.units, answer.check) == (support["units"], support["check"])
+    listed = store.list_messages(conversation)
+    assert listed[1].units == support["units"] and listed[0].check is None

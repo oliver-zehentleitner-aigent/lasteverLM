@@ -52,7 +52,7 @@ from .models import (
 from .options import OutputOptions, language_name, resolve
 from .outputs import OutputGenerator
 from .outputs._base import GenerationFailed
-from .provenance import GenerationLog, check_units, shared_provenance
+from .provenance import GenerationLog, check_answer, check_units, shared_provenance
 from .speech import split_for_speech
 from .store import Retriever, Store
 
@@ -275,10 +275,11 @@ class RagService:
                 # content; that is a provider failure, never a stored (empty) answer.
                 raise ProviderError("the model returned no answer")
             answer, citations = map_citations(completion.text, passages)
+            support = check_answer(answer, citations)
         else:
             # An empty notebook: say so without asking the model, so the answer
             # can never come from model knowledge alone.
-            answer, citations = REFUSAL, []
+            answer, citations, support = REFUSAL, [], None
 
         # Both messages are written only once the answer exists, so the history
         # never holds a question without its answer.
@@ -289,8 +290,15 @@ class RagService:
             "assistant",
             answer,
             [c.model_dump(mode="json") for c in citations],
+            support,
         )
-        return Answer(message_id=stored.id, answer=answer, citations=citations)
+        return Answer(
+            message_id=stored.id,
+            answer=answer,
+            citations=citations,
+            units=support["units"] if support else None,
+            check=support["check"] if support else None,
+        )
 
     def _retrieve(
         self,
