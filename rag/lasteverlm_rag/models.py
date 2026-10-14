@@ -139,8 +139,18 @@ class GeneratedOutput:
     title: str
     content: dict[str, Any]
     index_text: str
-    speech: str | None = None
-    """Text to synthesize into the output's audio file (audio kind only)."""
+    speech: list[SpeechTurn] | None = None
+    """What to synthesize into the output's audio file, turn by turn (audio
+    kind only)."""
+
+
+@dataclass(frozen=True)
+class SpeechTurn:
+    """One stretch of a script read by one voice: ``speaker`` is a role
+    (``narrator``, ``interviewer``, ``expert``), the options map it to a voice."""
+
+    speaker: str
+    text: str
 
 
 @dataclass(frozen=True)

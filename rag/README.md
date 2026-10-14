@@ -184,18 +184,23 @@ words (words no other source's name has) appear nowhere in the document
 is logged as a warning with the output id; the document is kept.
 
 **Options.** `options` on `POST .../outputs` is `{"language"?, "voice"?,
-"speed"?}`: `language` (one of ten codes, `de`, `en`, `fr`, ...) for every
-kind, `voice` and `speed` for audio only. An option the kind does not
-take, an unknown key, code or voice, or a speed off the offered range
-(0.75–1.5 in steps of 0.25) is a 422. Without `language` the document
+"speed"?, "audio_style"?, "audio_voice_2"?}`: `language` (one of ten
+codes, `de`, `en`, `fr`, ...) for every kind, the others for audio only.
+`audio_style` is `overview` (default), `story` or `conversation`;
+`audio_voice_2` is the expert's voice and only valid for `conversation`,
+where it defaults to the next voice with the same native language as
+`voice` in catalogue order (`ryan` → `aiden`, `vivian` → `serena`), or
+`ryan` when there is none. An option the kind does not take, an unknown
+key, code, style or voice, a second voice equal to the first, or a speed
+off the offered range (0.75–1.5 in steps of 0.25) is a 422. Without `language` the document
 follows the language of its sources; with it the generator is told to
 write everything, the title included, in that language. Audio defaults
 to `TTS_VOICE` and speed 1.0. The resolved options are stored on the
 output (`outputs.options`) and returned as `Output.options` and on the
 shared view. `GET /api/rag/outputs/options` lists the languages, the
 voices (`id`, `label`, `gender`, native `language`, from the Qwen3-TTS
-model card), the default voice, the speed range and which options each
-kind takes, so clients hardcode nothing; the language preference itself
+model card), the default voice, the styles and the default style, the
+speed range and which options each kind takes, so clients hardcode nothing; the language preference itself
 lives in account and the web sends it explicitly.
 
 **Voice previews.** `POST /api/rag/outputs/voice-sample` speaks one or
@@ -208,15 +213,27 @@ credit), every later one, from any user, gets the stored file
 (`"cached": true`) without a model call. The URL is presigned for one
 hour. 503 when the deployment has no text-to-speech.
 
-`audio`: the model writes a spoken-word script (three to five minutes);
-the worker reads it with `TTS_MODEL` and `TTS_VOICE` in segments of at
-most 1500 characters that end at a sentence, one `tts` usage row per
-segment priced per second of generated audio as the platform reports
-it, and stores the joined MP3 at `<notebook_id>/<output_id>/audio.mp3`
-in object storage. The row keeps
-`{"key"}`; every read (the output, the list, the shared view) returns
-`{"url"}`, a presigned GET URL valid for one hour. The script is the
-indexed text, so the chat can cite what the audio says. Without
+`audio`: the model writes a spoken-word script (three to five minutes)
+in the chosen style, with a prompt and a JSON schema per style:
+`overview` and `story` are `{"title", "script"}` read by one narrator
+(paragraphs separated by blank lines; the story frames the material as a
+narrative but invents nothing), `conversation` is `{"title", "turns":
+[{"speaker": "interviewer" | "expert", "text"}]}`, where the expert
+answers only from the material and both must speak (at most 6000
+characters in all). The worker reads the turns with `TTS_MODEL`, the
+narrator and the interviewer with `voice`, the expert with
+`audio_voice_2`, consecutive turns of one voice as one stretch, in
+segments of at most 1500 characters that end at a sentence, one `tts`
+usage row per segment priced per second of generated audio as the
+platform reports it, and stores the joined MP3 at
+`<notebook_id>/<output_id>/audio.mp3` in object storage. The row keeps
+`{"key", "transcript": [{"speaker", "text"}]}` (`speaker` is
+`narrator`, `interviewer` or `expert`; audio outputs from before have
+no transcript); every read (the output, the list, the shared view)
+returns `{"url", "transcript"}`, `url` a presigned GET URL valid for
+one hour. The script, with `Interviewer:` / `Expert:` labels for a
+conversation, is the indexed text, so the chat can cite what the audio
+says. Without
 `TTS_MODEL` an audio output fails at once with a clear error, before
 any model call.
 

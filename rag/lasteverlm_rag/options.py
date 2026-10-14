@@ -1,5 +1,5 @@
-"""Generation options per output kind: language for every kind, voice and
-speed for audio.
+"""Generation options per output kind: language for every kind; voice,
+speed, style and the second voice of a conversation for audio.
 
 The catalogue is served to the web (``GET /api/rag/outputs/options``) so
 nothing is hardcoded there. Voices are the platform's (Qwen3-TTS
@@ -66,8 +66,10 @@ KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "table": TEXT_OPTIONS,
     "mindmap": TEXT_OPTIONS,
     "infographic": TEXT_OPTIONS,
-    "audio": ["language", "voice", "speed"],
+    "audio": ["language", "voice", "speed", "audio_style", "audio_voice_2"],
 }
+AUDIO_STYLES = ["overview", "story", "conversation"]
+DEFAULT_AUDIO_STYLE = "overview"
 
 _LANGUAGE_BY_CODE = {lang.code: lang for lang in LANGUAGES}
 _VOICE_IDS = {v.id for v in VOICES}
@@ -81,6 +83,8 @@ class OutputOptions(BaseModel):
     language: str | None = None
     voice: str | None = None
     speed: float | None = None
+    audio_style: str | None = None
+    audio_voice_2: str | None = None
 
 
 def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str) -> dict[str, Any]:
@@ -104,10 +108,32 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
                 f"speed: {speed} is not between {SPEED_MIN} and {SPEED_MAX} "
                 f"in steps of {SPEED_STEP}"
             )
+    if "audio_style" in given and given["audio_style"] not in AUDIO_STYLES:
+        raise ValueError(f"audio_style: unknown style {given['audio_style']!r}")
+    if "audio_voice_2" in given and given["audio_voice_2"] not in _VOICE_IDS:
+        raise ValueError(f"audio_voice_2: unknown voice {given['audio_voice_2']!r}")
     if kind == "audio":
         given.setdefault("voice", default_voice)
         given.setdefault("speed", SPEED_DEFAULT)
+        given.setdefault("audio_style", DEFAULT_AUDIO_STYLE)
+        if given["audio_style"] == "conversation":
+            given.setdefault("audio_voice_2", second_voice(given["voice"]))
+            if given["audio_voice_2"] == given["voice"]:
+                raise ValueError("audio_voice_2: must differ from voice")
+        elif "audio_voice_2" in given:
+            raise ValueError("audio_voice_2: only for the conversation style")
     return given
+
+
+def second_voice(voice_id: str) -> str:
+    """The expert's default voice in a conversation: the next voice with the
+    same native language as the interviewer's, in catalogue order, so both
+    speak the material's language equally well; ``ryan`` when there is none."""
+    native = next(v.language for v in VOICES if v.id == voice_id)
+    same = [v.id for v in VOICES if v.language == native]
+    if len(same) > 1:
+        return same[(same.index(voice_id) + 1) % len(same)]
+    return "ryan"
 
 
 def language_name(code: str | None) -> str | None:
@@ -128,6 +154,8 @@ def catalogue(default_voice: str) -> dict[str, Any]:
                 for v in VOICES
             ],
             "default_voice": default_voice,
+            "styles": AUDIO_STYLES,
+            "default_style": DEFAULT_AUDIO_STYLE,
             "speed": {
                 "min": SPEED_MIN,
                 "max": SPEED_MAX,

@@ -49,7 +49,9 @@ def test_the_catalogue_lists_languages_voices_speeds_and_options_per_kind(settin
     assert body["audio"]["default_voice"] == "ryan"
     assert body["audio"]["speed"] == {"min": 0.75, "max": 1.5, "step": 0.25, "default": 1.0}
     assert body["kinds"]["report"] == ["language"]
-    assert body["kinds"]["audio"] == ["language", "voice", "speed"]
+    assert body["kinds"]["audio"] == ["language", "voice", "speed", "audio_style", "audio_voice_2"]
+    assert body["audio"]["styles"] == ["overview", "story", "conversation"]
+    assert body["audio"]["default_style"] == "overview"
 
 
 def test_a_text_kind_is_written_in_the_chosen_language_and_keeps_it(settings):
@@ -81,8 +83,8 @@ def test_audio_gets_voice_and_speed_with_defaults_filled_in(settings):
         settings, ready_store(), FakeRetriever([]), FakeLLM(AUDIO), tts, FakeObjects()
     )
     r = client.post(OUTPUTS, json={"kind": "audio"}, headers=AUTH)
-    assert r.json()["options"] == {"voice": "ryan", "speed": 1.0}
-    chosen = {"language": "de", "voice": "serena", "speed": 1.25}
+    assert r.json()["options"] == {"voice": "ryan", "speed": 1.0, "audio_style": "overview"}
+    chosen = {"language": "de", "voice": "serena", "speed": 1.25, "audio_style": "story"}
     r = client.post(OUTPUTS, json={"kind": "audio", "options": chosen}, headers=AUTH)
     assert r.json()["options"] == chosen
     client.worker.run_once()
@@ -98,6 +100,15 @@ def test_audio_gets_voice_and_speed_with_defaults_filled_in(settings):
         ("audio", {"voice": "alloy"}, "voice: unknown voice"),
         ("audio", {"speed": 1.3}, "speed: 1.3 is not between"),
         ("audio", {"speed": 2.0}, "speed: 2.0 is not between"),
+        ("audio", {"audio_style": "podcast"}, "audio_style: unknown style"),
+        ("audio", {"audio_voice_2": "aiden"}, "audio_voice_2: only for the conversation style"),
+        (
+            "audio",
+            {"audio_style": "conversation", "voice": "aiden", "audio_voice_2": "aiden"},
+            "audio_voice_2: must differ from voice",
+        ),
+        ("audio", {"audio_style": "conversation", "audio_voice_2": "x"}, "audio_voice_2: unknown"),
+        ("report", {"audio_style": "story"}, "audio_style: not an option of report"),
     ],
 )
 def test_options_that_do_not_fit_are_422(settings, kind, options, message):

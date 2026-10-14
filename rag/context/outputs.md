@@ -129,7 +129,7 @@ with a reason the frontend can show.
 The audio generator only writes the script (title plus spoken text,
 three to five minutes). The output service cuts the script into
 segments of at most 1500 characters, ending at a sentence end where
-possible, synthesizes each with `TTS_MODEL` and `TTS_VOICE`, writes one
+possible, synthesizes each with `TTS_MODEL` and its speaker's voice (since the audio styles, 2026-10-14), writes one
 `tts` usage row per segment (the seconds of speech the platform
 billed, as `tokens_in`), and
 stores the segments' bytes joined as one MP3 at
@@ -350,3 +350,35 @@ during the rolling deploy.
   file: rejected in favour of one owner. Ingest agreed.
 - Keeping the notebook cascade (the previous behaviour): it deletes what
   the maintainer wants to keep.
+
+## Audio has three styles; a conversation uses two voices
+
+**Id:** ab14b49e-b37d-421b-b9c0-231abe1a1ed2
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer wish relayed by the coordinator, 2026-10-14 (the three styles, two hosts, one voice per speaker); `GET /v1/models` on 2026-10-14 for the speech model's parameters
+**Revisit when:** the platform documents its `instructions` parameter for prosody, or listeners cannot tell the two voices apart
+
+`audio_style` is `overview` (default, the earlier behaviour), `story`
+(the material as a narrative, one narrator, nothing invented) or
+`conversation` (an interviewer asking, an expert answering only from
+the material), each with its own prompt and JSON schema. A conversation
+is a list of turns, and each turn is read with its speaker's voice:
+`voice` for the interviewer, `audio_voice_2` for the expert. The second
+voice defaults to the next one with the same native language as the
+first, so both read the material's language equally well (`ryan` →
+`aiden`), and to `ryan` when the first voice has no partner. The
+"citation discipline" of the written kinds becomes the grounding rules
+in the prompt, not `[n]` markers, which a voice would read aloud.
+
+**Reason:** the maintainer asked for the set and for two voices; the
+reasons below for two voices are this service's. A change of voice is
+audible on its own, while the same voice with different prosody leaves
+the listener to guess who is speaking. The platform documents its
+speakers, and its `instructions` parameter, the only prosody control,
+is listed without a type and was never probed. Switching voices per
+turn costs nothing extra, because speech is billed per second.
+
+**Rejected alternative:** one voice with different prosody per speaker
+(see above); unknown whether anything else was weighed.

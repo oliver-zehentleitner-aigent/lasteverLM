@@ -61,7 +61,7 @@ repository root's `context/`.
 
 ## O
 
-- [outputs.md](outputs.md) — generated documents: what a generator sees, why a ready output becomes a generated source, the outputs table as the worker's job queue, and how audio is synthesized and stored; output options per kind (language, voice, speed), cached voice previews, passages balanced across sources for generators; outputs belong to the user (library, trash, origin may be deleted) and rag owns their generated rows; deleting a user removes output files before rows; a shared output is a capability URL whose token reaches access logs (known, mitigated)
+- [outputs.md](outputs.md) — generated documents: what a generator sees, why a ready output becomes a generated source, the outputs table as the worker's job queue, and how audio is synthesized and stored; output options per kind (language, voice, speed), cached voice previews, passages balanced across sources for generators; outputs belong to the user (library, trash, origin may be deleted) and rag owns their generated rows; three audio styles and two voices for a conversation; deleting a user removes output files before rows; a shared output is a capability URL whose token reaches access logs (known, mitigated)
 
 ## P
 
