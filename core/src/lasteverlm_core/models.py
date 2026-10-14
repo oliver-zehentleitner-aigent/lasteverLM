@@ -22,7 +22,7 @@ from .settings import env_optional
 DEMO_USER_ID = UUID("00000000-0000-4000-8000-000000000001")
 DEMO_USER_EMAIL = "demo@localhost"
 
-SourceKind = Literal["pdf", "text", "url", "image", "generated"]
+SourceKind = Literal["pdf", "text", "url", "image", "audio", "generated"]
 SourceStatus = Literal["processing", "ready", "failed"]
 OutputKind = Literal["report", "quiz", "table", "mindmap", "infographic", "audio"]
 OutputStatus = Literal["waiting", "processing", "ready", "failed"]
@@ -30,7 +30,7 @@ OutputStatus = Literal["waiting", "processing", "ready", "failed"]
 # Stored in account's `users.role`; `users.is_admin` is `role = 'admin'`.
 Role = Literal["user", "viewer", "admin"]
 ROLES: tuple[Role, ...] = ("user", "viewer", "admin")
-UsageKind = Literal["llm", "embedding", "tts"]
+UsageKind = Literal["llm", "embedding", "tts", "stt"]
 UsageService = Literal["ingest", "rag"]
 MessageRole = Literal["user", "assistant"]
 
