@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Admin > Credits: every voucher's code is shown masked, and for an admin "show" fetches it again with a copy button ("not recoverable" for vouchers made before codes were kept); an open voucher can be mailed from a dialog (recipient, an optional note, also allowing the address to sign in, on by default), and the row then says to whom and when; the create form can mail each new voucher right away. Refusals (mail quota, no mail server, the mail server's error, already redeemed) are shown in the dialog or the form.
 
+### Changed
+
+- Admin > Access: the viewer block mirrors the sign-in block: both have a heading ("Sign-in", "Viewer (read-only admin panel)") and their line, then Domains | Single addresses side by side, stacked on a phone; viewers can now also be single addresses (`viewer_addresses`).
+
 ## [0.17.1] - 2026-10-14
 
 ### Added

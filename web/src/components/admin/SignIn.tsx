@@ -7,35 +7,48 @@ import { useCanWrite } from './canWrite'
 import { Section } from './shared'
 import { useLoad } from '../../hooks/useLoad'
 
-const EMPTY_ALLOWLIST: Allowlist = { allowed_domains: [], allowed_addresses: [], viewer_domains: [] }
+const EMPTY_ALLOWLIST: Allowlist = { allowed_domains: [], allowed_addresses: [], viewer_domains: [], viewer_addresses: [] }
 
-/** Two lists edited one entry at a time; every change answers with both
- *  lists as stored (normalized, sorted), which replaces the local copy. */
+/** Who gets in, in two blocks that read the same way: sign-in, then the
+ *  viewers (the admin panel, read-only), each a heading, its line, and
+ *  Domains | Single addresses side by side, stacked on a phone. Lists are
+ *  edited one entry at a time; every change answers with all lists as
+ *  stored (normalized, sorted), which replaces the local copy. */
 export function AllowedSignIn() {
   const { data, setData, error } = useLoad<Allowlist>(admin.getAllowlist, EMPTY_ALLOWLIST)
   const empty = data.allowed_domains.length === 0 && data.allowed_addresses.length === 0
   return (
-    <Section title={t('adm.allowed')}>
-      <p className="muted small">
-        {t('adm.allowedHint')}
-        {empty && t('adm.allowedEmpty')}
-      </p>
+    <Section title={t('adm.accessTitle')}>
       {error && <p className="error">{error}</p>}
-      <div className="grid2">
-        <AllowList kind="domain" title={t('adm.domains')} placeholder="example.org" values={data.allowed_domains} onChange={setData} />
-        <AllowList
-          kind="address"
-          title={t('adm.addresses')}
-          placeholder="name@example.org"
-          values={data.allowed_addresses}
-          onChange={setData}
-        />
-      </div>
-      <p className="muted small">{t('adm.viewerDomainsHint')}</p>
-      <AllowList kind="viewer" title={t('adm.viewerDomains')} placeholder="review.example.org" values={data.viewer_domains ?? []} onChange={setData} />
+      <section className="access-block">
+        <h3>{t('adm.signInBlock')}</h3>
+        <p className="muted small">
+          {t('adm.allowedHint')}
+          {empty && t('adm.allowedEmpty')}
+        </p>
+        <div className="grid2">
+          <AllowList kind="domain" title={t('adm.domains')} placeholder="example.org" values={data.allowed_domains} onChange={setData} />
+          <AllowList kind="address" title={t('adm.addresses')} placeholder="name@example.org" values={data.allowed_addresses} onChange={setData} />
+        </div>
+      </section>
+      <section className="access-block">
+        <h3>{t('adm.viewerBlock')}</h3>
+        <p className="muted small">{t('adm.viewerDomainsHint')}</p>
+        <div className="grid2">
+          <AllowList kind="viewer" title={t('adm.domains')} placeholder="review.example.org" values={data.viewer_domains ?? []} onChange={setData} />
+          <AllowList kind="viewer_address" title={t('adm.addresses')} placeholder="reviewer@example.org" values={data.viewer_addresses ?? []} onChange={setData} />
+        </div>
+      </section>
     </Section>
   )
 }
+
+const REMOVE_CONFIRM = {
+  domain: 'adm.removeAllowedDomain',
+  address: 'adm.removeAllowedAddress',
+  viewer: 'adm.removeViewerDomain',
+  viewer_address: 'adm.removeViewerAddress',
+} as const
 
 interface AllowListProps {
   kind: AllowKind
@@ -61,7 +74,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
   }
 
   async function remove(v: string) {
-    if (!confirm(t(kind === 'domain' ? 'adm.removeAllowedDomain' : kind === 'viewer' ? 'adm.removeViewerDomain' : 'adm.removeAllowedAddress', { v }))) return
+    if (!confirm(t(REMOVE_CONFIRM[kind], { v }))) return
     const ok = await run(async () => {
       await admin.removeAllowed(kind, v)
       return true
@@ -71,7 +84,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
 
   return (
     <div className="allow-list">
-      <h3>{title}</h3>
+      <h4>{title}</h4>
       <ul className="list">
         {values.map((v) => (
           <li key={v}>
@@ -86,7 +99,7 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
       <form className="row" onSubmit={add}>
         <fieldset className="plain row" disabled={!canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')}>
         <input
-          type={kind === 'address' ? 'email' : 'text'}
+          type={kind === 'address' || kind === 'viewer_address' ? 'email' : 'text'}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}

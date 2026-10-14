@@ -299,7 +299,6 @@ export const en = {
   'adm.create': 'Create',
   'adm.copyCodes': 'Copy these now; they are not shown again.',
   'adm.voucherDeleteConfirm': 'Delete the open voucher over {amount}? Its code stops working.',
-  'adm.allowed': 'Allowed sign-in',
   'adm.allowedHint': 'Listed addresses, addresses at a listed domain and the configured admins may sign in.',
   'adm.allowedEmpty': ' Both lists are empty: no one but the configured admins can sign in.',
   'adm.domains': 'Domains',
@@ -498,8 +497,7 @@ export const en = {
   'adm.role.admin': 'admin',
   'adm.roleOf': 'Role of {email}',
   'adm.roleConfirm': 'Make {email} {role}?',
-  'adm.viewerDomains': 'Viewer domains',
-  'adm.viewerDomainsHint': 'A new user from one of these domains starts as viewer: the admin panel, read-only. The domain must also be allowed to sign in above; existing users keep their role.',
+  'adm.viewerDomainsHint': 'A new user at one of these domains or addresses starts as viewer: the admin panel, read-only. They must also be allowed to sign in above; existing users keep their role.',
   'adm.removeViewerDomain': 'Remove {v} from the viewer domains?',
   'login.codeHint': '{total} characters: letters, digits, - and _ · {n} so far',
   'login.codeChars': 'The code has only letters, digits, - and _. Copy it again from the mail.',
@@ -746,6 +744,10 @@ export const en = {
   'vch.badEmail': 'Enter a valid e-mail address.',
   'vch.sendTo': 'Send to an address right away',
   'vch.sentCreated': 'Sent to {to}.',
+  'adm.accessTitle': 'Who gets in',
+  'adm.signInBlock': 'Sign-in',
+  'adm.viewerBlock': 'Viewer (read-only admin panel)',
+  'adm.removeViewerAddress': 'Remove {v} from the viewer addresses?',
 } as const
 
 export type MessageKey = keyof typeof en
