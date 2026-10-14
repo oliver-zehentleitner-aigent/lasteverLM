@@ -36,8 +36,8 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
 
 ### Outputs
 
-- **Kinds:** report, quiz, data table, chart, mind map, infographic,
-  audio, decision.
+- **Kinds:** report, quiz, flashcards, data table, chart, mind map,
+  infographic, audio, decision.
 - **Options:** output language, for audio the style (overview, story,
   conversation with two voices), voice and speed; for reports style
   and length; for quizzes number of questions, difficulty and audience;
@@ -72,7 +72,21 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
 ### Chat
 
 Conversations per notebook as tabs, scoped to the sources the user
-selects, with numbered citations into verbatim passages.
+selects, with numbered citations into verbatim passages, the same
+support check as the outputs, copy, thumbs up and down, and three
+suggested follow-up questions. The chat can also act on its notebook:
+asked to add a web page, take entries from the library, create an
+output and explain it, it answers with a plan (steps, estimated
+prices, invalid steps struck through with the reason) and runs it only
+after the user confirms; tool arguments come only from the user's
+message and library, never from source text.
+
+### Viewer
+
+Sources and outputs the user opens appear as tabs. A source tab shows
+the original (PDF inline at the cited page, image, audio) and the text
+as the system read it, chunk by chunk; a citation highlights its
+chunk.
 
 ### Administration
 
@@ -91,7 +105,9 @@ charged to the user, all fixed at booking time, so a later change of
 rules never rewrites history. The charge is the cost plus a margin,
 set globally and per action (a chat answer, each output kind, each
 source kind, the judge, a decision), optionally with a fixed fee per
-action. Users see the charged price before every paid action. The
+action. Users see the charged price before every paid action, a public price
+list, and their own Credits page (balance, voucher redemption, spending
+by day, by action and entry by entry). The
 admin sees costs, prices with a live preview, revenue against paid and
 free vouchers, and profit after the platform's infrastructure costs,
 which are read daily from Vultr's billing API. Voucher codes are
@@ -155,7 +171,8 @@ bans per address (IPv6 by /64) behind the PROXY protocol, so a client
 cannot choose its address; SSRF protection on URL sources; HTML from
 models sanitised before rendering; pods without root, with read-only
 file systems and NetworkPolicies; secrets in Kubernetes Secrets only; voucher codes encrypted at rest
-with a separate key; no paid model call without a configured exchange
+with a separate key; e-mail addresses and answer texts masked for
+read-only viewers at the server; no paid model call without a configured exchange
 rate, so nothing is paid upstream and left unbooked; actions pinned by
 commit with Dependabot, images with provenance and SBOM; code scanning
 at zero open alerts.
