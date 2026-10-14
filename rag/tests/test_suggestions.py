@@ -137,7 +137,7 @@ def test_the_feedback_overview_is_for_admins_and_viewers(settings):
         r = client.get("/api/rag/admin/feedback", headers=AUTH)
         assert r.status_code == status, r.text
         if status == 200:
-            assert set(r.json()) == {"days", "latest_down"}
+            assert {"days", "latest_down"} <= set(r.json())
     assert client.get("/api/rag/admin/feedback?days=0", headers=AUTH).status_code == 422
 
 
@@ -147,3 +147,20 @@ def test_starting_questions_have_an_estimate(settings):
     starting = client.post("/api/rag/estimate", json=body, headers=AUTH).json()
     answer = client.post("/api/rag/estimate", json={"action": "chat_answer"}, headers=AUTH).json()
     assert 0 < starting["charge_cents_max"] < answer["charge_cents_max"]
+
+
+def test_a_viewer_sees_the_feedback_counts_but_not_the_answers(settings):
+    store = FakeStore(viewers={OWNER})
+    store.add_source(NOTEBOOK, "sky.pdf")
+    client = make_client(settings, store, FakeRetriever([SKY]), FakeLLM(ANSWER))
+    message_id = ask(client).json()["message_id"]
+    client.post(f"/api/rag/messages/{message_id}/feedback", json={"rating": "down"}, headers=AUTH)
+    body = client.get("/api/rag/admin/feedback", headers=AUTH).json()
+    assert body["latest_down"] == [] and body["detail"] == "admins only"
+    assert "days" in body
+
+    store.viewers.clear()
+    store.admins.add(OWNER)
+    body = client.get("/api/rag/admin/feedback", headers=AUTH).json()
+    assert [r["message_id"] for r in body["latest_down"]] == [message_id]
+    assert "detail" not in body
