@@ -108,10 +108,14 @@ books its fixed fee once.
 Before every model call the worker checks that the pricing rules have an
 exchange rate, next to the credit check. Core books after the call, and
 without a rate the booking fails; the call would then be paid upstream
-and never booked, the worst outcome. So without a rate the source fails
-before any provider call ("pricing has no exchange rate, ask an admin";
-the maintainer's decision through the coordinating agent). A check at
-start-up alone would not do: an admin can change the row at runtime.
+and never booked, the worst outcome. So without a rate no worker claims a source, and a
+job that finds the rate gone goes back to the queue before its next
+provider call, its attempt not counted; queued sources show "pricing has
+no exchange rate, ask an admin" and run once an admin sets the rate
+(the maintainer's decision through the coordinating agent, aligned with
+rag). Failing the source instead, the first version, would have made
+every user re-upload after the admin fixed the row. A check at start-up
+alone would not do: an admin can change the row at runtime.
 
 **Alternatives:**
 - A fresh `action_id` per processing attempt: a retry after a provider
