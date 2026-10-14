@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `JUDGE_MODELS` in the ConfigMap (`config.judgeModels`, JSON level to model, empty = core's defaults; the chart fails the render on invalid JSON) for rag's answer judge; production and `compose.yaml` set `low` `deepseek-v4.1-flash`, `medium` `glm-5.3-flash`, `high` `glm-5.3`, the mapping of rag's evaluation (`rag/docs/judge-eval.md`), which swaps `low` and `medium` against core's defaults.
+
 ## [0.17.0] - 2026-10-14
 
 ### Changed

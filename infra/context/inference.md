@@ -120,17 +120,23 @@ decision would be free.
 verified against an invoice. clef and clef-flash run only in `atl`
 (US), like the TTS model.
 
-## Judge candidates: glm-5.3-flash, deepseek-v4.1-flash and glm-5.3, priced per input and output token
+## Judge models: deepseek-v4.1-flash, glm-5.3-flash and glm-5.3, priced per input and output token
 
 **Id:** 83ae95fe-51ab-4309-8fcb-3843b6035210
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** the family coordinator's request on 2026-10-14 for rag's opt-in judge (levels low, medium and high) with models of another family than the author model; prices and regions from `GET https://api.vultrinference.com/v1/models` the same day
-**Revisit when:** rag's measurement settles which candidate serves which level (`JUDGE_MODELS`), a candidate is dropped, or the catalog changes a price or region
+**Source:** the family coordinator's request on 2026-10-14 for rag's opt-in judge (levels low, medium and high) with models of another family than the author model; prices and regions from `GET https://api.vultrinference.com/v1/models` the same day; the level mapping from rag's evaluation of 2026-10-14 (`rag/docs/judge-eval.md`)
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — fda0071d-05c0-4a5a-9253-6a35dc7d137a — as of 2026-10-14
+**Revisit when:** rag measures the judge again and changes the mapping, a model is dropped, or the catalog changes a price or region
 
-`MODEL_PRICES` carries all three candidates before the mapping is
-final, so whichever rag picks is billed from its first call:
+`JUDGE_MODELS` is set explicitly in `chart/values-prod.yaml` and
+`compose.yaml`: `low` deepseek-v4.1-flash, `medium` glm-5.3-flash,
+`high` glm-5.3. That swaps `low` and `medium` against core's defaults:
+in rag's evaluation the GLM models spent 3 to 4 times the output tokens
+of deepseek-v4.1-flash, so glm-5.3-flash cost more per call despite the
+lower list price. `MODEL_PRICES` carries all three, added before the
+mapping was final:
 glm-5.3-flash `{"in":10,"out":35}`, deepseek-v4.1-flash
 `{"in":15,"out":60}`, glm-5.3 `{"in":75,"out":300}`, read from the
 catalog's `prompt` and `completion` prices per token (0.0000001 /
@@ -140,8 +146,10 @@ numbers have the same standing as the other prices: the API's
 
 **Reason:** a judge from the author's own family (qwen) would share its
 blind spots; the three are the catalog's text models outside it, from
-cheap to strong. Which model serves which level is rag's decision after
-its measurement, not infra's.
+cheap to strong. Which model serves which level is rag's decision from
+its measurement (the See line); infra sets it explicitly, like the other
+models, so the deployed mapping is readable in the values and does not
+change with core's defaults.
 
 **Rejected alternatives:** unknown (the candidate list is rag's).
 
