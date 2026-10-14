@@ -394,9 +394,13 @@ An audio output is an MP3 in object storage at
 key; every read of the output (single, list, shared link) replaces it
 with a presigned GET URL that expires after one hour. The S3 client
 moves from ingest into core (`lasteverlm_core.storage`, with a presign
-call) so rag does not grow a second one. Text-to-speech is priced per
-input character through a third `usage.kind`, `tts`, with the
-character count in `tokens_in`.
+call) so rag does not grow a second one. Text-to-speech is billed through a third `usage.kind`, `tts`, with
+the unit in `tokens_in`: per input character at first; since
+2026-10-14 per second of generated speech as the platform reports it,
+because a measured call showed the platform charges seconds and the
+character count overcharged about fifteenfold (core's entry
+b57ab97c-0eee-43b3-a7ee-06226e2d9714 has the measurement; the
+presigned-URL decision here is untouched).
 
 **Reason:** the browser's `<audio>` element fetches its source on its own
 and cannot send the bearer token, so an authenticated download through
@@ -414,7 +418,7 @@ uploads already live in object storage and the row would carry
 megabytes; a rag-local copy of the S3 class now and consolidation later
 — rejected because the core module is a move, not new code, and the
 owner of core is free this morning. A fourth usage kind instead of
-reusing `tokens_in` for characters was not considered worth a schema
+reusing `tokens_in` for the unit was not considered worth a schema
 column: the unit is named by the kind.
 
 ## Fail loud: a wrong or missing value stops the process, nothing falls back silently
