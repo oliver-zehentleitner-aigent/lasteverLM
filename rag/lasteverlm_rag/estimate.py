@@ -111,7 +111,12 @@ def judge_calls(
     model = models.judges.get(level)
     if model is None:
         raise CannotEstimate(f"judge: unknown level {level!r}")
-    units = int(options.get("question_count", 10)) if kind == "quiz" else UNITS[kind][case]
+    if kind == "quiz":
+        units = int(options.get("question_count", 10))
+    elif kind == "flashcards":
+        units = int(options.get("card_count", 15))
+    else:
+        units = UNITS[kind][case]
     rounds = 1 if case == 0 or not revise else MAX_ROUNDS
     judged = [Call(model, JUDGE_TOKENS_IN[case], JUDGE_TOKENS_OUT[case])] * (units * rounds)
     revisions = [
@@ -138,7 +143,7 @@ def action_calls(action: str, options: Mapping[str, Any], models: Models, case: 
         return [Call(models.tts, SAMPLE_SECONDS[case])]
     if action == "judge":
         kind = str(options.get("kind", "report"))
-        if kind not in UNITS and kind != "quiz":
+        if kind not in UNITS and kind not in ("quiz", "flashcards"):
             raise CannotEstimate(f"judge: cannot judge a {kind}")
         return judge_calls(kind, options, models, str(options.get("level")), case, revise=False)
     raise CannotEstimate(f"no estimate for action {action!r}")

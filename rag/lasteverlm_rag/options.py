@@ -66,6 +66,7 @@ TEXT_OPTIONS = ["language", "instructions", "judge"]
 KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "report": [*TEXT_OPTIONS, "report_style", "length"],
     "quiz": [*TEXT_OPTIONS, "question_count", "difficulty", "audience"],
+    "flashcards": [*TEXT_OPTIONS, "card_count", "difficulty", "audience"],
     "table": TEXT_OPTIONS,
     "mindmap": TEXT_OPTIONS,
     "infographic": TEXT_OPTIONS,
@@ -85,6 +86,7 @@ DEFAULT_REPORT_STYLE = "briefing"
 LENGTHS = ["short", "medium", "long"]
 DEFAULT_LENGTH = "medium"
 QUESTION_COUNT_MIN, QUESTION_COUNT_MAX, QUESTION_COUNT_DEFAULT = 5, 30, 10
+CARD_COUNT_MIN, CARD_COUNT_MAX, CARD_COUNT_DEFAULT = 5, 50, 15
 DIFFICULTIES = ["easy", "medium", "hard"]
 DEFAULT_DIFFICULTY = "medium"
 AUDIENCES = ["children", "teens", "adults", "experts"]
@@ -113,6 +115,7 @@ class OutputOptions(BaseModel):
     report_style: str | None = None
     length: str | None = None
     question_count: int | None = None
+    card_count: int | None = None
     difficulty: str | None = None
     audience: str | None = None
     voice: str | None = None
@@ -159,6 +162,8 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
         QUESTION_COUNT_MIN <= given["question_count"] <= QUESTION_COUNT_MAX
     ):
         raise ValueError(f"question_count: between {QUESTION_COUNT_MIN} and {QUESTION_COUNT_MAX}")
+    if "card_count" in given and not CARD_COUNT_MIN <= given["card_count"] <= CARD_COUNT_MAX:
+        raise ValueError(f"card_count: between {CARD_COUNT_MIN} and {CARD_COUNT_MAX}")
     if "voice" in given and given["voice"] not in _VOICE_IDS:
         raise ValueError(f"voice: unknown voice {given['voice']!r}")
     if "speed" in given:
@@ -178,6 +183,10 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
         given.setdefault("length", DEFAULT_LENGTH)
     if kind == "quiz":
         given.setdefault("question_count", QUESTION_COUNT_DEFAULT)
+        given.setdefault("difficulty", DEFAULT_DIFFICULTY)
+        given.setdefault("audience", DEFAULT_AUDIENCE)
+    if kind == "flashcards":
+        given.setdefault("card_count", CARD_COUNT_DEFAULT)
         given.setdefault("difficulty", DEFAULT_DIFFICULTY)
         given.setdefault("audience", DEFAULT_AUDIENCE)
     if kind == "audio":
@@ -308,6 +317,17 @@ def catalogue(default_voice: str, judge_models: Mapping[Any, str]) -> dict[str, 
             "question_max_chars": QUESTION_MAX_CHARS,
             "choices": {"min": CHOICES_MIN, "max": CHOICES_MAX},
             "levels": {"min": LEVELS_MIN, "max": LEVELS_MAX},
+        },
+        "flashcards": {
+            "card_count": {
+                "min": CARD_COUNT_MIN,
+                "max": CARD_COUNT_MAX,
+                "default": CARD_COUNT_DEFAULT,
+            },
+            "difficulties": DIFFICULTIES,
+            "default_difficulty": DEFAULT_DIFFICULTY,
+            "audiences": AUDIENCES,
+            "default_audience": DEFAULT_AUDIENCE,
         },
         "chart": {
             "chart_types": CHART_TYPES,

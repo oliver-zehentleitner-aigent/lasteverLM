@@ -419,6 +419,7 @@ def test_registry_covers_every_kind():
         "audio",
         "decision",
         "chart",
+        "flashcards",
     }
 
 

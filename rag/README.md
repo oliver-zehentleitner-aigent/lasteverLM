@@ -7,7 +7,7 @@
 The rag service of lasteverLM: retrieval over one notebook's chunks,
 answers with citations mapped back to source and passage, the chat
 conversations, and the generated documents (report, quiz, table, mind map,
-infographic, audio). The API contract and the data model live
+infographic, audio, decision, chart, flashcards). The API contract and the data model live
 in the repository root, [`docs/architecture.md`](../docs/architecture.md);
 this directory implements the `/api/rag` prefix.
 
@@ -253,8 +253,12 @@ words), `medium` (default, about 700–1200) or `long` (about 1800–2500).
 A quiz asks for exactly `question_count` questions (5–30, default 10):
 fewer gets the corrective retry, more are cut. Its `difficulty` is
 `easy`, `medium` (default) or `hard`, and its `audience` is `children`,
-`teens`, `adults` (default) or `experts`. Report and quiz defaults are
-stored on the output.
+`teens`, `adults` (default) or `experts`. Flashcards take `card_count`
+(5–50, default 15; fewer gets the corrective retry, more are cut),
+`difficulty` and `audience` as the quiz. Their content is `{"cards":
+[{"front", "back", "hint"?, "refs", "support"}]}`: one unit per card,
+its back the claim checked with its front, as a quiz answer is, judge
+included. Report, quiz and flashcard defaults are stored on the output.
 `audio_style` is `overview` (default), `story` or `conversation`;
 `audio_voice_2` is the expert's voice and only valid for `conversation`,
 where it defaults to the next voice with the same native language as
@@ -580,7 +584,8 @@ adds `messages.support` (`{"units", "check"}` of an answer);
 `0009_rag_output_copies.sql` adds the `output_copies` queue and
 `outputs.copied_from` for the starter notebook;
 `0010_rag_suggestions_feedback.sql` adds `messages.suggestions`,
-`messages.feedback` and the `notebook_suggestions` cache. The
+`messages.feedback` and the `notebook_suggestions` cache;
+`0011_rag_flashcards_kind.sql` allows the kind `flashcards`. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and

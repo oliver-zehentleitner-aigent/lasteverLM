@@ -53,6 +53,7 @@ def registry(tts_available: bool) -> dict[OutputKind, OutputGenerator]:
     from .audio import AudioGenerator
     from .chart import ChartGenerator
     from .decision import DecisionGenerator
+    from .flashcards import FlashcardsGenerator
     from .infographic import InfographicGenerator
     from .mindmap import MindmapGenerator
     from .quiz import QuizGenerator
@@ -68,5 +69,6 @@ def registry(tts_available: bool) -> dict[OutputKind, OutputGenerator]:
         AudioGenerator(available=tts_available),
         DecisionGenerator(),
         ChartGenerator(),
+        FlashcardsGenerator(),
     ]
     return {g.kind: g for g in generators}

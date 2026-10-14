@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Output kind `flashcards`: `{"cards": [{"front", "back", "hint"?, "refs", "support"}]}`. Options `card_count` (5–50, default 15), `difficulty` and `audience` as the quiz, `instructions` and `judge`. Each card is one unit: its back is the claim, checked with its front like a quiz answer (`lexical-overlap-v1`, the judge when chosen). Passages are balanced across sources, and provenance, the catalogue entry and the estimate work as for the other kinds. Migration `0011_rag_flashcards_kind.sql`.
+
 - Suggested questions.
   - Every chat answer returns `suggestions`: up to three follow-up questions written in the same model call as a `Suggestions:` tail, cut off the answer and stored on the message.
   - `GET /api/rag/notebooks/{id}/suggestions`: a notebook's starting questions from one call over its source summaries, billed as a `chat_answer` action, cached until its ready uploads change. Estimate: `{"action": "chat_answer", "options": {"suggestions": true}}`.

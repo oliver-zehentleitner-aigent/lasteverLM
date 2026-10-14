@@ -887,3 +887,7 @@ def test_suggestions_feedback_and_its_overview_round_trip(store, pool, notebook)
     store.save_notebook_suggestions(notebook, "k1", ["A?"])
     store.save_notebook_suggestions(notebook, "k2", ["B?", "C?"])
     assert store.notebook_suggestions(notebook) == ("k2", ["B?", "C?"])
+
+
+def test_the_flashcards_kind_is_allowed(store, notebook):
+    assert store.create_output(notebook, "flashcards", "processing").kind == "flashcards"
