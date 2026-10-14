@@ -76,3 +76,34 @@ accept 64 MiB, so the platform's cap is the binding one), and
 `base64` as the only source; the multipart upload core uses works
 nonetheless (measured), so the catalog's `sources` field is not the
 whole truth.
+
+## Decision outputs: clef, priced per input token as the API reports it
+
+**Id:** 4cc18e29-0bd3-481b-ba47-4f133035cb86
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** the maintainer's go for a Decision output kind with the platform's decision model on 2026-10-14; price, unit and region from `GET https://api.vultrinference.com/v1/models` the same day; the usage the API reports measured by core's live calls the same day (short and long inputs, one and three questions, clef and clef-flash)
+**Revisit when:** the API reports output tokens for clef, the catalog changes its price or unit, or a region outside the US appears
+
+`DECISION_MODEL=clef` (core's default, set explicitly in
+`chart/values-prod.yaml` and `compose.yaml`), with `MODEL_PRICES`
+`{"in":10,"out":0}` for clef and `{"in":5,"out":0}` for clef-flash:
+0.0000001 and 0.00000005 USD per token in the catalog, 10 and 5 cents
+per million. The model choice is the maintainer's (confirmed); the
+numbers are read from the API's `pricing` field, as for the other
+models (inferred).
+
+**Reason:** the catalog and the API disagree on which tokens are billed.
+The catalog attaches the price to the `decisions` output as
+`completion` tokens; the response body reports `usage.input_tokens`
+and 0 output tokens, with no usage or cost headers. Core bills what the
+platform reports, so the price sits on `in` and `out` is 0.
+
+**Rejected alternatives:** pricing `out` as the catalog's
+`completion` suggests — with the API reporting 0 output tokens, every
+decision would be free.
+
+**Known risks:** which count the platform actually invoices is not
+verified against an invoice. clef and clef-flash run only in `atl`
+(US), like the TTS model.
