@@ -222,7 +222,7 @@ class InfraCost(BaseModel):
     item: str
     amount_cents: int  # in `currency`, as billed
     currency: Literal["USD", "EUR"]
-    amount_eur_cents: int | None  # converted with eur_per_usd; null when the rate is not set
+    amount_eur_cents: int | None  # converted at the pricing rules' usd_per_eur; null without it
 
 
 class InfraCostAdd(BaseModel):
@@ -239,16 +239,10 @@ class InfraCosts(BaseModel):
     vultr: Literal["connected", "not connected"]
     last_sync: datetime | None
     last_error: str | None
-    eur_per_usd: float | None
+    usd_per_eur: float | None  # the pricing rules' rate, the one core books with
     entries: list[InfraCost]
     totals_by_currency: dict[str, int]
     total_eur_cents: int | None  # null when USD entries exist and no rate is set
-
-
-class FinanceSettings(BaseModel):
-    """Vultr bills USD, credits are EUR: the rate converts infrastructure costs for display."""
-
-    eur_per_usd: float | None = Field(default=None, gt=0, le=10)
 
 
 class PricingPreviewRow(BaseModel):
@@ -275,8 +269,9 @@ class FinanceGroupRow(BaseModel):
     key: str
     calls: int
     actions: int
-    cost_cents: float  # real cost
-    charge_cents: float  # charged to users
+    cost_cents: float  # real cost, euro cents
+    charge_cents: float  # charged to users, euro cents
+    cost_usd_cents: float  # real cost as measured, US cents
 
 
 class FinanceCosts(BaseModel):
@@ -286,6 +281,7 @@ class FinanceCosts(BaseModel):
     rows: list[FinanceGroupRow]
     total_cost_cents: float
     total_charge_cents: float
+    total_cost_usd_cents: float
 
 
 class VoucherMoney(BaseModel):
@@ -318,14 +314,14 @@ class ProfitRow(BaseModel):
 
 
 class FinanceProfit(BaseModel):
-    """Charged − model cost − infrastructure, per day or month, in cents. Usage amounts are
-    as core books them (USD until core converts at booking), infrastructure is EUR. Daily rows get
+    """Charged − model cost − infrastructure, per day or month, in euro cents: usage as core
+    books it, infrastructure converted at the pricing rules' usd_per_eur. Daily rows get
     an even share of their month's infrastructure. Demo usage is shown, not counted."""
 
     from_: date = Field(serialization_alias="from")
     to: date
     group: Literal["day", "month"]
-    eur_per_usd: float | None
+    usd_per_eur: float | None
     rows: list[ProfitRow]
     total: ProfitRow | None
 

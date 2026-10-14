@@ -52,7 +52,6 @@ from .models import (
     FinanceGroupRow,
     FinanceProfit,
     FinanceRevenue,
-    FinanceSettings,
     InfraCost,
     InfraCostAdd,
     InfraCosts,
@@ -98,7 +97,6 @@ SETTING_DOMAINS = "allowed_domains"
 SETTING_ADDRESSES = "allowed_addresses"
 SETTING_VIEWER_DOMAINS = "viewer_domains"
 SETTING_VIEWER_ADDRESSES = "viewer_addresses"
-SETTING_FINANCE = "finance"  # {"eur_per_usd": float | null}
 SETTING_VULTR_SYNC = "vultr_sync"  # {"last_sync", "last_error", "rows"}
 _SETTING_KEYS: dict[str, tuple[str, str]] = {  # kind -> (setting key, list key inside the value)
     "domain": (SETTING_DOMAINS, "allowed_domains"),
@@ -882,16 +880,9 @@ class AccountService:
         return self._admin_voucher(voucher)
 
     # finance: infrastructure costs -------------------------------------------
-    async def finance_settings(self) -> FinanceSettings:
-        value = await self.repo.get_setting(SETTING_FINANCE) or {}
-        try:
-            return FinanceSettings(**value)
-        except ValueError:
-            return FinanceSettings()
-
-    async def update_finance_settings(self, update: FinanceSettings) -> FinanceSettings:
-        await self.repo.set_setting(SETTING_FINANCE, update.model_dump())
-        return update
+    async def usd_per_eur(self) -> Decimal | None:
+        """The one exchange rate: the pricing rules' usd_per_eur, which core books with."""
+        return (await self.pricing_rules()).usd_per_eur
 
     async def sync_vultr(self) -> int:
         """Read Vultr's billing and upsert the monthly lines; the outcome is kept for the
@@ -932,12 +923,12 @@ class AccountService:
                 await self.sync_vultr()
             await asyncio.sleep(interval_seconds)
 
-    def _eur(self, cents: int, currency: str, rate: float | None) -> int | None:
+    def _eur(self, cents: int, currency: str, usd_per_eur: Decimal | None) -> int | None:
         if currency == "EUR":
             return cents
-        return round(cents * rate) if rate else None
+        return round(Decimal(cents) / usd_per_eur) if usd_per_eur else None
 
-    def _infra_cost(self, r: InfraCostRecord, rate: float | None) -> InfraCost:
+    def _infra_cost(self, r: InfraCostRecord, rate: Decimal | None) -> InfraCost:
         return InfraCost(
             id=r.id,
             date=r.date,
@@ -949,7 +940,7 @@ class AccountService:
         )
 
     async def admin_infra(self, since: date, until: date) -> InfraCosts:
-        rate = (await self.finance_settings()).eur_per_usd
+        rate = await self.usd_per_eur()
         sync = await self.repo.get_setting(SETTING_VULTR_SYNC) or {}
         rows = await self.repo.list_infra_costs(since, until)
         totals: dict[str, int] = {}
@@ -961,7 +952,7 @@ class AccountService:
             vultr="connected" if self.vultr is not None else "not connected",
             last_sync=datetime.fromisoformat(last) if last else None,
             last_error=sync.get("last_error"),
-            eur_per_usd=rate,
+            usd_per_eur=float(rate) if rate is not None else None,
             entries=[self._infra_cost(r, rate) for r in rows],
             totals_by_currency=totals,
             total_eur_cents=None if None in converted else sum(c or 0 for c in converted),
@@ -973,7 +964,7 @@ class AccountService:
         )
         if not await self.repo.add_infra_cost(record):
             raise AccountError(409, "an entry with this date and item exists already")
-        return self._infra_cost(record, (await self.finance_settings()).eur_per_usd)
+        return self._infra_cost(record, await self.usd_per_eur())
 
     async def delete_infra_cost(self, cost_id: uuid.UUID) -> None:
         outcome = await self.repo.delete_infra_cost(cost_id)
@@ -1033,7 +1024,18 @@ class AccountService:
         return await self.pricing_view(self._parse_pricing(body))
 
     async def reset_pricing(self) -> None:
-        await self.repo.delete_setting(PRICING_SETTINGS_KEY)
+        """Margins and fees back to zero. The exchange rate stays: without it core refuses
+        to book, so a reset must not take it away."""
+        rate = await self.usd_per_eur()
+        if rate is None:
+            await self.repo.delete_setting(PRICING_SETTINGS_KEY)
+            return
+        await self.repo.set_setting(
+            PRICING_SETTINGS_KEY,
+            PricingRules.parse(
+                {"usd_per_eur": float(rate), "default_margin_pct": 0, "actions": {}}
+            ).as_json(),
+        )
 
     # finance: costs, revenue, profit -----------------------------------------
     async def finance_costs(self, since: date, until: date, group: str) -> FinanceCosts:
@@ -1049,11 +1051,13 @@ class AccountService:
                     actions=r.actions,
                     cost_cents=_money(r.cost_cents),
                     charge_cents=_money(r.charge_cents),
+                    cost_usd_cents=_money(r.cost_usd_cents),
                 )
                 for r in rows
             ],
             total_cost_cents=_money(sum((r.cost_cents for r in rows), Decimal(0))),
             total_charge_cents=_money(sum((r.charge_cents for r in rows), Decimal(0))),
+            total_cost_usd_cents=_money(sum((r.cost_usd_cents for r in rows), Decimal(0))),
         )
 
     async def finance_revenue(self, since: date, until: date) -> FinanceRevenue:
@@ -1072,7 +1076,7 @@ class AccountService:
         )
 
     async def finance_profit(self, since: date, until: date, group: str) -> FinanceProfit:
-        rate = (await self.finance_settings()).eur_per_usd
+        rate = await self.usd_per_eur()
         first_month = since.replace(day=1)
         infra_rows = await self.repo.list_infra_costs(first_month, until)
         infra: dict[date, Decimal | None] = {}
@@ -1138,7 +1142,7 @@ class AccountService:
             from_=since,
             to=until,
             group="month" if group == "month" else "day",
-            eur_per_usd=rate,
+            usd_per_eur=float(rate) if rate is not None else None,
             rows=rows,
             total=total,
         )

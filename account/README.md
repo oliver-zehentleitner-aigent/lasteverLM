@@ -119,18 +119,24 @@ half-deleted one; the call can simply be repeated. See `context/deletion.md`.
 
 ## Finance: pricing, costs, revenue, profit
 
-Core books every call twice: `cost_cents`, what it really cost, and `charge_cents`, what
-the user pays — cost plus the margin of the pricing rules, plus an action's fixed fee
-(sub-cent exact). A user's balance is credits minus charges, rounded down to whole cents.
+Core books every call with its measured cost in US cents (`cost_usd_cents`, from Vultr's
+USD `MODEL_PRICES`), that cost in euro cents at the rules' `usd_per_eur` (`cost_cents`),
+and what the user pays (`charge_cents`, euro cents) — cost plus the margin of the pricing
+rules, plus an action's fixed fee, sub-cent exact. A user's balance is credits minus
+charges, rounded down to whole cents. There is one exchange rate, `usd_per_eur` in the
+pricing rules: core books with it and the infrastructure page converts with it.
 
 - `GET /admin/settings/pricing` → `{rules, actions, preview}`: core's rules
-  (`{default_margin_pct, actions: {action: {margin_pct?, fixed_cents?}}}`), the actions
-  they can name, and per action the last 30 days' average cost with what it charges.
-  `PUT` stores (core's `PricingRules.parse` validates, 422 names the field; every service
-  reads it within 30 s), `POST /admin/settings/pricing/preview` shows proposed rules
-  without storing, `DELETE` returns to no margin and no fees.
+  (`{usd_per_eur, default_margin_pct, actions: {action: {margin_pct?, fixed_cents?}}}`;
+  `usd_per_eur` required, 0.1–10), the actions they can name, and per action the last 30
+  days' average cost with what it charges. `PUT` stores (core's `PricingRules.parse`
+  validates, 422 names the field; every service reads it within 30 s),
+  `POST /admin/settings/pricing/preview` shows proposed rules without storing, `DELETE`
+  sets margins and fees to zero and keeps the rate — without a rate core books nothing.
+  Migration 0010 seeds the row with 1.1188 (ECB reference rate of 2026-10-13) until an
+  admin sets another.
 - `GET /admin/finance/costs?from=&to=&group=day|action|model|user|service`: calls,
-  actions, real cost and charge per group.
+  actions, real cost (EUR and the measured USD) and charge per group.
 - `GET /admin/finance/revenue?from=&to=`: charged to users, the demo user's charges apart
   (seed credit, not money), paid vs. free vouchers issued and redeemed, credit outstanding.
 - `GET /admin/finance/profit?from=&to=&group=month|day`: charged − model cost −
@@ -138,9 +144,8 @@ the user pays — cost plus the margin of the pricing rules, plus an action's fi
   infrastructure; without an exchange rate for USD lines infrastructure and profit are null.
 
 Dates are UTC days, inclusive, default the last 30, at most two years per request.
-Usage amounts (cost, charge) are cents as core books them: today USD, because
-`MODEL_PRICES` are Vultr's USD prices; the conversion to EUR moves into core's booking.
-Infrastructure is shown in EUR with `eur_per_usd`.
+Amounts are euro cents unless a field says `usd`; rows booked before core 0006 have no
+rate and count their cost one to one.
 `GET /admin/stats` keeps showing real cost; balances and the users list show charges.
 
 ## Finance: infrastructure costs
@@ -149,9 +154,8 @@ Infrastructure is shown in EUR with `eur_per_usd`.
 last three months): lines from Vultr's billing (`source: vultr`, synced daily and on
 `POST /admin/finance/infra/sync`) and manual entries (`POST /admin/finance/infra`
 `{date, item, amount_cents, currency}`, `DELETE /admin/finance/infra/{id}`; Vultr lines
-cannot be deleted). Amounts stay in the billed currency; `eur_per_usd` in
-`PUT /admin/settings/finance` converts USD for the EUR totals — without a rate the EUR
-fields are null, never guessed. `vultr` is `"connected"` or `"not connected"`, with
+cannot be deleted). Amounts stay in the billed currency; the pricing rules' `usd_per_eur`
+converts USD for the EUR totals — without a rate the EUR fields are null, never guessed. `vultr` is `"connected"` or `"not connected"`, with
 `last_sync` and `last_error`. Vouchers carry `paid` (sold vs. given away; set on create
 or with `PATCH /admin/vouchers/{id}`). See `context/finance.md`.
 

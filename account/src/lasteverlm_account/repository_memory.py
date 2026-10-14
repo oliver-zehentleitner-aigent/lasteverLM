@@ -76,6 +76,11 @@ class _Usage:
     action: str = "unknown"
     action_id: uuid.UUID | None = None
     service: str = "rag"
+    cost_usd_cents: Decimal | int | None = None  # None: rows from before core 0006
+
+    @property
+    def cost_usd(self) -> Decimal:
+        return Decimal(self.cost_cents if self.cost_usd_cents is None else self.cost_usd_cents)
 
     @property
     def charge(self) -> Decimal:
@@ -503,6 +508,7 @@ class MemoryRepository:
                 len({u.action_id or id(u) for u in us}),
                 sum((Decimal(u.cost_cents) for u in us), Decimal(0)),
                 sum((u.charge for u in us), Decimal(0)),
+                sum((u.cost_usd for u in us), Decimal(0)),
             )
             for k, us in rows.items()
         ]

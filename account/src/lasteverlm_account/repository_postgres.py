@@ -679,7 +679,8 @@ class PostgresRepository:
                            count(*) filter (where u.kind <> 'fee') as calls,
                            count(distinct coalesce(u.action_id, u.id)) as actions,
                            coalesce(sum(u.cost_cents), 0) as cost,
-                           coalesce(sum(coalesce(u.charge_cents, u.cost_cents)), 0) as charge
+                           coalesce(sum(coalesce(u.charge_cents, u.cost_cents)), 0) as charge,
+                           coalesce(sum(coalesce(u.cost_usd_cents, u.cost_cents)), 0) as cost_usd
                     from usage u left join users us on us.id = u.user_id
                     where (u.created_at at time zone 'UTC')::date between %s and %s
                     group by 1 order by {order}""",  # noqa: S608 - key/order from the whitelist
@@ -693,6 +694,7 @@ class PostgresRepository:
                 int(r["actions"]),
                 Decimal(r["cost"]),
                 Decimal(r["charge"]),
+                Decimal(r["cost_usd"]),
             )
             for r in rows
         ]

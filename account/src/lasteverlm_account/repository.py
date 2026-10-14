@@ -185,8 +185,9 @@ class UsageGroupRecord:
     key: str
     calls: int  # usage rows except fixed fees
     actions: int  # distinct actions
-    cost_cents: Decimal  # real cost
-    charge_cents: Decimal  # charged to users
+    cost_cents: Decimal  # real cost in euro cents, at the rate of each booking
+    charge_cents: Decimal  # charged to users, euro cents
+    cost_usd_cents: Decimal = Decimal(0)  # real cost as measured, US cents
 
 
 @dataclass(frozen=True)

@@ -40,6 +40,8 @@ alter table usage alter column cost_cents type numeric using cost_cents::numeric
 alter table usage add column if not exists action text;
 alter table usage add column if not exists action_id uuid;
 alter table usage add column if not exists charge_cents numeric;
+alter table usage add column if not exists cost_usd_cents numeric;
+alter table usage add column if not exists usd_per_eur numeric;
 create table if not exists access_log (
     id bigserial primary key, at timestamptz not null default now(), ip inet not null,
     path text not null, method text not null, status integer not null, user_id uuid,
@@ -443,3 +445,21 @@ async def test_finance_aggregates_on_charge_and_cost(repo: PostgresRepository) -
     assert averages["chat_answer"].avg_cost_cents == 4  # the fee row is excluded
     money = await repo.voucher_money(date(2000, 1, 1), today)
     assert money.issued_paid_cents >= 0
+
+
+async def test_migrations_seed_the_pricing_rate_once(repo: PostgresRepository) -> None:
+    from lasteverlm_core import PRICING_SETTINGS_KEY, PricingRules
+
+    seeded = await repo.get_setting(PRICING_SETTINGS_KEY)
+    assert seeded is not None and PricingRules.parse(seeded).usd_per_eur is not None
+    await repo.set_setting(
+        PRICING_SETTINGS_KEY, {"usd_per_eur": 1.2, "default_margin_pct": 5, "actions": {}}
+    )
+    async with repo._pool.connection() as conn:
+        for path in MIGRATIONS:
+            await conn.execute(path.read_text())  # a re-run never overwrites the admin's row
+    assert (await repo.get_setting(PRICING_SETTINGS_KEY)) == {
+        "usd_per_eur": 1.2,
+        "default_margin_pct": 5,
+        "actions": {},
+    }

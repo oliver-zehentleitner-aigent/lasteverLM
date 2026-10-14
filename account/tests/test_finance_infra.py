@@ -115,20 +115,25 @@ def test_sync_upserts_lines_and_converts_with_the_rate(
     assert body["vultr"] == "connected" and body["last_sync"] and body["last_error"] is None
     assert len(body["entries"]) == 4
     assert body["totals_by_currency"] == {"USD": 1334 + 1500 + 1500 + 1050}
-    assert body["eur_per_usd"] is None and body["total_eur_cents"] is None  # no rate: no guess
+    assert body["usd_per_eur"] is None and body["total_eur_cents"] is None  # no rate: no guess
     assert all(e["amount_eur_cents"] is None for e in body["entries"])
     # a second sync is idempotent
     client.post(f"{INFRA}/sync", headers=bearer(token))
     assert len(repo.infra) == 4
     r = client.put(
-        "/api/account/admin/settings/finance", json={"eur_per_usd": 0.5}, headers=bearer(token)
+        "/api/account/admin/settings/pricing",
+        json={"usd_per_eur": 2, "default_margin_pct": 0, "actions": {}},
+        headers=bearer(token),
     )
     assert r.status_code == 200
     body = client.get(INFRA, params=period, headers=bearer(token)).json()
-    assert body["total_eur_cents"] == round((1334 + 1500 + 1500 + 1050) * 0.5)
+    assert body["total_eur_cents"] == round((1334 + 1500 + 1500 + 1050) / 2)
+    assert body["usd_per_eur"] == 2
     assert (
         client.put(
-            "/api/account/admin/settings/finance", json={"eur_per_usd": 0}, headers=bearer(token)
+            "/api/account/admin/settings/pricing",
+            json={"usd_per_eur": 0, "default_margin_pct": 0, "actions": {}},
+            headers=bearer(token),
         ).status_code
         == 422
     )

@@ -49,12 +49,13 @@ def test_pricing_rules_validate_store_preview_and_reset(
     _use(repo, admin["id"], clock.now, "1", "1", action="chat_answer", action_id=a1)
     _use(repo, admin["id"], clock.now, "6", "6", action="chat_answer", action_id=a2)
     view = client.get(PRICING, headers=bearer(token)).json()
-    assert view["rules"] == {"default_margin_pct": 0, "actions": {}}
+    assert view["rules"] == {"usd_per_eur": None, "default_margin_pct": 0, "actions": {}}
     assert "chat_answer" in view["actions"]
     row = next(r for r in view["preview"] if r["action"] == "chat_answer")
     assert (row["actions"], row["avg_cost_cents"], row["charge_cents"]) == (2, 5.0, 5.0)
 
     rules = {
+        "usd_per_eur": 1.1188,
         "default_margin_pct": 20,
         "actions": {"chat_answer": {"margin_pct": 50, "fixed_cents": 2}},
     }
@@ -69,16 +70,23 @@ def test_pricing_rules_validate_store_preview_and_reset(
     assert summary["margin_pct"] == 20 and summary["charge_cents"] is None  # no data yet
 
     for bad in (
-        {"default_margin_pct": 1001, "actions": {}},
-        {"default_margin_pct": 0, "actions": {"no_such_action": {"margin_pct": 1}}},
-        {"default_margin_pct": 0, "actions": {}, "extra": 1},
+        {"usd_per_eur": 1.1, "default_margin_pct": 1001, "actions": {}},
+        {
+            "usd_per_eur": 1.1,
+            "default_margin_pct": 0,
+            "actions": {"no_such_action": {"margin_pct": 1}},
+        },
+        {"usd_per_eur": 1.1, "default_margin_pct": 0, "actions": {}, "extra": 1},
+        {"default_margin_pct": 0, "actions": {}},  # no rate: core cannot book without one
+        {"usd_per_eur": 0, "default_margin_pct": 0, "actions": {}},
     ):
         r = client.put(PRICING, json=bad, headers=bearer(token))
         assert r.status_code == 422, bad
     assert repo.settings[PRICING_SETTINGS_KEY] == rules
 
     assert client.delete(PRICING, headers=bearer(token)).status_code == 204
-    assert client.get(PRICING, headers=bearer(token)).json()["rules"]["default_margin_pct"] == 0
+    after = client.get(PRICING, headers=bearer(token)).json()["rules"]
+    assert after == {"usd_per_eur": 1.1188, "default_margin_pct": 0, "actions": {}}  # rate kept
 
 
 def test_costs_grouped(
@@ -86,7 +94,17 @@ def test_costs_grouped(
 ) -> None:
     token, admin = login(client, mailer, "admin@example.org")
     day = clock.now.date().isoformat()
-    _use(repo, admin["id"], clock.now, "4", "5", action="chat_answer", model="big", service="rag")
+    _use(
+        repo,
+        admin["id"],
+        clock.now,
+        "4",
+        "5",
+        action="chat_answer",
+        model="big",
+        service="rag",
+        cost_usd_cents=Decimal("4.4752"),
+    )
     _use(
         repo, admin["id"], clock.now, "1", "1.5", action="summary", model="small", service="ingest"
     )
@@ -106,6 +124,8 @@ def test_costs_grouped(
     assert body["from"] and body["group"] == "action"
     rows = {r["key"]: r for r in body["rows"]}
     assert rows["chat_answer"]["cost_cents"] == 4 and rows["chat_answer"]["charge_cents"] == 5
+    assert rows["chat_answer"]["cost_usd_cents"] == 4.4752
+    assert rows["summary"]["cost_usd_cents"] == 1  # an old row: its USD cost is its cost
     assert rows["summary"]["calls"] == 1 and rows["summary"]["charge_cents"] == 3.5  # fee row
     assert body["total_cost_cents"] == 5 and body["total_charge_cents"] == 8.5
     for group, key in (
@@ -178,10 +198,14 @@ def test_profit_needs_a_rate_for_usd_infra(
     row = client.get(url, params=params, headers=bearer(token)).json()["rows"][-1]
     assert row["infra_cost_cents"] is None and row["profit_cents"] is None  # no rate, no guess
     client.put(
-        "/api/account/admin/settings/finance", json={"eur_per_usd": 0.9}, headers=bearer(token)
+        PRICING,
+        json={"usd_per_eur": 1.25, "default_margin_pct": 0, "actions": {}},
+        headers=bearer(token),
     )
-    row = client.get(url, params=params, headers=bearer(token)).json()["rows"][-1]
-    assert row["infra_cost_cents"] == 20 + 900 and row["profit_cents"] == 160 - 100 - 920
+    body = client.get(url, params=params, headers=bearer(token)).json()
+    row = body["rows"][-1]
+    assert body["usd_per_eur"] == 1.25
+    assert row["infra_cost_cents"] == 20 + 800 and row["profit_cents"] == 160 - 100 - 820
     days = client.get(url, params={**params, "group": "day"}, headers=bearer(token)).json()
     assert len(days["rows"]) == (clock.now.date() - month).days + 1
     assert days["total"]["charged_cents"] == 160
@@ -203,7 +227,9 @@ def test_viewer_reads_finance_but_cannot_price(client: TestClient, mailer: FakeM
         assert client.get(path, headers=bearer(vtoken)).status_code == 200, path
     assert (
         client.put(
-            PRICING, json={"default_margin_pct": 1, "actions": {}}, headers=bearer(vtoken)
+            PRICING,
+            json={"usd_per_eur": 1.1, "default_margin_pct": 1, "actions": {}},
+            headers=bearer(vtoken),
         ).status_code
         == 403
     )

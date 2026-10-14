@@ -28,7 +28,6 @@ from ..models import (
     FinanceCosts,
     FinanceProfit,
     FinanceRevenue,
-    FinanceSettings,
     InfraCost,
     InfraCostAdd,
     InfraCosts,
@@ -344,18 +343,6 @@ async def sync_infra(service: Service, _: AdminUserDep) -> InfraCosts:
     )
 
 
-@router.get("/settings/finance", response_model=FinanceSettings)
-async def get_finance_settings(service: Service, _: AdminReaderDep) -> FinanceSettings:
-    return await service.finance_settings()
-
-
-@router.put("/settings/finance", response_model=FinanceSettings)
-async def put_finance_settings(
-    body: FinanceSettings, service: Service, _: AdminUserDep
-) -> FinanceSettings:
-    return await service.update_finance_settings(body)
-
-
 # --- finance: pricing, costs, revenue, profit -----------------------------------
 
 From = Annotated[date | None, Query(alias="from")]
@@ -393,7 +380,7 @@ async def preview_pricing(body: dict[str, Any], service: Service, _: AdminUserDe
 
 @router.delete("/settings/pricing", status_code=204)
 async def reset_pricing(service: Service, _: AdminUserDep) -> Response:
-    """Back to core's defaults (no margin, no fees)."""
+    """Margins and fees back to zero; the exchange rate stays (core cannot book without it)."""
     await service.reset_pricing()
     return Response(status_code=204)
 

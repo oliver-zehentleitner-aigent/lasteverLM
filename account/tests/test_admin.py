@@ -48,9 +48,12 @@ ADMIN_ROUTES = [
     ),
     ("DELETE", "/api/account/admin/finance/infra/00000000-0000-4000-8000-000000000099", None),
     ("POST", "/api/account/admin/finance/infra/sync", None),
-    ("GET", "/api/account/admin/settings/finance", None),
     ("GET", "/api/account/admin/settings/pricing", None),
-    ("PUT", "/api/account/admin/settings/pricing", {"default_margin_pct": 0, "actions": {}}),
+    (
+        "PUT",
+        "/api/account/admin/settings/pricing",
+        {"usd_per_eur": 1.1, "default_margin_pct": 0, "actions": {}},
+    ),
     (
         "POST",
         "/api/account/admin/settings/pricing/preview",
@@ -60,7 +63,6 @@ ADMIN_ROUTES = [
     ("GET", "/api/account/admin/finance/costs", None),
     ("GET", "/api/account/admin/finance/revenue", None),
     ("GET", "/api/account/admin/finance/profit", None),
-    ("PUT", "/api/account/admin/settings/finance", {"eur_per_usd": 0.9}),
     ("DELETE", "/api/account/admin/vouchers/00000000-0000-4000-8000-000000000099", None),
     ("GET", "/api/account/admin/stats", None),
     ("GET", "/api/account/admin/system", None),
