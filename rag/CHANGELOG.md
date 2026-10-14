@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.14.0] - 2026-10-14
+## [0.15.0] - 2026-10-14
 
 ### Added
 
 - Output kind `decision`: a question (`question`, `decision_type` `yes_no` | `choice` with `choices` | `scale` with `levels`) answered by the platform's decision model (`DECISION_MODEL`, default `clef`, which needs a price) over the retrieved passages, with evidence for and against, gaps and a short verdict written independently by the LLM from the same passages; `agreement` (`consistent`, `conflicting`, `unclear`, `undecided`) compares the two, and without supported evidence the verdict is "The sources do not decide this.". Migration `0007_rag_decision_kind.sql`; the provenance log lists both calls.
+
+## [0.14.0] - 2026-10-14
+
+### Added
 
 - Chat answers get the outputs' support check: `Answer.units` (one `{"text", "refs", "support"}` per paragraph) and `Answer.check` (the counts, method `lexical-overlap-v1`), stored with the assistant message (migration `0006_rag_message_support.sql`) and returned on `Message`; `null` for an answer without citations. An answer in another language than its passages marks low overlap `unverified`.
 
