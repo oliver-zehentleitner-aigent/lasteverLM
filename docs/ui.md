@@ -494,9 +494,12 @@ deleted from the library) stays readable with its quote and is marked
     `{step, message}`) names the step and says the user is still there;
     either way the dialog stays open. Viewers see no delete action. Then
     the login log, sign-in attempts (allowed or refused, with IP).
-  - **Access** (`/admin/access`): allowed sign-in, domains and single
-    addresses, one entry at a time; below, the **viewer domains**: a new
-    user from one of them (also allowed to sign in) starts as viewer.
+  - **Access** (`/admin/access`): "Who gets in" in two blocks that read
+    the same way, a heading and its line, then Domains | Single
+    addresses side by side (stacked on a phone), one entry at a time:
+    **Sign-in** (who may sign in) and **Viewer (read-only admin
+    panel)**: a new user at one of those domains or addresses (also
+    allowed to sign in) starts as viewer.
   - **Credits** (`/admin/credits`): voucher creation (5 EUR by default)
     that shows the codes once as chips with a copy button each ("copy
     all" for several; without the clipboard API the text is selected

@@ -81,9 +81,9 @@ export interface AdminApi {
 }
 
 const A = `${ACCOUNT_PREFIX}/admin`
-const ALLOW_PATH: Record<AllowKind, string> = { domain: 'domains', address: 'addresses', viewer: 'viewer-domains' }
+const ALLOW_PATH: Record<AllowKind, string> = { domain: 'domains', address: 'addresses', viewer: 'viewer-domains', viewer_address: 'viewer-addresses' }
 // the body names the value: {"domain"} for both domain lists, {"address"} for addresses
-const ALLOW_FIELD: Record<AllowKind, string> = { domain: 'domain', address: 'address', viewer: 'domain' }
+const ALLOW_FIELD: Record<AllowKind, string> = { domain: 'domain', address: 'address', viewer: 'domain', viewer_address: 'address' }
 
 const httpAdmin: AdminApi = {
   accountStats: () => request<AccountStats>(`${A}/stats`),
@@ -176,8 +176,9 @@ function mockAdmin(): AdminApi {
   const RULE_DEFAULTS: RateLimitRules = { per_minute: 120, block_minutes: 15, ban_after_strikes: 3, strike_window_hours: 24, ban_max_days: 90, retention_days: 30 }
   let rules = { ...RULE_DEFAULTS }
   const smtp: Smtp = { host: 'smtp.example.org', port: 587, username: 'mailer', from_address: 'no-reply@example.org', starttls: true }
-  let allow: Required<Allowlist> = { allowed_domains: ['example.org', 'review.example.org'], allowed_addresses: ['guest@partner.test'], viewer_domains: ['review.example.org'] }
-  const listKey = (kind: AllowKind) => (kind === 'domain' ? 'allowed_domains' : kind === 'viewer' ? 'viewer_domains' : 'allowed_addresses')
+  let allow: Required<Allowlist> = { allowed_domains: ['example.org', 'review.example.org'], allowed_addresses: ['guest@partner.test'], viewer_domains: ['review.example.org'], viewer_addresses: [] }
+  const listKey = (kind: AllowKind) =>
+    kind === 'domain' ? 'allowed_domains' : kind === 'viewer' ? 'viewer_domains' : kind === 'viewer_address' ? 'viewer_addresses' : 'allowed_addresses'
   let mockCodes: Record<string, string> = {}
   let vouchers: Voucher[] = [
     { id: 'v2', amount_cents: 500, created_by: 'admin@example.org', created_at: '2026-10-12T17:30:00Z', redeemed_by: null, redeemed_at: null, status: 'open' },

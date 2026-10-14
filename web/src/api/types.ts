@@ -529,10 +529,13 @@ export interface Allowlist {
   /** a user from one of these (also allowed to sign in) starts as viewer;
    *  absent from an account service that predates roles */
   viewer_domains?: string[]
+  /** single addresses that start as viewer, as viewer_domains for one address */
+  viewer_addresses?: string[]
 }
 
-/** domain and address: who may sign in; viewer: domains whose new users are viewers */
-export type AllowKind = 'domain' | 'address' | 'viewer'
+/** domain and address: who may sign in; viewer and viewer_address:
+ *  domains and single addresses whose new users are viewers */
+export type AllowKind = 'domain' | 'address' | 'viewer' | 'viewer_address'
 
 // admin overview: one stats endpoint per service, every key always present
 
