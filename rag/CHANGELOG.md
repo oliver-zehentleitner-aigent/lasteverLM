@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Agent chat.
+  - A message that asks for actions gets a plan instead of an answer (`Answer.plan`, `Message.plan`): `add_url`, `add_from_library`, `create_output`, `explain_output`, `list_sources` and `list_outputs`, at most six steps. Each step comes with its estimate, and an invalid step is shown with its reason.
+  - Nothing runs before `POST /api/rag/conversations/{id}/plans/{plan_id}/confirm` (`/cancel`, `GET` for polling). Ingest steps run in the confirm request with the user's bearer, outputs through the queue, and explanations once their output is ready. An output waiting longer than 30 minutes for a source fails uncharged.
+  - The planner sees no passage. A URL must be in the user's message, and library sources come from the user's library.
+  - One `action_id` per plan. Migration `0012_rag_plans.sql`, setting `INGEST_URL`.
+
 - Output kind `flashcards`: `{"cards": [{"front", "back", "hint"?, "refs", "support"}]}`. Options `card_count` (5–50, default 15), `difficulty` and `audience` as the quiz, `instructions` and `judge`. Each card is one unit: its back is the claim, checked with its front like a quiz answer (`lexical-overlap-v1`, the judge when chosen). Passages are balanced across sources, and provenance, the catalogue entry and the estimate work as for the other kinds. Migration `0011_rag_flashcards_kind.sql`.
 
 - Suggested questions.

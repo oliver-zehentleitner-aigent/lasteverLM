@@ -55,8 +55,10 @@ from lasteverlm_core.web import admin_only, admin_read
 
 from . import __version__
 from .admin import admin_stats, daily_stats
+from .agent_service import AgentService, PlanNotFound, PlanNotOpen
 from .config import Settings
-from .estimate import Models, action_calls, estimate, output_calls
+from .estimate import Models, action_calls, estimate, output_calls, step_estimator
+from .ingest_client import HttpIngest, Ingest
 from .judge import judge_models
 from .models import (
     AdminStats,
@@ -128,6 +130,7 @@ def create_app(
     rate_limit_store: RateLimitStore | None = None,
     voice_samples: VoiceSamples | None = None,
     dependency_probe: DependencyProbe | None = None,
+    ingest: Ingest | None = None,
 ) -> FastAPI:
     """Build the app. Dependencies can be injected for tests; otherwise they come from settings."""
     settings = settings or Settings.from_env()
@@ -181,6 +184,25 @@ def create_app(
         # for judging an existing output or answer on request
         judges=judge_models(make_client(settings.inference), settings.inference.judge_models),
     )
+    ingest = ingest or HttpIngest(settings.ingest_url)
+    models = Models(
+        llm=settings.inference.llm_model,
+        embedding=settings.inference.embedding_model,
+        decision=settings.inference.decision_model,
+        tts=settings.tts_model,
+        judges={str(k): v for k, v in settings.inference.judge_models.items()},
+    )
+    agent = AgentService(
+        store,
+        rag,
+        outputs,
+        llm,
+        ingest,
+        step_estimator(
+            settings.model_prices, store.pricing_rules, generators, models, ingest.url_charge_cents
+        ),
+        settings.tts_voice,
+    )
     # the one synthesis the API does itself: short, cached voice previews
     samples = voice_samples or VoiceSamples(
         store,
@@ -195,6 +217,8 @@ def create_app(
     )
 
     app = FastAPI(title="lasteverLM rag", version=__version__, docs_url=None, redoc_url=None)
+    # the worker's half of the agent chat runs elsewhere; tests drive it through this
+    app.state.agent = agent
     _install_error_handlers(app)
     app.add_middleware(
         RateLimitMiddleware,
@@ -241,16 +265,47 @@ def create_app(
         return build.model_copy(update={"dependencies": await probe.states()})
 
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/ask", response_model=Answer)
-    def ask(notebook_id: NotebookId, body: AskRequest, user: User) -> Answer:
+    def ask(
+        notebook_id: NotebookId,
+        body: AskRequest,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> Answer:
+        """An answer, or a plan when the message asks for actions (agent chat)."""
         output_id = body.scope.output_id if body.scope else None
-        return rag.ask(
+        return agent.ask(
             user,
             str(notebook_id),
             body.question,
             str(body.conversation_id),
+            authorization,
             output_id,
             [str(s) for s in body.source_ids or []],
         )
+
+    plan_path = f"{PREFIX}/conversations/{{conversation_id}}/plans/{{plan_id}}"
+
+    @app.get(plan_path)
+    def get_plan(conversation_id: ConversationId, plan_id: uuid.UUID, user: User) -> dict[str, Any]:
+        """The plan with every step's state, for polling while it runs."""
+        return agent.get(user, str(conversation_id), str(plan_id))
+
+    @app.post(f"{plan_path}/confirm")
+    def confirm_plan(
+        conversation_id: ConversationId,
+        plan_id: uuid.UUID,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> dict[str, Any]:
+        """Run a proposed plan: ingest steps now with this request's token, the rest
+        through the worker."""
+        return agent.confirm(user, str(conversation_id), str(plan_id), authorization or "")
+
+    @app.post(f"{plan_path}/cancel")
+    def cancel_plan(
+        conversation_id: ConversationId, plan_id: uuid.UUID, user: User
+    ) -> dict[str, Any]:
+        return agent.cancel(user, str(conversation_id), str(plan_id))
 
     @app.get(f"{PREFIX}/notebooks/{{notebook_id}}/conversations", response_model=list[Conversation])
     def list_conversations(notebook_id: NotebookId, user: User) -> list[Conversation]:
@@ -314,14 +369,6 @@ def create_app(
     def output_options(_: User) -> dict[str, Any]:
         """The options catalogue per kind: languages, voices, speeds."""
         return catalogue(settings.tts_voice, settings.inference.judge_models)
-
-    models = Models(
-        llm=settings.inference.llm_model,
-        embedding=settings.inference.embedding_model,
-        decision=settings.inference.decision_model,
-        tts=settings.tts_model,
-        judges={str(k): v for k, v in settings.inference.judge_models.items()},
-    )
 
     @app.post(f"{PREFIX}/estimate")
     def estimate_charge(body: EstimateRequest, _: User) -> dict[str, Any]:
@@ -492,6 +539,14 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(MessageNotFound)
     async def message_not_found(_: Request, exc: MessageNotFound) -> JSONResponse:
         return error(404, "message not found")
+
+    @app.exception_handler(PlanNotFound)
+    async def plan_not_found(_: Request, exc: PlanNotFound) -> JSONResponse:
+        return error(404, "plan not found")
+
+    @app.exception_handler(PlanNotOpen)
+    async def plan_not_open(_: Request, exc: PlanNotOpen) -> JSONResponse:
+        return error(409, "the plan was confirmed or cancelled already")
 
     @app.exception_handler(NotAnAnswer)
     async def not_an_answer(_: Request, exc: NotAnAnswer) -> JSONResponse:

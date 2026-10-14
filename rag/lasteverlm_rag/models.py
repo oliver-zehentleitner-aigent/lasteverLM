@@ -275,6 +275,8 @@ class OutputRow:
     deleted_at: str | None = None
     purge_at: str | None = None
     provenance: dict[str, Any] | None = None
+    # the plan's action_id when an agent plan created it; else the output's own id books
+    booking_id: str | None = None
 
 
 class NotebookStats(BaseModel):
