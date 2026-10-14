@@ -350,9 +350,16 @@ class Repository(Protocol):
         address after redirects and the key of its snapshot."""
         ...
 
-    def refetch_unchanged(self, library_id: UUID) -> None:
-        """The page is as it was: ready again, `checked_at` now, the snapshot
-        and `fetched_at` of this version kept, no charge."""
+    def refetch_unchanged(
+        self,
+        library_id: UUID,
+        snapshot_path: str | None = None,
+        final_url: str | None = None,
+    ) -> None:
+        """The page is as it was: ready again, `checked_at` now, no charge;
+        `fetched_at` and an existing snapshot stay. A version read before
+        snapshots existed gets `snapshot_path` and `final_url` now (the same
+        text, so still a snapshot of what was read)."""
         ...
 
     def new_version(self, library_id: UUID) -> UUID:
@@ -852,13 +859,20 @@ class PostgresRepository:
                 },
             )
 
-    def refetch_unchanged(self, library_id: UUID) -> None:
+    def refetch_unchanged(
+        self,
+        library_id: UUID,
+        snapshot_path: str | None = None,
+        final_url: str | None = None,
+    ) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "update library_sources set status = 'ready', checked_at = now(), "
-                "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null "
+                "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null, "
+                "snapshot_path = coalesce(snapshot_path, %(snap)s), "
+                "final_url = coalesce(final_url, %(final)s) "
                 "where id = %(id)s",
-                {"id": library_id},
+                {"id": library_id, "snap": snapshot_path, "final": final_url},
             )
 
     def new_version(self, library_id: UUID) -> UUID:

@@ -287,13 +287,16 @@ class InMemoryRepository:
             }
         )
 
-    def refetch_unchanged(self, library_id):
-        self.library[library_id] = self.library[library_id].model_copy(
+    def refetch_unchanged(self, library_id, snapshot_path=None, final_url=None):
+        lib = self.library[library_id]
+        self.library[library_id] = lib.model_copy(
             update={
                 "status": "ready",
                 "checked_at": datetime.now(UTC),
                 "refetch_requested_at": None,
                 "error": None,
+                "snapshot_path": lib.snapshot_path or snapshot_path,
+                "final_url": lib.final_url or final_url,
             }
         )
         self.claimed.pop(library_id, None)
