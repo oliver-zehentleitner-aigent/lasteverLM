@@ -1061,6 +1061,10 @@ export const en = {
   'plan.none': 'none',
   'plan.added': '{n} added, {already} already in the notebook',
   'chat.askAgent': 'Ask, or tell me what to add and create…',
+  'statusShort.ready': 'ready',
+  'statusShort.processing': 'reading',
+  'statusShort.waiting_for_credit': 'added',
+  'statusShort.failed': 'failed',
 } as const
 
 export type MessageKey = keyof typeof en

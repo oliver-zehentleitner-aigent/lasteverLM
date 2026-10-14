@@ -1064,4 +1064,8 @@ export const de: Record<MessageKey, string> = {
   'plan.none': 'keine',
   'plan.added': '{n} hinzugefügt, {already} schon im Notebook',
   'chat.askAgent': 'Frag, oder sag mir, was ich hinzufügen und erstellen soll…',
+  'statusShort.ready': 'fertig',
+  'statusShort.processing': 'liest',
+  'statusShort.waiting_for_credit': 'hinzugefügt',
+  'statusShort.failed': 'fehlgeschlagen',
 }

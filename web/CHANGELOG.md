@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A source waiting for credit shows a muted badge "added · processed when you have credit" instead of the amber "waiting for credit", which read as an error; the voucher hint stays by Create.
 - `/prices`: the rules (adding is free, processing costs, the price shows before every action, credit does not expire) are in the intro paragraph before the tables, not under them.
 
+### Fixed
+
+- Sources list: a source stays on one line, the name cut with an ellipsis (full name as tooltip) and kind, capture, status, play and × as one compact group; a narrow row moves the whole group below the name. The status badge is short, with a failed source's error and a waiting one's reason in its tooltip instead of under the row.
+
 ## [0.18.5] - 2026-10-14
 
 ### Added

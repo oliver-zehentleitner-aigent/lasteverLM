@@ -7,7 +7,7 @@ import { sourceKindLabel, uploadedSources } from '../lib/outputs'
 import { audioFiles } from '../lib/openEntry'
 import { AudioCheck, PlayButton } from './AudioCheck'
 import { StarterBadge } from './StarterBadge'
-import { PendingReason } from './PendingReason'
+import { StatusBadge } from './PendingReason'
 import { t } from '../i18n'
 
 interface Props {
@@ -116,26 +116,31 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
               aria-label={t('sources.use', { name: s.name })}
               title={t('sources.useTitle')}
             />
-            <div className="item">
+            <span className="src-name">
               <button type="button" className="link name" title={t('sources.openTitle', { name: s.name })} onClick={() => onOpen(s)}>
                 {s.name}
               </button>
               <StarterBadge item={s} />
+            </span>
+            {/* one group that never wraps inside: kind, capture, status, play, remove */}
+            <span className="src-badges">
               <span className="badge">{sourceKindLabel(s.kind)}</span>
               {s.capture && (
                 <span className="badge" title={t('sources.captureTitle')}>
                   {t(`capture.${s.capture}`)}
                 </span>
               )}
-              <span className={`badge ${s.status}`}>{t(`status.${s.status}`)}</span>
+              <StatusBadge status={s.status} error={s.error} />
               {audioFiles(s) && <PlayButton open={playing?.id === s.id} name={s.name} onToggle={() => togglePlayer(s)} />}
-              {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
-              <PendingReason status={s.status} error={s.error} />
-              {playing?.id === s.id && <AudioCheck files={playing.files} />}
-            </div>
-            <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>
-              ×
-            </button>
+              <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>
+                ×
+              </button>
+            </span>
+            {playing?.id === s.id && (
+              <div className="src-player">
+                <AudioCheck files={playing.files} />
+              </div>
+            )}
           </li>
         ))}
         {shown.length === 0 && !busy && <li className="muted">{t('sources.none')}</li>}
