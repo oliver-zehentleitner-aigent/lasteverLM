@@ -48,7 +48,15 @@ def test_public_list_without_login_and_without_internals(
     body = r.json()
     assert set(body) == {"usd_per_eur", "rate_date", "rate_source", "window_days", "actions"}
     row = next(a for a in body["actions"] if a["action"] == "chat_answer")
-    assert set(row) == {"action", "unit", "price_per_unit_cents", "typical_cents", "count", "model"}
+    assert set(row) == {
+        "action",
+        "level",
+        "unit",
+        "price_per_unit_cents",
+        "typical_cents",
+        "count",
+        "model",
+    }
     # costs 2..10 through margin 50 % plus a 1-cent fee: 4, 7, 10, 13, 16
     assert row["unit"] == "question" and row["count"] == 5 and row["model"] == "big"
     assert row["typical_cents"] == {"p25": 7.0, "median": 10.0, "p75": 13.0}
@@ -98,6 +106,30 @@ def test_a_new_margin_shows_after_the_cache(
     assert fresh["price_per_unit_cents"] == 20.0  # today's rules over the same measured costs
 
 
+def test_the_judge_is_priced_per_level(
+    client: TestClient, repo: MemoryRepository, clock: Clock, settings: object
+) -> None:
+    rules(repo, 0)
+    models = client.app.state.service.settings.judge_models  # type: ignore[attr-defined]
+    for _ in range(5):
+        book(repo, clock, "judge", "1", model=models["low"])
+        book(repo, clock, "judge", "10", model=models["high"])
+    book(repo, clock, "judge", "99", model="retired-model")  # a model no level maps to now
+    rows = {a["action"]: a for a in client.get(PRICES).json()["actions"]}
+    assert "judge" not in rows
+    assert set(rows) >= {"judge:low", "judge:medium", "judge:high"}
+    low, medium, high = rows["judge:low"], rows["judge:medium"], rows["judge:high"]
+    assert (low["level"], low["unit"], low["price_per_unit_cents"], low["model"]) == (
+        "low",
+        "check",
+        1.0,
+        models["low"],
+    )
+    assert high["price_per_unit_cents"] == 10.0 and high["count"] == 5
+    assert medium["count"] == 0 and medium["price_per_unit_cents"] is None
+    assert rows["chat_answer"]["level"] is None
+
+
 def test_old_actions_fall_out_of_the_window(
     client: TestClient, repo: MemoryRepository, clock: Clock
 ) -> None:
@@ -112,5 +144,5 @@ def test_old_actions_fall_out_of_the_window(
                 action_id=uuid.uuid4(),
             )
         )
-    row = next(a for a in client.get(PRICES).json()["actions"] if a["action"] == "judge")
+    row = next(a for a in client.get(PRICES).json()["actions"] if a["action"] == "judge:low")
     assert row["count"] == 0 and row["unit"] == "check"

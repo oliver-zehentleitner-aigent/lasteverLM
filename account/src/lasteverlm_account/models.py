@@ -252,7 +252,8 @@ class TypicalPrice(BaseModel):
 
 
 class PublicPriceRow(BaseModel):
-    action: str
+    action: str  # core's action, or "judge:<level>" — the judge is priced per level
+    level: str | None  # the judge level (low|medium|high) for judge rows, else null
     unit: str  # a stable key ("question", "output", "audio_minute", …); web translates it
     price_per_unit_cents: float | None  # the median action under today's rules per unit
     typical_cents: TypicalPrice | None  # per action under today's rules; null below 5

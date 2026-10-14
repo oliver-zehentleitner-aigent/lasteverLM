@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- The public price list prices the on-request judge per level (`judge:low|medium|high`, new field `level`) from the model each call used (`JUDGE_MODELS`), instead of one misleading judge price.
+
 ### Added
 
 - `GET /api/account/prices`, the public price list (no login, five-minute cache): per action the unit (core's `USAGE_ACTION_UNITS`), price per unit, p25/median/p75 per action and the model, from the last 30 days' measured costs through today's rules (core's `charge_for`); no number below five actions; end prices only.

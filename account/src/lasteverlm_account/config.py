@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from lasteverlm_core import UNKNOWN_BUILD
+from lasteverlm_core import DEFAULT_JUDGE_MODELS, UNKNOWN_BUILD, parse_judge_models
 
 from .crypto import VoucherKeyError, load_key
 from .mail import SmtpConfig
@@ -38,6 +38,10 @@ class Settings:
     voucher_mail_quota_per_hour: int = 5  # voucher mails to one address per hour, then 429
     vultr_billing_api_key: str | None = None  # empty or unset: the billing sync does not run
     exchange_rate_sync: bool = True  # hourly ECB fetch of usd_per_eur (EXCHANGE_RATE_SYNC)
+    # judge level -> model (JUDGE_MODELS over core's defaults), to split the price list's judge
+    judge_models: dict[str, str] = field(
+        default_factory=lambda: {str(k): v for k, v in DEFAULT_JUDGE_MODELS.items()}
+    )
     visit_retention_days: int = 30
     access_retention_days: int = 30  # core's RETENTION_DAYS, for the tables its middleware writes
     ban_max_days: int = 90  # core's BAN_MAX_DAYS: a ban holds until lifted, at most this long
@@ -82,6 +86,9 @@ class Settings:
             voucher_key=_voucher_key(env.get("VOUCHER_KEY")),
             vultr_billing_api_key=env.get("VULTR_BILLING_API_KEY", "").strip() or None,
             exchange_rate_sync=_bool(env.get("EXCHANGE_RATE_SYNC", "true"), "EXCHANGE_RATE_SYNC"),
+            judge_models={
+                str(k): v for k, v in parse_judge_models(env.get("JUDGE_MODELS")).items()
+            },
             demo_token=env.get("DEMO_TOKEN", "").strip() or None,
             admin_emails=frozenset(_csv_lower(env.get("ADMIN_EMAILS", ""))),
             allowed_domains_seed=tuple(_csv_lower(env.get("AUTH_ALLOWED_DOMAINS", ""))),

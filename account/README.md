@@ -166,7 +166,12 @@ users can buy it gives the unit (a stable key from core: `question`, `output`, `
 price (p25, median, p75 per action), and the model most of its calls used, plus the
 exchange rate with its ECB date. The figures are the last 30 days' measured costs per
 action run through today's pricing rules with core's `charge_for`, so a changed margin
-shows within five minutes. Below five actions in the window an action has no price:
+shows within five minutes. The on-request judge is priced per level — rows
+`judge:low`, `judge:medium`, `judge:high` with `level` set — because its models cost an
+order of magnitude apart; a judge row's samples are the calls whose model `JUDGE_MODELS`
+maps to that level (calls of a model no level maps to any more are left out). The judge
+share inside a generated output is part of that output's price and not split out.
+Below five actions in the window an action has no price:
 "no experience yet", never an estimate. Margins, fees, costs and anything about users
 never appear.
 

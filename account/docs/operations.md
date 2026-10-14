@@ -16,6 +16,7 @@ when a required value is missing. `.env.example` lists every variable.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_STARTTLS` | no | the mail configuration (Secret `lasteverlm-smtp`), read at start, shown read-only at `GET /admin/settings/smtp`, never stored |
 | `MAGIC_LINK_TTL_MINUTES`, `LINK_QUOTA_PER_HOUR`, `JWT_TTL_DAYS`, `VOUCHER_DEFAULT_CENTS`, `VISIT_RETENTION_DAYS`, `TRUST_PROXY_HEADERS`, `LOG_LEVEL` | no | defaults 15, 5 (sign-in links per address per hour), 1 (a session token lives a day; sign-out is client-side), 1000, 30, true, INFO |
 | `VOUCHER_KEY` | yes | 32 bytes base64; voucher codes at rest are encrypted under it. Generate once, keep stable: a changed key leaves every stored code unrecoverable (vouchers stay redeemable) |
+| `JUDGE_MODELS` | no | core's judge level → model JSON (shared ConfigMap); account reads it to split the price list's judge per level |
 | `EXCHANGE_RATE_SYNC` | no | default true: fetch the ECB's USD reference rate every hour into the pricing rules (egress 443 to www.ecb.europa.eu); false only for offline runs |
 | `VULTR_BILLING_API_KEY` | no | Vultr billing sync, daily, inside the service; empty = not connected. A billing-permission key, not read-only (Vultr has no read-only billing scope); egress 443 to api.vultr.com |
 | `VISIT_HASH_SECRET` | no | shared by all replicas: visitor salt = HMAC(secret, UTC date); without it each process uses its own random salt (`lasteverlm-account`) |
