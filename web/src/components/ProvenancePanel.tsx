@@ -8,8 +8,11 @@ interface Props {
   citation: Citation
   /** the answer the citation belongs to, to find the claim it backs */
   answer: string
+  /** the statement it backs, when the caller knows it better than the answer's markers */
+  claim?: string
   removed: boolean
-  onOpenSource: (c: Citation) => void
+  /** absent on the share page: no source to open there */
+  onOpenSource?: (c: Citation) => void
 }
 
 /** Where a cited statement comes from: the source, its page and chunk
@@ -17,9 +20,9 @@ interface Props {
  *  text verbatim with the sentence that best matches the claim marked.
  *  Citations written before positions existed are completed from
  *  GET /chunks/{id} when the chunk is still there. */
-export function ProvenancePanel({ citation, answer, removed, onOpenSource }: Props) {
+export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource }: Props) {
   const [chunk, setChunk] = useState<{ text: string; index: number | null; count: number | null } | null>(null)
-  const old = citation.chunk_index === null || citation.chunk_index === undefined
+  const old = (citation.chunk_index === null || citation.chunk_index === undefined) && citation.chunk_id !== ''
 
   useEffect(() => {
     if (!old) return
@@ -38,7 +41,7 @@ export function ProvenancePanel({ citation, answer, removed, onOpenSource }: Pro
   const text = chunk?.text ?? citation.quote
   const position = chunkPosition(chunk?.index ?? citation.chunk_index, chunk?.count ?? citation.chunk_count)
   const sim = similarityLabel(citation.similarity)
-  const passage = highlightPassage(text, claimFor(answer, citation.n))
+  const passage = highlightPassage(text, claim ?? claimFor(answer, citation.n))
 
   return (
     <aside className="provenance" aria-label={t('prov.label', { n: citation.n })}>
@@ -68,9 +71,11 @@ export function ProvenancePanel({ citation, answer, removed, onOpenSource }: Pro
         {removed ? (
           <span className="muted small">{t('prov.gone')}</span>
         ) : (
-          <button type="button" className="link" onClick={() => onOpenSource(citation)}>
-            {citation.source_kind === 'generated' ? t('prov.openDoc') : t('prov.open')}
-          </button>
+          onOpenSource && (
+            <button type="button" className="link" onClick={() => onOpenSource(citation)}>
+              {citation.source_kind === 'generated' ? t('prov.openDoc') : t('prov.open')}
+            </button>
+          )
         )}
         {passage.match && <span className="muted small">{t('prov.marked')}</span>}
       </footer>
