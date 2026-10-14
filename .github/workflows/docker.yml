@@ -52,5 +52,7 @@ jobs:
           # Provenance with the full build parameters and an SBOM, attached to the image index.
           provenance: mode=max
           sbom: true
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # Build cache in the registry, one tag per service, every stage (mode=max):
+          # unlike the GHA cache it has no 10 GB repository cap that evicts stages.
+          cache-from: type=registry,ref=ghcr.io/oliver-zehentleitner/lasteverlm-${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=ghcr.io/oliver-zehentleitner/lasteverlm-${{ matrix.service }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
