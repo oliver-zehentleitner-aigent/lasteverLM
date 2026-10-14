@@ -473,30 +473,38 @@ deleted from the library) stays readable with its quote and is marked
   dialog. A 402 anywhere opens the same dialog.
 - **Prices** (`/prices`, no login, linked under the login page's forms,
   in the header next to Settings and at the top of Settings): the
-  public price list from `GET /api/account/prices`. A title, a line on
+  public price list from `GET /api/account/prices`. With a session
+  (a token in storage) it sits under the app's normal header, Prices
+  marked active; without one under a reduced header: the brand,
+  Prices and Sign in. A title, a line on
   where the prices come from (the last N days' actions at today's
-  prices), then one table per group: **Sources** (one row per source
-  kind; audio per minute), **Chat** (per question), **Outputs** (the
-  kinds; audio per minute), **Extras** (the judge per level, "Judge, low",
-  "Judge, medium", "Judge, high", from the `judge:<level>` rows and
-  their `level`, low to high; then Find charts and the rest; under the
-  table a note that these are the judge asked for on an existing output
-  or chat answer, and that a judge chosen while creating an output is in
-  that output's price). The group is the action's prefix (`source:`, `output:`,
-  `chat_answer`, everything else), so an action the web does not know
-  yet is still listed, by its code, last in its group. Columns: what,
-  the price per unit (the unit translated: per question, per output, per
-  source, per check, per search, per minute of audio, …), typical (p25–p75
-  and the median, per action) and the model, muted, hidden on a phone.
-  An action with fewer than five runs in the window says "no experience
-  yet" instead of any number. Prices from ten cents up show whole
+  prices), then one table per group: **Sources** (text, PDF (Text),
+  PDF (Vision) per page, image, audio per minute, web page), **Chat**
+  (per question), **Outputs** (every kind, per output), **Extras** (the
+  judge per level, "Judge, low", "Judge, medium", "Judge, high", from
+  the `judge:<level>` rows and their `level`, low to high; then Find
+  charts and the rest; under the table a note that these are the judge
+  asked for on an existing output or chat answer, and that a judge
+  chosen while creating an output is in that output's price). The
+  group is the action's prefix (`source:`, `output:`, `chat_answer`,
+  everything else), a way of reading a kind (`source:pdf:vision`) right
+  after the kind, so an action the web does not know yet is still
+  listed, by its code, last in its group. Columns: what; the price per
+  unit (the unit translated: per question, per output, per page, per
+  image, per web page, per minute of audio, …), as a range "€0.01–€0.05"
+  when the service sends a minimum and a maximum that differ as shown,
+  "+ €0.01 per source" when a source has a part paid once, and
+  "· estimated", muted, when the price is an estimate rather than
+  history (its tooltip says so); "no price yet" when none could be
+  made. Then "Typical per action" (p25–p75 and the median of whole
+  actions from history; "no experience yet" below five runs) and the
+  model, muted, hidden on a phone. Prices from ten cents up show whole
   cents; below that two significant digits (€0.0035, €0.035). Under
   the tables the exchange rate ("1 EUR = 1.1188 USD, ECB reference rate
   of 2026-10-13") and the rules in plain words: adding a source is free,
   processing it costs, the estimate is shown before every action, credit
   does not expire. No margins, fees or costs: the service sends end
-  prices only. A PDF is priced per source: the service has no per-page
-  price.
+  prices only.
 - Prices: before anything billed runs, its estimated charge from rag's
   `POST /api/rag/estimate` stands next to the button that starts it, in
   euro as the balance: before Create (for the kind with its options, a
@@ -523,7 +531,8 @@ deleted from the library) stays readable with its quote and is marked
   address. The architecture diagram on Admin > System scales to its
   card; wide admin tables scroll inside theirs.
 - Admin (for the roles `admin` and `viewer`): pages under `/admin` with
-  a sub-navigation; each page loads only its own data, every page has
+  a sub-navigation (Overview · Finance · Users · Access · Security ·
+  Visits · Mail · System); each page loads only its own data, every page has
   its own URL. A **viewer** reads everything: the heading carries a
   "read-only" badge, and every write control (voucher create and
   delete, allow-list add and remove, viewer domains, rate-limit save and
@@ -569,7 +578,7 @@ deleted from the library) stays readable with its quote and is marked
     **Sign-in** (who may sign in) and **Viewer (read-only admin
     panel)**: a new user at one of those domains or addresses (also
     allowed to sign in) starts as viewer.
-  - **Finance** (`/admin/finance`, in the menu where Credits was):
+  - **Finance** (`/admin/finance`, in the menu right after Overview):
     pills for its five pages, each with its own URL under
     `/admin/finance/`, and one date range for those that take one
     (7, 30 or 90 days, or two dates), in one row at one height: the day
@@ -617,20 +626,26 @@ deleted from the library) stays readable with its quote and is marked
       amount in their currency and in euro; lines entered by hand can
       be added and deleted, Vultr's cannot.
     - **Vouchers** (`/admin/finance/vouchers`; the old
-      `/admin/credits` opens it): voucher creation (5 EUR by default)
-    that shows the codes once as chips with a copy button each ("copy
-    all" for several; without the clipboard API the text is selected
-    instead), next to the form when there is room; for an admin an
-    optional "Send to an address right away" (e-mail, a note, "also
-    allow this address to sign in", on by default) mails each created
-    voucher at once. The list of issued vouchers below: the code masked,
-    and for an admin "show" (fetched once, with copy and hide; a voucher
-    made before codes were kept says "not recoverable" instead), "sent
+      `/admin/credits` opens it): voucher creation as a form card above
+    the list, at most 40rem wide: Amount (EUR, 5 by default) | Count |
+    "Paid voucher" in one row; then, for an admin, "Send to an address
+    right away", which opens below it, full width, the recipient's
+    e-mail, a message with its counter and "also allow this address to
+    sign in" (on by default), and mails each created voucher at once;
+    Create at the bottom right. Every checkbox is one clickable unit
+    with its text beside it. On a phone the row stacks and Create is
+    full width. The codes are shown once under the card as chips with
+    a copy button each ("copy all" for several; without the clipboard
+    API the text is selected instead). The list of issued vouchers
+    below: the code masked, and for an admin "show" (fetched once, with
+    copy and hide; a voucher made before codes were kept says "code not
+    kept (before 0.18)", the full sentence as tooltip), "sent
     to … , date" under the status once mailed; open ones can be sent
     (a dialog with the same three fields; a refusal for the quota of 5
     mails per address and hour, a missing mail server, the mail server's
     error or an already redeemed voucher stays in the dialog) and
-    deleted. "Paid" on the create form and per voucher: paid is sold
+    deleted. "Paid" on the create form and per voucher (in the list a
+    checkbox with "Paid" or "Free" beside it on one line): paid is sold
     for its face value and counts as revenue, free is a gift and counts
     as a marketing cost.
   - **Security** (`/admin/security`): the rate-limit rule as a sentence
@@ -653,7 +668,8 @@ deleted from the library) stays readable with its quote and is marked
     job queues to PostgreSQL, the workers to storage and the models, rag
     to the models for answers); each deployment's box shows its
     replicas ready of total, its restarts when there are any, and its
-    build, coloured by its state: green when every replica is ready and
+    build (web, which has no healthz build, its pods' image tags, both
+    while rolling out), coloured by its state: green when every replica is ready and
     no pod restarted; amber while a rollout is under way (the
     deployment's Progressing condition, else fewer replicas updated than
     wanted, or two image tags among its pods), when it is partly ready
@@ -665,7 +681,12 @@ deleted from the library) stays readable with its quote and is marked
     dashed red. The external boxes take the state the services' healthz
     report for them (`dependencies`: red when one says down, green when
     all that report say ok) and stay grey with "not probed" until one
-    does. In the light theme the external boxes and the dashed lines are
+    does. The ingress box takes the account service's outside probe of
+    the public URL (`ingress`, at most once a minute): red when it does
+    not answer, amber when the certificate ends within 14 days, green
+    otherwise, grey without a probe; under its title "TLS until
+    2027-01-12", and as tooltip the URL, the time of the check and any
+    error. In the light theme the external boxes and the dashed lines are
     drawn heavier, so they stay visible on white. A legend under the
     diagram; the page reloads the data every 15 s while the tab is
     visible (the time of the last refresh under it), colours change with

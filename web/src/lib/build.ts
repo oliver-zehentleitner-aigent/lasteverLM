@@ -4,6 +4,12 @@ export function known(v: string | null | undefined): string | null {
   return v && v !== 'unknown' ? v : null
 }
 
+/** A version as a tag reads, with one "v": the Git tag carries its own
+ *  ("v0.18.3"); one without ("0.8.2", older builds) gets it. */
+export function tagVersion(v: string): string {
+  return /^v\d/.test(v) ? v : `v${v}`
+}
+
 /** The first 7 characters of a commit, as git shows it. */
 export function shortCommit(c: string | null | undefined): string | null {
   const k = known(c)

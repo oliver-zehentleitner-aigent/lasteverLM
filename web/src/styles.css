@@ -498,8 +498,23 @@ button.icon.play[aria-pressed='true'] { color: var(--accent); }
 .voice-sample { display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-end; }
 
 /* fresh voucher codes: next to the create form when there is room */
-.voucher-create { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem 1.5rem; }
-.voucher-create form input { width: 7rem; }
+.voucher-form { max-width: 40rem; margin-top: 0; }
+.voucher-form-fields { display: flex; flex-direction: column; gap: 0.75rem; }
+.voucher-form-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem 1.25rem; }
+.voucher-form-row input:not([type='checkbox']) { width: 8rem; }
+/* the checkbox sits on the inputs' line, its text right beside it */
+.voucher-form-row label.check { height: 2.3rem; }
+.voucher-form .send-fields { max-width: none; }
+.voucher-form-actions { display: flex; justify-content: flex-end; }
+label.check input[type='checkbox'] { margin: 0; flex: none; }
+label.check { cursor: pointer; }
+/* the paid toggle in the voucher table: box and word on one line */
+td > label.check.paid-toggle { display: inline-flex; white-space: nowrap; }
+@media (max-width: 640px) {
+  .voucher-form-row { flex-direction: column; align-items: stretch; }
+  .voucher-form-row input:not([type='checkbox']) { width: 100%; }
+  .voucher-form-actions button { width: 100%; }
+}
 .codes { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
 .codes p { margin: 0; }
 .code-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
@@ -753,6 +768,8 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .shared-output .doc-title { font-size: 1.15rem; }
 
 /* /prices: the public price list */
+/* signed in, under the app's header: the same column as the public page */
+main.prices-page:not(.shared) { box-sizing: border-box; width: 100%; max-width: 56rem; margin: 0 auto; padding: 1rem; overflow: auto; }
 .prices-page .price-group { margin-top: 1.2rem; }
 .prices-page h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
 .price-table { width: 100%; border-collapse: collapse; }
@@ -794,7 +811,6 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 .proposal { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 0.4rem; color: var(--fg); font-size: 0.9em; cursor: pointer; }
 .proposal input { grid-row: span 3; margin-top: 0.15rem; }
 .proposal-title { font-weight: 600; overflow-wrap: anywhere; }
-.voucher-send-block { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .send-fields { display: flex; flex-direction: column; gap: 0.5rem; max-width: 28rem; }
 .code-cell { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
 .admin td .sent { display: block; }

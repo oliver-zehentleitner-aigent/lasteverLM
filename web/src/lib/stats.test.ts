@@ -66,6 +66,8 @@ describe('attentionItems', () => {
 describe('systemMeta', () => {
   it('reads as build and health', () => {
     expect(systemMeta(system)).toMatchObject({ build: 'v0.7.1 · b44f38a', health: '2 of 3 services healthy' })
+    // the Git tag carries its own v: never "vv"
+    expect(systemMeta({ ...system, version: 'v0.18.3' }).build).toBe('v0.18.3 · b44f38a')
     expect(systemMeta({ ...system, version: 'unknown', commit: 'unknown', services: [system.services[0]] })).toMatchObject({
       build: null,
       health: '1 service healthy',

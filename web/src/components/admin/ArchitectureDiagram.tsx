@@ -1,6 +1,7 @@
 import type { Dependency, SystemInfo } from '../../api/types'
 import { t } from '../../i18n'
-import { architectureNodes, dependencyState, type DeploymentName, type NodeHealth, type NodeState } from '../../lib/architecture'
+import { architectureNodes, dependencyState, ingressState, type DeploymentName, type NodeHealth, type NodeState } from '../../lib/architecture'
+import { formatTime } from '../../lib/format'
 
 /** Box positions in the 760 x 420 drawing; the layout is static, the
  *  numbers in the boxes are live. */
@@ -29,6 +30,8 @@ const cx = (n: DeploymentName) => BOX[n].x + W / 2
  *  the colour the services' healthz report for them, grey until any does. */
 export function ArchitectureDiagram({ system, previous = null }: { system: SystemInfo; previous?: SystemInfo | null }) {
   const nodes = architectureNodes(system, previous)
+  const ingress = ingressState(system)
+  const ing = system.ingress
   const line = (n: DeploymentName, soft = false) => ['arch-line', soft ? 'soft' : '', nodes[n].state === 'down' ? 'down' : ''].filter(Boolean).join(' ')
   return (
     <div className="arch-wrap">
@@ -45,10 +48,22 @@ export function ArchitectureDiagram({ system, previous = null }: { system: Syste
           {t('arch.browser')}
         </text>
         <line className="arch-line" x1={380} y1={38} x2={380} y2={62} markerEnd="url(#arch-arrow)" />
-        <rect className="arch-box" x={260} y={64} width={240} height={40} rx={6} />
-        <text className="arch-title" x={380} y={89} textAnchor="middle">
-          {t('arch.ingress')}
-        </text>
+        <g className={`arch-node state-${ingress.state}`}>
+          <title>
+            {ing
+              ? [t('arch.ingressProbe', { url: ing.url, at: formatTime(ing.checked_at) }), ing.error, ingress.expiresSoon ? t('arch.tlsSoon') : null].filter(Boolean).join('\n')
+              : t('arch.notProbed', { name: t('arch.ingress') })}
+          </title>
+          <rect className="arch-box" x={260} y={64} width={240} height={40} rx={6} />
+          <text className="arch-title" x={380} y={ingress.line ? 81 : 89} textAnchor="middle">
+            {t('arch.ingress')}
+          </text>
+          {ingress.line && (
+            <text className="arch-meta" x={380} y={97} textAnchor="middle">
+              {t('arch.tlsUntil', { date: ingress.line })}
+            </text>
+          )}
+        </g>
         {(['web', 'account', 'ingest', 'rag'] as const).map((n) => (
           <path key={n} className={line(n)} d={`M380,104 V122 H${cx(n)} V138`} markerEnd="url(#arch-arrow)" />
         ))}

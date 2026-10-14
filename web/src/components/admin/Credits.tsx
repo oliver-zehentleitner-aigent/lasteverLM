@@ -50,36 +50,40 @@ export function Vouchers() {
 
   return (
     <Section title={t('adm.vouchers')}>
-      <div className="voucher-create">
-        <form className="row" onSubmit={create}>
-          <fieldset className="plain row" disabled={!canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')}>
-          <label>
-            {t('adm.amountEur')}
-            <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </label>
-          <label>
-            {t('adm.count')}
-            <input type="number" min={1} max={100} value={count} onChange={(e) => setCount(e.target.value)} />
-          </label>
-          <label className="check" title={t('vch.paidTitle')}>
-            <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} /> {t('vch.paid')}
-          </label>
-          <button type="submit" disabled={busy || sendBad}>
-            {t('adm.create')}
-          </button>
-          </fieldset>
+      {/* a form card above the list: amount, count and paid in one row; the
+          optional mail below it, full width; Create at the bottom right */}
+      <form className="card voucher-form" onSubmit={create}>
+        <fieldset className="plain voucher-form-fields" disabled={!canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')}>
+          <div className="voucher-form-row">
+            <label>
+              {t('adm.amountEur')}
+              <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </label>
+            <label>
+              {t('adm.count')}
+              <input type="number" min={1} max={100} value={count} onChange={(e) => setCount(e.target.value)} />
+            </label>
+            <label className="check" title={t('vch.paidTitle')}>
+              <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} />
+              {t('vch.paidVoucher')}
+            </label>
+          </div>
           {canWrite && (
-            <div className="voucher-send-block">
-              <label className="check">
-                <input type="checkbox" checked={sendOn} onChange={(e) => setSendOn(e.target.checked)} /> {t('vch.sendTo')}
-              </label>
-              {sendOn && <SendFields value={send} onChange={setSend} />}
-            </div>
+            <label className="check">
+              <input type="checkbox" checked={sendOn} onChange={(e) => setSendOn(e.target.checked)} />
+              {t('vch.sendTo')}
+            </label>
           )}
-        </form>
-        {sentTo && <p className="muted small">{t('vch.sentCreated', { to: sentTo })}</p>}
-        {codes.length > 0 && <VoucherCodes codes={codes} />}
-      </div>
+          {canWrite && sendOn && <SendFields value={send} onChange={setSend} />}
+          <div className="voucher-form-actions">
+            <button type="submit" disabled={busy || sendBad}>
+              {t('adm.create')}
+            </button>
+          </div>
+        </fieldset>
+      </form>
+      {sentTo && <p className="muted small">{t('vch.sentCreated', { to: sentTo })}</p>}
+      {codes.length > 0 && <VoucherCodes codes={codes} />}
       {error && <p className="error">{error}</p>}
       <VoucherList key={listVersion} />
     </Section>
@@ -168,8 +172,8 @@ function VoucherList() {
               </span>
             )}
           </span>,
-          <label key="paid" className="check small" title={t('vch.paidTitle')}>
-            <input type="checkbox" checked={v.paid ?? false} disabled={busy || !canWrite} aria-label={t('vch.paid')} onChange={(e) => void markPaid(v, e.target.checked)} />{' '}
+          <label key="paid" className="check small paid-toggle" title={t('vch.paidTitle')}>
+            <input type="checkbox" checked={v.paid ?? false} disabled={busy || !canWrite} onChange={(e) => void markPaid(v, e.target.checked)} />
             {v.paid ? t('vch.paid') : t('vch.free')}
           </label>,
           v.redeemed_by ?? '—',
@@ -222,7 +226,8 @@ function SendFields({ value, onChange }: { value: VoucherSend; onChange: (v: Vou
         <span className="muted small">{t('vch.messageHint', { n: message.length, max: MESSAGE_MAX })}</span>
       </label>
       <label className="check">
-        <input type="checkbox" checked={value.allow ?? true} onChange={(e) => onChange({ ...value, allow: e.target.checked })} /> {t('vch.allow')}
+        <input type="checkbox" checked={value.allow ?? true} onChange={(e) => onChange({ ...value, allow: e.target.checked })} />
+        {t('vch.allow')}
       </label>
     </div>
   )
@@ -287,7 +292,12 @@ function CodeCell({ voucher: v, canShow }: { voucher: Voucher; canShow: boolean 
     }
   }
 
-  if (gone) return <span className="muted small">{t('vch.notRecoverable')}</span>
+  if (gone)
+    return (
+      <span className="muted small" title={t('vch.notRecoverable')}>
+        {t('vch.notRecoverableShort')}
+      </span>
+    )
   return (
     <span className="code-cell">
       <code ref={el}>{code ?? v.code_masked ?? '—'}</code>

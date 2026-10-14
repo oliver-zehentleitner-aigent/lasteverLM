@@ -725,6 +725,14 @@ export interface SystemInfo {
     /** a rollout is under way (Progressing true, not yet NewReplicaSetAvailable); null or absent when not reported */
     progressing?: boolean | null
   }[]
+  /** the public URL probed from outside, at most once a minute; absent from an older account service */
+  ingress?: {
+    status: 'ok' | 'down'
+    url: string
+    tls_expires_at: string | null
+    checked_at: string
+    error: string | null
+  } | null
 }
 
 /** A service's public `/healthz`; version and commit are "unknown" when unset. */
@@ -853,8 +861,15 @@ export interface PublicPriceRow {
   action: string
   /** a stable key from core (question, output, source, audio_minute, check, …) */
   unit: string
+  /** for an estimate the midpoint of min and max; null only when no price could be made */
   price_per_unit_cents: number | null
-  /** per action, not per unit */
+  price_min_cents?: number | null
+  price_max_cents?: number | null
+  /** the price comes from rag's or ingest's estimate, not from history */
+  estimated?: boolean
+  /** sources: added once per source on top of the units */
+  per_source_cents?: number | null
+  /** per whole action from history, not per unit; null below five actions */
   typical_cents: { p25: number; median: number; p75: number } | null
   count: number
   model: string | null
