@@ -749,8 +749,12 @@ export interface InfraEntry {
 }
 
 export interface FinanceInfra {
-  vultr: 'connected' | 'not connected'
-  last_sync: string | null
+  /** a Vultr billing key is set; says nothing about whether it works */
+  configured: boolean
+  /** when syncing last worked; a failed attempt keeps it */
+  last_success_at: string | null
+  last_attempt_at: string | null
+  /** Vultr's own message from the last failed attempt, with a hint where one helps */
   last_error: string | null
   usd_per_eur: number | null
   entries: InfraEntry[]

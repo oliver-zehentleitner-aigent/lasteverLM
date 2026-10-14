@@ -449,16 +449,22 @@ function InfraPage({ range }: { range: Range }) {
       {(error ?? actionError) && <p className="error">{error ?? actionError}</p>}
       {data && (
         <>
-          {data.vultr === 'connected' ? (
-            <p className="small">
-              {t('fin.infra.connected', { at: data.last_sync ? formatTime(data.last_sync) : t('time.never') })}
-              {data.last_error && <span className="error"> · {data.last_error}</span>}{' '}
-              {canWrite && (
-                <button type="button" className="link small" disabled={busy} onClick={() => void sync()}>
-                  {t('fin.infra.sync')}
-                </button>
-              )}
-            </p>
+          {data.configured ? (
+            <div className="infra-status small">
+              <p>
+                {/* "connected" only once a sync has worked and the last one did not fail */}
+                {data.last_success_at && !data.last_error
+                  ? t('fin.infra.connected', { at: formatTime(data.last_success_at) })
+                  : t('fin.infra.keySet', { at: data.last_success_at ? formatTime(data.last_success_at) : t('time.never') })}
+                {data.last_attempt_at && data.last_attempt_at !== data.last_success_at && <span className="muted"> · {t('fin.infra.lastAttempt', { at: formatTime(data.last_attempt_at) })}</span>}{' '}
+                {canWrite && (
+                  <button type="button" className="link small" disabled={busy} onClick={() => void sync()}>
+                    {t('fin.infra.sync')}
+                  </button>
+                )}
+              </p>
+              {data.last_error && <p className="error">{t('fin.infra.syncFailed', { error: data.last_error })}</p>}
+            </div>
           ) : (
             <div className="notice small">
               <strong>{t('fin.infra.notConnected')}</strong>

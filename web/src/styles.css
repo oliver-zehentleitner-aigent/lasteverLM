@@ -837,6 +837,9 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .finance-tiles .stat-value { font-variant-numeric: tabular-nums; }
 .finance .loss { color: var(--danger); }
 .infra-add { flex-wrap: wrap; margin-top: 0.6rem; }
+.infra-status p { margin: 0.2rem 0; }
+/* Vultr's messages carry paths and addresses without spaces */
+.infra-status .error { overflow-wrap: anywhere; }
 .infra-add .grow { flex: 1 1 14rem; }
 .infra-add input, .infra-add select { width: auto; }
 .infra-add .grow input { width: 100%; }
