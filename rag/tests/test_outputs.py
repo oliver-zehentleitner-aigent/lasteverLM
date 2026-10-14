@@ -210,7 +210,9 @@ def test_audio_is_synthesized_in_segments_stored_and_served_presigned(settings):
     client.worker.run_once()
 
     key = f"{NOTEBOOK}/{output_id}/audio.mp3"
-    assert store.outputs[output_id]["content"] == {"key": key}
+    content = store.outputs[output_id]["content"]
+    assert content["key"] == key
+    assert [t["speaker"] for t in content["transcript"]] == ["narrator"]
     data, content_type = objects.objects[key]
     assert content_type == "audio/mpeg" and data.count(b"\xff\xf3") == len(tts.inputs) > 1
     tts_rows = [u for _, _, u in store.usage if u.kind == "tts"]
@@ -218,7 +220,10 @@ def test_audio_is_synthesized_in_segments_stored_and_served_presigned(settings):
 
     out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
     assert out["status"] == "ready" and out["title"] == "The sky, read aloud"
-    assert out["content"] == {"url": f"https://objects.test/{key}?expires=3600"}
+    assert out["content"] == {
+        "url": f"https://objects.test/{key}?expires=3600",
+        "transcript": content["transcript"],
+    }
     listed = client.get(OUTPUTS, headers=AUTH).json()
     assert listed[0]["content"] == out["content"]
     token = client.post(f"/api/rag/outputs/{output_id}/share", headers=AUTH).json()["share_token"]

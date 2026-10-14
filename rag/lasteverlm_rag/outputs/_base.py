@@ -60,6 +60,10 @@ class JsonGenerator:
     schema: type[BaseModel]
     max_tokens: int = 4000
 
+    def prompt(self, style: str | None) -> tuple[str, type[BaseModel]]:
+        """The instructions and the schema; a kind with styles picks them by style."""
+        return self.instructions, self.schema
+
     def generate(
         self,
         complete: CompleteFn,
@@ -68,8 +72,10 @@ class JsonGenerator:
         passages: list[Passage],
         *,
         language: str | None = None,
+        style: str | None = None,
     ) -> GeneratedOutput:
-        user = render_material(notebook_title, summaries, passages) + "\n\n" + self.instructions
+        instructions, schema = self.prompt(style)
+        user = render_material(notebook_title, summaries, passages) + "\n\n" + instructions
         system = system_rules(language)
         last_error = ""
         for attempt in range(2):
@@ -84,7 +90,7 @@ class JsonGenerator:
                 # its budget on thinking), not a schema miss: the worker retries it
                 raise ProviderError(f"{self.kind}: the model returned no content")
             try:
-                document = self.schema.model_validate(parse_json(text))
+                document = schema.model_validate(parse_json(text))
             except (ValueError, ValidationError) as exc:
                 last_error = str(exc)[:500]
                 continue

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import re
 import secrets
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from typing import Any
 
@@ -47,6 +47,7 @@ from .models import (
     Passage,
     RetrievedChunk,
     SourceSummary,
+    SpeechTurn,
 )
 from .options import OutputOptions, language_name, resolve
 from .outputs import OutputGenerator
@@ -563,7 +564,7 @@ class OutputService:
             generated = self._generate(job.owner, notebook_id, job)
             content = generated.content
             if generated.speech is not None:
-                content = {"key": self._speak(job, notebook_id, generated.speech)}
+                content = {**content, "key": self._speak(job, notebook_id, generated.speech)}
             source_id = self._index(job.owner, notebook_id, generated)
             self._store.update_output(
                 job.id,
@@ -673,6 +674,7 @@ class OutputService:
             summaries,
             number_passages(chunks),
             language=language_name(row.options.get("language")),
+            style=row.options.get("audio_style"),
         )
         for name in uncovered_sources(generated.index_text, summaries, chunks):
             # fail-loud light: the document is kept, the gap is visible in the log
@@ -698,24 +700,28 @@ class OutputService:
         self._store.set_source_status(source_id, "ready")
         return source_id
 
-    def _speak(self, job: OutputRow, notebook_id: str, script: str) -> str:
-        """Synthesize the script segment by segment (one usage row each, priced
-        per second of generated speech) and store the joined MP3; returns the
-        object key."""
+    def _speak(self, job: OutputRow, notebook_id: str, turns: Sequence[SpeechTurn]) -> str:
+        """Synthesize the script turn by turn, each with its speaker's voice,
+        in segments (one usage row each, priced per second of generated
+        speech), and store the joined MP3; returns the object key."""
         if self._tts is None or self._objects is None:
             raise GenerationFailed("audio: text-to-speech is not available on this deployment")
-        segments = split_for_speech(script)
+        segments = [
+            (voice, segment)
+            for voice, text in voiced_stretches(turns, job.options)
+            for segment in split_for_speech(text)
+        ]
         if not segments:
             raise GenerationFailed("audio: the script is empty")
         parts: list[bytes] = []
-        for segment in segments:
+        for voice, segment in segments:
             result = synthesize_billed(
                 self._store,
                 self._tts,
                 job.owner,
                 notebook_id,
                 segment,
-                voice=job.options.get("voice"),
+                voice=voice,
                 speed=job.options.get("speed"),
             )
             parts.append(result.audio)
@@ -726,11 +732,13 @@ class OutputService:
 
     def _public_content(self, content: dict[str, Any] | None) -> dict[str, Any] | None:
         """The row keeps the object key; a reader gets a presigned URL instead,
-        because an <audio> element cannot send a bearer header."""
+        because an <audio> element cannot send a bearer header. The rest (the
+        transcript) is passed on."""
         key = (content or {}).get("key")
-        if not isinstance(key, str) or self._objects is None:
+        if content is None or not isinstance(key, str) or self._objects is None:
             return content
-        return {"url": self._objects.presigned_get(key, AUDIO_URL_EXPIRES_S)}
+        rest = {k: v for k, v in content.items() if k != "key"}
+        return {"url": self._objects.presigned_get(key, AUDIO_URL_EXPIRES_S), **rest}
 
     def _delete_objects(self, content: dict[str, Any] | None) -> None:
         key = (content or {}).get("key")
@@ -855,6 +863,23 @@ def require_credit(store: Store, user_id: str) -> None:
     """Core's rule: a positive balance, for admins as for everyone else."""
     if not store.has_credit(user_id):
         raise InsufficientCredit(user_id)
+
+
+# the interviewer speaks with the output's voice, the expert with the second
+_VOICE_OPTION = {"narrator": "voice", "interviewer": "voice", "expert": "audio_voice_2"}
+
+
+def voiced_stretches(turns: Sequence[SpeechTurn], options: dict[str, Any]) -> list[tuple[str, str]]:
+    """The turns as (voice, text), consecutive turns of one voice joined, so a
+    narrator's paragraphs are read in as few requests as before."""
+    stretches: list[tuple[str, str]] = []
+    for turn in turns:
+        voice = options.get(_VOICE_OPTION[turn.speaker]) or options["voice"]
+        if stretches and stretches[-1][0] == voice:
+            stretches[-1] = (voice, f"{stretches[-1][1]} {turn.text}")
+        else:
+            stretches.append((voice, turn.text))
+    return stretches
 
 
 def to_output(row: OutputRow) -> Output:

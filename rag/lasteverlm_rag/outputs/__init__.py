@@ -27,6 +27,7 @@ class OutputGenerator(Protocol):
         passages: list[Passage],
         *,
         language: str | None = None,
+        style: str | None = None,
     ) -> GeneratedOutput: ...
 
 
