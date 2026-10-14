@@ -13,8 +13,9 @@ the three services share:
 |---|---|
 | `lasteverlm_core.models` | the API models of the contract (`User`, `Notebook`, `Source`, `Citation`, `ChunkView`, `Message`, `Answer`, `Output`, `UsageRecord`, `Health` (the `/healthz` body with `APP_VERSION` / `APP_COMMIT` and the `dependencies` states), the kind and status literals (`usage.kind` includes `tts` and `stt`, `SourceKind` includes `audio`), `DEMO_USER_ID`) |
 | `lasteverlm_core.auth` | `current_user(authorization, auth) -> Principal`: session JWT first, demo token second; `issue_jwt`, `verify_jwt`, `AuthSettings.from_env` |
-| `lasteverlm_core.pricing` | `load_model_prices` (`MODEL_PRICES` over the defaults), parsing, `cost_cents`, `require_prices`; an unpriced model is a configuration error, never a free call; the unit per usage kind (tokens; seconds of audio for `tts` and `stt`) is in the module docstring |
-| `lasteverlm_core.usage` | `record_usage`, `balance_cents`, `has_credit` (balance above zero, admins included), `is_admin`, `admin_role` (`user`, `viewer` or `admin`) (sync psycopg) and their async twins `arecord_usage`, `abalance_cents`, `ahas_credit`, `ais_admin`, `aadmin_role`; the SQL as constants |
+| `lasteverlm_core.pricing` | `load_model_prices` (`MODEL_PRICES` over the defaults), parsing, `cost_cents` (exact `Decimal`, no rounding), `require_prices`; an unpriced model is a configuration error, never a free call; the unit per usage kind (tokens; seconds of audio for `tts` and `stt`) is in the module docstring |
+| `lasteverlm_core.billing` | the pricing rules over the cost: `PricingRules` (default margin, per-action margin and fixed fee; `parse`, `as_json`, `charge_cents`, `fixed_cents`), `PricingRulesCache` (account's `settings` row `pricing`, re-read at most every 30 s), `estimate_charge` for the UI |
+| `lasteverlm_core.usage` | `record_usage` (books one call of a user action: `cost_cents` and `charge_cents` fixed at booking, the action's fixed fee once per `action_id`), `balance_cents` (credits minus charges, `Decimal`), `balance_sql` / `funded_sql` for a statement over many users, `has_credit` (balance above zero, admins included), `is_admin`, `admin_role` (`user`, `viewer` or `admin`) (sync psycopg) and their async twins `arecord_usage`, `abalance_cents`, `ahas_credit`, `ais_admin`, `aadmin_role`; the SQL as constants |
 | `lasteverlm_core.web` | `admin_only(current_user, lookup)` (admins, for endpoints that change something) and `admin_read(current_user, role_lookup)` (viewers and admins, for endpoints that only read): FastAPI dependencies answering 403 `admin only`; need FastAPI (the `web` extra), not re-exported from the root |
 | `lasteverlm_core.ratelimit` | `RateLimitMiddleware` with the block and ban rules (per IPv4 address or IPv6 /64, `limit_key`), three stores (PostgreSQL sync, async, memory), `purge` with `PURGE_SQL` and `purge_params`, `lift_ban`; a ban holds until lifted, at most `BAN_MAX_DAYS`; the four thresholds overridable at runtime from account's `settings` row `ratelimit` (`RateLimitRules`, `RATE_LIMIT_RULE_BOUNDS`) |
 | `lasteverlm_core.chunking` | `TokenWindowChunker` with `Passage` and `Chunk`: the token windows both ingest (sources) and rag (generated documents) embed; defaults 420/50 regex tokens, about 800 model tokens for German |
@@ -82,11 +83,13 @@ from lasteverlm_core import (
     record_usage,
     balance_cents,
     require_prices,
+    PricingRulesCache,
 )
 
 auth = AuthSettings.from_env()  # AUTH_JWT_SECRET and/or DEMO_TOKEN
 inference = InferenceSettings.from_env()  # INFERENCE_*, LLM_MODEL, EMBEDDING_*
 prices = load_model_prices()  # MODEL_PRICES over the defaults
+pricing = PricingRulesCache()  # account's pricing rules, one per process
 require_prices(prices, [inference.llm_model, inference.embedding_model])  # fail loud
 
 app.add_middleware(
@@ -104,11 +107,11 @@ record_usage(
     principal.user_id,
     notebook_id,
     "ingest",
-    "embedding",
-    result.usage.model,
-    result.usage.tokens_in,
-    result.usage.tokens_out,
+    "source:pdf",  # the user action, one of USAGE_ACTIONS
+    action_id,  # one uuid for every call of this action
+    result.usage,
     prices=prices,
+    rules=pricing.current(conn),
 )
 ```
 

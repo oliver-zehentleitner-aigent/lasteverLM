@@ -27,7 +27,6 @@ kind, and only the `in` side is used where there is no output:
 from __future__ import annotations
 
 import json
-import math
 from collections.abc import Iterable, Mapping
 from decimal import Decimal
 
@@ -102,17 +101,17 @@ def require_prices(prices: ModelPrices, models: Iterable[str]) -> None:
             raise UnpricedModelError(model)
 
 
-def cost_cents(prices: ModelPrices, model: str, tokens_in: int, tokens_out: int) -> int:
-    """`ceil((tokens_in * in + tokens_out * out) / 1e6)`, prices per million tokens.
+def cost_cents(prices: ModelPrices, model: str, tokens_in: int, tokens_out: int) -> Decimal:
+    """`(tokens_in * in + tokens_out * out) / 1e6`, prices per million tokens.
 
-    Exact decimal arithmetic, so a price like 0.1 cents does not produce a
-    one-cent rounding surprise at a million tokens. Raises for an unpriced
-    model; a usage row is never written at a silent zero tariff.
+    Exact decimal arithmetic and no rounding: the `usage` columns are
+    numeric, so an embedding call worth a thousandth of a cent is booked
+    as that, not as a whole cent. Raises for an unpriced model; a usage
+    row is never written at a silent zero tariff.
     """
     if tokens_in < 0 or tokens_out < 0:
         raise ValueError("token counts cannot be negative")
     price = prices.get(model)
     if price is None:
         raise UnpricedModelError(model)
-    total = (tokens_in * price.cents_in + tokens_out * price.cents_out) / _MILLION
-    return math.ceil(total)
+    return (tokens_in * price.cents_in + tokens_out * price.cents_out) / _MILLION
