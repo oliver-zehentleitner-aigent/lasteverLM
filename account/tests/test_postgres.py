@@ -64,6 +64,13 @@ async def repo() -> PostgresRepository:
     await repo.open()
     async with repo._pool.connection() as conn:
         await conn.execute(CORE_TABLES)
+        # the other services' tables the credit history and the starter check read
+        await conn.execute("""create table if not exists notebooks (
+                   id uuid primary key, owner uuid not null, title text not null default '');
+               create table if not exists outputs (
+                   id uuid primary key, title text not null default '');
+               create table if not exists library_sources (
+                   id uuid primary key, name text not null)""")
         for path in MIGRATIONS:
             await conn.execute(path.read_text())
             await conn.execute(path.read_text())  # idempotent
@@ -509,3 +516,44 @@ async def test_notebook_readiness_reads_ingest_tables(repo: PostgresRepository) 
     assert got is not None and (got.owner_id, got.sources, got.ready) == (owner, 3, 2)
     assert (await repo.notebook_readiness(empty)).sources == 0  # type: ignore[union-attr]
     assert await repo.notebook_readiness(uuid.uuid4()) is None
+
+
+async def test_credit_history_groups_actions_and_joins_titles(repo: PostgresRepository) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    now = datetime.now(UTC)
+    today = now.astimezone(UTC).date()
+    user = await repo.create_user("credit@pg.test", role="user", now=now)
+    admin = await repo.create_user("credit-admin@pg.test", role="admin", now=now)
+    await repo.create_voucher("hash-credit", 400, admin.id, now)
+    await repo.redeem_voucher("hash-credit", user.id, now)
+    nb, out = uuid.uuid4(), uuid.uuid4()
+    async with repo._pool.connection() as conn:
+        await conn.execute("delete from usage")
+        await conn.execute(
+            "insert into notebooks (id, owner, title) values (%s, %s, 'Thesis')", (nb, user.id)
+        )
+        await conn.execute("insert into outputs (id, title) values (%s, 'Report')", (out,))
+        await conn.execute(
+            """insert into usage (user_id, notebook_id, service, kind, model, cost_cents,
+                                  charge_cents, action, action_id, created_at)
+               values (%(u)s, %(nb)s, 'rag', 'llm', 'big', 3, 4.5, 'output:report', %(o)s, %(t)s),
+                      (%(u)s, %(nb)s, 'rag', 'fee', 'fee', 0, 2, 'output:report', %(o)s, %(t)s)""",
+            {"u": user.id, "nb": nb, "o": out, "t": now},
+        )
+    entries, total = await repo.credit_entries(user.id, date(2000, 1, 1), today, 10, 0)
+    assert total == 2 and [e.type for e in entries][0] in ("charge", "voucher")
+    charge = next(e for e in entries if e.type == "charge")
+    assert charge.amount_cents == Decimal("-6.5") and charge.output_title == "Report"
+    assert charge.notebook_title == "Thesis" and charge.model == "big"
+    voucher = next(e for e in entries if e.type == "voucher")
+    assert voucher.amount_cents == 400
+    by_action = await repo.credit_by_action(user.id, date(2000, 1, 1), today)
+    assert [(a.action, a.count, a.charged_cents) for a in by_action] == [
+        ("output:report", 1, Decimal("6.5"))
+    ]
+    days = await repo.credit_by_day(user.id, date(2000, 1, 1), today)
+    assert days[-1][1] == Decimal("6.5") and days[-1][2] == 400
+    page, total = await repo.credit_entries(user.id, date(2000, 1, 1), today, 10, 5)
+    assert page == [] and total == 2

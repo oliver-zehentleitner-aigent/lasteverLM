@@ -41,6 +41,7 @@ from .ecb import EcbError, EcbRates
 from .ingress import IngressProbe
 from .mail import Mailer, MailError, magic_link_mail, voucher_mail
 from .models import (
+    ActionCharge,
     AdminAccess,
     AdminBan,
     AdminBlock,
@@ -52,8 +53,10 @@ from .models import (
     AdminVoucher,
     AllowKind,
     Allowlist,
+    CreditEntry,
     DailyStat,
     DailyStats,
+    DayCharge,
     ExchangeRateStatus,
     FinanceCosts,
     FinanceGroupRow,
@@ -63,6 +66,7 @@ from .models import (
     InfraCostAdd,
     InfraCosts,
     ModelUsage,
+    MyCredit,
     Preferences,
     PreferencesUpdate,
     PricingPreviewRow,
@@ -80,6 +84,7 @@ from .models import (
     SystemIngress,
     SystemPod,
     SystemService,
+    TitledRef,
     TypicalPrice,
     UsageCost,
     UsageStats,
@@ -1214,6 +1219,62 @@ class AccountService:
 
     async def clear_starter_notebook(self) -> None:
         await self.repo.delete_setting(SETTING_STARTER_NOTEBOOK)
+
+    # the user's own credit -------------------------------------------------------
+    def _label(self, action: str | None, model: str | None) -> str | None:
+        if action == "judge" and model:
+            levels = {m: lvl for lvl, m in self.settings.judge_models.items()}
+            return f"judge:{levels[model]}" if model in levels else "judge"
+        return action
+
+    async def my_credit(
+        self, user_id: uuid.UUID, since: date, until: date, limit: int, offset: int
+    ) -> MyCredit:
+        user = await self.user(user_id)
+        totals = await self.repo.credit_totals(user.id)
+        entries, total = await self.repo.credit_entries(user.id, since, until, limit, offset)
+        days = await self.repo.credit_by_day(user.id, since, until)
+
+        def ref(i: uuid.UUID | None, title: str | None) -> TitledRef | None:
+            return TitledRef(id=i, title=title) if i else None
+
+        return MyCredit(
+            balance_cents=totals.balance_cents,
+            from_=since,
+            to=until,
+            granted_cents=int(sum((g for _, _, g in days), Decimal(0))),
+            spent_cents=_money(sum((c for _, c, _ in days), Decimal(0))),
+            total_entries=total,
+            entries=[
+                CreditEntry(
+                    at=e.at,
+                    type=(
+                        "voucher"
+                        if e.type == "voucher"
+                        else "grant" if e.type == "grant" else "charge"
+                    ),
+                    amount_cents=_money(e.amount_cents),
+                    action=e.action,
+                    label_key=self._label(e.action, e.model),
+                    notebook=ref(e.notebook_id, e.notebook_title),
+                    output=ref(e.output_id, e.output_title),
+                    source=ref(e.source_id, e.source_name),
+                )
+                for e in entries
+            ],
+            by_action=[
+                ActionCharge(
+                    action=a.action,
+                    label_key=self._label(a.action, a.model) or a.action,
+                    count=a.count,
+                    charged_cents=_money(a.charged_cents),
+                )
+                for a in await self.repo.credit_by_action(user.id, since, until)
+            ],
+            by_day=[
+                DayCharge(day=d, charged_cents=_money(c), credited_cents=int(g)) for d, c, g in days
+            ],
+        )
 
     # the public price list -----------------------------------------------------
     PRICE_WINDOW_DAYS = 30

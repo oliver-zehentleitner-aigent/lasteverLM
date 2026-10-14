@@ -261,6 +261,50 @@ class StarterNotebook(BaseModel):
     set_by: str | None  # the admin's e-mail
 
 
+class TitledRef(BaseModel):
+    id: uuid.UUID
+    title: str | None  # null when the thing was deleted
+
+
+class CreditEntry(BaseModel):
+    at: datetime
+    type: Literal["voucher", "grant", "charge"]
+    amount_cents: float  # credits positive, a charge negative (one per user action, fee in)
+    action: str | None  # the charged action, e.g. "chat_answer", "output:report"
+    label_key: str | None  # for the web's wording: the action, or "judge:<level>"
+    notebook: TitledRef | None
+    output: TitledRef | None
+    source: TitledRef | None
+
+
+class ActionCharge(BaseModel):
+    action: str
+    label_key: str
+    count: int
+    charged_cents: float
+
+
+class DayCharge(BaseModel):
+    day: date
+    charged_cents: float
+    credited_cents: int
+
+
+class MyCredit(BaseModel):
+    """The signed-in user's own credit: balance now, and for the period what was credited,
+    what was charged and where. Only what the user was charged — no costs, no margins."""
+
+    balance_cents: int
+    from_: date = Field(serialization_alias="from")
+    to: date
+    granted_cents: int
+    spent_cents: float
+    total_entries: int
+    entries: list[CreditEntry]
+    by_action: list[ActionCharge]
+    by_day: list[DayCharge]
+
+
 class TypicalPrice(BaseModel):
     p25: float
     median: float

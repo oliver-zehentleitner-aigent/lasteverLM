@@ -24,9 +24,11 @@ from psycopg_pool import AsyncConnectionPool
 from .repository import (
     AccessRecord,
     ActionAverageRecord,
+    ActionChargeRecord,
     ActionSampleRecord,
     BanRecord,
     BlockRecord,
+    CreditEntryRecord,
     CreditTotals,
     DailyStatsRecord,
     InfraCostRecord,
@@ -797,3 +799,110 @@ class PostgresRepository:
         if row is None:
             return None
         return NotebookReadiness(row["owner"], int(row["sources"]), int(row["ready"]))
+
+    # the user's credit history: usage grouped per action_id (fee included), the ledger,
+    # titles from rag's outputs, ingest's notebooks and library_sources (null when gone)
+    _CHARGES = """
+        select u.action_id as id, min(u.action) as action, min(u.created_at) as at,
+               sum(coalesce(u.charge_cents, u.cost_cents)) as charged,
+               (array_agg(u.notebook_id) filter (where u.notebook_id is not null))[1]
+                   as notebook_id,
+               mode() within group (order by u.model) filter (where u.kind <> 'fee') as model
+        from usage u
+        where u.user_id = %(user)s
+              and (u.created_at at time zone 'UTC')::date between %(since)s and %(until)s
+        group by u.action_id"""
+
+    async def credit_entries(
+        self, user_id: uuid.UUID, since: date, until: date, limit: int, offset: int
+    ) -> tuple[list[CreditEntryRecord], int]:
+        params = {"user": user_id, "since": since, "until": until, "limit": limit, "offset": offset}
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"""with c as ({self._CHARGES}),
+                    entries as (
+                      select c.at, 'charge' as type, -c.charged as amount, c.action, c.model,
+                             c.notebook_id, n.title as notebook_title,
+                             case when c.action like 'output:%%' then c.id end as output_id,
+                             o.title as output_title,
+                             case when c.action like 'source:%%' then c.id end as source_id,
+                             ls.name as source_name
+                      from c
+                      left join notebooks n on n.id = c.notebook_id
+                      left join outputs o on c.action like 'output:%%' and o.id = c.id
+                      left join library_sources ls
+                             on c.action like 'source:%%' and ls.id = c.id
+                      union all
+                      select l.created_at, case when l.reason = 'voucher' then 'voucher'
+                                                else 'grant' end,
+                             l.amount_cents, null, null, null, null, null, null, null, null
+                      from ledger l
+                      where l.user_id = %(user)s
+                            and (l.created_at at time zone 'UTC')::date
+                                between %(since)s and %(until)s)
+                    select *, count(*) over () as total from entries
+                    order by at desc limit %(limit)s offset %(offset)s""",  # noqa: S608
+                params,
+            )
+            rows = await cur.fetchall()
+            total = int(rows[0]["total"]) if rows else 0
+            if not rows and offset:
+                cur = await conn.execute(
+                    f"""select (select count(*) from ({self._CHARGES}) c)
+                               + (select count(*) from ledger where user_id = %(user)s
+                                  and (created_at at time zone 'UTC')::date
+                                      between %(since)s and %(until)s) as total""",  # noqa: S608
+                    params,
+                )
+                row = await cur.fetchone()
+                total = int(row["total"]) if row else 0
+        return [
+            CreditEntryRecord(
+                r["at"],
+                r["type"],
+                Decimal(r["amount"]),
+                r["action"],
+                r["model"],
+                r["notebook_id"],
+                r["notebook_title"],
+                r["output_id"],
+                r["output_title"],
+                r["source_id"],
+                r["source_name"],
+            )
+            for r in rows
+        ], total
+
+    async def credit_by_action(
+        self, user_id: uuid.UUID, since: date, until: date
+    ) -> list[ActionChargeRecord]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"""select action, case when action = 'judge' then model end as model,
+                           count(*) as n, sum(charged) as charged
+                    from ({self._CHARGES}) c group by 1, 2 order by charged desc""",  # noqa: S608
+                {"user": user_id, "since": since, "until": until},
+            )
+            rows = await cur.fetchall()
+        return [
+            ActionChargeRecord(r["action"], int(r["n"]), Decimal(r["charged"]), r["model"])
+            for r in rows
+        ]
+
+    async def credit_by_day(
+        self, user_id: uuid.UUID, since: date, until: date
+    ) -> list[tuple[date, Decimal, Decimal]]:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                """with c as (select (created_at at time zone 'UTC')::date d,
+                                     sum(coalesce(charge_cents, cost_cents)) n
+                              from usage where user_id = %(user)s group by 1),
+                        g as (select (created_at at time zone 'UTC')::date d, sum(amount_cents) n
+                              from ledger where user_id = %(user)s group by 1)
+                   select d, coalesce(c.n, 0) charged, coalesce(g.n, 0) credited
+                   from c full join g using (d)
+                   where d between %(since)s and %(until)s order by d""",
+                {"user": user_id, "since": since, "until": until},
+            )
+            rows = await cur.fetchall()
+        return [(r["d"], Decimal(r["charged"]), Decimal(r["credited"])) for r in rows]

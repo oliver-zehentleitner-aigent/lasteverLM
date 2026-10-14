@@ -12,6 +12,7 @@ preserves why it changed, in `context/`.
 ### Added
 
 - Starter notebook: `GET/PUT/DELETE /admin/settings/starter-notebook` stores the notebook new users get a copy of (settings row `starter_notebook` `{owner_id, notebook_id, set_at, set_by}`, read by ingest and rag); it must exist, belong to an admin and have only ready sources.
+- `GET /api/account/me/credit` for the user's credit page: balance, credits and charged actions (one entry per action, fee included, with notebook, output or source titles), per action and per day; paged, owner only, charged amounts only.
 
 ### Fixed
 
