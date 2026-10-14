@@ -86,8 +86,9 @@ function AllowList({ kind, title, placeholder, values, onChange }: AllowListProp
     <div className="allow-list">
       <h4>{title}</h4>
       <ul className="list">
-        {values.map((v) => (
-          <li key={v}>
+        {/* a viewer gets addresses masked, and two can mask alike */}
+        {values.map((v, i) => (
+          <li key={`${i}:${v}`}>
             <span className="item">{v}</span>
             <button type="button" className="icon" title={canWrite ? t('adm.remove', { v }) : t('adm.readOnlyTitle')} disabled={busy || !canWrite} onClick={() => void remove(v)}>
               ×
