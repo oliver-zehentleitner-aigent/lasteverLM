@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-14
+
 ### Fixed
 
 - A PDF page whose text layer is glyph codes (a font without a usable ToUnicode map, extracted as `&MM,:N K OP&M,MM P2QL …`) no longer counts as text: a page needs at least 60 % letters among its visible characters as well as the 20-character minimum. `auto` sends such a page to the vision model, `text` skips it (and fails with "no legible text" when no page is left); the garbage used to be chunked, embedded and cited.
