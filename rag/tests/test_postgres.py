@@ -891,3 +891,37 @@ def test_suggestions_feedback_and_its_overview_round_trip(store, pool, notebook)
 
 def test_the_flashcards_kind_is_allowed(store, notebook):
     assert store.create_output(notebook, "flashcards", "processing").kind == "flashcards"
+
+
+def test_a_plan_round_trips_and_keeps_its_message_in_step(store, notebook):
+    conversation = store.create_conversation(notebook, "Chat P").id
+    message = store.insert_message(
+        notebook, conversation, "assistant", "plan", [], None, None, {"plan_id": "x"}
+    )
+    plan_id, action_id = str(uuid4()), str(uuid4())
+    store.create_plan(
+        {
+            "id": plan_id,
+            "conversation_id": conversation,
+            "notebook_id": notebook,
+            "owner": store.get_notebook(notebook)["owner"],
+            "status": "proposed",
+            "steps": [{"n": 1, "state": "proposed"}],
+            "estimate": {"min": 0, "max": 1},
+            "action_id": action_id,
+            "message_id": str(message.id),
+        }
+    )
+    plan = store.get_plan(plan_id)
+    assert plan["status"] == "proposed" and plan["action_id"] == action_id
+    store.save_plan(
+        plan_id,
+        status="running",
+        steps=[{"n": 1, "state": "waiting"}],
+        confirmed_at=datetime.now(UTC),
+        plan={"plan_id": plan_id, "status": "running"},
+    )
+    assert [p["id"] for p in store.running_plans()] == [plan_id]
+    assert store.list_messages(conversation)[0].plan == {"plan_id": plan_id, "status": "running"}
+    output = store.create_output(notebook, "quiz", "processing", {}, action_id)
+    assert output.booking_id == action_id

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import copy
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -119,6 +121,7 @@ class FakeStore:
         self.messages: list[dict[str, Any]] = []
         self.bookings: list[tuple[str, uuid.UUID]] = []
         self.copies: dict[str, dict[str, Any]] = {}
+        self.plans: dict[str, dict[str, Any]] = {}
         self.suggestions: dict[str, tuple[str, list[str]]] = {}
         # a rate of 1: charges equal costs unless a test sets margins or a rate
         self.rules = PricingRules.parse({"usd_per_eur": 1})
@@ -186,7 +189,15 @@ class FakeStore:
         return [self._message(m) for m in (rows[-last:] if last else rows)]
 
     def insert_message(
-        self, notebook_id, conversation_id, role, content, citations, support=None, suggestions=None
+        self,
+        notebook_id,
+        conversation_id,
+        role,
+        content,
+        citations,
+        support=None,
+        suggestions=None,
+        plan=None,
     ) -> Message:
         row = {
             "id": str(uuid.uuid4()),
@@ -197,6 +208,7 @@ class FakeStore:
             "citations": citations,
             "support": support,
             "suggestions": suggestions or [],
+            "plan": plan,
             "feedback": None,
             "created_at": f"2026-01-01T00:00:{len(self.messages) % 60:02d}Z",
         }
@@ -247,6 +259,7 @@ class FakeStore:
         kind: OutputKind,
         status: OutputStatus,
         options: dict[str, Any] | None = None,
+        booking_id: str | None = None,
     ) -> OutputRow:
         notebook = self.notebooks[notebook_id]
         row = {
@@ -266,6 +279,7 @@ class FakeStore:
             "claimed_by": None,
             "created_at": (datetime.now(UTC) + timedelta(seconds=len(self.outputs))).isoformat(),
             "options": options or {},
+            "booking_id": booking_id,
         }
         self.outputs[row["id"]] = row
         return self._output_row(row)
@@ -376,7 +390,7 @@ class FakeStore:
         self.outputs[output_id].update(claimed_by=None, error=error)
 
     def _output_row(self, row: dict[str, Any]) -> OutputRow:
-        fields = {k: v for k, v in row.items() if k != "claimed_by"}
+        fields = {k: v for k, v in row.items() if k not in ("claimed_by", "copied_from")}
         deleted = row["deleted_at"]
         purge_at = (
             (datetime.fromisoformat(deleted) + timedelta(days=self.trash_days)).isoformat()
@@ -525,6 +539,24 @@ class FakeStore:
         }
         return True
 
+    # agent plans
+    def create_plan(self, plan: dict[str, Any]) -> None:
+        self.plans[plan["id"]] = {**plan, "confirmed_at": None, "finished_at": None}
+
+    def get_plan(self, plan_id: str) -> dict[str, Any] | None:
+        plan = self.plans.get(plan_id)
+        return copy.deepcopy(plan) if plan else None
+
+    def save_plan(self, plan_id: str, **fields: Any) -> None:
+        public = fields.pop("plan", None)
+        self.plans[plan_id].update(copy.deepcopy(fields))
+        if public is not None:
+            message_id = self.plans[plan_id]["message_id"]
+            next(m for m in self.messages if m["id"] == message_id)["plan"] = public
+
+    def running_plans(self) -> list[dict[str, Any]]:
+        return [copy.deepcopy(p) for p in self.plans.values() if p["status"] == "running"]
+
     def pricing_rules(self) -> PricingRules:
         return self.rules
 
@@ -621,6 +653,34 @@ class FakeEmbedder:
     def embed(self, texts: list[str]) -> EmbeddingResult:
         vectors = [[0.1, 0.2, float(len(t))] for t in texts]
         return EmbeddingResult(vectors, Usage("embedding", "test-embedding", 7 * len(texts), 0))
+
+
+class FakeIngest:
+    """Ingest's API as the agent uses it: records the calls and the bearer."""
+
+    def __init__(self, library: list[dict[str, Any]] | None = None, fail: bool = False) -> None:
+        self.calls: list[tuple[str, str, Any]] = []
+        self.items = library or []
+        self.fail = fail
+
+    def add_url(self, bearer: str, notebook_id: str, url: str) -> dict[str, Any]:
+        from lasteverlm_rag.ingest_client import IngestError
+
+        self.calls.append(("add_url", bearer, url))
+        if self.fail:
+            raise IngestError(400, "url: credentials are not allowed")
+        return {"id": str(uuid.uuid4()), "status": "processing"}
+
+    def add_library(self, bearer: str, notebook_id: str, library_ids: list[str]) -> dict[str, Any]:
+        self.calls.append(("add_library", bearer, library_ids))
+        return {"added": library_ids, "already": []}
+
+    def library(self, bearer: str) -> list[dict[str, Any]]:
+        self.calls.append(("library", bearer, None))
+        return self.items
+
+    def url_charge_cents(self, bearer: str) -> Decimal:
+        return Decimal("0.42")
 
 
 class FakeLLM:
@@ -735,6 +795,7 @@ def make_client(
     dependency_probe: Any = None,
     decision: FakeDecision | None = None,
     judges: dict[str, Any] | None = None,
+    ingest: Any = None,
 ) -> TestClient:
     generators = registry(tts_available=tts is not None)
     outputs = OutputService(
@@ -761,7 +822,10 @@ def make_client(
         rate_limit_store=MemoryRateLimitStore(),
         voice_samples=VoiceSamples(store, tts, objects),
         dependency_probe=dependency_probe,
+        ingest=ingest or FakeIngest(),
     )
     client = TestClient(app, raise_server_exceptions=False)
-    client.worker = Worker(store, outputs, worker_id="test-worker")  # type: ignore[attr-defined]
+    client.worker = Worker(  # type: ignore[attr-defined]
+        store, outputs, worker_id="test-worker", agent=client.app.state.agent
+    )
     return client

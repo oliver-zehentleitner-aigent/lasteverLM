@@ -100,6 +100,7 @@ class Store(Protocol):
         citations: list[dict[str, Any]] | None,
         support: dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
+        plan: dict[str, Any] | None = None,
     ) -> Message: ...
 
     def get_message(self, message_id: str) -> tuple[str, Message] | None:
@@ -129,7 +130,20 @@ class Store(Protocol):
         kind: OutputKind,
         status: OutputStatus,
         options: dict[str, Any] | None = None,
+        booking_id: str | None = None,
     ) -> OutputRow: ...
+
+    # the agent chat's plans
+    def create_plan(self, plan: dict[str, Any]) -> None: ...
+
+    def get_plan(self, plan_id: str) -> dict[str, Any] | None: ...
+
+    def save_plan(self, plan_id: str, **fields: Any) -> None:
+        """``status``, ``steps``, ``confirmed_at``, ``finished_at``; ``plan`` (its
+        public shape) goes onto the message that proposed it."""
+        ...
+
+    def running_plans(self) -> list[dict[str, Any]]: ...
 
     def get_output(self, output_id: str) -> OutputRow | None: ...
 
@@ -277,6 +291,7 @@ _OUTPUT_COLUMNS = f"""
 o.id::text as id, o.notebook_id::text as notebook_id, {_OUTPUT_OWNER}::text as owner, o.kind,
 o.title, o.content, o.status, o.error, o.share_token, o.source_id::text as source_id,
 o.attempts, o.created_at, o.options, o.origin_title, o.deleted_at, o.provenance,
+o.booking_id::text as booking_id,
 o.deleted_at + make_interval(days => {_TRASH_DAYS.format(owner=_OUTPUT_OWNER)}) as purge_at
 """
 _OUTPUT_FROM = "from outputs o left join notebooks n on n.id = o.notebook_id"
@@ -366,6 +381,13 @@ class PgVectorRetriever:
             for r in rows
         ]
 
+
+_PLAN_SQL = (
+    "select id::text as id, conversation_id::text as conversation_id, "
+    "notebook_id::text as notebook_id, owner::text as owner, status, steps, estimate, "
+    "action_id::text as action_id, message_id::text as message_id, created_at, "
+    "confirmed_at, finished_at from plans"
+)
 
 # One copy job per call, oldest first, as the output queue claims: rows other
 # workers hold are skipped, a stale claim is taken over, a row that failed
@@ -544,7 +566,7 @@ class PostgresStore:
         with self._pool.connection() as conn:
             rows = conn.execute(
                 "select * from (select id::text as id, role, content, citations, support, "
-                "suggestions, feedback, created_at "
+                "suggestions, feedback, plan, created_at "
                 "from messages where conversation_id = %s "
                 "order by created_at desc, id desc limit %s) m order by created_at, id",
                 (conversation_id, last),
@@ -560,15 +582,16 @@ class PostgresStore:
         citations: list[dict[str, Any]] | None,
         support: dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
+        plan: dict[str, Any] | None = None,
     ) -> Message:
         with self._pool.connection() as conn:
             row = conn.execute(
                 "insert into messages "
                 "(id, notebook_id, conversation_id, role, content, citations, support, "
-                "suggestions) "
-                "values (%s, %s, %s, %s, %s, %s, %s, %s) "
+                "suggestions, plan) "
+                "values (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
                 "returning id::text as id, role, content, citations, support, suggestions, "
-                "feedback, created_at",
+                "feedback, plan, created_at",
                 (
                     _new_id(),
                     notebook_id,
@@ -578,6 +601,7 @@ class PostgresStore:
                     _jsonb(citations),
                     _jsonb(support),
                     Jsonb(suggestions or []),
+                    _jsonb(plan),
                 ),
             ).fetchone()
         assert row is not None
@@ -587,7 +611,7 @@ class PostgresStore:
         with self._pool.connection() as conn:
             row = conn.execute(
                 "select notebook_id::text as notebook_id, id::text as id, role, content, "
-                "citations, support, suggestions, feedback, created_at "
+                "citations, support, suggestions, feedback, plan, created_at "
                 "from messages where id = %s",
                 (message_id,),
             ).fetchone()
@@ -643,19 +667,63 @@ class PostgresStore:
         kind: OutputKind,
         status: OutputStatus,
         options: dict[str, Any] | None = None,
+        booking_id: str | None = None,
     ) -> OutputRow:
         output_id = _new_id()
         with self._pool.connection() as conn:
             conn.execute(
                 "insert into outputs "
-                "(id, notebook_id, owner, origin_title, kind, title, status, options) "
-                "select %s, n.id, n.owner, n.title, %s, '', %s, %s "
+                "(id, notebook_id, owner, origin_title, kind, title, status, options, booking_id) "
+                "select %s, n.id, n.owner, n.title, %s, '', %s, %s, %s "
                 "from notebooks n where n.id = %s",
-                (output_id, kind, status, Jsonb(options or {}), notebook_id),
+                (output_id, kind, status, Jsonb(options or {}), booking_id, notebook_id),
             )
         row = self.get_output(output_id)
         assert row is not None
         return row
+
+    def create_plan(self, plan: dict[str, Any]) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "insert into plans (id, conversation_id, notebook_id, owner, status, steps, "
+                "estimate, action_id, message_id) values (%(id)s, %(conversation_id)s, "
+                "%(notebook_id)s, %(owner)s, %(status)s, %(steps)s, %(estimate)s, "
+                "%(action_id)s, %(message_id)s)",
+                {**plan, "steps": Jsonb(plan["steps"]), "estimate": Jsonb(plan["estimate"])},
+            )
+
+    def get_plan(self, plan_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(_PLAN_SQL + " where id = %s", (plan_id,)).fetchone()
+        return dict(row) if row else None
+
+    def save_plan(self, plan_id: str, **fields: Any) -> None:
+        public = fields.pop("plan", None)
+        unknown = set(fields) - {"status", "steps", "confirmed_at", "finished_at"}
+        if unknown:
+            raise ValueError(f"not an updatable plans column: {sorted(unknown)}")
+        if "steps" in fields:
+            fields["steps"] = Jsonb(fields["steps"])
+        assignments = ", ".join(f"{name} = %({name})s" for name in fields)
+        with self._pool.connection() as conn, conn.transaction():
+            if fields:
+                conn.execute(
+                    f"update plans set {assignments} where id = %(id)s",
+                    {**fields, "id": plan_id},
+                )
+            if public is not None:
+                conn.execute(
+                    "update messages m set plan = %s from plans p "
+                    "where p.id = %s and m.id = p.message_id",
+                    (Jsonb(public), plan_id),
+                )
+
+    def running_plans(self) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                _PLAN_SQL + " where status = 'running' order by confirmed_at"
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def get_output(self, output_id: str) -> OutputRow | None:
         with self._pool.connection() as conn:
@@ -1162,4 +1230,5 @@ def _to_output(row: dict[str, Any]) -> OutputRow:
         deleted_at=_str_or_none(row.get("deleted_at")),
         purge_at=_str_or_none(row.get("purge_at")),
         provenance=row.get("provenance"),
+        booking_id=row.get("booking_id"),
     )

@@ -32,10 +32,11 @@ from lasteverlm_core import (
     make_client,
 )
 
+from .agent_service import AgentService
 from .config import Settings
 from .judge import judge_models
 from .outputs import registry
-from .service import OutputService
+from .service import OutputService, RagService
 from .store import PgVectorRetriever, PostgresStore, Store, make_pool
 
 log = logging.getLogger("lasteverlm_rag.worker")
@@ -56,9 +57,12 @@ class Worker:
         worker_id: str | None = None,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
+        agent: AgentService | None = None,
     ) -> None:
         self._store = store
         self._outputs = outputs
+        # agent plans whose steps wait for an output or for the timeout
+        self._agent = agent
         self.worker_id = worker_id or f"{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
         self._sleep = sleep
         self._clock = clock
@@ -87,13 +91,17 @@ class Worker:
         while True:
             job = self._store.claim_output(self.worker_id, STALE_CLAIM_S)
             if job is None:
-                return finished
+                break
             if self._outputs.process(job):
                 finished += 1
             elif job.id in retried:
-                return finished  # the same job failed twice this pass; let it rest until the next
+                break  # the same job failed twice this pass; let it rest until the next
             else:
                 retried.add(job.id)
+        if self._agent is not None:
+            # after the jobs, so a plan sees the outputs this pass finished
+            self._agent.advance()
+        return finished
 
     def purge_if_due(self) -> int:
         """Purge expired trash at the first call and then once per interval.
@@ -153,7 +161,24 @@ def main() -> None:
         decision=OpenAICompatibleDecision(client, settings.inference.decision_model),
         judges=judge_models(client, settings.inference.judge_models),
     )
-    worker = Worker(store, outputs)
+    llm = OpenAICompatibleLLM(
+        client, settings.inference.llm_model, max_tokens=settings.inference.llm_max_tokens
+    )
+    embedder = OpenAICompatibleEmbedder(
+        client, settings.inference.embedding_model, settings.inference.embedding_dimension
+    )
+    rag = RagService(
+        store,
+        PgVectorRetriever(pool),
+        embedder,
+        llm,
+        settings.retrieval_k,
+        settings.similarity_floor,
+        generated_slots=settings.retrieval_generated_slots,
+    )
+    # the worker only moves confirmed plans on: no planning, no ingest calls
+    agent = AgentService(store, rag, outputs, llm, None, lambda *_: {}, settings.tts_voice)
+    worker = Worker(store, outputs, agent=agent)
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: worker.stop())
     try:

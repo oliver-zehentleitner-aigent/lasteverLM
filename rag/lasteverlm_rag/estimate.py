@@ -12,7 +12,7 @@ the real counts.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any
@@ -186,3 +186,35 @@ def estimate(
 def _cents(value: Decimal, rounding: str) -> float:
     """To a hundredth of a cent, rounded outwards so the range holds."""
     return float(value.quantize(Decimal("0.01"), rounding=rounding))
+
+
+def step_estimator(
+    prices: ModelPrices,
+    rules: Callable[[], PricingRules],
+    generators: Mapping[Any, OutputGenerator],
+    models: Models,
+    url_charge: Callable[[str], Decimal] | None,
+) -> Callable[[Any, str], dict[str, float]]:
+    """The charge range of one agent plan step, in euro cents: an output as
+    its estimate, an explanation as a chat answer, a web page at ingest's
+    price (asked with the user's bearer); the rest charges nothing."""
+
+    def estimate_step(step: Any, bearer: str) -> dict[str, float]:
+        if step.tool == "create_output":
+            kind, options = step.args["kind"], step.args["options"]
+            action = f"output:{kind}"
+            low, high = (
+                output_calls(kind, options, generators[kind], models, case) for case in (0, 1)
+            )
+        elif step.tool == "explain_output":
+            action = "chat_answer"
+            low, high = (action_calls(action, {}, models, case) for case in (0, 1))
+        elif step.tool == "add_url" and url_charge is not None:
+            cents = float(url_charge(bearer))
+            return {"min": cents, "max": cents}
+        else:
+            return {"min": 0.0, "max": 0.0}
+        result = estimate(prices, rules(), action, low, high)
+        return {"min": result["charge_cents_min"], "max": result["charge_cents_max"]}
+
+    return estimate_step

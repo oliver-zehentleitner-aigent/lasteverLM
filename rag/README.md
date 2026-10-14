@@ -15,7 +15,10 @@ this directory implements the `/api/rag` prefix.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?, "source_ids"?}` | `Answer` |
+| POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?, "source_ids"?}` | `Answer`; with `plan` instead of an answer when the message asks for actions, see **Agent chat** |
+| GET | `/api/rag/conversations/{id}/plans/{plan_id}` | | the plan with every step's state |
+| POST | `/api/rag/conversations/{id}/plans/{plan_id}/confirm` | | runs a proposed plan; 409 when confirmed or cancelled already |
+| POST | `/api/rag/conversations/{id}/plans/{plan_id}/cancel` | | cancels a proposed plan |
 | GET | `/api/rag/notebooks/{id}/suggestions` | | `{"suggestions", "cached"}`: starting questions, see **Suggestions** |
 | POST | `/api/rag/messages/{id}/feedback` | `{"rating": "up" \| "down", "comment"?}` | `Message` with its `feedback`; the owner's, for answers only (409 otherwise), a new rating replaces the old |
 | GET | `/api/rag/notebooks/{id}/conversations` | | `[Conversation]`, oldest first |
@@ -325,6 +328,54 @@ passages. `POST /messages/{id}/judge` does the same for a chat answer's
 paragraphs against its citations, stored with the message's support.
 Both are synchronous, need credit, and run four judge calls at a time.
 
+**Agent chat.** A chat message first goes to a planning call (the LLM
+with tools, `complete_tools`). That call sees the user's message, their
+earlier questions and the names of the notebook's documents and outputs,
+never a passage.
+
+- **Tools:** `add_url(url)`, `add_from_library(query)`,
+  `create_output(kind, options)` (every kind but chart, its options as
+  the catalogue lists them), `explain_output(output_id or "step:<n>",
+  question?)`, `list_sources()`, `list_outputs()`. None deletes anything,
+  and none touches the account.
+- **No tool call:** the message is answered as before. The planning call
+  and the answer book under one `chat_answer` action.
+- **Tool calls:** they become a plan of at most six steps:
+  `Answer.plan` = `{"plan_id", "status", "steps": [{"n", "tool", "args",
+  "label", "valid", "invalid_reason"?, "estimate": {"min", "max"},
+  "state", "error"?, "result"?, "processing"?}], "estimate": {"min",
+  "max"}, "separate": [{"n", "label", "min", "max"}]}`, with estimates in
+  euro cents. `estimate` is the plan's own action. Ingest's processing of
+  a page an `add_url` step adds is booked under ingest's action, at the
+  price `/prices` shows for adding a web page. So it is not in that total:
+  it is the step's `processing` and a line of `separate`. The plan is also on the proposing message
+  (`Message.plan`), kept current.
+- **Invalid steps:** tool arguments come only from the user's message and
+  their own library. A URL must be written in the message, a library
+  source is found by name in the user's library (through ingest), and
+  options go through the kind's validation. A step that breaks a rule
+  stays in the plan with `valid: false` and its reason and is never run.
+
+Nothing runs before `POST .../plans/{plan_id}/confirm`.
+
+- **Ingest steps** run inside the confirm request with its own bearer,
+  because rag stores no tokens: adding a URL goes through ingest's SSRF
+  guard, and linking library sources is ingest's bulk link.
+- **Outputs** are created as any other, booked under the plan's
+  `action_id` (`outputs.booking_id`); their jobs wait for the notebook's
+  processing sources.
+- **Explanations** run when their output is ready, as a scoped, cited
+  answer in the conversation.
+- **The worker** moves waiting steps on. An output still waiting for a
+  source 30 minutes after confirmation fails with "a source did not
+  become ready within 30 minutes", uncharged.
+- **Failures and the end:** a failed step does not stop the others, and
+  the plan ends with a summary message.
+- **Billing and limits:** every call of a plan books under its
+  `action_id`. Ingest's processing of an added source books under
+  ingest's own action. Credit is checked per step, and the API's rate
+  limit applies to confirm as to every route.
+
 **Suggestions.**
 - **With every answer.** Each chat answer returns `suggestions`, up to
   three short follow-up questions. They come from the same model call:
@@ -497,6 +548,7 @@ missing or a configured model has no price.
 | `MODEL_PRICES` | yes | JSON `{"<model>": {"in": cents, "out": cents}}` per million tokens; every configured model needs an entry |
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
 | `JUDGE_MODELS` | no; defaults in core | JSON level → model for the judge (`low`, `medium`, `high`), chosen from `docs/judge-eval.md`; every model needs a `MODEL_PRICES` entry, or startup refuses |
+| `INGEST_URL` | no; default `http://ingest` | ingest's API inside the cluster, for the agent chat's steps |
 | `DECISION_MODEL` | no; default `clef` (core) | the platform's decision model for the decision kind, used by the worker; it needs a `MODEL_PRICES` entry, `in` per million input tokens, or startup refuses |
 | `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million seconds of generated audio |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | for audio | object storage for audio files, through core's storage client |
@@ -587,7 +639,9 @@ adds `messages.support` (`{"units", "check"}` of an answer);
 `outputs.copied_from` for the starter notebook;
 `0010_rag_suggestions_feedback.sql` adds `messages.suggestions`,
 `messages.feedback` and the `notebook_suggestions` cache;
-`0011_rag_flashcards_kind.sql` allows the kind `flashcards`. The
+`0011_rag_flashcards_kind.sql` allows the kind `flashcards`;
+`0012_rag_plans.sql` adds the agent chat's `plans`, `messages.plan` and
+`outputs.booking_id`. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and
@@ -628,6 +682,9 @@ lasteverlm_rag/
 ├── starter.py      copying a starter notebook's outputs: id remapping
 ├── speech.py       splitting an audio script into synthesis segments
 ├── voice_samples.py cached voice previews
+├── agent.py        the agent chat's tools and plan validation (arguments only from the user)
+├── agent_service.py plan, confirm, execute; the worker's half of the agent chat
+├── ingest_client.py ingest's API for the agent's steps, with the user's bearer
 ├── admin.py        admin statistics (totals, daily series)
 ├── outputs/        OutputGenerator interface, one module per kind
 ├── store.py        Retriever and Store interfaces + PostgreSQL/pgvector adapters

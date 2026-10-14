@@ -40,6 +40,8 @@ class Settings:
     retrieval_generated_slots: int
     similarity_floor: float
     log_level: str
+    # ingest's API inside the cluster, for the agent chat's steps (the chart's Service name)
+    ingest_url: str = "http://ingest"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -78,6 +80,7 @@ class Settings:
             retrieval_generated_slots=generated_slots,
             similarity_floor=_unit_float(env.get("SIMILARITY_FLOOR", "0.3"), "SIMILARITY_FLOOR"),
             log_level=(env_optional("LOG_LEVEL", env) or "INFO").upper(),
+            ingest_url=(env_optional("INGEST_URL", env) or "http://ingest").rstrip("/"),
         )
 
 

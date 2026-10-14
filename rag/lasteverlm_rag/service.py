@@ -44,6 +44,8 @@ from lasteverlm_core import (
     StorageError,
     TextToSpeech,
     TokenWindowChunker,
+    ToolCallingLLM,
+    ToolCompletion,
     Usage,
     object_key,
 )
@@ -325,7 +327,10 @@ class RagService:
         conversation_id: str,
         output_id: str | None = None,
         source_ids: list[str] | None = None,
+        booking: Booking | None = None,
     ) -> Answer:
+        """``booking`` books the answer under an action already begun (an agent
+        plan's, or the planning call's before it); a new chat_answer otherwise."""
         require_notebook(self._store, user_id, notebook_id)
         conversation = self._owned_conversation(user_id, conversation_id)
         if conversation.notebook_id != notebook_id:
@@ -335,7 +340,7 @@ class RagService:
         require_credit(self._store, user_id)
         question = question.strip()
 
-        booking = Booking.new(user_id, notebook_id, "chat_answer")
+        booking = booking or Booking.new(user_id, notebook_id, "chat_answer")
         embedded = embed_billed(self._store, self._embedder, booking, [question])
         chunks = self._retrieve(notebook_id, embedded.vectors[0], source_id, selected)
         documents = self._store.notebook_documents(notebook_id)
@@ -566,7 +571,9 @@ class OutputService:
         kind: OutputKind,
         options: OutputOptions | None = None,
         source_ids: list[str] | None = None,
+        booking_id: str | None = None,
     ) -> Output:
+        """``booking_id`` is an agent plan's action_id: the job books under it."""
         try:
             resolved = resolve(kind, options, self._default_voice)
         except ValueError as exc:
@@ -586,7 +593,7 @@ class OutputService:
             for s in states
         )
         row = self._store.create_output(
-            notebook_id, kind, "waiting" if waiting else "processing", resolved
+            notebook_id, kind, "waiting" if waiting else "processing", resolved, booking_id
         )
         return self._present(row)
 
@@ -839,8 +846,11 @@ class OutputService:
                 raise GenerationFailed("the notebook was deleted")
             self._store.update_output(job.id, status="processing")
             trace = self._log(job)
-            # every call of this output, all attempts and the judge's rounds included
-            booking = Booking(job.owner, notebook_id, f"output:{job.kind}", uuid.UUID(job.id))
+            # every call of this output, all attempts and the judge's rounds included,
+            # under the agent plan's action when a plan created it
+            booking = Booking(
+                job.owner, notebook_id, f"output:{job.kind}", uuid.UUID(job.booking_id or job.id)
+            )
             generated = self._generate(booking, notebook_id, job, trace)
             # the units are marked in place, inside the content
             check = generated.check or check_units(
@@ -1483,6 +1493,22 @@ def complete_billed(
     """Complete and write the usage row, also when the call fails after billing."""
     with _billed_on_failure(store, booking):
         result = llm.complete(system, user, max_tokens, thinking=thinking)
+    store.record_usage(booking, result.usage)
+    return result
+
+
+def complete_tools_billed(
+    store: Store,
+    llm: ToolCallingLLM,
+    booking: Booking,
+    system: str,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    max_tokens: int | None = None,
+) -> ToolCompletion:
+    """A tool-calling completion with its usage row, also when it fails after billing."""
+    with _billed_on_failure(store, booking):
+        result = llm.complete_tools(system, messages, tools, max_tokens)
     store.record_usage(booking, result.usage)
     return result
 
