@@ -369,7 +369,10 @@ the canary was not reported; 3: a storage load failed or came from
 another origin. The storage step checks the narrowed policy where it
 matters: on `/library` it hovers an image's name (the preview loads its
 presigned image) and plays an audio source if there is one; in a
-notebook it opens a ready PDF source's tab (the original in a frame).
+notebook it opens a ready PDF source's tab (the original in a frame) and
+a ready web page source's tab (its stored snapshot in a frame whose
+`sandbox` must not contain `allow-scripts` or `allow-same-origin`; no
+such source fails the walk).
 Each load must come from the `s3Endpoint` of the values file
 (`STORAGE_ORIGIN`) and draw no violation. A build without the inline
 PDF frame, or a demo user without such a source, is reported as such,
