@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-14
+
 ### Changed
 
 - `DEFAULT_JUDGE_MODELS` swaps low and medium: `low` is `deepseek-v4.1-flash`, `medium` `glm-5.3-flash` (`high` stays `glm-5.3`). rag's measurement found deepseek the cheapest per call, because the GLM models reason even with thinking off.
