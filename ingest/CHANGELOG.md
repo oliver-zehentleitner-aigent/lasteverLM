@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- A fifth demo source: `hollin-interview.mp3`, an 80-second radio interview with the keeper of Hollin Lighthouse (two platform TTS voices, 637 KB), whose facts are in no other demo source. Seeded and processed like the others at the demo user's expense, transcribed by the normal pipeline. Owners already seeded do not get it; the demo reset does. The script (`hollin-interview.txt`) and `demo/build_audio.py` rebuild it.
+
 ## [0.12.0] - 2026-10-14
 
 ### Added

@@ -344,7 +344,7 @@ fail with "capture mode … needs a vision model".
 
 ## Demo library
 
-Every new user finds four demo sources in their library, one per kind,
+Every new user finds five demo sources in their library, one per kind,
 forming one fictional set around Zeltavia (the country of the smoke
 test) so that questions across sources work:
 
@@ -354,6 +354,7 @@ test) so that questions across sources work:
 | `zeltavian-glossary.md` | text | words and customs that the field notes use (brennet, smokra, the Knelling, …) |
 | `marrow-bay-map.png` | image | a map of the places in both, with labels the vision model transcribes |
 | https://en.wikipedia.org/wiki/Dead_reckoning | url | the real navigation method the diary describes |
+| `hollin-interview.mp3` | audio | an 80-second radio interview (two voices) with the keeper of Hollin Lighthouse: the lamp's history, the fog signal Old Grumble, the Strand ledger naming the expedition's ship, Puffin Sunday. None of these facts is in the other four, so a question about them is answered from the transcript |
 
 `seeds.ensure_seeded` runs on the owner's first `GET /library` or first
 upload. `library_seeds` (migration 0007) marks every owner it has looked
@@ -370,7 +371,15 @@ any duplicate. `SEED_DEMO_LIBRARY=false` turns seeding off.
 The PDF and the map are generated from `src/lasteverlm_ingest/demo/`
 by `demo/build.py` (a small PDF writer with Helvetica and real page
 breaks, and Pillow for the map, under 30 KB) and committed; run it only
-after changing the sources. Measured: the vision model transcribes all
+after changing the sources. The recording is made once from its script
+(`hollin-interview.txt`) by `demo/build_audio.py` with the platform's
+speech model (voices serena and ryan, joined and re-encoded by ffmpeg to
+mono 64 kbit/s, 637 KB) and committed; unlike `build.py` it is not
+deterministic and costs a few cents, so it runs only when the script
+changes. Its transcript comes from the normal pipeline when the seed is
+processed. Owners seeded before the recording was added do not get it:
+seeding happens once per owner, and the demo reset gives them the new
+set. Measured: the vision model transcribes all
 fifteen labels of the map in one call (537 input, 119 output tokens);
 the call returned the labels without a description of the map.
 
