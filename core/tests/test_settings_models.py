@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from lasteverlm_core import (
     UNKNOWN_BUILD,
+    Answer,
     ChunkView,
     Citation,
     ConfigError,
@@ -116,6 +117,29 @@ def test_provenance_is_optional_and_passed_through() -> None:
     )
     assert shared.model_dump(mode="json")["provenance"] == log
     assert SharedOutput(kind="report", title="t", created_at=shared.created_at).provenance is None
+
+
+def test_support_check_on_messages_and_answers_is_optional() -> None:
+    row = {
+        "id": str(uuid4()),
+        "role": "assistant",
+        "content": "a [1]",
+        "created_at": "2026-10-14T00:00:00Z",
+    }
+    assert (Message.model_validate(row).units, Message.model_validate(row).check) == (None, None)
+    units = [{"text": "a [1]", "refs": [1], "support": "supported"}]
+    check = {
+        "method": "overlap",
+        "threshold": 0.5,
+        "supported": 1,
+        "unsupported": 0,
+        "unverified": 0,
+    }
+    message = Message.model_validate({**row, "units": units, "check": check})
+    assert message.model_dump(mode="json")["units"] == units
+    answer = Answer(message_id=uuid4(), answer="a [1]", units=units, check=check)
+    assert answer.check == check
+    assert Answer(message_id=uuid4(), answer="a").units is None
 
 
 def test_health_reports_the_build_from_the_env() -> None:

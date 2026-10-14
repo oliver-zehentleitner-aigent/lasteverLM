@@ -117,21 +117,33 @@ class ChunkView(BaseModel):
 
 
 class Message(_Row):
-    """One chat message; an assistant message carries its citations."""
+    """One chat message; an assistant message carries its citations.
+
+    `units` (one entry per answer paragraph, with its `[n]` refs and
+    whether the cited chunks support it) and `check` (the method,
+    threshold and counts) are the support check rag runs on an answer,
+    shaped as on outputs' provenance; rag owns and documents both. They
+    are `None` for an answer without citations and for older messages.
+    """
 
     id: UUID
     role: MessageRole
     content: str
     citations: list[Citation] = Field(default_factory=list)
+    units: list[dict[str, Any]] | None = None
+    check: dict[str, Any] | None = None
     created_at: datetime
 
 
 class Answer(BaseModel):
-    """What the ask endpoint returns: the stored message's id, text and citations."""
+    """What the ask endpoint returns: the stored message's id, text and
+    citations, and the support check as on `Message` (`units`, `check`)."""
 
     message_id: UUID
     answer: str
     citations: list[Citation] = Field(default_factory=list)
+    units: list[dict[str, Any]] | None = None
+    check: dict[str, Any] | None = None
 
 
 class Output(_Row):
