@@ -387,6 +387,13 @@ class InMemoryRepository:
     def refresh_claim(self, library_id: UUID) -> None:
         self.refreshed.append(library_id)
 
+    def wait_for_credit(self, library_id: UUID) -> None:
+        lib = self.library[library_id]
+        self.library[library_id] = lib.model_copy(
+            update={"attempts": max(lib.attempts - 1, 0), "error": None}
+        )
+        self.claimed.pop(library_id, None)
+
     def claim_library_source(self, worker_id: str, stale_after_seconds: int) -> UUID | None:
         for lib in sorted(self.library.values(), key=lambda s: s.created_at):
             if (
@@ -396,6 +403,7 @@ class InMemoryRepository:
                 and lib.id not in self.claimed
                 and lib.attempts < MAX_ATTEMPTS
                 and self.retry_at.get(lib.id, datetime.min.replace(tzinfo=UTC)) <= datetime.now(UTC)
+                and (lib.demo or self.has_credit(lib.owner))
             ):
                 self.claimed[lib.id] = worker_id
                 self.library[lib.id] = lib.model_copy(update={"attempts": lib.attempts + 1})
@@ -448,11 +456,19 @@ class InMemoryRepository:
         for lib in listed:
             counts[lib.status] += 1
         running = sum(1 for lib in listed if lib.status == "processing" and lib.id in self.claimed)
+        waiting = sum(
+            1
+            for lib in listed
+            if lib.status == "processing"
+            and lib.id not in self.claimed
+            and not (lib.demo or self.has_credit(lib.owner))
+        )
         return AdminStats(
             sources=counts,
             jobs={
-                "pending": counts["processing"] - running,
+                "pending": counts["processing"] - running - waiting,
                 "running": running,
+                "waiting_for_credit": waiting,
                 "failed": counts["failed"],
             },
             chunks=sum(len(self.chunks.get(lib.id, [])) for lib in listed),

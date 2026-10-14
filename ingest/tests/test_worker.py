@@ -66,12 +66,15 @@ def test_summary_failure_fails_the_source_but_keeps_chunks_and_usage():
     assert sid in repo.chunks and [u.kind for u in repo.usage] == ["embedding"]
 
 
-def test_credit_gone_after_embedding_fails_before_summary():
+def test_credit_gone_after_embedding_waits_before_summary():
     repo, storage, summarizer = InMemoryRepository(balance=1), InMemoryStorage(), FakeSummarizer()
     sid = add_source(repo, storage, b"some text here")
+    assert repo.claim_library_source("w", 600) == sid
     process_source(sid, deps(repo, storage, FakeEmbedder(), summarizer))
-    assert repo.library[sid].error == "credit exhausted"
-    assert summarizer.calls == []
+    source = repo.library[sid]
+    # Back in the queue, the attempt not counted, until there is credit.
+    assert source.status == "processing" and source.error is None and source.attempts == 0
+    assert summarizer.calls == [] and repo.claim_library_source("w", 600) is None
     assert [u.kind for u in repo.usage] == ["embedding"]
 
 
@@ -85,12 +88,11 @@ def test_loader_error_marks_failed_with_message():
     assert sid not in repo.chunks and repo.usage == []
 
 
-def test_no_credit_marks_failed_before_embedding():
+def test_no_credit_waits_before_embedding():
     repo, storage, embedder = InMemoryRepository(balance=0), InMemoryStorage(), FakeEmbedder()
     sid = add_source(repo, storage, b"some text")
     process_source(sid, deps(repo, storage, embedder))
-    assert repo.library[sid].status == "failed"
-    assert repo.library[sid].error == "credit exhausted"
+    assert repo.library[sid].status == "processing" and repo.library[sid].error is None
     assert embedder.calls == []
 
 

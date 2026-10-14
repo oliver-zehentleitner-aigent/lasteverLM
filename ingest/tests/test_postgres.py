@@ -354,6 +354,27 @@ def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     assert repo.get_library_source(kept.id) is not None
 
 
+def test_the_queue_waits_for_credit_without_counting_attempts(repo):
+    _claim_all(repo)
+    broke = _user(repo, cents=0)
+    waiting = _library(repo, broke)
+    seeded = _library(repo, broke, demo=True)  # sponsored: claimed regardless
+    assert _claim_all(repo) == {seeded.id}
+    assert repo.get_library_source(waiting.id).attempts == 0
+    _execute(
+        repo,
+        "insert into ledger (user_id, amount_cents, reason) values (%s, 100, 'voucher')",
+        (broke,),
+    )
+    assert repo.claim_library_source("w", STALE) == waiting.id
+    # Credit runs out mid-job: back in the queue, the attempt not counted.
+    repo.wait_for_credit(waiting.id)
+    row = repo.get_library_source(waiting.id)
+    assert row.attempts == 0 and row.status == "processing" and row.error is None
+    _execute(repo, "delete from ledger where user_id = %s", (broke,))
+    assert repo.claim_library_source("w", STALE) is None
+
+
 def test_the_queue_skips_generated_trashed_and_backed_off_rows(repo):
     _claim_all(repo)
     owner = _user(repo)
@@ -482,13 +503,17 @@ def test_admin_counts(repo):
     repo.set_library_status(ready.id, "ready")
     repo.set_library_status(failed.id, "failed", "x")
     _generated(repo, notebook.id, owner)
+    broke = _user(repo, cents=0)
+    _library(repo, broke)  # queued, its owner without credit
     after = repo.admin_stats(STALE)
+    assert after.jobs["waiting_for_credit"] == before.jobs["waiting_for_credit"] + 1
+    assert after.jobs["pending"] == before.jobs["pending"]
     assert after.sources["ready"] == before.sources["ready"] + 1
     assert after.sources["failed"] == before.sources["failed"] + 1
-    assert after.source_bytes == before.source_bytes + 20
+    assert after.source_bytes == before.source_bytes + 30
     days = repo.admin_daily(7)
     assert len(days) == 7 and days[0].day < days[-1].day
     today = days[-1]
-    assert today.sources_created == today_before.sources_created + 2
+    assert today.sources_created == today_before.sources_created + 3
     assert today.by_kind["pdf"] == today_before.by_kind["pdf"] + 1
     assert today.failed == today_before.failed + 1

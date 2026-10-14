@@ -268,6 +268,12 @@ class Repository(Protocol):
         Generated rows are rag's and never claimed; trashed ones wait."""
         ...
 
+    def wait_for_credit(self, library_id: UUID) -> None:
+        """Release the claim without counting the attempt: the owner ran out
+        of credit, and the claim query skips the source until they have
+        some again."""
+        ...
+
     def refresh_claim(self, library_id: UUID) -> None:
         """The worker is still at it: move `claimed_at` to now, so a long
         job is not taken over as stale while it makes progress."""
@@ -500,6 +506,12 @@ class PostgresRepository:
 
     # Every library read filters with this: generated rows are rag's.
     _LISTED = "l.kind <> 'generated'"
+    # May the worker process this row: a sponsored demo seed, or an owner
+    # with a positive balance (core's rule, ledger minus usage).
+    _FUNDED = (
+        "(l.demo or coalesce((select sum(amount_cents) from ledger where user_id = l.owner), 0)"
+        " - coalesce((select sum(cost_cents) from usage where user_id = l.owner), 0) > 0)"
+    )
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
@@ -692,20 +704,34 @@ class PostgresRepository:
     # lets any number of workers claim concurrently without a broker; the
     # claim itself is the row update, in the same statement. Generated rows
     # are written and finished by rag, never by this worker.
-    _CLAIM_SQL = """
+    # Processing needs credit: a source whose owner has none is not claimed
+    # (the API shows it as waiting_for_credit) and is taken as soon as the
+    # owner's balance is positive again; the demo seeds are sponsored.
+    # Core's balance (ledger minus usage), per candidate owner.
+    _CLAIM_SQL = f"""
     update library_sources
        set claimed_at = now(), claimed_by = %(worker)s, attempts = attempts + 1
      where id = (
-        select id from library_sources
-         where status = 'processing' and kind <> 'generated' and deleted_at is null
-           and (retry_at is null or retry_at <= now())
-           and (claimed_at is null or claimed_at < now() - make_interval(secs => %(stale)s))
-           and attempts < %(max)s
-         order by created_at
-         for update skip locked
+        select l.id from library_sources l
+         where l.status = 'processing' and l.kind <> 'generated' and l.deleted_at is null
+           and (l.retry_at is null or l.retry_at <= now())
+           and (l.claimed_at is null
+                or l.claimed_at < now() - make_interval(secs => %(stale)s))
+           and l.attempts < %(max)s
+           and {_FUNDED}
+         order by l.created_at
+         for update of l skip locked
          limit 1)
     returning id
     """
+
+    def wait_for_credit(self, library_id: UUID) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set claimed_at = null, claimed_by = null, "
+                "attempts = greatest(attempts - 1, 0), error = null where id = %(id)s",
+                {"id": library_id},
+            )
 
     def release_for_retry(self, library_id: UUID, error: str, delay_seconds: float) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -816,9 +842,10 @@ class PostgresRepository:
     select count(*) filter (where status = 'processing'),
            count(*) filter (where status = 'ready'),
            count(*) filter (where status = 'failed'),
-           count(*) filter (where status = 'processing'
+           count(*) filter (where status = 'processing' and {_FUNDED}
                               and (claimed_at is null
                                    or claimed_at < now() - make_interval(secs => %(stale)s))),
+           count(*) filter (where status = 'processing' and not {_FUNDED}),
            coalesce(sum(size_bytes), 0),
            (select count(*) from chunks c join library_sources l on l.id = c.library_source_id
              where {_LISTED})
@@ -831,10 +858,15 @@ class PostgresRepository:
             cur.execute(self._STATS_SQL, {"stale": stale_after_seconds})
             row = cur.fetchone()
         assert row is not None
-        processing, ready, failed, pending, size, chunks = (int(v) for v in row)
+        processing, ready, failed, pending, waiting, size, chunks = (int(v) for v in row)
         return AdminStats(
             sources={"processing": processing, "ready": ready, "failed": failed},
-            jobs={"pending": pending, "running": processing - pending, "failed": failed},
+            jobs={
+                "pending": pending,
+                "running": processing - pending - waiting,
+                "waiting_for_credit": waiting,
+                "failed": failed,
+            },
             chunks=chunks,
             source_bytes=size,
         )

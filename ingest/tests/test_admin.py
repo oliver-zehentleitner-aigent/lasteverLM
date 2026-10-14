@@ -18,7 +18,7 @@ def test_admin_stats_counts_across_users(client, repo, run_queue):
     assert empty.status_code == 200
     assert empty.json() == {
         "sources": {"processing": 0, "ready": 0, "failed": 0},
-        "jobs": {"pending": 0, "running": 0, "failed": 0},
+        "jobs": {"pending": 0, "running": 0, "waiting_for_credit": 0, "failed": 0},
         "chunks": 0,
         "source_bytes": 0,
     }
@@ -33,12 +33,16 @@ def test_admin_stats_counts_across_users(client, repo, run_queue):
     repo.add_source(other.id, "d.txt", "text", "k", 10)
     repo.add_source(other.id, "report", "generated", None)  # rag's, never counted
     repo.claim_library_source("w", 600)
+    broke = repo.create_notebook(uuid4(), "no credit")
+    repo.credits[broke_owner := repo.notebooks[broke.id][0]] = 0
+    assert broke_owner != DEMO_USER_ID
+    repo.add_source(broke.id, "e.txt", "text", "k2", 5)
 
     stats = client.get("/api/ingest/admin/stats").json()
-    assert stats["sources"] == {"processing": 2, "ready": 1, "failed": 1}
-    assert stats["jobs"] == {"pending": 1, "running": 1, "failed": 1}
+    assert stats["sources"] == {"processing": 3, "ready": 1, "failed": 1}
+    assert stats["jobs"] == {"pending": 1, "running": 1, "waiting_for_credit": 1, "failed": 1}
     assert stats["chunks"] >= 1
-    assert stats["source_bytes"] == len(pdf) + 3 + len(b"waiting") + 10
+    assert stats["source_bytes"] == len(pdf) + 3 + len(b"waiting") + 10 + 5
 
 
 def test_admins_need_credit_like_everyone(client, repo):
@@ -48,7 +52,9 @@ def test_admins_need_credit_like_everyone(client, repo):
     url = f"/api/ingest/notebooks/{nb}/sources"
     files = {"file": ("a.txt", b"text", "text/plain")}
     repo.admins.add(DEMO_USER_ID)
-    assert client.post(url, files=files).status_code == 402
+    r = client.post(url, files=files)
+    assert r.status_code == 202 and r.json()["status"] == "waiting_for_credit"
+    assert repo.claim_library_source("w", 600) is None
 
 
 def test_daily_stats_every_day_oldest_first(client, repo):
