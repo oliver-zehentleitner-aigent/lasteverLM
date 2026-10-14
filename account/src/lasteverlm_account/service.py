@@ -1163,11 +1163,23 @@ class AccountService:
         samples: dict[str, list[ActionSampleRecord]] = {}
         for sample in await self.repo.action_samples(now - timedelta(days=self.PRICE_WINDOW_DAYS)):
             samples.setdefault(sample.action, []).append(sample)
-        rows = []
+        # The judge costs very different amounts per level (model); one price would mislead,
+        # so its samples are split by the level whose model ran them.
+        levels = {model: level for level, model in self.settings.judge_models.items()}
+        groups: list[tuple[str, str | None, Any, list[ActionSampleRecord]]] = []
         for action, unit in sorted(USAGE_ACTION_UNITS.items()):
             if action in self.PRIVATE_ACTIONS:
                 continue
             seen = samples.get(action, [])
+            if action == "judge":
+                for level, model in self.settings.judge_models.items():
+                    picked = [x for x in seen if x.model == model and levels.get(x.model) == level]
+                    groups.append((f"judge:{level}", level, unit, picked))
+                continue
+            groups.append((action, None, unit, seen))
+        rows = []
+        for key, judge_level, unit, seen in groups:
+            action = "judge" if judge_level is not None else key
             charges, per_unit = [], []
             for x in seen:
                 charge = charge_for(rules, action, x.cost_cents)  # today's rules, measured cost
@@ -1183,7 +1195,8 @@ class AccountService:
                 typical = TypicalPrice(p25=_money(p25), median=_money(median), p75=_money(p75))
             rows.append(
                 PublicPriceRow(
-                    action=action,
+                    action=key,
+                    level=judge_level,
                     unit=unit.unit,
                     price_per_unit_cents=(
                         _money(statistics.median(per_unit))

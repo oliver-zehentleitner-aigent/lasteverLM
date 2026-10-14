@@ -38,3 +38,13 @@ def test_without_smtp_host_there_is_no_smtp() -> None:
 def test_smtp_host_without_from_address_fails_at_start() -> None:
     with pytest.raises(ConfigError, match="SMTP_FROM_ADDRESS"):
         Settings.from_env({**REQUIRED, "SMTP_HOST": "mail.test"})
+
+
+def test_judge_models_come_from_the_environment() -> None:
+    import base64
+
+    env = {**REQUIRED, "VOUCHER_KEY": base64.b64encode(b"k" * 32).decode()}
+    defaults = Settings.from_env(env).judge_models
+    assert set(defaults) == {"low", "medium", "high"}
+    custom = Settings.from_env({**env, "JUDGE_MODELS": '{"high": "special-model"}'}).judge_models
+    assert custom["high"] == "special-model" and custom["low"] == defaults["low"]
