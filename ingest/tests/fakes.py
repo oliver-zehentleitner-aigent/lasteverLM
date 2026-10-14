@@ -433,7 +433,7 @@ class InMemoryRepository:
     def refresh_claim(self, library_id: UUID) -> None:
         self.refreshed.append(library_id)
 
-    def wait_for_credit(self, library_id: UUID) -> None:
+    def release_waiting(self, library_id: UUID) -> None:
         lib = self.library[library_id]
         self.library[library_id] = lib.model_copy(
             update={"attempts": max(lib.attempts - 1, 0), "error": None}

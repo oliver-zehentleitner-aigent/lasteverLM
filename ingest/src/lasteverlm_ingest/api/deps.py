@@ -8,7 +8,7 @@ from lasteverlm_core import Notebook, SourceStatus, Storage
 
 from lasteverlm_ingest.repository import Repository, StoredSource
 from lasteverlm_ingest.seeds import ensure_seeded
-from lasteverlm_ingest.worker import WAITING_FOR_CREDIT, WorkerDeps
+from lasteverlm_ingest.worker import NO_EXCHANGE_RATE, WAITING_FOR_CREDIT, WorkerDeps
 
 
 def worker_deps(request: Request) -> WorkerDeps:
@@ -79,15 +79,18 @@ def original_url(
 
 
 class CreditView:
-    """How a listing shows a queued source: `processing` while its owner
+    """How a listing shows a queued source. `processing` while its owner
     has credit (or it is a sponsored demo seed), `waiting_for_credit`
-    otherwise; the worker does not claim it then (see the claim query).
-    The owner's credit is read at most once per request."""
+    otherwise; without an exchange rate in the pricing rules every queued
+    source waits and `error` says why. The worker claims none of these
+    (see the claim query and `run_worker`). The owner's credit and the
+    rate are read at most once per request; nothing here is stored."""
 
     def __init__(self, repo: Repository, owner: UUID) -> None:
         self._repo = repo
         self._owner = owner
         self._credit: bool | None = None
+        self._rate: bool | None = None
 
     @overload
     def status(self, status: SourceStatus, demo: bool) -> SourceStatus: ...
@@ -101,3 +104,11 @@ class CreditView:
         if self._credit is None:
             self._credit = self._repo.has_credit(self._owner)
         return status if self._credit else WAITING_FOR_CREDIT
+
+    def error(self, status: str, error: str | None) -> str | None:
+        """The reason a queued source waits for the admin, else its error."""
+        if status != "processing":
+            return error
+        if self._rate is None:
+            self._rate = self._repo.has_exchange_rate()
+        return error if self._rate else NO_EXCHANGE_RATE

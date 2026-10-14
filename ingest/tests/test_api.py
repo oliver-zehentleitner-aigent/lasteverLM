@@ -263,3 +263,18 @@ def test_filename_is_sanitized_for_the_object_key(client, storage):
     assert r.status_code == 202
     assert r.json()["name"] == "pass_wd.txt"
     assert list(storage.objects)[0].endswith("/pass_wd.txt")
+
+
+def test_a_missing_exchange_rate_is_shown_on_every_queued_source(client, repo):
+    from lasteverlm_core import PricingRules
+
+    nb = client.post("/api/ingest/notebooks", json={"title": "nb"}).json()["id"]
+    url = f"/api/ingest/notebooks/{nb}/sources"
+    lib = client.post(url, files={"file": ("a.txt", b"text", "text/plain")}).json()["library_id"]
+    rules, repo.rules = repo.rules, PricingRules()
+    reason = "pricing has no exchange rate, ask an admin"
+    [source] = client.get(url).json()
+    assert source["status"] == "processing" and source["error"] == reason
+    assert client.get(f"/api/ingest/library/{lib}").json()["error"] == reason
+    repo.rules = rules  # the admin set the rate: nothing stale stays behind
+    assert client.get(url).json()[0]["error"] is None

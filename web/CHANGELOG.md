@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-10-14
+
 ### Added
 
 - `/prices`: the public price list (no login) from the account service's `GET /api/account/prices`: Sources, Chat, Outputs and Extras as tables with the price per unit (unit translated), the typical range (p25–p75, median) and the model, "no experience yet" below five runs, the exchange rate with its ECB date and the rules in plain words; linked from the login page, the header and Settings; the judge per level ("Judge, low", "Judge, medium", "Judge, high") under Extras, with a note that a judge chosen while creating an output is in that output's price.

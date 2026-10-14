@@ -24,7 +24,7 @@ from uuid import UUID, uuid4
 
 import psycopg
 import pytest
-from lasteverlm_core import Chunk, Usage, parse_model_prices
+from lasteverlm_core import Chunk, PricingRules, Usage, parse_model_prices
 
 from lasteverlm_ingest.repository import STALLED, NewLibrarySource, PostgresRepository
 
@@ -417,7 +417,7 @@ def test_the_queue_waits_for_credit_without_counting_attempts(repo):
     )
     assert repo.claim_library_source("w", STALE) == waiting.id
     # Credit runs out mid-job: back in the queue, the attempt not counted.
-    repo.wait_for_credit(waiting.id)
+    repo.release_waiting(waiting.id)
     row = repo.get_library_source(waiting.id)
     assert row.attempts == 0 and row.status == "processing" and row.error is None
     _execute(repo, "delete from ledger where user_id = %s", (broke,))
@@ -538,6 +538,10 @@ def test_claim_seed_only_once_and_only_for_an_empty_library(repo):
 
 def test_the_exchange_rate_is_read_from_the_pricing_row(database_url, repo):
     assert repo.has_exchange_rate()
+    with repo.connection() as conn:
+        seeded = conn.execute("select value::text from settings where key = 'pricing'").fetchone()[
+            0
+        ]
     _execute(repo, "update settings set value = '{}'::jsonb where key = 'pricing'", ())
     try:
         fresh = PostgresRepository(database_url, model_prices=PRICES)  # its own cache
@@ -546,11 +550,7 @@ def test_the_exchange_rate_is_read_from_the_pricing_row(database_url, repo):
         finally:
             fresh.close()
     finally:
-        _execute(
-            repo,
-            "update settings set value = '{\"usd_per_eur\": 1}'::jsonb where key = 'pricing'",
-            (),
-        )
+        _execute(repo, "update settings set value = %s::jsonb where key = 'pricing'", (seeded,))
 
 
 def test_credit_and_usage(repo):
@@ -561,7 +561,10 @@ def test_credit_and_usage(repo):
         rich, None, "source:text", action_id, Usage("llm", "llm", 1000, 1000)
     )
     assert record.cost_cents > 0 and record.charge_cents >= record.cost_cents
-    assert record.cost_usd_cents == record.cost_cents and record.usd_per_eur == 1
+    # Converted at the seeded rate (account's migration, or the fixture's).
+    assert record.usd_per_eur is not None
+    rules = PricingRules(usd_per_eur=record.usd_per_eur)
+    assert record.cost_cents == rules.cost_eur_cents(record.cost_usd_cents)
     assert (record.action, record.action_id) == ("source:text", action_id)
 
 

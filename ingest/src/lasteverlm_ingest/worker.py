@@ -50,6 +50,8 @@ _ERROR_MAX = 500
 # How the API shows a `processing` source whose owner has no credit: it
 # is not claimed until the owner has credit again (see the claim query).
 WAITING_FOR_CREDIT = "waiting_for_credit"
+# The web matches this exact sentence (shown on waiting sources): changing
+# it is a contract change, tell web.
 NO_EXCHANGE_RATE = "pricing has no exchange rate, ask an admin"
 # Backoff after a transient failure: 5 s after the first, 15 s after the second.
 RETRY_BASE_SECONDS = 5.0
@@ -73,6 +75,12 @@ class ProcessingError(Exception):
     """A failure whose message is safe to show to the user."""
 
 
+class WaitForRate(Exception):
+    """The pricing rules have no exchange rate: a model call could be paid
+    upstream but not booked. The source goes back to the queue without
+    counting the attempt; workers claim nothing until the rate is back."""
+
+
 class WaitForCredit(Exception):
     """The owner's credit ran out: the source goes back to the queue
     without counting the attempt and is claimed again once there is
@@ -89,7 +97,10 @@ def process_source(library_id: UUID, deps: WorkerDeps) -> None:
         _run(source, deps)
     except WaitForCredit:
         log.info("library source %s waits for its owner's credit", library_id)
-        repo.wait_for_credit(library_id)
+        repo.release_waiting(library_id)
+    except WaitForRate:
+        log.warning("library source %s waits: %s", library_id, NO_EXCHANGE_RATE)
+        repo.release_waiting(library_id)
     except (LoaderError, ProcessingError) as exc:
         # Will not change on a retry: the source is failed at once.
         log.warning("library source %s failed: %s", library_id, exc)
@@ -233,10 +244,10 @@ def _payer(source: LibrarySource) -> UUID:
 
 def _may_call(repo: Repository, source: LibrarySource) -> None:
     """Checked before every model call. Without an exchange rate in the
-    pricing rules a call could be paid upstream but not booked, so the
-    source fails before the call; without credit it waits."""
+    pricing rules a call could be paid upstream but not booked, and without
+    credit the owner cannot pay: either way the source waits."""
     if not repo.has_exchange_rate():
-        raise ProcessingError(NO_EXCHANGE_RATE)
+        raise WaitForRate
     if not _has_credit(repo, source):
         raise WaitForCredit
 
@@ -304,11 +315,21 @@ def run_worker(
     worker_id = worker_id or default_worker_id()
     settings = deps.settings
     done = 0
+    rate_missing = False
     log.info("worker %s started", worker_id)
     next_purge = _purge(deps, purge_every_seconds)
     while not stop.is_set() and (max_jobs is None or done < max_jobs):
         if time.monotonic() >= next_purge:
             next_purge = _purge(deps, purge_every_seconds)
+        if not deps.repository.has_exchange_rate():
+            # Nothing can be booked: claim nothing until an admin sets the
+            # rate (the sources show why they wait).
+            if not rate_missing:
+                log.warning("worker %s pauses: %s", worker_id, NO_EXCHANGE_RATE)
+                rate_missing = True
+            stop.wait(settings.worker_poll_seconds)
+            continue
+        rate_missing = False
         source_id = deps.repository.claim_library_source(worker_id, settings.claim_timeout_seconds)
         if source_id is None:
             stop.wait(settings.worker_poll_seconds)

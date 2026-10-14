@@ -168,5 +168,5 @@ def test_without_an_exchange_rate_the_image_is_not_read():
     repo.rules = PricingRules()
     sid = _add_image(repo, storage)
     process_source(sid, _image_deps(repo, storage, FakeEmbedder(8), fake))
-    assert repo.library[sid].error == "pricing has no exchange rate, ask an admin"
+    assert repo.library[sid].status == "processing"  # waits for the rate
     assert fake.calls == [] and repo.usage == []
