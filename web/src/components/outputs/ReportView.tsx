@@ -1,9 +1,9 @@
-import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import { useMemo, type MouseEvent } from 'react'
 import type { ReportContent } from '../../api/types'
 import { decorateReport, markUnsupported } from '../../lib/outputProvenance'
 import { useCite } from '../../hooks/useCite'
+import { sanitizeHtml } from '../../lib/sanitize'
 
 /** Markdown from the model is untrusted: it is rendered, then sanitized
  *  before it touches the DOM. With provenance its [n] markers become
@@ -15,7 +15,7 @@ export function ReportView({ content }: { content: ReportContent }) {
   const html = useMemo(() => {
     const markdown = known ? markUnsupported(content.markdown ?? '', content.units) : (content.markdown ?? '')
     const raw = marked.parse(markdown, { async: false, gfm: true }) as string
-    return DOMPurify.sanitize(known ? decorateReport(raw, known) : raw, { USE_PROFILES: { html: true } })
+    return sanitizeHtml(known ? decorateReport(raw, known) : raw)
   }, [content.markdown, content.units, known])
 
   function onClick(e: MouseEvent<HTMLDivElement>) {

@@ -10,6 +10,11 @@ describe('inlineScriptHashes', () => {
   it('hashes the inline script exactly as written and skips scripts with src', () => {
     expect(inlineScriptHashes(html)).toEqual([hash])
   })
+
+  it('finds the closing tag in any case and with whitespace, and skips any src', () => {
+    const odd = `<SCRIPT nonce="x">${body}</SCRIPT >\n<script type="module" SRC = "/a.js"></script><script\tsrc="/b.js"></script>`
+    expect(inlineScriptHashes(odd)).toEqual([hash])
+  })
 })
 
 describe('nginxLines', () => {

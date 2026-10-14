@@ -1,4 +1,3 @@
-import DOMPurify from 'dompurify'
 import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { Markmap } from 'markmap-view'
 import type { MindmapContent } from '../../api/types'
@@ -6,6 +5,7 @@ import { t } from '../../i18n'
 import { bestMatchIndex, firstLine, type LocateRequest } from '../../lib/locate'
 import { mapAction } from '../../lib/mapKeys'
 import { cleanTree, toMarkdown } from '../../lib/mindmap'
+import { sanitizeHtml } from '../../lib/sanitize'
 import { claimHtml } from '../../lib/outputProvenance'
 import { useCite } from '../../hooks/useCite'
 
@@ -35,7 +35,7 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
         // with provenance each node carries its markers and badge, as HTML in its label
         const { root } = new Transformer().transform(toMarkdown(content.root, 0, known ? (n) => claimHtml(n, known) : undefined))
         // the labels are the model's text and markmap renders them as HTML
-        const clean = cleanTree(root, (html) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }))
+        const clean = cleanTree(root, sanitizeHtml)
         const mm = Markmap.create(svg.current, { autoFit: true }, clean)
         map.current = mm
         let frame = 0
