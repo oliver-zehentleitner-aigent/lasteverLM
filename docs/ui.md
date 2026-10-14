@@ -96,11 +96,12 @@ is closed. After the wizard the notebook view opens.
   only deletes the notebook, and the documents stay in the library with
   their origin noted. Without outputs the plain
   confirmation as before.
-  A source added without credit is listed as "waiting for credit" with
-  "redeem a voucher" next to it (the voucher dialog); it is processed
-  once there is credit again, and the list keeps polling until then.
-  Adding is never blocked by credit; creating documents is (402, the
-  voucher dialog).
+  A source added without credit is listed with the amber "waiting for
+  credit" badge; it is processed once there is credit again, and the
+  list keeps polling until then. Adding is never blocked by credit;
+  creating outputs is: without credit the hint next to Create says "No
+  credit: sources wait, outputs cannot be created." with "redeem a
+  voucher" (the voucher dialog), and Create is disabled.
   This notebook's own generated documents are not listed here (they are
   under Outputs), although the backend keeps each one as a source of
   kind `generated` so the chat can cite it.
@@ -314,7 +315,8 @@ outputs), by notebook (or "not in any notebook") and by part of the
 name or address. Columns: kind (an output's kind, from rag's
 list of the user's outputs joined by `output_id`), name, status (a
 failed entry's reason on one line next to the badge, in full as its
-tooltip; "waiting for credit" with "redeem a voucher"), size ("unknown"
+tooltip; "waiting for credit" in amber, and one notice above the table
+"N sources wait for credit · redeem a voucher" while any does), size ("unknown"
 for entries added before sizes were recorded, none for outputs), date,
 and the notebooks it is in as links (or "not in any notebook"); a
 output also says where it was made ("made in test1", or "made in
