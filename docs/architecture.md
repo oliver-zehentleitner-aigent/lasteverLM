@@ -58,6 +58,7 @@ Rules that hold everywhere:
 | Database, vectors | Vultr Managed PostgreSQL | extension is named `vector`: `CREATE EXTENSION IF NOT EXISTS vector;` |
 | Uploads | Vultr Object Storage | S3-compatible, one bucket, accessed with boto3 |
 | LLM, embeddings | Vultr Serverless Inference | OpenAI-compatible, base URL `https://api.vultrinference.com/v1`, used through the OpenAI SDK so any compatible provider can replace it |
+| Speech | Vultr Serverless Inference | text-to-speech for audio outputs and speech-to-text for audio sources (`/v1/audio/speech`, `/v1/audio/transcriptions`); the platform runs both speech models in the United States only (TTS in atl, STT in sjc), so the text of an audio output and the bytes of an audio source leave the EU for that call, while documents, chunks and vectors stay in the Amsterdam region |
 | Mail | external SMTP | configured through the environment (`SMTP_*`, Kubernetes Secret `lasteverlm-smtp`), shown read-only in the admin panel; not a Vultr service |
 
 ## Data model (PostgreSQL)
@@ -98,13 +99,13 @@ ip_blocks    (ip inet primary key, blocked_until, strikes int, updated_at)
 ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 ```
 
-- `sources.kind`: `pdf` | `text` | `url` | `image` | `audio` | `generated` (`audio` is an MP3 or WAV transcribed by `STT_MODEL`; core has the kind, ingest's loader and its column check follow; `url` and `image` are later loaders, the column is ready; `generated` is a finished output indexed as a source by rag, see Outputs).
+- `sources.kind`: `pdf` | `text` | `url` | `image` | `audio` | `generated` (`audio` is an MP3 or WAV upload transcribed by `STT_MODEL` into one passage without pages, the platform returns no timestamps; `generated` is a finished output indexed as a source by rag, see Outputs).
 - `sources.status`: `processing` | `ready` | `failed`.
 - `sources.summary`: one summary per source, written by ingest at the end of processing, used by the output generators.
 - `outputs.kind`: `report` | `quiz` | `table` | `mindmap` | `infographic` | `audio`. `outputs.status`: `waiting` (sources still processing) | `processing` | `ready` | `failed`.
 - `claimed_at`, `claimed_by`, `attempts` on `sources` and `outputs` make those tables the job queues of the two workers (see Workers).
 - `chunks.embedding` dimension follows `EMBEDDING_DIMENSION`; the migration takes it as a parameter, default 1536.
-- `usage.kind`: `llm` | `embedding` | `tts` | `stt`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters. For `stt` it is seconds of audio as the platform reports them, rounded up per call: `tokens_in` holds the seconds, `tokens_out` is 0, and `MODEL_PRICES` lists `STT_MODEL` with `in` in cents per million seconds.
+- `usage.kind`: `llm` | `embedding` | `tts` | `stt`. `usage.service`: `ingest` | `rag`. For `tts` the priced unit is input characters: `tokens_in` holds the character count, `tokens_out` is 0, and `MODEL_PRICES` lists `TTS_MODEL` with `in` in cents per million characters. For `stt` the unit is seconds of audio as the platform reports them, rounded up: `tokens_in` holds the seconds, `MODEL_PRICES` lists `STT_MODEL` with `in` in cents per million seconds.
 - **Balance** = `sum(ledger.amount_cents) - sum(usage.cost_cents)` per user. Usage rows are the debit; there is no second ledger write.
 - Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
 - **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are hidden library rows of kind `generated` owned by the notebook that made them, never listed. A new user's first library access seeds four demo sources (a PDF, a text, an image, a URL, one coherent fictional set) processed at the demo user's expense, flagged `demo` (`ingest/context/library.md`). Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
@@ -197,8 +198,8 @@ AccountStats: {"users", "logins_24h", "vouchers": {"issued", "redeemed", "open"}
 
 ```json
 Notebook: {"id", "title", "created_at"}
-Source:   {"id", "notebook_id", "library_id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (image, PDF, text: presigned GET, 1 h; url: the URL), "status", "error", "created_at"}
-LibraryEntry: {"id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (image, PDF, text: presigned GET, 1 h; url: the URL), "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
+Source:   {"id", "notebook_id", "library_id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (image, PDF, text, audio: presigned GET, 1 h; url: the URL), "status", "error", "created_at"}
+LibraryEntry: {"id", "name", "kind", "capture" (PDFs), "demo", "preview_url" (image, PDF, text, audio: presigned GET, 1 h; url: the URL), "status", "error", "size_bytes", "url", "created_at", "notebooks": [{"id", "title", "source_id"}]}
 IngestStats: {"sources": {"processing", "ready", "failed"}, "jobs": {"pending", "running", "failed"}, "chunks", "source_bytes"}
 ```
 
@@ -365,9 +366,9 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | ingest, rag (audio files) |
 | `INFERENCE_BASE_URL`, `INFERENCE_API_KEY` | ingest, rag |
 | `LLM_MODEL` | ingest (source summaries), rag |
+| `STT_MODEL` (default `whisper-large-v3-turbo`; MP3 and WAV only, 25 MiB, 4 h) | ingest (audio sources) |
 | `SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE` (default `ryan`; the platform's voices are not the OpenAI names) | rag |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | ingest, rag (identical on both) |
-| `STT_MODEL` (default `whisper-large-v3-turbo`) | ingest (audio sources, with its loader) |
 | `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
 | `DEMO_TOKEN` | all services; unset in production |
