@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { ingest } from '../api/ingest'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import type { LibraryEntry, TrashEntry } from '../api/types'
@@ -6,9 +6,10 @@ import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
 import { bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter } from '../lib/library'
-import { openTarget } from '../lib/openEntry'
+import { audioFiles, openTarget } from '../lib/openEntry'
 import { SOURCE_FORMS } from '../lib/outputs'
 import { DemoBadge } from './DemoBadge'
+import { AudioCheck, PlayButton } from './AudioCheck'
 import { ImageName } from './ImageName'
 import { t, tn } from '../i18n'
 
@@ -84,6 +85,8 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
   const [filter, setFilter] = useState<LibraryFilter>({ kind: 'all', query: '' })
   // ticked rows, kept across filtering; actions apply to those still listed
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  // the one audio entry whose player is open, with the files taken then
+  const [playing, setPlaying] = useState<{ id: string; files: NonNullable<ReturnType<typeof audioFiles>> } | null>(null)
   const [progress, setProgress] = useState<{ kind: 'delete' | 'add'; done: number; total: number } | null>(null)
   const { busy, error, run } = useAsync()
 
@@ -226,79 +229,90 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
         <tbody>
           {shown.map((e) => {
             const href = openTarget(e)
+            const files = audioFiles(e)
             return (
-              <tr key={e.id} className={picked.has(e.id) ? 'picked' : undefined}>
-                <td className="pick-col">
-                  <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} aria-label={t('lib.selectRow', { name: e.name })} />
-                </td>
-                <td className="name">
-                  <span className="name-cell">
-                    {href ? (
-                      <a className="open-name" href={href} target="_blank" rel="noopener noreferrer" title={t('lib.openTitle', { name: e.name })}>
+              <Fragment key={e.id}>
+                <tr className={picked.has(e.id) ? 'picked' : undefined}>
+                  <td className="pick-col">
+                    <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} aria-label={t('lib.selectRow', { name: e.name })} />
+                  </td>
+                  <td className="name">
+                    <span className="name-cell">
+                      {href ? (
+                        <a className="open-name" href={href} target="_blank" rel="noopener noreferrer" title={t('lib.openTitle', { name: e.name })}>
+                          <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                        </a>
+                      ) : (
                         <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                      )}
+                      <DemoBadge demo={e.demo} />
+                    </span>
+                  </td>
+                  <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
+                  <td className="status-cell">
+                    <span className={`badge ${e.status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
+                      {t(`status.${e.status}`)}
+                    </span>
+                    {e.status === 'failed' && e.error && (
+                      <span className="error small reason" title={e.error}>
+                        {e.error}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {e.size_bytes === null ? (
+                      <span className="muted small" title={t('lib.sizeUnknownTitle')}>
+                        {t('lib.sizeUnknown')}
+                      </span>
+                    ) : (
+                      formatBytes(e.size_bytes)
+                    )}
+                  </td>
+                  <td>{formatTime(e.created_at)}</td>
+                  <td>
+                    {e.notebooks.length === 0 ? (
+                      <span className="muted small">{t('lib.notInAny')}</span>
+                    ) : (
+                      <span className="where-used">
+                        {e.notebooks.map((n) => (
+                          <a
+                            key={n.id}
+                            href="/"
+                            onClick={(ev) => {
+                              ev.preventDefault()
+                              onOpenNotebook(n.id)
+                            }}
+                          >
+                            {n.title}
+                          </a>
+                        ))}
+                      </span>
+                    )}
+                  </td>
+                  <td className="row-actions">
+                    {files && <PlayButton open={playing?.id === e.id} name={e.name} onToggle={() => setPlaying((p) => (p?.id === e.id ? null : { id: e.id, files }))} />}
+                    {href ? (
+                      <a className="link" href={href} target="_blank" rel="noopener noreferrer">
+                        {t('lib.open')}
                       </a>
                     ) : (
-                      <ImageName kind={e.kind} previewUrl={e.preview_url} label={e.name} title={e.url ?? e.name} />
+                      <button type="button" className="link" disabled title={t('lib.openUnavailable')}>
+                        {t('lib.open')}
+                      </button>
                     )}
-                    <DemoBadge demo={e.demo} />
-                  </span>
-                </td>
-                <td>{kindWithCapture(SOURCE_FORMS.find((f) => f.kind === e.kind)?.label ?? e.kind, e.capture)}</td>
-                <td className="status-cell">
-                  <span className={`badge ${e.status}`} title={e.status === 'failed' && e.error ? e.error : undefined}>
-                    {t(`status.${e.status}`)}
-                  </span>
-                  {e.status === 'failed' && e.error && (
-                    <span className="error small reason" title={e.error}>
-                      {e.error}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  {e.size_bytes === null ? (
-                    <span className="muted small" title={t('lib.sizeUnknownTitle')}>
-                      {t('lib.sizeUnknown')}
-                    </span>
-                  ) : (
-                    formatBytes(e.size_bytes)
-                  )}
-                </td>
-                <td>{formatTime(e.created_at)}</td>
-                <td>
-                  {e.notebooks.length === 0 ? (
-                    <span className="muted small">{t('lib.notInAny')}</span>
-                  ) : (
-                    <span className="where-used">
-                      {e.notebooks.map((n) => (
-                        <a
-                          key={n.id}
-                          href="/"
-                          onClick={(ev) => {
-                            ev.preventDefault()
-                            onOpenNotebook(n.id)
-                          }}
-                        >
-                          {n.title}
-                        </a>
-                      ))}
-                    </span>
-                  )}
-                </td>
-                <td className="row-actions">
-                  {href ? (
-                    <a className="link" href={href} target="_blank" rel="noopener noreferrer">
-                      {t('lib.open')}
-                    </a>
-                  ) : (
-                    <button type="button" className="link" disabled title={t('lib.openUnavailable')}>
-                      {t('lib.open')}
+                    <button type="button" className="link danger" disabled={busy} onClick={() => void remove(e)}>
+                      {t('common.delete')}
                     </button>
-                  )}
-                  <button type="button" className="link danger" disabled={busy} onClick={() => void remove(e)}>
-                    {t('common.delete')}
-                  </button>
-                </td>
-              </tr>
+                  </td>
+                </tr>
+                {playing?.id === e.id && (
+                  <tr className="audio-row">
+                    <td colSpan={8}>
+                      <AudioCheck files={playing.files} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             )
           })}
           {shown.length === 0 && !busy && (

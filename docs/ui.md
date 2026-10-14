@@ -77,7 +77,8 @@ is closed. After the wizard the notebook view opens.
 - **Sources** (left, top): the uploads (PDF, text, web page, image,
   audio), each with its kind as a badge
   with status and remove; the add button opens the wizard at step 1,
-  without the output step.
+  without the output step. An audio source has a play button (see
+  "Checking an audio source" under Library).
   Removing only detaches the source from this notebook, it stays in the
   library. Deleting a notebook detaches its sources the same way.
   Generated documents are not listed here, although the backend keeps
@@ -239,6 +240,13 @@ an upload (PDF, text, image, audio, which the browser plays) through
 its presigned `preview_url`; an
 image also keeps the hover preview below. Only `http(s)` addresses are
 linked, and without a preview the action is disabled with a note.
+**Checking an audio source** (here and in a notebook's Sources list): a
+play button per audio row mounts a player for that row only (nothing
+loads before; one player at a time, a second click closes it), with a
+download link "transcribed audio" (the file that was transcribed: the
+converted MP3, or the upload itself for MP3 and WAV) and, when the
+upload was converted first, "original" (`original_url`). Open still
+takes the transcribed file.
 Each row has a checkbox ("all / none" in the column header acts on the
 rows the filter shows; ticks survive a filter change). With rows
 ticked a bar above the table offers **New notebook from n sources** (a

@@ -4,6 +4,8 @@ import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { useAsync } from '../hooks/useAsync'
 import { SOURCE_FORMS, uploadedSources } from '../lib/outputs'
+import { audioFiles } from '../lib/openEntry'
+import { AudioCheck, PlayButton } from './AudioCheck'
 import { DemoBadge } from './DemoBadge'
 import { t } from '../i18n'
 
@@ -31,6 +33,13 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
   const [sources, setSources] = useState<Source[]>([])
   const [loaded, setLoaded] = useState(false)
   const { busy, error, run } = useAsync()
+  // the one audio source whose player is open, with the files taken then
+  const [playing, setPlaying] = useState<{ id: string; files: NonNullable<ReturnType<typeof audioFiles>> } | null>(null)
+
+  function togglePlayer(s: Source) {
+    const files = audioFiles(s)
+    setPlaying((p) => (p?.id === s.id || !files ? null : { id: s.id, files }))
+  }
 
   useEffect(() => {
     void run(async () => {
@@ -110,8 +119,10 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
                 </span>
               )}
               <span className={`badge ${s.status}`}>{t(`status.${s.status}`)}</span>
+              {audioFiles(s) && <PlayButton open={playing?.id === s.id} name={s.name} onToggle={() => togglePlayer(s)} />}
               {s.status === 'failed' && s.error && <span className="error small">{s.error}</span>}
               {s.status === 'processing' && s.error && <span className="muted small">{t('sources.retrying', { error: s.error })}</span>}
+              {playing?.id === s.id && <AudioCheck files={playing.files} />}
             </div>
             <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>
               ×

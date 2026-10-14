@@ -20,6 +20,16 @@ export function citationTarget(source: Pick<Source, 'kind' | 'preview_url'> | un
   return `${href.split('#')[0]}#page=${page}`
 }
 
+/** An audio source's files for checking what was transcribed: the
+ *  transcribed file (the converted MP3, or the upload as it came) and,
+ *  when a conversion happened, the original. Null for any other kind or
+ *  without a usable address. */
+export function audioFiles(e: Pick<Source, 'kind' | 'preview_url' | 'original_url'>): { transcribed: string; original: string | null } | null {
+  if (e.kind !== 'audio') return null
+  const transcribed = httpOnly(e.preview_url)
+  return transcribed ? { transcribed, original: httpOnly(e.original_url) } : null
+}
+
 function httpOnly(href: string | null | undefined): string | null {
   if (!href) return null
   try {
