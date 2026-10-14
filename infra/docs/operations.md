@@ -103,6 +103,16 @@ mounts a ServiceAccount token, every other pod has
 `automountServiceAccountToken: false`. The migration Job runs the
 `postgres` image pinned by digest as its `postgres` user (uid 70), with
 its own resources.
+The readiness and liveness probes call `/healthz`, which answers `ok`
+while the process serves requests; the state of the dependencies
+(`postgres`, `storage`, `inference`: `ok` or `down`) is in its body and
+on Admin > System, not in the status. An outage of the database, the
+object storage or the inference platform therefore neither restarts the
+pods nor takes them out of their Service: every replica is affected the
+same way, and the requests that need the dependency fail while the rest
+keep working. During an outage, read the System page, not pod restarts.
+(Before, `account`'s `/healthz` pinged the database, so a database
+outage made its probes fail and restarted its pods.)
 VKE's CNI is Calico, which enforces the NetworkPolicies;
 `networkPolicy.enabled: false` removes them. Check after a deploy:
 `kubectl -n lasteverlm run np-check --rm -i --restart=Never --image=busybox:1.37 -- wget -qO- -T 3 http://rag/healthz`
