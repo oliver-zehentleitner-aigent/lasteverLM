@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.7] - 2026-10-14
+
 ### Added
 
 - A first-login introduction: three steps (add sources, pick a format, Create; without credit "Redeem a voucher first"), each outlining its area with an arrow, Next/Back/Skip; shown once per user (the account's `tour_done`, this browser's note for the demo user), again from Settings.
