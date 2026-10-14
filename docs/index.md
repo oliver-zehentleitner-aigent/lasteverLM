@@ -1,9 +1,11 @@
 # lasteverLM
 
-**Please explain this to me.** A NotebookLM-style assistant: provide
-documents, ask questions, get answers with citations into the sources,
-and turn the sources into reports, quizzes, tables, mind maps,
-infographics and audio.
+**Material in. Understanding out.** PDFs, text, web pages, images and
+audio go in; questions, reports, quizzes, tables, mind maps,
+infographics and spoken overviews come out, each sentence traceable to
+the passage it came from. A NotebookLM-style assistant, built to be
+checked: every claim carries its passages, every document its
+generation log.
 
 - **Live:** [lasteverlm.zehentleitner.co](https://lasteverlm.zehentleitner.co) — login by magic link on an allowed domain.
 - **Code:** [github.com/oliver-zehentleitner/lasteverLM](https://github.com/oliver-zehentleitner/lasteverLM) — one repository, six services.
