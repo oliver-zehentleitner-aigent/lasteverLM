@@ -24,6 +24,8 @@ from lasteverlm_core import (
     ModelPrices,
     OutputKind,
     OutputStatus,
+    PricingRules,
+    PricingRulesCache,
     Role,
     Usage,
     admin_role,
@@ -37,6 +39,7 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
 from .models import (
+    Booking,
     ConversationRow,
     NotebookDocument,
     OutputRow,
@@ -182,7 +185,13 @@ class Store(Protocol):
 
     def admin_role(self, user_id: str) -> Role: ...
 
-    def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None: ...
+    def record_usage(self, booking: Booking, usage: Usage) -> None:
+        """Book one model call under its action; core fixes cost and charge."""
+        ...
+
+    def pricing_rules(self) -> PricingRules:
+        """Account's pricing rules as bookings use them now."""
+        ...
 
 
 # Top-k by cosine distance inside one notebook, ready sources only, optionally
@@ -381,6 +390,8 @@ class PostgresStore:
     def __init__(self, pool: Pool, prices: ModelPrices) -> None:
         self._pool = pool
         self._prices = prices
+        # account's pricing rules (margins, fees), re-read at most every 30 s
+        self._rules = PricingRulesCache()
 
     # -- notebooks --------------------------------------------------------
 
@@ -824,18 +835,23 @@ class PostgresStore:
         with self._pool.connection() as conn:
             return admin_role(core_connection(conn), uuid.UUID(user_id))
 
-    def record_usage(self, user_id: str, notebook_id: str | None, usage: Usage) -> None:
+    def pricing_rules(self) -> PricingRules:
         with self._pool.connection() as conn:
+            return self._rules.current(core_connection(conn))
+
+    def record_usage(self, booking: Booking, usage: Usage) -> None:
+        with self._pool.connection() as conn:
+            core = core_connection(conn)
             record_usage(
-                core_connection(conn),
-                uuid.UUID(user_id),
-                uuid.UUID(notebook_id) if notebook_id else None,
+                core,
+                uuid.UUID(booking.user_id),
+                uuid.UUID(booking.notebook_id) if booking.notebook_id else None,
                 SERVICE_NAME,
-                usage.kind,
-                usage.model,
-                usage.tokens_in,
-                usage.tokens_out,
+                booking.action,
+                booking.action_id,
+                usage,
                 prices=self._prices,
+                rules=self._rules.current(core),
             )
 
 

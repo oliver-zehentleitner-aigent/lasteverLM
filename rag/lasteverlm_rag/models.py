@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from lasteverlm_core import OutputKind, OutputStatus, SharedOutput, SourceKind
 from pydantic import BaseModel, Field, StringConstraints
@@ -86,6 +86,16 @@ class SharedNotebook(BaseModel):
     title: str
     sources: list[SharedSource]
     outputs: list[SharedOutput]
+
+
+class EstimateRequest(BaseModel):
+    """``POST /api/rag/estimate``: an output ``kind`` with its options, or an
+    ``action`` (``chat_answer``, ``chart_propose``, ``judge`` with ``level``
+    and ``kind``, ``voice_sample``)."""
+
+    kind: OutputKind | None = None
+    action: str | None = None
+    options: dict[str, Any] = Field(default_factory=dict)
 
 
 class JudgeRequest(BaseModel):
@@ -179,6 +189,23 @@ class Unit:
     text: str
     refs: list[int]
     claim: bool = True
+
+
+@dataclass(frozen=True)
+class Booking:
+    """Who pays for a model call and for which user action: every usage row
+    of one action (a chat answer, an output with all its attempts and judge
+    rounds, a chart proposal, a judgement on request, a voice preview)
+    shares the ``action_id``, so core books a fixed fee once per action."""
+
+    user_id: str
+    notebook_id: str | None
+    action: str  # one of core's USAGE_ACTIONS
+    action_id: UUID
+
+    @classmethod
+    def new(cls, user_id: str, notebook_id: str | None, action: str) -> Booking:
+        return cls(user_id, notebook_id, action, uuid4())
 
 
 @dataclass(frozen=True)

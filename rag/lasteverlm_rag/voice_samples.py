@@ -20,6 +20,7 @@ from typing import Any
 from lasteverlm_core import Storage, TextToSpeech
 from pydantic import BaseModel, ConfigDict
 
+from .models import Booking
 from .options import SPEED_DEFAULT, VOICES, OutputOptions, resolve
 from .service import require_credit, synthesize_billed
 from .store import Store
@@ -86,7 +87,12 @@ class VoiceSamples:
             require_credit(self._store, user_id)
             text = SAMPLE_TEXT[language].format(name=self._labels[voice])
             result = synthesize_billed(
-                self._store, self._tts, user_id, None, text, voice=voice, speed=speed
+                self._store,
+                self._tts,
+                Booking.new(user_id, None, "voice_sample"),
+                text,
+                voice=voice,
+                speed=speed,
             )
             self._objects.put(key, result.audio, "audio/mpeg")
         return {"url": self._objects.presigned_get(key, SAMPLE_URL_EXPIRES_S), "cached": cached}

@@ -14,11 +14,13 @@ for the vector dimension is substituted here, since there is no psql.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from decimal import Decimal
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -36,6 +38,7 @@ from lasteverlm_core import (
     parse_model_prices,
 )
 
+from lasteverlm_rag.models import Booking
 from lasteverlm_rag.store import (
     PgVectorRetriever,
     PostgresStore,
@@ -165,16 +168,20 @@ def library_id_of(pool, source_id: str) -> str:
 
 
 def test_credit_admin_and_usage_over_dict_row_pool(store, pool, user, notebook):
-    def balance() -> int:
+    def balance() -> Decimal:
         with pool.connection() as conn:
             return balance_cents(core_connection(conn), UUID(user))
 
+    def booking(action: str, notebook_id: str | None = notebook) -> Booking:
+        return Booking.new(user, notebook_id, action)
+
     assert store.has_credit(user) and store.admin_role(user) == "user"
-    store.record_usage(user, notebook, Usage("llm", "llm", 500_000, 100_000))  # 50 + 30 = 80
-    store.record_usage(user, None, Usage("embedding", "emb", 1, 0))  # ceil(0.00001) = 1
-    store.record_usage(user, notebook, Usage("tts", "tts", 1500, 0))  # 1500 chars: 3
-    assert balance() == 1000 - 84
-    store.record_usage(user, None, Usage("llm", "llm", 10_000_000, 0))  # 1000: below zero
+    store.record_usage(booking("chat_answer"), Usage("llm", "llm", 500_000, 100_000))  # 50 + 30
+    store.record_usage(booking("voice_sample", None), Usage("embedding", "emb", 1, 0))  # 0.00001
+    store.record_usage(booking("output:audio"), Usage("tts", "tts", 1500, 0))  # 1500 s: 3
+    # cost and charge are exact decimals; without pricing rules the charge is the cost
+    assert balance() == Decimal(1000) - Decimal("83.00001")
+    store.record_usage(booking("chat_answer", None), Usage("llm", "llm", 10_000_000, 0))  # 1000
     assert not store.has_credit(user)
     with pool.connection() as conn:
         conn.execute("update users set role = 'viewer' where id = %s", (user,))
@@ -757,3 +764,29 @@ def test_a_message_is_found_with_its_notebook_and_its_support_replaced(store, no
     store.update_message_support(str(answer.id), judged)
     assert store.list_messages(conversation)[0].units == judged["units"]
     assert store.get_message(str(uuid4())) is None
+
+
+def test_one_action_is_charged_its_margin_and_its_fee_once(store, pool, user, notebook):
+    rules = {"actions": {"output:report": {"margin_pct": 50, "fixed_cents": 5}}}
+    with pool.connection() as conn:
+        conn.execute(
+            "insert into settings (key, value) values ('pricing', %s) "
+            "on conflict (key) do update set value = excluded.value",
+            (json.dumps(rules),),
+        )
+    action = Booking.new(user, notebook, "output:report")
+    store.record_usage(action, Usage("llm", "llm", 100_000, 0))  # cost 10
+    store.record_usage(action, Usage("embedding", "emb", 100_000, 0))  # cost 1
+    with pool.connection() as conn:
+        rows = conn.execute(
+            "select kind, action, cost_cents, charge_cents from usage "
+            "where action_id = %s order by kind",
+            (action.action_id,),
+        ).fetchall()
+        conn.execute("delete from settings where key = 'pricing'")
+    assert [(r["kind"], r["action"]) for r in rows] == [
+        ("embedding", "output:report"),
+        ("fee", "output:report"),
+        ("llm", "output:report"),
+    ]
+    assert [r["charge_cents"] for r in rows] == [Decimal("1.5"), Decimal(5), Decimal(15)]
