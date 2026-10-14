@@ -12,6 +12,7 @@ from lasteverlm_ingest.loaders.pdf import (
     PdfLoader,
     VisionPdfLoader,
     has_text,
+    legible,
     render_page,
 )
 from lasteverlm_ingest.worker import process_source
@@ -20,6 +21,9 @@ from tests.test_loaders import minimal_pdf
 from tests.test_worker import USER, deps
 
 TEXT = "A page with a real text layer on it."
+# What pypdf returns for a font without a usable ToUnicode map: glyph codes.
+GLYPHS = "&MM,:N K OP&M,MM P2QL +457$$$ LL R! 3'.SM"
+VI = "Kurzanleitung vi-Editor. Starten einer vi Sitzung: vi datei.txt öffnet die Datei."
 MIXED = minimal_pdf([TEXT, "", "Another page that has its own text."])
 REQUEST = httpx.Request("POST", "https://inference.test/v1/chat/completions")
 
@@ -113,6 +117,28 @@ def test_credit_gone_stops_before_the_next_batch_but_bills_the_batch():
 
 def test_has_text_threshold():
     assert not has_text("  3  ") and not has_text("") and has_text(TEXT)
+
+
+def test_a_text_layer_of_glyph_codes_is_not_text():
+    assert not legible(GLYPHS) and not has_text(GLYPHS)
+    assert legible(VI) and has_text(VI)
+    assert has_text("Ärger über Öl, Maße: Größe, Füße und Übermaß in Grüße.")
+    assert has_text("vncserver :1 -geometry 1920x1080 -depth 24\nvncserver -kill :1")
+
+
+def test_auto_sends_a_glyph_code_page_to_the_model():
+    chat = FakeChat(answer="Read by the model.")
+    pdf = minimal_pdf([TEXT, GLYPHS])
+    passages = _vision(chat, "auto").load_billed(pdf, lambda usage: None)
+    assert len(chat.calls) == 1
+    assert [(p.page, p.text) for p in passages] == [(1, TEXT), (2, "Read by the model.")]
+
+
+def test_text_capture_skips_a_glyph_code_page():
+    passages = PdfLoader().load(minimal_pdf([GLYPHS, TEXT]))
+    assert [(p.page, p.text) for p in passages] == [(2, TEXT)]
+    with pytest.raises(LoaderError, match="no legible text"):
+        PdfLoader().load(minimal_pdf([GLYPHS]))
 
 
 def test_loader_keys():

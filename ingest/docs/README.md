@@ -240,7 +240,9 @@ reads the text layer (pypdf), `vision` has the vision model read every
 page, `auto` (the default; web sends the user's `pdf_capture` preference
 explicitly) reads the text layer and has the model read only the pages
 without one — a page counts as text when its layer has at least 20
-visible characters. Any other value is 400; the field is ignored for
+visible characters and at least 60 % of them are letters (a font
+without a usable ToUnicode map yields glyph codes like `&MM,:N K OP`,
+which `auto` sends to the model and `text` skips). Any other value is 400; the field is ignored for
 other kinds and in the JSON forms (a PDF behind a URL is read by its
 text layer). The mode is stored on the library source (`capture`, null
 for non-PDFs) and returned in sources, library and trash entries. The

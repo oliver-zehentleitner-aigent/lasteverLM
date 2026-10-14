@@ -55,7 +55,7 @@ def test_pdf_one_passage_per_page_with_text():
 
 
 def test_pdf_without_text_is_an_error():
-    with pytest.raises(LoaderError, match="no extractable text"):
+    with pytest.raises(LoaderError, match="no legible text"):
         PdfLoader().load(minimal_pdf([""]))
 
 

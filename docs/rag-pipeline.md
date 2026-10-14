@@ -43,7 +43,7 @@ works and the model is paid only for the pages that need it. A PDF
 without any text in `text` mode fails visibly with a message naming the
 mode: a source that is "ready" but cannot answer anything is the silent
 failure the family forbids (`context/architecture.md`, fail loud).
-Every mode is capped at 2000 pages per PDF and fails loud beyond it. There is no classic OCR engine; the vision model does the reading, for
+Every mode is capped at 2000 pages per PDF and fails loud beyond it. A page "has a text layer" only when it is legible: at least 20 visible characters, at least 60 % of them letters; a layer of glyph codes from a font without a usable Unicode map goes to vision in `auto` and is skipped in `text`. There is no classic OCR engine; the vision model does the reading, for
 images and for rendered pages alike. A cap (`PDF_VISION_MAX_PAGES`,
 100) bounds the cost of one upload (`ingest/context/pdf-capture.md`).
 
