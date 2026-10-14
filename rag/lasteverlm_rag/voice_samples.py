@@ -7,7 +7,8 @@ the same combination, from any user, finds the stored file and costs no
 model call. The first request pays for it: a sample text is 45 to 80
 characters (three to six seconds of audio, under two seconds to
 synthesize), priced like any other ``tts`` usage (``MODEL_PRICES`` per
-million characters, rounded up to a whole cent by core), so one cent.
+million seconds of generated speech, rounded up to a whole cent by core),
+so one cent.
 Two first requests racing for the same key may both synthesize; the
 second write replaces an identical file.
 """
@@ -16,11 +17,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from lasteverlm_core import ProviderError, Storage, TextToSpeech, Usage
+from lasteverlm_core import Storage, TextToSpeech
 from pydantic import BaseModel, ConfigDict
 
 from .options import SPEED_DEFAULT, VOICES, OutputOptions, resolve
-from .service import require_credit
+from .service import require_credit, synthesize_billed
 from .store import Store
 
 SAMPLE_URL_EXPIRES_S = 3600
@@ -84,11 +85,10 @@ class VoiceSamples:
         if not cached:
             require_credit(self._store, user_id)
             text = SAMPLE_TEXT[language].format(name=self._labels[voice])
-            audio = self._tts.synthesize(text, voice=voice, speed=speed)
-            self._store.record_usage(user_id, None, Usage("tts", self._tts.model, len(text), 0))
-            if not audio:
-                raise ProviderError("text-to-speech returned no audio")
-            self._objects.put(key, audio, "audio/mpeg")
+            result = synthesize_billed(
+                self._store, self._tts, user_id, None, text, voice=voice, speed=speed
+            )
+            self._objects.put(key, result.audio, "audio/mpeg")
         return {"url": self._objects.presigned_get(key, SAMPLE_URL_EXPIRES_S), "cached": cached}
 
 
