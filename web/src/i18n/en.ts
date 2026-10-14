@@ -967,6 +967,22 @@ export const en = {
   'srcView.page': 'page {n}',
   'viewer.closeTab': 'Close {title}',
   'sources.openTitle': '{name}: open in the viewer',
+  'chat.copy': 'Copy',
+  'chat.copySources': 'Sources:',
+  'chat.rateUp': 'Good answer',
+  'chat.rateDown': 'Bad answer',
+  'chat.rateComment': 'What was wrong? (optional)',
+  'chat.rateSend': 'Send',
+  'chat.suggestions': 'Suggested questions',
+  'chat.suggest': 'Suggest questions',
+  'chat.noSuggestions': 'No questions to suggest until a source is ready.',
+  'fb.title': 'Answer feedback, last {days} days',
+  'fb.counts': '👍 {up} · 👎 {down}',
+  'fb.latest': 'Latest down-rated answers',
+  'fb.none': 'No down-rated answers.',
+  'fb.question': 'Question',
+  'fb.answer': 'Answer',
+  'fb.comment': 'Comment',
 } as const
 
 export type MessageKey = keyof typeof en

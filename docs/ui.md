@@ -246,7 +246,20 @@ is closed. After the wizard the notebook view opens.
   badge after it (amber "not checkable" when the answer is in another
   language than its sources), the paragraph stays, and "N of M claims
   supported" sits under the answer (method and threshold as tooltip).
-  Answers without citations and older messages show neither.
+  Answers without citations and older messages show neither. Under
+  every answer a row: **Copy** (the answer with its `[n]` markers, then
+  "Sources:" and one line per cited passage, `[n] name, p. x: "…"`;
+  without the clipboard API the answer is selected), 👍 and 👎 (`POST
+  /api/rag/messages/{id}/feedback`; the rating shows pressed and can be
+  changed; 👎 opens a one-line comment field, optional, sent with Send
+  or Enter, Esc closes it; a down-rating's comment shows beside it).
+  Under the last answer its follow-up questions (`suggestions`, up to
+  three) as cards; a click asks it. An empty chat has **Suggest
+  questions** with its price (`chat_answer` with `suggestions`), which
+  loads the notebook's questions (`GET
+  /api/rag/notebooks/{id}/suggestions`) as the same cards, or says
+  there are none until a source is ready. It is a click, not automatic:
+  the first call is billed.
 
 ## Viewer, print, share
 
@@ -579,7 +592,10 @@ deleted from the library) stays readable with its quote and is marked
     blocks (Security), a service that is not reachable or reports no
     version (System). Red appears there and nowhere else on the page;
     failed sources and documents have no admin page to act on, so they
-    stay a muted detail. Below, the charts in a two-column grid of equal
+    stay a muted detail. Then **Answer feedback, last 30 days: 👍 n · 👎
+    m** (`GET /api/rag/admin/feedback`), which unfolds the newest
+    down-rated answers (time, question, answer, comment). Below, the
+    charts in a two-column grid of equal
     cards and one shared time range (7 days while everything happened
     in the last week, else 30, with a 7 / 30 toggle): cost and credit
     granted per day next to logins and visits, chat messages and
