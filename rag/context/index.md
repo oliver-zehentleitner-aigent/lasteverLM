@@ -33,7 +33,7 @@ repository root's `context/`.
 
 - [contracts.md](contracts.md) — why the shared contract types are mirrored locally until the core library ships
 
-- [conversations.md](conversations.md) — several conversations per notebook instead of one history (tags rejected), and how much history the model sees
+- [conversations.md](conversations.md) — several conversations per notebook instead of one history (tags rejected), and how much history the model sees; suggested questions as a text tail of the answer's call
 
 - [credit.md](credit.md) — the credit check before any provider call, and how usage is priced (through core's helpers); every usage row booked under its user action, an output with its judge rounds as one action; without an exchange rate nothing that calls a model runs
 
