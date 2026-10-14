@@ -498,6 +498,9 @@ class InMemoryRepository:
         credits = self.credits.get(user_id, self.default_balance)
         return credits - sum(u.charge_cents for u in self.usage if u.user_id == user_id)
 
+    def pricing_rules(self) -> PricingRules:
+        return self.rules
+
     def has_exchange_rate(self) -> bool:
         return self.rules.usd_per_eur is not None
 
