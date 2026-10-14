@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.6] - 2026-10-14
+
 ### Fixed
 
 - Agent chat: a reply becomes a plan only when it calls a tool that changes the notebook (`add_url`, `add_from_library`, `create_output`). A question the planner met with read tools only (`explain_output`, `list_sources`, `list_outputs`) gets the normal cited answer. On 0.18.5 the smoke test's plain question came back as a plan of one step that could not run.
