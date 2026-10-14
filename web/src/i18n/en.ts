@@ -78,7 +78,7 @@ export const en = {
   'admin.page.security': 'Security',
   'admin.page.visits': 'Visits',
   'admin.page.mail': 'Mail',
-  'login.tagline': 'Provide documents, ask questions, get cited answers.',
+  'login.tagline': 'Material in. Understanding out.',
   'login.checkMail': 'Check your mail',
   'login.sentTo': 'A sign-in link went to {email}. Open it in this browser.',
   'login.otherAddress': 'Use another address',
@@ -598,6 +598,8 @@ export const en = {
   'arch.why.crash': 'a pod is failing (crash loop, error or out of memory)',
   'arch.why.climbing': 'restarts are climbing',
   'arch.depState': '{name}: {state} (as the services\' healthz report it)',
+  'outProv.rowSources': 'Sources of the row',
+  'login.taglineMore': 'PDFs, text, web pages, images and audio go in; questions, reports, quizzes, tables, mind maps and spoken overviews come out, each sentence traceable to the passage it came from.',
 } as const
 
 export type MessageKey = keyof typeof en

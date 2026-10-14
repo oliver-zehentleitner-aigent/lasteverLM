@@ -25,3 +25,10 @@ describe('labels', () => {
     expect(cleaned.children?.[0].content).toBe('A')
   })
 })
+
+describe('toMarkdown with markers', () => {
+  it('appends what each node rests on to its label', () => {
+    const md = toMarkdown({ label: 'Root', children: [{ label: 'Child', refs: [2] }] }, 0, (n) => (n.refs ? ` [${n.refs.join(',')}]` : ''))
+    expect(md).toBe('# Root\n- Child [2]')
+  })
+})

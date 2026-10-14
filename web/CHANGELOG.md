@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Provenance on tables, quizzes and mind maps: a table row's markers in a last column that follows sorting, a quiz question's after the question, a mind map node's in its label, each with the unsupported or not checkable badge, opening the same passage panel.
 - Chat: a cited answer is checked like a document; a paragraph the check did not back gets the "unsupported" badge ("not checkable" when written in another language than its sources) and the answer says "N of M claims supported" under it (`Message.units`, `Message.check`).
 - Admin > System, "Architecture and monitoring": the diagram's boxes are coloured by the live state: green all ready; amber while rolling out, partly ready or restarted; red only for failure (a crash-looping, erroring or OOM-killed pod, restarts climbing between refreshes, nothing ready outside a rollout, healthz not answering); grey unknown; the reason as tooltip. Restarts appear under the replicas, the lines into a red box are dashed red, a legend explains the colours, and the data reloads every 15 s while the tab is visible. The external services take the state the services' healthz report (`dependencies`) and stay grey ("not probed") until they do; pod reasons and the Progressing condition are used when `/admin/system` reports them.
 - Provenance on generated documents (report, infographic, audio): each claim's `[n]` markers open the chat's provenance panel for that passage, a claim the check did not back is badged "unsupported" (or "not checkable" when written in another language than its sources), the viewer head says "N of M claims supported", and under the document a folded list of the cited passages and a folded "How this was made" (model, prompt version, options, retrieval query and candidates, usage, timing, check) with a JSON download. Also on the share page, read-only.
+
+### Changed
+
+- Login: the new tagline, "Material in. Understanding out." in bold and what goes in and comes out as the line under it.
 
 ### Fixed
 

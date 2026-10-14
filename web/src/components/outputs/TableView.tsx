@@ -1,16 +1,21 @@
 import { useMemo, useState } from 'react'
 import type { TableContent } from '../../api/types'
-import { sortRows, toCsv, type SortDir } from '../../lib/table'
+import { sortOrder, toCsv, type SortDir } from '../../lib/table'
+import { useCite } from '../../hooks/useCite'
+import { ClaimMarks } from '../OutputProvenance'
 import { t } from '../../i18n'
 
 /** Sortable table with CSV export. Sorting is done on a copy; the content
  *  itself is never mutated. */
 export function TableView({ content, title }: { content: TableContent; title: string }) {
   const [sort, setSort] = useState<{ column: number; dir: SortDir } | null>(null)
-  const rows = useMemo(
-    () => (sort ? sortRows(content.rows ?? [], sort.column, sort.dir) : (content.rows ?? [])),
-    [content.rows, sort],
-  )
+  // sorted by index, so each row keeps its passages (row_refs, same index)
+  const order = useMemo(() => {
+    const all = content.rows ?? []
+    return sort ? sortOrder(all, sort.column, sort.dir) : all.map((_, i) => i)
+  }, [content.rows, sort])
+  const cite = useCite()
+  const marks = cite !== null && (content.row_refs?.length ?? 0) > 0
 
   function toggle(column: number) {
     setSort((s) => (s?.column === column ? (s.dir === 'asc' ? { column, dir: 'desc' } : null) : { column, dir: 'asc' }))
@@ -41,16 +46,22 @@ export function TableView({ content, title }: { content: TableContent; title: st
                 {sort?.column === i && <span className="muted"> {sort.dir === 'asc' ? '▲' : '▼'}</span>}
               </th>
             ))}
+            {marks && <th className="marks-col" aria-label={t('outProv.rowSources')} />}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              {r.map((c, j) => (
-                <td key={j}>{c === null || c === undefined ? '' : String(c)}</td>
-              ))}
-            </tr>
-          ))}
+          {order.map((i) => {
+            const r = (content.rows ?? [])[i]
+            const claim = content.row_refs?.[i]
+            return (
+              <tr key={i}>
+                {r.map((c, j) => (
+                  <td key={j}>{c === null || c === undefined ? '' : String(c)}</td>
+                ))}
+                {marks && <td className="marks-col">{claim && <ClaimMarks claim={claim} text={r.map((c) => (c === null ? '' : String(c))).join(' ')} />}</td>}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

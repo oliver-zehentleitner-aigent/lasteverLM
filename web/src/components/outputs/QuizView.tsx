@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { QuizContent } from '../../api/types'
 import { answerIndex, score } from '../../lib/quiz'
 import { t } from '../../i18n'
+import { ClaimMarks } from '../OutputProvenance'
 
 /** Interactive quiz: pick an option, the right one and the explanation are
  *  revealed per question; a running score sits at the top. */
@@ -29,7 +30,9 @@ export function QuizView({ content }: { content: QuizContent }) {
           const right = answerIndex(q)
           return (
             <li key={i} className="question">
-              <p className="q">{q.question}</p>
+              <p className="q">
+                {q.question} <ClaimMarks claim={q} text={`${q.question} ${q.explanation ?? ''}`} />
+              </p>
               <ul className="options">
                 {q.options.map((o, j) => {
                   const cls =

@@ -1,7 +1,7 @@
 import { marked } from 'marked'
 import { describe, expect, it } from 'vitest'
 import type { Passage } from '../api/types'
-import { checkSummary, claimRefs, decorateReport, duration, exportName, markUnsupported, passageCitation, provenanceExport, supportBadge, unitBadges } from './outputProvenance'
+import { checkSummary, claimHtml, claimRefs, decorateReport, duration, exportName, markUnsupported, passageCitation, provenanceExport, supportBadge, unitBadges } from './outputProvenance'
 
 const passage: Passage = {
   n: 2,
@@ -110,5 +110,13 @@ describe('unitBadges', () => {
   it('has none without units or for a text it cannot find', () => {
     expect(unitBadges(answer, null)).toEqual([])
     expect(unitBadges(answer, [{ text: 'elsewhere', support: 'unsupported' }])).toEqual([])
+  })
+})
+
+describe('claimHtml', () => {
+  it('writes the markers and the badge for an HTML label', () => {
+    expect(claimHtml({ refs: [1, 3], support: 'supported' }, new Set([1]))).toBe(' <button type="button" class="cite" data-n="1">1</button>')
+    expect(claimHtml({ refs: [], support: 'unsupported' }, new Set([1]))).toContain('class="badge support-unsupported"')
+    expect(claimHtml({}, new Set([1]))).toBe('')
   })
 })

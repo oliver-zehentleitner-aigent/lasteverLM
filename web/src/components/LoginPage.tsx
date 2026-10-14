@@ -41,7 +41,10 @@ export function LoginPage({ onLoggedIn }: Props) {
   return (
     <main className="login">
       <h1>lasteverLM</h1>
-      <p className="muted">{t('login.tagline')}</p>
+      <p className="tagline">
+        <strong>{t('login.tagline')}</strong>
+      </p>
+      <p className="muted small">{t('login.taglineMore')}</p>
 
       {sent ? (
         <section className="card">
