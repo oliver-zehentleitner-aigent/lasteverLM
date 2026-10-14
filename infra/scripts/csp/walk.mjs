@@ -278,6 +278,8 @@ await step('source tab with a web page snapshot', async () => {
   await settle()
   const before = violations.size
   await page.click(`.sources li#source-${found.url.id} button.link.name`, { timeout: 5000 })
+  // a web page's tab may open on "As read"; the snapshot is under "Original"
+  await page.click('.viewer-body .source-mode button[role="radio"]:first-child', { timeout: 5000 })
   const frame = await page.waitForSelector('.viewer-body iframe.source-frame.snapshot', { timeout: 8000 }).catch(() => null)
   if (!frame) {
     storageLoads.push({ what: 'web page snapshot', error: 'no snapshot frame in the source tab', ok: false })
