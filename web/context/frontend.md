@@ -557,6 +557,8 @@ would claim a precision a median over 30 days does not have.
 
 **Rejected alternative:** a fixed list of rows in the web, the way the
 request named them (PDF per page in two capture modes, the judge per
-level). Rejected because the service prices a PDF per source and the
-judge as one action, so there is no per-page or per-level number to show.
-A fixed list would also go stale as actions are added.
+level). Rejected because the service prices a PDF per source, so there
+is no per-page number to show. A fixed list would also go stale as
+actions are added. The judge per level came later from the service
+(`judge:<level>` rows with a `level`), and those rows fall into Extras
+under the same prefix rule.
