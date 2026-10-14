@@ -197,6 +197,8 @@ def stored_units(kind: str, content: Mapping[str, Any]) -> list[Unit]:
             unit(q, f"{q['question']} {q['answer']}. {q.get('explanation', '')}")
             for q in content.get("questions", [])
         ]
+    elif kind == "flashcards":
+        units = [unit(c, f"{c['front']} {c['back']}") for c in content.get("cards", [])]
     elif kind == "table":
         units = [
             unit(refs, " ".join(row))
