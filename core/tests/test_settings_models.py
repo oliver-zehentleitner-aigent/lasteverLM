@@ -18,6 +18,7 @@ from lasteverlm_core import (
     Message,
     Output,
     SharedOutput,
+    Source,
     env_int,
     env_optional,
     env_required,
@@ -140,6 +141,18 @@ def test_support_check_on_messages_and_answers_is_optional() -> None:
     answer = Answer(message_id=uuid4(), answer="a [1]", units=units, check=check)
     assert answer.check == check
     assert Answer(message_id=uuid4(), answer="a").units is None
+
+
+def test_a_source_can_wait_for_credit() -> None:
+    row = {
+        "id": str(uuid4()),
+        "notebook_id": str(uuid4()),
+        "name": "a.pdf",
+        "kind": "pdf",
+        "status": "waiting_for_credit",
+        "created_at": "2026-10-14T00:00:00Z",
+    }
+    assert Source.model_validate(row).status == "waiting_for_credit"
 
 
 def test_health_reports_the_build_from_the_env() -> None:

@@ -29,7 +29,9 @@ DEMO_USER_ID = UUID("00000000-0000-4000-8000-000000000001")
 DEMO_USER_EMAIL = "demo@localhost"
 
 SourceKind = Literal["pdf", "text", "url", "image", "audio", "generated"]
-SourceStatus = Literal["processing", "ready", "failed"]
+# "waiting_for_credit" is never stored: ingest shows it for a queued
+# ("processing") source whose owner has no credit, which its worker skips.
+SourceStatus = Literal["processing", "waiting_for_credit", "ready", "failed"]
 OutputKind = Literal["report", "quiz", "table", "mindmap", "infographic", "audio", "decision"]
 OutputStatus = Literal["waiting", "processing", "ready", "failed"]
 # Access to the admin area: a viewer reads it, an admin also changes it.
