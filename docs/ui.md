@@ -88,13 +88,13 @@ is closed. After the wizard the notebook view opens.
   library. Deleting a notebook detaches its sources the same way. A
   document made in another notebook and added from the library is
   listed here too, with the kind "Generated". Deleting a notebook that
-  has generated documents asks first: "N generated documents: delete
+  has outputs asks first: "It has N outputs: delete
   them too, or keep them in the library?" (Cancel, Keep in library,
   Delete all N too). "Delete too" moves them to the trash in rag
   (`DELETE /api/rag/notebooks/{id}/outputs`) before ingest deletes the
   notebook, so a failure there leaves the notebook untouched; "keep"
   only deletes the notebook, and the documents stay in the library with
-  their origin noted. Without generated documents the plain
+  their origin noted. Without outputs the plain
   confirmation as before.
   A source added without credit is listed as "waiting for credit" with
   "redeem a voucher" next to it (the voucher dialog); it is processed
@@ -306,23 +306,23 @@ service's sentence).
 ## Library
 
 `/library` (in the header next to Admin), two views: **Library** and
-**Trash**. The library is one table of every upload, URL and generated
-document of the user, once, newest first (`GET /api/ingest/library?kind=all`).
-Above it a view selector (All, Sources, Documents, pills like the output
+**Trash**. The library is one table of every upload, URL and
+output of the user, once, newest first (`GET /api/ingest/library?kind=all`).
+Above it a view selector (All, Sources, Outputs, pills like the output
 kind chips) and filters by kind (source kinds, and the output kinds for
-documents), by notebook (or "not in any notebook") and by part of the
-name or address. Columns: kind (a document's output kind, from rag's
-list of the user's documents joined by `output_id`), name, status (a
+outputs), by notebook (or "not in any notebook") and by part of the
+name or address. Columns: kind (an output's kind, from rag's
+list of the user's outputs joined by `output_id`), name, status (a
 failed entry's reason on one line next to the badge, in full as its
 tooltip; "waiting for credit" with "redeem a voucher"), size ("unknown"
-for entries added before sizes were recorded, none for documents), date,
+for entries added before sizes were recorded, none for outputs), date,
 and the notebooks it is in as links (or "not in any notebook"); a
-document also says where it was made ("made in test1", or "made in
+output also says where it was made ("made in test1", or "made in
 deleted notebook "test1"" once that notebook is gone). **Open** works
 per type: an upload in a new tab (a web page at its address, an upload
 through its presigned `preview_url`; the name too; only `http(s)`
 addresses are linked, without a preview the action is disabled with a
-note); a document goes to the notebook it was made in with it selected,
+note); an output goes to the notebook it was made in with it selected,
 or, when that notebook is deleted, shows it read-only on this page as
 the share page does (print where the kind has it, no sharing).
 **Checking an audio source** (here and in a notebook's Sources list): a
@@ -334,7 +334,7 @@ upload was converted first, "original" (`original_url`). Open still
 takes the transcribed file.
 Each row has a checkbox ("all / none" in the column header acts on the
 rows the filters show; ticks survive a filter change), across sources
-and documents. With rows ticked a bar above the table offers:
+and outputs. With rows ticked a bar above the table offers:
 **New notebook from n** (a title field in the bar next to the button,
 Enter or the button creates, Escape clears it; preset with the first
 file's name without its extension, else the first web page's title or,
@@ -344,19 +344,19 @@ linked in one call, `POST /notebooks/{id}/sources/bulk`, then it opens);
 **Add to notebook…** (a list of the user's notebooks, each saying "2 of
 3 already in it"; a click links only the missing ones in one call, and
 a line says "2 added, 1 was already in test1"; a notebook that has them
-all is disabled and says so; documents that are not ready are left out,
+all is disabled and says so; outputs that are not ready are left out,
 since ingest refuses the whole call for one); and **Delete n** (one
 confirmation naming every notebook the entries leave, then one delete
 per entry with "n of m" in the bar, an upload through ingest's trash, a
-document through rag's; after a failure the rest stays ticked).
+output through rag's; after a failure the rest stays ticked).
 Delete moves the entry to the trash, out of every notebook, after a
-confirmation that names those notebooks; a document's share link stops
+confirmation that names those notebooks; an output's share link stops
 working while it is there. The **Trash** view lists deleted uploads with
 the date they are purged (after the trash days set in the settings, 14
 by default; "settings" links to that field): restore puts one back in
 the library in no notebook, "delete for good" removes the file and its
 passages at once (uploading the same file or URL again restores it
-too); and, under them, the trashed documents, with restore (back into
+too); and, under them, the trashed outputs, with restore (back into
 the notebook it was made in, if that still exists; other notebooks need
 it added again) and delete for good.
 

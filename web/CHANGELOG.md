@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Wording: the library's view selector reads All | Sources | Outputs, and the library, its trash and the notebook-delete dialog say "output(s)" instead of "(generated) documents", the notebook's own term (German keeps its "Dokumente", as the notebook's heading).
+
 ### Fixed
 
 - Code scanning findings: the CSP build script finds inline scripts with a closing tag in any case or with whitespace (and skips any `src`), and the mind map test cleans labels with the app's own DOMPurify sanitizer (in jsdom) instead of a regex stand-in.

@@ -133,7 +133,7 @@ describe('the one table', () => {
 
   it('narrows by view, a document kind and a notebook', () => {
     const f = { kind: 'all' as const, query: '' }
-    expect(filterLibrary(all, { ...f, view: 'documents' }).map((e) => e.id)).toEqual(['Report on X'])
+    expect(filterLibrary(all, { ...f, view: 'outputs' }).map((e) => e.id)).toEqual(['Report on X'])
     expect(filterLibrary(all, { ...f, view: 'sources' }).map((e) => e.id)).toEqual(['a.pdf', 'b.txt'])
     expect(filterLibrary(all, { ...f, kind: 'report' }, docKind).map((e) => e.id)).toEqual(['Report on X'])
     expect(filterLibrary(all, { ...f, notebook: 'n2' }).map((e) => e.id)).toEqual(['Report on X'])

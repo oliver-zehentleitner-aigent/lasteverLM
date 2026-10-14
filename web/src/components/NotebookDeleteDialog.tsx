@@ -6,13 +6,13 @@ import { t, tn } from '../i18n'
 
 interface Props {
   notebook: Notebook
-  /** how many generated documents the notebook has, more than none */
+  /** how many outputs the notebook has, more than none */
   outputs: number
   onCancel: () => void
   onDeleted: (id: string) => void
 }
 
-/** Deleting a notebook that has generated documents: they go with it, or
+/** Deleting a notebook that has outputs: they go with it, or
  *  they stay in the library (documents belong to the user, not to the
  *  notebook). "Delete them too" removes them in rag first, so a failure
  *  there leaves the notebook untouched; the error stays in the dialog. */
