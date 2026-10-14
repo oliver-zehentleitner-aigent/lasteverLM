@@ -451,10 +451,14 @@ only the rest is rag's own. Before any model call the service runs core's credit
 check (`has_credit`: a positive balance of ledger credits minus the charges
 of usage, for admins as for everyone else) and answers 402 otherwise. Every
 model call is booked as one row of the `usage` table through core's
-`record_usage`, under its user action. Core fixes the row's cost (from
-`MODEL_PRICES`) and its charge (account's pricing rules: the action's
-margin), and books the action's fixed fee once per `action_id`. rag
-computes no cents of its own. Its actions are:
+`record_usage`, under its user action. Core fixes the row's cost in US
+cents (from `MODEL_PRICES`) and in euro cents (at the pricing rules'
+`usd_per_eur`), and its charge in euro cents (the action's margin), and
+it books the action's fixed fee once per `action_id`. rag computes no
+cents of its own. Without an exchange rate nothing runs: every request
+that would call a model (and the estimate) answers 503 `pricing has no
+exchange rate, ask an admin` before any provider call, and the worker
+claims no job, so no attempt is spent, and logs an error each pass. Its actions are:
 
 | Action | One `action_id` per |
 |---|---|
@@ -468,8 +472,10 @@ computes no cents of its own. Its actions are:
 "options"?}` for an output or `{"action", "options"?}` for
 `chat_answer`, `chart_propose`, `judge` (`options.level` and
 `options.kind`) or `voice_sample`. It returns `{"action",
-"charge_cents_min", "charge_cents_max", "cost_cents_min",
-"cost_cents_max"}`, rounded outwards to a hundredth of a cent.
+"charge_cents_min", "charge_cents_max", "cost_eur_cents_min",
+"cost_eur_cents_max", "cost_usd_cents_min", "cost_usd_cents_max"}`,
+rounded outwards to a hundredth of a cent. The charge is in euro cents,
+like the user's credit.
 
 - **Calls.** The calls the action makes get assumed token counts in a
   low and a high case (`lasteverlm_rag/estimate.py`). The prompt
@@ -479,8 +485,9 @@ computes no cents of its own. Its actions are:
 - **Judge.** With a judge level, the low case judges every unit once,
   and all pass. The high case judges every unit in all three rounds, with
   two revisions.
-- **Pricing.** Each call is priced with core's `cost_cents` and the
-  current pricing rules; the action's fee is counted once.
+- **Pricing.** Each call is priced with core's `cost_cents` (US cents),
+  converted at the current rules' rate and charged with the action's
+  margin. The action's fee is counted once.
 - **Not a quote.** It is an estimate; the booking uses the real counts.
   Options that do not fit, or an action rag does not run, give a 422.
 

@@ -30,6 +30,7 @@ from lasteverlm_core import (
     DecisionResult,
     Embedder,
     EmbeddingResult,
+    ExchangeRateMissingError,
     Message,
     Output,
     OutputKind,
@@ -1403,7 +1404,11 @@ def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, 
 
 
 def require_credit(store: Store, user_id: str) -> None:
-    """Core's rule: a positive balance, for admins as for everyone else."""
+    """Core's rule: a positive balance, for admins as for everyone else; and
+    a rate to book with, checked first, so a missing ``usd_per_eur`` stops
+    the request before the platform is paid for a call nobody can book."""
+    if store.pricing_rules().usd_per_eur is None:
+        raise ExchangeRateMissingError()
     if not store.has_credit(user_id):
         raise InsufficientCredit(user_id)
 

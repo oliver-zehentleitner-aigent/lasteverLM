@@ -23,6 +23,7 @@ from lasteverlm_core import (
     AuthError,
     ChunkView,
     Embedder,
+    ExchangeRateMissingError,
     Health,
     Message,
     OpenAICompatibleEmbedder,
@@ -490,6 +491,12 @@ def _install_error_handlers(app: FastAPI) -> None:
     async def provider_error(_: Request, exc: ProviderError) -> JSONResponse:
         log.warning("provider failure: %s", exc)
         return error(502, "the model did not answer; please try again")
+
+    @app.exception_handler(ExchangeRateMissingError)
+    async def no_exchange_rate(_: Request, exc: ExchangeRateMissingError) -> JSONResponse:
+        # nothing can be booked or estimated: a configuration gap, loud in the log
+        log.error("%s", exc)
+        return error(503, "pricing has no exchange rate, ask an admin")
 
     @app.exception_handler(InsufficientCredit)
     async def credit_exhausted(_: Request, exc: InsufficientCredit) -> JSONResponse:

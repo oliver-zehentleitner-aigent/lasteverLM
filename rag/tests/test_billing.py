@@ -135,16 +135,36 @@ def test_an_output_estimate_is_a_range_with_the_fee_counted_once(settings):
     plain = r.json()
     assert plain["action"] == "output:report"
     assert 0 < plain["charge_cents_min"] < plain["charge_cents_max"]
-    # no rules: the charge is the cost
-    assert plain["charge_cents_max"] == plain["cost_cents_max"]
+    # a rate of 1 and no margin: the charge is the cost
+    assert plain["charge_cents_max"] == plain["cost_eur_cents_max"] == plain["cost_usd_cents_max"]
 
     store.rules = PricingRules.parse(
-        {"actions": {"output:report": {"margin_pct": 100, "fixed_cents": 5}}}
+        {"usd_per_eur": 2, "actions": {"output:report": {"margin_pct": 100, "fixed_cents": 5}}}
     )
     priced = client.post(ESTIMATE, json={"kind": "report"}, headers=AUTH).json()
-    assert priced["cost_cents_max"] == plain["cost_cents_max"]
-    # double the cost, plus one fee of 5 cents for the whole output
-    assert priced["charge_cents_max"] == pytest.approx(2 * plain["cost_cents_max"] + 5, abs=0.02)
+    assert priced["cost_usd_cents_max"] == plain["cost_usd_cents_max"]
+    # half the dollars in euros, doubled by the margin, plus one fee of 5 euro cents
+    assert priced["cost_eur_cents_max"] == pytest.approx(plain["cost_usd_cents_max"] / 2, abs=0.02)
+    assert priced["charge_cents_max"] == pytest.approx(plain["cost_usd_cents_max"] + 5, abs=0.02)
+
+
+def test_without_an_exchange_rate_nothing_calls_a_model(settings):
+    store, client = setup(settings, "The sky is blue [1].")
+    created = client.post(OUTPUTS, json={"kind": "table"}, headers=AUTH).json()["id"]
+    store.rules = PricingRules()
+    refused = (503, {"error": "pricing has no exchange rate, ask an admin"})
+    ask = f"/api/rag/notebooks/{NOTEBOOK}/ask"
+    for path, body in (
+        (ESTIMATE, {"kind": "report"}),
+        (ask, {"question": "?", "conversation_id": CONVERSATION}),
+        (OUTPUTS, {"kind": "report"}),
+        (f"/api/rag/notebooks/{NOTEBOOK}/charts/propose", {}),
+    ):
+        r = client.post(path, json=body, headers=AUTH)
+        assert (r.status_code, r.json()) == refused, path
+    # the worker claims nothing: the job keeps its attempts for later
+    assert client.worker.run_once() == 0
+    assert store.outputs[created]["attempts"] == 0 and store.usage == []
 
 
 def test_a_judge_level_widens_the_range_by_up_to_three_rounds(settings):

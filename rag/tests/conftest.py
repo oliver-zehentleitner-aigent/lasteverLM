@@ -117,7 +117,8 @@ class FakeStore:
         self.viewers = viewers or set()
         self.messages: list[dict[str, Any]] = []
         self.bookings: list[tuple[str, uuid.UUID]] = []
-        self.rules = PricingRules()
+        # a rate of 1: charges equal costs unless a test sets margins or a rate
+        self.rules = PricingRules.parse({"usd_per_eur": 1})
         self.usage: list[tuple[str, str | None, Usage]] = []
         self.notebooks = {
             NOTEBOOK: {"id": NOTEBOOK, "owner": OWNER, "title": "My notebook"},

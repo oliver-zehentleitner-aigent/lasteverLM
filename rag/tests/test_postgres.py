@@ -56,6 +56,7 @@ PRICES = parse_model_prices(
     '{"llm": {"in": 100, "out": 300}, "emb": {"in": 10, "out": 0}, "tts": {"in": 2000, "out": 0}}'
 )
 
+PRICING = '{"usd_per_eur": 1}'
 MIGRATION_DIRS = ["infra", "core", "account", "ingest", "rag"]
 
 # History written before conversations existed, inserted right after rag's
@@ -89,6 +90,12 @@ def database_url() -> str:
                         conn.execute(_sql(path))
                         if (service, path.name) == ("rag", "0001_rag.sql"):
                             conn.execute(LEGACY_SEED)
+                # a rate of 1, so costs and charges read alike (account seeds the real row)
+                conn.execute(
+                    "insert into settings (key, value) values ('pricing', %s) "
+                    "on conflict (key) do nothing",
+                    (PRICING,),
+                )
                 conn.commit()
             return DATABASE_URL
         except psycopg.OperationalError:
@@ -767,7 +774,7 @@ def test_a_message_is_found_with_its_notebook_and_its_support_replaced(store, no
 
 
 def test_one_action_is_charged_its_margin_and_its_fee_once(store, pool, user, notebook):
-    rules = {"actions": {"output:report": {"margin_pct": 50, "fixed_cents": 5}}}
+    rules = {"usd_per_eur": 1, "actions": {"output:report": {"margin_pct": 50, "fixed_cents": 5}}}
     with pool.connection() as conn:
         conn.execute(
             "insert into settings (key, value) values ('pricing', %s) "
@@ -783,7 +790,7 @@ def test_one_action_is_charged_its_margin_and_its_fee_once(store, pool, user, no
             "where action_id = %s order by kind",
             (action.action_id,),
         ).fetchall()
-        conn.execute("delete from settings where key = 'pricing'")
+        conn.execute("update settings set value = %s where key = 'pricing'", (PRICING,))
     assert [(r["kind"], r["action"]) for r in rows] == [
         ("embedding", "output:report"),
         ("fee", "output:report"),

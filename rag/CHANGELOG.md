@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `POST /api/rag/estimate`: the charge range of an output (`kind` with its options, a judge level included) or of an action (`chat_answer`, `chart_propose`, `judge`, `voice_sample`) before it runs. Each call the action makes is priced at assumed low and high token counts with core's cost and the account's pricing rules, and the action's fixed fee is counted once.
+- `POST /api/rag/estimate`: the charge range of an output (`kind` with its options, a judge level included) or of an action (`chat_answer`, `chart_propose`, `judge`, `voice_sample`) before it runs. Each call the action makes is priced at assumed low and high token counts with core's cost in US cents, converted at the pricing rules' `usd_per_eur` and charged in euro cents with the action's margin; the action's fixed fee is counted once. Without an exchange rate every request that would call a model answers 503 before any provider call, and the worker claims no job.
 
 - `options.judge` (`off` default, `low`, `medium`, `high`) for every kind but `chart`. Each claim unit is judged by the level's model (`JUDGE_MODELS`, required to be priced) after the word check. Failing units are revised in one call of the author model and judged again, for at most three rounds; what still fails is removed and listed in `provenance.judge.removed`. Units carry `judge {level, model, verdict, reason, quote, round}`, and `provenance.judge` logs every round with its usage.
 
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Every usage row is booked through core's `record_usage` under its user action, with one `action_id` per action: `chat_answer`; `output:<kind>` under the output's id (all attempts, TTS segments, both calls of a decision, judge rounds and revisions); `chart_propose`; `judge` on request; `voice_sample`. Core fixes cost and charge and books a fixed fee once per action, and the credit check runs over the charges. rag computes no cents of its own.
+- Every usage row is booked through core's `record_usage` under its user action, with one `action_id` per action: `chat_answer`; `output:<kind>` under the output's id (all attempts, TTS segments, both calls of a decision, judge rounds and revisions); `chart_propose`; `judge` on request; `voice_sample`. Core fixes the cost (US and euro cents) and the charge (euro cents) and books a fixed fee once per action, and the credit check runs over the charges. rag computes no cents of its own.
 
 ## [0.17.0] - 2026-10-14
 

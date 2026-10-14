@@ -3,9 +3,10 @@
 An action is a list of model calls. Each call gets assumed token counts
 in a low and a high case (below, documented as assumptions; the real
 counts depend on the material). Each call is priced with core's
-``cost_cents`` and the account's pricing rules (``PricingRules``: the
-action's margin), and the action's fixed fee is added once, as core books
-it once per action. This is an estimate, never a quote: the booking uses
+``cost_cents`` (US cents), converted at the pricing rules' exchange rate
+and charged with the action's margin in euro cents (``PricingRules``),
+and the action's fixed fee is added once, as core books it once per
+action. This is an estimate, never a quote: the booking uses
 the real counts.
 """
 
@@ -140,10 +141,15 @@ def action_calls(action: str, options: Mapping[str, Any], models: Models, case: 
 
 def charge(
     prices: ModelPrices, rules: PricingRules, action: str, calls: list[Call]
-) -> tuple[Decimal, Decimal]:
-    """The cost and the charge of the calls, the action's fee counted once."""
-    cost = sum((cost_cents(prices, c.model, c.tokens_in, c.tokens_out) for c in calls), Decimal(0))
-    return cost, rules.charge_cents(action, cost) + rules.fixed_cents(action)
+) -> tuple[Decimal, Decimal, Decimal]:
+    """The calls' cost in US cents and in euro cents, and their charge in
+    euro cents with the action's fee counted once. Raises
+    ``ExchangeRateMissingError`` when the rules have no rate."""
+    cost_usd = sum(
+        (cost_cents(prices, c.model, c.tokens_in, c.tokens_out) for c in calls), Decimal(0)
+    )
+    cost_eur = rules.cost_eur_cents(cost_usd)
+    return cost_usd, cost_eur, rules.charge_cents(action, cost_eur) + rules.fixed_cents(action)
 
 
 def estimate(
@@ -153,14 +159,17 @@ def estimate(
     low: list[Call],
     high: list[Call],
 ) -> dict[str, Any]:
-    cost_low, charge_low = charge(prices, rules, action, low)
-    cost_high, charge_high = charge(prices, rules, action, high)
+    usd_low, eur_low, charge_low = charge(prices, rules, action, low)
+    usd_high, eur_high, charge_high = charge(prices, rules, action, high)
     return {
         "action": action,
+        # what the user pays, in euro cents like their credit
         "charge_cents_min": _cents(charge_low, ROUND_FLOOR),
         "charge_cents_max": _cents(charge_high, ROUND_CEILING),
-        "cost_cents_min": _cents(cost_low, ROUND_FLOOR),
-        "cost_cents_max": _cents(cost_high, ROUND_CEILING),
+        "cost_eur_cents_min": _cents(eur_low, ROUND_FLOOR),
+        "cost_eur_cents_max": _cents(eur_high, ROUND_CEILING),
+        "cost_usd_cents_min": _cents(usd_low, ROUND_FLOOR),
+        "cost_usd_cents_max": _cents(usd_high, ROUND_CEILING),
     }
 
 

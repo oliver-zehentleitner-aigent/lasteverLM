@@ -71,6 +71,11 @@ class Worker:
     def run_once(self) -> int:
         """One pass: claim and handle jobs until the queue has nothing runnable.
         Returns how many jobs finished (ready or failed)."""
+        if self._store.pricing_rules().usd_per_eur is None:
+            # no job is claimed: a run would pay the platform and book nothing,
+            # and the jobs keep their attempts for when the rate is set
+            log.error("pricing has no exchange rate (usd_per_eur): no output job runs")
+            return 0
         finished = 0
         retried: set[str] = set()
         while True:
