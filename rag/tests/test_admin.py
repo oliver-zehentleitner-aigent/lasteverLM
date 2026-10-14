@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from lasteverlm_rag.admin import admin_stats
@@ -8,6 +9,7 @@ from .conftest import (
     NOTEBOOK,
     OWNER,
     FakeLLM,
+    FakeObjects,
     FakeRetriever,
     FakeStore,
     make_client,
@@ -109,3 +111,69 @@ def test_daily_stats_are_admin_only(settings):
     client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
     assert client.get(f"{STATS}/daily").status_code == 401
     assert client.get(f"{STATS}/daily", headers=AUTH).status_code == 403
+
+
+USERS = "/api/rag/admin/users"
+
+
+def _user_with_data(store: FakeStore, objects: FakeObjects) -> tuple[str, str]:
+    """A second user with a notebook holding an upload, a conversation with a
+    message, a text output with its generated source and an audio output."""
+    target, notebook = str(uuid.uuid4()), str(uuid.uuid4())
+    store.notebooks[notebook] = {"id": notebook, "owner": target, "title": "Theirs"}
+    store.add_source(notebook, "a.pdf")
+    conversation = store.create_conversation(notebook, "Chat 1").id
+    store.insert_message(notebook, conversation, "user", "hi", None)
+    report = store.create_output(notebook, "report", "ready")
+    generated = store.create_generated_source(notebook, "Report", "s")
+    store.update_output(report.id, content={"markdown": "x"}, source_id=generated)
+    audio = store.create_output(notebook, "audio", "ready")
+    key = f"{notebook}/{audio.id}/audio.mp3"
+    store.update_output(audio.id, content={"key": key})
+    objects.put(key, b"mp3", "audio/mpeg")
+    return target, notebook
+
+
+def test_deleting_a_user_removes_objects_then_rags_rows_of_their_notebooks(settings):
+    store, objects = FakeStore(admins={OWNER}), FakeObjects()
+    target, notebook = _user_with_data(store, objects)
+    mine = store.create_output(NOTEBOOK, "report", "ready").id
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM(), objects=objects)
+
+    r = client.delete(f"{USERS}/{target}", headers=AUTH)
+    assert (r.status_code, r.content) == (204, b"")
+    assert objects.objects == {}
+    assert list(store.outputs) == [mine]
+    assert all(c["notebook_id"] != notebook for c in store.conversations.values())
+    assert all(m["notebook_id"] != notebook for m in store.messages)
+    # the upload and the notebook stay: they are ingest's to delete
+    assert [s["kind"] for s in store.sources.values()] == ["pdf"]
+    assert notebook in store.notebooks and CONVERSATION in store.conversations
+
+    # idempotent: again, and for a user rag never saw
+    assert client.delete(f"{USERS}/{target}", headers=AUTH).status_code == 204
+    assert client.delete(f"{USERS}/{uuid.uuid4()}", headers=AUTH).status_code == 204
+
+
+def test_a_failed_object_delete_names_the_key_and_keeps_every_row(settings):
+    store, objects = FakeStore(admins={OWNER}), FakeObjects(fail_delete=True)
+    target, notebook = _user_with_data(store, objects)
+    (key,) = objects.objects
+    before = (len(store.outputs), len(store.conversations), len(store.messages), len(store.sources))
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM(), objects=objects)
+
+    r = client.delete(f"{USERS}/{target}", headers=AUTH)
+    assert (r.status_code, r.json()) == (502, {"error": f"could not delete stored object {key}"})
+    after = (len(store.outputs), len(store.conversations), len(store.messages), len(store.sources))
+    assert after == before
+
+
+def test_deleting_a_user_is_for_admins_only(settings):
+    target = str(uuid.uuid4())
+    for store in (FakeStore(), FakeStore(viewers={OWNER})):
+        client = make_client(settings, store, FakeRetriever([]), FakeLLM())
+        assert client.delete(f"{USERS}/{target}").status_code == 401
+        r = client.delete(f"{USERS}/{target}", headers=AUTH)
+        assert (r.status_code, r.json()) == (403, {"error": "admin only"})
+    client = make_client(settings, FakeStore(admins={OWNER}), FakeRetriever([]), FakeLLM())
+    assert client.delete(f"{USERS}/not-a-uuid", headers=AUTH).status_code == 422

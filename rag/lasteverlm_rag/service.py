@@ -121,6 +121,15 @@ class OutputNotFound(Exception):
     """No output with that id belongs to the caller."""
 
 
+class ObjectDeleteFailed(Exception):
+    """A stored object could not be deleted; ``key`` names it, the message
+    carries the storage detail for the log."""
+
+    def __init__(self, key: str, detail: str) -> None:
+        super().__init__(f"{key}: {detail}")
+        self.key = key
+
+
 class InvalidOptions(Exception):
     """The output options do not fit the kind or the catalogue."""
 
@@ -432,6 +441,23 @@ class OutputService:
         # objects first: a failed delete leaves the row for another try, not an orphan file
         self._delete_objects(row.content)
         self._store.delete_output(row.id)
+
+    def delete_user_data(self, user_id: str) -> None:
+        """Admin, when a user is deleted: the stored files of the outputs in the
+        user's notebooks, then rag's rows there. Objects first: the rows would
+        cascade from ingest's notebook delete anyway, the files would not, and a
+        failed file delete leaves the rows for the retry. Idempotent."""
+        for content in self._store.user_output_contents(user_id):
+            key = content.get("key")
+            if not isinstance(key, str):
+                continue
+            if self._objects is None:
+                raise ObjectDeleteFailed(key, "no object storage configured")
+            try:
+                self._objects.delete(key)
+            except StorageError as exc:
+                raise ObjectDeleteFailed(key, str(exc)) from exc
+        self._store.delete_user_data(user_id)
 
     def share(self, user_id: str, output_id: str) -> str:
         row = self._owned(user_id, output_id)
