@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.19.6] - 2026-10-14
+
 ### Fixed
 
 - A web page whose content is built by JavaScript (an app shell, such as a single-page app) now fails with "the page has no readable text without JavaScript (it builds its content in the browser); add a page that serves its text as HTML" instead of "page contains no readable text", which did not say why; a page without text and without scripts says "the page contains no readable text".
