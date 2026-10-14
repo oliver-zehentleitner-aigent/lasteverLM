@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `DELETE /api/rag/admin/users/{id}` (admins only), account's first step when a user is deleted: the stored files of the outputs in the user's notebooks, then rag's rows there (generated sources, outputs, messages, conversations) in one transaction. Idempotent, always 204; a file that cannot be deleted is a 502 naming its key, with every row kept.
+
 ## [0.11.1] - 2026-10-14
 
 ### Fixed

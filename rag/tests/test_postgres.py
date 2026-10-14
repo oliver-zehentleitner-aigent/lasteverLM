@@ -560,3 +560,44 @@ def test_claim_with_a_selection_waits_only_for_the_selected_sources(store, pool,
         claimed.add(job.id)
     assert free.id in claimed and blocked.id not in claimed  # its selection is processing
     assert store.get_output(blocked.id).attempts == 0
+
+
+def test_deleting_a_users_data_leaves_uploads_notebooks_and_other_users(
+    store, pool, user, notebook
+):
+    other = str(uuid4())
+    with pool.connection() as conn:
+        conn.execute("insert into users (id, email) values (%s, %s)", (other, f"{other}@t.local"))
+        conn.execute(
+            "insert into notebooks (id, owner, title) values (%s, %s, 'nb')", (other, other)
+        )
+    theirs = store.create_output(other, "report", "ready").id
+    upload = add_source(pool, notebook, "ready")
+    conversation = store.create_conversation(notebook, "Chat 2").id
+    store.insert_message(notebook, conversation, "user", "hi", None)
+    generated = store.create_generated_source(notebook, "Report", "s")
+    store.insert_chunks(generated, [Chunk(0, None, "g")], [[1.0, 0.0, 0.0]])
+    report = store.create_output(notebook, "report", "ready")
+    store.update_output(report.id, content={"markdown": "x"}, source_id=generated)
+    audio = store.create_output(notebook, "audio", "processing")
+    store.update_output(audio.id, content={"key": "k/audio.mp3"})
+    store.create_output(notebook, "quiz", "waiting")  # no content yet
+
+    assert sorted(c.get("key", "-") for c in store.user_output_contents(user)) == [
+        "-",
+        "k/audio.mp3",
+    ]
+    store.delete_user_data(user)
+    store.delete_user_data(user)  # idempotent
+
+    assert store.list_outputs(notebook) == [] and store.list_conversations(notebook) == []
+    assert [s.source_id for s in store.source_states(notebook)] == [upload]
+    with pool.connection() as conn:
+        left = conn.execute(
+            "select (select count(*) from messages where notebook_id = %(n)s) as messages, "
+            "(select count(*) from library_sources where kind = 'generated' and owner = %(u)s) "
+            "as generated, (select count(*) from notebooks where id = %(n)s) as notebooks",
+            {"n": notebook, "u": user},
+        ).fetchone()
+    assert left == {"messages": 0, "generated": 0, "notebooks": 1}
+    assert [o.id for o in store.list_outputs(other)] == [theirs]

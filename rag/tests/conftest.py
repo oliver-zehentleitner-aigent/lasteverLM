@@ -17,6 +17,7 @@ from lasteverlm_core import (
     ProviderError,
     Role,
     SpeechResult,
+    StorageError,
     Usage,
 )
 from lasteverlm_core.chunking import Chunk
@@ -304,6 +305,29 @@ class FakeStore:
         self.sources.pop(source_id)
         self.chunks.pop(source_id, None)
 
+    # deleting a user
+    def _owned_notebooks(self, user_id: str) -> set[str]:
+        return {n["id"] for n in self.notebooks.values() if n["owner"] == user_id}
+
+    def user_output_contents(self, user_id: str) -> list[dict[str, Any]]:
+        mine = self._owned_notebooks(user_id)
+        return [
+            o["content"]
+            for o in self.outputs.values()
+            if o["notebook_id"] in mine and o["content"] is not None
+        ]
+
+    def delete_user_data(self, user_id: str) -> None:
+        mine = self._owned_notebooks(user_id)
+        for source_id, s in list(self.sources.items()):
+            if s["notebook_id"] in mine and s["kind"] == "generated":
+                self.delete_source(source_id)
+        self.outputs = {k: o for k, o in self.outputs.items() if o["notebook_id"] not in mine}
+        self.messages = [m for m in self.messages if m["notebook_id"] not in mine]
+        self.conversations = {
+            k: c for k, c in self.conversations.items() if c["notebook_id"] not in mine
+        }
+
     # credit
     def has_credit(self, user_id: str) -> bool:
         return self.balance > 0
@@ -451,8 +475,9 @@ class FakeTTS:
 
 
 class FakeObjects:
-    def __init__(self) -> None:
+    def __init__(self, fail_delete: bool = False) -> None:
         self.objects: dict[str, tuple[bytes, str]] = {}
+        self.fail_delete = fail_delete
 
     def put(self, key: str, data: bytes, content_type: str) -> None:
         self.objects[key] = (data, content_type)
@@ -464,6 +489,8 @@ class FakeObjects:
         return key in self.objects
 
     def delete(self, *keys: str) -> None:
+        if self.fail_delete:
+            raise StorageError("delete failed: AccessDenied at https://s3.internal")
         for key in keys:
             self.objects.pop(key, None)
 

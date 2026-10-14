@@ -31,8 +31,9 @@ this directory implements the `/api/rag` prefix.
 | POST | `/api/rag/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/api/rag/outputs/{id}/share` | | 204 |
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
-| GET | `/api/rag/admin/stats` | admins only | `AdminStats`, see below |
-| GET | `/api/rag/admin/stats/daily?days=` | admins only; `days` 1–365, default 30 | `DailyStats`, see below |
+| GET | `/api/rag/admin/stats` | viewers and admins | `AdminStats`, see below |
+| GET | `/api/rag/admin/stats/daily?days=` | viewers and admins; `days` 1–365, default 30 | `DailyStats`, see below |
+| DELETE | `/api/rag/admin/users/{id}` | admins only | 204, see below |
 | GET | `/healthz`, `/api/rag/healthz` | no auth | core's `Health`: `{"status": "ok", "version", "commit"}` |
 
 Every other endpoint takes `Authorization: Bearer <token>`. Errors are
@@ -70,6 +71,16 @@ status. One query, read only. Both only read, so
 the check is core's `admin_read` over `users.role` (`admin_role`):
 admins and viewers pass, anyone else gets 403 `admin only`. A viewer is a
 plain user everywhere else in rag, credit included.
+
+**Deleting a user.** `DELETE /api/rag/admin/users/{id}` is account's
+first step when an admin deletes a user (core's `admin_only`, admins
+only), before ingest deletes the notebooks. It deletes the stored files
+of the outputs in the user's notebooks (the audio MP3s), then, in one
+transaction, rag's rows there: generated sources with their chunks,
+outputs, messages and conversations. Notebooks and uploads stay for
+ingest. Always 204, also when nothing is left or the user never
+existed, so account can retry. A file that cannot be deleted is a 502
+`could not delete stored object <key>` and no row is touched.
 
 **Ask.** `answer` cites inline as single `[n]` markers, numbered 1..n in
 order of first appearance; `n` maps to an entry in `citations` (`source_id`, `source_name`, `source_kind`, `chunk_id`,

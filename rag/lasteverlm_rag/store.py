@@ -141,6 +141,11 @@ class Store(Protocol):
 
     def daily_stats(self, days: int) -> list[dict[str, Any]]: ...
 
+    # deleting a user (admin): rag's rows in the notebooks the user owns
+    def user_output_contents(self, user_id: str) -> list[dict[str, Any]]: ...
+
+    def delete_user_data(self, user_id: str) -> None: ...
+
     # credit
     def has_credit(self, user_id: str) -> bool: ...
 
@@ -294,6 +299,9 @@ _CONVERSATION_COLUMNS = (
     "c.title, c.created_at"
 )
 _CONVERSATION_FROM = "from conversations c join notebooks n on n.id = c.notebook_id"
+
+
+_USER_NOTEBOOKS = "select id from notebooks where owner = %(owner)s"
 
 
 class PostgresStore:
@@ -599,6 +607,30 @@ class PostgresStore:
     def has_credit(self, user_id: str) -> bool:
         with self._pool.connection() as conn:
             return has_credit(core_connection(conn), uuid.UUID(user_id))
+
+    def user_output_contents(self, user_id: str) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                f"select content from outputs where content is not null "
+                f"and notebook_id in ({_USER_NOTEBOOKS})",
+                {"owner": user_id},
+            ).fetchall()
+        return [row["content"] for row in rows]
+
+    def delete_user_data(self, user_id: str) -> None:
+        """Generated sources (library row, link, chunks), outputs, messages and
+        conversations of the user's notebooks, in one transaction. The notebooks
+        and the uploads are ingest's to delete."""
+        owner = {"owner": user_id}
+        with self._pool.connection() as conn, conn.transaction():
+            conn.execute(
+                "delete from library_sources l using sources s "
+                "where l.id = s.library_source_id and l.kind = 'generated' "
+                f"and s.notebook_id in ({_USER_NOTEBOOKS})",
+                owner,
+            )
+            for table in ("outputs", "messages", "conversations"):
+                conn.execute(f"delete from {table} where notebook_id in ({_USER_NOTEBOOKS})", owner)
 
     def admin_role(self, user_id: str) -> Role:
         with self._pool.connection() as conn:

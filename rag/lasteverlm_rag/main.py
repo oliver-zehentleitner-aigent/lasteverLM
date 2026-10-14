@@ -41,7 +41,7 @@ from lasteverlm_core import (
     current_user,
     make_client,
 )
-from lasteverlm_core.web import admin_read
+from lasteverlm_core.web import admin_only, admin_read
 
 from . import __version__
 from .admin import admin_stats, daily_stats
@@ -64,6 +64,7 @@ from .service import (
     InvalidOptions,
     InvalidSources,
     NotebookNotFound,
+    ObjectDeleteFailed,
     OutputNotFound,
     OutputNotReady,
     OutputService,
@@ -184,6 +185,11 @@ def create_app(
     # rag's admin endpoints only read: viewers and admins pass, 401 from the
     # principal, 403 "admin only" from core for a plain user
     AdminReader = Annotated[uuid.UUID, Depends(admin_read(principal, role_lookup))]  # noqa: N806
+    # ... and the one that changes something is for admins only
+    AdminWriter = Annotated[  # noqa: N806
+        uuid.UUID,
+        Depends(admin_only(principal, lambda r, uid: role_lookup(r, uid) == "admin")),
+    ]
 
     health = Health.from_env()  # the build is fixed for the life of the process
 
@@ -299,6 +305,12 @@ def create_app(
         assert store is not None
         return daily_stats(store, days)
 
+    @app.delete(f"{PREFIX}/admin/users/{{target}}", status_code=204)
+    def delete_user_data(target: uuid.UUID, _: AdminWriter) -> Response:
+        """Account's user deletion, before ingest deletes the notebooks."""
+        outputs.delete_user_data(str(target))
+        return Response(status_code=204)
+
     return app
 
 
@@ -343,6 +355,11 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(OutputNotReady)
     async def output_not_ready(_: Request, exc: OutputNotReady) -> JSONResponse:
         return error(409, "output is not ready")
+
+    @app.exception_handler(ObjectDeleteFailed)
+    async def object_delete_failed(_: Request, exc: ObjectDeleteFailed) -> JSONResponse:
+        log.error("deleting a stored object failed: %s", exc)
+        return error(502, f"could not delete stored object {exc.key}")
 
     @app.exception_handler(ProviderError)
     async def provider_error(_: Request, exc: ProviderError) -> JSONResponse:
