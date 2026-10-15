@@ -212,7 +212,7 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 /* The output formats are always three tiles to a row, of a fixed width: 3 * 8rem +
    2 * 0.5rem gap + 2 * 1rem padding = 27rem, the middle column's default
    and minimum width (LEFT_WIDTH in lib/layout.ts, kept equal by a test). */
-.tiles .tile-grid { grid-template-columns: repeat(3, 8rem); }
+.tiles .tile-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); align-items: start; }
 .tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left; white-space: normal; background: var(--panel); color: var(--fg); border: 1px solid var(--line); padding: 0.6rem; }
 .tile:not(:disabled):hover { border-color: var(--accent); background: var(--accent-soft); }
 
@@ -459,7 +459,7 @@ button.icon.play[aria-pressed='true'] { color: var(--accent); }
 .columns.full .chat-wrap { display: none; }
 .columns.full.chat-open .column.right .viewer { flex: 1 1 60%; }
 .columns.full.chat-open .chat-wrap { display: flex; flex: 0 0 40%; border-top: 1px solid var(--line); }
-.columns.full .viewer .tabs { padding-right: 6rem; }
+.columns.full .viewer .tabs-row { padding-right: 6rem; }
 .full-bar { position: absolute; top: 0.6rem; right: 1rem; display: flex; gap: 0.4rem; align-items: center; z-index: 1; }
 .full-bar .active { border-color: var(--accent); }
 
@@ -538,7 +538,6 @@ button.icon.play[aria-pressed='true'] { color: var(--accent); }
 .columns.full .vdivider { display: none; }
 @media (max-width: 900px) { .vdivider { display: none; } }
 /* a phone: the columns stack and the three tiles share the width */
-@media (max-width: 520px) { .tiles .tile-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .library .actions-cell { white-space: nowrap; display: flex; gap: 0.75rem; }
 .wizard .capture { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .wizard .capture legend { color: var(--muted); font-size: 0.9em; padding: 0 0.25rem; }
@@ -1154,3 +1153,13 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 /* which model read a source: an image's description, a PDF page by vision, a transcript */
 .read-by { margin: 0.2rem 0; color: var(--muted); font-style: italic; }
 .unused-sources { margin: 0; padding-left: 1.1rem; }
+
+/* the viewer's tab bar with "Close all" at its right end, outside the scrolling tabs */
+.tabs-row { display: flex; align-items: flex-start; gap: 0.5rem; }
+.tabs-row > .tabs { flex: 1; min-width: 0; }
+.tabs-row > .close-all { flex: none; margin-top: 0.4rem; white-space: nowrap; }
+/* a tab's right-click menu */
+.tab-menu { position: fixed; z-index: 30; margin: 0; padding: 0.25rem; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); }
+.tab-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--fg); padding: 0.35rem 0.6rem; border-radius: var(--radius); }
+.tab-menu button:not(:disabled):hover, .tab-menu button:focus-visible { background: var(--accent-soft); outline: none; }
+.tab-menu button:disabled { color: var(--muted); }

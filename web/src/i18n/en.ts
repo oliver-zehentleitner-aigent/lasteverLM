@@ -1239,6 +1239,9 @@ export const en = {
   'coverage.line': '{cited} of {selected} sources used',
   'coverage.noReason': 'not used, no reason given',
   'coverage.unused': 'Sources not used',
+  'viewer.closeAll': 'Close all',
+  'viewer.closeOthers': 'Close others',
+  'viewer.closeRight': 'Close tabs to the right',
 } as const
 
 export type MessageKey = keyof typeof en

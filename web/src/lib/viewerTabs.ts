@@ -42,6 +42,15 @@ export function afterClose(keys: readonly string[], closing: string): string | n
   return keys[at + 1] ?? keys[at - 1] ?? null
 }
 
+/** The tabs a close command removes: all of them, all but `key`, or
+ *  those after `key` in the bar's order. */
+export function tabsToClose(keys: readonly string[], key: string | null, which: 'all' | 'others' | 'right'): string[] {
+  if (which === 'all') return [...keys]
+  const at = key === null ? -1 : keys.indexOf(key)
+  if (at < 0) return []
+  return which === 'others' ? keys.filter((k) => k !== key) : keys.slice(at + 1)
+}
+
 /** "As read" first where the extracted text is the source (text, a web
  *  page), "Original" where it renders something else (image, audio, PDF). */
 export function defaultView(kind: SourceKind): SourceViewMode {

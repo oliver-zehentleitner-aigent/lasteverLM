@@ -11,6 +11,7 @@ import { checkSummary } from '../lib/outputProvenance'
 import { judgeHead } from '../lib/judge'
 import { t } from '../i18n'
 import { coverageLine } from '../lib/coverage'
+import { docTitle, useDocumentTitle } from '../lib/docTitle'
 
 function SharedShell({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -77,6 +78,7 @@ function SharedOutputView({ doc, refresh, level = 1 }: { doc: SharedOutput; refr
  *  goes to the visitor log like any other. */
 export function SharePage({ token }: { token: string }) {
   const [doc, setDoc] = useState<SharedOutput | null>(null)
+  useDocumentTitle(docTitle(doc?.title))
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -99,6 +101,7 @@ export function SharePage({ token }: { token: string }) {
  *  them at the top to jump to. */
 export function SharedNotebookPage({ token }: { token: string }) {
   const [nb, setNb] = useState<SharedNotebook | null>(null)
+  useDocumentTitle(docTitle(nb?.title))
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {

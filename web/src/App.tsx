@@ -19,6 +19,7 @@ import { MeContext } from './hooks/useMe'
 import { useRoute } from './hooks/useRoute'
 import { writeLastNotebook, writeOpenOutput } from './lib/lastNotebook'
 import { getSavedTheme, setTheme } from './lib/theme'
+import { routeTitle, useDocumentTitle } from './lib/docTitle'
 import { setLanguage, t } from './i18n'
 import { pickLanguage } from './i18n/translate'
 
@@ -53,6 +54,9 @@ export default function App() {
       () => setSession((s) => (s.state === 'anonymous' ? s : { state: 'in', me: null })),
     )
   }, [])
+
+  // the browser tab names the page; the workspace and the shared pages name themselves
+  useDocumentTitle(routeTitle(route, window.location.pathname, session.state === 'in'))
 
   /** One row per page view in the aggregated visitor log; never blocks the UI. */
   useEffect(() => {
