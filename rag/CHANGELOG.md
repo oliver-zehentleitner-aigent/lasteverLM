@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.2] - 2026-10-15
+
 ### Changed
 
 - Copying a starter notebook's outputs logs how many were copied, skipped as not ready and already copied. A starter notebook without ready outputs is logged at WARNING.
