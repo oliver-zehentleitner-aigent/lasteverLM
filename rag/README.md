@@ -18,7 +18,8 @@ this directory implements the `/api/rag` prefix.
 | POST | `/api/rag/notebooks/{id}/ask` | `{"question", "conversation_id", "scope": {"output_id"}?, "source_ids"?, "url_refresh"?}` | `Answer`; with `plan` instead of an answer when the message asks for actions, see **Agent chat** |
 | GET | `/api/rag/conversations/{id}/plans/{plan_id}` | | the plan with every step's state |
 | POST | `/api/rag/conversations/{id}/plans/{plan_id}/confirm` | | runs a proposed plan; 409 when confirmed or cancelled already |
-| POST | `/api/rag/conversations/{id}/plans/{plan_id}/cancel` | | cancels a proposed plan |
+| POST | `/api/rag/conversations/{id}/plans/{plan_id}/answer` | `{"question_id", "choice"?, "text"?}` | the plan, now proposed, with the answer applied; 409 when it is not asking or the question is no longer open |
+| POST | `/api/rag/conversations/{id}/plans/{plan_id}/cancel` | | cancels a proposed or asking plan |
 | GET | `/api/rag/notebooks/{id}/suggestions` | | `{"suggestions", "cached"}`: starting questions, see **Suggestions** |
 | POST | `/api/rag/messages/{id}/feedback` | `{"rating": "up" \| "down", "comment"?}` | `Message` with its `feedback`; the owner's, for answers only (409 otherwise), a new rating replaces the old |
 | GET | `/api/rag/notebooks/{id}/conversations` | | `[Conversation]`, oldest first |
@@ -446,6 +447,26 @@ never a passage.
   options go through the kind's validation. A step that breaks a rule
   stays in the plan with `valid: false` and its reason and is never run.
 
+**Questions.** A plan asks when an open choice would change the cost or
+the result, and never asks about something the message already answers.
+It is then in status `asking`, with `plan.question` = `{"question_id",
+"text", "choices": [{"id", "label", "estimate"}], "default", "free_text",
+"answer"?}`: two to four choices, each with the plan's total if taken,
+and one preselected. `POST .../answer` applies the choice to the steps
+(it sets or removes an option and re-validates and re-estimates them),
+records the answer as a user turn, and proposes the plan. Confirm answers
+409 `answer the question first` until then. The mechanism is general,
+and the judge is its first question:
+
+- **Message says:** a judge the message asks for or against ("with
+  judge", "ohne Prüfung", "judge high") is taken as said, and "with a
+  judge" without a level is the user's `judge_default`, or `medium`
+  when that is off.
+- **Message does not say, default off:** no judge, and `plan.notes` says
+  so in one line.
+- **Message does not say, default set:** the plan asks, with "With a
+  judge (<level>, your default)" preselected and "Without a judge".
+
 Nothing runs before `POST .../plans/{plan_id}/confirm`.
 
 - **Ingest steps** run inside the confirm request with its own bearer,
@@ -743,7 +764,8 @@ adds `messages.support` (`{"units", "check"}` of an answer);
 `0012_rag_plans.sql` adds the agent chat's `plans`, `messages.plan` and
 `outputs.booking_id`;
 `0013_rag_output_phase.sql` adds `outputs.phase`, what a running output
-is doing. The
+is doing; `0014_rag_plan_questions.sql` lets a plan be `asking` and keeps
+its question and notes. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and

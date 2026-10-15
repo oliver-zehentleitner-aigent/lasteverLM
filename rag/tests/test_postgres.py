@@ -987,3 +987,37 @@ def test_a_phase_is_written_with_the_heartbeat_and_cleared(store, notebook):
     assert store.get_output(row.id).phase == {"step": "writing", "since": "t"}
     store.update_output(row.id, status="ready", phase=None)
     assert store.get_output(row.id).phase is None
+
+
+def test_a_plan_can_ask_and_a_preference_is_read(store, pool, user, notebook):
+    assert store.user_preference(user, "judge_default") is None
+    with pool.connection() as conn:
+        conn.execute(
+            "update users set preferences = coalesce(preferences, '{}'::jsonb) "
+            '|| \'{"judge_default": "high"}\'::jsonb where id = %s',
+            (user,),
+        )
+    assert store.user_preference(user, "judge_default") == "high"
+    conversation = store.create_conversation(notebook, "Chat Q").id
+    message = store.insert_message(notebook, conversation, "assistant", "q", [])
+    plan_id = str(uuid4())
+    question = {"question_id": "q1", "text": "?", "choices": [], "apply": {"kind": "set_option"}}
+    store.create_plan(
+        {
+            "id": plan_id,
+            "conversation_id": conversation,
+            "notebook_id": notebook,
+            "owner": user,
+            "status": "asking",
+            "steps": [],
+            "estimate": {"min": 0, "max": 0},
+            "action_id": str(uuid4()),
+            "message_id": str(message.id),
+            "question": question,
+            "notes": ["a note"],
+        }
+    )
+    plan = store.get_plan(plan_id)
+    assert (plan["status"], plan["question"], plan["notes"]) == ("asking", question, ["a note"])
+    store.save_plan(plan_id, status="proposed", question={**question, "answer": {"choice": "x"}})
+    assert store.get_plan(plan_id)["question"]["answer"] == {"choice": "x"}

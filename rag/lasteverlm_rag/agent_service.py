@@ -14,6 +14,7 @@ its action_id.
 
 from __future__ import annotations
 
+import copy
 import logging
 import uuid
 from collections.abc import Callable
@@ -31,6 +32,9 @@ from .agent import (
     Context,
     Step,
     build_steps,
+    judge_question,
+    output_label,
+    public_question,
     separate,
     tool_specs,
     total,
@@ -38,11 +42,13 @@ from .agent import (
 from .citations import inline
 from .ingest_client import Ingest, IngestError
 from .models import Booking
-from .options import OutputOptions
+from .options import OutputOptions, resolve
+from .provenance import now
 from .reading import reading_lines
 from .service import (
     HISTORY_MESSAGES,
     ConversationNotFound,
+    InvalidOptions,
     OutputService,
     RagService,
     complete_tools_billed,
@@ -68,6 +74,14 @@ class PlanNotOpen(Exception):
     """The plan was confirmed or cancelled already."""
 
 
+class PlanAsking(Exception):
+    """The plan waits for the answer to its question; it cannot run yet."""
+
+
+class StaleQuestion(Exception):
+    """No open question with that id on the plan."""
+
+
 def public(plan: dict[str, Any]) -> dict[str, Any]:
     """The plan as answers, messages and the plan endpoint show it."""
     return {
@@ -77,6 +91,8 @@ def public(plan: dict[str, Any]) -> dict[str, Any]:
         "estimate": {k: v for k, v in plan["estimate"].items() if k != "reading"},
         # ingest's own charges: pages a step adds, sources an output reads first
         "separate": separate(plan["steps"]) + plan["estimate"].get("reading", []),
+        "question": public_question(plan.get("question")),
+        "notes": plan.get("notes") or [],
     }
 
 
@@ -182,7 +198,7 @@ class AgentService:
         )
         if not result.tool_calls or result.text.strip() == NO_ACTION:
             return None
-        calls = [(c.name, c.arguments) for c in result.tool_calls]
+        calls = [(c.name, copy.deepcopy(c.arguments)) for c in result.tool_calls]
         if not any(name in ACTION_TOOLS for name, _ in calls):
             # reading or explaining alone is what an answer does: a question that
             # the planner met with read tools only is answered, never turned into a plan
@@ -192,6 +208,16 @@ class AgentService:
             if any(n == "add_from_library" for n, _ in calls)
             else {}
         )
+        # a judge the message asked for (or against) is taken as said; "default" is the
+        # user's own level, or the middle one when their default is off
+        default_level = str(self._store.user_preference(user_id, "judge_default") or "off")
+        judge_said: set[int] = set()
+        for n, (name, args) in enumerate(calls, start=1):
+            options = args.get("options")
+            if name == "create_output" and isinstance(options, dict) and "judge" in options:
+                judge_said.add(n)
+                if options["judge"] == "default":
+                    options["judge"] = default_level if default_level != "off" else "medium"
         steps = build_steps(calls, Context(question, library, outputs, self._default_voice))
         for step in steps:
             if not step.valid:
@@ -212,20 +238,47 @@ class AgentService:
                 self._store, self._ingest, bearer, notebook_id, None, []
             )
         plan_id = str(uuid.uuid4())
+        steps_json = [s.as_json() for s in steps]
+        # an open choice that changes the cost or the result is asked, never decided
+        open_judge = [
+            s.n for s in steps if s.valid and s.tool == "create_output" and s.n not in judge_said
+        ]
+        plan_question: dict[str, Any] | None = None
+        notes: list[str] = []
+        if open_judge and default_level != "off":
+            plan_question = judge_question(str(uuid.uuid4()), open_judge, default_level)
+            for choice in plan_question["choices"]:
+                changed = self._apply(plan_question["apply"], choice["id"], steps_json)
+                choice["estimate"] = _sum(changed)
+        elif open_judge:
+            notes.append(
+                "Without a judge: the new documents are not checked by a second model. "
+                "Ask for one if you want it."
+            )
         plan = {
             "id": plan_id,
             "conversation_id": conversation_id,
             "notebook_id": notebook_id,
             "owner": user_id,
-            "status": "proposed",
-            "steps": [s.as_json() for s in steps],
+            "status": "asking" if plan_question else "proposed",
+            "steps": steps_json,
             "estimate": estimate,
             "action_id": str(booking.action_id),
+            "question": plan_question,
+            "notes": notes,
         }
-        text = "Here is my plan. Nothing runs until you confirm it.\n\n" + "\n".join(
+        lines = "\n".join(
             f"{s.n}. {s.label}" + ("" if s.valid else f" (not possible: {s.invalid_reason})")
             for s in steps
         )
+        if plan_question:
+            text = (
+                f"Here is my plan, with one question first.\n\n{lines}\n\n{plan_question['text']}"
+            )
+        else:
+            text = "Here is my plan. Nothing runs until you confirm it.\n\n" + lines
+            if notes:
+                text += "\n\n" + "\n".join(notes)
         self._store.insert_message(notebook_id, conversation_id, "user", question, None)
         message = self._store.insert_message(
             notebook_id, conversation_id, "assistant", text, [], None, None, public(plan)
@@ -253,8 +306,75 @@ class AgentService:
     def get(self, user_id: str, conversation_id: str, plan_id: str) -> dict[str, Any]:
         return public(self._owned(user_id, conversation_id, plan_id))
 
+    def answer(
+        self,
+        user_id: str,
+        conversation_id: str,
+        plan_id: str,
+        question_id: str,
+        choice: str | None,
+        text: str | None,
+    ) -> dict[str, Any]:
+        """The user's answer to the plan's question: applied to the steps, the
+        estimate updated, the plan proposed. The answer is a turn of the
+        conversation like any other message."""
+        plan = self._owned(user_id, conversation_id, plan_id)
+        open_question = plan.get("question")
+        if plan["status"] != "asking" or not open_question:
+            raise PlanNotOpen(plan_id)
+        if open_question["question_id"] != question_id:
+            raise StaleQuestion(question_id)
+        labels = {c["id"]: c["label"] for c in open_question["choices"]}
+        if choice is None and not (text and open_question.get("free_text")):
+            raise InvalidOptions("answer: choose one of the choices")
+        if choice is not None and choice not in labels:
+            raise InvalidOptions(f"answer: unknown choice {choice!r}")
+        if text and not open_question.get("free_text"):
+            raise InvalidOptions("answer: this question takes a choice, not text")
+        if choice is not None:
+            plan["steps"] = self._apply(open_question["apply"], choice, plan["steps"])
+        reading = plan["estimate"].get("reading")
+        plan["estimate"] = {**_sum(plan["steps"]), **({"reading": reading} if reading else {})}
+        open_question["answer"] = {
+            **({"choice": choice} if choice else {}),
+            **({"text": text} if text else {}),
+            "at": now(),
+        }
+        self._store.insert_message(
+            plan["notebook_id"], conversation_id, "user", labels.get(choice or "", text or ""), None
+        )
+        self._save(plan, status="proposed", estimate=plan["estimate"], question=open_question)
+        return public(plan)
+
+    def _apply(
+        self, apply: dict[str, Any], choice: str, steps: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """The steps with a choice applied: one option set (or removed) on the
+        named steps, each re-validated, relabelled and re-estimated."""
+        if apply["kind"] != "set_option":
+            raise ValueError(f"unknown question kind {apply['kind']!r}")
+        value = apply["values"][choice]
+        changed = copy.deepcopy(steps)
+        for step in changed:
+            if step["n"] not in apply["steps"] or not step["valid"]:
+                continue
+            options = {k: v for k, v in step["args"]["options"].items()}
+            options.pop(apply["option"], None)
+            if value is not None:
+                options[apply["option"]] = value
+            kind = step["args"]["kind"]
+            options = resolve(kind, OutputOptions.model_validate(options), self._default_voice)
+            step["args"] = {"kind": kind, "options": options}
+            step["label"] = output_label(kind, options)
+            step["estimate"] = self._estimate(
+                Step(step["n"], step["tool"], step["args"], step["label"]), ""
+            )
+        return changed
+
     def cancel(self, user_id: str, conversation_id: str, plan_id: str) -> dict[str, Any]:
         plan = self._owned(user_id, conversation_id, plan_id)
+        if plan["status"] == "asking":
+            plan["status"] = "proposed"  # a plan may be cancelled while it asks
         if plan["status"] != "proposed":
             raise PlanNotOpen(plan_id)
         for step in plan["steps"]:
@@ -269,6 +389,8 @@ class AgentService:
         created now (their jobs wait for sources), explanations when their
         output is ready (the worker)."""
         plan = self._owned(user_id, conversation_id, plan_id)
+        if plan["status"] == "asking":
+            raise PlanAsking(plan_id)
         if plan["status"] != "proposed":
             raise PlanNotOpen(plan_id)
         self._save(plan, status="running", confirmed_at=datetime.now(UTC))
@@ -456,10 +578,19 @@ class AgentService:
         return plan
 
     def _save(self, plan: dict[str, Any], **fields: Any) -> None:
-        for key in ("status", "confirmed_at", "finished_at"):
+        for key in ("status", "confirmed_at", "finished_at", "estimate", "question"):
             if key in fields:
                 plan[key] = fields[key]
         self._store.save_plan(plan["id"], steps=plan["steps"], plan=public(plan), **fields)
+
+
+def _sum(steps: list[dict[str, Any]]) -> dict[str, float]:
+    """The plan's own total over its valid steps (ingest's lines stay apart)."""
+    valid = [s for s in steps if s["valid"]]
+    return {
+        "min": round(sum(s["estimate"]["min"] for s in valid), 2),
+        "max": round(sum(s["estimate"]["max"] for s in valid), 2),
+    }
 
 
 def _aware(value: Any) -> datetime:
