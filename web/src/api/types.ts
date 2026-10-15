@@ -269,9 +269,9 @@ export type OutputStatus = 'waiting' | 'processing' | 'ready' | 'failed'
 
 /** One failed attempt at making an output, oldest first (core's
  *  AttemptRecord): which model was called (null when none was running),
- *  the failure's kind, the provider's HTTP status when there was one, the
- *  public one-line text (never a prompt or source text) and the service
- *  it failed in. */
+ *  the failure's kind, the provider's HTTP status when there was one,
+ *  core's one-line text (e.g. "report: the model returned no content";
+ *  never a prompt or source text) and the service it failed in. */
 export interface AttemptLogEntry {
   at: string
   attempt: number
