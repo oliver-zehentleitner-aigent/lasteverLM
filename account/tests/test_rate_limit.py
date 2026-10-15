@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
 import pytest
@@ -72,7 +73,7 @@ async def test_startup_purges_core_tables_but_keeps_active_bans(
 
 @pytest.mark.anyio
 async def test_startup_purge_uses_the_stored_ban_cap(
-    service: AccountService, repo: MemoryRepository, clock: Clock
+    service: AccountService, repo: MemoryRepository, clock: Clock, caplog: pytest.LogCaptureFixture
 ) -> None:
     from lasteverlm_core import RATE_LIMIT_SETTINGS_KEY
 
@@ -87,5 +88,11 @@ async def test_startup_purge_uses_the_stored_ban_cap(
         BanRecord("203.0.113.7", "eleven days", clock.now - timedelta(days=11), None)
     )
     repo.ip_bans.append(BanRecord("203.0.113.8", "nine days", clock.now - timedelta(days=9), None))
-    await service.startup()
+    with caplog.at_level(logging.INFO):
+        await service.startup()
     assert [b.reason for b in repo.ip_bans] == ["nine days"]
+    # the log names the cap the purge used, not the BAN_MAX_DAYS default (90)
+    line = next(
+        r.getMessage() for r in caplog.records if "retention: core tables" in r.getMessage()
+    )
+    assert "older than 10 days" in line and "90" not in line

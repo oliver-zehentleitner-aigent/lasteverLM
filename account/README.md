@@ -108,7 +108,7 @@ comment.
 | `RATE_LIMIT_PER_MINUTE`, `BLOCK_MINUTES`, `BAN_AFTER_STRIKES`, `STRIKE_WINDOW_HOURS`, `ACCESS_LOG_HEALTHZ_SAMPLE` | no | core's rate-limit middleware; defaults 120, 15, 3, 24, 100. The first four are only defaults: an admin overrides them at run time through `PUT /admin/settings/ratelimit` (settings key `ratelimit`, read by every service's middleware within 30 s) |
 | `APP_VERSION`, `APP_COMMIT` | no | shown on `/healthz` and `/admin/system`; default `unknown` for both (`lasteverlm-config`) |
 | `INGEST_URL`, `RAG_URL` | no | base URLs of the two other services, used for the System page's health probes (`<url>/healthz`) and for the user purge; defaults `http://ingest`, `http://rag` (the chart's Service names) |
-| `RETENTION_DAYS`, `BAN_MAX_DAYS` | no | days the access log, stale blocks and lifted bans are kept, and how long a ban holds at most (core's names); this service purges at every start, defaults 30, 90 |
+| `RETENTION_DAYS`, `BAN_MAX_DAYS` | no | days the access log, stale blocks and lifted bans are kept, and the default for how long a ban holds at most, overridden by the rule's `ban_max_days` (core's names); this service purges at every start, defaults 30, 90 |
 
 The domain-list seed is written to the `settings` table only when the key is
 missing; afterwards the admin panel owns the value. SMTP is never stored.
@@ -334,7 +334,8 @@ log and purged at every start. Rate limiting, blocking and lifting
 a ban are impossible without the address itself. These rows are visible
 to admins only and are removed by this service at every start once older
 than `RETENTION_DAYS` (30), with core's own purge statements; an active
-ban stays until an admin lifts it, at most `BAN_MAX_DAYS` (90). The
+ban stays until an admin lifts it, at most the stored `ban_max_days` of
+the rate-limit rule (`BAN_MAX_DAYS`, 90, when none is stored). The
 visitor statistics above never use them.
 
 ## License
