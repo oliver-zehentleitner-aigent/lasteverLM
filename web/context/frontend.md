@@ -148,6 +148,13 @@ make the pane redundant.
 the predecessor had. Rejected because the strip grew with outputs nobody
 opened; the Outputs list is the index instead.
 
+**Re-checked 2026-10-15** (the revisit condition fired: with a chart's
+proposed previews the output formats grew so tall that Create left the
+window): still holds. The fix stayed inside the shape: Output format is
+capped at 45 % of the window and scrolls with Create fixed at its
+bottom, and bars between the three areas let each user size them
+(`RowDivider`, `src/lib/leftSizes.ts`).
+
 ## Generated documents are listed under Outputs, not among the sources
 
 **Id:** 96a281ad-62e4-421e-b7f7-455077b79075
@@ -164,8 +171,8 @@ ready document is still a source of kind `generated`, so the chat cites
 it and "ask about this" scopes to it; the web filters that kind out of
 the Sources list (`uploadedSources` in `src/lib/outputs.ts`).
 
-**Reason:** documents shown as sources read as if they were uploads, and
-the maintainer found that confusing in the click-through. What the user
+**Reason:** documents shown as sources read as if they were uploads,
+which a test of the app showed to be confusing. What the user
 added and what was generated from it are different things and get
 different lists.
 
@@ -477,6 +484,16 @@ body is one; otherwise as a fixed description of the status with its
 code ("The file is too large for the server (HTTP 413)"). The body of a
 non-JSON error is never displayed. A failed `fetch` becomes "Cannot
 reach the server".
+
+Since 2026-10-15 a few of rag's codes are translated instead of shown as
+its English sentence (`failureMessage` in `src/api/client.ts`):
+`model_no_answer` with its `cause`, `credit_insufficient` with what the
+action needs and what there is, and `chart_out_of_scope` ("find charts
+again for the current selection"). Each carries something the user can
+act on, in the user's language, that the generic sentence leaves out;
+an unknown cause or a missing amount falls back to a fixed sentence,
+never to raw text. An implementation decision; other codes keep the
+service's sentence.
 
 **Reason:** the deployment answers some failures without the contract's
 JSON shape: the ingress returns HTML pages for 502, 503, 504 while pods
