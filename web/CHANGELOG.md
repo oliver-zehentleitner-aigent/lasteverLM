@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.15] - 2026-10-15
+
 ### Changed
 
 - The Outputs list's rows are laid out like the source rows: the title first with its subline (age, language, sources) under it, the kind and status badges on the right, then the red bin, with the sources' padding, badge size, ellipsis and hover; no checkbox, outputs are not picked as sources for new outputs.
