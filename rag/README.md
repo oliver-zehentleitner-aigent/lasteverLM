@@ -528,6 +528,25 @@ phase reads "handing over", the attempt is not counted, and an
 worker claims it at its next poll instead of after the 10-minute stale
 limit.
 
+**Resuming a job.** Every model call a job makes (the generation, each
+judge verdict and revision, the decision model, the focus or aim
+embeddings) is kept, the moment it returns, in the output's journal
+(`outputs.checkpoint`, migration `0019_rag_output_checkpoint.sql`), keyed
+by a hash of its request and how often that request came before in the
+run. A worker that takes the job over (after a handover, a retry or a
+stale claim) runs it again from the top and answers every call already
+in the journal from there: no provider call, no usage row, and the
+generation log still counts the first attempt's tokens. Retrieval and
+the checks cost nothing and run again; when the notebook changed
+meanwhile, the request differs and the call is made fresh. An empty
+reply is never kept, a result over 256 KB or one that would take the
+journal past 4 MB is not kept either (that call is made again), and a
+worker that lost the claim adds nothing. The journal holds model output
+from the user's sources: it is never logged, it goes with the output,
+and it is cleared once the output is ready or failed. Not journaled:
+speech segments (an audio handed over mid-speech synthesizes again) and
+the embedding of the indexed document (the last step).
+
 **One result per job.** The ready write goes through only while the
 worker still holds the claim (`claimed_by`). A worker that lost the job
 to a takeover discards its generated source and its file, logs "taken

@@ -60,6 +60,7 @@ from .citations import defuse_markers, inline, map_citations, number_passages, s
 from .coverage import balance, per_source_quota, uncovered_sources
 from .failures import failure_kind
 from .ingest_client import Ingest
+from .journal import Journal
 from .judging import (
     DOUBTED,
     STANDARD_JUDGE,
@@ -779,6 +780,8 @@ class OutputService:
         self._job_max_s = job_max_s
         # when (on ``clock``) a stopping worker hands its running job over
         self._handover_at: float | None = None
+        # the running job's finished model calls (``journal.Journal``)
+        self._journal: Journal | None = None
         # how long finding charts waits for selected sources it started reading
         self._read_wait_s = read_wait_s
         self._sleep = sleep
@@ -1291,6 +1294,7 @@ class OutputService:
             self._hand_over(job, worker_id)
             return False
         finally:
+            self._journal = None
             stop.set()
             beat.join()
 
@@ -1352,6 +1356,8 @@ class OutputService:
                 log.exception("output %s: refreshing the claim failed", short_id(output_id))
 
     def _process(self, job: OutputRow, worker_id: str | None) -> bool:
+        # the calls an earlier attempt finished are answered from the journal
+        self._journal = Journal(self._store, job.id, worker_id, self._store.get_checkpoint(job.id))
         source_id: str | None = None
         content: dict[str, Any] = {}
         self._running, self._beat_at, self._calling = job.id, self._clock(), None
@@ -1646,7 +1652,7 @@ class OutputService:
         selected = row.options.get("sources")
 
         self._phase("retrieving")
-        embedded = embed_billed(self._store, self._embedder, booking, [generator.focus_query])
+        embedded = self._embed_once(booking, [generator.focus_query])
         trace.embedding_in += embedded.usage.tokens_in
         chunks, trace.candidates = balanced_chunks(
             self._retriever,
@@ -1695,7 +1701,7 @@ class OutputService:
             f"{c['title']} {' '.join(c.get('columns') or [])} {c.get('headline', '')}"
             for c in picked
         ]
-        embedded = embed_billed(self._store, self._embedder, booking, aims)
+        embedded = self._embed_once(booking, aims)
         trace.embedding_in += embedded.usage.tokens_in
         chunks_of: list[list[RetrievedChunk]] = []
         for candidate, vector in zip(picked, embedded.vectors, strict=True):
@@ -1798,6 +1804,25 @@ class OutputService:
             raise GenerationFailed("the notebook has no ready source")
         return summaries
 
+    def _once(
+        self, request: Sequence[Any], call: Callable[[], CompletionResult]
+    ) -> CompletionResult:
+        """A completion the running job made before comes from its journal
+        (no call, no usage row); a new one is made and kept there."""
+        if self._journal is None:
+            return call()
+        return self._journal.complete([*request], call)[0]
+
+    def _embed_once(self, booking: Booking, sequence: Sequence[str]) -> EmbeddingResult:
+        """The job's embedding of ``texts``, from its journal when made before."""
+        texts = [*sequence]
+        if self._journal is None:
+            return embed_billed(self._store, self._embedder, booking, texts)
+        model = str(getattr(self._embedder, "model", ""))
+        return self._journal.embed(
+            texts, model, lambda: embed_billed(self._store, self._embedder, booking, texts)
+        )[0]
+
     def _completer(self, booking: Booking, trace: GenerationLog) -> CompleteFn:
         """``LLM.complete`` with its usage row written and counted in the log."""
 
@@ -1809,14 +1834,17 @@ class OutputService:
             thinking: bool | None = None,
         ) -> CompletionResult:
             self._heartbeat(self._llm.model)
-            result = complete_billed(
-                self._store,
-                self._llm,
-                booking,
-                system,
-                user,
-                max_tokens,
-                thinking=thinking,
+            result = self._once(
+                [self._llm.model, system, user, max_tokens, thinking],
+                lambda: complete_billed(
+                    self._store,
+                    self._llm,
+                    booking,
+                    system,
+                    user,
+                    max_tokens,
+                    thinking=thinking,
+                ),
             )
             trace.llm_in += result.usage.tokens_in
             trace.llm_out += result.usage.tokens_out
@@ -1921,7 +1949,10 @@ class OutputService:
             system: str, user: str, max_tokens: int | None = None, *, thinking: bool | None = None
         ) -> CompletionResult:
             self._heartbeat(judge_llm.model)
-            result = complete_billed(self._store, judge_llm, booking, system, user, max_tokens)
+            result = self._once(
+                [judge_llm.model, system, user, max_tokens, None],
+                lambda: complete_billed(self._store, judge_llm, booking, system, user, max_tokens),
+            )
             with lock:
                 counted(result.usage)
             return result
@@ -2188,7 +2219,7 @@ class OutputService:
         summaries = self._material(notebook_id, options)
         question = options["question"]
         self._phase("retrieving")
-        embedded = embed_billed(self._store, self._embedder, booking, [question])
+        embedded = self._embed_once(booking, [question])
         trace.embedding_in += embedded.usage.tokens_in
         trace.focus_query = question
         chunks, trace.candidates = balanced_chunks(
@@ -2206,13 +2237,15 @@ class OutputService:
         started = now()
         self._phase("deciding")
         self._heartbeat(self._decision.model)
-        decided = decide_billed(
-            self._store,
-            self._decision,
-            booking,
-            state,
-            decision_question(options),
-        )
+        decision = self._decision
+        questions = decision_question(options)
+        if self._journal is None:
+            decided = decide_billed(self._store, decision, booking, state, questions)
+        else:
+            decided, _ = self._journal.decide(
+                [decision.model, state, questions],
+                lambda: decide_billed(self._store, decision, booking, state, questions),
+            )
         trace.decision_in += decided.usage.tokens_in
         trace.calls.append(
             {

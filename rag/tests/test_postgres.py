@@ -333,6 +333,23 @@ def test_a_handover_frees_the_claim_without_counting_the_attempt(store, pool, no
     assert again is not None and again.id == row.id and again.attempts == 1
 
 
+def test_the_journal_is_kept_while_claimed_and_cleared_when_done(store, pool, notebook):
+    row = store.create_output(notebook, "report", "waiting")
+    assert store.get_checkpoint(row.id) == {}
+    store.claim_output("w1", stale_after_s=600)
+    entry = {"text": "draft", "usage": {"kind": "llm", "model": "m", "tokens_in": 1}}
+    store.add_checkpoint(row.id, "w1", "k#1", entry)
+    store.add_checkpoint(row.id, "w2", "k#2", entry)  # not w2's claim: dropped
+    store.add_checkpoint(row.id, "w1", "k#3", {"text": "verdict"})
+    assert store.get_checkpoint(row.id) == {"k#1": entry, "k#3": {"text": "verdict"}}
+    phase = {"step": "handing over"}
+    assert store.hand_over_output(row.id, "w1", phase, {"error_kind": "handover"})
+    assert set(store.get_checkpoint(row.id)) == {"k#1", "k#3"}  # a handover keeps it
+    store.claim_output("w2", stale_after_s=600)
+    assert store.finish_output(row.id, "w2", status="ready", title="T")
+    assert store.get_checkpoint(row.id) == {}
+
+
 def test_orphaned_generated_sources_are_old_and_unreferenced(store, pool, notebook):
     linked = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))
     orphan = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))

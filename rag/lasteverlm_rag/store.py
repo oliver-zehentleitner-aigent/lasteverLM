@@ -179,6 +179,17 @@ class Store(Protocol):
         """Whether ``worker_id`` still holds the output's claim."""
         ...
 
+    def get_checkpoint(self, output_id: str) -> dict[str, Any]:
+        """The output's journal of finished model calls (``outputs.checkpoint``)."""
+        ...
+
+    def add_checkpoint(
+        self, output_id: str, worker_id: str | None, key: str, entry: dict[str, Any]
+    ) -> None:
+        """Keep one finished call in the journal, only while ``worker_id``
+        holds the claim (any time without one). Ready or failed clears it."""
+        ...
+
     def hand_over_output(
         self, output_id: str, worker_id: str, phase: dict[str, Any], record: dict[str, Any]
     ) -> bool:
@@ -1019,7 +1030,8 @@ class PostgresStore:
                 fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
         if fields.get("status") in ("ready", "failed"):
-            assignments += ", finished_at = now()"
+            # the journal of finished calls is for resuming: done with the job
+            assignments += ", finished_at = now(), checkpoint = '{}'::jsonb"
         with self._pool.connection() as conn:
             conn.execute(
                 f"update outputs set {assignments} where id = %(id)s", {**fields, "id": output_id}
@@ -1034,13 +1046,31 @@ class PostgresStore:
                 fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
         if fields.get("status") in ("ready", "failed"):
-            assignments += ", finished_at = now()"
+            # the journal of finished calls is for resuming: done with the job
+            assignments += ", finished_at = now(), checkpoint = '{}'::jsonb"
         with self._pool.connection() as conn:
             cursor = conn.execute(
                 f"update outputs set {assignments} where id = %(id)s and claimed_by = %(worker)s",
                 {**fields, "id": output_id, "worker": worker_id},
             )
             return cursor.rowcount == 1
+
+    def get_checkpoint(self, output_id: str) -> dict[str, Any]:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select checkpoint from outputs where id = %s", (output_id,)
+            ).fetchone()
+        return dict(row["checkpoint"]) if row and row["checkpoint"] else {}
+
+    def add_checkpoint(
+        self, output_id: str, worker_id: str | None, key: str, entry: dict[str, Any]
+    ) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update outputs set checkpoint = checkpoint || jsonb_build_object(%s::text, %s) "
+                "where id = %s and (%s::text is null or claimed_by = %s)",
+                (key, Jsonb(entry), output_id, worker_id, worker_id),
+            )
 
     def hand_over_output(
         self, output_id: str, worker_id: str, phase: dict[str, Any], record: dict[str, Any]

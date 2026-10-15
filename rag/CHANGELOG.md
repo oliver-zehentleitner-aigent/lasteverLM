@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A job taken over by another worker (a handover at a deploy, a retry, a stale claim) resumes instead of starting over: every model call it finished (the draft, each judge verdict and revision, the decision model, the focus embeddings) is kept in the output's journal (`outputs.checkpoint`, migration `0019_rag_output_checkpoint.sql`) and answered from there, without calling or booking it again. The journal is capped, never logged, and cleared when the output is ready or failed.
+
 ### Fixed
 
 - A deploy no longer leaves a running output looking hung for ten minutes. A stopping worker claims nothing new and lets its job finish while its grace period (`WORKER_GRACE_SECONDS`) allows; with less than one model request's worst case left, it hands the job over at the next step: claim cleared (only while it still holds it), phase "handing over", the attempt not counted, an `attempt_log` entry `handover`. Another worker takes it within seconds.

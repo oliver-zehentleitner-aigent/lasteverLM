@@ -972,6 +972,11 @@ it ships off and runs only after the dry run has been looked at.
 **Source:** maintainer order relayed by the coordinator, 2026-10-15 (a rollout at 22:19 killed a running quiz and infographic mid-judge; the takeover came only after the 10-minute stale claim and started from scratch, so they looked hung for 20 minutes and paid twice; "self-healing must be fast and cheap"; more time at deploy so jobs finish; hand over only when the remaining grace drops below one call's worst case; read the grace from the chart; rejected: restart from scratch, wait for the stale claim); handing over at a step boundary rather than cutting a call is rag's
 **Revisit when:** resuming from checkpoints exists (a handover then costs little, and an earlier handover may be worth it), the worker's request timeout or retries change (the worst case of one call moves), or handovers show up in most deploys (the grace is too short for the jobs)
 
+**Re-checked 2026-10-15:** its first revisit condition fired: a job
+taken over now resumes from its journal
+(30e4e961-1d0c-4a38-8f26-5d2366f6b6a9). The rule stays as it is,
+finishing on the stopping pod first; a handover is now simply cheap.
+
 On SIGTERM the worker claims nothing new and its running job goes on.
 Once less than one model request's worst case (180 s, tried three times)
 is left of the grace period, read from `WORKER_GRACE_SECONDS` as the
@@ -999,3 +1004,49 @@ the code.
 - Waiting for the stale claim: ten minutes in which nothing happens.
 - Handing over at once on SIGTERM: until steps are checkpointed, the
   next worker regenerates, so the paid work is thrown away.
+
+## A job taken over resumes from a journal of its finished model calls, never from scratch
+
+**Id:** 30e4e961-1d0c-4a38-8f26-5d2366f6b6a9
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (self-healing fast and cheap: a job taken over continues from what was done, paid calls never repeated or booked twice, cleared when the output ends; rejected: restart from scratch); the journal of calls keyed by request instead of step snapshots is rag's design, approved by the coordinator the same day with three conditions (deleted with the output and the user, never logged; capped, a result too large is not kept rather than failing; the speech and indexing gaps named)
+**Revisit when:** a model call becomes nondeterministic in its request (a timestamp or random id in a prompt would make every key miss), speech segments start to be lost to handovers often enough to matter, or the journal cap is hit by ordinary outputs
+
+Every model call an output job makes is kept, the moment it returns, in
+the output's journal (`outputs.checkpoint`, one jsonb column), keyed by
+a hash of its request and how often that request came before in the
+run: the generation, each judge verdict and revision, the decision
+model, the focus or aim embeddings. A worker that takes the job over
+(a handover, 924c4527-f045-4167-b725-a2535077fb21; a retry; a stale
+claim) runs it from the top and answers each call already in the journal
+from there, with no provider call and no usage row. Writes are fenced by
+the claim (f66cce4e-fcf8-49f1-b78a-59721117980c). An empty reply is
+never kept; a result over 256 KB, or one that would take the journal
+past 4 MB, is used but not kept. The journal is never logged, goes with
+the output and the user, and is cleared once the output is ready or
+failed. Not journaled: speech segments, which are synthesized again, and
+the embedding of the indexed document, the job's last step.
+
+**Reason:** a job started over looks hung and pays again for every call
+already made. Keying finished calls by their request reuses the one
+code path the job already has: no state is rebuilt from a snapshot, so
+nothing can drift between a first run and a resumed one, and the draft,
+the verdicts per round and the revisions are covered by one mechanism.
+When the notebook changed in between, the passages and so the requests
+differ, the keys miss and the calls are made fresh, which is right for
+material that is no longer the same. Counting a repeated request keeps
+a deliberate second try (the judge's retry of an unusable answer) a
+real call. The cap keeps a row small; skipping an oversized result costs
+one call on a takeover, never the job.
+
+**Rejected alternatives:**
+- Restart from scratch: looks hung and repays every finished call.
+- Step snapshots (the draft, then each round's verdicts and revisions):
+  a second code path that rebuilds the generated output, its units and
+  the generation log, with every chance to drift from the first.
+- A separate journal table: one jsonb column on the row is enough for a
+  few dozen entries per job and goes with the output by itself.
+- Journaling the speech segments: audio bytes are not row material; an
+  audio handed over mid-speech synthesizes again.
