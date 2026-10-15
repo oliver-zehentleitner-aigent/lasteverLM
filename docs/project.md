@@ -57,7 +57,9 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   finished outputs of every kind, ready to ask and to check.
 - **First steps:** on the first sign-in a three-step introduction
   outlines where sources go, where the format is picked and where
-  Create is; it can be shown again from Settings.
+  Create is. The help page (the ? at the top right, next to the credit
+  chip and the profile menu) has a short guide, shows the introduction
+  again and recreates the starter notebook if it was deleted.
 
 ### Outputs
 
@@ -103,7 +105,9 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   ([judge](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/judge-eval.md),
   [second judge](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/second-judge-eval.md)).
   With a judge verdict only the judge's badge shows; the word check
-  never claims meaning.
+  never claims meaning. "Check with a judge" on an existing output or
+  chat answer annotates only, runs as a background job and shows its
+  progress.
 - **Coverage:** every output shows how many of the selected sources it
   used and names the unused ones with the generator's reason, so no
   source is left out silently.
