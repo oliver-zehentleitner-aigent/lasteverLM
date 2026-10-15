@@ -318,6 +318,21 @@ def test_only_the_claim_holder_finishes_a_job(store, pool, notebook):
     )
 
 
+def test_a_handover_frees_the_claim_without_counting_the_attempt(store, pool, notebook):
+    row = store.create_output(notebook, "report", "waiting")
+    job = store.claim_output("w1", stale_after_s=600)
+    assert job is not None and job.attempts == 1
+    record = {"at": "2026-10-15T22:19:00+00:00", "attempt": 1, "error_kind": "handover"}
+    phase = {"step": "handing over", "since": "2026-10-15T22:19:00+00:00"}
+    assert not store.hand_over_output(row.id, "w2", phase, record)  # not w2's claim
+    assert store.hand_over_output(row.id, "w1", phase, record)
+    handed = store.get_output(row.id)
+    assert (handed.attempts, handed.phase, handed.attempt_log) == (0, phase, [record])
+    assert not store.holds_output(row.id, "w1")
+    again = store.claim_output("w2", stale_after_s=600)  # at once, no stale wait
+    assert again is not None and again.id == row.id and again.attempts == 1
+
+
 def test_orphaned_generated_sources_are_old_and_unreferenced(store, pool, notebook):
     linked = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))
     orphan = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))

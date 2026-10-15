@@ -517,6 +517,17 @@ stopped beating for 10 minutes is taken over, so a long run (a judged
 report, a long audio) is never run a second time, and never charged
 twice, while it is still going.
 
+**A stopping worker.** On SIGTERM (a deploy) the worker claims nothing
+new and lets its running job go on. Once less than one model request's
+worst case (180 s, tried three times) is left of its grace period
+(`WORKER_GRACE_SECONDS`, the pod's `terminationGracePeriodSeconds` as the
+chart sets it), the job is handed over at its next step boundary, before
+a model call: the claim is cleared while this worker still holds it, the
+phase reads "handing over", the attempt is not counted, and an
+`attempt_log` entry with `error_kind: "handover"` says why. Another
+worker claims it at its next poll instead of after the 10-minute stale
+limit.
+
 **One result per job.** The ready write goes through only while the
 worker still holds the claim (`claimed_by`). A worker that lost the job
 to a takeover discards its generated source and its file, logs "taken
@@ -894,6 +905,7 @@ missing or a configured model has no price.
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
 | `JUDGE_MODELS` | no; defaults in core | JSON level → model for the judge (`low`, `medium`, `high`), chosen from `docs/judge-eval.md`; every model needs a `MODEL_PRICES` entry, or startup refuses |
 | `INGEST_URL` | no; default `http://ingest` | ingest's API inside the cluster: reading sources when used, the agent chat's steps |
+| `WORKER_GRACE_SECONDS` | no; default 30 | the worker pod's `terminationGracePeriodSeconds`; a stopping worker hands its job over once less than 540 s of it is left (with the default, at the job's next step) |
 | `JOB_MAX_SECONDS` | no; default 2700 | how long a running job's claim is refreshed in the background at most; then only its calls beat, and a hung job goes stale after 10 more minutes |
 | `ORPHAN_SWEEP` | no; default `false` | `true` lets the worker delete orphaned generated sources once an hour (see **One result per job**); anything but `true` or `false` refuses to start |
 | `ANSWER_READ_WAIT_SECONDS` | no; default 60 | how long an answer waits for sources it started reading before it answers from what is ready |

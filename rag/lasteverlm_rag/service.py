@@ -301,6 +301,13 @@ class CandidateOutOfScope(Exception):
     sources (a proposal made for another selection): 409, find them again."""
 
 
+class HandOver(BaseException):
+    """The worker is stopping and its grace runs short: the running job goes
+    back to the queue at its next step, for another worker. A BaseException,
+    so no ``except Exception`` on the way (a judge's retry, a cleanup) takes
+    it for a failure of the step."""
+
+
 class JudgementRunning(Exception):
     """A judgement of this output or message is already queued or running: 409."""
 
@@ -770,6 +777,8 @@ class OutputService:
         # waits on, and for how long at most (a hung job must go stale)
         self._beat_interval_s = beat_interval_s
         self._job_max_s = job_max_s
+        # when (on ``clock``) a stopping worker hands its running job over
+        self._handover_at: float | None = None
         # how long finding charts waits for selected sources it started reading
         self._read_wait_s = read_wait_s
         self._sleep = sleep
@@ -1275,9 +1284,44 @@ class OutputService:
         beat.start()
         try:
             return self._process(job, worker_id)
+        except HandOver:
+            self._running = None
+            if worker_id is None:
+                raise
+            self._hand_over(job, worker_id)
+            return False
         finally:
             stop.set()
             beat.join()
+
+    def hand_over_after(self, seconds: float) -> None:
+        """The worker is stopping: the running job goes on, and is handed
+        over at its first step boundary (before a model call) from
+        ``seconds`` on. Called once, from the signal handler."""
+        self._handover_at = self._clock() + max(0.0, seconds)
+
+    def _hand_over(self, job: OutputRow, worker_id: str) -> None:
+        """Give the job back for another worker at once, fenced by the claim:
+        the claim cleared, the phase "handing over", the attempt not counted
+        (the worker stopped, nothing failed) and recorded in its log."""
+        record = AttemptRecord(
+            at=datetime.now(UTC),
+            attempt=max(job.attempts, 1),
+            model=self._calling,
+            error_kind="handover",
+            message="the worker stopped (a deploy); the job went to another worker",
+            service="rag",
+        ).model_dump(mode="json")
+        handed = self._store.hand_over_output(
+            job.id, worker_id, {"step": "handing over", "since": now()}, record
+        )
+        log.warning(
+            "output %s (%s) attempt %d %s",
+            short_id(job.id),
+            job.kind,
+            job.attempts,
+            "handed over: the worker is stopping" if handed else "was taken over already",
+        )
 
     def _keep_claim(self, output_id: str, stop: threading.Event) -> None:
         """Refresh the claim every ``beat_interval_s`` until the job ends: a
@@ -1711,6 +1755,8 @@ class OutputService:
         self._calling = model
         if self._running is None:
             return
+        if self._handover_at is not None and self._clock() >= self._handover_at:
+            raise HandOver
         with self._beat_lock:
             if self._clock() - self._beat_at < HEARTBEAT_S:
                 return

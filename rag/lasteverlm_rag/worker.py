@@ -48,6 +48,9 @@ STALE_CLAIM_S = 10 * 60
 # longer than the 60 s the API keeps for a chat answer.
 WORKER_LLM_TIMEOUT_S = 180
 PURGE_INTERVAL_S = 60 * 60
+# the longest one model request can take with its retries: a stopping worker
+# hands its job over once less than this is left of its grace
+CALL_WORST_S = WORKER_LLM_TIMEOUT_S * 3
 
 
 class Worker:
@@ -60,6 +63,7 @@ class Worker:
         clock: Callable[[], float] = time.monotonic,
         agent: AgentService | None = None,
         orphan_sweep: bool = False,
+        grace_s: float = 30.0,
     ) -> None:
         self._store = store
         self._outputs = outputs
@@ -70,10 +74,16 @@ class Worker:
         self._clock = clock
         self._next_purge: float | None = None
         self._orphan_sweep = orphan_sweep
+        # the pod's terminationGracePeriodSeconds (WORKER_GRACE_SECONDS)
+        self._grace_s = grace_s
         self._stop = threading.Event()
 
     def stop(self) -> None:
+        """Stop claiming. The running job goes on, and is handed to another
+        worker at a step boundary only once less than one call's worst case
+        is left of the grace period: a deploy normally lets it finish here."""
         self._stop.set()
+        self._outputs.hand_over_after(self._grace_s - CALL_WORST_S)
 
     def run_once(self) -> int:
         """One pass: claim and handle jobs until the queue has nothing runnable.
@@ -93,7 +103,7 @@ class Worker:
         self._outputs.expire_waiting()
         finished = 0
         retried: set[str] = set()
-        while True:
+        while not self._stop.is_set():
             job = self._store.claim_output(self.worker_id, STALE_CLAIM_S)
             if job is None:
                 break
@@ -104,7 +114,11 @@ class Worker:
             else:
                 retried.add(job.id)
         # judgements on request, after the output jobs
-        while (judgement := self._store.claim_judge_job(self.worker_id, STALE_CLAIM_S)) is not None:
+        while (
+            not self._stop.is_set()
+            and (judgement := self._store.claim_judge_job(self.worker_id, STALE_CLAIM_S))
+            is not None
+        ):
             if self._outputs.process_judge_job(judgement):
                 finished += 1
             else:
@@ -194,7 +208,13 @@ def main() -> None:
     )
     # the worker only moves confirmed plans on: no planning, no ingest calls
     agent = AgentService(store, rag, outputs, llm, None, lambda *_: {}, settings.tts_voice)
-    worker = Worker(store, outputs, agent=agent, orphan_sweep=settings.orphan_sweep)
+    worker = Worker(
+        store,
+        outputs,
+        agent=agent,
+        orphan_sweep=settings.orphan_sweep,
+        grace_s=settings.worker_grace_s,
+    )
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: worker.stop())
     try:
