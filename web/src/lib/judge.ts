@@ -1,5 +1,7 @@
 import type { Claim, JudgeCounts, JudgeNote, Provenance } from '../api/types'
+import type { EstimateState } from '../hooks/useEstimate'
 import { t, tn } from '../i18n'
+import { priceLabel } from './estimate'
 
 /** The judge's verdicts as the views show them. Pure, so it is tested. */
 
@@ -53,7 +55,18 @@ export function verdictCounts(v: JudgeCounts): string {
 export function judgeBadge(c: Claim): { verdict: keyof JudgeCounts; label: string; title: string; disagree: boolean } | null {
   if (!c.judge) return null
   const d = disagrees(c)
-  const title = d ? `${c.judge.reason} — ${t('judge.disagreeTitle')}` : c.judge.reason
+  // the word check's result moves into the judge's tooltip: its badge is not shown beside a verdict
+  const word = c.judge.verdict && c.support ? `\n${t(`wordCheck.${c.support}`)}` : ''
+  const title = (d ? `${c.judge.reason} — ${t('judge.disagreeTitle')}` : c.judge.reason) + word
   const verdict = verdictKey(c.judge)
   return { verdict, label: t(`judge.verdict.${verdict}`), title, disagree: d }
+}
+
+/** The level "Have it judged" is priced at: the one Check with a judge starts at. */
+export const JUDGE_ASK_LEVEL = 'medium'
+
+/** "Have it judged · €0.02"; the bare action while the price loads or
+ *  when it is unavailable (Check with a judge then says why). */
+export function judgeAskLabel(price: EstimateState): string {
+  return price && 'estimate' in price ? `${t('judge.ask')} · ${priceLabel(price.estimate)}` : t('judge.ask')
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { rag } from '../api/rag'
 import type { AudioContent, Citation, Output, Source } from '../api/types'
 import { MadeFrom } from './MadeFrom'
@@ -92,6 +92,16 @@ export function OutputViewer({
   const selected = active?.output ?? null
   const spec = useOutputOptions()
   const made = selected ? optionsLabel(selected.options, spec) : null
+  // what Check with a judge estimates with; null where it is not offered
+  const judgeable = !!selected && selected.status === 'ready' && selected.kind !== 'chart' && !!selected.provenance
+  const judgeKind = selected?.kind
+  const questionCount = selected?.options?.question_count
+  const cardCount = selected?.options?.card_count
+  const judgeSubject =
+    judgeable && judgeKind ? { kind: judgeKind, ...(questionCount ? { question_count: questionCount } : {}), ...(cardCount ? { card_count: cardCount } : {}) } : null
+  // "Have it judged" in the document opens Check with a judge in the head
+  const [judgeAsked, setJudgeAsked] = useState(0)
+  const askJudge = useCallback(() => setJudgeAsked((n) => n + 1), [])
   const checked = checkSummary(selected?.provenance?.check)
   const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
     shown.map((x) => x.key),
@@ -227,12 +237,9 @@ export function OutputViewer({
                 </span>
               )}
               {judgeHead(selected.provenance) && <span className="muted small check-line judge-line">{judgeHead(selected.provenance)}</span>}
-              {selected.status === 'ready' && selected.kind !== 'chart' && selected.provenance && (
+              {judgeSubject && (
                 <span className="no-print">
-                  <JudgeRequest
-                    subject={{ kind: selected.kind, ...(selected.options?.question_count ? { question_count: selected.options.question_count } : {}), ...(selected.options?.card_count ? { card_count: selected.options.card_count } : {}) }}
-                    onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)}
-                  />
+                  <JudgeRequest subject={judgeSubject!} opened={judgeAsked} onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)} />
                 </span>
               )}
               {selected.options?.sources?.length ? (
@@ -261,7 +268,14 @@ export function OutputViewer({
               </span>
             </header>
             {shareOpen && <ShareCard output={selected} onChanged={(token) => onChanged({ ...selected, share_token: token })} />}
-            <OutputProvenance key={selected.id} output={selected} provenance={selected.provenance} presentSources={presentSources} onOpenSource={onOpenSource}>
+            <OutputProvenance
+              key={selected.id}
+              output={selected}
+              provenance={selected.provenance}
+              presentSources={presentSources}
+              onOpenSource={onOpenSource}
+              judge={judgeSubject ? { subject: judgeSubject, open: askJudge } : undefined}
+            >
               <OutputContent
                 kind={selected.kind}
                 locate={locate ?? null}

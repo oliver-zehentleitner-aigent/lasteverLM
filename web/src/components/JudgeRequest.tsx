@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { JudgeLevel } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { useEstimate } from '../hooks/useEstimate'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { t } from '../i18n'
 import { PriceTag } from './PriceTag'
+import { JUDGE_ASK_LEVEL } from '../lib/judge'
 
 type Level = Exclude<JudgeLevel, 'off'>
 
@@ -15,20 +16,33 @@ type Level = Exclude<JudgeLevel, 'off'>
  *  stands next to Check; `subject` is what the estimate needs of the
  *  judged thing (an output's kind, a quiz's question count, the flashcards'
  *  card count), left out
- *  for a chat answer. */
+ *  for a chat answer. `opened` (a counter) opens it from outside, as
+ *  "Have it judged" does, and focuses the level so it scrolls into view. */
 export function JudgeRequest({
   onJudge,
   subject,
   compact = false,
+  opened = 0,
 }: {
   onJudge: (level: Level) => Promise<unknown>
   subject?: { kind: string; question_count?: number; card_count?: number }
   compact?: boolean
+  opened?: number
 }) {
   const spec = useOutputOptions()
   const levels = (spec?.judge?.levels ?? ['low', 'medium', 'high']).filter((l): l is Level => l !== 'off')
   const [open, setOpen] = useState(false)
-  const [level, setLevel] = useState<Level>('medium')
+  const [level, setLevel] = useState<Level>(JUDGE_ASK_LEVEL)
+  const select = useRef<HTMLSelectElement>(null)
+  // opened from outside: open, then focus the level once it is there
+  const [seen, setSeen] = useState(opened)
+  if (opened !== seen) {
+    setSeen(opened)
+    if (opened > 0) setOpen(true)
+  }
+  useEffect(() => {
+    if (opened > 0) select.current?.focus()
+  }, [opened])
   const { busy, error, run } = useAsync()
   const price = useEstimate(open ? { action: 'judge', options: { ...subject, level } } : null, 0)
 
@@ -40,7 +54,7 @@ export function JudgeRequest({
     )
   return (
     <span className={compact ? 'judge-request compact' : 'judge-request'}>
-      <select value={level} aria-label={t('judge.label')} onChange={(e) => setLevel(e.target.value as Level)}>
+      <select ref={select} value={level} aria-label={t('judge.label')} onChange={(e) => setLevel(e.target.value as Level)}>
         {levels.map((l) => (
           <option key={l} value={l}>
             {t(`judge.level.${l}`)}

@@ -1138,7 +1138,7 @@ export const de: Record<MessageKey, string> = {
   'chat.fetchAgainTitle': 'Dieselbe Frage noch einmal stellen, mit frisch abgerufener Seite',
   'wordCheck.supported': 'Wortprüfung: Wörter stimmen überein',
   'wordCheck.unsupported': 'Wortprüfung: Wörter fehlen',
-  'wordCheck.unverified': 'Wortprüfung: andere Sprache',
+  'wordCheck.unverified': 'Nicht wortgeprüft (andere Sprache)',
   'wordCheck.title': 'Die Wortprüfung vergleicht nur Wörter: Sie sieht keine Bedeutung und keine Verneinung. Dafür ist der Judge da.',
   'chartOut.unsupported': 'nicht belegt',
   'chartOut.unsupportedTitle': 'Die Zahlenprüfung fand diesen Wert in keiner der zitierten Passagen.',
@@ -1189,4 +1189,6 @@ export const de: Record<MessageKey, string> = {
   'adm.out.kind.configuration': 'Konfiguration',
   'adm.out.kind.timeout': 'Zeitüberschreitung',
   'adm.out.kind.internal': 'intern',
+  'judge.ask': 'Vom Judge prüfen lassen',
+  'judge.askTitle': 'Ein Judge liest es gegen seine Passagen, auch über Sprachen hinweg. Kostenpflichtig; öffnet „Mit einem Judge prüfen“, wo die Stufe noch geändert werden kann.',
 }

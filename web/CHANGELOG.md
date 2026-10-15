@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A claim or paragraph with a judge's verdict shows only the judge's badge, in outputs, quiz questions and chat answers; the word check's result moved into that badge's tooltip. Without a verdict (no judge, or no usable answer) the word-check badge stays. "Word check: other language" now reads "Not word-checked (other language)", followed by "Have it judged · €x" (priced at Medium), which opens the document's or the answer's Check with a judge.
+
 ### Fixed
 
 - A mind map with long labels opened as a tiny, cut-off root label at the pane's edge: labels now wrap at 280 px, the map is fitted once it is drawn and whenever the pane changes size (never while the pane has no size), and it is no longer rebuilt when a poll hands over the same output again.
+
+
+
+
 
 ## [0.21.3] - 2026-10-15
 

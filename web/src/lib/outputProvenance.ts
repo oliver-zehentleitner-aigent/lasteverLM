@@ -28,12 +28,27 @@ export function claimRefs(c: Claim, known: ReadonlySet<number>): number[] {
   return [...new Set((c.refs ?? []).filter((n) => known.has(n)))]
 }
 
-/** A badge only where the check found no backing or could not measure it. */
+/** The word check's badge, only where it found no backing or could not
+ *  measure, and only without a judge's verdict: the judge is the real
+ *  check, its badge stands alone and carries the word check in its
+ *  tooltip. A judge without a usable answer leaves the word check shown. */
 export function supportBadge(s: Support | undefined, judged = false): Support | null {
-  // "supported" only next to a judge's badge, so the two checks read as a pair;
-  // without a judge a backed claim stays unmarked, as before
-  if (s === 'supported') return judged ? s : null
+  if (judged) return null
   return s === 'unsupported' || s === 'unverified' ? s : null
+}
+
+/** Whether a claim has a judge's verdict (a judge without a usable answer has none). */
+export const hasVerdict = (c: Claim): boolean => !!c.judge?.verdict
+
+/** "Have it judged · €0.02" after a claim the word check could not
+ *  measure, as HTML for the renderers that take HTML; `ask` is the
+ *  action's label with its price, absent where nothing can be judged. */
+function askHtml(ask: string | undefined): string {
+  return ask ? ` <button type="button" class="link small judge-ask" data-judge-ask="1" title="${t('judge.askTitle')}">${escapeAttr(ask)}</button>` : ''
+}
+
+function supportHtml(badge: Support, ask?: string): string {
+  return `<span class="badge support-${badge}" title="${t('wordCheck.title')}">${t(`wordCheck.${badge}`)}</span>${badge === 'unverified' ? askHtml(ask) : ''}`
 }
 
 /** "7 of 9 claims supported", with the ones that could not be measured
@@ -58,7 +73,7 @@ export function markUnsupported(markdown: string, units: readonly ({ text: strin
     const at = u.text ? out.indexOf(u.text, from) : -1
     if (at < 0) continue
     const end = at + u.text.length
-    const badge = supportBadge(u.support, !!u.judge)
+    const badge = supportBadge(u.support, hasVerdict(u))
     // the judge's badge carries the unit's index: the click looks its note up
     const insert = (badge ? ` ${SENTINEL(badge)}` : '') + (u.judge ? ` ⟦judge:${i}⟧` : '')
     out = out.slice(0, end) + insert + out.slice(end)
@@ -73,19 +88,19 @@ export function markUnsupported(markdown: string, units: readonly ({ text: strin
  *  inside an attribute (a judge's reason in a badge's title saying "Passage
  *  [1]") stays as it is, and what is inserted is never scanned again. Runs
  *  before sanitizing, so DOMPurify sees the buttons and spans too. */
-export function decorateReport(html: string, known: ReadonlySet<number>, units: readonly Claim[] = []): string {
+export function decorateReport(html: string, known: ReadonlySet<number>, units: readonly Claim[] = [], ask?: string): string {
   return html
     .split(/(<[^>]*>)/)
-    .map((part, i) => (i % 2 === 1 ? part : decorateText(part, known, units)))
+    .map((part, i) => (i % 2 === 1 ? part : decorateText(part, known, units, ask)))
     .join('')
 }
 
 const TOKENS = /⟦judge:(\d+)⟧|⟦support:(supported|unsupported|unverified)⟧|\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g
 
-function decorateText(text: string, known: ReadonlySet<number>, units: readonly Claim[]): string {
+function decorateText(text: string, known: ReadonlySet<number>, units: readonly Claim[], ask?: string): string {
   return text.replace(TOKENS, (whole, judge?: string, support?: string, list?: string) => {
     if (judge !== undefined) return judgeHtml(units[Number(judge)], Number(judge))
-    if (support !== undefined) return `<span class="badge support-${support}" title="${t('wordCheck.title')}">${t(`wordCheck.${support}` as 'wordCheck.unsupported')}</span>`
+    if (support !== undefined) return supportHtml(support as Support, ask)
     const numbers = (list ?? '').split(',').map((s) => Number(s.trim()))
     if (!numbers.some((n) => known.has(n))) return whole
     return numbers.map((n) => (known.has(n) ? `<button type="button" class="cite" data-n="${n}">${n}</button>` : `[${n}]`)).join('')
@@ -121,7 +136,7 @@ export function unitBadges(answer: string, units: readonly AnswerUnit[] | null |
     const at = u.text ? answer.indexOf(u.text, from) : -1
     if (at < 0) continue
     from = at + u.text.length
-    const badge = supportBadge(u.support, !!u.judge)
+    const badge = supportBadge(u.support, hasVerdict(u))
     // a judged paragraph gets its judge badge even when the word check backed it
     if (badge || u.judge) out.push({ end: from, badge, unit: u })
   }
@@ -132,8 +147,8 @@ export function unitBadges(answer: string, units: readonly AnswerUnit[] | null |
  *  mind map's labels); added before sanitizing, like the report's. */
 export function claimHtml(c: Claim, known: ReadonlySet<number>, index?: number): string {
   const buttons = claimRefs(c, known).map((n) => `<button type="button" class="cite" data-n="${n}">${n}</button>`)
-  const badge = supportBadge(c.support, !!c.judge && index !== undefined)
-  const span = badge ? `<span class="badge support-${badge}" title="${t('wordCheck.title')}">${t(`wordCheck.${badge}`)}</span>` : ''
+  const badge = supportBadge(c.support, hasVerdict(c) && index !== undefined)
+  const span = badge ? supportHtml(badge) : ''
   const judge = c.judge && index !== undefined ? judgeHtml(c, index) : ''
   return buttons.length || span || judge ? ` ${buttons.join('')}${span}${judge}` : ''
 }

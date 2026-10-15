@@ -12,13 +12,18 @@ import { sanitizeHtml } from '../../lib/sanitize'
 export function ReportView({ content }: { content: ReportContent }) {
   const cite = useCite()
   const known = cite?.known
+  const ask = cite?.judgeAsk?.label
   const html = useMemo(() => {
     const markdown = known ? markUnsupported(content.markdown ?? '', content.units) : (content.markdown ?? '')
     const raw = marked.parse(markdown, { async: false, gfm: true }) as string
-    return sanitizeHtml(known ? decorateReport(raw, known, content.units ?? []) : raw)
-  }, [content.markdown, content.units, known])
+    return sanitizeHtml(known ? decorateReport(raw, known, content.units ?? [], ask) : raw)
+  }, [content.markdown, content.units, known, ask])
 
   function onClick(e: MouseEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).closest('button[data-judge-ask]')) {
+      cite?.judgeAsk?.open()
+      return
+    }
     const judge = (e.target as HTMLElement).closest<HTMLButtonElement>('button.judge[data-u]')
     if (judge && cite) {
       // the judge's reading at the unit's first passage
