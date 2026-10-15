@@ -23,8 +23,8 @@ them.
 
 **Reason:** a judge of the author's family shares its blind spots: a
 claim the author misread, its sibling tends to read the same way, so
-agreement would prove little. That reason is inferred; the brief gave
-the rule without one. The mapping is measured rather than set by list
+agreement would prove little. That reason is inferred; the rule was set
+without one. The mapping is measured rather than set by list
 price, because the list price misled here: hidden reasoning tokens made
 the "cheap" model the dearer one. A level should mean more cost for more
 care, and that holds only with low cheapest. `low`'s misses (a
@@ -35,7 +35,9 @@ never let a wrong claim pass.
 - The first proposal's mapping (glm-5.3-flash as low): `low` would cost
   more than `medium`.
 - A judge of the author's family: shared blind spots.
-- Fixing the mapping without measuring: the brief ruled it out.
+- Fixing the mapping without measuring: list prices had already
+  misled once (hidden reasoning tokens), so an unmeasured mapping could
+  make a higher level cheaper than a lower one.
 
 The fixture saturates: two levels score 100%. So `high` over `medium` is
 a bet on harder material, not something this experiment shows
@@ -132,6 +134,11 @@ removed, and the output goes on. The judge may use up to 4000 output
 tokens. The failure kinds also name what failed in the output's error
 and the worker's log.
 
+This is the one place an empty or unusable answer does not fail the
+call: everywhere else it is a provider failure (866cf948-6745-40f1-8a82-a8e20c19b5a7
+in `providers.md`), because a judgement is an annotation the output can
+stand without.
+
 **Reason:** the judge checks an output; it is not the output. Before,
 one unusable judge answer among dozens failed the whole job. The retry
 then paid again for retrieval, writing and every judge call already
@@ -152,3 +159,30 @@ a glm-5.3 answer can run out at 1500. Unused room costs nothing.
 - A shared per-model concurrency limit across workers: nothing shows a
   rate limit (a 429 would read "HTTP 429"), and it needs state shared by
   all workers.
+
+## A judgement on request only annotates; revising is for the judge chosen at generation
+
+**Id:** d6795a59-2ad9-4f16-8c35-2094d1b4ae99
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** the code and README since the judge was added, 2026-10-14 (`judge_stored_output` and `judge_message`: "annotate only, nothing is revised or removed"); the reason is read from the code, not stated anywhere
+**Revisit when:** users ask to have a judged output corrected after the fact, or the web offers to regenerate from a judgement
+
+`POST …/outputs/{id}/judge` and `POST …/messages/{id}/judge` judge an
+existing output's or chat answer's claims in one round. Each claim gets
+its `judge` (one retry, then a unit without a verdict, as in
+755ed7ef-5d49-4d14-aec5-8cb96ec9f546), and nothing is revised or
+removed. Revising and judging again, up to three rounds with what still
+fails removed (2377f9c1-81c9-4d10-8f5d-4567d2b42d7d), happens only when
+the judge is chosen at generation (`options.judge`). A judgement on
+request is its own `judge` action.
+
+**Reason:** inferred from the code. An output or an answer that exists has already
+been read, shared or used as a source; rewriting it in place would
+change what the reader saw without a trace, and a revision needs the
+generation's own prompt and passages in the generator's form. Marking
+its claims tells the reader which ones hold without changing the
+document. A corrected version is a new generation with the judge on.
+
+**Rejected alternatives:** unknown.
