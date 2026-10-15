@@ -160,3 +160,54 @@ stale page where it matters and ask again with it fetched.
   to, and it had no effect once an output was created.
 - Always fetching again: charges for every output even when the page is
   minutes old.
+
+## A document is made from the sources the user means; a correction is a new plan, never a question to the sources
+
+**Id:** 85a424ad-3ae9-4747-b39f-dca0d92a4621
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (from three chats on 0.22.9: a mind map asked of one named PDF read all four selected ones, a report after an answer about one PDF read all four, "das ist das falsche PDF" was answered from the sources; the matching order, the struck step, the question "all selected or the ones just discussed", corrections as a new plan); leaving out the corrected set and the deterministic name scan are rag's
+**Revisit when:** corrections in real chats are missed (answered from the sources anyway) or caught where none was meant, or users mostly answer the source question with "all"
+
+An output step reads the sources the user means. Names the message
+gives are matched against the notebook's sources: the exact name, then
+without case and extension, then the one name that contains it. Each
+must be written in the message, so a name from a document is never
+followed (3b90af43-0016-4630-80af-0620749cf475). A name that matches
+nothing or several sources strikes the step with that reason. When the
+planner leaves the names out, a source name the message writes out is
+taken anyway. Without a name, the step reads the user's selection. If
+more than one source is selected and the last cited answer used only
+some, the plan asks "all selected" or "only the ones just discussed",
+the latter preselected; the question turn is the same as for the level
+(81014b92-e658-47bf-9855-8032dfe0ec4a), its answer setting the steps'
+sources. A short message that says the last result used the wrong thing
+("falsches PDF", "nicht das", "redo with …") proposes the last plan's
+documents again, without a planning call, and asks which sources,
+leaving out the set that was wrong. With no plan to redo, the chat asks
+back which document to use.
+
+**Reason:** a document from sources the user did not mean is wrong
+however well it is made, and the user pays for it. A name the user
+writes is the strongest signal of what they mean, so it is taken
+exactly, and a name that cannot be matched to one source is shown as a
+struck step rather than guessed, because a guessed source is the same
+error again. A follow-up such as "report erstellen bitte" right after an
+answer about one document usually means that document, but not always,
+so it is asked with the likely answer preselected rather than decided.
+A correction is about the last result, not about the sources' content:
+answering it from the sources gave a random sentence. Recognising it
+without the model keeps it free and predictable, and leaving out the set
+that was wrong means the preselected choice is never the mistake again.
+
+**Rejected alternatives:**
+- Reading all of the notebook's sources for every plan (the behaviour
+  before): a named document was ignored.
+- Letting the planner pick sources by id: it sees document names, which
+  come from the user's files, and could follow one; matching what the
+  user wrote keeps arguments to the user's words.
+- Taking the last answer's sources without asking: right most of the
+  time, silently wrong otherwise.
+- Answering a correction as a chat question: it has no answer in the
+  sources.

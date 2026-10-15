@@ -1019,8 +1019,16 @@ def test_a_plan_can_ask_and_a_preference_is_read(store, pool, user, notebook):
     )
     plan = store.get_plan(plan_id)
     assert (plan["status"], plan["question"], plan["notes"]) == ("asking", question, ["a note"])
-    store.save_plan(plan_id, status="proposed", question={**question, "answer": {"choice": "x"}})
-    assert store.get_plan(plan_id)["question"]["answer"] == {"choice": "x"}
+    store.save_plan(
+        plan_id,
+        status="proposed",
+        question={**question, "answer": {"choice": "x"}},
+        sources=[{"name": "a.pdf", "kind": "pdf"}],
+    )
+    saved = store.get_plan(plan_id)
+    assert saved["question"]["answer"] == {"choice": "x"}
+    # an answer that narrows the sources rewrites what the plan reads
+    assert saved["sources"] == [{"name": "a.pdf", "kind": "pdf"}]
 
 
 def test_a_plan_keeps_its_sources_and_a_page_says_when_it_was_read(store, pool, user, notebook):
