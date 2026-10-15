@@ -1,6 +1,7 @@
 """Copying a starter notebook's ready outputs into a new user's copy."""
 
 import json
+import logging
 import uuid
 
 from lasteverlm_rag.starter import OutputCopy, remap_options, remap_provenance
@@ -147,3 +148,36 @@ def test_options_drop_what_cannot_be_mapped():
         "passages": [{"n": 1, "chunk_id": "m1", "source_id": None}],
         "judgements": [1],
     }
+
+
+def test_the_log_says_how_many_were_copied_and_skipped(settings, caplog):
+    store, _, client, _, _, upload = starter(settings)
+    caplog.set_level(logging.INFO, logger="lasteverlm_rag.service")
+    queue(store, upload)
+    client.worker.run_once()
+    # the report and the audio; the quiz still waits; the trashed table is not listed
+    assert (
+        f"starter outputs into notebook {TARGET}: copied 2, skipped 1 not ready, "
+        "0 already copied"
+    ) in caplog.messages
+    queue(store, upload)
+    client.worker.run_once()
+    assert (
+        f"starter outputs into notebook {TARGET}: copied 0, skipped 1 not ready, "
+        "2 already copied"
+    ) in caplog.messages
+
+
+def test_a_starter_without_ready_outputs_is_a_warning(settings, caplog):
+    store = FakeStore()
+    client = make_client(settings, store, FakeRetriever([]), FakeLLM())
+    store.notebooks[TARGET] = {"id": TARGET, "owner": NEW_USER, "title": "Welcome"}
+    queue(store, "unused")
+    caplog.set_level(logging.INFO, logger="lasteverlm_rag.service")
+    client.worker.run_once()
+    (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert warning.getMessage() == (
+        f"starter notebook {NOTEBOOK} has no ready outputs: none copied into notebook "
+        f"{TARGET} (0 not ready)"
+    )
+    assert store.copies == {}
