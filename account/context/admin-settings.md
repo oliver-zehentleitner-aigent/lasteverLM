@@ -6,12 +6,16 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** fleet coordination and family architecture v1, 2026-10-12
+**Source:** family architecture v1 and implementation, 2026-10-12
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 38a1cd64-0e61-4e5f-9ce6-058d3ad01659 — as of 2026-10-15
 
 `AUTH_ALLOWED_DOMAINS` is copied into the `settings` table at the first
 start that finds the key missing, and ignored afterwards. The admin panel
-(`PUT /admin/settings/domains`) is the only place that changes it later;
-a redeploy with a different environment value does nothing.
+is the only place that changes it later, one entry at a time
+(`POST /admin/settings/domains`, `DELETE /admin/settings/domains/{domain}`);
+a redeploy with a different environment value does nothing. The other
+lists (single addresses, viewer domains, viewer addresses) have no
+environment seed at all; they start empty and live only in the panel.
 
 Narrowed on 2026-10-13: this entry covered `SMTP_*` as well until the
 mail configuration moved to the environment only (the entry below); the
