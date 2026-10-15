@@ -77,7 +77,7 @@ and has not yet seen the trade-off.
 
 **Id:** 42e9906d-a613-4f17-896e-40484c1f125d
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** implementation, 2026-10-12
 **Revisit when:** the service runs for weeks without a restart, or a scheduler exists in the cluster
