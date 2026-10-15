@@ -29,7 +29,9 @@ the model provider.
 
 ## Known limitations
 
-- The SMTP password is stored in plain text in the settings table; the
-  database is the trust boundary. Encryption at rest for that value is
-  open work.
+- The mail configuration, including the SMTP password, comes only from
+  a Kubernetes Secret in the environment; it is never stored in the
+  database and the admin panel shows it read-only, without the password.
+- The OpenTofu state holds the cluster's admin kubeconfig (issue #288);
+  the state is kept out of the repository.
 - There is no audit log of admin actions yet.

@@ -140,7 +140,9 @@ separation and the sponsored credit model needs accounts.
 
 The cluster, the database with its vector index, the upload storage and
 the model inference all come from Vultr. Supabase is out. Mail is the
-one external piece, over SMTP configured in the admin panel.
+one external piece, over SMTP whose configuration comes from the
+environment (corrected 2026-10-16: it was first planned in the admin
+panel; see `account/context/admin-settings.md`).
 
 **Reason:** the maintainer holds a hosting credit on this account that
 cannot be paid out, so everything that runs there is effectively free,
