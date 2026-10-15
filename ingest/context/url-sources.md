@@ -157,7 +157,8 @@ meaning in any chunk, and a number is never cited without saying what it
 measures. The request named pretty-printed JSON and YAML; indented text
 was not chosen because a chunk that starts inside a nested object would
 hold values without the keys above them, which the same request ruled
-out ("the key path kept in each chunk").
+out ("the key path kept in each chunk"). The line form was accepted in review
+on 2026-10-15.
 
 Parsing is bounded beyond the body cap: 32 levels of nesting, 10,000
 values (XML: elements), 500 CSV columns and 100,000 characters per CSV

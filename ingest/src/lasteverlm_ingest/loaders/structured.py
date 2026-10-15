@@ -24,6 +24,7 @@ import math
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 from xml.etree.ElementTree import Element
 
@@ -201,8 +202,12 @@ def _scalar(value: Any) -> str:
         return "true" if value else "false"
     if isinstance(value, float) and not math.isfinite(value):
         return str(value)
-    if isinstance(value, int | float):
-        return json.dumps(value)
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        # Positional, never 1e-05: a reader of the text (rag's number
+        # check) finds the value as written.
+        return format(Decimal(repr(value)), "f")
     if isinstance(value, datetime | date):
         return value.isoformat()
     return " ".join(str(value).split())
