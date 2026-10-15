@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** design proposal by the ingest author, aligned with the rag and web authors, approved by the fleet lead and the maintainer, 2026-10-13
+**Source:** design proposal by the ingest author, aligned with rag and web, approved by the maintainer, 2026-10-13
 **Revisit when:** sources need to be shared between users, or a vector index with a notebook filter loses recall because libraries grow far larger than notebooks
 
 What a user uploads or enters (a file, an image, a URL) is a library
@@ -19,8 +19,10 @@ keeps the library source and its chunks; deleting it from the library
 removes it from every notebook. The same bytes (sha256) or the same
 normalised URL from the same user link the existing library source
 instead of storing and processing it again; two users never share one.
-Outputs that rag indexes get a library row of kind `generated` that no
-library read ever returns, so every chunk has exactly one parent.
+Outputs that rag indexes get a library row of kind `generated`, so every
+chunk has exactly one parent. These rows were first hidden from every
+library read; since 2026-10-14 they are listed on their own and linkable
+(entry aadeec34-047c-4e27-8c7b-33de3a883a1b).
 
 **Reason:** processing once per library source is what makes adding to a
 second notebook free and instant; keeping the link id as the source id
@@ -33,7 +35,8 @@ spares the API, rag's citations and web a breaking change.
 - Deduplicate URLs by content hash: needs the fetch the library is meant
   to save, and the same text at two URLs is two sources for citations.
   Consequence of deduplicating by URL: adding the same URL again uses the
-  first fetch; a refresh is a separate feature.
+  first fetch; fetching again is its own request, with versions
+  (url-sources.md, entry 9b572655-c22f-47b1-8ba1-ecdffad01088).
 - Chunks with two possible parents (library source or a generated
   source): every search and delete would branch on the parent; the
   hidden `generated` row keeps one rule at the cost of one filter.
@@ -47,7 +50,7 @@ spares the API, rag's citations and web a breaking change.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's request through the fleet lead, 2026-10-13; the retention key agreed with the account service
+**Source:** maintainer request, 2026-10-13; the retention key agreed with the account service
 **Revisit when:** storage of trashed objects becomes a cost worth a quota, or users ask to empty the trash at once
 
 `DELETE /library/{id}` sets `deleted_at` and removes the entry from every
@@ -81,7 +84,7 @@ runtime; the contract with account is the key name and its default.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's decision (outputs become user-owned library items, usable as a source in other notebooks) through the coordinating agent, 2026-10-14; the split of the lifecycle agreed with rag the same day
+**Source:** maintainer decision, 2026-10-14 (outputs become user-owned library items, usable as a source in other notebooks); the split of the lifecycle agreed with rag the same day
 **Revisit when:** ingest has to process or change generated rows itself
 
 A generated library source (rag's output) is owned by the user and can
@@ -106,7 +109,7 @@ the user can unlink an output from the notebook it was made in.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's wish (share a notebook read-only) through the coordinating agent, 2026-10-14, including what the public view shows
+**Source:** maintainer decision, 2026-10-14 (share a notebook read-only), including what the public view shows
 **Revisit when:** users ask to share source files along with a notebook, or a notebook's sources include material meant to be public
 
 A notebook gets a read-only link (`notebooks.share_token`, made once,
@@ -128,7 +131,7 @@ was made from them, not the uploads themselves.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's wish (delete a user in the admin panel) and the order, through the coordinating agent, 2026-10-14; the call contract settled with account the same day
+**Source:** maintainer decision, 2026-10-14 (delete a user in the admin panel, objects before rows); the call contract settled with account the same day
 **Revisit when:** storage gets a lifecycle rule or a listing that can find objects without their rows
 
 `DELETE /admin/users/{id}` reads the keys of the user's stored objects
@@ -149,7 +152,7 @@ the only index of what the user stored.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** library design reviewed with the coordinating agent, 2026-10-13 (0004 listed in TASKS.md as one release after 0003); 0004 written during the security and quality audit, 2026-10-14
+**Source:** library design, 2026-10-13 (0004 planned for one release after 0003); 0004 written during the security and quality audit, 2026-10-14
 **Revisit when:** never for these two files; the next schema move that a running release still reads follows the same pattern
 
 0003 created `library_sources`, backfilled it and made the old columns
