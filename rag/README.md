@@ -253,8 +253,11 @@ system rules and steers focus, emphasis and tone. It never overrides the
 rules, the citation rules or the reply format, and it is recorded with
 the options in the provenance log. A report's `report_style` is
 `briefing` (default), `detailed`, `executive_summary`, `explainer` (for
-newcomers) or `academic`, and its `length` is `short` (about 300–500
-words), `medium` (default, about 700–1200) or `long` (about 1800–2500).
+newcomers) or `academic`, and its `length` is `short` (at most 500
+words), `medium` (default, at most 1200) or `long` (at most 2500): an
+upper bound, shorter when the material says less, and the prompt
+forbids adding facts, roles, steps or reasons the material does not
+state to reach it.
 A quiz asks for exactly `question_count` questions (5–30, default 10):
 fewer gets the corrective retry, more are cut. Its `difficulty` is
 `easy`, `medium` (default) or `hard`, and its `audience` is `children`,

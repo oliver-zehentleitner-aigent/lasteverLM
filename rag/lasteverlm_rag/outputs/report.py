@@ -49,26 +49,33 @@ STYLES: dict[str, str] = {
         "limitations the material itself states. Cite no literature beyond the passages."
     ),
 }
-# one per length of ``options.LENGTHS``: the target in words, and the answer's budget
-LENGTHS: dict[str, tuple[str, int]] = {
-    "short": ("about 300 to 500 words", 4000),
-    "medium": ("about 700 to 1200 words", 4000),
-    "long": ("about 1800 to 2500 words", 8000),
+# one per length of ``options.LENGTHS``: the most words, and the answer's budget.
+# An upper bound, not a target: a target fills short material with invention.
+LENGTHS: dict[str, tuple[int, int]] = {
+    "short": (500, 4000),
+    "medium": (1200, 4000),
+    "long": (2500, 8000),
 }
+NO_FILLER = (
+    "Never add facts, roles, steps or reasons the material does not state, "
+    "not even to reach the length."
+)
 
 
 class ReportGenerator(JsonGenerator):
     kind: OutputKind = "report"
     focus_query: str = "main topics, key findings, conclusions"
     schema: type[BaseModel] = Report
-    prompt_version: str = "3"  # 3: styles and lengths; 2: cites passages for provenance
+    # 4: lengths are upper bounds, no filler; 3: styles and lengths; 2: cites passages
+    prompt_version: str = "4"
     instructions: str = ""
 
     def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:
         style = STYLES[options.get("report_style", "briefing")]
         words, _ = LENGTHS[options.get("length", "medium")]
         return (
-            f"{style} Length: {words}. Markdown, no top-level title inside the text. "
+            f"{style} Length: at most {words} words; shorter when the material says less. "
+            f"{NO_FILLER} Markdown, no top-level title inside the text. "
             f"{CITE_RULE} Put the markers in the text after the sentence they support, as [2] "
             "or [1, 3]; headings carry none. "
             'Reply as {"title": "...", "markdown": "..."}.',

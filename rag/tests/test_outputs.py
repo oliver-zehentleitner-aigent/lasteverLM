@@ -74,7 +74,7 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
         "unverified": 0,
     }
     assert (
-        provenance["prompt_version"] == "report-briefing-v3" and provenance["model"] == "test-llm"
+        provenance["prompt_version"] == "report-briefing-v4" and provenance["model"] == "test-llm"
     )
     (passage,) = provenance["passages"]
     assert (passage["n"], passage["quote"], passage["page"]) == (1, "The sky is blue.", 1)

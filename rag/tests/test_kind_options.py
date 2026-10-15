@@ -83,9 +83,20 @@ def test_a_report_is_written_in_its_style_and_length(settings):
     assert out["options"] == options
     prompt = llm.calls[0][1]
     assert "for a reader new to the subject" in prompt
-    assert "about 1800 to 2500 words" in prompt
+    assert "Length: at most 2500 words; shorter when the material says less." in prompt
+    assert "Never add facts, roles, steps or reasons the material does not state" in prompt
+    assert "about" not in prompt.split("Length:")[1].split(".")[0]
     assert llm.budgets == [8000]
-    assert out["provenance"]["prompt_version"] == "report-explainer-v3"
+    assert out["provenance"]["prompt_version"] == "report-explainer-v4"
+
+
+@pytest.mark.parametrize("length, words", [("short", 500), ("medium", 1200), ("long", 2500)])
+def test_every_report_length_is_an_upper_bound_without_filler(length, words):
+    from lasteverlm_rag.outputs.report import ReportGenerator
+
+    prompt, _ = ReportGenerator().prompt({"report_style": "briefing", "length": length})
+    assert f"Length: at most {words} words; shorter when the material says less." in prompt
+    assert "Never add facts, roles, steps or reasons the material does not state" in prompt
 
 
 def test_a_quiz_asks_for_its_count_difficulty_and_audience(settings):
