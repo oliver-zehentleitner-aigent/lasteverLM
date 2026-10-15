@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- Docs only: `has_credit`'s docstring and the accounting docs say the check gates the start of an action (an action that has started runs to the end, the balance can end below zero); the `DEFAULT_MODEL_PRICES` comment gives the current reason it is empty (the deployment's `MODEL_PRICES` is the one price table).
+
 ## [0.20.2] - 2026-10-15
 
 ### Added

@@ -195,8 +195,9 @@ def admin_role(conn: Connection, user_id: UUID) -> Role:
 
 
 def has_credit(conn: Connection, user_id: UUID) -> bool:
-    """May this user start a model call: `balance_cents > 0`, for every user
-    alike. The check every service runs before a model call."""
+    """May this user start an action: `balance_cents > 0`, for every user
+    alike. Services check it once, at the start of a user action; an action
+    that has started runs to the end, so the balance can end below zero."""
     with conn.cursor() as cur:
         cur.execute(HAS_CREDIT_SQL, {"user_id": user_id})
         return bool(scalar(cur.fetchone(), "has_credit"))
