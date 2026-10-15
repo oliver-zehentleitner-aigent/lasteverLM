@@ -34,17 +34,17 @@ export function adminPageFromPath(pathname: string): AdminPageId | null {
 
 /** Finance's pages, in the order of its sub-navigation; costs is the default. */
 export const FINANCE_PAGES = [
+  { id: 'revenue', get label() { return t('fin.page.revenue') } },
   { id: 'costs', get label() { return t('fin.page.costs') } },
   { id: 'prices', get label() { return t('fin.page.prices') } },
-  { id: 'revenue', get label() { return t('fin.page.revenue') } },
-  { id: 'infrastructure', get label() { return t('fin.page.infrastructure') } },
   { id: 'vouchers', get label() { return t('fin.page.vouchers') } },
 ] as const
 
 export type FinancePageId = (typeof FINANCE_PAGES)[number]['id']
 
+/** Revenue and profit is where Finance opens. */
 export function financePath(page: FinancePageId): string {
-  return page === 'costs' ? '/admin/finance' : `/admin/finance/${page}`
+  return page === 'revenue' ? '/admin/finance' : `/admin/finance/${page}`
 }
 
 /** The finance page of a path; null when it is not one. */
@@ -52,6 +52,8 @@ export function financePageFromPath(pathname: string): FinancePageId | null {
   if (/^\/admin\/credits\/?$/.test(pathname)) return 'vouchers'
   const m = /^\/admin\/finance(?:\/([^/]+))?\/?$/.exec(pathname)
   if (!m) return null
-  if (!m[1]) return 'costs'
+  if (!m[1]) return 'revenue'
+  // the infrastructure page moved into the costs
+  if (m[1] === 'infrastructure') return 'costs'
   return FINANCE_PAGES.find((p) => p.id === m[1])?.id ?? null
 }

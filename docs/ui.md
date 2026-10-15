@@ -904,7 +904,8 @@ deleted from the library) stays readable with its quote and is marked
     panel)**: a new user at one of those domains or addresses (also
     allowed to sign in) starts as viewer.
   - **Finance** (`/admin/finance`, in the menu right after Overview):
-    pills for its five pages, each with its own URL under
+    pills for its four pages in the order Revenue and profit, Costs,
+    Prices, Vouchers, each with its own URL under
     `/admin/finance/`, and one date range for those that take one
     (7, 30 or 90 days, or two dates), in one row at one height: the day
     pills, the labels and the date fields are all 2.3rem, like the
@@ -913,9 +914,29 @@ deleted from the library) stays readable with its quote and is marked
     up, below that two to four decimals (€0.90, €0.6221, $0.0034;
     "<€0.0001" rather than zero), the exact value in its tooltip. The
     overview's cost and voucher tiles link here.
-    - **Costs** (the default): grouped by day, action, model, user or
-      service; per row the calls, actions, cost, the cost as measured
-      in USD, the charge and the margin, with totals.
+    - **Revenue and profit** (the default, `/admin/finance`): tiles (charged, of which demo, paid and
+      free vouchers issued and redeemed, outstanding credit), a chart
+      per month or day (charged, model cost and infrastructure as bars,
+      profit as a line) and its table; a value without a rate says
+      "needs a rate" with a link to Prices.
+    - **Costs** (`/admin/finance/costs`; the old
+      `/admin/finance/infrastructure` opens it): for the range, first
+      "Total costs €A = model costs €X + infrastructure €B" (a USD line
+      without a rate named as not included), then **Model costs (model
+      usage)**: grouped by day, action, model, user or service; per row
+      the calls, actions, cost, the cost as measured in USD, the charge
+      and the margin, with "Model costs €X ($Y measured), charged €Z";
+      then **Infrastructure costs**, what was the Infrastructure page:
+      with a key set (`configured`), "Vultr
+      connected · last successful sync <time>" only when a sync has
+      worked and the last attempt did not fail; otherwise "Key set ·
+      last successful sync: <time or never>". A last attempt later than
+      the last success is added ("last attempt <time>"), then Sync now.
+      A failed attempt's `last_error` (Vultr's own message, with where
+      to allow the address for an IP refusal) stands under it in red.
+      Without a key "Vultr is not configured." and how to set it; the lines with source and
+      amount in their currency and in euro; lines entered by hand can
+      be added and deleted (not by viewers), Vultr's cannot.
     - **Prices** (`/admin/finance/prices`): the exchange rate first,
       as a line "1 EUR = 1.1188 USD · ECB 2026-10-13 · checked 14:05"
       (the check's date too when it was not today; "set by hand" for a
@@ -935,21 +956,6 @@ deleted from the library) stays readable with its quote and is marked
       typing stops the table previews, per action, the last 30 days'
       count, the average cost and what the user pays. Save, and "no
       margin, no fees", which keeps the rate.
-    - **Revenue and profit**: tiles (charged, of which demo, paid and
-      free vouchers issued and redeemed, outstanding credit), a chart
-      per month or day (charged, model cost and infrastructure as bars,
-      profit as a line) and its table; a value without a rate says
-      "needs a rate" with a link to Prices.
-    - **Infrastructure**: with a key set (`configured`), "Vultr
-      connected · last successful sync <time>" only when a sync has
-      worked and the last attempt did not fail; otherwise "Key set ·
-      last successful sync: <time or never>". A last attempt later than
-      the last success is added ("last attempt <time>"), then Sync now.
-      A failed attempt's `last_error` (Vultr's own message, with where
-      to allow the address for an IP refusal) stands under it in red.
-      Without a key "Vultr is not configured." and how to set it; the lines with source and
-      amount in their currency and in euro; lines entered by hand can
-      be added and deleted, Vultr's cannot.
     - **Vouchers** (`/admin/finance/vouchers`; the old
       `/admin/credits` opens it): voucher creation as a form card above
     the list, at most 40rem wide: Amount (EUR, 5 by default) | Count |

@@ -34,3 +34,11 @@ export function lastDays(days: number, today: Date = new Date()): { from: string
 export function charge(costCents: number, marginPct: number, fixedCents: number): number {
   return costCents * (1 + marginPct / 100) + fixedCents
 }
+
+/** The costs of a range: the model costs and the infrastructure lines in
+ *  EUR; a USD line without a rate cannot be added and is counted apart. */
+export function totalCosts(modelCents: number, infra: readonly { amount_eur_cents: number | null }[]): { total: number; model: number; infra: number; notIncluded: number } {
+  const known = infra.filter((x) => x.amount_eur_cents !== null)
+  const infraCents = known.reduce((a, x) => a + (x.amount_eur_cents ?? 0), 0)
+  return { total: modelCents + infraCents, model: modelCents, infra: infraCents, notIncluded: infra.length - known.length }
+}

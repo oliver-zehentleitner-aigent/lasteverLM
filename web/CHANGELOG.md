@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Admin → Finance opens on "Revenue and profit", followed by Costs, Prices and Vouchers. Costs now holds all costs of the range: "Total costs €A = model costs €X + infrastructure €B" (a USD line without a rate named as not included), "Model costs (model usage)" with its grouping, and "Infrastructure costs" with everything from the former Infrastructure page (Vultr connection and sync, the lines, adding and deleting manual ones). The Infrastructure tab is gone; its old address opens Costs.
+
 ## [0.22.1] - 2026-10-15
 
 ### Added

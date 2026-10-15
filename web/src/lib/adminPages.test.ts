@@ -21,12 +21,17 @@ describe('admin paths', () => {
 })
 
 describe('finance paths', () => {
-  it('reads every finance page back, costs at /admin/finance', () => {
+  it('reads every finance page back, revenue and profit at /admin/finance', () => {
     for (const p of FINANCE_PAGES) {
       expect(adminPageFromPath(financePath(p.id))).toBe('finance')
       expect(financePageFromPath(financePath(p.id))).toBe(p.id)
     }
-    expect(financePath('costs')).toBe('/admin/finance')
+    expect(financePath('revenue')).toBe('/admin/finance')
+    expect(FINANCE_PAGES.map((p) => p.id)).toEqual(['revenue', 'costs', 'prices', 'vouchers'])
+  })
+
+  it('sends the old infrastructure page to the costs', () => {
+    expect(financePageFromPath('/admin/finance/infrastructure')).toBe('costs')
   })
 
   it('sends the old credits page to the vouchers', () => {
