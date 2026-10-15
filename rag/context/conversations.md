@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request after the click-through, relayed by the coordinator, 2026-10-13
+**Source:** maintainer request after a manual walkthrough, relayed by the coordinator, 2026-10-13
 **Revisit when:** conversations need to be shared, moved between notebooks, or searched across
 
 A notebook has any number of conversations (`conversations` table, one
@@ -17,8 +17,8 @@ migration keeps existing history by moving each notebook's messages
 into one conversation "Chat 1". Scoped questions about a generated
 output land in whatever conversation they were asked in.
 
-**Reason:** separate topics in one notebook ("what is VNC", "how do I
-use vi") should not share one running history, and a tab the user
+**Reason:** separate topics in one notebook (questions about two
+different documents) should not share one running history, and a tab the user
 closes should take its messages with it. A row per conversation gives
 each tab an id, a title and an ordering of its own, and lets the model
 read only the history of the tab the question came from.
@@ -46,8 +46,8 @@ the passages. The system prompt says earlier turns only tell what the
 question refers to; facts and citations still come from the passages
 of this question. Retrieval embeds the current question only.
 
-**Reason:** follow-ups in the click-through ("but isn't the other
-document about the VNC server?") only make sense with the turn before.
+**Reason:** follow-ups such as "but isn't the other document about
+that?" only make sense with the turn before.
 Six messages are three exchanges, enough to resolve a reference without
 filling the context window. Old markers point at passages of an earlier
 retrieval, so they are removed to keep the model from citing numbers
@@ -77,8 +77,8 @@ questions: no markers, one line, at most 150 characters, distinct, at
 most three. An answer without the tail has no suggestions and is
 otherwise unchanged.
 
-**Reason:** the same call costs nothing extra and adds no wait, as the
-brief asked. A JSON object around the answer would change how the answer
+**Reason:** the suggestions must cost nothing extra and add no wait,
+and the same call does both. A JSON object around the answer would change how the answer
 itself is written and parsed: every answer would fail or need a
 corrective retry when the JSON is off, for the sake of a side feature.
 A tail is cheap to cut, and missing it costs only the suggestions.
@@ -88,4 +88,4 @@ out of the answer's citations.
 **Rejected alternatives:**
 - A JSON answer with a suggestions field: it puts the main answer at
   risk for a side feature.
-- A second call: extra cost and latency, which the brief ruled out.
+- A second call: extra cost and latency for a side feature.
