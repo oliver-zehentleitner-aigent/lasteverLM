@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { account } from '../api/account'
-import type { Preferences } from '../api/types'
+import type { JudgeLevel, Preferences } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
@@ -157,6 +157,20 @@ export function SettingsPage() {
             voice={p.audio_voice ?? spec.audio.default_voice}
             language={sampleLanguage(p.output_language, spec, language())}
           />
+        )}
+        {spec?.judge && (
+          <label>
+            {t('set.judgeDefault')}
+            <select value={p.judge_default ?? 'off'} onChange={(e) => set({ judge_default: e.target.value as JudgeLevel })}>
+              {spec.judge.levels.map((l) => (
+                <option key={l} value={l}>
+                  {t(`judge.level.${l}`)}
+                  {spec.judge?.models[l] ? ` (${spec.judge.models[l]})` : ''}
+                </option>
+              ))}
+            </select>
+            <span className="muted small">{t('set.judgeDefaultHint')}</span>
+          </label>
         )}
         <label>
           {t('set.pdf')}

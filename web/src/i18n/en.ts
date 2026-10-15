@@ -1123,6 +1123,14 @@ export const en = {
   'phase.retryN': 'Attempt {n} of {of} follows ({error})',
   'phase.retryOnly': 'Attempt {n} of {of} follows',
   'audio.playFrom': 'Play from here',
+  'set.judgeDefault': 'Judge by default',
+  'set.judgeDefaultHint': 'New outputs start with this level; you can change it per output.',
+  'plan.status.asking': 'asking',
+  'plan.answerFirst': 'Answer the question first',
+  'plan.answered': '{question} → {answer}',
+  'plan.defaultChoice': 'preselected',
+  'plan.freeText': 'Or say it in your own words',
+  'plan.send': 'Send',
 } as const
 
 export type MessageKey = keyof typeof en

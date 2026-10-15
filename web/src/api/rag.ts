@@ -38,6 +38,9 @@ export const rag = {
 
   /** a proposed plan runs on confirm, ends on cancel (409 once it did either); poll while running */
   confirmPlan: (conversationId: string, planId: string) => request<Plan>(`${conv(conversationId)}/plans/${encodeURIComponent(planId)}/confirm`, { method: 'POST' }),
+  /** answers an asking plan's question; it comes back proposed with steps and estimate updated (409 when not asking or stale) */
+  answerPlan: (conversationId: string, planId: string, body: { question_id: string; choice?: string; text?: string }) =>
+    request<Plan>(`${conv(conversationId)}/plans/${encodeURIComponent(planId)}/answer`, { method: 'POST', json: body }),
   cancelPlan: (conversationId: string, planId: string) => request<Plan>(`${conv(conversationId)}/plans/${encodeURIComponent(planId)}/cancel`, { method: 'POST' }),
   getPlan: (conversationId: string, planId: string) => request<Plan>(`${conv(conversationId)}/plans/${encodeURIComponent(planId)}`),
 

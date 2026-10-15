@@ -72,7 +72,8 @@ export function defaultValues(spec: OutputOptionsSpec, prefs: Preferences | unde
     cardCount: spec.flashcards?.card_count.default ?? 15,
     difficulty: spec.quiz?.default_difficulty ?? 'medium',
     audience: spec.quiz?.default_audience ?? 'adults',
-    judge: spec.judge?.default ?? 'off',
+    // the user's default when rag offers that level, else rag's
+    judge: prefs?.judge_default && (spec.judge?.levels ?? []).includes(prefs.judge_default) ? prefs.judge_default : (spec.judge?.default ?? 'off'),
   }
 }
 

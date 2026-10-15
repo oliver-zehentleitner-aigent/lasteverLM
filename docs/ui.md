@@ -346,7 +346,15 @@ opens the notebook.
   it found, a library add how many it added. Each done step reloads the
   Sources and Outputs lists and the conversation, where an explanation
   arrives as a normal cited answer and, at the end, the plan's summary.
-  After a reload the card shows the plan as it stands.
+  After a reload the card shows the plan as it stands. A plan can first
+  **ask** (status `asking`, `plan.question`): its question with two to
+  four choices as buttons, the preselected one outlined in the accent,
+  each with the plan's price if taken; a text field too when the
+  question allows one. Run stays disabled until it is answered (`POST
+  …/plans/{id}/answer`), then the card shows the updated steps and
+  total and "question → answer" as a line. The first use is the judge:
+  "With a judge (High, your default)" or "Without a judge". The plan's
+  notes (`plan.notes`, e.g. "Without a judge: …") show under it.
 
 ## Viewer, print, share
 
@@ -503,7 +511,10 @@ library source stays in the trash (1–365, empty for 14), and how PDFs
 are read by default (Auto, Text or Vision). Saved together with
 `PUT /api/account/me/preferences`; an empty choice clears the value.
 The preferred language and voice are preselected in the output options
-and used by the wizard, which has no option menus. The interface
+and used by the wizard, which has no option menus. **Judge by default**
+(off, low, medium, high, with each level's model; `judge_default`)
+preselects the judge option of new outputs when rag offers that level;
+changing it for one output does not change the preference. The interface
 language is stored here and applied by the translation layer. The
 shared demo account cannot change settings (403, shown as the
 service's sentence).

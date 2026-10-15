@@ -192,8 +192,13 @@ export interface Message {
  *  are euro cents; the total covers the valid steps only. */
 export interface Plan {
   plan_id: string
-  status: 'proposed' | 'running' | 'done' | 'failed' | 'cancelled'
+  /** asking: waits for an answer to `question`, cannot be confirmed yet */
+  status: 'asking' | 'proposed' | 'running' | 'done' | 'failed' | 'cancelled'
   steps: PlanStep[]
+  /** a short question with two to four choices, the default preselected */
+  question?: PlanQuestion | null
+  /** one-liners shown under the plan ("Without a judge: …") */
+  notes?: string[]
   /** the plan's own total; web pages' processing is billed apart (`separate`) */
   estimate: { min: number; max: number }
   /** one line per web page an add_url step adds: ingest bills its processing at the price list's price */
@@ -597,6 +602,8 @@ export interface Preferences {
   theme?: 'system' | 'light' | 'dark' | null
   /** the first-login introduction was finished or skipped; absent from an older account service */
   tour_done?: boolean
+  /** the judge level new outputs start with; "off" by default, absent from an older account service */
+  judge_default?: JudgeLevel | null
 }
 
 /** user: the app only; viewer: reads the admin panel; admin: everything */
@@ -1040,4 +1047,15 @@ export interface OutputPhase {
   sources?: string[]
   /** retry: the short failure */
   error?: string
+}
+
+/** The agent asks before it plans further; `estimate` is the plan's total
+ *  if that choice is taken (euro cents). */
+export interface PlanQuestion {
+  question_id: string
+  text: string
+  choices: { id: string; label: string; estimate?: { min: number; max: number } | null }[]
+  default: string
+  free_text: boolean
+  answer?: { choice?: string | null; text?: string | null; at: string } | null
 }

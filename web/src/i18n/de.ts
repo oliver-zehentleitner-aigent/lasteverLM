@@ -1126,4 +1126,12 @@ export const de: Record<MessageKey, string> = {
   'phase.retryN': 'Versuch {n} von {of} folgt ({error})',
   'phase.retryOnly': 'Versuch {n} von {of} folgt',
   'audio.playFrom': 'Ab hier abspielen',
+  'set.judgeDefault': 'Judge standardmäßig',
+  'set.judgeDefaultHint': 'Neue Ausgaben starten mit dieser Stufe; pro Ausgabe änderbar.',
+  'plan.status.asking': 'fragt nach',
+  'plan.answerFirst': 'Zuerst die Frage beantworten',
+  'plan.answered': '{question} → {answer}',
+  'plan.defaultChoice': 'vorausgewählt',
+  'plan.freeText': 'Oder in eigenen Worten',
+  'plan.send': 'Senden',
 }

@@ -72,7 +72,7 @@ export function PlanCard({ conversationId, plan, onChange, onWork, onOpen }: Pro
       </header>
       <ol className="plan-steps">
         {plan.steps.map((s) => (
-          <Step key={s.n} step={s} proposed={plan.status === 'proposed'} onOpen={onOpen} />
+          <Step key={s.n} step={s} proposed={plan.status === 'proposed' || plan.status === 'asking'} onOpen={onOpen} />
         ))}
       </ol>
       <p className="plan-total small">
@@ -84,9 +84,17 @@ export function PlanCard({ conversationId, plan, onChange, onWork, onOpen }: Pro
           </span>
         ))}
       </p>
-      {plan.status === 'proposed' && (
+      {plan.question && <Question conversationId={conversationId} plan={plan} onChange={onChange} />}
+      {(plan.notes ?? []).length > 0 && (
+        <ul className="plan-notes muted small">
+          {plan.notes!.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+      {(plan.status === 'proposed' || plan.status === 'asking') && (
         <div className="plan-actions">
-          <button type="button" disabled={busy || !plan.steps.some((s) => s.valid)} onClick={() => void act('confirm')}>
+          <button type="button" title={plan.status === 'asking' ? t('plan.answerFirst') : undefined} disabled={plan.status === 'asking' || busy || !plan.steps.some((s) => s.valid)} onClick={() => void act('confirm')}>
             {t('plan.run')}
           </button>
           <button type="button" className="secondary" disabled={busy} onClick={() => void act('cancel')}>
@@ -140,5 +148,63 @@ function Step({ step: s, proposed, onOpen }: { step: PlanStep; proposed: boolean
       )}
       {s.state === 'done' && s.result?.added && <span className="muted small step-list">{t('plan.added', { n: s.result.added.length, already: s.result.already?.length ?? 0 })}</span>}
     </li>
+  )
+}
+
+/** The agent's question before it plans further: two to four choices as
+ *  buttons, the default marked, each with the plan's price if taken; a
+ *  text field when the question allows one. Once answered, the choice
+ *  stays as a line. */
+function Question({ conversationId, plan, onChange }: { conversationId: string; plan: Plan; onChange: (plan: Plan) => void }) {
+  const q = plan.question!
+  const [text, setText] = useState('')
+  const { busy, error, run } = useAsync()
+
+  async function answer(body: { choice?: string; text?: string }) {
+    const next = await run(() => rag.answerPlan(conversationId, plan.plan_id, { question_id: q.question_id, ...body }))
+    if (next) onChange(next)
+  }
+
+  if (plan.status !== 'asking' || q.answer) {
+    const chosen = q.choices.find((c) => c.id === q.answer?.choice)?.label ?? q.answer?.text
+    return chosen ? <p className="plan-answered muted small">{t('plan.answered', { question: q.text, answer: chosen })}</p> : null
+  }
+  return (
+    <div className="plan-question" role="group" aria-label={q.text}>
+      <p>{q.text}</p>
+      <div className="plan-choices">
+        {q.choices.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={c.id === q.default ? 'plan-choice default' : 'plan-choice secondary'}
+            disabled={busy}
+            aria-describedby={c.id === q.default ? `${q.question_id}-default` : undefined}
+            onClick={() => void answer({ choice: c.id })}
+          >
+            {c.label}
+            {c.estimate && <span className="muted small"> · {price(c.estimate)}</span>}
+          </button>
+        ))}
+        <span id={`${q.question_id}-default`} className="sr-only">
+          {t('plan.defaultChoice')}
+        </span>
+      </div>
+      {q.free_text && (
+        <form
+          className="row plan-free"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (text.trim()) void answer({ text: text.trim() })
+          }}
+        >
+          <input value={text} placeholder={t('plan.freeText')} aria-label={t('plan.freeText')} onChange={(e) => setText(e.target.value)} />
+          <button type="submit" className="secondary small" disabled={busy || !text.trim()}>
+            {t('plan.send')}
+          </button>
+        </form>
+      )}
+      {error && <p className="error small">{error}</p>}
+    </div>
   )
 }
