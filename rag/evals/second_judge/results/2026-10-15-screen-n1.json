@@ -1,0 +1,3657 @@
+{
+ "date": "2026-10-15T12:07:21.539985+00:00",
+ "n": 1,
+ "models": {
+  "glm-5.3": [
+   {
+    "case": "supported-1",
+    "verdict": "supported",
+    "tokens_in": 365,
+    "tokens_out": 135,
+    "latency_s": 1.76
+   },
+   {
+    "case": "supported-2",
+    "verdict": "supported",
+    "tokens_in": 378,
+    "tokens_out": 187,
+    "latency_s": 2.65
+   },
+   {
+    "case": "supported-3",
+    "verdict": "supported",
+    "tokens_in": 350,
+    "tokens_out": 112,
+    "latency_s": 1.97
+   },
+   {
+    "case": "supported-4",
+    "verdict": "supported",
+    "tokens_in": 371,
+    "tokens_out": 76,
+    "latency_s": 1.42
+   },
+   {
+    "case": "paraphrase-1",
+    "verdict": "supported",
+    "tokens_in": 373,
+    "tokens_out": 179,
+    "latency_s": 2.31
+   },
+   {
+    "case": "paraphrase-2",
+    "verdict": "supported",
+    "tokens_in": 372,
+    "tokens_out": 402,
+    "latency_s": 3.59
+   },
+   {
+    "case": "paraphrase-3",
+    "verdict": "supported",
+    "tokens_in": 360,
+    "tokens_out": 283,
+    "latency_s": 2.79
+   },
+   {
+    "case": "paraphrase-4",
+    "verdict": "supported",
+    "tokens_in": 354,
+    "tokens_out": 300,
+    "latency_s": 2.58
+   },
+   {
+    "case": "negated-1",
+    "verdict": "contradicted",
+    "tokens_in": 348,
+    "tokens_out": 171,
+    "latency_s": 2.01
+   },
+   {
+    "case": "negated-2",
+    "verdict": "contradicted",
+    "tokens_in": 341,
+    "tokens_out": 82,
+    "latency_s": 1.46
+   },
+   {
+    "case": "negated-3",
+    "verdict": "contradicted",
+    "tokens_in": 353,
+    "tokens_out": 164,
+    "latency_s": 3.09
+   },
+   {
+    "case": "negated-4",
+    "verdict": "contradicted",
+    "tokens_in": 373,
+    "tokens_out": 198,
+    "latency_s": 3.34
+   },
+   {
+    "case": "swapped-1",
+    "verdict": "contradicted",
+    "tokens_in": 374,
+    "tokens_out": 244,
+    "latency_s": 2.05
+   },
+   {
+    "case": "swapped-2",
+    "verdict": "contradicted",
+    "tokens_in": 361,
+    "tokens_out": 168,
+    "latency_s": 2.17
+   },
+   {
+    "case": "swapped-3",
+    "verdict": "contradicted",
+    "tokens_in": 452,
+    "tokens_out": 280,
+    "latency_s": 2.59
+   },
+   {
+    "case": "swapped-4",
+    "verdict": "contradicted",
+    "tokens_in": 374,
+    "tokens_out": 210,
+    "latency_s": 2.11
+   },
+   {
+    "case": "off_by_one-1",
+    "verdict": "contradicted",
+    "tokens_in": 378,
+    "tokens_out": 151,
+    "latency_s": 1.54
+   },
+   {
+    "case": "off_by_one-2",
+    "verdict": "contradicted",
+    "tokens_in": 350,
+    "tokens_out": 83,
+    "latency_s": 3.37
+   },
+   {
+    "case": "off_by_one-3",
+    "verdict": "contradicted",
+    "tokens_in": 365,
+    "tokens_out": 170,
+    "latency_s": 2.56
+   },
+   {
+    "case": "off_by_one-4",
+    "verdict": "contradicted",
+    "tokens_in": 371,
+    "tokens_out": 77,
+    "latency_s": 1.7
+   },
+   {
+    "case": "not_in_source-1",
+    "verdict": "not_in_source",
+    "tokens_in": 354,
+    "tokens_out": 167,
+    "latency_s": 2.79
+   },
+   {
+    "case": "not_in_source-2",
+    "verdict": "not_in_source",
+    "tokens_in": 345,
+    "tokens_out": 108,
+    "latency_s": 1.79
+   },
+   {
+    "case": "not_in_source-3",
+    "verdict": "not_in_source",
+    "tokens_in": 377,
+    "tokens_out": 148,
+    "latency_s": 2.09
+   },
+   {
+    "case": "not_in_source-4",
+    "verdict": "not_in_source",
+    "tokens_in": 349,
+    "tokens_out": 179,
+    "latency_s": 2.39
+   },
+   {
+    "case": "en-01",
+    "verdict": "contradicted",
+    "tokens_in": 277,
+    "tokens_out": 129,
+    "latency_s": 2.01
+   },
+   {
+    "case": "en-02",
+    "verdict": "contradicted",
+    "tokens_in": 279,
+    "tokens_out": 93,
+    "latency_s": 1.43
+   },
+   {
+    "case": "en-03",
+    "verdict": "contradicted",
+    "tokens_in": 277,
+    "tokens_out": 82,
+    "latency_s": 1.59
+   },
+   {
+    "case": "en-04",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 89,
+    "latency_s": 1.39
+   },
+   {
+    "case": "en-05",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 88,
+    "latency_s": 1.22
+   },
+   {
+    "case": "en-06",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 100,
+    "latency_s": 1.26
+   },
+   {
+    "case": "en-07",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 141,
+    "latency_s": 25.4
+   },
+   {
+    "case": "en-08",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 96,
+    "latency_s": 23.81
+   },
+   {
+    "case": "en-09",
+    "verdict": "contradicted",
+    "tokens_in": 277,
+    "tokens_out": 609,
+    "latency_s": 29.34
+   },
+   {
+    "case": "en-10",
+    "verdict": "contradicted",
+    "tokens_in": 273,
+    "tokens_out": 72,
+    "latency_s": 23.77
+   },
+   {
+    "case": "en-11",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 90,
+    "latency_s": 1.36
+   },
+   {
+    "case": "en-12",
+    "verdict": "contradicted",
+    "tokens_in": 285,
+    "tokens_out": 95,
+    "latency_s": 1.75
+   },
+   {
+    "case": "en-13",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 94,
+    "latency_s": 2.73
+   },
+   {
+    "case": "en-14",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 100,
+    "latency_s": 8.9
+   },
+   {
+    "case": "en-15",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 102,
+    "latency_s": 4.67
+   },
+   {
+    "case": "en-16",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 148,
+    "latency_s": 30.45
+   },
+   {
+    "case": "en-17",
+    "verdict": "supported",
+    "tokens_in": 280,
+    "tokens_out": 152,
+    "latency_s": 29.81
+   },
+   {
+    "case": "en-18",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 108,
+    "latency_s": 29.62
+   },
+   {
+    "case": "en-19",
+    "verdict": "not_in_source",
+    "tokens_in": 277,
+    "tokens_out": 220,
+    "latency_s": 5.49
+   },
+   {
+    "case": "en-20",
+    "verdict": "not_in_source",
+    "tokens_in": 282,
+    "tokens_out": 381,
+    "latency_s": 12.86
+   },
+   {
+    "case": "en-21",
+    "verdict": "not_in_source",
+    "tokens_in": 282,
+    "tokens_out": 452,
+    "latency_s": 10.14
+   },
+   {
+    "case": "en-22",
+    "verdict": "supported",
+    "tokens_in": 275,
+    "tokens_out": 130,
+    "latency_s": 7.96
+   },
+   {
+    "case": "en-23",
+    "verdict": "supported",
+    "tokens_in": 275,
+    "tokens_out": 191,
+    "latency_s": 12.09
+   },
+   {
+    "case": "en-24",
+    "verdict": "supported",
+    "tokens_in": 272,
+    "tokens_out": 164,
+    "latency_s": 11.57
+   },
+   {
+    "case": "en-25",
+    "verdict": "supported",
+    "tokens_in": 274,
+    "tokens_out": 185,
+    "latency_s": 5.97
+   },
+   {
+    "case": "en-26",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 447,
+    "latency_s": 11.7
+   },
+   {
+    "case": "en-27",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 652,
+    "latency_s": 22.37
+   },
+   {
+    "case": "en-28",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 91,
+    "latency_s": 1.15
+   },
+   {
+    "case": "en-29",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 88,
+    "latency_s": 2.39
+   },
+   {
+    "case": "en-30",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 83,
+    "latency_s": 2.7
+   },
+   {
+    "case": "de-31",
+    "verdict": "contradicted",
+    "tokens_in": 281,
+    "tokens_out": 119,
+    "latency_s": 3.73
+   },
+   {
+    "case": "de-32",
+    "verdict": "contradicted",
+    "tokens_in": 281,
+    "tokens_out": 121,
+    "latency_s": 3.56
+   },
+   {
+    "case": "de-33",
+    "verdict": "contradicted",
+    "tokens_in": 286,
+    "tokens_out": 178,
+    "latency_s": 4.94
+   },
+   {
+    "case": "de-34",
+    "verdict": "contradicted",
+    "tokens_in": 287,
+    "tokens_out": 173,
+    "latency_s": 6.36
+   },
+   {
+    "case": "de-35",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 112,
+    "latency_s": 5.13
+   },
+   {
+    "case": "de-36",
+    "verdict": "contradicted",
+    "tokens_in": 281,
+    "tokens_out": 173,
+    "latency_s": 3.36
+   },
+   {
+    "case": "de-37",
+    "verdict": "contradicted",
+    "tokens_in": 284,
+    "tokens_out": 155,
+    "latency_s": 7.59
+   },
+   {
+    "case": "de-38",
+    "verdict": "contradicted",
+    "tokens_in": 287,
+    "tokens_out": 222,
+    "latency_s": 11.25
+   },
+   {
+    "case": "de-39",
+    "verdict": "contradicted",
+    "tokens_in": 283,
+    "tokens_out": 156,
+    "latency_s": 16.73
+   },
+   {
+    "case": "de-40",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 130,
+    "latency_s": 11.56
+   },
+   {
+    "case": "de-41",
+    "verdict": "contradicted",
+    "tokens_in": 289,
+    "tokens_out": 199,
+    "latency_s": 12.34
+   },
+   {
+    "case": "de-42",
+    "verdict": "contradicted",
+    "tokens_in": 287,
+    "tokens_out": 163,
+    "latency_s": 10.79
+   },
+   {
+    "case": "de-43",
+    "verdict": "contradicted",
+    "tokens_in": 284,
+    "tokens_out": 143,
+    "latency_s": 7.32
+   },
+   {
+    "case": "de-44",
+    "verdict": "contradicted",
+    "tokens_in": 281,
+    "tokens_out": 164,
+    "latency_s": 7.35
+   },
+   {
+    "case": "de-45",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 145,
+    "latency_s": 7.34
+   },
+   {
+    "case": "de-46",
+    "verdict": null,
+    "error": "judge: no JSON object in the answer (Expecting ',' delimiter: line 1 column 90 (char 89))",
+    "tokens_in": 280,
+    "tokens_out": 179,
+    "latency_s": 10.92
+   },
+   {
+    "case": "de-47",
+    "verdict": "supported",
+    "tokens_in": 284,
+    "tokens_out": 253,
+    "latency_s": 19.5
+   },
+   {
+    "case": "de-48",
+    "verdict": "supported",
+    "tokens_in": 291,
+    "tokens_out": 250,
+    "latency_s": 19.63
+   },
+   {
+    "case": "de-49",
+    "verdict": "not_in_source",
+    "tokens_in": 278,
+    "tokens_out": 202,
+    "latency_s": 2.89
+   },
+   {
+    "case": "de-50",
+    "verdict": "not_in_source",
+    "tokens_in": 289,
+    "tokens_out": 493,
+    "latency_s": 8.8
+   },
+   {
+    "case": "de-51",
+    "verdict": "not_in_source",
+    "tokens_in": 297,
+    "tokens_out": 157,
+    "latency_s": 8.16
+   },
+   {
+    "case": "de-52",
+    "verdict": "supported",
+    "tokens_in": 283,
+    "tokens_out": 180,
+    "latency_s": 9.05
+   },
+   {
+    "case": "de-53",
+    "verdict": "supported",
+    "tokens_in": 282,
+    "tokens_out": 236,
+    "latency_s": 16.03
+   },
+   {
+    "case": "de-54",
+    "verdict": "supported",
+    "tokens_in": 279,
+    "tokens_out": 209,
+    "latency_s": 3.19
+   },
+   {
+    "case": "de-55",
+    "verdict": "supported",
+    "tokens_in": 276,
+    "tokens_out": 142,
+    "latency_s": 3.76
+   },
+   {
+    "case": "de-56",
+    "verdict": "supported",
+    "tokens_in": 282,
+    "tokens_out": 956,
+    "latency_s": 14.29
+   },
+   {
+    "case": "de-57",
+    "verdict": "not_in_source",
+    "tokens_in": 280,
+    "tokens_out": 605,
+    "latency_s": 18.27
+   },
+   {
+    "case": "de-58",
+    "verdict": "supported",
+    "tokens_in": 286,
+    "tokens_out": 147,
+    "latency_s": 12.48
+   },
+   {
+    "case": "de-59",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 130,
+    "latency_s": 7.32
+   },
+   {
+    "case": "de-60",
+    "verdict": "supported",
+    "tokens_in": 280,
+    "tokens_out": 128,
+    "latency_s": 10.31
+   },
+   {
+    "case": "hen-01",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 88,
+    "latency_s": 10.93
+   },
+   {
+    "case": "hen-02",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 85,
+    "latency_s": 1.69
+   },
+   {
+    "case": "hen-03",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 109,
+    "latency_s": 1.38
+   },
+   {
+    "case": "hen-04",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 133,
+    "latency_s": 1.63
+   },
+   {
+    "case": "hen-05",
+    "verdict": "contradicted",
+    "tokens_in": 272,
+    "tokens_out": 88,
+    "latency_s": 1.75
+   },
+   {
+    "case": "hen-06",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 181,
+    "latency_s": 2.61
+   },
+   {
+    "case": "hen-07",
+    "verdict": "not_in_source",
+    "tokens_in": 282,
+    "tokens_out": 284,
+    "latency_s": 5.66
+   },
+   {
+    "case": "hen-08",
+    "verdict": "supported",
+    "tokens_in": 271,
+    "tokens_out": 128,
+    "latency_s": 3.7
+   },
+   {
+    "case": "hen-09",
+    "verdict": "supported",
+    "tokens_in": 276,
+    "tokens_out": 130,
+    "latency_s": 4.39
+   },
+   {
+    "case": "hen-10",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 90,
+    "latency_s": 2.96
+   },
+   {
+    "case": "hde-11",
+    "verdict": "contradicted",
+    "tokens_in": 281,
+    "tokens_out": 161,
+    "latency_s": 3.56
+   },
+   {
+    "case": "hde-12",
+    "verdict": "contradicted",
+    "tokens_in": 281,
+    "tokens_out": 139,
+    "latency_s": 4.68
+   },
+   {
+    "case": "hde-13",
+    "verdict": "contradicted",
+    "tokens_in": 285,
+    "tokens_out": 162,
+    "latency_s": 4.22
+   },
+   {
+    "case": "hde-14",
+    "verdict": "contradicted",
+    "tokens_in": 271,
+    "tokens_out": 98,
+    "latency_s": 3.84
+   },
+   {
+    "case": "hde-15",
+    "verdict": "contradicted",
+    "tokens_in": 284,
+    "tokens_out": 159,
+    "latency_s": 4.88
+   },
+   {
+    "case": "hde-16",
+    "verdict": "supported",
+    "tokens_in": 286,
+    "tokens_out": 270,
+    "latency_s": 3.5
+   },
+   {
+    "case": "hde-17",
+    "verdict": "not_in_source",
+    "tokens_in": 286,
+    "tokens_out": 522,
+    "latency_s": 14.17
+   },
+   {
+    "case": "hde-18",
+    "verdict": "supported",
+    "tokens_in": 274,
+    "tokens_out": 179,
+    "latency_s": 12.28
+   },
+   {
+    "case": "hde-19",
+    "verdict": "supported",
+    "tokens_in": 274,
+    "tokens_out": 212,
+    "latency_s": 15.4
+   },
+   {
+    "case": "hde-20",
+    "verdict": "supported",
+    "tokens_in": 288,
+    "tokens_out": 155,
+    "latency_s": 12.85
+   }
+  ],
+  "deepseek-v4.1-flash": [
+   {
+    "case": "supported-1",
+    "verdict": "supported",
+    "tokens_in": 356,
+    "tokens_out": 56,
+    "latency_s": 0.63
+   },
+   {
+    "case": "supported-2",
+    "verdict": "supported",
+    "tokens_in": 371,
+    "tokens_out": 54,
+    "latency_s": 0.61
+   },
+   {
+    "case": "supported-3",
+    "verdict": "supported",
+    "tokens_in": 341,
+    "tokens_out": 54,
+    "latency_s": 0.59
+   },
+   {
+    "case": "supported-4",
+    "verdict": "supported",
+    "tokens_in": 364,
+    "tokens_out": 41,
+    "latency_s": 0.81
+   },
+   {
+    "case": "paraphrase-1",
+    "verdict": "supported",
+    "tokens_in": 365,
+    "tokens_out": 51,
+    "latency_s": 0.64
+   },
+   {
+    "case": "paraphrase-2",
+    "verdict": "contradicted",
+    "tokens_in": 361,
+    "tokens_out": 61,
+    "latency_s": 0.58
+   },
+   {
+    "case": "paraphrase-3",
+    "verdict": "supported",
+    "tokens_in": 351,
+    "tokens_out": 54,
+    "latency_s": 0.57
+   },
+   {
+    "case": "paraphrase-4",
+    "verdict": "supported",
+    "tokens_in": 347,
+    "tokens_out": 69,
+    "latency_s": 0.67
+   },
+   {
+    "case": "negated-1",
+    "verdict": "contradicted",
+    "tokens_in": 339,
+    "tokens_out": 56,
+    "latency_s": 0.64
+   },
+   {
+    "case": "negated-2",
+    "verdict": "contradicted",
+    "tokens_in": 333,
+    "tokens_out": 47,
+    "latency_s": 0.56
+   },
+   {
+    "case": "negated-3",
+    "verdict": "contradicted",
+    "tokens_in": 346,
+    "tokens_out": 67,
+    "latency_s": 0.6
+   },
+   {
+    "case": "negated-4",
+    "verdict": "contradicted",
+    "tokens_in": 367,
+    "tokens_out": 75,
+    "latency_s": 0.68
+   },
+   {
+    "case": "swapped-1",
+    "verdict": "contradicted",
+    "tokens_in": 365,
+    "tokens_out": 76,
+    "latency_s": 0.58
+   },
+   {
+    "case": "swapped-2",
+    "verdict": "contradicted",
+    "tokens_in": 352,
+    "tokens_out": 59,
+    "latency_s": 0.63
+   },
+   {
+    "case": "swapped-3",
+    "verdict": "contradicted",
+    "tokens_in": 446,
+    "tokens_out": 55,
+    "latency_s": 0.72
+   },
+   {
+    "case": "swapped-4",
+    "verdict": "contradicted",
+    "tokens_in": 366,
+    "tokens_out": 65,
+    "latency_s": 0.58
+   },
+   {
+    "case": "off_by_one-1",
+    "verdict": "contradicted",
+    "tokens_in": 371,
+    "tokens_out": 53,
+    "latency_s": 0.56
+   },
+   {
+    "case": "off_by_one-2",
+    "verdict": "contradicted",
+    "tokens_in": 341,
+    "tokens_out": 43,
+    "latency_s": 0.5
+   },
+   {
+    "case": "off_by_one-3",
+    "verdict": "contradicted",
+    "tokens_in": 356,
+    "tokens_out": 58,
+    "latency_s": 0.6
+   },
+   {
+    "case": "off_by_one-4",
+    "verdict": "contradicted",
+    "tokens_in": 364,
+    "tokens_out": 41,
+    "latency_s": 0.51
+   },
+   {
+    "case": "not_in_source-1",
+    "verdict": "not_in_source",
+    "tokens_in": 347,
+    "tokens_out": 50,
+    "latency_s": 0.64
+   },
+   {
+    "case": "not_in_source-2",
+    "verdict": "not_in_source",
+    "tokens_in": 336,
+    "tokens_out": 33,
+    "latency_s": 0.62
+   },
+   {
+    "case": "not_in_source-3",
+    "verdict": "not_in_source",
+    "tokens_in": 370,
+    "tokens_out": 42,
+    "latency_s": 0.64
+   },
+   {
+    "case": "not_in_source-4",
+    "verdict": "not_in_source",
+    "tokens_in": 340,
+    "tokens_out": 33,
+    "latency_s": 0.51
+   },
+   {
+    "case": "en-01",
+    "verdict": "contradicted",
+    "tokens_in": 269,
+    "tokens_out": 54,
+    "latency_s": 0.55
+   },
+   {
+    "case": "en-02",
+    "verdict": "contradicted",
+    "tokens_in": 271,
+    "tokens_out": 51,
+    "latency_s": 0.56
+   },
+   {
+    "case": "en-03",
+    "verdict": "contradicted",
+    "tokens_in": 269,
+    "tokens_out": 53,
+    "latency_s": 0.53
+   },
+   {
+    "case": "en-04",
+    "verdict": "contradicted",
+    "tokens_in": 267,
+    "tokens_out": 52,
+    "latency_s": 0.54
+   },
+   {
+    "case": "en-05",
+    "verdict": "contradicted",
+    "tokens_in": 272,
+    "tokens_out": 55,
+    "latency_s": 0.66
+   },
+   {
+    "case": "en-06",
+    "verdict": "contradicted",
+    "tokens_in": 267,
+    "tokens_out": 52,
+    "latency_s": 0.57
+   },
+   {
+    "case": "en-07",
+    "verdict": "contradicted",
+    "tokens_in": 272,
+    "tokens_out": 58,
+    "latency_s": 0.64
+   },
+   {
+    "case": "en-08",
+    "verdict": "contradicted",
+    "tokens_in": 267,
+    "tokens_out": 53,
+    "latency_s": 0.56
+   },
+   {
+    "case": "en-09",
+    "verdict": "contradicted",
+    "tokens_in": 269,
+    "tokens_out": 56,
+    "latency_s": 0.59
+   },
+   {
+    "case": "en-10",
+    "verdict": "contradicted",
+    "tokens_in": 265,
+    "tokens_out": 45,
+    "latency_s": 0.56
+   },
+   {
+    "case": "en-11",
+    "verdict": "contradicted",
+    "tokens_in": 266,
+    "tokens_out": 44,
+    "latency_s": 0.64
+   },
+   {
+    "case": "en-12",
+    "verdict": "contradicted",
+    "tokens_in": 277,
+    "tokens_out": 57,
+    "latency_s": 0.57
+   },
+   {
+    "case": "en-13",
+    "verdict": "contradicted",
+    "tokens_in": 272,
+    "tokens_out": 48,
+    "latency_s": 0.54
+   },
+   {
+    "case": "en-14",
+    "verdict": "contradicted",
+    "tokens_in": 268,
+    "tokens_out": 49,
+    "latency_s": 0.57
+   },
+   {
+    "case": "en-15",
+    "verdict": "contradicted",
+    "tokens_in": 268,
+    "tokens_out": 50,
+    "latency_s": 0.61
+   },
+   {
+    "case": "en-16",
+    "verdict": "supported",
+    "tokens_in": 269,
+    "tokens_out": 43,
+    "latency_s": 0.54
+   },
+   {
+    "case": "en-17",
+    "verdict": "supported",
+    "tokens_in": 272,
+    "tokens_out": 45,
+    "latency_s": 0.64
+   },
+   {
+    "case": "en-18",
+    "verdict": "supported",
+    "tokens_in": 269,
+    "tokens_out": 41,
+    "latency_s": 0.62
+   },
+   {
+    "case": "en-19",
+    "verdict": "not_in_source",
+    "tokens_in": 269,
+    "tokens_out": 47,
+    "latency_s": 0.54
+   },
+   {
+    "case": "en-20",
+    "verdict": "not_in_source",
+    "tokens_in": 274,
+    "tokens_out": 46,
+    "latency_s": 0.6
+   },
+   {
+    "case": "en-21",
+    "verdict": "not_in_source",
+    "tokens_in": 274,
+    "tokens_out": 46,
+    "latency_s": 0.51
+   },
+   {
+    "case": "en-22",
+    "verdict": "supported",
+    "tokens_in": 267,
+    "tokens_out": 46,
+    "latency_s": 0.54
+   },
+   {
+    "case": "en-23",
+    "verdict": "contradicted",
+    "tokens_in": 267,
+    "tokens_out": 49,
+    "latency_s": 0.52
+   },
+   {
+    "case": "en-24",
+    "verdict": "supported",
+    "tokens_in": 264,
+    "tokens_out": 43,
+    "latency_s": 0.56
+   },
+   {
+    "case": "en-25",
+    "verdict": "supported",
+    "tokens_in": 266,
+    "tokens_out": 45,
+    "latency_s": 0.72
+   },
+   {
+    "case": "en-26",
+    "verdict": "supported",
+    "tokens_in": 270,
+    "tokens_out": 44,
+    "latency_s": 0.53
+   },
+   {
+    "case": "en-27",
+    "verdict": "supported",
+    "tokens_in": 269,
+    "tokens_out": 44,
+    "latency_s": 0.6
+   },
+   {
+    "case": "en-28",
+    "verdict": "supported",
+    "tokens_in": 270,
+    "tokens_out": 45,
+    "latency_s": 0.51
+   },
+   {
+    "case": "en-29",
+    "verdict": "supported",
+    "tokens_in": 273,
+    "tokens_out": 35,
+    "latency_s": 0.54
+   },
+   {
+    "case": "en-30",
+    "verdict": "supported",
+    "tokens_in": 273,
+    "tokens_out": 36,
+    "latency_s": 0.51
+   },
+   {
+    "case": "de-31",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 59,
+    "latency_s": 0.54
+   },
+   {
+    "case": "de-32",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 59,
+    "latency_s": 0.56
+   },
+   {
+    "case": "de-33",
+    "verdict": "contradicted",
+    "tokens_in": 282,
+    "tokens_out": 55,
+    "latency_s": 0.67
+   },
+   {
+    "case": "de-34",
+    "verdict": "not_in_source",
+    "tokens_in": 279,
+    "tokens_out": 39,
+    "latency_s": 0.54
+   },
+   {
+    "case": "de-35",
+    "verdict": "contradicted",
+    "tokens_in": 272,
+    "tokens_out": 54,
+    "latency_s": 0.55
+   },
+   {
+    "case": "de-36",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 58,
+    "latency_s": 0.63
+   },
+   {
+    "case": "de-37",
+    "verdict": "contradicted",
+    "tokens_in": 279,
+    "tokens_out": 59,
+    "latency_s": 0.55
+   },
+   {
+    "case": "de-38",
+    "verdict": "contradicted",
+    "tokens_in": 279,
+    "tokens_out": 62,
+    "latency_s": 0.52
+   },
+   {
+    "case": "de-39",
+    "verdict": "contradicted",
+    "tokens_in": 279,
+    "tokens_out": 53,
+    "latency_s": 0.55
+   },
+   {
+    "case": "de-40",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 49,
+    "latency_s": 0.53
+   },
+   {
+    "case": "de-41",
+    "verdict": "contradicted",
+    "tokens_in": 283,
+    "tokens_out": 62,
+    "latency_s": 0.74
+   },
+   {
+    "case": "de-42",
+    "verdict": "contradicted",
+    "tokens_in": 279,
+    "tokens_out": 56,
+    "latency_s": 0.76
+   },
+   {
+    "case": "de-43",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 53,
+    "latency_s": 0.7
+   },
+   {
+    "case": "de-44",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 60,
+    "latency_s": 0.68
+   },
+   {
+    "case": "de-45",
+    "verdict": "contradicted",
+    "tokens_in": 273,
+    "tokens_out": 59,
+    "latency_s": 0.68
+   },
+   {
+    "case": "de-46",
+    "verdict": "supported",
+    "tokens_in": 274,
+    "tokens_out": 54,
+    "latency_s": 0.76
+   },
+   {
+    "case": "de-47",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 54,
+    "latency_s": 0.69
+   },
+   {
+    "case": "de-48",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 57,
+    "latency_s": 0.68
+   },
+   {
+    "case": "de-49",
+    "verdict": "not_in_source",
+    "tokens_in": 273,
+    "tokens_out": 42,
+    "latency_s": 0.86
+   },
+   {
+    "case": "de-50",
+    "verdict": "not_in_source",
+    "tokens_in": 285,
+    "tokens_out": 50,
+    "latency_s": 0.54
+   },
+   {
+    "case": "de-51",
+    "verdict": "not_in_source",
+    "tokens_in": 286,
+    "tokens_out": 53,
+    "latency_s": 0.58
+   },
+   {
+    "case": "de-52",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 58,
+    "latency_s": 0.78
+   },
+   {
+    "case": "de-53",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 54,
+    "latency_s": 0.63
+   },
+   {
+    "case": "de-54",
+    "verdict": "contradicted",
+    "tokens_in": 273,
+    "tokens_out": 62,
+    "latency_s": 0.64
+   },
+   {
+    "case": "de-55",
+    "verdict": "supported",
+    "tokens_in": 272,
+    "tokens_out": 48,
+    "latency_s": 0.53
+   },
+   {
+    "case": "de-56",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 56,
+    "latency_s": 0.57
+   },
+   {
+    "case": "de-57",
+    "verdict": "supported",
+    "tokens_in": 274,
+    "tokens_out": 50,
+    "latency_s": 0.52
+   },
+   {
+    "case": "de-58",
+    "verdict": "supported",
+    "tokens_in": 280,
+    "tokens_out": 54,
+    "latency_s": 0.57
+   },
+   {
+    "case": "de-59",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 42,
+    "latency_s": 0.62
+   },
+   {
+    "case": "de-60",
+    "verdict": "supported",
+    "tokens_in": 275,
+    "tokens_out": 37,
+    "latency_s": 0.62
+   },
+   {
+    "case": "hen-01",
+    "verdict": "contradicted",
+    "tokens_in": 270,
+    "tokens_out": 57,
+    "latency_s": 0.54
+   },
+   {
+    "case": "hen-02",
+    "verdict": "contradicted",
+    "tokens_in": 268,
+    "tokens_out": 52,
+    "latency_s": 0.7
+   },
+   {
+    "case": "hen-03",
+    "verdict": "contradicted",
+    "tokens_in": 270,
+    "tokens_out": 53,
+    "latency_s": 0.61
+   },
+   {
+    "case": "hen-04",
+    "verdict": "contradicted",
+    "tokens_in": 270,
+    "tokens_out": 55,
+    "latency_s": 0.79
+   },
+   {
+    "case": "hen-05",
+    "verdict": "contradicted",
+    "tokens_in": 264,
+    "tokens_out": 44,
+    "latency_s": 0.62
+   },
+   {
+    "case": "hen-06",
+    "verdict": "supported",
+    "tokens_in": 269,
+    "tokens_out": 48,
+    "latency_s": 0.57
+   },
+   {
+    "case": "hen-07",
+    "verdict": "not_in_source",
+    "tokens_in": 274,
+    "tokens_out": 45,
+    "latency_s": 0.59
+   },
+   {
+    "case": "hen-08",
+    "verdict": "contradicted",
+    "tokens_in": 263,
+    "tokens_out": 46,
+    "latency_s": 0.65
+   },
+   {
+    "case": "hen-09",
+    "verdict": "supported",
+    "tokens_in": 268,
+    "tokens_out": 42,
+    "latency_s": 0.95
+   },
+   {
+    "case": "hen-10",
+    "verdict": "supported",
+    "tokens_in": 273,
+    "tokens_out": 33,
+    "latency_s": 0.67
+   },
+   {
+    "case": "hde-11",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 59,
+    "latency_s": 0.62
+   },
+   {
+    "case": "hde-12",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 60,
+    "latency_s": 0.55
+   },
+   {
+    "case": "hde-13",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 57,
+    "latency_s": 0.62
+   },
+   {
+    "case": "hde-14",
+    "verdict": "contradicted",
+    "tokens_in": 269,
+    "tokens_out": 46,
+    "latency_s": 0.67
+   },
+   {
+    "case": "hde-15",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 59,
+    "latency_s": 0.6
+   },
+   {
+    "case": "hde-16",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 54,
+    "latency_s": 0.56
+   },
+   {
+    "case": "hde-17",
+    "verdict": "not_in_source",
+    "tokens_in": 278,
+    "tokens_out": 48,
+    "latency_s": 0.55
+   },
+   {
+    "case": "hde-18",
+    "verdict": "contradicted",
+    "tokens_in": 270,
+    "tokens_out": 50,
+    "latency_s": 0.57
+   },
+   {
+    "case": "hde-19",
+    "verdict": "contradicted",
+    "tokens_in": 268,
+    "tokens_out": 53,
+    "latency_s": 0.57
+   },
+   {
+    "case": "hde-20",
+    "verdict": "supported",
+    "tokens_in": 283,
+    "tokens_out": 42,
+    "latency_s": 0.53
+   }
+  ],
+  "mimo-v2.6-pro-rl": [
+   {
+    "case": "supported-1",
+    "verdict": "supported",
+    "tokens_in": 369,
+    "tokens_out": 58,
+    "latency_s": 1.15
+   },
+   {
+    "case": "supported-2",
+    "verdict": "supported",
+    "tokens_in": 382,
+    "tokens_out": 81,
+    "latency_s": 1.24
+   },
+   {
+    "case": "supported-3",
+    "verdict": "supported",
+    "tokens_in": 350,
+    "tokens_out": 57,
+    "latency_s": 1.18
+   },
+   {
+    "case": "supported-4",
+    "verdict": "supported",
+    "tokens_in": 373,
+    "tokens_out": 39,
+    "latency_s": 1.04
+   },
+   {
+    "case": "paraphrase-1",
+    "verdict": "supported",
+    "tokens_in": 375,
+    "tokens_out": 37,
+    "latency_s": 1.13
+   },
+   {
+    "case": "paraphrase-2",
+    "verdict": "supported",
+    "tokens_in": 373,
+    "tokens_out": 73,
+    "latency_s": 1.16
+   },
+   {
+    "case": "paraphrase-3",
+    "verdict": "supported",
+    "tokens_in": 360,
+    "tokens_out": 64,
+    "latency_s": 1.02
+   },
+   {
+    "case": "paraphrase-4",
+    "verdict": "supported",
+    "tokens_in": 358,
+    "tokens_out": 59,
+    "latency_s": 0.97
+   },
+   {
+    "case": "negated-1",
+    "verdict": "contradicted",
+    "tokens_in": 348,
+    "tokens_out": 51,
+    "latency_s": 0.98
+   },
+   {
+    "case": "negated-2",
+    "verdict": "contradicted",
+    "tokens_in": 341,
+    "tokens_out": 50,
+    "latency_s": 1.02
+   },
+   {
+    "case": "negated-3",
+    "verdict": "contradicted",
+    "tokens_in": 355,
+    "tokens_out": 69,
+    "latency_s": 1.05
+   },
+   {
+    "case": "negated-4",
+    "verdict": "contradicted",
+    "tokens_in": 375,
+    "tokens_out": 76,
+    "latency_s": 0.98
+   },
+   {
+    "case": "swapped-1",
+    "verdict": "contradicted",
+    "tokens_in": 380,
+    "tokens_out": 81,
+    "latency_s": 1.27
+   },
+   {
+    "case": "swapped-2",
+    "verdict": "contradicted",
+    "tokens_in": 361,
+    "tokens_out": 59,
+    "latency_s": 1.09
+   },
+   {
+    "case": "swapped-3",
+    "verdict": "contradicted",
+    "tokens_in": 457,
+    "tokens_out": 63,
+    "latency_s": 1.17
+   },
+   {
+    "case": "swapped-4",
+    "verdict": "contradicted",
+    "tokens_in": 374,
+    "tokens_out": 70,
+    "latency_s": 1.12
+   },
+   {
+    "case": "off_by_one-1",
+    "verdict": "contradicted",
+    "tokens_in": 382,
+    "tokens_out": 60,
+    "latency_s": 1.0
+   },
+   {
+    "case": "off_by_one-2",
+    "verdict": "contradicted",
+    "tokens_in": 350,
+    "tokens_out": 44,
+    "latency_s": 0.9
+   },
+   {
+    "case": "off_by_one-3",
+    "verdict": "contradicted",
+    "tokens_in": 369,
+    "tokens_out": 61,
+    "latency_s": 0.84
+   },
+   {
+    "case": "off_by_one-4",
+    "verdict": "contradicted",
+    "tokens_in": 373,
+    "tokens_out": 40,
+    "latency_s": 0.8
+   },
+   {
+    "case": "not_in_source-1",
+    "verdict": "not_in_source",
+    "tokens_in": 356,
+    "tokens_out": 65,
+    "latency_s": 1.14
+   },
+   {
+    "case": "not_in_source-2",
+    "verdict": "not_in_source",
+    "tokens_in": 347,
+    "tokens_out": 37,
+    "latency_s": 0.94
+   },
+   {
+    "case": "not_in_source-3",
+    "verdict": "not_in_source",
+    "tokens_in": 379,
+    "tokens_out": 81,
+    "latency_s": 1.05
+   },
+   {
+    "case": "not_in_source-4",
+    "verdict": "not_in_source",
+    "tokens_in": 349,
+    "tokens_out": 45,
+    "latency_s": 0.93
+   },
+   {
+    "case": "en-01",
+    "verdict": "contradicted",
+    "tokens_in": 277,
+    "tokens_out": 54,
+    "latency_s": 0.94
+   },
+   {
+    "case": "en-02",
+    "verdict": "contradicted",
+    "tokens_in": 279,
+    "tokens_out": 53,
+    "latency_s": 0.93
+   },
+   {
+    "case": "en-03",
+    "verdict": "contradicted",
+    "tokens_in": 277,
+    "tokens_out": 46,
+    "latency_s": 0.8
+   },
+   {
+    "case": "en-04",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 51,
+    "latency_s": 0.73
+   },
+   {
+    "case": "en-05",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 53,
+    "latency_s": 0.99
+   },
+   {
+    "case": "en-06",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 50,
+    "latency_s": 0.95
+   },
+   {
+    "case": "en-07",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 54,
+    "latency_s": 0.88
+   },
+   {
+    "case": "en-08",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 49,
+    "latency_s": 0.84
+   },
+   {
+    "case": "en-09",
+    "verdict": "contradicted",
+    "tokens_in": 277,
+    "tokens_out": 53,
+    "latency_s": 0.93
+   },
+   {
+    "case": "en-10",
+    "verdict": "contradicted",
+    "tokens_in": 273,
+    "tokens_out": 44,
+    "latency_s": 0.87
+   },
+   {
+    "case": "en-11",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 42,
+    "latency_s": 0.81
+   },
+   {
+    "case": "en-12",
+    "verdict": "contradicted",
+    "tokens_in": 289,
+    "tokens_out": 57,
+    "latency_s": 0.86
+   },
+   {
+    "case": "en-13",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 48,
+    "latency_s": 0.92
+   },
+   {
+    "case": "en-14",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 48,
+    "latency_s": 0.92
+   },
+   {
+    "case": "en-15",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 50,
+    "latency_s": 0.92
+   },
+   {
+    "case": "en-16",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 40,
+    "latency_s": 0.8
+   },
+   {
+    "case": "en-17",
+    "verdict": "supported",
+    "tokens_in": 280,
+    "tokens_out": 44,
+    "latency_s": 0.91
+   },
+   {
+    "case": "en-18",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 41,
+    "latency_s": 0.88
+   },
+   {
+    "case": "en-19",
+    "verdict": "not_in_source",
+    "tokens_in": 277,
+    "tokens_out": 47,
+    "latency_s": 0.9
+   },
+   {
+    "case": "en-20",
+    "verdict": "not_in_source",
+    "tokens_in": 282,
+    "tokens_out": 43,
+    "latency_s": 0.78
+   },
+   {
+    "case": "en-21",
+    "verdict": "not_in_source",
+    "tokens_in": 282,
+    "tokens_out": 45,
+    "latency_s": 0.94
+   },
+   {
+    "case": "en-22",
+    "verdict": "supported",
+    "tokens_in": 275,
+    "tokens_out": 46,
+    "latency_s": 0.96
+   },
+   {
+    "case": "en-23",
+    "verdict": "contradicted",
+    "tokens_in": 275,
+    "tokens_out": 46,
+    "latency_s": 0.87
+   },
+   {
+    "case": "en-24",
+    "verdict": "supported",
+    "tokens_in": 272,
+    "tokens_out": 44,
+    "latency_s": 0.84
+   },
+   {
+    "case": "en-25",
+    "verdict": "contradicted",
+    "tokens_in": 274,
+    "tokens_out": 81,
+    "latency_s": 1.68
+   },
+   {
+    "case": "en-26",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 44,
+    "latency_s": 0.94
+   },
+   {
+    "case": "en-27",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 46,
+    "latency_s": 0.93
+   },
+   {
+    "case": "en-28",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 39,
+    "latency_s": 0.8
+   },
+   {
+    "case": "en-29",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 42,
+    "latency_s": 0.93
+   },
+   {
+    "case": "en-30",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 44,
+    "latency_s": 0.84
+   },
+   {
+    "case": "de-31",
+    "verdict": "contradicted",
+    "tokens_in": 285,
+    "tokens_out": 54,
+    "latency_s": 0.9
+   },
+   {
+    "case": "de-32",
+    "verdict": "contradicted",
+    "tokens_in": 283,
+    "tokens_out": 55,
+    "latency_s": 1.17
+   },
+   {
+    "case": "de-33",
+    "verdict": "contradicted",
+    "tokens_in": 288,
+    "tokens_out": 57,
+    "latency_s": 1.0
+   },
+   {
+    "case": "de-34",
+    "verdict": "contradicted",
+    "tokens_in": 290,
+    "tokens_out": 59,
+    "latency_s": 0.97
+   },
+   {
+    "case": "de-35",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 52,
+    "latency_s": 0.94
+   },
+   {
+    "case": "de-36",
+    "verdict": "contradicted",
+    "tokens_in": 281,
+    "tokens_out": 59,
+    "latency_s": 1.02
+   },
+   {
+    "case": "de-37",
+    "verdict": "contradicted",
+    "tokens_in": 286,
+    "tokens_out": 57,
+    "latency_s": 0.96
+   },
+   {
+    "case": "de-38",
+    "verdict": "contradicted",
+    "tokens_in": 287,
+    "tokens_out": 59,
+    "latency_s": 0.95
+   },
+   {
+    "case": "de-39",
+    "verdict": "contradicted",
+    "tokens_in": 287,
+    "tokens_out": 51,
+    "latency_s": 0.92
+   },
+   {
+    "case": "de-40",
+    "verdict": "contradicted",
+    "tokens_in": 282,
+    "tokens_out": 46,
+    "latency_s": 0.96
+   },
+   {
+    "case": "de-41",
+    "verdict": "contradicted",
+    "tokens_in": 295,
+    "tokens_out": 64,
+    "latency_s": 1.04
+   },
+   {
+    "case": "de-42",
+    "verdict": "contradicted",
+    "tokens_in": 287,
+    "tokens_out": 55,
+    "latency_s": 0.92
+   },
+   {
+    "case": "de-43",
+    "verdict": "contradicted",
+    "tokens_in": 286,
+    "tokens_out": 59,
+    "latency_s": 0.96
+   },
+   {
+    "case": "de-44",
+    "verdict": "contradicted",
+    "tokens_in": 282,
+    "tokens_out": 53,
+    "latency_s": 1.0
+   },
+   {
+    "case": "de-45",
+    "verdict": "contradicted",
+    "tokens_in": 284,
+    "tokens_out": 62,
+    "latency_s": 1.06
+   },
+   {
+    "case": "de-46",
+    "verdict": "supported",
+    "tokens_in": 280,
+    "tokens_out": 45,
+    "latency_s": 0.88
+   },
+   {
+    "case": "de-47",
+    "verdict": "supported",
+    "tokens_in": 286,
+    "tokens_out": 49,
+    "latency_s": 0.92
+   },
+   {
+    "case": "de-48",
+    "verdict": "supported",
+    "tokens_in": 291,
+    "tokens_out": 49,
+    "latency_s": 1.11
+   },
+   {
+    "case": "de-49",
+    "verdict": "not_in_source",
+    "tokens_in": 279,
+    "tokens_out": 48,
+    "latency_s": 1.11
+   },
+   {
+    "case": "de-50",
+    "verdict": "not_in_source",
+    "tokens_in": 291,
+    "tokens_out": 46,
+    "latency_s": 1.04
+   },
+   {
+    "case": "de-51",
+    "verdict": "not_in_source",
+    "tokens_in": 300,
+    "tokens_out": 56,
+    "latency_s": 1.04
+   },
+   {
+    "case": "de-52",
+    "verdict": "supported",
+    "tokens_in": 286,
+    "tokens_out": 57,
+    "latency_s": 1.02
+   },
+   {
+    "case": "de-53",
+    "verdict": "contradicted",
+    "tokens_in": 285,
+    "tokens_out": 68,
+    "latency_s": 1.3
+   },
+   {
+    "case": "de-54",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 51,
+    "latency_s": 0.96
+   },
+   {
+    "case": "de-55",
+    "verdict": "supported",
+    "tokens_in": 278,
+    "tokens_out": 52,
+    "latency_s": 1.03
+   },
+   {
+    "case": "de-56",
+    "verdict": "not_in_source",
+    "tokens_in": 286,
+    "tokens_out": 60,
+    "latency_s": 1.28
+   },
+   {
+    "case": "de-57",
+    "verdict": "supported",
+    "tokens_in": 282,
+    "tokens_out": 47,
+    "latency_s": 1.1
+   },
+   {
+    "case": "de-58",
+    "verdict": "supported",
+    "tokens_in": 290,
+    "tokens_out": 51,
+    "latency_s": 1.03
+   },
+   {
+    "case": "de-59",
+    "verdict": "supported",
+    "tokens_in": 283,
+    "tokens_out": 34,
+    "latency_s": 0.76
+   },
+   {
+    "case": "de-60",
+    "verdict": "supported",
+    "tokens_in": 283,
+    "tokens_out": 46,
+    "latency_s": 1.05
+   },
+   {
+    "case": "hen-01",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 53,
+    "latency_s": 1.02
+   },
+   {
+    "case": "hen-02",
+    "verdict": "contradicted",
+    "tokens_in": 276,
+    "tokens_out": 53,
+    "latency_s": 0.98
+   },
+   {
+    "case": "hen-03",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 55,
+    "latency_s": 0.85
+   },
+   {
+    "case": "hen-04",
+    "verdict": "contradicted",
+    "tokens_in": 278,
+    "tokens_out": 53,
+    "latency_s": 0.99
+   },
+   {
+    "case": "hen-05",
+    "verdict": "contradicted",
+    "tokens_in": 272,
+    "tokens_out": 44,
+    "latency_s": 0.88
+   },
+   {
+    "case": "hen-06",
+    "verdict": "supported",
+    "tokens_in": 277,
+    "tokens_out": 41,
+    "latency_s": 0.88
+   },
+   {
+    "case": "hen-07",
+    "verdict": "not_in_source",
+    "tokens_in": 282,
+    "tokens_out": 48,
+    "latency_s": 0.88
+   },
+   {
+    "case": "hen-08",
+    "verdict": "contradicted",
+    "tokens_in": 271,
+    "tokens_out": 63,
+    "latency_s": 1.08
+   },
+   {
+    "case": "hen-09",
+    "verdict": "supported",
+    "tokens_in": 276,
+    "tokens_out": 44,
+    "latency_s": 0.96
+   },
+   {
+    "case": "hen-10",
+    "verdict": "supported",
+    "tokens_in": 281,
+    "tokens_out": 33,
+    "latency_s": 0.95
+   },
+   {
+    "case": "hde-11",
+    "verdict": "contradicted",
+    "tokens_in": 286,
+    "tokens_out": 62,
+    "latency_s": 0.9
+   },
+   {
+    "case": "hde-12",
+    "verdict": "contradicted",
+    "tokens_in": 287,
+    "tokens_out": 57,
+    "latency_s": 1.11
+   },
+   {
+    "case": "hde-13",
+    "verdict": "contradicted",
+    "tokens_in": 286,
+    "tokens_out": 57,
+    "latency_s": 1.07
+   },
+   {
+    "case": "hde-14",
+    "verdict": "contradicted",
+    "tokens_in": 273,
+    "tokens_out": 44,
+    "latency_s": 1.06
+   },
+   {
+    "case": "hde-15",
+    "verdict": "contradicted",
+    "tokens_in": 284,
+    "tokens_out": 56,
+    "latency_s": 1.04
+   },
+   {
+    "case": "hde-16",
+    "verdict": "supported",
+    "tokens_in": 288,
+    "tokens_out": 46,
+    "latency_s": 0.94
+   },
+   {
+    "case": "hde-17",
+    "verdict": "not_in_source",
+    "tokens_in": 287,
+    "tokens_out": 48,
+    "latency_s": 1.07
+   },
+   {
+    "case": "hde-18",
+    "verdict": "contradicted",
+    "tokens_in": 280,
+    "tokens_out": 50,
+    "latency_s": 1.04
+   },
+   {
+    "case": "hde-19",
+    "verdict": "supported",
+    "tokens_in": 274,
+    "tokens_out": 44,
+    "latency_s": 0.89
+   },
+   {
+    "case": "hde-20",
+    "verdict": "supported",
+    "tokens_in": 291,
+    "tokens_out": 35,
+    "latency_s": 0.78
+   }
+  ],
+  "minimax-m3": [
+   {
+    "case": "supported-1",
+    "verdict": "supported",
+    "tokens_in": 496,
+    "tokens_out": 58,
+    "latency_s": 0.79
+   },
+   {
+    "case": "supported-2",
+    "verdict": "supported",
+    "tokens_in": 516,
+    "tokens_out": 80,
+    "latency_s": 0.89
+   },
+   {
+    "case": "supported-3",
+    "verdict": "supported",
+    "tokens_in": 485,
+    "tokens_out": 57,
+    "latency_s": 0.87
+   },
+   {
+    "case": "supported-4",
+    "verdict": "supported",
+    "tokens_in": 509,
+    "tokens_out": 41,
+    "latency_s": 0.74
+   },
+   {
+    "case": "paraphrase-1",
+    "verdict": "supported",
+    "tokens_in": 509,
+    "tokens_out": 54,
+    "latency_s": 0.92
+   },
+   {
+    "case": "paraphrase-2",
+    "verdict": "supported",
+    "tokens_in": 504,
+    "tokens_out": 75,
+    "latency_s": 0.8
+   },
+   {
+    "case": "paraphrase-3",
+    "verdict": "supported",
+    "tokens_in": 492,
+    "tokens_out": 61,
+    "latency_s": 0.73
+   },
+   {
+    "case": "paraphrase-4",
+    "verdict": "supported",
+    "tokens_in": 489,
+    "tokens_out": 73,
+    "latency_s": 0.81
+   },
+   {
+    "case": "negated-1",
+    "verdict": "contradicted",
+    "tokens_in": 484,
+    "tokens_out": 58,
+    "latency_s": 0.77
+   },
+   {
+    "case": "negated-2",
+    "verdict": "contradicted",
+    "tokens_in": 478,
+    "tokens_out": 49,
+    "latency_s": 0.62
+   },
+   {
+    "case": "negated-3",
+    "verdict": "contradicted",
+    "tokens_in": 488,
+    "tokens_out": 59,
+    "latency_s": 0.73
+   },
+   {
+    "case": "negated-4",
+    "verdict": "contradicted",
+    "tokens_in": 511,
+    "tokens_out": 67,
+    "latency_s": 0.68
+   },
+   {
+    "case": "swapped-1",
+    "verdict": "contradicted",
+    "tokens_in": 505,
+    "tokens_out": 77,
+    "latency_s": 0.82
+   },
+   {
+    "case": "swapped-2",
+    "verdict": "contradicted",
+    "tokens_in": 494,
+    "tokens_out": 62,
+    "latency_s": 0.77
+   },
+   {
+    "case": "swapped-3",
+    "verdict": "contradicted",
+    "tokens_in": 581,
+    "tokens_out": 67,
+    "latency_s": 0.82
+   },
+   {
+    "case": "swapped-4",
+    "verdict": "supported",
+    "tokens_in": 511,
+    "tokens_out": 84,
+    "latency_s": 0.79
+   },
+   {
+    "case": "off_by_one-1",
+    "verdict": "contradicted",
+    "tokens_in": 516,
+    "tokens_out": 73,
+    "latency_s": 0.85
+   },
+   {
+    "case": "off_by_one-2",
+    "verdict": "contradicted",
+    "tokens_in": 485,
+    "tokens_out": 45,
+    "latency_s": 0.64
+   },
+   {
+    "case": "off_by_one-3",
+    "verdict": "contradicted",
+    "tokens_in": 496,
+    "tokens_out": 55,
+    "latency_s": 0.68
+   },
+   {
+    "case": "off_by_one-4",
+    "verdict": "contradicted",
+    "tokens_in": 509,
+    "tokens_out": 41,
+    "latency_s": 0.57
+   },
+   {
+    "case": "not_in_source-1",
+    "verdict": "not_in_source",
+    "tokens_in": 489,
+    "tokens_out": 67,
+    "latency_s": 0.83
+   },
+   {
+    "case": "not_in_source-2",
+    "verdict": "not_in_source",
+    "tokens_in": 481,
+    "tokens_out": 37,
+    "latency_s": 0.77
+   },
+   {
+    "case": "not_in_source-3",
+    "verdict": "not_in_source",
+    "tokens_in": 515,
+    "tokens_out": 78,
+    "latency_s": 0.78
+   },
+   {
+    "case": "not_in_source-4",
+    "verdict": "not_in_source",
+    "tokens_in": 482,
+    "tokens_out": 33,
+    "latency_s": 0.65
+   },
+   {
+    "case": "en-01",
+    "verdict": "contradicted",
+    "tokens_in": 415,
+    "tokens_out": 55,
+    "latency_s": 0.72
+   },
+   {
+    "case": "en-02",
+    "verdict": "contradicted",
+    "tokens_in": 417,
+    "tokens_out": 57,
+    "latency_s": 0.66
+   },
+   {
+    "case": "en-03",
+    "verdict": "contradicted",
+    "tokens_in": 414,
+    "tokens_out": 44,
+    "latency_s": 0.86
+   },
+   {
+    "case": "en-04",
+    "verdict": "contradicted",
+    "tokens_in": 413,
+    "tokens_out": 50,
+    "latency_s": 0.83
+   },
+   {
+    "case": "en-05",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 54,
+    "latency_s": 0.64
+   },
+   {
+    "case": "en-06",
+    "verdict": "contradicted",
+    "tokens_in": 413,
+    "tokens_out": 51,
+    "latency_s": 0.72
+   },
+   {
+    "case": "en-07",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 57,
+    "latency_s": 0.64
+   },
+   {
+    "case": "en-08",
+    "verdict": "contradicted",
+    "tokens_in": 413,
+    "tokens_out": 51,
+    "latency_s": 0.66
+   },
+   {
+    "case": "en-09",
+    "verdict": "contradicted",
+    "tokens_in": 415,
+    "tokens_out": 55,
+    "latency_s": 0.59
+   },
+   {
+    "case": "en-10",
+    "verdict": "contradicted",
+    "tokens_in": 411,
+    "tokens_out": 45,
+    "latency_s": 0.62
+   },
+   {
+    "case": "en-11",
+    "verdict": "contradicted",
+    "tokens_in": 412,
+    "tokens_out": 43,
+    "latency_s": 0.6
+   },
+   {
+    "case": "en-12",
+    "verdict": "contradicted",
+    "tokens_in": 423,
+    "tokens_out": 52,
+    "latency_s": 0.72
+   },
+   {
+    "case": "en-13",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 46,
+    "latency_s": 0.59
+   },
+   {
+    "case": "en-14",
+    "verdict": "contradicted",
+    "tokens_in": 414,
+    "tokens_out": 48,
+    "latency_s": 0.66
+   },
+   {
+    "case": "en-15",
+    "verdict": "contradicted",
+    "tokens_in": 414,
+    "tokens_out": 56,
+    "latency_s": 0.58
+   },
+   {
+    "case": "en-16",
+    "verdict": "supported",
+    "tokens_in": 415,
+    "tokens_out": 52,
+    "latency_s": 1.08
+   },
+   {
+    "case": "en-17",
+    "verdict": "supported",
+    "tokens_in": 418,
+    "tokens_out": 43,
+    "latency_s": 0.59
+   },
+   {
+    "case": "en-18",
+    "verdict": "supported",
+    "tokens_in": 415,
+    "tokens_out": 41,
+    "latency_s": 0.76
+   },
+   {
+    "case": "en-19",
+    "verdict": "not_in_source",
+    "tokens_in": 415,
+    "tokens_out": 35,
+    "latency_s": 0.59
+   },
+   {
+    "case": "en-20",
+    "verdict": "not_in_source",
+    "tokens_in": 420,
+    "tokens_out": 37,
+    "latency_s": 0.62
+   },
+   {
+    "case": "en-21",
+    "verdict": "not_in_source",
+    "tokens_in": 420,
+    "tokens_out": 37,
+    "latency_s": 0.68
+   },
+   {
+    "case": "en-22",
+    "verdict": "contradicted",
+    "tokens_in": 413,
+    "tokens_out": 54,
+    "latency_s": 0.81
+   },
+   {
+    "case": "en-23",
+    "verdict": "contradicted",
+    "tokens_in": 413,
+    "tokens_out": 46,
+    "latency_s": 0.73
+   },
+   {
+    "case": "en-24",
+    "verdict": "supported",
+    "tokens_in": 410,
+    "tokens_out": 37,
+    "latency_s": 0.6
+   },
+   {
+    "case": "en-25",
+    "verdict": "not_in_source",
+    "tokens_in": 412,
+    "tokens_out": 40,
+    "latency_s": 0.63
+   },
+   {
+    "case": "en-26",
+    "verdict": "supported",
+    "tokens_in": 416,
+    "tokens_out": 55,
+    "latency_s": 0.61
+   },
+   {
+    "case": "en-27",
+    "verdict": "supported",
+    "tokens_in": 415,
+    "tokens_out": 50,
+    "latency_s": 0.85
+   },
+   {
+    "case": "en-28",
+    "verdict": "supported",
+    "tokens_in": 416,
+    "tokens_out": 42,
+    "latency_s": 0.76
+   },
+   {
+    "case": "en-29",
+    "verdict": "supported",
+    "tokens_in": 419,
+    "tokens_out": 37,
+    "latency_s": 0.74
+   },
+   {
+    "case": "en-30",
+    "verdict": "supported",
+    "tokens_in": 419,
+    "tokens_out": 37,
+    "latency_s": 0.6
+   },
+   {
+    "case": "de-31",
+    "verdict": "contradicted",
+    "tokens_in": 419,
+    "tokens_out": 54,
+    "latency_s": 0.68
+   },
+   {
+    "case": "de-32",
+    "verdict": "contradicted",
+    "tokens_in": 419,
+    "tokens_out": 57,
+    "latency_s": 0.68
+   },
+   {
+    "case": "de-33",
+    "verdict": "contradicted",
+    "tokens_in": 426,
+    "tokens_out": 61,
+    "latency_s": 0.64
+   },
+   {
+    "case": "de-34",
+    "verdict": "contradicted",
+    "tokens_in": 424,
+    "tokens_out": 53,
+    "latency_s": 0.66
+   },
+   {
+    "case": "de-35",
+    "verdict": "contradicted",
+    "tokens_in": 417,
+    "tokens_out": 58,
+    "latency_s": 0.66
+   },
+   {
+    "case": "de-36",
+    "verdict": "contradicted",
+    "tokens_in": 419,
+    "tokens_out": 57,
+    "latency_s": 0.81
+   },
+   {
+    "case": "de-37",
+    "verdict": "contradicted",
+    "tokens_in": 423,
+    "tokens_out": 53,
+    "latency_s": 0.74
+   },
+   {
+    "case": "de-38",
+    "verdict": "contradicted",
+    "tokens_in": 425,
+    "tokens_out": 61,
+    "latency_s": 0.68
+   },
+   {
+    "case": "de-39",
+    "verdict": "contradicted",
+    "tokens_in": 427,
+    "tokens_out": 54,
+    "latency_s": 0.73
+   },
+   {
+    "case": "de-40",
+    "verdict": "contradicted",
+    "tokens_in": 416,
+    "tokens_out": 47,
+    "latency_s": 0.65
+   },
+   {
+    "case": "de-41",
+    "verdict": "contradicted",
+    "tokens_in": 427,
+    "tokens_out": 62,
+    "latency_s": 0.67
+   },
+   {
+    "case": "de-42",
+    "verdict": "contradicted",
+    "tokens_in": 425,
+    "tokens_out": 54,
+    "latency_s": 0.69
+   },
+   {
+    "case": "de-43",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 53,
+    "latency_s": 0.63
+   },
+   {
+    "case": "de-44",
+    "verdict": "contradicted",
+    "tokens_in": 419,
+    "tokens_out": 56,
+    "latency_s": 0.6
+   },
+   {
+    "case": "de-45",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 59,
+    "latency_s": 0.72
+   },
+   {
+    "case": "de-46",
+    "verdict": "supported",
+    "tokens_in": 420,
+    "tokens_out": 52,
+    "latency_s": 0.74
+   },
+   {
+    "case": "de-47",
+    "verdict": "supported",
+    "tokens_in": 424,
+    "tokens_out": 47,
+    "latency_s": 0.58
+   },
+   {
+    "case": "de-48",
+    "verdict": "supported",
+    "tokens_in": 427,
+    "tokens_out": 49,
+    "latency_s": 0.59
+   },
+   {
+    "case": "de-49",
+    "verdict": "supported",
+    "tokens_in": 421,
+    "tokens_out": 61,
+    "latency_s": 0.66
+   },
+   {
+    "case": "de-50",
+    "verdict": "supported",
+    "tokens_in": 425,
+    "tokens_out": 75,
+    "latency_s": 0.84
+   },
+   {
+    "case": "de-51",
+    "verdict": "not_in_source",
+    "tokens_in": 431,
+    "tokens_out": 37,
+    "latency_s": 0.63
+   },
+   {
+    "case": "de-52",
+    "verdict": "supported",
+    "tokens_in": 422,
+    "tokens_out": 50,
+    "latency_s": 0.67
+   },
+   {
+    "case": "de-53",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 71,
+    "latency_s": 0.67
+   },
+   {
+    "case": "de-54",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 54,
+    "latency_s": 0.83
+   },
+   {
+    "case": "de-55",
+    "verdict": "contradicted",
+    "tokens_in": 420,
+    "tokens_out": 72,
+    "latency_s": 0.82
+   },
+   {
+    "case": "de-56",
+    "verdict": "supported",
+    "tokens_in": 421,
+    "tokens_out": 59,
+    "latency_s": 0.73
+   },
+   {
+    "case": "de-57",
+    "verdict": "supported",
+    "tokens_in": 418,
+    "tokens_out": 50,
+    "latency_s": 0.64
+   },
+   {
+    "case": "de-58",
+    "verdict": "supported",
+    "tokens_in": 424,
+    "tokens_out": 53,
+    "latency_s": 0.64
+   },
+   {
+    "case": "de-59",
+    "verdict": "supported",
+    "tokens_in": 421,
+    "tokens_out": 38,
+    "latency_s": 0.83
+   },
+   {
+    "case": "de-60",
+    "verdict": "supported",
+    "tokens_in": 421,
+    "tokens_out": 38,
+    "latency_s": 0.8
+   },
+   {
+    "case": "hen-01",
+    "verdict": "contradicted",
+    "tokens_in": 416,
+    "tokens_out": 47,
+    "latency_s": 0.6
+   },
+   {
+    "case": "hen-02",
+    "verdict": "contradicted",
+    "tokens_in": 414,
+    "tokens_out": 50,
+    "latency_s": 0.67
+   },
+   {
+    "case": "hen-03",
+    "verdict": "contradicted",
+    "tokens_in": 416,
+    "tokens_out": 56,
+    "latency_s": 0.74
+   },
+   {
+    "case": "hen-04",
+    "verdict": "contradicted",
+    "tokens_in": 416,
+    "tokens_out": 55,
+    "latency_s": 0.63
+   },
+   {
+    "case": "hen-05",
+    "verdict": "contradicted",
+    "tokens_in": 409,
+    "tokens_out": 41,
+    "latency_s": 0.67
+   },
+   {
+    "case": "hen-06",
+    "verdict": "supported",
+    "tokens_in": 415,
+    "tokens_out": 52,
+    "latency_s": 0.61
+   },
+   {
+    "case": "hen-07",
+    "verdict": "not_in_source",
+    "tokens_in": 420,
+    "tokens_out": 37,
+    "latency_s": 0.73
+   },
+   {
+    "case": "hen-08",
+    "verdict": "contradicted",
+    "tokens_in": 409,
+    "tokens_out": 43,
+    "latency_s": 0.69
+   },
+   {
+    "case": "hen-09",
+    "verdict": "supported",
+    "tokens_in": 414,
+    "tokens_out": 43,
+    "latency_s": 0.68
+   },
+   {
+    "case": "hen-10",
+    "verdict": "supported",
+    "tokens_in": 419,
+    "tokens_out": 36,
+    "latency_s": 0.58
+   },
+   {
+    "case": "hde-11",
+    "verdict": "contradicted",
+    "tokens_in": 417,
+    "tokens_out": 47,
+    "latency_s": 0.68
+   },
+   {
+    "case": "hde-12",
+    "verdict": "contradicted",
+    "tokens_in": 424,
+    "tokens_out": 59,
+    "latency_s": 0.61
+   },
+   {
+    "case": "hde-13",
+    "verdict": "contradicted",
+    "tokens_in": 421,
+    "tokens_out": 61,
+    "latency_s": 0.65
+   },
+   {
+    "case": "hde-14",
+    "verdict": "contradicted",
+    "tokens_in": 413,
+    "tokens_out": 46,
+    "latency_s": 0.66
+   },
+   {
+    "case": "hde-15",
+    "verdict": "contradicted",
+    "tokens_in": 422,
+    "tokens_out": 56,
+    "latency_s": 0.67
+   },
+   {
+    "case": "hde-16",
+    "verdict": "supported",
+    "tokens_in": 422,
+    "tokens_out": 56,
+    "latency_s": 0.65
+   },
+   {
+    "case": "hde-17",
+    "verdict": "not_in_source",
+    "tokens_in": 425,
+    "tokens_out": 42,
+    "latency_s": 0.7
+   },
+   {
+    "case": "hde-18",
+    "verdict": "contradicted",
+    "tokens_in": 415,
+    "tokens_out": 63,
+    "latency_s": 0.72
+   },
+   {
+    "case": "hde-19",
+    "verdict": "contradicted",
+    "tokens_in": 416,
+    "tokens_out": 61,
+    "latency_s": 0.62
+   },
+   {
+    "case": "hde-20",
+    "verdict": "supported",
+    "tokens_in": 428,
+    "tokens_out": 39,
+    "latency_s": 0.64
+   }
+  ],
+  "nemotron-3-nano-omni-30b-a3b-reasoning": [
+   {
+    "case": "supported-1",
+    "verdict": "supported",
+    "tokens_in": 403,
+    "tokens_out": 55,
+    "latency_s": 0.86
+   },
+   {
+    "case": "supported-2",
+    "verdict": "supported",
+    "tokens_in": 418,
+    "tokens_out": 76,
+    "latency_s": 1.03
+   },
+   {
+    "case": "supported-3",
+    "verdict": "supported",
+    "tokens_in": 387,
+    "tokens_out": 54,
+    "latency_s": 0.9
+   },
+   {
+    "case": "supported-4",
+    "verdict": "supported",
+    "tokens_in": 410,
+    "tokens_out": 41,
+    "latency_s": 0.79
+   },
+   {
+    "case": "paraphrase-1",
+    "verdict": "supported",
+    "tokens_in": 409,
+    "tokens_out": 42,
+    "latency_s": 0.73
+   },
+   {
+    "case": "paraphrase-2",
+    "verdict": "supported",
+    "tokens_in": 407,
+    "tokens_out": 68,
+    "latency_s": 0.94
+   },
+   {
+    "case": "paraphrase-3",
+    "verdict": "supported",
+    "tokens_in": 395,
+    "tokens_out": 54,
+    "latency_s": 0.85
+   },
+   {
+    "case": "paraphrase-4",
+    "verdict": "supported",
+    "tokens_in": 395,
+    "tokens_out": 65,
+    "latency_s": 0.8
+   },
+   {
+    "case": "negated-1",
+    "verdict": "contradicted",
+    "tokens_in": 386,
+    "tokens_out": 52,
+    "latency_s": 0.71
+   },
+   {
+    "case": "negated-2",
+    "verdict": "contradicted",
+    "tokens_in": 379,
+    "tokens_out": 63,
+    "latency_s": 0.75
+   },
+   {
+    "case": "negated-3",
+    "verdict": "contradicted",
+    "tokens_in": 392,
+    "tokens_out": 61,
+    "latency_s": 1.02
+   },
+   {
+    "case": "negated-4",
+    "verdict": "contradicted",
+    "tokens_in": 412,
+    "tokens_out": 75,
+    "latency_s": 1.08
+   },
+   {
+    "case": "swapped-1",
+    "verdict": "contradicted",
+    "tokens_in": 415,
+    "tokens_out": 87,
+    "latency_s": 1.04
+   },
+   {
+    "case": "swapped-2",
+    "verdict": "contradicted",
+    "tokens_in": 396,
+    "tokens_out": 81,
+    "latency_s": 1.0
+   },
+   {
+    "case": "swapped-3",
+    "verdict": "contradicted",
+    "tokens_in": 493,
+    "tokens_out": 63,
+    "latency_s": 0.95
+   },
+   {
+    "case": "swapped-4",
+    "verdict": "contradicted",
+    "tokens_in": 408,
+    "tokens_out": 52,
+    "latency_s": 0.84
+   },
+   {
+    "case": "off_by_one-1",
+    "verdict": "contradicted",
+    "tokens_in": 418,
+    "tokens_out": 57,
+    "latency_s": 0.76
+   },
+   {
+    "case": "off_by_one-2",
+    "verdict": "contradicted",
+    "tokens_in": 387,
+    "tokens_out": 52,
+    "latency_s": 0.74
+   },
+   {
+    "case": "off_by_one-3",
+    "verdict": "contradicted",
+    "tokens_in": 403,
+    "tokens_out": 55,
+    "latency_s": 0.87
+   },
+   {
+    "case": "off_by_one-4",
+    "verdict": "contradicted",
+    "tokens_in": 410,
+    "tokens_out": 48,
+    "latency_s": 0.78
+   },
+   {
+    "case": "not_in_source-1",
+    "verdict": "not_in_source",
+    "tokens_in": 393,
+    "tokens_out": 55,
+    "latency_s": 0.74
+   },
+   {
+    "case": "not_in_source-2",
+    "verdict": "not_in_source",
+    "tokens_in": 384,
+    "tokens_out": 41,
+    "latency_s": 0.64
+   },
+   {
+    "case": "not_in_source-3",
+    "verdict": "not_in_source",
+    "tokens_in": 414,
+    "tokens_out": 43,
+    "latency_s": 0.76
+   },
+   {
+    "case": "not_in_source-4",
+    "verdict": "not_in_source",
+    "tokens_in": 384,
+    "tokens_out": 34,
+    "latency_s": 0.6
+   },
+   {
+    "case": "en-01",
+    "verdict": "contradicted",
+    "tokens_in": 312,
+    "tokens_out": 62,
+    "latency_s": 0.79
+   },
+   {
+    "case": "en-02",
+    "verdict": "contradicted",
+    "tokens_in": 314,
+    "tokens_out": 56,
+    "latency_s": 0.82
+   },
+   {
+    "case": "en-03",
+    "verdict": "contradicted",
+    "tokens_in": 312,
+    "tokens_out": 49,
+    "latency_s": 0.7
+   },
+   {
+    "case": "en-04",
+    "verdict": "contradicted",
+    "tokens_in": 310,
+    "tokens_out": 61,
+    "latency_s": 0.81
+   },
+   {
+    "case": "en-05",
+    "verdict": "contradicted",
+    "tokens_in": 315,
+    "tokens_out": 64,
+    "latency_s": 0.77
+   },
+   {
+    "case": "en-06",
+    "verdict": "contradicted",
+    "tokens_in": 310,
+    "tokens_out": 60,
+    "latency_s": 0.86
+   },
+   {
+    "case": "en-07",
+    "verdict": "contradicted",
+    "tokens_in": 315,
+    "tokens_out": 67,
+    "latency_s": 0.85
+   },
+   {
+    "case": "en-08",
+    "verdict": "contradicted",
+    "tokens_in": 310,
+    "tokens_out": 52,
+    "latency_s": 0.88
+   },
+   {
+    "case": "en-09",
+    "verdict": "contradicted",
+    "tokens_in": 312,
+    "tokens_out": 56,
+    "latency_s": 0.79
+   },
+   {
+    "case": "en-10",
+    "verdict": "contradicted",
+    "tokens_in": 308,
+    "tokens_out": 47,
+    "latency_s": 0.75
+   },
+   {
+    "case": "en-11",
+    "verdict": "contradicted",
+    "tokens_in": 309,
+    "tokens_out": 48,
+    "latency_s": 0.72
+   },
+   {
+    "case": "en-12",
+    "verdict": "contradicted",
+    "tokens_in": 324,
+    "tokens_out": 64,
+    "latency_s": 0.76
+   },
+   {
+    "case": "en-13",
+    "verdict": "contradicted",
+    "tokens_in": 315,
+    "tokens_out": 56,
+    "latency_s": 0.87
+   },
+   {
+    "case": "en-14",
+    "verdict": "contradicted",
+    "tokens_in": 311,
+    "tokens_out": 55,
+    "latency_s": 0.8
+   },
+   {
+    "case": "en-15",
+    "verdict": "contradicted",
+    "tokens_in": 311,
+    "tokens_out": 55,
+    "latency_s": 0.72
+   },
+   {
+    "case": "en-16",
+    "verdict": "supported",
+    "tokens_in": 312,
+    "tokens_out": 38,
+    "latency_s": 0.62
+   },
+   {
+    "case": "en-17",
+    "verdict": "supported",
+    "tokens_in": 315,
+    "tokens_out": 48,
+    "latency_s": 0.74
+   },
+   {
+    "case": "en-18",
+    "verdict": "supported",
+    "tokens_in": 312,
+    "tokens_out": 40,
+    "latency_s": 0.63
+   },
+   {
+    "case": "en-19",
+    "verdict": "contradicted",
+    "tokens_in": 312,
+    "tokens_out": 62,
+    "latency_s": 0.8
+   },
+   {
+    "case": "en-20",
+    "verdict": "contradicted",
+    "tokens_in": 317,
+    "tokens_out": 57,
+    "latency_s": 0.8
+   },
+   {
+    "case": "en-21",
+    "verdict": "contradicted",
+    "tokens_in": 317,
+    "tokens_out": 75,
+    "latency_s": 0.88
+   },
+   {
+    "case": "en-22",
+    "verdict": "contradicted",
+    "tokens_in": 310,
+    "tokens_out": 56,
+    "latency_s": 0.74
+   },
+   {
+    "case": "en-23",
+    "verdict": "contradicted",
+    "tokens_in": 310,
+    "tokens_out": 50,
+    "latency_s": 0.85
+   },
+   {
+    "case": "en-24",
+    "verdict": "contradicted",
+    "tokens_in": 307,
+    "tokens_out": 50,
+    "latency_s": 0.74
+   },
+   {
+    "case": "en-25",
+    "verdict": "contradicted",
+    "tokens_in": 309,
+    "tokens_out": 51,
+    "latency_s": 0.71
+   },
+   {
+    "case": "en-26",
+    "verdict": "supported",
+    "tokens_in": 313,
+    "tokens_out": 55,
+    "latency_s": 0.93
+   },
+   {
+    "case": "en-27",
+    "verdict": "supported",
+    "tokens_in": 312,
+    "tokens_out": 38,
+    "latency_s": 0.64
+   },
+   {
+    "case": "en-28",
+    "verdict": "supported",
+    "tokens_in": 313,
+    "tokens_out": 41,
+    "latency_s": 0.69
+   },
+   {
+    "case": "en-29",
+    "verdict": "supported",
+    "tokens_in": 316,
+    "tokens_out": 35,
+    "latency_s": 0.59
+   },
+   {
+    "case": "en-30",
+    "verdict": "supported",
+    "tokens_in": 314,
+    "tokens_out": 38,
+    "latency_s": 0.61
+   },
+   {
+    "case": "de-31",
+    "verdict": "contradicted",
+    "tokens_in": 314,
+    "tokens_out": 65,
+    "latency_s": 0.93
+   },
+   {
+    "case": "de-32",
+    "verdict": "contradicted",
+    "tokens_in": 314,
+    "tokens_out": 52,
+    "latency_s": 0.8
+   },
+   {
+    "case": "de-33",
+    "verdict": "contradicted",
+    "tokens_in": 319,
+    "tokens_out": 66,
+    "latency_s": 0.84
+   },
+   {
+    "case": "de-34",
+    "verdict": "contradicted",
+    "tokens_in": 314,
+    "tokens_out": 63,
+    "latency_s": 0.8
+   },
+   {
+    "case": "de-35",
+    "verdict": "contradicted",
+    "tokens_in": 309,
+    "tokens_out": 62,
+    "latency_s": 0.92
+   },
+   {
+    "case": "de-36",
+    "verdict": "contradicted",
+    "tokens_in": 314,
+    "tokens_out": 66,
+    "latency_s": 0.92
+   },
+   {
+    "case": "de-37",
+    "verdict": "contradicted",
+    "tokens_in": 319,
+    "tokens_out": 60,
+    "latency_s": 0.82
+   },
+   {
+    "case": "de-38",
+    "verdict": "contradicted",
+    "tokens_in": 318,
+    "tokens_out": 58,
+    "latency_s": 0.78
+   },
+   {
+    "case": "de-39",
+    "verdict": "contradicted",
+    "tokens_in": 322,
+    "tokens_out": 66,
+    "latency_s": 0.87
+   },
+   {
+    "case": "de-40",
+    "verdict": "contradicted",
+    "tokens_in": 311,
+    "tokens_out": 57,
+    "latency_s": 0.87
+   },
+   {
+    "case": "de-41",
+    "verdict": "contradicted",
+    "tokens_in": 326,
+    "tokens_out": 70,
+    "latency_s": 0.91
+   },
+   {
+    "case": "de-42",
+    "verdict": "contradicted",
+    "tokens_in": 318,
+    "tokens_out": 54,
+    "latency_s": 0.75
+   },
+   {
+    "case": "de-43",
+    "verdict": "contradicted",
+    "tokens_in": 311,
+    "tokens_out": 53,
+    "latency_s": 0.8
+   },
+   {
+    "case": "de-44",
+    "verdict": "contradicted",
+    "tokens_in": 318,
+    "tokens_out": 62,
+    "latency_s": 0.89
+   },
+   {
+    "case": "de-45",
+    "verdict": "contradicted",
+    "tokens_in": 315,
+    "tokens_out": 63,
+    "latency_s": 0.89
+   },
+   {
+    "case": "de-46",
+    "verdict": "supported",
+    "tokens_in": 317,
+    "tokens_out": 42,
+    "latency_s": 0.69
+   },
+   {
+    "case": "de-47",
+    "verdict": "supported",
+    "tokens_in": 319,
+    "tokens_out": 49,
+    "latency_s": 0.77
+   },
+   {
+    "case": "de-48",
+    "verdict": "supported",
+    "tokens_in": 323,
+    "tokens_out": 55,
+    "latency_s": 0.9
+   },
+   {
+    "case": "de-49",
+    "verdict": "contradicted",
+    "tokens_in": 315,
+    "tokens_out": 64,
+    "latency_s": 0.93
+   },
+   {
+    "case": "de-50",
+    "verdict": "supported",
+    "tokens_in": 321,
+    "tokens_out": 60,
+    "latency_s": 0.78
+   },
+   {
+    "case": "de-51",
+    "verdict": "contradicted",
+    "tokens_in": 325,
+    "tokens_out": 75,
+    "latency_s": 0.95
+   },
+   {
+    "case": "de-52",
+    "verdict": "supported",
+    "tokens_in": 316,
+    "tokens_out": 55,
+    "latency_s": 0.86
+   },
+   {
+    "case": "de-53",
+    "verdict": "contradicted",
+    "tokens_in": 314,
+    "tokens_out": 53,
+    "latency_s": 0.79
+   },
+   {
+    "case": "de-54",
+    "verdict": "contradicted",
+    "tokens_in": 311,
+    "tokens_out": 56,
+    "latency_s": 0.83
+   },
+   {
+    "case": "de-55",
+    "verdict": "contradicted",
+    "tokens_in": 309,
+    "tokens_out": 55,
+    "latency_s": 0.83
+   },
+   {
+    "case": "de-56",
+    "verdict": "supported",
+    "tokens_in": 315,
+    "tokens_out": 47,
+    "latency_s": 0.81
+   },
+   {
+    "case": "de-57",
+    "verdict": "supported",
+    "tokens_in": 315,
+    "tokens_out": 43,
+    "latency_s": 0.74
+   },
+   {
+    "case": "de-58",
+    "verdict": "supported",
+    "tokens_in": 321,
+    "tokens_out": 46,
+    "latency_s": 0.73
+   },
+   {
+    "case": "de-59",
+    "verdict": "supported",
+    "tokens_in": 318,
+    "tokens_out": 37,
+    "latency_s": 0.72
+   },
+   {
+    "case": "de-60",
+    "verdict": "supported",
+    "tokens_in": 313,
+    "tokens_out": 34,
+    "latency_s": 0.66
+   },
+   {
+    "case": "hen-01",
+    "verdict": "contradicted",
+    "tokens_in": 313,
+    "tokens_out": 60,
+    "latency_s": 0.9
+   },
+   {
+    "case": "hen-02",
+    "verdict": "contradicted",
+    "tokens_in": 313,
+    "tokens_out": 65,
+    "latency_s": 0.92
+   },
+   {
+    "case": "hen-03",
+    "verdict": "contradicted",
+    "tokens_in": 313,
+    "tokens_out": 58,
+    "latency_s": 0.8
+   },
+   {
+    "case": "hen-04",
+    "verdict": "contradicted",
+    "tokens_in": 313,
+    "tokens_out": 62,
+    "latency_s": 0.84
+   },
+   {
+    "case": "hen-05",
+    "verdict": "contradicted",
+    "tokens_in": 307,
+    "tokens_out": 52,
+    "latency_s": 0.75
+   },
+   {
+    "case": "hen-06",
+    "verdict": "supported",
+    "tokens_in": 312,
+    "tokens_out": 45,
+    "latency_s": 0.74
+   },
+   {
+    "case": "hen-07",
+    "verdict": "contradicted",
+    "tokens_in": 317,
+    "tokens_out": 71,
+    "latency_s": 0.87
+   },
+   {
+    "case": "hen-08",
+    "verdict": "contradicted",
+    "tokens_in": 306,
+    "tokens_out": 48,
+    "latency_s": 0.78
+   },
+   {
+    "case": "hen-09",
+    "verdict": "supported",
+    "tokens_in": 311,
+    "tokens_out": 39,
+    "latency_s": 0.68
+   },
+   {
+    "case": "hen-10",
+    "verdict": "supported",
+    "tokens_in": 317,
+    "tokens_out": 33,
+    "latency_s": 0.75
+   },
+   {
+    "case": "hde-11",
+    "verdict": "contradicted",
+    "tokens_in": 316,
+    "tokens_out": 67,
+    "latency_s": 0.99
+   },
+   {
+    "case": "hde-12",
+    "verdict": "contradicted",
+    "tokens_in": 315,
+    "tokens_out": 57,
+    "latency_s": 0.85
+   },
+   {
+    "case": "hde-13",
+    "verdict": "contradicted",
+    "tokens_in": 318,
+    "tokens_out": 63,
+    "latency_s": 0.95
+   },
+   {
+    "case": "hde-14",
+    "verdict": "contradicted",
+    "tokens_in": 308,
+    "tokens_out": 55,
+    "latency_s": 0.84
+   },
+   {
+    "case": "hde-15",
+    "verdict": "contradicted",
+    "tokens_in": 319,
+    "tokens_out": 57,
+    "latency_s": 0.83
+   },
+   {
+    "case": "hde-16",
+    "verdict": "supported",
+    "tokens_in": 317,
+    "tokens_out": 42,
+    "latency_s": 0.86
+   },
+   {
+    "case": "hde-17",
+    "verdict": "contradicted",
+    "tokens_in": 320,
+    "tokens_out": 65,
+    "latency_s": 0.97
+   },
+   {
+    "case": "hde-18",
+    "verdict": "contradicted",
+    "tokens_in": 310,
+    "tokens_out": 58,
+    "latency_s": 0.91
+   },
+   {
+    "case": "hde-19",
+    "verdict": "contradicted",
+    "tokens_in": 309,
+    "tokens_out": 50,
+    "latency_s": 0.7
+   },
+   {
+    "case": "hde-20",
+    "verdict": "supported",
+    "tokens_in": 320,
+    "tokens_out": 34,
+    "latency_s": 0.63
+   }
+  ]
+ }
+}
