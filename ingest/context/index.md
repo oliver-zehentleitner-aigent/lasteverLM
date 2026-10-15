@@ -80,7 +80,7 @@ repository root's `context/`.
 
 ## U
 
-- [url-sources.md](url-sources.md) — why the worker fetches URLs through a guard that connects to public addresses only, and why HTML text comes from the standard library parser; why a changed web page becomes a new version and the old one stays for its citations; why each read keeps an inert snapshot
+- [url-sources.md](url-sources.md) — why the worker fetches URLs through a guard that connects to public addresses only, and why HTML text comes from the standard library parser; why a changed web page becomes a new version and the old one stays for its citations; why each read keeps an inert snapshot; why structured data (JSON, XML, CSV, YAML) is read as lines that name their key path, element path or column, and how hostile documents are bounded
 
 ## V
 
