@@ -201,16 +201,19 @@ statement over many users such as ingest's job claim.
 is what one call would charge, its fee included, for a price shown
 before the user starts.
 
-A public price list quotes each action per unit, from
-`USAGE_ACTION_UNITS`: `ActionUnit(unit, measure)`. With measure `action`
-the unit is one action, counted once per `action_id`: `question`,
-`output`, `source`, `check`, and so on. With measure `seconds` the unit
-is `audio_minute`, the seconds in `tokens_in` of the action's `tts` or
-`stt` rows divided by 60. A PDF is quoted per source, not per page. The
-price is the observed euro cost of past actions (the sum of
-`cost_cents` per `action_id`) put through the current rules:
-`charge_for(rules, action, cost_eur_cents)`, which applies the margin
-and adds the fee once.
+`USAGE_ACTION_UNITS` gives every action an `ActionUnit(unit, measure)`.
+With measure `action` the unit is one action, counted once per
+`action_id`. With measure `seconds` it is `audio_minute`: the seconds in
+`tokens_in` of the action's `tts` or `stt` rows divided by 60.
+`charge_for(rules, action, cost_eur_cents)` puts the observed euro cost
+of a whole past action (the sum of `cost_cents` per `action_id`) through
+the current rules. It applies the margin and adds the fee once.
+
+The account service's public price list takes its per-unit prices from
+rag's and ingest's estimates. It quotes sources per page, image, audio
+minute or web page, under its own unit keys. It uses core's
+`USAGE_ACTION_UNITS` and `charge_for` for the typical range of a whole
+action from the last thirty days (`core/context/billing.md`).
 
 Speech synthesis and transcription are priced per second of audio, not
 per token, as the platform bills them. A `tts` or `stt` row carries the
