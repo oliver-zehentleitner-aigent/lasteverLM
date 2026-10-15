@@ -9,6 +9,7 @@ import { PriceTag } from './PriceTag'
 import { JUDGE_ASK_LEVEL } from '../lib/judge'
 import { JUDGE_POLL_MS, jobActive, jobLine, runningJobId } from '../lib/judgeJob'
 import { OutputId } from './OutputId'
+import { requestBalanceRefresh, useBalanceActivity } from '../lib/balance'
 
 type Level = Exclude<JudgeLevel, 'off'>
 
@@ -79,6 +80,8 @@ export function JudgeRequest({
 
   // while it runs: ask again every 2 s; done reloads the target and clears the line
   const activeId = jobActive(job) ? job!.job_id : null
+  // a judgement is paid work: the balance follows while it runs and when it ends
+  useBalanceActivity(activeId !== null)
   useEffect(() => {
     if (activeId === null) return
     let live = true
@@ -90,8 +93,10 @@ export function JudgeRequest({
             if (!live) return
             if (next.status === 'done') {
               setJob(null)
+              requestBalanceRefresh()
               void done.current()
             } else {
+              if (next.status === 'failed') requestBalanceRefresh()
               setJob(next)
               if (jobActive(next)) poll()
             }

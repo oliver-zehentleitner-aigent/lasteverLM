@@ -112,7 +112,7 @@ export function Header({ me, route, onNavigate, onLogout }: Props) {
                 onNavigate('/credits')
               }}
             >
-              {formatCents(me.balance_cents)}
+              <BalanceValue cents={me.balance_cents} />
             </a>
           </>
         )}
@@ -191,6 +191,19 @@ function ProfileMenu({ email, onNavigate, onLogout }: { email: string | null; on
           ]}
         />
       )}
+    </span>
+  )
+}
+
+/** The chip's amount: once it changes from the first one shown, each new
+ *  amount flashes briefly (remounted by its key so the animation runs
+ *  again; none under reduced motion). */
+function BalanceValue({ cents }: { cents: number }) {
+  const [first, setFirst] = useState<number | null>(null)
+  if (first === null) setFirst(cents)
+  return (
+    <span key={cents} className={first !== null && cents !== first ? 'balance-value changed' : 'balance-value'}>
+      {formatCents(cents)}
     </span>
   )
 }

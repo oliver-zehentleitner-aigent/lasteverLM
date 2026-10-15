@@ -22,6 +22,7 @@ import { ProvenancePanel } from './ProvenancePanel'
 import { t, tn } from '../i18n'
 import type { ChatPaneProps } from './ChatPane'
 import { useMe } from '../hooks/useMe'
+import { requestBalanceRefresh } from '../lib/balance'
 
 interface ConversationProps extends ChatPaneProps {
   conversationId: string
@@ -98,6 +99,8 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
     const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id, scope ? undefined : sources.sourceIds, refreshNow))
     // unread sources were read, pages maybe fetched again: the lists follow
     if (!scope && (unreadSelected > 0 || refreshNow.length > 0)) onWork?.()
+    // an answer is billed (a refused one may have read sources): the balance follows
+    requestBalanceRefresh()
     if (answer) {
       setMessages((prev) => [
         ...prev,

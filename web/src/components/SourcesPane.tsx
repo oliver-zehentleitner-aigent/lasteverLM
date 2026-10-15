@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ingest } from '../api/ingest'
 import type { Source } from '../api/types'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
@@ -12,6 +12,7 @@ import { t } from '../i18n'
 import { priceLabel } from '../lib/estimate'
 import { whenLabel } from '../lib/outputsList'
 import { IconTrash } from './Icons'
+import { readsFinished, requestBalanceRefresh, useBalanceActivity } from '../lib/balance'
 
 interface Props {
   notebookId: string
@@ -65,10 +66,19 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
 
   // a source waiting for credit starts once a voucher is redeemed: keep polling for it too
   const processing = sources.some((s) => s.status === 'processing' || s.status === 'waiting_for_credit')
+  // reading is paid work: the balance follows while it runs and when a read ends
+  useBalanceActivity(processing)
+  const lastSources = useRef(sources)
+  useEffect(() => {
+    lastSources.current = sources
+  }, [sources])
   useEffect(() => {
     if (!processing) return
     const t = setInterval(() => {
-      ingest.listSources(notebookId).then(setSources, () => {
+      ingest.listSources(notebookId).then((list) => {
+        if (readsFinished(lastSources.current, list)) requestBalanceRefresh()
+        setSources(list)
+      }, () => {
         // a failed poll is retried on the next tick; user actions surface errors through run()
       })
     }, SOURCE_POLL_INTERVAL_MS)

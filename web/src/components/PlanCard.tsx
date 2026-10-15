@@ -7,6 +7,7 @@ import { priceLabel } from '../lib/estimate'
 import { planActive, planChangedWork, stepTarget } from '../lib/plan'
 import { whenLabel } from '../lib/outputsList'
 import { OutputId } from './OutputId'
+import { requestBalanceRefresh, useBalanceActivity } from '../lib/balance'
 
 const POLL_MS = 2500
 
@@ -41,6 +42,8 @@ export function PlanCard({ conversationId, plan, onChange, onWork, onOpen }: Pro
   }, [plan, onChange, onWork])
   const active = planActive(plan)
   const planId = plan.plan_id
+  // a running plan is paid work: the balance follows while it runs and when it ends
+  useBalanceActivity(active)
 
   useEffect(() => {
     if (!active) return
@@ -51,6 +54,7 @@ export function PlanCard({ conversationId, plan, onChange, onWork, onOpen }: Pro
           const before = current.current
           handlers.current.onChange(next)
           if (planChangedWork(before, next)) handlers.current.onWork(!planActive(next))
+          if (planActive(before) && !planActive(next)) requestBalanceRefresh()
         },
         (e: unknown) => setPollError(e instanceof Error ? e.message : String(e)),
       )

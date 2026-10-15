@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The header's balance followed only a page load: it now reloads after every paid action ends (chat answer, output ready or failed, plan or judgement ended, source read finished, proposals found, voucher redeemed), every 30 s while paid work runs, and when the tab is shown again, and flashes when it changes (not under reduced motion); the credits page shows the same value.
+
 ## [0.22.15] - 2026-10-15
 
 ### Changed
