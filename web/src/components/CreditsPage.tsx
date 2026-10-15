@@ -9,6 +9,7 @@ import { formatCents, formatTime } from '../lib/format'
 import { writeLastNotebook, writeOpenOutput } from '../lib/lastNotebook'
 import { lastDays } from '../lib/money'
 import { actionLabel, formatPrice } from '../lib/prices'
+import { requestBalanceRefresh } from '../lib/balance'
 
 const RANGES = [7, 30, 90] as const
 
@@ -28,6 +29,8 @@ export function CreditsPage({ onNavigate }: { onNavigate: (path: string) => void
   const load = useCallback(() => {
     const r = lastDays(days)
     void run(async () => setData(await account.credit(r.from, r.to)))
+    // the balance itself is the header's: one value, reloaded with the account
+    requestBalanceRefresh()
   }, [days, run])
   useEffect(load, [load])
 
@@ -55,7 +58,7 @@ export function CreditsPage({ onNavigate }: { onNavigate: (path: string) => void
     onNavigate('/')
   }
 
-  const balance = data?.balance_cents ?? me?.balance_cents ?? null
+  const balance = me?.balance_cents ?? data?.balance_cents ?? null
   const maxDay = Math.max(1, ...(data?.by_day.map((d) => d.charged_cents) ?? [0]))
   return (
     <main className="credits">

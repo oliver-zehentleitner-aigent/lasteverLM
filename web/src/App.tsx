@@ -24,6 +24,7 @@ import { routeTitle, useDocumentTitle } from './lib/docTitle'
 import { TOUR_CREDIT, tourEvents } from './lib/tour'
 import { setLanguage, t } from './i18n'
 import { pickLanguage } from './i18n/translate'
+import { BALANCE_POLL_MS, coalesced, onActivity, onBalanceRefresh, runningWork } from './lib/balance'
 
 type Session = { state: 'checking' } | { state: 'anonymous' } | { state: 'in'; me: User | null }
 
@@ -57,6 +58,37 @@ export default function App() {
       () => setSession((s) => (s.state === 'anonymous' ? s : { state: 'in', me: null })),
     )
   }, [])
+
+  // the balance: reloaded with the account after paid work ends, every 30 s while
+  // some runs, and when the tab is shown again (src/lib/balance.ts)
+  const reloadBalance = useCallback(() => {
+    if (!getToken()) return
+    account.me().then(
+      (me) => setSession((s) => (s.state === 'in' ? { state: 'in', me } : s)),
+      () => {
+        // the next trigger tries again; a 401 signs out through its event
+      },
+    )
+  }, [])
+  useEffect(() => {
+    const ask = coalesced(reloadBalance)
+    const offRefresh = onBalanceRefresh(ask)
+    let timer: number | undefined
+    const arm = () => {
+      window.clearInterval(timer)
+      timer = runningWork() > 0 ? window.setInterval(reloadBalance, BALANCE_POLL_MS) : undefined
+    }
+    const offActivity = onActivity(arm)
+    arm()
+    const shown = () => document.visibilityState === 'visible' && ask()
+    document.addEventListener('visibilitychange', shown)
+    return () => {
+      offRefresh()
+      offActivity()
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', shown)
+    }
+  }, [reloadBalance])
 
   // the browser tab names the page; the workspace and the shared pages name themselves
   useDocumentTitle(routeTitle(route, window.location.pathname, session.state === 'in'))

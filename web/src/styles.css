@@ -1219,3 +1219,8 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
   .voucher-table td.row-actions { justify-content: flex-end; }
   .voucher-table .clip { max-width: 100%; }
 }
+
+/* the header's balance flashes when it changes (not under reduced motion) */
+.balance-value.changed { animation: balance-flash 1.2s ease-out; border-radius: var(--radius); }
+@keyframes balance-flash { from { background: var(--accent-soft); color: var(--accent); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .balance-value.changed { animation: none; } }

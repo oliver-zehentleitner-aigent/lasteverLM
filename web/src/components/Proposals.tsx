@@ -3,6 +3,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useEstimate } from '../hooks/useEstimate'
 import { t, type MessageKey } from '../i18n'
 import { PriceTag } from './PriceTag'
+import { requestBalanceRefresh } from '../lib/balance'
 
 /** The body every propose call takes: how many at most, the notes, and the
  *  selection as Create sends it. */
@@ -63,6 +64,8 @@ export function Proposals<T extends { id: string; title: string }>(p: Props<T>) 
         ...(urlRefresh.length > 0 ? { url_refresh: urlRefresh } : {}),
       }),
     )
+    // a proposal is billed: the balance follows
+    requestBalanceRefresh()
     if (r) {
       setFound({ ...r, selection: p.selection })
       p.onPick(r.candidates.slice(0, p.limits.pickMax))

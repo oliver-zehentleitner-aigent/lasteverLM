@@ -38,6 +38,7 @@ import { Wizard } from './Wizard'
 import { Tour } from './Tour'
 import { t } from '../i18n'
 import { docTitle, useDocumentTitle } from '../lib/docTitle'
+import { outputsFinished, requestBalanceRefresh, useBalanceActivity } from '../lib/balance'
 
 interface ViewProps {
   notebookId: string
@@ -166,11 +167,20 @@ export function NotebookView({ notebookId, notebookTitle, wizard, onWizard }: Vi
   }, [reloadOutputs, run])
 
   const pending = outputs.some((o) => o.status === 'processing' || o.status === 'waiting')
+  // outputs being made are paid work: the balance follows while they run and when one ends
+  useBalanceActivity(pending)
+  const lastOutputs = useRef(outputs)
+  useEffect(() => {
+    lastOutputs.current = outputs
+  }, [outputs])
   useEffect(() => {
     if (!pending) return
     const t = setInterval(() => {
       rag.listOutputs(notebookId).then(
-        (list) => setOutputs(list),
+        (list) => {
+          if (outputsFinished(lastOutputs.current, list)) requestBalanceRefresh()
+          setOutputs(list)
+        },
         () => {
           // a failed poll is retried on the next tick; user actions surface errors through run()
         },

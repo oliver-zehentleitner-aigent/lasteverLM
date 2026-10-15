@@ -820,7 +820,14 @@ deleted from the library) stays readable with its quote and is marked
   page asks "You already have it. Create another copy?" before sending
   `?force=true`; one copy an hour ("try again in N minutes"), and no
   starter set says so.
-- The balance in EUR as a pill that opens **Credits**; a 402
+- The balance in EUR as a pill that opens **Credits**. It is one value
+  with the credits page's balance (the account's `balance_cents`),
+  reloaded after every paid action ends (a chat answer, an output ready
+  or failed, a plan or a judgement ended, a source read finished, a
+  proposal found, a voucher redeemed), every 30 s while paid work runs
+  and never otherwise, and once when the tab is shown again; asks within
+  a second are one reload. A changed amount flashes briefly (not under
+  reduced motion). A 402
   anywhere opens the one-field voucher dialog. When there is credit, just
   not enough for an output or a plan (rag's `credit_insufficient`), the
   dialog and the error say "This needs up to €X, you have €Y.", with
