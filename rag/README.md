@@ -467,6 +467,21 @@ and the judge is its first question:
 - **Message does not say, default set:** the plan asks, with "With a
   judge (<level>, your default)" preselected and "Without a judge".
 
+The second question is the web pages. A plan that creates an output from
+a notebook holding web pages asks once, "<page> was read 15 h ago: use
+that version or fetch again?", with "Use the versions already read"
+(`pages:cached`) preselected and "Fetch them again (+ up to €x)", priced
+by ingest's re-check. Fetching again sets `url_refresh` on the output
+steps, so the outputs read the pages again first (a line of `separate`
+per page). A message that says it ("neu laden", "fresh", "the cached
+pages") sets `create_output`'s `web_pages` argument and is not asked.
+
+Questions come one at a time: answering one opens the next, and the
+plan stays `asking` until the last is answered. `plan.answered` lists
+every answered question with its `answer`, in order. `plan.sources` =
+`[{"name", "kind", "read_at"?}]` are the notebook's sources at planning
+time, `read_at` the time a web page was last read or found unchanged.
+
 Nothing runs before `POST .../plans/{plan_id}/confirm`.
 
 - **Ingest steps** run inside the confirm request with its own bearer,
@@ -481,13 +496,21 @@ Nothing runs before `POST .../plans/{plan_id}/confirm`.
   source 30 minutes after confirmation fails with "a source did not
   become ready within 30 minutes", uncharged.
 - **Failures and the end:** a failed step does not stop the others, and
-  the plan ends with a summary message.
+  the plan ends with a summary message. It names what was made
+  (`Created the quiz "<title>"`) and carries the plan (`Message.plan`),
+  whose steps hold each `result` with the output's id, to link it.
 - **Billing and limits:** every call of a plan books under its
   `action_id`. Ingest's processing of an added source books under
   ingest's own action. Credit is checked per step, and the API's rate
   limit applies to confirm as to every route.
 
+**Web page age.** An answer citing a web page says how old the version
+it read is: `Answer.web_pages` (and `Message.web_pages`) =
+`[{"library_id", "name", "fetched_at"}]`, each cited page once, so the
+chat can offer to fetch it again (`url_refresh` on the next ask).
+
 **Suggestions.**
+
 - **With every answer.** Each chat answer returns `suggestions`, up to
   three short follow-up questions. They come from the same model call:
   the answer prompt asks for a `Suggestions:` tail, which is cut off the

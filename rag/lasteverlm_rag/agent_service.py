@@ -34,6 +34,7 @@ from .agent import (
     build_steps,
     judge_question,
     output_label,
+    pages_question,
     public_question,
     separate,
     tool_specs,
@@ -44,7 +45,7 @@ from .ingest_client import Ingest, IngestError
 from .models import Booking
 from .options import OutputOptions, resolve
 from .provenance import now
-from .reading import reading_lines
+from .reading import reading_lines, selected_uploads
 from .service import (
     HISTORY_MESSAGES,
     ConversationNotFound,
@@ -82,6 +83,13 @@ class StaleQuestion(Exception):
     """No open question with that id on the plan."""
 
 
+def answered(question: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if question is None:
+        return []
+    done = [*question.get("history", []), *([question] if "answer" in question else [])]
+    return [q for q in (public_question(q) for q in done) if q is not None]
+
+
 def public(plan: dict[str, Any]) -> dict[str, Any]:
     """The plan as answers, messages and the plan endpoint show it."""
     return {
@@ -92,7 +100,11 @@ def public(plan: dict[str, Any]) -> dict[str, Any]:
         # ingest's own charges: pages a step adds, sources an output reads first
         "separate": separate(plan["steps"]) + plan["estimate"].get("reading", []),
         "question": public_question(plan.get("question")),
+        # every answered question in order, each with its answer (the last one
+        # also stays in "question" once answered, as before)
+        "answered": answered(plan.get("question")),
         "notes": plan.get("notes") or [],
+        "sources": plan.get("sources") or [],
     }
 
 
@@ -212,6 +224,12 @@ class AgentService:
         # user's own level, or the middle one when their default is off
         default_level = str(self._store.user_preference(user_id, "judge_default") or "off")
         judge_said: set[int] = set()
+        # how the message says to treat the notebook's web pages, per output step
+        pages_said = {
+            n: str(args["web_pages"])
+            for n, (name, args) in enumerate(calls, start=1)
+            if name == "create_output" and args.get("web_pages") in ("cached", "fresh")
+        }
         for n, (name, args) in enumerate(calls, start=1):
             options = args.get("options")
             if name == "create_output" and isinstance(options, dict) and "judge" in options:
@@ -231,30 +249,60 @@ class AgentService:
                 }
             else:
                 step.estimate = self._estimate(step, bearer)
-        estimate: dict[str, Any] = dict(total(steps))
-        if self._ingest is not None and any(s.valid and s.tool == "create_output" for s in steps):
-            # an output reads the notebook's sources not read yet: ingest's charge
-            estimate["reading"] = reading_lines(
-                self._store, self._ingest, bearer, notebook_id, None, []
-            )
         plan_id = str(uuid.uuid4())
         steps_json = [s.as_json() for s in steps]
-        # an open choice that changes the cost or the result is asked, never decided
-        open_judge = [
-            s.n for s in steps if s.valid and s.tool == "create_output" and s.n not in judge_said
+        outputs_steps = [s.n for s in steps if s.valid and s.tool == "create_output"]
+        uploads = selected_uploads(self._store, notebook_id, None)
+        # the notebook's web pages read before: their cached version is what an output reads
+        pages = [
+            {"library_id": s.library_id, "name": s.name, "read_at": s.read_at}
+            for s in uploads
+            if s.kind == "url" and s.status == "ready"
         ]
-        plan_question: dict[str, Any] | None = None
+        page_ids = [str(p["library_id"]) for p in pages]
+        for entry in steps_json:
+            if pages and pages_said.get(entry["n"]) == "fresh":
+                entry["args"]["url_refresh"] = page_ids
+        estimate: dict[str, Any] = dict(total(steps))
+        if outputs_steps:
+            estimate["reading"] = self._reading(bearer, notebook_id, steps_json)
+        # an open choice that changes the cost or the result is asked, never decided
+        questions: list[dict[str, Any]] = []
         notes: list[str] = []
+        open_judge = [n for n in outputs_steps if n not in judge_said]
         if open_judge and default_level != "off":
-            plan_question = judge_question(str(uuid.uuid4()), open_judge, default_level)
-            for choice in plan_question["choices"]:
-                changed = self._apply(plan_question["apply"], choice["id"], steps_json)
-                choice["estimate"] = _sum(changed)
+            judge_q = judge_question(str(uuid.uuid4()), open_judge, default_level)
+            for choice in judge_q["choices"]:
+                choice["estimate"] = _sum(self._apply(judge_q["apply"], choice["id"], steps_json))
+            questions.append(judge_q)
         elif open_judge:
             notes.append(
                 "Without a judge: the new documents are not checked by a second model. "
                 "Ask for one if you want it."
             )
+        open_pages = [n for n in outputs_steps if n not in pages_said]
+        if open_pages and pages:
+            extra = self._refetch_cents(bearer, page_ids)
+            pages_q = pages_question(str(uuid.uuid4()), open_pages, pages, datetime.now(UTC), extra)
+            for choice in pages_q["choices"]:
+                # the plan's own total stays; a refetch is ingest's charge (its label says how much)
+                choice["estimate"] = _sum(steps_json)
+            questions.append(pages_q)
+        plan_question = questions[0] if questions else None
+        if plan_question is not None:
+            plan_question["next"] = questions[1:]
+        added_pages = [
+            s["args"]["url"] for s in steps_json if s["valid"] and s["tool"] == "add_url"
+        ]
+        sources = [
+            {
+                "name": s.name,
+                "kind": s.kind,
+                **({"read_at": s.read_at} if s.kind == "url" and s.read_at else {}),
+            }
+            for s in uploads
+            if s.status not in ("failed",)
+        ] + [{"name": url, "kind": "url"} for url in added_pages]
         plan = {
             "id": plan_id,
             "conversation_id": conversation_id,
@@ -266,6 +314,7 @@ class AgentService:
             "action_id": str(booking.action_id),
             "question": plan_question,
             "notes": notes,
+            "sources": sources if outputs_steps else [],
         }
         lines = "\n".join(
             f"{s.n}. {s.label}" + ("" if s.valid else f" (not possible: {s.invalid_reason})")
@@ -314,6 +363,7 @@ class AgentService:
         question_id: str,
         choice: str | None,
         text: str | None,
+        bearer: str | None = None,
     ) -> dict[str, Any]:
         """The user's answer to the plan's question: applied to the steps, the
         estimate updated, the plan proposed. The answer is a turn of the
@@ -333,8 +383,10 @@ class AgentService:
             raise InvalidOptions("answer: this question takes a choice, not text")
         if choice is not None:
             plan["steps"] = self._apply(open_question["apply"], choice, plan["steps"])
-        reading = plan["estimate"].get("reading")
-        plan["estimate"] = {**_sum(plan["steps"]), **({"reading": reading} if reading else {})}
+        estimate: dict[str, Any] = dict(_sum(plan["steps"]))
+        if any(s["valid"] and s["tool"] == "create_output" for s in plan["steps"]):
+            estimate["reading"] = self._reading(bearer, plan["notebook_id"], plan["steps"])
+        plan["estimate"] = estimate
         open_question["answer"] = {
             **({"choice": choice} if choice else {}),
             **({"text": text} if text else {}),
@@ -343,21 +395,60 @@ class AgentService:
         self._store.insert_message(
             plan["notebook_id"], conversation_id, "user", labels.get(choice or "", text or ""), None
         )
-        self._save(plan, status="proposed", estimate=plan["estimate"], question=open_question)
+        # the next question, if one waits; the answered one goes into the history
+        queue = open_question.pop("next", [])
+        history = open_question.pop("history", [])
+        if queue:
+            following = {**queue[0], "next": queue[1:], "history": [*history, open_question]}
+            for entry in following["choices"]:
+                entry["estimate"] = _sum(
+                    self._apply(following["apply"], entry["id"], plan["steps"])
+                )
+            self._save(plan, status="asking", estimate=estimate, question=following)
+        else:
+            self._save(
+                plan,
+                status="proposed",
+                estimate=estimate,
+                question={**open_question, "history": history},
+            )
         return public(plan)
+
+    def _reading(self, bearer: str | None, notebook_id: str, steps: list[dict[str, Any]]) -> Any:
+        """Ingest's lines for what the outputs will read: unread sources, and
+        the web pages a step fetches again."""
+        if self._ingest is None or not bearer:
+            return []
+        refresh = sorted(
+            {i for s in steps if s["valid"] for i in s["args"].get("url_refresh") or []}
+        )
+        return reading_lines(self._store, self._ingest, bearer, notebook_id, None, refresh)
+
+    def _refetch_cents(self, bearer: str, library_ids: list[str]) -> float:
+        """What fetching these pages again may charge at most (ingest's price)."""
+        if self._ingest is None or not library_ids:
+            return 0.0
+        items = self._ingest.estimate_sources(bearer, [], library_ids)
+        return float(sum(float(i["charge_cents_max"]) for i in items))
 
     def _apply(
         self, apply: dict[str, Any], choice: str, steps: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
-        """The steps with a choice applied: one option set (or removed) on the
-        named steps, each re-validated, relabelled and re-estimated."""
-        if apply["kind"] != "set_option":
-            raise ValueError(f"unknown question kind {apply['kind']!r}")
+        """The steps with a choice applied to the named steps: an output
+        option set or removed (re-validated, relabelled, re-estimated), or a
+        step argument set or removed (``url_refresh``)."""
         value = apply["values"][choice]
         changed = copy.deepcopy(steps)
         for step in changed:
             if step["n"] not in apply["steps"] or not step["valid"]:
                 continue
+            if apply["kind"] == "set_arg":
+                step["args"].pop(apply["arg"], None)
+                if value is not None:
+                    step["args"][apply["arg"]] = value
+                continue
+            if apply["kind"] != "set_option":
+                raise ValueError(f"unknown question kind {apply['kind']!r}")
             options = {k: v for k, v in step["args"]["options"].items()}
             options.pop(apply["option"], None)
             if value is not None:
@@ -447,6 +538,7 @@ class AgentService:
                 ),
                 booking_id=plan["action_id"],
                 bearer=bearer,  # its sources not read yet are read now, as the user
+                url_refresh=args.get("url_refresh"),
             )
             step["result"] = {"output_id": str(output.id)}
             step["state"] = "waiting"
@@ -503,17 +595,21 @@ class AgentService:
         done = [s for s in steps if s["state"] == "done"]
         self._save(plan, status="done" if done else "failed", finished_at=datetime.now(UTC))
         lines = [
-            f"{'✓' if s['state'] == 'done' else '✗'} {s['n']}. {s['label']}"
+            f"{'✓' if s['state'] == 'done' else '✗'} {s['n']}. {_done_line(s)}"
             + (f": {s['error']}" if s.get("error") else "")
             for s in steps
             if s["state"] != "skipped"
         ]
+        # the final plan rides along: each created output's id and title, to link it
         self._store.insert_message(
             plan["notebook_id"],
             plan["conversation_id"],
             "assistant",
             "The plan is done.\n\n" + "\n".join(lines),
             [],
+            None,
+            None,
+            public(plan),
         )
         return True
 
@@ -582,6 +678,14 @@ class AgentService:
             if key in fields:
                 plan[key] = fields[key]
         self._store.save_plan(plan["id"], steps=plan["steps"], plan=public(plan), **fields)
+
+
+def _done_line(step: dict[str, Any]) -> str:
+    """A finished step as the summary names it: a created output by its title."""
+    title = (step.get("result") or {}).get("title")
+    if step["tool"] == "create_output" and step["state"] == "done" and title:
+        return f'Created the {step["args"]["kind"]} "{title}"'
+    return str(step["label"])
 
 
 def _sum(steps: list[dict[str, Any]]) -> dict[str, float]:

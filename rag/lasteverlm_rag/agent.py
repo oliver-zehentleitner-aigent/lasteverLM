@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -160,6 +161,14 @@ def tool_specs() -> list[dict[str, Any]]:
             {
                 "kind": {"type": "string", "enum": PLANNED_KINDS},
                 "options": {"type": "object", "properties": options, "additionalProperties": False},
+                "web_pages": {
+                    "type": "string",
+                    "enum": ["cached", "fresh"],
+                    "description": (
+                        "only when the user says how to treat the notebook's web pages: "
+                        '"fresh" to fetch them again, "cached" to use the versions read before'
+                    ),
+                },
             },
             ["kind"],
         ),
@@ -361,11 +370,63 @@ def judge_question(question_id: str, steps: Sequence[int], default_level: str) -
     }
 
 
+def pages_question(
+    question_id: str,
+    steps: Sequence[int],
+    pages: Sequence[Mapping[str, Any]],
+    now: datetime,
+    extra_cents: float,
+) -> dict[str, Any]:
+    """Whether the outputs read the notebook's web pages as read before
+    (the default: the cheaper path) or fetch them again first. ``apply``
+    sets the steps' ``url_refresh``."""
+    if len(pages) == 1:
+        text = f"{pages[0]['name']} was read {age(pages[0]['read_at'], now)}"
+    else:
+        ages = sorted(age(p["read_at"], now) for p in pages)
+        text = f"{len(pages)} web pages were read {', '.join(dict.fromkeys(ages))}"
+    return {
+        "question_id": question_id,
+        "text": f"{text}: use that version or fetch again?",
+        "choices": [
+            {"id": "pages:cached", "label": "Use the versions already read"},
+            {
+                "id": "pages:fresh",
+                "label": f"Fetch them again (+ up to €{extra_cents / 100:.3f})",
+            },
+        ],
+        "default": "pages:cached",
+        "free_text": False,
+        "apply": {
+            "kind": "set_arg",
+            "arg": "url_refresh",
+            "steps": list(steps),
+            "values": {"pages:cached": None, "pages:fresh": [p["library_id"] for p in pages]},
+        },
+    }
+
+
+def age(read_at: str | None, now: datetime) -> str:
+    """How long ago, roughly: minutes, hours, then days."""
+    if not read_at:
+        return "at an unknown time"
+    when = datetime.fromisoformat(read_at)
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    minutes = max(0, int((now - when).total_seconds() // 60))
+    if minutes < 60:
+        return f"{minutes} min ago"
+    if minutes < 48 * 60:
+        return f"{minutes // 60} h ago"
+    return f"{minutes // (24 * 60)} days ago"
+
+
 def public_question(question: Mapping[str, Any] | None) -> dict[str, Any] | None:
-    """The question as the user sees it: how an answer applies stays inside."""
+    """The question as the user sees it: how an answer applies, and the
+    questions still to come and before, stay inside."""
     if question is None:
         return None
-    return {k: v for k, v in question.items() if k != "apply"}
+    return {k: v for k, v in question.items() if k not in ("apply", "next", "history")}
 
 
 def total(steps: Sequence[Step]) -> dict[str, float]:

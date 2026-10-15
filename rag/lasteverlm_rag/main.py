@@ -319,11 +319,21 @@ def create_app(
 
     @app.post(f"{plan_path}/answer")
     def answer_plan(
-        conversation_id: ConversationId, plan_id: uuid.UUID, body: PlanAnswer, user: User
+        conversation_id: ConversationId,
+        plan_id: uuid.UUID,
+        body: PlanAnswer,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
     ) -> dict[str, Any]:
         """The user's answer to the plan's question; the plan is then proposed."""
         return agent.answer(
-            user, str(conversation_id), str(plan_id), body.question_id, body.choice, body.text
+            user,
+            str(conversation_id),
+            str(plan_id),
+            body.question_id,
+            body.choice,
+            body.text,
+            authorization,
         )
 
     @app.post(f"{plan_path}/cancel")

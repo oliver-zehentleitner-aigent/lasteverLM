@@ -1021,3 +1021,42 @@ def test_a_plan_can_ask_and_a_preference_is_read(store, pool, user, notebook):
     assert (plan["status"], plan["question"], plan["notes"]) == ("asking", question, ["a note"])
     store.save_plan(plan_id, status="proposed", question={**question, "answer": {"choice": "x"}})
     assert store.get_plan(plan_id)["question"]["answer"] == {"choice": "x"}
+
+
+def test_a_plan_keeps_its_sources_and_a_page_says_when_it_was_read(store, pool, user, notebook):
+    page = add_source(pool, notebook, "ready", kind="url")
+    with pool.connection() as conn:
+        conn.execute(
+            "update library_sources set fetched_at = '2026-10-01T08:00:00Z', "
+            "checked_at = '2026-10-14T08:00:00Z' where id = %s",
+            (library_id_of(pool, page),),
+        )
+    (state,) = store.source_states(notebook)
+    # checked and found unchanged counts as read: the later of the two times
+    assert state.read_at == "2026-10-14T08:00:00+00:00"
+    with pool.connection() as conn:
+        conn.execute(
+            "update library_sources set checked_at = null where id = %s",
+            (library_id_of(pool, page),),
+        )
+    assert store.source_states(notebook)[0].read_at == "2026-10-01T08:00:00+00:00"
+
+    conversation = store.create_conversation(notebook, "Chat S").id
+    message = store.insert_message(notebook, conversation, "assistant", "plan", [])
+    plan_id = str(uuid4())
+    sources = [{"name": "s", "kind": "url", "read_at": state.read_at}]
+    store.create_plan(
+        {
+            "id": plan_id,
+            "conversation_id": conversation,
+            "notebook_id": notebook,
+            "owner": user,
+            "status": "proposed",
+            "steps": [],
+            "estimate": {"min": 0, "max": 0},
+            "action_id": str(uuid4()),
+            "message_id": str(message.id),
+            "sources": sources,
+        }
+    )
+    assert store.get_plan(plan_id)["sources"] == sources
