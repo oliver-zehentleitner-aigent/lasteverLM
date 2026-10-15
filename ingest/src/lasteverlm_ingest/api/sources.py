@@ -31,6 +31,7 @@ from lasteverlm_ingest.api.deps import (
     snapshot_url,
     worker_deps,
 )
+from lasteverlm_ingest.api.funding import funding_for
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.dedupe import file_key, url_key
 from lasteverlm_ingest.loaders.convert import MEDIA_TYPES, sniff_container
@@ -146,7 +147,9 @@ def _capture(value: object) -> Capture:
 def _out(source: StoredSource, storage: Storage, credit: CreditView) -> LinkedSource:
     out = LinkedSource.model_validate(source, from_attributes=True)
     out.error = credit.error(source.status, source.error)
-    out.status = credit.status(source.status)
+    out.status = credit.status(
+        source.status, source.funded_request_at is not None, source.funded_cents
+    )
     out.preview_url = preview_url(
         storage, source.kind, source.storage_path, source.url, source.transcribed_path
     )
@@ -430,7 +433,17 @@ def process_sources(request: Request, user: CurrentUser, body: ProcessRequest) -
     by the web's "read now". One transaction: if any id is not the
     caller's, nothing is queued (404 naming the ids)."""
     ids = list(dict.fromkeys(body.library_ids))
-    result = repository(request).queue_for_processing(user, ids)
+    deps = worker_deps(request)
+    repo = deps.repository
+    unread = [
+        lib
+        for i in ids
+        if (lib := repo.get_library_source(i)) is not None
+        and lib.owner == user
+        and lib.status == "added"
+    ]
+    estimates, funded = funding_for(deps, user, unread)
+    result = repo.queue_for_processing(user, ids, estimates, funded)
     if result.missing:
         missing = ", ".join(str(i) for i in result.missing)
         raise HTTPException(status_code=404, detail=f"library sources not found: {missing}")
@@ -451,9 +464,12 @@ def refetch_source(request: Request, user: CurrentUser, source_id: UUID) -> Refe
     read and charged as a web page, the old one kept read-only for old
     citations. Until then the source shows `processing`. An unread or failed
     page is simply read. 409 for any other source."""
-    repo = repository(request)
+    deps = worker_deps(request)
+    repo = deps.repository
     source = owned_source(repo, user, source_id)
-    lib = repo.request_refetch(source.library_id)
+    current = repo.get_library_source(source.library_id)
+    estimates, funded = funding_for(deps, user, [current], refetch=True) if current else ({}, False)
+    lib = repo.request_refetch(source.library_id, estimates.get(source.library_id), funded)
     if lib is None:
         raise HTTPException(
             status_code=409,

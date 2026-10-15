@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import overload
 from uuid import UUID
 
@@ -96,21 +97,33 @@ class CreditView:
     def __init__(self, repo: Repository, owner: UUID) -> None:
         self._repo = repo
         self._owner = owner
-        self._credit: bool | None = None
+        self._free: Decimal | None = None
+        self._read_free = False
         self._rate: bool | None = None
 
     @overload
-    def status(self, status: SourceStatus) -> SourceStatus: ...
+    def status(
+        self, status: SourceStatus, funded: bool = False, estimate: Decimal | None = None
+    ) -> SourceStatus: ...
 
     @overload
-    def status(self, status: str) -> str: ...
+    def status(self, status: str, funded: bool = False, estimate: Decimal | None = None) -> str: ...
 
-    def status(self, status: str) -> str:
-        if status != "processing":
+    def status(self, status: str, funded: bool = False, estimate: Decimal | None = None) -> str:
+        # A read funded when it was asked for does not wait for credit; any
+        # other waits until the balance, less what funded reads hold, covers
+        # its estimated maximum (the claim query's rule).
+        if status != "processing" or funded:
             return status
-        if self._credit is None:
-            self._credit = self._repo.has_credit(self._owner)
-        return status if self._credit else WAITING_FOR_CREDIT
+        if not self._read_free:
+            self._read_free = True
+            balance = self._repo.balance_cents(self._owner)
+            held = self._repo.funded_waiting_cents(self._owner)
+            # None: no positive balance, nothing can start.
+            self._free = balance - held if balance > 0 else None
+        if self._free is not None and self._free >= (estimate or 0):
+            return status
+        return WAITING_FOR_CREDIT
 
     def error(self, status: str, error: str | None) -> str | None:
         """The reason a queued source waits for the admin, else its error."""

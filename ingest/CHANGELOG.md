@@ -17,6 +17,7 @@ preserves why it changed, in `context/`.
 
 ### Changed
 
+- An action starts only if the balance covers its estimated maximum plus the owner's other funded reads still waiting, and then runs to the end: a process or refetch request that passes this check marks its rows funded (`funded_request_at`, holding their estimate in `funded_cents`, migration 0017) and the claim takes them even after the balance went negative; an unfunded row waits until the balance less what funded reads hold covers its estimate. Fixes a confirmed agent plan whose source waited half-way because an earlier step had spent the balance.
 - A read that has started runs to the end: credit is checked once, before a source is read, not before every model call, so a vision PDF or a long recording is never stopped halfway with its first pages paid for. The balance may end slightly below zero; the owner's next read waits until it is positive again. The exchange-rate check still runs before every call.
 
 ## [0.19.6] - 2026-10-14

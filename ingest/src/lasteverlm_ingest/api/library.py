@@ -30,7 +30,9 @@ def _with_preview[E: (LibraryEntry, TrashEntry)](
     storage = worker_deps(request).storage
     if credit is not None:
         entry.error = credit.error(entry.status, entry.error)
-        entry.status = credit.status(entry.status)
+        entry.status = credit.status(
+            entry.status, entry.funded_request_at is not None, entry.funded_cents
+        )
     entry.preview_url = preview_url(
         storage, entry.kind, entry.storage_path, entry.url, entry.transcribed_path
     )

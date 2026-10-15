@@ -476,6 +476,37 @@ def test_a_web_page_is_versioned_and_purged_with_its_older_versions(repo):
     assert repo.get_library_source(page.id) is None and repo.get_library_source(new_id) is None
 
 
+def test_the_claim_honours_funding_at_request_and_estimates(repo):
+    from decimal import Decimal
+
+    _claim_all(repo)
+    owner = _user(repo, cents=10)
+    funded = _library(repo, owner, queued=False)
+    repo.queue_for_processing(owner, [funded.id], {funded.id: Decimal(8)}, funded=True)
+    row = repo.get_library_source(funded.id)
+    assert row.funded_request_at is not None and row.funded_cents == 8
+    assert repo.funded_waiting_cents(owner) == 8
+    # Not funded, estimate 5: 10 - 8 held = 2 < 5, it waits; estimate 1 fits.
+    big = _library(repo, owner, queued=False)
+    repo.queue_for_processing(owner, [big.id], {big.id: Decimal(5)})
+    small = _library(repo, owner, queued=False)
+    repo.queue_for_processing(owner, [small.id], {small.id: Decimal(1)})
+    # The balance goes negative: the funded read is still claimed, the others wait.
+    repo.record_usage(owner, None, "source:text", uuid4(), Usage("llm", "llm", 200_000, 0))
+    assert repo.balance_cents(owner) < 0
+    assert _claim_all(repo) == {funded.id}
+    repo.set_library_status(funded.id, "ready")
+    done = repo.get_library_source(funded.id)
+    assert done.funded_request_at is None and done.funded_cents is None
+    assert repo.funded_waiting_cents(owner) == 0
+    _execute(
+        repo, "insert into ledger (user_id, amount_cents, reason) values (%s, 10, 'x')", (owner,)
+    )
+    free = repo.balance_cents(owner)
+    assert 1 <= free < 5
+    assert _claim_all(repo) == {small.id}  # only the small one fits
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)
