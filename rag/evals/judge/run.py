@@ -49,7 +49,7 @@ def word_check(claim: dict[str, Any], passages: dict[str, str]) -> str:
     """The deterministic check as outputs run it: ``supported`` or ``unsupported``."""
     texts = numbered(claim, passages)
     unit = Unit({}, claim["text"], list(texts))
-    check_against([unit], texts, translated=False)
+    check_against([unit], texts)
     return str(unit.target["support"])
 
 

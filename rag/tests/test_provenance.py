@@ -13,9 +13,9 @@ PASSAGES = [
 ]
 
 
-def check(text: str, refs: list[int], claim: bool = True, translated: bool = False):
+def check(text: str, refs: list[int], claim: bool = True):
     target: dict = {"text": text}
-    summary = check_units([Unit(target, text, refs, claim)], PASSAGES, translated)
+    summary = check_units([Unit(target, text, refs, claim)], PASSAGES)
     return target, summary
 
 
@@ -50,15 +50,41 @@ def test_no_refs_a_made_up_ref_or_other_words_are_unsupported_and_kept():
     assert target["support"] == "unsupported"
 
 
-def test_low_overlap_in_a_chosen_language_is_unverified_not_unsupported():
-    target, summary = check("Die Donau fließt durch Wien.", [1], translated=True)
+GERMAN = "Die Donau ist der Fluss, der durch die Stadt Wien und auch nach Budapest fließt."
+
+
+def test_low_overlap_in_another_language_than_the_passages_is_unverified():
+    target, summary = check(GERMAN, [1])
     assert target["support"] == "unverified" and summary["unverified"] == 1
     # a made-up ref stays unsupported in any language
-    assert check("Die Donau fließt durch Wien.", [9], translated=True)[0]["support"] == (
-        "unsupported"
-    )
+    assert check(GERMAN, [9])[0]["support"] == "unsupported"
     # enough overlap is supported in any language
-    assert check("Danube Vienna Budapest", [1], translated=True)[0]["support"] == "supported"
+    assert check("Danube Vienna Budapest", [1])[0]["support"] == "supported"
+
+
+def test_low_overlap_in_the_passages_own_language_is_unsupported():
+    # an English unit over English passages, however the output's language was chosen
+    target, summary = check("It is the oldest bridge in the city and it is made of stone.", [1])
+    assert target["support"] == "unsupported" and summary["unverified"] == 0
+
+
+def test_mixed_passages_are_told_per_unit():
+    passages = [
+        *PASSAGES,
+        passage(3, "Die Brücke ist die älteste der Stadt und sie ist aus Stein gebaut."),
+    ]
+    english = {"text": "It is the oldest bridge in the city and it is made of stone."}
+    german = {"text": GERMAN}
+    units = [
+        # English over the German passage: another language
+        Unit(english, english["text"], [3]),
+        # English over an English passage: the same language
+        Unit({**english}, english["text"], [1]),
+        # German over the German passage: the same language
+        Unit(german, german["text"], [3]),
+    ]
+    check_units(units, passages)
+    assert [u.target["support"] for u in units] == ["unverified", "unsupported", "unsupported"]
 
 
 def test_a_question_without_refs_is_not_a_claim():
@@ -111,7 +137,7 @@ def test_table_rows_quiz_questions_and_mindmap_nodes_are_units():
             }
         )
     )
-    assert check_units(table.units, PASSAGES, False)["supported"] == 1
+    assert check_units(table.units, PASSAGES)["supported"] == 1
     assert table.content["row_refs"] == [
         {"refs": [2], "support": "supported"},
         {"refs": [], "support": "unsupported"},
@@ -133,7 +159,7 @@ def test_table_rows_quiz_questions_and_mindmap_nodes_are_units():
             }
         )
     )
-    check_units(quiz.units, PASSAGES, False)
+    check_units(quiz.units, PASSAGES)
     assert quiz.content["questions"][0]["support"] == "supported"
     assert quiz.content["questions"][0]["refs"] == [1]
 
@@ -148,7 +174,7 @@ def test_table_rows_quiz_questions_and_mindmap_nodes_are_units():
             }
         )
     )
-    summary = check_units(mindmap.units, PASSAGES, False)
+    summary = check_units(mindmap.units, PASSAGES)
     root = mindmap.content["root"]
     assert "support" not in root and root["refs"] == []  # the root is no claim
     assert root["children"][0]["support"] == "supported"

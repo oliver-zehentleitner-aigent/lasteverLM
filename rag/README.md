@@ -119,8 +119,8 @@ the counts; both are stored with the assistant message and are `null`
 for an answer without citations (one from the document list, the
 refusal) and for messages from before. An answer in another language
 than its cited passages (told apart by frequent English and German
-words) is "translated": a paragraph with low overlap there is
-`unverified`, not `unsupported`.
+words, per paragraph) is "translated": a paragraph with low overlap
+there is `unverified`, not `unsupported`.
 Text from the user's files is data in every prompt: both system prompts
 say so, a name (file, document, notebook) is one line of at most 120
 characters, and marker-shaped text in sources and summaries (`[2]`,
@@ -178,8 +178,9 @@ content words occur in its cited passages together (method
 with a digit, common English and German function words left out, cut to
 five characters); `unsupported` without refs, with a ref no passage has,
 or below the threshold; `unverified` when the refs are valid but the
-overlap is low and the output was written in a chosen `language`, where
-word overlap cannot tell. An interviewer's question without refs is no
+overlap is low and the unit is in another language than its cited
+passages (English or German, told per unit by frequent words), where
+word overlap cannot tell; a chosen `language` alone does not count. An interviewer's question without refs is no
 claim and gets no `support`, nor does the mind map's root (it names the
 whole map) unless it cites. A failing unit is kept and marked, never
 dropped, and never fails the output. The report keeps `[n]` markers in

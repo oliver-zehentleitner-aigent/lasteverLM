@@ -180,17 +180,20 @@ without a model: the unit's content words, against the words of its
 cited passages taken together (`lexical-overlap-v1`, threshold 0.5). A
 unit with no refs, a ref the prompt never had, or too little overlap is
 `unsupported`, kept and shown as such; the output is never failed or
-trimmed for it. Below the threshold in a chosen output language the unit
-is `unverified`, because the overlap of words across languages says
-nothing.
+trimmed for it. Below the threshold in another language than its cited
+passages the unit is `unverified`, because the overlap of words across
+languages says nothing. The languages are told per unit, English or
+German by their most frequent words, falling back to the whole output's
+and all cited passages' language when a unit or its passages say too
+little; for any other language, or too little text, there is no
+difference and low overlap stays unsupported. A chosen output language
+alone does not make a unit translated: an English output from English
+sources is checked as such (corrected 2026-10-15; it had counted as
+translated, turning unsupported units into unverified ones).
 
 Chat answers share the same check (coordinator's go, 2026-10-14): one
 unit per paragraph of an answer that cites, its refs the markers in it,
 stored with the message; an answer without citations is not checked.
-The chat has no language option, so "translated" there means the answer
-and its cited passages are told apart as English and German by their
-most frequent words; for any other language, or too little text, the
-answer counts as untranslated and low overlap stays unsupported.
 
 **Reason:** the claim is meant to be checkable, so the check must give
 the same answer every time and cost nothing per unit; a reader can
