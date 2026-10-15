@@ -25,7 +25,7 @@ repository root's `context/`.
 
 ## A
 
-- [agent.md](agent.md) — the agent chat: plan, confirm, then run as the user (no stored tokens, ingest steps inside the confirm request, a 30-minute timeout that fails visibly); tool arguments only from the user's message and library, the planner sees no passage; an open choice that changes cost or result (first: the judge) is asked, not decided; before an output reads a web page again the plan asks, with its age and the price (cached preselected)
+- [agent.md](agent.md) — the agent chat: plan, confirm, then run as the user (no stored tokens, ingest steps inside the confirm request, a 30-minute timeout that fails visibly); tool arguments only from the user's message and library, the planner sees no passage; an open choice that changes cost or result (first: the verification level) is asked, not decided; before an output reads a web page again the plan asks, with its age and the price (cached preselected)
 
 ## B
 
@@ -37,7 +37,7 @@ repository root's `context/`.
 
 - [conversations.md](conversations.md) — several conversations per notebook instead of one history (tags rejected), and how much history the model sees; suggested questions as a text tail of the answer's call
 
-- [credit.md](credit.md) — the credit check before any provider call, once per action: an output or a plan only within its maximum plus what started work holds, then to the end, and how usage is priced (through core's helpers); every usage row booked under its user action, an output with its judge rounds as one action; without an exchange rate nothing that calls a model runs
+- [credit.md](credit.md) — the credit check before any provider call, once per action: an output or a plan only within its maximum plus what started work holds, then to the end, and how usage is priced (through core's helpers); every usage row booked under its user action, an output with its judge rounds as one action, a proposal separate from what is made from it; without an exchange rate nothing that calls a model runs
 
 ## D
 
@@ -53,7 +53,7 @@ repository root's `context/`.
 
 ## J
 
-- [judge.md](judge.md) — the opt-in judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer; opt-in with the word check as the default (no judge for charts); at most three rounds of revision, then removal listed in the provenance; a judge without a usable answer marks its unit, never failing the output; a judgement on request only annotates, revising is for the judge chosen at generation; verification levels basic/standard/thorough replace the plain judge default (standard judges what the free check doubts); bulletproof pairs the high judge with deepseek-v4.1-flash, disagreement disputed (about 1 in 5 true claims on synthetic cases)
+- [judge.md](judge.md) — the judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer; verification levels basic/standard/thorough/bulletproof decide how much it checks (the earlier opt-in judge with the word check as default is superseded; charts take no level); at most three rounds of revision, then removal listed in the provenance; a judge without a usable answer marks its unit, never failing the output; a judgement on request only annotates, revising is for the judge chosen at generation; the levels replace the plain judge default (standard judges what the free check doubts); bulletproof pairs the high judge with deepseek-v4.1-flash, disagreement disputed (about 1 in 5 true claims on synthetic cases)
 
 ## K
 
@@ -71,7 +71,7 @@ repository root's `context/`.
 
 - [persistence.md](persistence.md) — why a question and its answer are written together, after the answer exists (the agent chat's own single turns aside)
 
-- [providers.md](providers.md) — why a model reply without content is a provider failure (502 on ask, retry in the worker), never an empty answer; the judge as the one exception
+- [providers.md](providers.md) — why a model reply without content is a provider failure (tried once more, then 502 on ask; retry in the worker), never an empty answer; the judge as the one exception
 
 ## Q
 

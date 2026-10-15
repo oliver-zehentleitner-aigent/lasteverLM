@@ -50,13 +50,16 @@ How rag groups its rows into actions is 431fb4a0-21c6-43ef-af1f-132c10ea43c2 bel
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — d0bef660-f3ce-4834-b27e-5775151d11be — as of 2026-10-14
 
 Every model call rag makes carries a `Booking`: who pays, the notebook,
-the action (`chat_answer`, `output:<kind>`, `chart_propose`, `judge`,
-`voice_sample`) and one `action_id` per user action. An output's id is
+the action (`chat_answer`, `output:<kind>`, `chart_propose`,
+`table_propose`, `infographic_propose`, `judge`, `voice_sample`) and one
+`action_id` per user action. A notebook's starting questions book as
+`chat_answer`. An output's id is
 its `action_id`, unless an agent plan created it: then it books under
 the plan's (`outputs.booking_id`). That covers every attempt, all TTS segments, both calls
 of a decision, and the judge's rounds and revisions in generation. A
-judgement on request is a `judge` action of its own, and a chart proposal
-is separate from the chart made from it.
+judgement on request is a `judge` action of its own, and a proposal
+(charts, tables or themes) is separate from the output made from its
+picked candidates.
 
 **Reason:** core books a fixed fee once per `action_id`, so the grouping
 decides what a user is charged for. One output is one thing the user
@@ -64,7 +67,7 @@ asked for. Retries are the service's problem, so they must not add a
 fee, and a judge chosen for an output is part of "this output with a
 judge", one price. A judgement asked for
 later is a separate request with its own price. The proposal and the
-chart are two requests the user makes separately. An output's own id
+output are two requests the user makes separately. An output's own id
 is the same in every attempt, even one taken over from a dead worker.
 
 **Re-checked 2026-10-15:** the earlier revisit condition (an action
@@ -78,8 +81,8 @@ request, one action, one fee.
 **Rejected alternatives:**
 - A fresh `action_id` per attempt: a retry would charge the fee again.
 - Generation-time judge rounds under `judge`: two prices for one output.
-- One action for a proposal and its chart: the proposal may never be
-  turned into a chart.
+- One action for a proposal and the output made from it: the proposal
+  may never be turned into an output.
 
 
 ## Without an exchange rate nothing that calls a model runs
@@ -162,8 +165,10 @@ ingest funded at request and has not finished (its `funded_cents` with
 other's; nothing goes through core. Otherwise the answer is 402 with the
 needed maximum, the held amount and the balance. Once started, nothing
 checks again (b93ff000-d488-4930-b11c-4d1e9840e1ee still holds for that
-part). A chat answer, a judgement on request and a voice sample keep the
-plain positive-balance check: they are one short call each.
+part). A chat answer, a notebook's starting questions, an agent's
+planning call, a proposal, a judgement on request and a voice sample
+keep the plain positive-balance check: each is one short call, or, for a
+proposal, one call after reads that ingest funds at request itself.
 
 **Reason:** a positive balance at the start let an action begin that its
 own reads could not pay for. Ingest then left the unfunded read waiting,

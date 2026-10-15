@@ -101,7 +101,11 @@ sets one argument of them (`set_arg`). Questions come one at a time.
 
 **Since the verification levels (2567fcf4-09b1-4bc9-80e7-759bce4c3326 in
 `judge.md`):** the first question is the level, not the judge; the
-mechanism is unchanged.
+mechanism is unchanged. It is asked when the user's `verification_level`
+(or, without one, the level their older `judge_default` amounts to) is
+above basic, with the four levels as choices; at basic a note says the
+documents get the basic check only. A message that only asks for a check
+("check it") gets the user's level, or thorough when theirs is basic.
 
 **Re-checked 2026-10-15:** the earlier revisit condition (a question
 whose answer is not an option of a step) fired with the web-page

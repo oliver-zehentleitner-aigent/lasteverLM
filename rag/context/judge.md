@@ -41,7 +41,10 @@ never let a wrong claim pass.
 
 The fixture saturates: two levels score 100%. So `high` over `medium` is
 a bet on harder material, not something this experiment shows
-(`docs/judge-eval.md`, Limits).
+(`docs/judge-eval.md`, Limits). The later second-judge evaluation's 104
+cases (`docs/second-judge-eval.md`) do separate `glm-5.3` (99%) from
+`deepseek-v4.1-flash` (92%); `glm-5.3-flash` was not run there, so the
+24-claim fixture and the mapping stand as measured.
 
 ## The judge is opt-in; the deterministic word check stays the default
 
@@ -134,7 +137,7 @@ tried once more. If that fails too, the unit keeps its text and gets
 removed, and the output goes on. The judge may use up to 6000 output
 tokens. The failure kinds also name what failed in the output's error
 and the worker's log, and an unusable answer's structure (its keys, the
-reason's type and length, why the model stopped, how long it ran; never
+reason's type and length, why the model stopped, how many tokens it used; never
 its text) goes on the unit and into the log.
 
 **Re-checked 2026-10-15:** the revisit condition (a judge's reasoning
@@ -210,15 +213,20 @@ An output's `verification` is `basic`, `standard` or `thorough`
 (and `bulletproof`, below).
 Basic is the word check and the negation check, free. Standard also
 judges, once at the low judge and annotate only, every unit that check
-doubts: unsupported, unverified (another language) and
+doubts and that cites a passage: unsupported, unverified (another language) and
 possible_contradiction, so each of them ends with a real verdict.
 Thorough is the judge at medium with up to three rounds of revision, as
 the judge option did before. The estimate prices every level before
 Create; the form preselects the user's `verification_level`; the agent
 asks for the level when the message does not say and the user's level is
-above basic. Chat answers follow the user's level, annotate only. The
-older `judge` option and `judge_default` keep working, read as their
-level.
+above basic. Chat answers follow the user's level, annotate only. A
+chart takes no level: its values have the exact number check
+(59c7c75c-b777-4ea2-874a-8df32e31f138 in `citations.md`). The older
+`judge_default` preference is read as its level. The older output option
+`judge` keeps its old meaning: the judge at that level on every unit,
+with up to three rounds, so only `medium` equals thorough (corrected
+2026-10-15: this said both were read as their level; only the agent
+turns an old planner's `judge` into a level).
 
 **Reason:** a user cares how reliable a document is and what it costs,
 not which judge model at which level runs. One setting from free to

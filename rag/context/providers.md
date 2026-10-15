@@ -18,10 +18,14 @@ length). The rule holds. The judge is the one deliberate exception, see
 
 The platform's LLM is a reasoning model; a probe with a small token
 budget returned only reasoning tokens and empty content. The service
-treats empty content as a provider failure wherever it calls the model:
-`/ask` answers 502 and stores no message (the usage row stays, the tokens
-were spent); a generator raises a provider error, which the worker
-retries like any transient failure, up to the attempt cap.
+treats empty content as a provider failure wherever it calls the model.
+A call the user waits for (an answer, an agent's plan, a notebook's
+starting questions, a voice sample) is tried once more at once
+(`twice` in `service.py`); a second failure answers 502 with
+`code: "model_no_answer"` and its `cause` (`empty_answer` here) and
+stores no message (the usage rows stay, the tokens were spent). A
+generator raises a provider error, which the worker retries like any
+transient failure, up to the attempt cap.
 
 **Reason:** an empty string is not an answer and must not reach the
 history or a document; a retry is the right reaction because the next

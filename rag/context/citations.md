@@ -180,7 +180,10 @@ infographic and audio first; table rows, quiz questions and mind-map
 nodes in a second step the same day). Every unit carries `refs` and `support`, and the output stores a
 generation log (`outputs.provenance`). The check runs after generation,
 without a model: the unit's content words, against the words of its
-cited passages taken together (`lexical-overlap-v1`, threshold 0.5). A
+cited passages taken together (`lexical-overlap-v1`, threshold 0.5;
+`lexical-overlap-v2` since the negation check, which can turn a
+supported unit into `possible_contradiction`,
+6a581caa-fb86-436c-92e5-884548f63114). A
 unit with no refs, a ref the prompt never had, or too little overlap is
 `unsupported`, kept and shown as such; the output is never failed or
 trimmed for it. Below the threshold in another language than its cited
@@ -197,6 +200,15 @@ counted as translated, turning unsupported units into unverified ones).
 Chat answers share the same check, approved on 2026-10-14: one
 unit per paragraph of an answer that cites, its refs the markers in it,
 stored with the message; an answer without citations is not checked.
+
+**Re-checked 2026-10-15:** the revisit "translated text needs a verdict"
+fired: from the `standard` verification level up, a judge gives every
+doubted unit, `unverified` included, a verdict
+(2567fcf4-09b1-4bc9-80e7-759bce4c3326 in `judge.md`). That is an opt-in
+layer on top; this check stays the free default under every level, and
+the decision holds. The rejected "judge model rating each unit" below
+was rejected as the check itself, not as a layer the user chooses and
+pays for.
 
 **Reason:** the claim is meant to be checkable, so the check must give
 the same answer every time and cost nothing per unit; a reader can
