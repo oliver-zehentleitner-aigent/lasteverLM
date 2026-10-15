@@ -42,7 +42,7 @@ compromised. Account's egress must keep 443 to api.vultr.com open.
 
 **Id:** f89faf54-14f5-4f28-bdba-130b0e0ff070
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** implementation of the maintainer's finance brief, 2026-10-14; currency of MODEL_PRICES confirmed by the coordinator, 2026-10-14
 **Revisit when:** the rate is fetched automatically (ECB) instead of set by an admin, or the demo user gets real money behind it
@@ -108,7 +108,7 @@ not in it.
 
 **Id:** a41d8d48-87be-4c7b-ac67-169d82352225
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** maintainer decision, design agreed with core, 2026-10-14
 **Revisit when:** actions get a per-unit count beyond seconds (pages, words), or the window of 30 days is too short for rare actions
