@@ -27,6 +27,7 @@ from lasteverlm_core import (
     DEFAULT_TTS_VOICE,
     LLM,
     Answer,
+    AttemptRecord,
     ChunkView,
     Citation,
     CompletionResult,
@@ -51,6 +52,7 @@ from lasteverlm_core import (
     ToolCompletion,
     Usage,
     object_key,
+    short_id,
 )
 
 from . import mp3
@@ -875,7 +877,7 @@ class OutputService:
                 self._purge(row)
                 purged += 1
             except ObjectDeleteFailed as exc:
-                log.error("purging output %s failed: %s", row.id, exc)
+                log.error("purging output %s failed: %s", short_id(row.id), exc)
         return purged
 
     def _purge(self, row: OutputRow) -> None:
@@ -1024,7 +1026,11 @@ class OutputService:
                 provenance=trace.record(check),
             )
             log.info(
-                "output %s (%s) ready: %r, source %s", job.id, job.kind, generated.title, source_id
+                "output %s (%s) ready: %r, source %s",
+                short_id(job.id),
+                job.kind,
+                generated.title,
+                source_id,
             )
             self._settle(job.id, source_id, content)
             self._running = None
@@ -1041,7 +1047,7 @@ class OutputService:
         # the log keeps the detail (never a prompt); the row (which the user sees) the public text
         log.warning(
             "output %s (%s) attempt %d of %d failed%s: model %s, %s (%s): %s",
-            job.id,
+            short_id(job.id),
             job.kind,
             job.attempts,
             MAX_ATTEMPTS,
@@ -1050,6 +1056,13 @@ class OutputService:
             _cause_name(failure),
             failure_kind(failure),
             (str(failure) or failure.__class__.__name__)[:ERROR_LOG_CHARS],
+        )
+        # kept on the row, so support has the history after any deploy
+        self._store.add_attempt(
+            job.id,
+            AttemptRecord.from_error(
+                failure, attempt=job.attempts, service="rag", model=self._calling
+            ).model_dump(mode="json"),
         )
         if final:
             self._store.update_output(job.id, status="failed", error=error, phase=None)
@@ -1172,7 +1185,7 @@ class OutputService:
                 self._store.delete_source(source_id)
             self._delete_objects(content)
         except Exception:
-            log.exception("output %s: cleanup after a failed attempt failed", output_id)
+            log.exception("output %s: cleanup after a failed attempt failed", short_id(output_id))
 
     def _settle(self, output_id: str, source_id: str, content: dict[str, Any]) -> None:
         """The user may have trashed or purged the output while it was being
@@ -1236,7 +1249,7 @@ class OutputService:
             # fail-loud light: the document is kept, the gap is visible in the log
             log.warning(
                 "output %s (%s) does not mention source %r of its input",
-                row.id,
+                short_id(row.id),
                 row.kind,
                 inline(name),
             )
@@ -1657,7 +1670,9 @@ class OutputService:
                     lengths[turn_index] += mp3.duration(result.audio)
                 except mp3.NotMp3 as exc:
                     # the audio stays good; only the highlighting goes, visibly in the log
-                    log.warning("output %s: a segment could not be measured: %s", job.id, exc)
+                    log.warning(
+                        "output %s: a segment could not be measured: %s", short_id(job.id), exc
+                    )
                     measured = False
         key = object_key(notebook_id, job.id, AUDIO_FILE)
         # MP3 frames are self-contained: the segments concatenate into one stream
@@ -1922,6 +1937,8 @@ def to_output(row: OutputRow) -> Output:
             "provenance": row.provenance,
             # only while running: a finished row's last phase is never shown
             "phase": row.phase if row.status in ("waiting", "processing") else None,
+            # every failed attempt, for the owner as for support
+            "attempt_log": row.attempt_log,
         }
     )
 

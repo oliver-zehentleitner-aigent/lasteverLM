@@ -302,6 +302,10 @@ class OutputRow:
     booking_id: str | None = None
     # the step the worker is in now; None when not running
     phase: dict[str, Any] | None = None
+    # one record per failed attempt, oldest first (``attempt_record``)
+    attempt_log: list[dict[str, Any]] = field(default_factory=list)
+    # when it became ready or failed; None while running and for older rows
+    finished_at: str | None = None
 
 
 class NotebookStats(BaseModel):

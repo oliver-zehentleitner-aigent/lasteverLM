@@ -121,6 +121,7 @@ class FakeStore:
         self.balance = balance
         self.ingest_held = 0  # ingest's funded reads not finished, in cents
         self.reserved: dict[str, float] = {}  # outputs.reserved_cents by id
+        self.emails: dict[str, str] = {}  # account's users.email by id
         self.admins = admins or set()
         self.viewers = viewers or set()
         self.messages: list[dict[str, Any]] = []
@@ -395,7 +396,18 @@ class FakeStore:
                 row["notebook_id"] = None
 
     def update_output(self, output_id: str, **fields: Any) -> None:
+        if fields.get("status") in ("ready", "failed"):
+            fields["finished_at"] = datetime.now(UTC).isoformat()
         self.outputs[output_id].update(fields)
+
+    def add_attempt(self, output_id: str, record: dict[str, Any]) -> None:
+        log = self.outputs[output_id].setdefault("attempt_log", [])
+        log.append(record)
+
+    def find_outputs(self, id_prefix: str, limit: int) -> list[tuple[OutputRow, str]]:
+        found = [r for r in self.outputs.values() if r["id"].replace("-", "").startswith(id_prefix)]
+        found.sort(key=lambda r: r["created_at"], reverse=True)
+        return [(self._output_row(r), self.emails.get(r["owner"], "")) for r in found[:limit]]
 
     def delete_output(self, output_id: str) -> None:
         del self.outputs[output_id]
