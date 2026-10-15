@@ -175,3 +175,33 @@ dead columns.
 - Keeping the old columns for good: every reader would have to know
   which of two places is current, and `sources` would keep a nullable
   `status` nobody writes.
+
+## Which model made a source's text is stored on the library row
+
+**Id:** e0341fed-25d9-4b97-aa77-ab6ac5760941
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-15 (the web says which model read a source: described, page read, transcribed); the storage and the shape are the ingest author's, agreed with web
+**Revisit when:** a source is read by more than one vision or speech model, or chunks need a provenance of their own beyond the page they start on
+
+When a model-made read finishes, the worker records `read_by`
+(`{"vision": <model> | null, "stt": <model> | null}`) and, for a PDF,
+`vision_pages`, the pages the vision model read, on the library row
+(migration 0018). The API gives `read_by` on a linked source and in the
+chunks view, and marks each chunk `vision` when it is an image's or
+starts on a vision page. A source read by no model has `read_by` null,
+and so does a source read before the field existed.
+
+**Reason:** the model is known exactly when the loader runs. The same
+row is what a starter copy duplicates, so a copy says what read the
+original without any usage rows of its own. Per-chunk provenance follows
+from the page, because a chunk is attributed to the page it starts on,
+as its citation is.
+
+**Alternatives:**
+- Deriving the models from the usage rows of the read: the summary is
+  an `llm` row with the same model as a vision call, so an image's rows
+  cannot tell them apart; a starter copy has no usage rows at all.
+- A `vision` column on every chunk: a write per chunk and a migration of
+  the chunks table, for what the page already says.
