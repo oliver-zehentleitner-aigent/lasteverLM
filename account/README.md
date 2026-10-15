@@ -28,10 +28,11 @@ verification_level: basic|standard|thorough|bulletproof}`;
 default voice, 14 days in the trash — ingest reads `trash_days` per owner and applies the
 default — automatic PDF capture; the web sends the resolved mode per upload — and the
 system theme, applied by the web; `verification_level` is `basic` until set: how much
-checking matters and may cost, read by the web's output form and rag's agent chat, `null` in
+checking matters and may cost, read by the web's settings and output form and by rag
+(outputs and agent chat, with `judge_default` as its fallback), `null` in
 a `PUT` resets it to `basic`. The earlier `judge_default` (off|low|medium|high) is still
 accepted in a `PUT` for one release and mapped: off to basic, low to standard, medium to
-thorough, high to bulletproof; it is no longer returned. `tour_done` is `false` until the user finished or
+thorough, high to bulletproof; it is no longer returned and kept only for compatibility. `tour_done` is `false` until the user finished or
 skipped the web's first-login tour, and `null` in a `PUT` resets it to `false`). `PUT /me/preferences` takes any subset:
 a key with a value sets it, with `null` clears it, an absent key is kept. Validation is by
 shape only; which voices and output languages exist is rag's business.
