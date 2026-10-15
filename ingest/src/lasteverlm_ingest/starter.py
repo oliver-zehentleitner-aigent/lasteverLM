@@ -1,7 +1,8 @@
 """The starter notebook: every new user gets a copy of the notebook an
 admin marks as the starter (account's settings row "starter_notebook").
 
-On the owner's first library access or upload, the starter's uploads are
+On the owner's first notebook list (the first thing the web loads after
+sign-in), library listing or upload, the starter's uploads are
 copied for them: the stored objects under the owner's prefix, then in
 one transaction the notebook, the library rows (ready, flagged
 `starter`, no processing and no charge), their links and their chunks

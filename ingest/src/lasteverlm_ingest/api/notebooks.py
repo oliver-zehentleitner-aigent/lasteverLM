@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from lasteverlm_ingest.api.deps import owned_notebook, repository
+from lasteverlm_ingest.api.deps import owned_notebook, repository, seed_if_new
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.repository import OwnedNotebook
 
@@ -30,6 +30,9 @@ router = APIRouter()
 
 @router.get("/notebooks", response_model=list[OwnedNotebook])
 def list_notebooks(request: Request, user: CurrentUser) -> list[OwnedNotebook]:
+    """The first thing the web loads after sign-in: a new user's starter
+    copy is made first, so it is in this very response."""
+    seed_if_new(request, user)
     return repository(request).list_notebooks(user)
 
 

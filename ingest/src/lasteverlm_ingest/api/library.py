@@ -49,16 +49,16 @@ def _not_found() -> HTTPException:
 def list_library(
     request: Request, user: CurrentUser, kind: Literal["generated", "all"] | None = None
 ) -> list[LibraryEntry]:
-    """The uploads, newest first; a new user's first look copies the
-    starter notebook. `?kind=generated` lists the user's ready outputs instead
+    """The uploads, newest first; a new user's first look (any kind) copies
+    the starter notebook. `?kind=generated` lists the user's ready outputs instead
     (rag's, with their origin notebook and output id), `?kind=all` both in
     one list, newest first. Every entry carries `notebooks`, the notebooks
     it is linked into."""
+    seed_if_new(request, user)
     repo = repository(request)
     generated = repo.list_generated(user) if kind in ("generated", "all") else []
     if kind == "generated":
         return list(generated)
-    seed_if_new(request, user)
     credit = CreditView(repo, user)
     uploads = [_with_preview(request, e, credit) for e in repo.list_library(user)]
     if kind is None:
