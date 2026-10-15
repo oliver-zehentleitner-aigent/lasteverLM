@@ -91,7 +91,8 @@ class ReportGenerator(JsonGenerator):
     focus_query: str = "main topics, key findings, conclusions"
     schema: type[BaseModel] = Report
     # 4: lengths are upper bounds, no filler; 3: styles and lengths; 2: cites passages
-    prompt_version: str = "5"  # 5: every fitting source used, an unused one named
+    # 5: every fitting source used, an unused one named
+    prompt_version: str = "6"  # 6: every detail cited, one no passage states left out
     instructions: str = ""
 
     def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:

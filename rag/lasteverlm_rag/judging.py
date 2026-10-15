@@ -21,7 +21,7 @@ import threading
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 from lasteverlm_core import CompletionResult, ProviderError
@@ -52,6 +52,11 @@ DISPUTED_REASON = "the two judges disagree; read the passage yourself"
 # once, at this level, annotate only
 DOUBTED = frozenset({"unsupported", "unverified", "possible_contradiction"})
 STANDARD_JUDGE = "low"
+# a failing claim found supported by passages it did not cite, searched for
+# again across the output's selected sources: it passes, the passages added
+SUPPORTED_ELSEWHERE: Literal["supported_elsewhere"] = "supported_elsewhere"
+# how many passages a failing claim is searched for again with
+SEARCH_AGAIN_K = 3
 
 
 def _counts(judgements: Iterable[Judgement]) -> dict[str, int]:
@@ -79,6 +84,16 @@ class Verdict:
     round: int
     second: Judgement | None = None  # bulletproof's second judge
     first: Judgement | None = None  # and the first's own verdict, before pairing
+
+
+@dataclass(frozen=True)
+class Research:
+    """Where a failing claim is searched for again: ``find`` takes the claims'
+    texts and returns, per text, the best passages of the output's selected
+    sources, numbered among the output's passages (a passage new to the
+    output gets the next number and is added to them)."""
+
+    find: Callable[[list[str]], list[list[Passage]]]
 
 
 @dataclass(frozen=True)
@@ -152,6 +167,57 @@ def _second_entry(
     }
 
 
+def _search_again(
+    judge: CompleteFn,
+    second: SecondJudge | None,
+    research: Research | None,
+    units: Mapping[int, Unit],
+    texts: dict[int, str],
+) -> dict[int, tuple[Judgement, Judgement | None, Judgement | None, list[int]]]:
+    """The failing ``units`` (by index) searched for again: each is judged
+    once more with its cited passages and the best ones it did not cite. A
+    unit both judges now support is ``supported_elsewhere``, with the passages
+    it gains; any other answer leaves its verdict as it was. ``texts`` gains
+    the passages found."""
+    if research is None or not units:
+        return {}
+    order = list(units)
+    found = research.find([units[i].text for i in order])
+    probes: list[tuple[int, list[int]]] = []
+    for i, passages in zip(order, found, strict=True):
+        cited = set(units[i].refs)
+        new = [p for p in passages if p.n not in cited]
+        texts.update({p.n: p.text for p in new})
+        if new:
+            probes.append((i, [p.n for p in new]))
+    if not probes:
+        return {}
+    widened = [
+        Unit(units[i].target, units[i].text, [*units[i].refs, *added], units[i].claim)
+        for i, added in probes
+    ]
+    judged, firsts, seconds = _judge_both(judge, second, widened, texts)
+    result = {}
+    for (i, added), j, own, other in zip(probes, judged, firsts, seconds, strict=True):
+        if j.verdict != SUPPORTED:
+            continue
+        # the passages that carry the quote, else every one it was shown
+        quoted = [n for n in added if j.quote and j.quote in texts[n]] or added
+        result[i] = (
+            replace(j, verdict=SUPPORTED_ELSEWHERE),
+            own and replace(own, verdict=SUPPORTED_ELSEWHERE),
+            other and replace(other, verdict=SUPPORTED_ELSEWHERE),
+            quoted,
+        )
+    return result
+
+
+def _gain(unit: Unit, added: list[int]) -> None:
+    """The unit cites the passages the judge found too."""
+    unit.refs = list(dict.fromkeys([*unit.refs, *added]))
+    unit.target["refs"] = list(dict.fromkeys([*(unit.target.get("refs") or []), *added]))
+
+
 def judge_output(
     generator: JsonGenerator,
     generated: GeneratedOutput,
@@ -164,6 +230,7 @@ def judge_output(
     rebuild: Callable[[Any], GeneratedOutput],
     on_phase: Callable[..., None] | None = None,
     second: SecondJudge | None = None,
+    research: Research | None = None,
 ) -> tuple[GeneratedOutput, dict[str, Any]]:
     """The judged output and the judge's log. ``judge`` is the judge model's
     billed call, ``revise`` the author model's; ``rebuild`` turns an edited
@@ -182,6 +249,7 @@ def judge_output(
     current, count = generated, len(generated.units)
     pending = [i for i, u in enumerate(generated.units) if u.claim or u.refs]
     last: dict[int, Verdict] = {}
+    added: dict[int, list[int]] = {}  # passages the judge found for a unit
     dropped: dict[int, str] = {}  # dropped by the reviser: the judge's reason
     rounds: list[dict[str, Any]] = []
 
@@ -193,12 +261,21 @@ def judge_output(
         )
         for i, judgement, own, other in zip(pending, judged, firsts, seconds, strict=True):
             last[i] = Verdict(judgement, number, other, own)
+        # before anything is revised: a correct but under-cited unit is not rewritten
+        searched = [i for i in pending if last[i].judgement.verdict in FAILING]
+        again = _search_again(
+            judge, second, research, {i: current.units[i] for i in searched}, texts
+        )
+        for i, (judgement, own, other, found) in again.items():
+            last[i] = Verdict(judgement, number, other, own)
+            added[i] = found
         failing = [i for i in pending if last[i].judgement.verdict in (*FAILING, DISPUTED)]
         entry: dict[str, Any] = {
             "round": number,
             "judged": len(pending),
             "verdicts": _counts(last[i].judgement for i in pending),
             "usage": judged_usage.take(),
+            **({"searched_again": len(searched)} if research is not None else {}),
         }
         rounds.append(entry)
         if not failing or number == MAX_ROUNDS:
@@ -246,6 +323,8 @@ def judge_output(
     if len(final.units) != len(survivors):
         raise GenerationFailed(f"{generator.kind}: removing units changed the document's form")
     for unit, i in zip(final.units, survivors, strict=True):
+        if i in added:
+            _gain(unit, added[i])
         if i in last:
             j = last[i].judgement
             unit.target["judge"] = {
@@ -255,6 +334,7 @@ def judge_output(
                 "reason": j.reason,
                 "quote": j.quote,
                 "round": last[i].round,
+                **({"added_refs": added[i]} if i in added else {}),
                 **({"answer_shape": j.shape} if j.shape else {}),
                 **_second_entry(second, last[i].first, last[i].second, model),
             }
@@ -278,6 +358,7 @@ def annotate(
     model: str,
     second: SecondJudge | None = None,
     on_progress: Callable[[int, int], None] | None = None,
+    research: Research | None = None,
 ) -> dict[str, Any]:
     """Judge existing units without revising: each claim's target gets its
     ``judge`` (with ``second`` beside it for bulletproof); returns the counts.
@@ -297,7 +378,17 @@ def annotate(
     if on_progress is not None:
         on_progress(0, total)
     judged, firsts, seconds = _judge_both(judge, second, claims, texts, finished)
-    for unit, j, own, other in zip(claims, judged, firsts, seconds, strict=True):
+    texts = dict(texts)
+    failing = {i: claims[i] for i, j in enumerate(judged) if j.verdict in FAILING}
+    added: dict[int, list[int]] = {}
+    for i, (judgement, own, other, found) in _search_again(
+        judge, second, research, failing, texts
+    ).items():
+        judged[i], firsts[i], seconds[i], added[i] = judgement, own, other, found
+        _gain(claims[i], found)
+    for index, (unit, j, own, other) in enumerate(
+        zip(claims, judged, firsts, seconds, strict=True)
+    ):
         unit.target["judge"] = {
             "level": level,
             "model": model,
@@ -305,10 +396,13 @@ def annotate(
             "reason": j.reason,
             "quote": j.quote,
             "round": 1,
+            **({"added_refs": added[index]} if index in added else {}),
             **({"answer_shape": j.shape} if j.shape else {}),
             **_second_entry(second, own, other, model),
         }
-    summary = {"level": level, "model": model, "verdicts": _counts(judged)}
+    summary: dict[str, Any] = {"level": level, "model": model, "verdicts": _counts(judged)}
+    if research is not None:
+        summary["searched_again"] = len(failing)
     if second is not None:
         summary["second_model"] = second.model
     return summary

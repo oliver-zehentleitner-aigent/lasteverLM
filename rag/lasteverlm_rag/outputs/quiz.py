@@ -71,7 +71,8 @@ class QuizGenerator(JsonGenerator):
     focus_query: str = "key facts, definitions, numbers, names"
     schema: type[BaseModel] = Quiz
     # 3: number of questions, difficulty and audience; 2: cites passages for provenance
-    prompt_version: str = "4"  # 4: every fitting source used, an unused one named
+    # 4: every fitting source used, an unused one named
+    prompt_version: str = "5"  # 5: every detail cited, one no passage states left out
     instructions: str = ""
 
     def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:

@@ -105,7 +105,8 @@ def test_a_handed_over_job_resumes_on_the_next_worker_from_the_journal(settings)
         "The sky is wrong green.",
     ]
     assert len(booked(store, "test-judge-low")) == 3 and len(booked(store, "test-llm")) == 2
-    assert len(booked(store, "test-embedding")) == 2  # the focus query once, the index once
+    # the focus query, the failing claim searched for again, the index: each once
+    assert len(booked(store, "test-embedding")) == 3
 
 
 def test_the_same_request_twice_in_one_run_is_two_calls():

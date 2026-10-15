@@ -16,7 +16,7 @@ import secrets
 import threading
 import time
 import uuid
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, MutableSequence, Sequence
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -70,7 +70,9 @@ from .ingest_client import Ingest
 from .journal import Journal
 from .judging import (
     DOUBTED,
+    SEARCH_AGAIN_K,
     STANDARD_JUDGE,
+    Research,
     SecondJudge,
     annotate,
     judge_output,
@@ -149,8 +151,10 @@ from .provenance import (
     check_answer,
     check_units,
     now,
+    passage_entry,
     shared_provenance,
     source_coverage,
+    stored_passage,
 )
 from .reading import (
     ANSWER_WAIT_S,
@@ -1424,7 +1428,11 @@ class OutputService:
                 # the word check again, on what is left after revision and removal
                 check = check_units(generated.units, trace.passages, job.kind)
             elif job.options.get("verification") == "standard":
-                self._judge_doubted(booking, generated, trace)
+                known = len(trace.passages)
+                self._judge_doubted(job, booking, generated, trace)
+                if len(trace.passages) != known:
+                    # the judge found passages: the word check again on the units that gained
+                    check = check_units(generated.units, trace.passages, job.kind)
             content = generated.content
             if job.kind == "decision":
                 trace.withheld = finish_decision(content)
@@ -1947,11 +1955,65 @@ class OutputService:
             rebuild=rebuild,
             on_phase=self._phase,
             second=second,
+            research=self._research(booking, job.notebook_id, job.options, trace.passages, trace),
         )
         return judged
 
+    def _research(
+        self,
+        booking: Booking,
+        notebook_id: str | None,
+        options: Mapping[str, Any],
+        passages: MutableSequence[Passage],
+        trace: GenerationLog | None = None,
+    ) -> Research | None:
+        """A failing claim searched for again across the output's selected
+        sources (all uploads without a selection): its best passages, the
+        known ones by their number, a new one added to ``passages`` with the
+        next number and ``added_by: "judge"``."""
+        if notebook_id is None:
+            return None
+        selected = options.get("sources")
+        lock = threading.Lock()
+
+        def find(texts: list[str]) -> list[list[Passage]]:
+            if not texts:
+                return []
+            embedded = self._embed_once(booking, texts)
+            if trace is not None:
+                trace.embedding_in += embedded.usage.tokens_in
+            result = []
+            for vector in embedded.vectors:
+                chunks = self._retriever.search(
+                    notebook_id, vector, SEARCH_AGAIN_K, 0.0, source_ids=selected
+                )
+                found = []
+                with lock:
+                    known = {p.chunk_id: p for p in passages}
+                    for c in chunks:
+                        if c.chunk_id not in known:
+                            known[c.chunk_id] = Passage(
+                                n=max((p.n for p in passages), default=0) + 1,
+                                chunk_id=c.chunk_id,
+                                source_id=c.source_id,
+                                source_name=c.source_name,
+                                source_kind=c.source_kind,
+                                page=c.page,
+                                text=c.text,
+                                similarity=c.similarity,
+                                chunk_index=c.chunk_index,
+                                chunk_count=c.chunk_count,
+                                added_by="judge",
+                            )
+                            passages.append(known[c.chunk_id])
+                        found.append(known[c.chunk_id])
+                result.append(found)
+            return result
+
+        return Research(find)
+
     def _judge_doubted(
-        self, booking: Booking, generated: GeneratedOutput, trace: GenerationLog
+        self, job: OutputRow, booking: Booking, generated: GeneratedOutput, trace: GenerationLog
     ) -> None:
         """Standard verification: every unit the word and negation checks
         doubt is judged once at low, annotate only; supported units keep
@@ -1977,6 +2039,7 @@ class OutputService:
             {p.n: p.text for p in trace.passages},
             level=STANDARD_JUDGE,
             model=judge_llm.model,
+            research=self._research(booking, job.notebook_id, job.options, trace.passages, trace),
         )
         trace.judge = {"mode": "doubted", "judged": len(doubted), **summary}
 
@@ -2141,15 +2204,27 @@ class OutputService:
             usage["tokens_in"] += u.tokens_in
             usage["tokens_out"] += u.tokens_out
 
+        booking = Booking.new(user_id, row.notebook_id, "judge")
+        found = [stored_passage(p) for p in passages]
+        units = stored_units(row.kind, content)
         summary = annotate(
-            self._judge_call(judge_llm, Booking.new(user_id, row.notebook_id, "judge"), counted),
-            stored_units(row.kind, content),
+            self._judge_call(judge_llm, booking, counted),
+            units,
             {p["n"]: p["quote"] for p in passages},
             level=level,
             model=judge_llm.model,
             on_progress=on_progress,
+            research=self._research(booking, row.notebook_id, row.options, found),
         )
         provenance = dict(row.provenance or {})
+        if len(found) != len(passages):
+            # the judge found passages: they are the output's now, and the
+            # units that cite them get the word check again
+            provenance["passages"] = [
+                *passages,
+                *(passage_entry(p) for p in found[len(passages) :]),
+            ]
+            provenance["check"] = check_units(units, found, row.kind)
         provenance["judgements"] = [
             *provenance.get("judgements", []),
             {**summary, "usage": usage, "at": now()},

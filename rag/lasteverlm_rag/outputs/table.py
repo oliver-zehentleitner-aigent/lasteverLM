@@ -31,7 +31,8 @@ class TableGenerator(JsonGenerator):
     kind: OutputKind = "table"
     focus_query: str = "figures, dates, comparisons, lists of items with attributes"
     schema: type[BaseModel] = Table
-    prompt_version: str = "3"  # 3: every fitting source, unused named; 2: cites passages
+    # 3: every fitting source, unused named; 2: cites passages
+    prompt_version: str = "4"  # 4: every detail cited, one no passage states left out
     instructions: str = (
         "Extract the data in the material that is best shown as one table: the entities and "
         f"their attributes, figures, dates or comparisons. Cells are short strings. {CITE_RULE} "

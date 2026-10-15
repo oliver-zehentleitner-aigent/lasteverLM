@@ -135,8 +135,9 @@ def judge_calls(
     revise: bool,
 ) -> list[Call]:
     """Low: every unit judged once and passing. High: every unit failing
-    every round, so judged ``MAX_ROUNDS`` times, with a revision call of
-    all of them between rounds (only in generation)."""
+    every round, so judged ``MAX_ROUNDS`` times and each time once more
+    after searching its sources again, with a revision call of all of them
+    between rounds (only in generation)."""
     model = models.judges.get(level)
     if model is None:
         raise CannotEstimate(f"judge: unknown level {level!r}")
@@ -147,7 +148,11 @@ def judge_calls(
     else:
         units = UNITS[kind][case]
     rounds = 1 if case == 0 or not revise else MAX_ROUNDS
-    judged = [Call(model, JUDGE_TOKENS_IN[case], JUDGE_TOKENS_OUT[case])] * (units * rounds)
+    # a failing unit is judged again with the passages found for it (judging.SEARCH_AGAIN_K)
+    searches = 1 if case == 0 else 2
+    judged = [Call(model, JUDGE_TOKENS_IN[case], JUDGE_TOKENS_OUT[case])] * (
+        units * rounds * searches
+    )
     revisions = [
         Call(models.llm, units * REVISE_TOKENS_IN_PER_UNIT, units * REVISE_TOKENS_OUT_PER_UNIT)
     ] * (rounds - 1)

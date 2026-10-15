@@ -148,7 +148,8 @@ class AudioGenerator(JsonGenerator):
     kind: OutputKind = "audio"
     focus_query: str = "the story of the material, told in order"
     schema: type[BaseModel] = AudioScript
-    prompt_version: str = "3"  # 3: every fitting source, unused named; 2: cites passages
+    # 3: every fitting source, unused named; 2: cites passages
+    prompt_version: str = "4"  # 4: every detail cited, one no passage states left out
     instructions: str = INSTRUCTIONS["overview"]
 
     def __init__(self, available: bool) -> None:

@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `lasteverlm-rag-repair-reports`: re-splits stored reports into their checkable units from the stored markdown and runs the word check again, no model call; a dry run by default, listing each affected output with its unit counts; idempotent.
+- A claim the judge rejects (`contradicted`, `not_in_source`) is searched for again across the output's selected sources before anything is revised, and judged once more with the passages it did not cite. Supported now, its verdict is `supported_elsewhere`: it passes, its `refs` gain the passages found (`judge.added_refs`), and a passage new to the output joins `provenance.passages` with `added_by: "judge"`; the word check runs again on it. `not_in_source` now means in no selected source. At generation (standard, thorough, bulletproof) and on request; rounds and judgements count `supported_elsewhere` and `searched_again`. The estimate counts the extra judge calls in its maximum.
 
 ### Changed
 
+- The writer prompts ask for a citation for every detail (a name, a number, a step, a limit) and to leave out a detail no passage states, never fill it in; every generator's prompt version is one up.
 - A job taken over by another worker (a handover at a deploy, a retry, a stale claim) resumes instead of starting over: every model call it finished (the draft, each judge verdict and revision, the decision model, the focus embeddings) is kept in the output's journal (`outputs.checkpoint`, migration `0019_rag_output_checkpoint.sql`) and answered from there, without calling or booking it again. The journal is capped, never logged, and cleared when the output is ready or failed.
 
 ### Fixed

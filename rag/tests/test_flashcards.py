@@ -49,7 +49,7 @@ def test_a_deck_has_its_count_and_every_card_is_checked(settings):
     prompt = llm.calls[0][1]
     assert "exactly 6 flashcards" in prompt and "relations between points" in prompt
     assert "Write for teenagers" in prompt
-    assert out["provenance"]["prompt_version"] == "flashcards-v2"
+    assert out["provenance"]["prompt_version"] == "flashcards-v3"
     assert out["provenance"]["check"]["supported"] == 6
 
 

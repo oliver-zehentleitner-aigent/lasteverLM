@@ -26,6 +26,7 @@ gets no ``support``.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -109,6 +110,41 @@ def check_answer(answer: str, citations: list[Citation]) -> dict[str, Any] | Non
     return {"units": [u.target for u in units], "check": check}
 
 
+def passage_entry(p: Passage) -> dict[str, Any]:
+    """A passage as the generation log stores it; ``added_by`` only on one
+    the judge found."""
+    return {
+        "n": p.n,
+        "chunk_id": p.chunk_id,
+        "source_id": p.source_id,
+        "source_name": p.source_name,
+        "source_kind": p.source_kind,
+        "page": p.page,
+        "chunk_index": p.chunk_index,
+        "chunk_count": p.chunk_count,
+        "similarity": None if p.similarity is None else round(p.similarity, 3),
+        "quote": p.text,
+        **({"added_by": p.added_by} if p.added_by else {}),
+    }
+
+
+def stored_passage(entry: Mapping[str, Any]) -> Passage:
+    """A stored passage entry back as a ``Passage``."""
+    return Passage(
+        n=int(entry["n"]),
+        chunk_id=str(entry.get("chunk_id") or ""),
+        source_id=str(entry.get("source_id") or ""),
+        source_name=str(entry.get("source_name") or ""),
+        source_kind=entry.get("source_kind") or "pdf",
+        page=entry.get("page"),
+        text=str(entry.get("quote") or ""),
+        similarity=entry.get("similarity"),
+        chunk_index=entry.get("chunk_index"),
+        chunk_count=entry.get("chunk_count"),
+        added_by=entry.get("added_by"),
+    )
+
+
 def now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -166,21 +202,7 @@ class GenerationLog:
                     for c in self.candidates
                 ],
             },
-            "passages": [
-                {
-                    "n": p.n,
-                    "chunk_id": p.chunk_id,
-                    "source_id": p.source_id,
-                    "source_name": p.source_name,
-                    "source_kind": p.source_kind,
-                    "page": p.page,
-                    "chunk_index": p.chunk_index,
-                    "chunk_count": p.chunk_count,
-                    "similarity": None if p.similarity is None else round(p.similarity, 3),
-                    "quote": p.text,
-                }
-                for p in self.passages
-            ],
+            "passages": [passage_entry(p) for p in self.passages],
             "usage": {
                 "llm": {"tokens_in": self.llm_in, "tokens_out": self.llm_out},
                 "embedding": {"tokens_in": self.embedding_in},

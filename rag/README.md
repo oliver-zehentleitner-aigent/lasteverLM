@@ -369,6 +369,20 @@ author model) checks every claim unit against its cited passages, one
 call per unit (`lasteverlm_rag/judge.py`). Its verdict is `supported`,
 `contradicted` or `not_in_source`, with a reason and the decisive quote.
 
+- **Searched again.** Before anything is revised, a unit judged
+  `contradicted` or `not_in_source` is searched for across the output's
+  selected sources (its text embedded, the best `SEARCH_AGAIN_K` = 3
+  passages, no floor) and judged once more with its cited passages and the
+  ones it did not cite. Supported now (by both judges at bulletproof), its
+  verdict is `supported_elsewhere`: it passes, its `refs` gain the passages
+  found, its `judge.added_refs` names them, and a passage new to the output
+  joins `provenance.passages` with the next number and `added_by:
+  "judge"`; the word check runs again with them. Otherwise its verdict
+  stays, and `not_in_source` then means in no selected source. A round's
+  log has `searched_again` (how many). The same holds at `standard` and on
+  request (refs may be added there too, nothing is revised); chat answers
+  are not searched again. The estimate's maximum counts one more judge
+  call per unit.
 - **Rounds.** Units judged `contradicted` or `not_in_source` go to one
   call of the author model. It gets only those units, with the judge's
   reasons and their passages, and corrects each unit in its own form or
