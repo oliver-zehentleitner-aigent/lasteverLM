@@ -24,7 +24,16 @@ if (!VERSION || !DATE || !OUT) {
 }
 
 const escape = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-const slug = (s) => s.toLowerCase().replace(/<[^>]+>/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+// The heading's HTML without its tags, stripped until nothing changes, so a
+// tag that a removal puts together is removed as well.
+const stripTags = (s) => {
+  for (let before = null; before !== s; ) {
+    before = s
+    s = s.replace(/<[^>]+>/g, '')
+  }
+  return s
+}
+const slug = (s) => stripTags(s.toLowerCase()).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
 // Every heading gets an id unique across the book (chapter number first), the
 // chapter's own title (its first heading) becomes the chapter heading, and the
