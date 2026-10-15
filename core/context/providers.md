@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** probe of the inference platform, 2026-10-12 (models list, embeddings with and without `dimensions`, six completion variants); infra's first real run reported by agent A
+**Source:** probe of the inference platform, 2026-10-12 (models list, embeddings with and without `dimensions`, six completion variants); infra's first real run
 **Revisit when:** the embedding or language model changes, or the provider stops honouring `dimensions` or `chat_template_kwargs`
 
 The embedder sends `dimensions=EMBEDDING_DIMENSION` on every request and
@@ -96,7 +96,7 @@ check.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinator's decision on the core audit, 2026-10-14 (fail loud, per the family rule); rag's audit finding that an empty answer was billed but never recorded
+**Source:** the decision on the core audit, 2026-10-14 (fail loud, per the family rule); rag's audit finding that an empty answer was billed but never recorded
 **Revisit when:** a provider is added that legitimately reports no usage, or billing moves to the provider's own invoice data
 
 When the embeddings or completions response has no `usage`, the call is a
@@ -126,12 +126,12 @@ longer decide what gets written.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinator's go for audio sources, 2026-10-14 (per-second billing, fail loud without usage); the platform's model catalog (whisper-large-v3-turbo priced per second); a live probe of `/audio/transcriptions` the same day
+**Source:** the go for audio sources, 2026-10-14 (per-second billing, fail loud without usage); the platform's model catalog (whisper-large-v3-turbo priced per second); a live probe of `/audio/transcriptions` the same day
 **Revisit when:** the platform stops reporting `usage.type = "duration"`, prices transcription per file or per token, or accepts formats beyond WAV and MP3
 
 An `stt` usage row holds whole seconds of audio in `tokens_in`, rounded
 up per call, and `MODEL_PRICES` gives `in` in cents per million seconds,
-the same shape as `tts` with characters. The seconds are the ones the
+the same unit as `tts` (seconds of generated speech, the entry below). The seconds are the ones the
 platform reports in `usage: {"type": "duration", "seconds": n}`. The
 duration core measures from the file (`probe_audio`) checks the four-hour
 limit before the call, and it is the usage a `ProviderError` carries
@@ -171,7 +171,7 @@ SDK sends without a hand-built request.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** ingest's requirement, relayed by the coordinator, 2026-10-14: a refused audio file must fail its source once, not three times at full price
+**Source:** ingest's requirement, 2026-10-14: a refused audio file must fail its source once, not three times at full price
 **Revisit when:** a provider answers a lasting refusal with a status outside 4xx, or one of 408, 409 or 429 turns out to be final on the platform
 
 `ProviderError.permanent` is `True` when the request was refused with a
@@ -196,8 +196,9 @@ callers that ignore it.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** rag's measurement of `/audio/speech` and the platform's model catalog ("completion", unit "second"), relayed by the coordinator, 2026-10-14; a live probe the same day (6 characters: `x-usage-seconds: 1`, 0.89 s of MP3; 97 characters: 7, 6.79 s)
+**Source:** rag's measurement of `/audio/speech` and the platform's model catalog ("completion", unit "second"), 2026-10-14; a live probe the same day (6 characters: `x-usage-seconds: 1`, 0.89 s of MP3; 97 characters: 7, 6.79 s)
 **Revisit when:** the platform reports speech usage in a response body, or prices it per character or per token
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 0694e89f-e85a-4d0d-89f7-5cce8a3dc589 — as of 2026-10-15
 
 A `tts` usage row holds the seconds of generated speech in `tokens_in`,
 read from the `x-usage-seconds` response header and rounded up, and
@@ -234,7 +235,7 @@ every call.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinator's go for the Decision output kind, 2026-10-14; the platform's OpenAPI for `/systemone`; live probes the same day (headers and usage for short and long states, both models)
+**Source:** the go for the Decision output kind, 2026-10-14; the platform's OpenAPI for `/systemone`; live probes the same day (headers and usage for short and long states, both models)
 **Revisit when:** the platform starts sending usage headers or a cost for `/systemone`, bills output tokens, or the OpenAI SDK gets a call for it
 
 A `decision` usage row holds the response's `usage.input_tokens` in
@@ -297,8 +298,8 @@ services have several test doubles that do too. Putting a method on
 fail type checking. The protocol of its own puts the requirement only
 on the code that runs the agent.
 
-**Rejected alternative:** `complete_tools` on the `LLM` protocol, as
-first requested. Rejected for the reason above.
+**Rejected alternative:** `complete_tools` on the `LLM` protocol itself.
+Rejected for the reason above.
 
 **Rejected alternative:** return the raw argument strings and let the
 caller parse them. Rejected: every caller would need the same parsing
