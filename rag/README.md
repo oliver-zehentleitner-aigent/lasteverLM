@@ -335,7 +335,7 @@ both fail it, it is revised and removed as at thorough; if they disagree
 it is `disputed` ("the two judges disagree; read the passage yourself"),
 revised like a failing unit and, still disputed after the last round,
 kept and marked, never removed and never passed. Its `judge` then holds
-each judge's own verdict, `first: {"verdict", "reason", "quote"}` and
+each judge's own verdict, `first: {"model", "verdict", "reason", "quote"}` and
 `second: {"model", "verdict", "reason", "quote"}`, and the log
 `second_model`. On synthetic cases about one in five true claims ended
 disputed. Bulletproof is slower and dearer than thorough. Sending both `verification` and

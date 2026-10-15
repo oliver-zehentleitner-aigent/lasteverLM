@@ -123,14 +123,22 @@ def _judge_both(
 
 
 def _second_entry(
-    second: SecondJudge | None, first: Judgement | None, judgement: Judgement | None
+    second: SecondJudge | None,
+    first: Judgement | None,
+    judgement: Judgement | None,
+    first_model: str,
 ) -> dict[str, Any]:
     """Bulletproof: each judge's own verdict beside the paired result, so a
     disputed unit shows what each said."""
     if second is None or judgement is None or first is None:
         return {}
     return {
-        "first": {"verdict": first.verdict, "reason": first.reason, "quote": first.quote},
+        "first": {
+            "model": first_model,
+            "verdict": first.verdict,
+            "reason": first.reason,
+            "quote": first.quote,
+        },
         "second": {
             "model": second.model,
             "verdict": judgement.verdict,
@@ -243,7 +251,7 @@ def judge_output(
                 "reason": j.reason,
                 "quote": j.quote,
                 "round": last[i].round,
-                **_second_entry(second, last[i].first, last[i].second),
+                **_second_entry(second, last[i].first, last[i].second, model),
             }
     log_entry: dict[str, Any] = {
         "level": level,
@@ -277,7 +285,7 @@ def annotate(
             "reason": j.reason,
             "quote": j.quote,
             "round": 1,
-            **_second_entry(second, own, other),
+            **_second_entry(second, own, other, model),
         }
     summary = {"level": level, "model": model, "verdicts": _counts(judged)}
     if second is not None:
