@@ -39,7 +39,7 @@ Build-time only; the app holds no secrets.
 | `VITE_ADMIN_MOCK` | build | `true` runs the admin page against an in-memory mock |
 | `VITE_DEV_PROXY` | dev server | forwards `/api/*` to this target so the app runs same-origin locally |
 | `CSP` | image build | `enforce` (default: the full policy), `report` (the full policy as `Content-Security-Policy-Report-Only`: the browser lists what it would block, blocks nothing) or `off` (`frame-ancestors 'none'` only); written by `scripts/csp.mjs` with the sha256 of the inline theme script taken from the built `index.html` |
-| `CSP_MEDIA_SRC` | image build | where images and audio may load from besides the app (presigned object-storage URLs); default `https:` |
+| `CSP_MEDIA_SRC` | image build | where images, audio and frames (`img-src`, `media-src`, `frame-src`) may load from besides the app (presigned object-storage URLs: a PDF in the source viewer, a web page's snapshot); default `https:`, production builds pass the object storage origin |
 
 ## Run locally
 
