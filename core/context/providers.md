@@ -305,3 +305,40 @@ Rejected for the reason above.
 caller parse them. Rejected: every caller would need the same parsing
 and the same error path, and the usage of a bad reply would be easy to
 lose.
+
+## An attempt record keeps only text core wrote itself
+
+**Id:** 338c92da-e25b-4b64-bf6b-df9fffe32d64
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's go for an accessible output id and stored failed attempts, 2026-10-15 (the message must never hold a prompt or source text)
+**Revisit when:** debugging a failure needs the provider's own error text, or a provider's error codes become structured enough to store without free text
+
+`AttemptRecord.from_error` builds the stored record of a failed attempt,
+and its message is always text core wrote itself:
+
+- for a `ProviderError`, its `summary`: what was called and the HTTP
+  status or the transport error's class name;
+- for a `ConfigError`, its message;
+- for anything else, only the exception's class name.
+
+The message is one line and at most 500 characters. To make this
+possible, `ProviderError` gained `status` and `summary`. The full message
+with the provider's text stays on the exception, for logs, and is not
+stored.
+
+**Reason:** the attempt log is stored with the output and shown to its
+owner, so it outlives the request and is read by people. A provider's
+400 can quote the request back, and an arbitrary exception's text can
+contain whatever the code had in hand: a source passage, a prompt, a
+model's answer. Only text core composed can be promised to contain none
+of that.
+
+**Rejected alternative:** store `str(exc)` and scrub it. A scrubber can
+only remove what it recognises, and a prompt fragment is not
+recognisable.
+
+**Rejected alternative:** store nothing but the kind. The owner and the
+admin would see that something failed, but not whether it was the
+provider (and which status) or the configuration.

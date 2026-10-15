@@ -64,7 +64,7 @@ repository root's `context/`.
 ## P
 - [packaging.md](packaging.md) — why services install core by path from the same checkout instead of a uv workspace, a lockfile or a published package
 - [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why core ships no default prices: the deployment's MODEL_PRICES is the one price table (the earlier reason, unknown models, superseded)
-- [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours; why an unusable embedding vector fails the call; why speech speed is passed through unchecked; why a response without usage is an error; why transcription and speech synthesis are billed per second as the platform reports it; why a lasting 4xx is a permanent error; why the decision model is billed per reported input token and called through the SDK's generic post; why tool calling is a protocol of its own
+- [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours; why an unusable embedding vector fails the call; why speech speed is passed through unchecked; why a response without usage is an error; why transcription and speech synthesis are billed per second as the platform reports it; why a lasting 4xx is a permanent error; why the decision model is billed per reported input token and called through the SDK's generic post; why tool calling is a protocol of its own; why an attempt record keeps only text core wrote itself
 
 ## Q
 
