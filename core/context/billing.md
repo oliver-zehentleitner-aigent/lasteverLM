@@ -138,7 +138,7 @@ because of the table ownership and migration order above.
 
 **Id:** c6663f0d-f76d-42a1-9c1d-a72916980b57
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** the maintainer's go for a public price list, design agreed between the account service and core, 2026-10-14
 **Revisit when:** a PDF should be priced per page, or an action needs a unit other than one action or a minute of audio
