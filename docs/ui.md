@@ -803,7 +803,16 @@ deleted from the library) stays readable with its quote and is marked
     (donut) next to cost by model (all time), the top users (all time)
     across both columns. A chart without data in the range is not
     drawn; one quiet line names those ("No data yet: …").
-  - **Users** (`/admin/users`): users with their role (for an admin a
+  - **Users** (`/admin/users`): on top **Find an output by ID**: the ID
+    a user quoted, at least 6 hex characters (hyphens and case ignored;
+    Find stays disabled until then), `GET
+    /api/rag/admin/outputs?id_prefix=…`. Each match shows title, kind,
+    status, trash, the full ID with copy, the user (e-mail masked for
+    viewers by rag) and id, the notebook (or "(deleted)"), created and
+    finished, the attempts count, the public error and a table of the
+    failed attempts (attempt, when, service, model, failure kind,
+    provider HTTP status, message); none says so; more than 20 says to
+    type more. Below, users with their role (for an admin a
     select: user, viewer, admin, after a confirmation, `PATCH
     /api/account/admin/users/{id}`; the service's refusal for the last
     admin or the demo user is shown as its sentence), credit granted,
