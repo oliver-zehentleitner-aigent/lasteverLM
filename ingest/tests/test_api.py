@@ -63,8 +63,8 @@ def test_notebook_lifecycle(client):
     r = client.post("/api/ingest/notebooks", json={"title": "  Thesis  "})
     assert r.status_code == 201
     nb = r.json()
-    assert set(nb) == {"id", "title", "created_at", "share_token"} and nb["title"] == "Thesis"
-    assert nb["share_token"] is None
+    assert set(nb) == {"id", "title", "created_at", "share_token", "starter"}
+    assert nb["title"] == "Thesis" and nb["share_token"] is None and nb["starter"] is False
     assert [n["id"] for n in client.get("/api/ingest/notebooks").json()] == [nb["id"]]
     assert client.delete(f"/api/ingest/notebooks/{nb['id']}").status_code == 204
     assert client.delete(f"/api/ingest/notebooks/{nb['id']}").status_code == 404

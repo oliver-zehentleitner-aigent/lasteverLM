@@ -52,6 +52,8 @@ class OwnedNotebook(Notebook):
     share link (null when not shared)."""
 
     share_token: str | None = None
+    # Made as a copy of the starter notebook (first sign-in or on request).
+    starter: bool = False
 
 
 class StoredSource(Source):
@@ -260,6 +262,10 @@ class StarterCopy(BaseModel):
     # (source, new library id, new link id, storage key, converted key,
     # snapshot key)
     sources: list[tuple[StarterSource, UUID, UUID, str | None, str | None, str | None]]
+    # A copy made on request: starter sources the owner still has (by their
+    # dedupe key) are linked, restored from the trash if need be, instead of
+    # copied: (source, the owner's library id, new link id).
+    reuse: list[tuple[StarterSource, UUID, UUID]] = []
 
 
 class ChunkText(BaseModel):
@@ -440,6 +446,26 @@ class Repository(Protocol):
         the outputs. Returns the id maps written there, or None when the
         owner was considered already or has entries of their own (nothing
         written)."""
+        ...
+
+    def starter_copy_wait(self, owner: UUID) -> int:
+        """Seconds until the owner may have the starter copied again on
+        request (0: now)."""
+        ...
+
+    def has_starter_notebook(self, owner: UUID) -> bool:
+        """Does the owner hold a notebook made as a starter copy."""
+        ...
+
+    def owned_by_dedupe_key(self, owner: UUID, keys: list[str]) -> dict[str, UUID]:
+        """The owner's library rows (trashed ones included) with these dedupe
+        keys, by key."""
+        ...
+
+    def recreate_starter(self, plan: StarterCopy) -> dict[str, dict[str, str]] | None:
+        """A copy made on request, in one transaction like `copy_starter`,
+        reusing `plan.reuse`; None when another copy was made within the
+        hour (nothing written)."""
         ...
 
     def list_library(self, owner: UUID) -> list[LibraryEntry]: ...
@@ -657,7 +683,7 @@ class PostgresRepository:
             cur.execute(sql, params)
             return cur.fetchall()
 
-    _NOTEBOOK = "id, title, created_at, share_token"
+    _NOTEBOOK = "id, title, created_at, share_token, starter"
 
     def list_notebooks(self, owner: UUID) -> list[OwnedNotebook]:
         rows = self._all(
@@ -1099,8 +1125,6 @@ class PostgresRepository:
         ]
 
     def copy_starter(self, plan: StarterCopy) -> dict[str, dict[str, str]] | None:
-        source_map: dict[str, str] = {}
-        chunk_map: dict[str, str] = {}
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "insert into library_seeds (owner) values (%(owner)s) "
@@ -1117,82 +1141,148 @@ class PostgresRepository:
             row = cur.fetchone()
             if row and row[0]:
                 return None  # the mark stays: an owner with entries is not seeded
+            return self._write_starter(cur, plan)
+
+    # The limit on copies made on request (the first sign-in's is free).
+    STARTER_COPY_INTERVAL_SECONDS = 3600
+
+    def starter_copy_wait(self, owner: UUID) -> int:
+        row = self._one(
+            "select greatest(0, ceil(extract(epoch from copied_at - now()) + %(interval)s))::int "
+            "as wait from library_seeds where owner = %(owner)s and copied_at is not null",
+            {"owner": owner, "interval": self.STARTER_COPY_INTERVAL_SECONDS},
+        )
+        return int(row["wait"]) if row else 0
+
+    def has_starter_notebook(self, owner: UUID) -> bool:
+        row = self._one(
+            "select exists (select 1 from notebooks where owner = %(owner)s and starter) as found",
+            {"owner": owner},
+        )
+        return bool(row and row["found"])
+
+    def owned_by_dedupe_key(self, owner: UUID, keys: list[str]) -> dict[str, UUID]:
+        rows = self._all(
+            f"select l.dedupe_key, l.id from library_sources l where l.owner = %(owner)s "
+            f"and {self._LISTED} and l.dedupe_key = any(%(keys)s)",
+            {"owner": owner, "keys": keys},
+        )
+        return {str(r["dedupe_key"]): r["id"] for r in rows}
+
+    def recreate_starter(self, plan: StarterCopy) -> dict[str, dict[str, str]] | None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
-                "insert into notebooks (id, owner, title) values (%(id)s, %(owner)s, %(title)s)",
-                {"id": plan.notebook_id, "owner": plan.owner, "title": plan.title},
+                "insert into library_seeds (owner, copied_at) values (%(owner)s, now()) "
+                "on conflict (owner) do update set copied_at = now() "
+                "where library_seeds.copied_at is null "
+                "or library_seeds.copied_at <= now() - make_interval(secs => %(interval)s) "
+                "returning owner",
+                {"owner": plan.owner, "interval": self.STARTER_COPY_INTERVAL_SECONDS},
             )
-            for source, library_id, link_id, key, converted, snapshot in plan.sources:
-                old = source.library
-                cur.execute(
-                    "insert into library_sources (id, owner, name, kind, dedupe_key, url, "
-                    "size_bytes, storage_path, transcribed_path, capture, starter, status, "
-                    "summary, page_count, duration_seconds, version, fetched_at, checked_at, "
-                    "content_hash, final_url, snapshot_path, read_by, vision_pages) values "
-                    "(%(id)s, %(owner)s, "
-                    "%(name)s, %(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(converted)s, "
-                    "%(capture)s, true, 'ready', %(summary)s, %(pages)s, %(seconds)s, "
-                    "%(version)s, %(fetched)s, %(checked)s, %(hash)s, %(final)s, %(snapshot)s, "
-                    "%(read_by)s::jsonb, %(vision_pages)s)",
-                    {
-                        "id": library_id,
-                        "owner": plan.owner,
-                        "name": old.name,
-                        "kind": old.kind,
-                        "key": old.dedupe_key,
-                        "url": old.url,
-                        "size": old.size_bytes,
-                        "path": key,
-                        "converted": converted,
-                        "capture": old.capture,
-                        "summary": old.summary,
-                        "pages": old.page_count,
-                        "seconds": old.duration_seconds,
-                        "version": old.version,
-                        "fetched": old.fetched_at,
-                        "checked": old.checked_at,
-                        "hash": old.content_hash,
-                        "final": old.final_url,
-                        "snapshot": snapshot,
-                        "read_by": json.dumps(old.read_by) if old.read_by is not None else None,
-                        "vision_pages": old.vision_pages,
-                    },
-                )
-                cur.execute(
-                    "insert into sources (id, notebook_id, library_source_id) "
-                    "values (%(id)s, %(nb)s, %(lib)s)",
-                    {"id": link_id, "nb": plan.notebook_id, "lib": library_id},
-                )
-                cur.execute(
-                    "select id from chunks where library_source_id = %(lib)s", {"lib": old.id}
-                )
-                old_chunks = [r[0] for r in cur.fetchall()]
-                new_chunks = [uuid4() for _ in old_chunks]
-                cur.execute(
-                    "insert into chunks (id, library_source_id, idx, page, text, embedding) "
-                    "select m.new_id, %(lib)s, c.idx, c.page, c.text, c.embedding "
-                    "from chunks c join unnest(%(old)s::uuid[], %(new)s::uuid[]) "
-                    "as m(old_id, new_id) on c.id = m.old_id",
-                    {"lib": library_id, "old": old_chunks, "new": new_chunks},
-                )
-                source_map[str(source.link_id)] = str(link_id)
-                source_map[str(old.id)] = str(library_id)
-                chunk_map.update(
-                    {str(o): str(n) for o, n in zip(old_chunks, new_chunks, strict=True)}
-                )
-            # rag's handover: its worker copies the starter's outputs into the
-            # new notebook, remapping provenance through these maps.
+            if cur.fetchone() is None:
+                return None  # another copy within the hour
+            return self._write_starter(cur, plan)
+
+    def _write_starter(self, cur: Any, plan: StarterCopy) -> dict[str, dict[str, str]]:
+        """The notebook, its copied and its reused sources, their chunks and
+        rag's handover row, inside the caller's transaction."""
+        source_map: dict[str, str] = {}
+        chunk_map: dict[str, str] = {}
+        cur.execute(
+            "insert into notebooks (id, owner, title, starter) "
+            "values (%(id)s, %(owner)s, %(title)s, true)",
+            {"id": plan.notebook_id, "owner": plan.owner, "title": plan.title},
+        )
+        for source, library_id, link_id in plan.reuse:
+            # The owner's own copy of this starter source: back from the
+            # trash if it is there, linked, its chunks mapped by index.
             cur.execute(
-                "insert into output_copies (target_notebook, source_notebook, owner, "
-                "source_map, chunk_map) values (%(target)s, %(source)s, %(owner)s, "
-                "%(sources)s::jsonb, %(chunks)s::jsonb)",
+                "update library_sources set deleted_at = null "
+                "where id = %(id)s and owner = %(owner)s",
+                {"id": library_id, "owner": plan.owner},
+            )
+            cur.execute(
+                "insert into sources (id, notebook_id, library_source_id) "
+                "values (%(id)s, %(nb)s, %(lib)s)",
+                {"id": link_id, "nb": plan.notebook_id, "lib": library_id},
+            )
+            cur.execute(
+                "select o.id, n.id from chunks o join chunks n "
+                "on n.library_source_id = %(new)s and n.idx = o.idx "
+                "where o.library_source_id = %(old)s",
+                {"old": source.library.id, "new": library_id},
+            )
+            chunk_map.update({str(o): str(n) for o, n in cur.fetchall()})
+            source_map[str(source.link_id)] = str(link_id)
+            source_map[str(source.library.id)] = str(library_id)
+        for source, library_id, link_id, key, converted, snapshot in plan.sources:
+            old = source.library
+            cur.execute(
+                "insert into library_sources (id, owner, name, kind, dedupe_key, url, "
+                "size_bytes, storage_path, transcribed_path, capture, starter, status, "
+                "summary, page_count, duration_seconds, version, fetched_at, checked_at, "
+                "content_hash, final_url, snapshot_path, read_by, vision_pages) values "
+                "(%(id)s, %(owner)s, "
+                "%(name)s, %(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(converted)s, "
+                "%(capture)s, true, 'ready', %(summary)s, %(pages)s, %(seconds)s, "
+                "%(version)s, %(fetched)s, %(checked)s, %(hash)s, %(final)s, %(snapshot)s, "
+                "%(read_by)s::jsonb, %(vision_pages)s)",
                 {
-                    "target": plan.notebook_id,
-                    "source": plan.source_notebook,
+                    "id": library_id,
                     "owner": plan.owner,
-                    "sources": json.dumps(source_map),
-                    "chunks": json.dumps(chunk_map),
+                    "name": old.name,
+                    "kind": old.kind,
+                    "key": old.dedupe_key,
+                    "url": old.url,
+                    "size": old.size_bytes,
+                    "path": key,
+                    "converted": converted,
+                    "capture": old.capture,
+                    "summary": old.summary,
+                    "pages": old.page_count,
+                    "seconds": old.duration_seconds,
+                    "version": old.version,
+                    "fetched": old.fetched_at,
+                    "checked": old.checked_at,
+                    "hash": old.content_hash,
+                    "final": old.final_url,
+                    "snapshot": snapshot,
+                    "read_by": json.dumps(old.read_by) if old.read_by is not None else None,
+                    "vision_pages": old.vision_pages,
                 },
             )
+            cur.execute(
+                "insert into sources (id, notebook_id, library_source_id) "
+                "values (%(id)s, %(nb)s, %(lib)s)",
+                {"id": link_id, "nb": plan.notebook_id, "lib": library_id},
+            )
+            cur.execute("select id from chunks where library_source_id = %(lib)s", {"lib": old.id})
+            old_chunks = [r[0] for r in cur.fetchall()]
+            new_chunks = [uuid4() for _ in old_chunks]
+            cur.execute(
+                "insert into chunks (id, library_source_id, idx, page, text, embedding) "
+                "select m.new_id, %(lib)s, c.idx, c.page, c.text, c.embedding "
+                "from chunks c join unnest(%(old)s::uuid[], %(new)s::uuid[]) "
+                "as m(old_id, new_id) on c.id = m.old_id",
+                {"lib": library_id, "old": old_chunks, "new": new_chunks},
+            )
+            source_map[str(source.link_id)] = str(link_id)
+            source_map[str(old.id)] = str(library_id)
+            chunk_map.update({str(o): str(n) for o, n in zip(old_chunks, new_chunks, strict=True)})
+        # rag's handover: its worker copies the starter's outputs into the
+        # new notebook, remapping provenance through these maps.
+        cur.execute(
+            "insert into output_copies (target_notebook, source_notebook, owner, "
+            "source_map, chunk_map) values (%(target)s, %(source)s, %(owner)s, "
+            "%(sources)s::jsonb, %(chunks)s::jsonb)",
+            {
+                "target": plan.notebook_id,
+                "source": plan.source_notebook,
+                "owner": plan.owner,
+                "sources": json.dumps(source_map),
+                "chunks": json.dumps(chunk_map),
+            },
+        )
         return {"source_map": source_map, "chunk_map": chunk_map}
 
     _LIBRARY_ENTRIES = f"""

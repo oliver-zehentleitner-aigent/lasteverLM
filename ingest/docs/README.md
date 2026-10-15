@@ -53,8 +53,9 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 
 | Method | Path | Status | Notes |
 |---|---|---|---|
-| GET | `/notebooks` | 200 | the caller's notebooks, `{"id", "title", "created_at", "share_token"}` (`share_token` null when not shared) |
+| GET | `/notebooks` | 200 | the caller's notebooks, `{"id", "title", "created_at", "share_token", "starter"}` (`share_token` null when not shared; `starter` true for a notebook made as a copy of the starter) |
 | POST | `/notebooks` | 201 | `{"title"}` |
+| POST | `/starter/copy?force=true` | 201 | a fresh copy of the starter notebook for the caller, the new notebook as in `GET /notebooks` (see Starter notebook); 409 `starter_exists` without `force` while the caller has a starter notebook, 429 `{"error": "starter_copy_too_soon", "retry_after"}` (and `Retry-After`) within an hour of the last such copy, 404 `no_starter` without a starter, 503 on a storage failure |
 | PATCH | `/notebooks/{id}` | 200 | `{"title"}`: rename, trimmed, 1–200 characters like at creation (400 otherwise); the notebook |
 | POST | `/notebooks/{id}/share` | 200 | `{"share_token"}`: a read-only link (`notebooks.share_token`, `secrets.token_urlsafe(24)` like rag's output links), the same token on every call until revoked. Rag's public view shows the title, the sources' names and kinds and the shared outputs, never the source files |
 | DELETE | `/notebooks/{id}/share` | 204 | revokes the link; sharing again makes a new token |
@@ -603,6 +604,27 @@ set while their library is still empty. The starter's author gets no
 copy. A storage failure copies nothing and is tried again on the next
 access. The copies are the owner's own: deletable, purgeable, and an
 upload of the same bytes links the copy like any duplicate.
+
+The notebook is flagged `notebooks.starter` (migration 0019; copies made
+before it were flagged by a backfill: a notebook linking starter sources
+and created within a minute of its owner's seed).
+
+**Made again on request.** `POST /starter/copy` (the help page's
+"Recreate") makes a fresh copy for a user who deleted theirs, whether
+or not they were seeded before. It is free:
+
+- Without `force`, a user who still has a starter notebook gets 409
+  `starter_exists`, so the web can ask before it makes another.
+- At most one copy an hour per user (`library_seeds.copied_at`; the
+  first sign-in's copy does not count). Otherwise 429 with `retry_after`.
+- Deleting a notebook keeps its sources, so the user usually still has
+  the starter's sources, and the library holds each content once per
+  user. A starter source the user still has, found by its dedupe key, is
+  linked into the new notebook, and restored first if it is in the
+  trash. Its chunks map onto the starter's by index. Only the sources
+  that are gone are copied, as at the first sign-in.
+- The new notebook is flagged `starter`, and rag gets its
+  `output_copies` row as at the first sign-in.
 
 ## Running the container locally
 
