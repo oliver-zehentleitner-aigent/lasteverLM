@@ -66,7 +66,7 @@ service lives in that service's own `context/`.
 
 ## S
 
-- [scope.md](scope.md) — what the MVP includes and leaves out, the three-day time budget, the account service with sponsored credit and admin panel
+- [scope.md](scope.md) — what the MVP included and left out (superseded), scope growing on the maintainer's orders and the feature freeze, the three-day time budget, the account service with sponsored credit and admin panel
 
 ## T
 
@@ -76,7 +76,7 @@ service lives in that service's own `context/`.
 
 ## W
 
-- [workflow.md](workflow.md) — seven parallel coding-agent sessions, agent A reviewing and merging until the prototype, one shared agent account with per-agent commit identity, fork-and-PR integration, reading the family's context/ before building, black as the Python formatter, one audit per directory against a shared checklist before the handover
+- [workflow.md](workflow.md) — seven parallel coding-agent sessions, agent A reviewing and merging every change for the whole build, one shared agent account with per-agent commit identity, fork-and-PR integration, reading the family's context/ before building, black as the Python formatter, one audit per directory against a shared checklist before the handover
 
 ## X
 
