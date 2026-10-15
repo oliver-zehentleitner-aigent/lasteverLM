@@ -289,6 +289,16 @@ opens the notebook.
   px, the left column between 378 px (the format grid, three tiles a row) and 720 px,
   and the right column
   keeps at least 360 px. Hidden on narrow screens.
+- **Left column areas**: Output format is at most 45 % of the window
+  high and scrolls inside, with Create and its price fixed at its
+  bottom. Two bars, between Sources and Output format and between
+  Output format and Outputs, set the height of the area above them:
+  drag, or arrow keys when focused (16 px a step); a double-click (or
+  Home) returns that area to the default. Sources keep at least 96 px,
+  Output format 140 px (then no cap), Outputs 96 px. The heights are
+  remembered per user in this browser's storage (a broken or blocked
+  storage falls back to the default). Not on narrow screens, where the
+  column scrolls as a whole.
 - **Tab bars** (documents and chats) scroll sideways when the tabs do
   not fit: the active tab is scrolled into view, a mouse wheel scrolls
   the bar, and the arrow keys, Home and End move between tabs (only the

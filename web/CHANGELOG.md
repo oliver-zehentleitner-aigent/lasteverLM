@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The negation check's "Word check: possible contradiction" badge and count; a Standard judging's head ("2 of 3 doubted paragraphs supported") and its line in "How this was made".
 - Decision: "Model's answer without evidence (not from the sources)" in "How this was made".
 - Chat answers checked above Basic: "answering and checking (Standard)…" while the answer waits, and a line under it naming the judging ("Judge (low, model): 1 of 2 doubted paragraphs supported").
+- The left column's areas are resizable: bars between Sources, Output format and Outputs set their heights (drag, arrow keys, double-click or Home to reset), with minimum heights, remembered per user in this browser; not on narrow screens.
+
+### Changed
+
+- Output format no longer grows past 45 % of the window (found charts pushed Create far down): it scrolls inside, and Create with its price stays fixed at its bottom.
 
 ### Fixed
 

@@ -26,6 +26,9 @@ import { ChatPane } from './ChatPane'
 import { SourceLinks } from './SourceLinks'
 import { citationTarget } from '../lib/openEntry'
 import { ColumnDivider } from './ColumnDivider'
+import { RowDivider } from './RowDivider'
+import { useMe } from '../hooks/useMe'
+import { clampHeight, maxHeight, readLeftSizes, writeLeftSizes } from '../lib/leftSizes'
 import { Divider } from './Divider'
 import { OutputsPane } from './OutputsPane'
 import { OutputTiles } from './OutputTiles'
@@ -94,6 +97,25 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   const rightColumn = useRef<HTMLDivElement>(null)
   // the left column's width (sources, formats, outputs), remembered per browser
   const [leftWidth, setLeftWidth] = useState(() => readWidth(browserStorage(), LEFT_WIDTH.key, LEFT_WIDTH.min, LEFT_WIDTH.max))
+  // the heights of Sources and Output format in the left column, per user in this browser
+  const userId = useMe().me?.id ?? null
+  const [leftSizes, setLeftSizes] = useState(() => readLeftSizes(browserStorage(), userId))
+  // the user can arrive after the first render: their sizes then
+  const [sizesFor, setSizesFor] = useState(userId)
+  if (sizesFor !== userId) {
+    setSizesFor(userId)
+    setLeftSizes(readLeftSizes(browserStorage(), userId))
+  }
+  const leftColumn = useRef<HTMLDivElement>(null)
+  /** an area's height now, dragged or as the stylesheet lays it out */
+  const heightOf = (area: 'sources' | 'tiles') => leftSizes[area] ?? leftColumn.current?.querySelector<HTMLElement>(`:scope > .${area}`)?.getBoundingClientRect().height ?? 0
+  const clampArea = (area: 'sources' | 'tiles') => (px: number) =>
+    clampHeight(px, area, maxHeight(leftColumn.current?.getBoundingClientRect().height ?? 0, heightOf(area === 'sources' ? 'tiles' : 'sources'), area))
+  const sizeArea = (area: 'sources' | 'tiles', px: number | null, remember: boolean) => {
+    const next = { ...leftSizes, [area]: px }
+    setLeftSizes(next)
+    if (remember) writeLeftSizes(browserStorage(), userId, next)
+  }
   const columnsRef = useRef<HTMLDivElement>(null)
 
   const leaveFullView = useCallback(() => {
@@ -261,7 +283,16 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
         className={['columns', fullView ? 'full' : '', fullView && chatOpen ? 'chat-open' : ''].join(' ').trim()}
         style={leftWidth === null ? undefined : ({ '--left-w': `${leftWidth}px` } as CSSProperties)}
       >
-        <div className="column left no-print">
+        <div
+          ref={leftColumn}
+          className={['column left no-print', leftSizes.sources !== null ? 'sized-sources' : '', leftSizes.tiles !== null ? 'sized-tiles' : ''].join(' ').trim()}
+          style={
+            {
+              ...(leftSizes.sources !== null ? { '--sources-h': `${leftSizes.sources}px` } : {}),
+              ...(leftSizes.tiles !== null ? { '--tiles-h': `${leftSizes.tiles}px` } : {}),
+            } as CSSProperties
+          }
+        >
           <SourcesPane
             notebookId={notebookId}
             highlightedSourceId={highlight}
@@ -287,6 +318,14 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             }}
             onOpen={(s) => open({ type: 'source', id: s.id, url: tabUrl(s), urlAt: Date.now() })}
           />
+          <RowDivider
+            label={t('ws.resizeSources')}
+            height={leftSizes.sources}
+            clamp={clampArea('sources')}
+            onChange={(px) => sizeArea('sources', px, false)}
+            onCommit={(px) => sizeArea('sources', px, true)}
+            onReset={() => sizeArea('sources', null, true)}
+          />
           <OutputTiles
             notebookId={notebookId}
             selected={format}
@@ -298,6 +337,14 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             sourceIds={picked.sourceIds}
             webPages={webPages}
             onDeselect={deselect}
+          />
+          <RowDivider
+            label={t('ws.resizeFormats')}
+            height={leftSizes.tiles}
+            clamp={clampArea('tiles')}
+            onChange={(px) => sizeArea('tiles', px, false)}
+            onCommit={(px) => sizeArea('tiles', px, true)}
+            onReset={() => sizeArea('tiles', null, true)}
           />
           <OutputsPane outputs={outputs} sources={uploads} selectedId={selectedOutput} onOpen={openOutput} onDelete={(o) => void deleteOutput(o)} onRename={(o, title) => void renameOutput(o, title)} />
         </div>
