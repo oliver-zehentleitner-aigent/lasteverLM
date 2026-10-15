@@ -259,13 +259,13 @@ all sources with a branch per source on distinct topics. After
 generation, a source whose distinctive file-name words never appear in
 the document is logged as a warning with the output id.
 
-**Reason:** a mind map of a notebook with a vi PDF and a VNC PDF came
-out entirely about VNC: the global top-k for "main topics" was filled by
-VNC chunks, the prompt asked for one root theme, and the model took the
-dominant source. The summaries alone did not prevent it. With the vi
-chunks guaranteed in the input and the coverage rule in the prompt, a
-live run with the same two sources gave a root "Linux Tools: vi and
-VNC" with one branch per source. The warning is deliberately light: a
+**Reason:** a mind map of a notebook with two PDFs on different tools
+came out entirely about one of them: the global top-k for "main topics"
+was filled by that PDF's chunks, the prompt asked for one root theme,
+and the model took the dominant source. The summaries alone did not
+prevent it. With the other PDF's chunks guaranteed in the input and the
+coverage rule in the prompt, a live run with the same two sources gave
+a root naming both tools, with one branch per source. The warning is deliberately light: a
 heuristic over file names cannot decide coverage reliably enough to
 fail or retry a generation, but it makes a gap visible in the log.
 
