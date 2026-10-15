@@ -314,10 +314,15 @@ opens the notebook.
   one document ("ask about this") ignores the selection. In the active tab: question, answer,
   citations as `[n]` that open the cited passage; a citation into a
   generated document opens that tab. rag checks a cited answer like a
-  document: a paragraph it did not back gets the red "unsupported"
-  badge after it (amber "not checkable" when the answer is in another
-  language than its sources), the paragraph stays, and "N of M claims
-  supported" sits under the answer (method and threshold as tooltip).
+  document: a paragraph it did not back gets the red "Word check:
+  unsupported" badge after it (amber "Word check: other language" when
+  the answer is in another language than its sources), the paragraph
+  stays, and "Word check: N of M claims supported" sits under the answer
+  (method and threshold as tooltip). Every word-check badge has the same
+  tooltip: "Compares the words with the cited passage. Across languages
+  it cannot tell; the judge can." A judged paragraph shows the word
+  check beside the judge's badge even when it backed it ("Word check:
+  supported"), so the two checks read as a pair.
   Answers without citations and older messages show neither. Under
   every answer a row: **Copy** (the answer with its `[n]` markers, then
   "Sources:" and one line per cited passage, `[n] name, p. x: "…"`;
@@ -391,7 +396,9 @@ opens the notebook.
   card grid, audio as a player with the transcript under it (a
   narrator's paragraphs as text; a conversation or an FAQ with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
-  none). The player stays at the top while the transcript scrolls. With
+  none). The player stays at the top while the transcript scrolls, on
+  an opaque bar (the panel colour, a line under it) the full width of
+  the transcript. With
   per-entry times (`start`, `end` in seconds within the MP3) the entry
   being spoken is marked and kept in view as it plays, and a click (or
   Enter) on an entry plays from its start; a citation marker in it stays
@@ -471,9 +478,11 @@ opens the notebook.
   click opens the chat's provenance panel under the document for that
   passage (source, page, chunk position, similarity, the chunk with the
   sentence closest to the claim marked, "open in source"). A claim the
-  check did not back has a red "unsupported" badge, one written in
-  another language than its sources an amber "not checkable"; the claim
-  stays. The head says "7 of 9 claims supported" (the check's method and
+  check did not back has a red "Word check: unsupported" badge, one
+  written in another language than its sources an amber "Word check:
+  other language"; the claim stays; a judged claim also shows "Word
+  check: supported" next to "Judge: …". The head says "Word check: 7 of
+  9 claims supported · 2 in another language" (the check's method and
   threshold as tooltip). Under the document, folded: **Sources (n)**, the
   passages it cites, and **How this was made**: model, prompt version,
   options, the retrieval query, usage, when and how long, the check's

@@ -139,8 +139,8 @@ function PointRefs({ point, series, onOpen }: { point: ChartPoint; series: strin
     <span className="small">
       {point.refs.map(marker)}
       {point.support === 'unsupported' && (
-        <span className="badge support-unsupported" title={t('outProv.unsupportedTitle')} onClick={() => onOpen(point, series)}>
-          {t('outProv.unsupported')}
+        <span className="badge support-unsupported" title={t('chartOut.unsupportedTitle')} onClick={() => onOpen(point, series)}>
+          {t('chartOut.unsupported')}
         </span>
       )}
     </span>

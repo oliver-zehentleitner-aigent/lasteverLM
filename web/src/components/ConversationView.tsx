@@ -299,8 +299,8 @@ function AnswerText({ message, onCite, openN }: { message: Message; onCite: (c: 
             ),
           )}
           {piece.badge && (
-            <span className={`badge support-${piece.badge}`} title={t(`outProv.${piece.badge}Title`)}>
-              {t(`outProv.${piece.badge}`)}
+            <span className={`badge support-${piece.badge}`} title={t('wordCheck.title')}>
+              {t(`wordCheck.${piece.badge}`)}
             </span>
           )}
           {piece.unit && <ChatJudgeBadge unit={piece.unit} />}

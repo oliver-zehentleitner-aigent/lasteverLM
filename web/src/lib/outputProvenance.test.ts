@@ -33,14 +33,17 @@ describe('passages and claims', () => {
     expect(supportBadge(undefined)).toBeNull()
     expect(supportBadge('unsupported')).toBe('unsupported')
     expect(supportBadge('unverified')).toBe('unverified')
+    // "supported" only beside a judge's badge
+    expect(supportBadge('supported')).toBeNull()
+    expect(supportBadge('supported', true)).toBe('supported')
   })
 })
 
 describe('checkSummary', () => {
   const check = { method: 'lexical-overlap-v1', threshold: 0.3, supported: 7, unsupported: 2, unverified: 0 }
   it('counts the supported claims of all', () => {
-    expect(checkSummary(check)).toBe('7 of 9 claims supported')
-    expect(checkSummary({ ...check, unverified: 1 })).toBe('7 of 10 claims supported · 1 not checkable')
+    expect(checkSummary(check)).toBe('Word check: 7 of 9 claims supported')
+    expect(checkSummary({ ...check, unverified: 1 })).toBe('Word check: 7 of 10 claims supported · 1 in another language')
   })
   it('says nothing without claims or a check', () => {
     expect(checkSummary({ ...check, supported: 0, unsupported: 0 })).toBeNull()

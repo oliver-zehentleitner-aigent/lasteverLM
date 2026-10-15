@@ -29,7 +29,10 @@ export function claimRefs(c: Claim, known: ReadonlySet<number>): number[] {
 }
 
 /** A badge only where the check found no backing or could not measure it. */
-export function supportBadge(s: Support | undefined): Exclude<Support, 'supported'> | null {
+export function supportBadge(s: Support | undefined, judged = false): Support | null {
+  // "supported" only next to a judge's badge, so the two checks read as a pair;
+  // without a judge a backed claim stays unmarked, as before
+  if (s === 'supported') return judged ? s : null
   return s === 'unsupported' || s === 'unverified' ? s : null
 }
 
@@ -44,7 +47,7 @@ export function checkSummary(check: Check | null | undefined): string | null {
 }
 
 const SENTINEL = (s: string) => `⟦support:${s}⟧`
-const SENTINELS = /⟦support:(unsupported|unverified)⟧/g
+const SENTINELS = /⟦support:(supported|unsupported|unverified)⟧/g
 const MARKER = /\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g
 
 /** The report's markdown with a sentinel after each paragraph the check
@@ -57,7 +60,7 @@ export function markUnsupported(markdown: string, units: readonly ({ text: strin
     const at = u.text ? out.indexOf(u.text, from) : -1
     if (at < 0) continue
     const end = at + u.text.length
-    const badge = supportBadge(u.support)
+    const badge = supportBadge(u.support, !!u.judge)
     // the judge's badge carries the unit's index: the click looks its note up
     const insert = (badge ? ` ${SENTINEL(badge)}` : '') + (u.judge ? ` ⟦judge:${i}⟧` : '')
     out = out.slice(0, end) + insert + out.slice(end)
@@ -77,7 +80,7 @@ export function decorateReport(html: string, known: ReadonlySet<number>, units: 
       if (!numbers.some((n) => known.has(n))) return whole
       return numbers.map((n) => (known.has(n) ? `<button type="button" class="cite" data-n="${n}">${n}</button>` : `[${n}]`)).join('')
     })
-    .replace(SENTINELS, (_m, s: string) => `<span class="badge support-${s}" title="${t(`outProv.${s}Title` as 'outProv.unsupportedTitle')}">${t(`outProv.${s}` as 'outProv.unsupported')}</span>`)
+    .replace(SENTINELS, (_m, s: string) => `<span class="badge support-${s}" title="${t('wordCheck.title')}">${t(`wordCheck.${s}` as 'wordCheck.unsupported')}</span>`)
 }
 
 /** How long the generation took, "12 s" or "2 min 5 s"; null when unknown. */
@@ -102,14 +105,14 @@ export function exportName(title: string): string {
 
 /** Where an answer's badges go: after each citing paragraph the check did
  *  not back, found by its exact text in order. Offsets into the answer. */
-export function unitBadges(answer: string, units: readonly AnswerUnit[] | null | undefined): { end: number; badge: Exclude<Support, 'supported'> | null; unit: AnswerUnit }[] {
-  const out: { end: number; badge: Exclude<Support, 'supported'> | null; unit: AnswerUnit }[] = []
+export function unitBadges(answer: string, units: readonly AnswerUnit[] | null | undefined): { end: number; badge: Support | null; unit: AnswerUnit }[] {
+  const out: { end: number; badge: Support | null; unit: AnswerUnit }[] = []
   let from = 0
   for (const u of units ?? []) {
     const at = u.text ? answer.indexOf(u.text, from) : -1
     if (at < 0) continue
     from = at + u.text.length
-    const badge = supportBadge(u.support)
+    const badge = supportBadge(u.support, !!u.judge)
     // a judged paragraph gets its judge badge even when the word check backed it
     if (badge || u.judge) out.push({ end: from, badge, unit: u })
   }
@@ -120,8 +123,8 @@ export function unitBadges(answer: string, units: readonly AnswerUnit[] | null |
  *  mind map's labels); added before sanitizing, like the report's. */
 export function claimHtml(c: Claim, known: ReadonlySet<number>, index?: number): string {
   const buttons = claimRefs(c, known).map((n) => `<button type="button" class="cite" data-n="${n}">${n}</button>`)
-  const badge = supportBadge(c.support)
-  const span = badge ? `<span class="badge support-${badge}" title="${t(`outProv.${badge}Title`)}">${t(`outProv.${badge}`)}</span>` : ''
+  const badge = supportBadge(c.support, !!c.judge && index !== undefined)
+  const span = badge ? `<span class="badge support-${badge}" title="${t('wordCheck.title')}">${t(`wordCheck.${badge}`)}</span>` : ''
   const judge = c.judge && index !== undefined ? judgeHtml(c, index) : ''
   return buttons.length || span || judge ? ` ${buttons.join('')}${span}${judge}` : ''
 }

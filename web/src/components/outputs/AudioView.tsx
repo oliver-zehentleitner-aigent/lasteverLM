@@ -51,15 +51,17 @@ export function AudioView({ content, onExpired, speakerName = (s) => s }: Props)
       {failed ? (
         <p className="error">{t('audio.failed')}</p>
       ) : (
-        <audio
-          ref={audio}
-          controls
-          preload="metadata"
-          src={src}
-          onError={onError}
-          onLoadedMetadata={() => setRefreshed(false)}
-          onTimeUpdate={follows ? (e) => setActive(activeTurn(turns, e.currentTarget.currentTime)) : undefined}
-        />
+        <div className="audio-bar">
+          <audio
+            ref={audio}
+            controls
+            preload="metadata"
+            src={src}
+            onError={onError}
+            onLoadedMetadata={() => setRefreshed(false)}
+            onTimeUpdate={follows ? (e) => setActive(activeTurn(turns, e.currentTarget.currentTime)) : undefined}
+          />
+        </div>
       )}
       {turns.length > 0 && <Transcript turns={turns} speakerName={speakerName} active={active} onSeek={follows ? seek : undefined} />}
     </div>
