@@ -179,6 +179,14 @@ class Store(Protocol):
         """Whether ``worker_id`` still holds the output's claim."""
         ...
 
+    def hand_over_output(
+        self, output_id: str, worker_id: str, phase: dict[str, Any], record: dict[str, Any]
+    ) -> bool:
+        """Release the claim for another worker while ``worker_id`` holds it:
+        claim cleared, the attempt not counted, ``phase`` set and ``record``
+        appended to ``attempt_log``. False when the claim was not its own."""
+        ...
+
     def orphaned_generated(self, older_than_s: int) -> list[dict[str, Any]]:
         """Generated library rows older than ``older_than_s`` that no output's
         ``source_id`` points at, as ``{"id", "notebook_ids"}`` (where linked)."""
@@ -1031,6 +1039,18 @@ class PostgresStore:
             cursor = conn.execute(
                 f"update outputs set {assignments} where id = %(id)s and claimed_by = %(worker)s",
                 {**fields, "id": output_id, "worker": worker_id},
+            )
+            return cursor.rowcount == 1
+
+    def hand_over_output(
+        self, output_id: str, worker_id: str, phase: dict[str, Any], record: dict[str, Any]
+    ) -> bool:
+        with self._pool.connection() as conn:
+            cursor = conn.execute(
+                "update outputs set claimed_by = null, claimed_at = null, "
+                "attempts = greatest(attempts - 1, 0), phase = %s, "
+                "attempt_log = attempt_log || %s where id = %s and claimed_by = %s",
+                (Jsonb(phase), Jsonb([record]), output_id, worker_id),
             )
             return cursor.rowcount == 1
 

@@ -54,6 +54,9 @@ class Settings:
     orphan_sweep: bool = False
     # how long a job's claim is refreshed in the background at most (JOB_MAX_SECONDS)
     job_max_s: float = 45 * 60
+    # the worker pod's terminationGracePeriodSeconds, as the chart sets it
+    # (WORKER_GRACE_SECONDS): how long a stopping worker may finish its job
+    worker_grace_s: float = 30.0
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -98,6 +101,9 @@ class Settings:
             answer_read_wait_s=float(env_int("ANSWER_READ_WAIT_SECONDS", 60, env)),
             second_judge_model=second_judge,
             orphan_sweep=_flag(env.get("ORPHAN_SWEEP", "false"), "ORPHAN_SWEEP"),
+            worker_grace_s=float(
+                _positive("WORKER_GRACE_SECONDS", env_int("WORKER_GRACE_SECONDS", 30, env))
+            ),
             job_max_s=float(_positive("JOB_MAX_SECONDS", env_int("JOB_MAX_SECONDS", 45 * 60, env))),
         )
 

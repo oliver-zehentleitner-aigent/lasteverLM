@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A deploy no longer leaves a running output looking hung for ten minutes. A stopping worker claims nothing new and lets its job finish while its grace period (`WORKER_GRACE_SECONDS`) allows; with less than one model request's worst case left, it hands the job over at the next step: claim cleared (only while it still holds it), phase "handing over", the attempt not counted, an `attempt_log` entry `handover`. Another worker takes it within seconds.
+
 ## [0.22.16] - 2026-10-15
 
 ### Added

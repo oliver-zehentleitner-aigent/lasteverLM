@@ -409,6 +409,16 @@ class FakeStore:
         self.update_output(output_id, **fields)
         return True
 
+    def hand_over_output(
+        self, output_id: str, worker_id: str, phase: dict[str, Any], record: dict[str, Any]
+    ) -> bool:
+        if not self.holds_output(output_id, worker_id):
+            return False
+        row = self.outputs[output_id]
+        row.update(claimed_by=None, attempts=max(row["attempts"] - 1, 0), phase=phase)
+        row.setdefault("attempt_log", []).append(record)
+        return True
+
     def holds_output(self, output_id: str, worker_id: str) -> bool:
         row = self.outputs.get(output_id)
         return row is not None and row["claimed_by"] == worker_id
