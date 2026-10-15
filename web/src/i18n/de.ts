@@ -1216,4 +1216,6 @@ export const de: Record<MessageKey, string> = {
   'chat.checking': 'antworte und prüfe ({level})…',
   'ws.resizeSources': 'Quellen und Ausgabeformate in der Höhe ändern',
   'ws.resizeFormats': 'Ausgabeformate und Dokumente in der Höhe ändern',
+  'decision.tendency.one': 'Tendenz, gestützt auf {n} belegten Punkt',
+  'decision.tendency.other': 'Tendenz, gestützt auf {n} belegte Punkte',
 }

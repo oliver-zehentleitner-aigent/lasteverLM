@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DecisionContent } from '../api/types'
-import { decisionOptions, decisionProblem, defaultDecision, modelAnswerLabel, modelVersusEvidence, orderedDistribution, percent, presetLevels, scalePercent, showQuestion, undecided, yesNo } from './decision'
+import { decisionOptions, decisionProblem, defaultDecision, isTendency, modelAnswerLabel, modelVersusEvidence, orderedDistribution, percent, presetLevels, scalePercent, showQuestion, undecided, yesNo } from './decision'
 
 const keys = ['language', 'question', 'decision_type', 'choices', 'levels']
 
@@ -108,5 +108,15 @@ describe('modelAnswerLabel', () => {
     expect(modelAnswerLabel({ probability_yes: 0.2, answer: 'no' })).toBe('No 80 %')
     expect(modelAnswerLabel({ choice: 'B', distribution: { A: 0.38, B: 0.62 }, confidence: 0.7 })).toMatch(/^B 62 % · /)
     expect(modelAnswerLabel({ level: 'likely', score: 3.2, legend: ['a', 'likely'], distribution: {}, confidence: 0.5 })).toMatch(/^likely · /)
+  })
+})
+
+describe('isTendency', () => {
+  const yes = { probability_yes: 0.77, answer: 'yes' as const }
+  it("follows rag's weight; older outputs and undecided ones are no tendency", () => {
+    expect(isTendency({ agreement: 'unclear', model_answer: yes, weight: 'tendency' })).toBe(true)
+    expect(isTendency({ agreement: 'conflicting', model_answer: yes, weight: 'full' })).toBe(false)
+    expect(isTendency({ agreement: 'consistent', model_answer: yes })).toBe(false)
+    expect(isTendency({ agreement: 'undecided', model_answer: null, weight: 'tendency' })).toBe(false)
   })
 })
