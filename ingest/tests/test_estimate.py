@@ -28,7 +28,7 @@ def _cost(model, tokens_in, tokens_out=0, rate=Decimal(1)):
             "pdf_vision",
             "page",
             "source:pdf",
-            [("fake-llm", 515, 960), ("fake-embed", 960, 0)],
+            [("fake-llm", 2 * 515, 960), ("fake-embed", 960, 0)],  # two tiles per page
         ),
         ("image", "image", "source:image", [("fake-llm", 540, 500), ("fake-embed", 500, 0)]),
         ("audio", "minute", "source:audio", [("fake-stt", 60, 0), ("fake-embed", 200, 0)]),

@@ -108,15 +108,16 @@ def test_a_degenerate_image_source_fails_and_nothing_is_indexed():
     assert [u.kind for u in repo.usage] == ["llm", "llm"]
 
 
-def test_a_degenerate_pdf_page_fails_the_pdf_naming_the_page():
-    chat = FakeChat(
-        answers=[(GOOD, "stop"), (SCREENSHOT_LOOP, "length"), (SCREENSHOT_LOOP, "length")]
-    )
+def test_a_degenerate_pdf_page_fails_the_pdf_naming_the_tile_and_the_page():
+    from tests.test_pdf_capture import T
+
+    chat = FakeChat(answers=[(SCREENSHOT_LOOP, "length")] * (2 * T))
     loader = VisionPdfLoader(VisionReader(chat, "fake-llm"), "vision")
     billed: list = []
-    with pytest.raises(LoaderError, match=rf"{REASON} \(page 2\)"):
-        loader.load_billed(minimal_pdf(["", ""]), billed.append)
-    assert len(billed) == 3  # page 1, and both attempts on page 2
+    where = rf"\(tile 1 of {T}\) \(page 1\)" if T > 1 else r"\(page 1\)"
+    with pytest.raises(LoaderError, match=rf"{REASON} {where}"):
+        loader.load_billed(minimal_pdf([""]), billed.append)
+    assert len(billed) == 2 * T  # both attempts on every tile, all billed
 
 
 def test_a_degenerate_transcript_fails_the_recording_and_its_call_is_billed():

@@ -11,18 +11,26 @@ credit is gone.
 An answer that degenerated into a repetition loop (loaders/degeneration.py)
 is asked for once more with settings against repetition; a second loop
 fails the source, and neither answer is indexed.
+
+An image larger than about 1.5 MP is read in tiles (loaders/tiles.py):
+the platform scales every image to the same small budget, which makes a
+large screenshot's text unreadable. The loop check applies per tile.
 """
 
 from __future__ import annotations
 
 import base64
+import io
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from lasteverlm_core import ProviderError, Usage, thinking_body
 from openai import APIError, BadRequestError
+from PIL import Image
 
 from lasteverlm_ingest.loaders import Bill, LoaderError, Passage
 from lasteverlm_ingest.loaders.degeneration import REASON, degenerated
+from lasteverlm_ingest.loaders.tiles import crops, join, tile_boxes
 
 IMAGE_PROMPT = (
     "You turn an image into text for a search index. First transcribe every "
@@ -67,10 +75,20 @@ RETRY_BODY = {"repetition_penalty": 1.15}
 
 class DegeneratedError(LoaderError):
     """Both answers were repetition loops; `usages` are the billed calls,
-    which the caller still records."""
+    which the caller still records. `where` names the tile, if any."""
 
-    def __init__(self, usages: list[Usage]) -> None:
-        super().__init__(REASON)
+    def __init__(self, usages: list[Usage], where: str | None = None) -> None:
+        super().__init__(f"{REASON} ({where})" if where else REASON)
+        self.usages = usages
+
+
+class PartialRead(Exception):  # noqa: N818 - carries the failure, is not one itself
+    """Reading failed after some calls were answered: `usages` are the
+    answered calls, which the caller records before it raises `cause`."""
+
+    def __init__(self, cause: BaseException, usages: list[Usage]) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
         self.usages = usages
 
 
@@ -89,6 +107,44 @@ class VisionReader:
     @property
     def model(self) -> str:
         return self._model
+
+    def read_tiled(
+        self, data: bytes, media_type: str, prompt: str, *, parallel: int = 1
+    ) -> tuple[str, list[Usage], int]:
+        """`read`, tile by tile when the image is large: the joined text,
+        the usage of every call and the number of tiles. Any failure is a
+        `PartialRead` carrying the usages of the calls already answered."""
+        try:
+            tiles, tile_type = crops(data)
+        except OSError:
+            # Pillow cannot decode it, though its first bytes say image:
+            # the model gets it whole, as before tiling existed.
+            tiles, tile_type = [data], media_type
+        if len(tiles) == 1:
+            try:
+                text, usages = self.read(data, media_type, prompt)
+            except DegeneratedError as exc:
+                raise PartialRead(exc, exc.usages) from exc
+            except Exception as exc:
+                raise PartialRead(exc, []) from exc
+            return text, usages, 1
+        with ThreadPoolExecutor(max_workers=parallel) as pool:
+            futures = [pool.submit(self.read, tile, tile_type, prompt) for tile in tiles]
+        texts, usages, failure = [], [], None
+        for number, future in enumerate(futures, start=1):
+            error = future.exception()
+            if error is None:
+                text, answered = future.result()
+                texts.append(text)
+                usages.extend(answered)
+            else:
+                if isinstance(error, DegeneratedError):
+                    usages.extend(error.usages)
+                    error = DegeneratedError(error.usages, f"tile {number} of {len(tiles)}")
+                failure = failure or error
+        if failure is not None:
+            raise PartialRead(failure, usages)
+        return join(texts, _columns(data)), usages, len(tiles)
 
     def read(self, data: bytes, media_type: str, prompt: str) -> tuple[str, list[Usage]]:
         url = f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
@@ -136,6 +192,15 @@ class VisionReader:
         )
 
 
+# Tiles of one image are read in parallel, like the pages of a PDF.
+PARALLEL_TILES = 4
+
+
+def _columns(data: bytes) -> int:
+    with Image.open(io.BytesIO(data)) as image:
+        return len({box[0] for box in tile_boxes(*image.size)})
+
+
 class ImageLoader:
     def __init__(self, vision: VisionReader) -> None:
         self._vision = vision
@@ -149,11 +214,13 @@ class ImageLoader:
         if media_type is None:
             raise LoaderError("not a PNG, JPEG, WebP or GIF image")
         try:
-            text, usages = self._vision.read(data, media_type, IMAGE_PROMPT)
-        except DegeneratedError as exc:
+            text, usages, _ = self._vision.read_tiled(
+                data, media_type, IMAGE_PROMPT, parallel=PARALLEL_TILES
+            )
+        except PartialRead as exc:
             for usage in exc.usages:
                 bill(usage)
-            raise
+            raise exc.cause from None
         for usage in usages:
             bill(usage)
         if not text:

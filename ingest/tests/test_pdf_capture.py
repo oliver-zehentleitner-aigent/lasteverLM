@@ -28,6 +28,22 @@ MIXED = minimal_pdf([TEXT, "", "Another page that has its own text."])
 REQUEST = httpx.Request("POST", "https://inference.test/v1/chat/completions")
 
 
+def _tiles_per_page() -> int:
+    """How many tiles one rendered test page is read in (an A4 page at the
+    render DPI is over the tiling threshold: two)."""
+    import io
+
+    from PIL import Image
+
+    from lasteverlm_ingest.loaders.tiles import tile_boxes
+
+    with Image.open(io.BytesIO(render_page(minimal_pdf([""]), 0))) as page:
+        return len(tile_boxes(*page.size))
+
+
+T = _tiles_per_page()
+
+
 def _vision(chat: FakeChat, capture: str, **kwargs) -> VisionPdfLoader:
     return VisionPdfLoader(VisionReader(chat, "fake-llm"), capture, **kwargs)  # type: ignore[arg-type]
 
@@ -58,7 +74,7 @@ def test_auto_reads_only_the_pages_without_text():
         (2, "Scanned page, read by the model."),
         (3, "Another page that has its own text."),
     ]
-    assert len(chat.calls) == 1 and len(billed) == 1
+    assert len(chat.calls) == T and len(billed) == T
     url = chat.calls[0]["messages"][1]["content"][0]["image_url"]["url"]
     assert url.startswith("data:image/jpeg;base64,")
     # A PDF with a text layer on every page costs nothing in auto.
@@ -71,7 +87,7 @@ def test_vision_reads_every_page_and_keeps_page_numbers():
     chat, billed = FakeChat(answer="Read by the model."), []
     passages = _vision(chat, "vision").load_billed(MIXED, billed.append)
     assert [p.page for p in passages] == [1, 2, 3]
-    assert len(chat.calls) == 3 and len(billed) == 3
+    assert len(chat.calls) == 3 * T and len(billed) == 3 * T
 
 
 def test_blank_pages_are_skipped_and_an_all_blank_pdf_fails_naming_the_mode():
@@ -80,7 +96,7 @@ def test_blank_pages_are_skipped_and_an_all_blank_pdf_fails_naming_the_mode():
     billed: list = []
     with pytest.raises(LoaderError, match="capture mode auto"):
         _vision(FakeChat(answer=""), "auto").load_billed(minimal_pdf(["", ""]), billed.append)
-    assert len(billed) == 2  # the model looked at both pages: both are billed
+    assert len(billed) == 2 * T  # the model looked at both pages: both are billed
 
 
 def test_page_cap():
@@ -99,7 +115,7 @@ def test_answered_pages_are_billed_when_another_page_fails():
     billed: list = []
     with pytest.raises(ProviderError):
         _vision(OneFails(), "vision").load_billed(MIXED, billed.append)
-    assert len(billed) == 2
+    assert len(billed) == 3 * T - 1  # every answered tile of every page
 
 
 def test_credit_gone_stops_before_the_next_batch_but_bills_the_batch():
@@ -112,7 +128,7 @@ def test_credit_gone_stops_before_the_next_batch_but_bills_the_batch():
 
     with pytest.raises(RuntimeError, match="credit exhausted"):
         _vision(chat, "vision").load_billed(pdf, bill)
-    assert len(chat.calls) == 4 and len(billed) == 4  # one batch, all of it billed
+    assert len(chat.calls) == 4 * T and len(billed) == 4 * T  # one batch, all of it billed
 
 
 def test_has_text_threshold():
@@ -127,11 +143,12 @@ def test_a_text_layer_of_glyph_codes_is_not_text():
 
 
 def test_auto_sends_a_glyph_code_page_to_the_model():
-    chat = FakeChat(answer="Read by the model.")
+    chat = FakeChat(answer="Read by the vision model.")
     pdf = minimal_pdf([TEXT, GLYPHS])
     passages = _vision(chat, "auto").load_billed(pdf, lambda usage: None)
-    assert len(chat.calls) == 1
-    assert [(p.page, p.text) for p in passages] == [(1, TEXT), (2, "Read by the model.")]
+    assert len(chat.calls) == T
+    # Each tile answers the same line: the overlap rule keeps it once.
+    assert [(p.page, p.text) for p in passages] == [(1, TEXT), (2, "Read by the vision model.")]
 
 
 def test_text_capture_skips_a_glyph_code_page():
@@ -169,7 +186,7 @@ def test_worker_bills_each_page_then_embeds_and_summarizes():
     )
     process_source(lib, d)
     assert repo.library[lib].status == "ready"
-    assert [u.kind for u in repo.usage] == ["llm", "embedding", "llm"]
+    assert [u.kind for u in repo.usage] == ["llm"] * T + ["embedding", "llm"]
     text = " ".join(c.text for c, _ in repo.chunks[lib])
     assert TEXT in text and "Scan text." in text
 
@@ -191,8 +208,8 @@ def test_a_vision_pdf_is_read_to_the_end_even_if_credit_runs_out_on_the_way():
     process_source(lib, d)
     assert repo.library[lib].status == "ready"
     # Every page read and booked, though the balance went below zero on page one.
-    assert len(chat.calls) == 6
-    assert [u.kind for u in repo.usage] == ["llm"] * 6 + ["embedding", "llm"]
+    assert len(chat.calls) == 6 * T
+    assert [u.kind for u in repo.usage] == ["llm"] * 6 * T + ["embedding", "llm"]
     assert repo.balance_cents(repo.library[lib].owner) < 0
 
 
@@ -226,4 +243,4 @@ def test_upload_capture_field_and_dedupe_per_mode(client, repo, vision_chat, run
     assert entries[vision.json()["library_id"]] == "vision"
     run_queue()
     assert repo.library[UUID(vision.json()["library_id"])].status == "ready"
-    assert len(vision_chat.calls) == 3 + 1  # vision: every page; auto: the blank one
+    assert len(vision_chat.calls) == (3 + 1) * T  # vision: every page; auto: the blank one
