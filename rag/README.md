@@ -510,8 +510,9 @@ Nothing runs before `POST .../plans/{plan_id}/confirm`.
   whose steps hold each `result` with the output's id, to link it.
 - **Billing and limits:** every call of a plan books under its
   `action_id`. Ingest's processing of an added source books under
-  ingest's own action. Credit is checked per step, and the API's rate
-  limit applies to confirm as to every route.
+  ingest's own action. Credit is checked once, at confirm: a confirmed
+  plan runs all its steps, even if the balance goes negative on the way.
+  The API's rate limit applies to confirm as to every route.
 
 **Web page age.** An answer citing a web page says how old the version
 it read is: `Answer.web_pages` (and `Message.web_pages`) =
@@ -713,9 +714,14 @@ missing or a configured model has no price.
 | `APP_VERSION`, `APP_COMMIT` | no | the build reported on `/healthz`; `unknown` when unset |
 
 Auth, inference, prices and rate limiting are loaded by `lasteverlm_core`;
-only the rest is rag's own. Before any model call the service runs core's credit
-check (`has_credit`: a positive balance of ledger credits minus the charges
-of usage, for admins as for everyone else) and answers 402 otherwise. Every
+only the rest is rag's own. When an action starts (a chat answer, an
+output's creation, a plan's confirm, a judgement on request, a voice
+sample) the service runs core's credit check (`has_credit`: a positive
+balance of ledger credits minus the charges of usage, for admins as for
+everyone else) and answers 402 otherwise. It is the only check: an action
+that started runs to the end, the worker's attempts, judge rounds,
+revisions and audio segments included, even if the balance goes negative
+on the way. Every
 model call is booked as one row of the `usage` table through core's
 `record_usage`, under its user action. Core fixes the row's cost in US
 cents (from `MODEL_PRICES`) and in euro cents (at the pricing rules'

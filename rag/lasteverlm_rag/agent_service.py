@@ -478,12 +478,14 @@ class AgentService:
     ) -> dict[str, Any]:
         """Run the plan: ingest steps now with this request's bearer, outputs
         created now (their jobs wait for sources), explanations when their
-        output is ready (the worker)."""
+        output is ready (the worker). Credit is checked here, once: a confirmed
+        plan runs all its steps, even if the balance goes negative on the way."""
         plan = self._owned(user_id, conversation_id, plan_id)
         if plan["status"] == "asking":
             raise PlanAsking(plan_id)
         if plan["status"] != "proposed":
             raise PlanNotOpen(plan_id)
+        require_credit(self._store, user_id)
         self._save(plan, status="running", confirmed_at=datetime.now(UTC))
         notebook_id = plan["notebook_id"]
         booking = Booking(user_id, notebook_id, "chat_answer", uuid.UUID(plan["action_id"]))
@@ -518,7 +520,6 @@ class AgentService:
     ) -> None:
         tool, args = step["tool"], step["args"]
         if tool in ("add_url", "add_from_library"):
-            require_credit(self._store, user_id)
             if self._ingest is None:
                 raise IngestError(0, "ingest is not configured")
             if tool == "add_url":
@@ -539,6 +540,7 @@ class AgentService:
                 booking_id=plan["action_id"],
                 bearer=bearer,  # its sources not read yet are read now, as the user
                 url_refresh=args.get("url_refresh"),
+                check_credit=False,  # checked once, at confirm
             )
             step["result"] = {"output_id": str(output.id)}
             step["state"] = "waiting"
@@ -648,7 +650,6 @@ class AgentService:
         user_id, notebook_id = plan["owner"], plan["notebook_id"]
         booking = Booking(user_id, notebook_id, "chat_answer", uuid.UUID(plan["action_id"]))
         try:
-            require_credit(self._store, user_id)
             answer = self._rag.ask(
                 user_id,
                 notebook_id,
@@ -657,6 +658,7 @@ class AgentService:
                 output_id,
                 None,
                 booking,
+                check_credit=False,  # checked once, at confirm
             )
         except Exception as exc:
             step["state"], step["error"] = "failed", _public_error(exc)

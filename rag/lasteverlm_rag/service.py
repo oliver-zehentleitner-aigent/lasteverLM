@@ -362,16 +362,20 @@ class RagService:
         booking: Booking | None = None,
         bearer: str | None = None,
         url_refresh: list[str] | None = None,
+        check_credit: bool = True,
     ) -> Answer:
         """``booking`` books the answer under an action already begun (an agent
-        plan's, or the planning call's before it); a new chat_answer otherwise."""
+        plan's, or the planning call's before it); a new chat_answer otherwise.
+        ``check_credit=False`` for a step of a confirmed plan: its credit was
+        checked when it started, and an action that started runs to the end."""
         require_notebook(self._store, user_id, notebook_id)
         conversation = self._owned_conversation(user_id, conversation_id)
         if conversation.notebook_id != notebook_id:
             raise ConversationNotFound(conversation_id)
         source_id = self._scope_source(user_id, notebook_id, output_id)
         selected = check_sources(self._store, notebook_id, source_ids)
-        require_credit(self._store, user_id)
+        if check_credit:
+            require_credit(self._store, user_id)
         question = question.strip()
         # sources not read yet are read now; the answer waits a little for them
         try:
@@ -644,8 +648,10 @@ class OutputService:
         booking_id: str | None = None,
         bearer: str | None = None,
         url_refresh: list[str] | None = None,
+        check_credit: bool = True,
     ) -> Output:
-        """``booking_id`` is an agent plan's action_id: the job books under it.
+        """``booking_id`` is an agent plan's action_id: the job books under it;
+        ``check_credit=False`` for a confirmed plan's step (checked at confirm).
         The selected sources not read yet are read first (and the web pages in
         ``url_refresh`` checked again); the job waits for them."""
         try:
@@ -659,7 +665,8 @@ class OutputService:
             resolved["sources"] = selected
         if kind == "chart":
             self._check_cited(notebook_id, resolved["charts"])
-        require_credit(self._store, user_id)
+        if check_credit:
+            require_credit(self._store, user_id)
         if kind != "chart":
             # a selected source that could not be read stops the output at once,
             # unless it is a web page the user asked to fetch again

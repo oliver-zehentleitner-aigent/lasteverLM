@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A report's `length` is an upper bound (at most 500 / 1200 / 2500 words), no longer a word target: the prompt asks for less when the material says less and forbids adding facts, roles, steps or reasons the material does not state. Prompt version `report-<style>-v4`.
 
+### Fixed
+
+- A confirmed agent plan runs all its steps. Credit is checked once, at confirm (402 leaves the plan proposed), no longer before each ingest step, output and explanation, where a plan could stop half done once a step had spent the balance.
+
 ## [0.20.3] - 2026-10-15
 
 ### Fixed
