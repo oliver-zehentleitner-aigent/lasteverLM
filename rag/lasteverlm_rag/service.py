@@ -60,7 +60,14 @@ from .citations import defuse_markers, inline, map_citations, number_passages, s
 from .coverage import balance, per_source_quota, uncovered_sources
 from .failures import failure_kind
 from .ingest_client import Ingest
-from .judging import DOUBTED, STANDARD_JUDGE, annotate, judge_output, stored_units
+from .judging import (
+    DOUBTED,
+    STANDARD_JUDGE,
+    SecondJudge,
+    annotate,
+    judge_output,
+    stored_units,
+)
 from .models import (
     Booking,
     Conversation,
@@ -78,7 +85,9 @@ from .models import (
     Unit,
 )
 from .options import (
+    BULLETPROOF_JUDGE,
     LEVEL_OF_JUDGE,
+    SECOND_JUDGE,
     THOROUGH_JUDGE,
     VERIFICATION_LEVELS,
     OutputOptions,
@@ -502,38 +511,53 @@ class RagService:
     ) -> None:
         """The user's verification level on a chat answer, annotate only, in
         the request: standard judges the paragraphs the checks doubt once at
-        low, thorough every paragraph at medium. Basic adds nothing."""
+        low, thorough every paragraph at medium, bulletproof every paragraph
+        at high and by the second judge (disagreement marked disputed).
+        Basic adds nothing."""
         level = verification_level(self._store, user_id)
-        if level not in ("standard", "thorough"):
+        if level not in ("standard", "thorough", "bulletproof"):
             return
-        judge_level = STANDARD_JUDGE if level == "standard" else THOROUGH_JUDGE
+        judge_level = {
+            "standard": STANDARD_JUDGE,
+            "thorough": THOROUGH_JUDGE,
+            "bulletproof": BULLETPROOF_JUDGE,
+        }[level]
         judge_llm = self._judges.get(judge_level)
-        if judge_llm is None:
-            log.warning("chat verification %s: no judge model for level %s", level, judge_level)
+        second_llm = self._judges.get(SECOND_JUDGE) if level == "bulletproof" else None
+        if judge_llm is None or (level == "bulletproof" and second_llm is None):
+            log.warning("chat verification %s: a judge model is missing", level)
             return
         units = [
             Unit(t, str(t["text"]), list(t.get("refs") or []))
             for t in support["units"]
-            if t.get("refs") and (level == "thorough" or t.get("support") in DOUBTED)
+            if t.get("refs") and (level != "standard" or t.get("support") in DOUBTED)
         ]
         usage = {"tokens_in": 0, "tokens_out": 0}
         lock = threading.Lock()
 
-        def judge(
-            system: str, user: str, max_tokens: int | None = None, *, thinking: bool | None = None
-        ) -> CompletionResult:
-            result = complete_billed(self._store, judge_llm, booking, system, user, max_tokens)
-            with lock:
-                usage["tokens_in"] += result.usage.tokens_in
-                usage["tokens_out"] += result.usage.tokens_out
-            return result
+        def billed(llm: LLM) -> CompleteFn:
+            def judge(
+                system: str,
+                user: str,
+                max_tokens: int | None = None,
+                *,
+                thinking: bool | None = None,
+            ) -> CompletionResult:
+                result = complete_billed(self._store, llm, booking, system, user, max_tokens)
+                with lock:
+                    usage["tokens_in"] += result.usage.tokens_in
+                    usage["tokens_out"] += result.usage.tokens_out
+                return result
+
+            return judge
 
         summary = annotate(
-            judge,
+            billed(judge_llm),
             units,
             {c.n: c.quote for c in citations},
             level=judge_level,
             model=judge_llm.model,
+            second=SecondJudge(billed(second_llm), second_llm.model) if second_llm else None,
         )
         support["judge"] = {
             "mode": "doubted" if level == "standard" else "all",
@@ -1468,6 +1492,12 @@ class OutputService:
             trace.judge_in += usage.tokens_in
             trace.judge_out += usage.tokens_out
 
+        second = None
+        if job.options.get("verification") == "bulletproof":
+            second_llm = self._judges.get(SECOND_JUDGE)
+            if second_llm is None:
+                raise GenerationFailed("bulletproof: no second judge on this deployment")
+            second = SecondJudge(self._judge_call(second_llm, booking, counted), second_llm.model)
         judged, trace.judge = judge_output(
             generator,
             generated,
@@ -1478,6 +1508,7 @@ class OutputService:
             model=judge_llm.model,
             rebuild=rebuild,
             on_phase=self._phase,
+            second=second,
         )
         return judged
 
@@ -2153,8 +2184,6 @@ def verification_level(store: Store, user_id: str) -> str:
     level = store.user_preference(user_id, "verification_level")
     if level in VERIFICATION_LEVELS:
         return str(level)
-    if level == "bulletproof":
-        return "thorough"  # until the second judge exists, the most there is
     return LEVEL_OF_JUDGE.get(
         str(store.user_preference(user_id, "judge_default") or "off"), "basic"
     )

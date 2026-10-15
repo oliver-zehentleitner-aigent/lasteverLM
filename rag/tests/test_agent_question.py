@@ -5,7 +5,12 @@ from .conftest import AUTH, CONVERSATION, OWNER
 from .test_agent import ask, plan_path, setup
 
 QUIZ = [("create_output", {"kind": "quiz", "options": {"question_count": 5}})]
-LEVELS = ["verification:basic", "verification:standard", "verification:thorough"]
+LEVELS = [
+    "verification:basic",
+    "verification:standard",
+    "verification:thorough",
+    "verification:bulletproof",
+]
 
 
 def options(plan, n=1):
@@ -37,8 +42,8 @@ def test_above_basic_the_plan_asks_and_follows_the_answer(settings):
     )
     assert question["default"] == "verification:thorough" and question["free_text"] is False
     assert "apply" not in question  # how an answer applies stays on the server
-    basic, standard, thorough = (c["estimate"]["max"] for c in question["choices"])
-    assert basic < standard < thorough
+    basic, standard, thorough, bulletproof = (c["estimate"]["max"] for c in question["choices"])
+    assert basic < standard < thorough < bulletproof
     assert body["answer"].endswith(question["text"])
     path = plan_path(plan["plan_id"])
     # nothing runs before the answer

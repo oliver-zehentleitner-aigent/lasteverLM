@@ -20,7 +20,7 @@ from typing import Any
 from lasteverlm_core import ModelPrices, PricingRules, cost_cents
 
 from .judging import MAX_ROUNDS, STANDARD_JUDGE
-from .options import THOROUGH_JUDGE
+from .options import BULLETPROOF_JUDGE, SECOND_JUDGE, THOROUGH_JUDGE
 from .outputs import OutputGenerator
 from .outputs._base import JsonGenerator
 from .suggestions import NOTEBOOK_SUGGESTIONS_MAX_TOKENS
@@ -94,6 +94,14 @@ def output_calls(
     level = options.get("judge")
     if level:
         calls += judge_calls(kind, options, models, str(level), case, revise=True)
+        if options.get("verification") == "bulletproof":
+            # the second judge on every unit, every round, beside the first
+            second = [c for c in judge_calls(kind, options, models, str(level), case, revise=False)]
+            rounds = 1 if case == 0 else MAX_ROUNDS
+            calls += [
+                Call(models.judges.get(SECOND_JUDGE, c.model), c.tokens_in, c.tokens_out)
+                for c in second
+            ] * rounds
     elif options.get("verification") == "standard" and case == 1:
         # at most every unit is doubted and judged once; at least none
         calls += judge_calls(kind, options, models, STANDARD_JUDGE, case, revise=False)
@@ -107,6 +115,8 @@ def level_options(options: Mapping[str, Any], level: str) -> dict[str, Any]:
         return {**base, "verification": "standard"}
     if level == "thorough":
         return {**base, "verification": "thorough", "judge": THOROUGH_JUDGE}
+    if level == "bulletproof":
+        return {**base, "verification": "bulletproof", "judge": BULLETPROOF_JUDGE}
     return base
 
 

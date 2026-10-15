@@ -326,17 +326,28 @@ unit those doubt (`unsupported`, `unverified`, `possible_contradiction`)
 once at the `low` judge, annotate only (`provenance.judge`: `{"mode":
 "doubted", "judged", "level", "model", "verdicts", ...}`); `thorough` is
 the judge at `medium` with revision, below (stored as `verification:
-"thorough"` with `judge: "medium"`). Sending both `verification` and
+"thorough"` with `judge: "medium"`); `bulletproof` is the judge at
+`high` with revision and, beside it on every unit and round, a second
+judge of another family (`SECOND_JUDGE_MODEL`, default
+`deepseek-v4.1-flash`, chosen in `docs/second-judge-eval.md`; it needs a
+`MODEL_PRICES` entry). A unit counts as supported only if both say so; if
+both fail it, it is revised and removed as at thorough; if they disagree
+it is `disputed` ("the two judges disagree; read the passage yourself"),
+revised like a failing unit and, still disputed after the last round,
+kept and marked, never removed and never passed. Its `judge` then holds
+`second: {"model", "verdict", "reason", "quote"}`, and the log
+`second_model`. On synthetic cases about one in five true claims ended
+disputed. Bulletproof is slower and dearer than thorough. Sending both `verification` and
 `judge` is 422; charts take neither. `GET /outputs/options` lists the
 levels, and `POST /estimate` with a `kind` adds `levels`: `{"basic",
-"standard", "thorough"}`, each `{"min", "max"}` in euro cents, the
+"standard", "thorough", "bulletproof"}`, each `{"min", "max"}` in euro cents, the
 output's price at that level. A chat answer follows the user's level
 (account's `verification_level`, else their older `judge_default`: off
-basic, low standard, medium and high thorough), annotate only, inside the
-answer's request: standard judges its doubted paragraphs at low,
-thorough every paragraph at medium; `Message.support.judge` holds the
-summary. `bulletproof` (a second judge) comes later; until then that
-preference reads as thorough.
+basic, low standard, medium thorough, high bulletproof), annotate only,
+inside the answer's request: standard judges its doubted paragraphs at
+low, thorough every paragraph at medium, bulletproof every paragraph at
+high and by the second judge, disagreement marked disputed;
+`Message.support.judge` holds the summary.
 
 **Judge.** `options.judge` (`off` by default, `low`, `medium` or
 `high`) is offered for every kind except `chart`, whose values already

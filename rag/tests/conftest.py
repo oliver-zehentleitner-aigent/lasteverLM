@@ -55,7 +55,8 @@ AUTH = {"Authorization": f"Bearer {DEMO_TOKEN}"}
 PRICES = (
     '{"test-llm": {"in": 100, "out": 300}, "test-embedding": {"in": 10, "out": 0}, '
     '"test-decision": {"in": 10, "out": 0}, "test-judge-low": {"in": 10, "out": 30}, '
-    '"test-judge-medium": {"in": 20, "out": 60}, "test-judge-high": {"in": 80, "out": 300}}'
+    '"test-judge-medium": {"in": 20, "out": 60}, "test-judge-high": {"in": 80, "out": 300}, '
+    '"test-judge-second": {"in": 15, "out": 60}}'
 )
 JUDGE_MODELS = '{"low": "test-judge-low", "medium": "test-judge-medium", "high": "test-judge-high"}'
 
@@ -68,6 +69,7 @@ BASE_ENV = {
     "DECISION_MODEL": "test-decision",
     "MODEL_PRICES": PRICES,
     "JUDGE_MODELS": JUDGE_MODELS,
+    "SECOND_JUDGE_MODEL": "test-judge-second",
     # tests do not wait for sources being read: the waiting is tested with a clock
     "ANSWER_READ_WAIT_SECONDS": "0",
 }
@@ -957,7 +959,10 @@ def make_client(
                 embedding=settings.inference.embedding_model,
                 decision=settings.inference.decision_model,
                 tts=settings.tts_model,
-                judges={str(k): v for k, v in settings.inference.judge_models.items()},
+                judges={
+                    **{str(k): v for k, v in settings.inference.judge_models.items()},
+                    "second": settings.second_judge_model,
+                },
             ),
         ),
     )

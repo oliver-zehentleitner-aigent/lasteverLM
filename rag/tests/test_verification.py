@@ -100,9 +100,10 @@ def test_the_estimate_prices_every_level(settings):
     )
     assert r.status_code == 200, r.text
     levels = r.json()["levels"]
-    assert list(levels) == ["basic", "standard", "thorough"]
+    assert list(levels) == ["basic", "standard", "thorough", "bulletproof"]
     assert levels["standard"]["min"] == levels["basic"]["min"]  # nothing doubted: no judge
     assert levels["basic"]["max"] < levels["standard"]["max"] < levels["thorough"]["max"]
+    assert levels["thorough"]["max"] < levels["bulletproof"]["max"]
     assert (r.json()["charge_cents_min"], r.json()["charge_cents_max"]) == (
         levels["standard"]["min"],
         levels["standard"]["max"],
