@@ -9,16 +9,23 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-15
+
+### Changed
+
+- An action starts only if the balance covers its estimated maximum plus the owner's other funded reads still waiting, and then runs to the end: a process or refetch request that passes this check marks its rows funded (`funded_request_at`, holding their estimate in `funded_cents`, migration 0017) and the claim takes them even after the balance went negative; an unfunded row waits until the balance less what funded reads hold covers its estimate. Fixes a confirmed agent plan whose source waited half-way because an earlier step had spent the balance.
+
+## [0.20.5] - 2026-10-15
+
+### Changed
+
+- A read that has started runs to the end: credit is checked once, before a source is read, not before every model call, so a vision PDF or a long recording is never stopped halfway with its first pages paid for. The balance may end slightly below zero; the owner's next read waits until it is positive again. The exchange-rate check still runs before every call.
+
 ## [0.20.4] - 2026-10-15
 
 ### Fixed
 
 - A new user saw no starter notebook after signing in: the copy ran only on the first library listing or upload, and the web's first call is `GET /notebooks`. The notebook list now makes the copy first, so it is in that very response (`GET /library?kind=generated` copies too); once a user is considered, it costs one indexed exists query.
-
-### Changed
-
-- An action starts only if the balance covers its estimated maximum plus the owner's other funded reads still waiting, and then runs to the end: a process or refetch request that passes this check marks its rows funded (`funded_request_at`, holding their estimate in `funded_cents`, migration 0017) and the claim takes them even after the balance went negative; an unfunded row waits until the balance less what funded reads hold covers its estimate. Fixes a confirmed agent plan whose source waited half-way because an earlier step had spent the balance.
-- A read that has started runs to the end: credit is checked once, before a source is read, not before every model call, so a vision PDF or a long recording is never stopped halfway with its first pages paid for. The balance may end slightly below zero; the owner's next read waits until it is positive again. The exchange-rate check still runs before every call.
 
 ## [0.19.6] - 2026-10-14
 

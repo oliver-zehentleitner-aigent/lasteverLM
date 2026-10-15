@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-15
+
 ### Fixed
 
 - The startup retention log named `BAN_MAX_DAYS` as the ban cap even when the stored rate-limit rule set another `ban_max_days`; it now prints the cap the purge used. `docs/operations.md` and the README say the cap is the stored rule's (`BAN_MAX_DAYS` only as default) and that the process runs background loops (Vultr sync, exchange rate), retention not among them.
