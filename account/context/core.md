@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-12
+**Source:** family-wide decision, 2026-10-12
 **See:** auth.md#contractspy-mirrors-lasteverlm-core-until-core-is-published — 580d18e4-03db-4f20-9954-cb91b36ea6ca — as of 2026-10-12
 **Revisit when:** core is versioned and pinned per service, or the repository adopts a root `pyproject.toml`
 
@@ -16,7 +16,7 @@ resolves it with a `[tool.uv.sources]` entry pointing at `../core`
 copies `core/` and `account/` from the repository root and installs both.
 `contracts.py`, the interim mirror, is gone.
 
-**Reason:** the family decided against a uv workspace (one root
+**Reason:** the project went without a uv workspace (one root
 `pyproject.toml` owned by nobody in particular) and for a plain path
 install per service. The `make install` rule — `make check` works on a
 fresh checkout — holds only if that one command also brings core in, so
@@ -37,7 +37,7 @@ bypasses `uv sync` and leaves `uv.lock` unaware of core.
 **Status:** superseded
 **Superseded by:** none — core's scalar reads became row-factory independent (2026-10-13), the store takes the dict-row pool's connections directly and `tuple_connection` is gone
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-12
+**Source:** implementation, 2026-10-12
 **Revisit when:** core's scalar reads are row-factory independent (announced for the next core pull request)
 
 `PostgresRepository.tuple_connection` hands core's
@@ -64,37 +64,37 @@ every account pod for a temporary mismatch.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-13; ban cap confirmed by the maintainer 2026-10-13
+**Source:** core's rate-limit documentation and implementation, 2026-10-13; ban cap a maintainer decision, 2026-10-13
 **See:** privacy.md#retention-runs-at-service-start-not-on-a-schedule — 42e9906d-a613-4f17-896e-40484c1f125d — as of 2026-10-13
 **Revisit when:** a periodic job (CronJob or in-process scheduler) exists for retention, or pods run for weeks without a restart
 
 `AccountService.startup` runs core's three `PURGE_SQL` statements in one
-transaction with core's `purge_params(RETENTION_DAYS, BAN_MAX_DAYS)`:
+transaction with core's `purge_params(RETENTION_DAYS, ban_max_days)`:
 `access_log` rows and `ip_blocks` rows not updated since the retention
 cutoff go, `ip_bans` rows go once lifted before that cutoff or once older
-than `BAN_MAX_DAYS` (90). A ban holds until an admin lifts it, at most 90
-days — the maintainer's decision of 2026-10-13. The counts are logged.
+than the ban cap. A ban holds until an admin lifts it, at most the cap:
+`ban_max_days` of the stored rate-limit rule, `BAN_MAX_DAYS` (90) when
+none is stored (the rate-limit entry below). The counts are logged.
 
 **Reason:** core's rate-limit middleware writes these tables on every
 request and never deletes; core's `purge` helper exists but, by core's
 own documentation, is run "by whoever owns the periodic job", and no one
 did — on the cluster the rows grew without bound, and the README promised
-30 days. Core confirmed that the account service is that owner: it is the
-only service that reads the tables (admin panel), it already purges its
-own visitor log at the same point, and infra plans no CronJob. The
+30 days. The account service is that owner: it is the only service that
+reads the tables (admin panel), it already purges its own visitor log at
+the same point, and no CronJob exists for it. The
 statements are imported from `lasteverlm_core.ratelimit` rather than
 copied so that the rule — which rows go, which bans stay — lives in one
 place; core treats the constant as stable.
 
 **Rejected alternatives:** an async `purge(AsyncConnection, ...)` in core —
-rejected by core as a contract change for no gain over the exported
-statements; a CronJob in infra — nobody planned or owns one; purging in
-the middleware — core decided against it (a request handler is the wrong
-place for a maintenance job).
+a contract change for no gain over the exported statements; a CronJob in
+infra — none exists and none is owned; purging in the middleware — a
+request handler is the wrong place for a maintenance job.
 
 **Known limit:** purge-at-start runs only on restarts, so a long-running
 pod purges rarely; a periodic task is the follow-up (the `Revisit when`
-above). The ban rule itself (until lifted, at most `BAN_MAX_DAYS`) is
+above, and privacy.md's retention entry for the same mechanism). The ban rule itself (until lifted, at most the cap) is
 core's and recorded in core's `context/ratelimit.md`; this service only
 applies it.
 
@@ -102,9 +102,10 @@ applies it.
 
 **Id:** 3822026d-dbc7-4cda-8dd9-4422c26db004
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 6e700d59-e253-45d9-b16e-a929d14fe711
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-13 (maintainer wanted the rule editable in the panel)
+**Source:** maintainer decision (the rule editable in the panel), 2026-10-13
 **Revisit when:** a service other than account needs to write runtime settings, or the 30 s re-read proves too slow or too chatty
 
 `PUT /admin/settings/ratelimit` validates the four runtime fields with
@@ -116,7 +117,7 @@ falls back to its env defaults without a row or with an unusable one.
 environment-only and are shown read-only.
 
 **Reason:** the thresholds must be the same in account, ingest and rag,
-and the maintainer wants them changeable without a rollout. The one
+and changeable without a rollout. The one
 place all three already share is the database, and the `settings` table
 is account's existing admin-editable store; core defines key, shape and
 bounds so that the writer and the readers cannot drift, and the bounds
@@ -134,3 +135,38 @@ kept equal; an immediate push to the other services — rejected because a
 **Consequence:** `ban_max_days` and `retention_days` are not editable
 here because they drive the purge at service start, not the middleware's
 per-request decision; changing them is a deployment change.
+
+## The rate-limit rule, ban cap included, is written by account and read by every service through one settings row
+
+**Id:** 6e700d59-e253-45d9-b16e-a929d14fe711
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision (the ban cap editable like the other rules), 2026-10-14; implementation
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 121ac29b-a32e-4f87-910b-2508efa7877f — as of 2026-10-15
+**Revisit when:** a service other than account needs to write runtime settings, the 30 s re-read proves too slow or too chatty, or the purge moves to a schedule
+
+`PUT /admin/settings/ratelimit` validates five runtime fields —
+`per_minute`, `block_minutes`, `ban_after_strikes`, `strike_window_hours`
+and `ban_max_days` (1 to 365) — with core's `RateLimitRules.parse` and
+stores `rules.as_json()` under core's `RATE_LIMIT_SETTINGS_KEY` in this
+service's `settings` table. An omitted `ban_max_days` keeps the
+`BAN_MAX_DAYS` default; a row stored before the cap joined stays valid.
+Core's middleware in every service re-reads the row at most every 30 s
+and falls back to its env defaults without a row or with an unusable one;
+account's start-up purge uses the stored cap too. `DELETE` removes the
+row. `RETENTION_DAYS` stays environment-only and is shown read-only.
+
+**Reason:** unchanged from the predecessor for the thresholds: they must
+be the same in all services and changeable without a rollout, core
+defines key, shape and bounds, account owns the write because the admin
+panel is its API. The ban cap moved in because it also decides when the
+limiter stops refusing a banned address, and an admin who sees a ban in
+the panel should be able to change how long bans hold, like the rules
+that create them. `RETENTION_DAYS` only governs the purge, so it stays a
+deployment value. Core records the cap's side in its own entry (See).
+
+**Rejected alternatives:** the cap env-only, as in the predecessor —
+it was the only ban rule the panel could not change; a core-owned table
+for runtime settings, validating in this service, an immediate push to
+the other services — rejected for the predecessor's reasons.
