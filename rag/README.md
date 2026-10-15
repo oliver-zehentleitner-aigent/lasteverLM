@@ -182,13 +182,24 @@ the root) carries `refs` (passage numbers) and
 second model call. A unit is `supported` when every ref names a passage
 of the prompt and at least half (`OVERLAP_THRESHOLD = 0.5`) of its
 content words occur in its cited passages together (method
-`lexical-overlap-v1`: lowercased words of three or more characters or
+`lexical-overlap-v2`: lowercased words of three or more characters or
 with a digit, common English and German function words left out, cut to
 five characters); `unsupported` without refs, with a ref no passage has,
 or below the threshold; `unverified` when the refs are valid but the
 overlap is low and the unit is in another language than its cited
 passages (English or German, told per unit by frequent words), where
-word overlap cannot tell; a chosen `language` alone does not count. An interviewer's question without refs is no
+word overlap cannot tell; a chosen `language` alone does not count. A
+unit the words support is also checked for negation
+(`lasteverlm_rag/negation.py`, spaCy 3.8.7 with `en_core_web_sm` and
+`de_core_news_sm`, loaded once per process on first use): when one of its
+clauses states the same predicate of the same subject as the passage
+clause it matches, with the opposite polarity ("is not open" over "is
+open"), it is `possible_contradiction` instead. Quizzes and flashcards are
+not checked for it (their explanations negate wrong options on purpose).
+The calibration is in `docs/negation-eval.md`; the check adds about
+270 MB of memory to a process that loads the models and 446 MB to the
+image. The summary counts each value (`supported`, `unsupported`,
+`unverified`, `possible_contradiction`). An interviewer's question without refs is no
 claim and gets no `support`, nor does the mind map's root (it names the
 whole map) unless it cites. A failing unit is kept and marked, never
 dropped, and never fails the output. The report keeps `[n]` markers in

@@ -998,11 +998,11 @@ class OutputService:
             generated = self._generate(booking, notebook_id, job, trace)
             # the units are marked in place, inside the content
             self._phase("checking")
-            check = generated.check or check_units(generated.units, trace.passages)
+            check = generated.check or check_units(generated.units, trace.passages, job.kind)
             if "judge" in job.options:
                 generated = self._judge(job, booking, generated, trace)
                 # the word check again, on what is left after revision and removal
-                check = check_units(generated.units, trace.passages)
+                check = check_units(generated.units, trace.passages, job.kind)
             content = generated.content
             if job.kind == "decision":
                 trace.withheld = finish_decision(content)

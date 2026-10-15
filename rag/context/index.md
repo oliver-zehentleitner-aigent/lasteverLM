@@ -31,7 +31,7 @@ repository root's `context/`.
 
 ## C
 
-- [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why an unmatched question still reaches the model (only an empty notebook is refused without it); provenance (verbatim chunk, score, position) on every citation; why marker-shaped text from sources is rewritten before prompts; generated outputs: units checked by word overlap without a model, marked never blocked; the user's instructions steer a generator but never override the rules or the citation rules (and stay visible when shared); a chart's values get an exact number check, not word overlap
+- [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why an unmatched question still reaches the model (only an empty notebook is refused without it); provenance (verbatim chunk, score, position) on every citation; why marker-shaped text from sources is rewritten before prompts; generated outputs: units checked by word overlap without a model, marked never blocked; the user's instructions steer a generator but never override the rules or the citation rules (and stay visible when shared); a chart's values get an exact number check, not word overlap; a supported unit also checked for negation by its parse (spaCy), marked possible_contradiction (a word list and a model call rejected)
 
 - [contracts.md](contracts.md) — ids and timestamps stay strings inside the service and core's models parse them at the boundary; the local mirror of the contract types before the core library shipped (superseded)
 

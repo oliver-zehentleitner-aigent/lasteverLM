@@ -704,7 +704,7 @@ def test_an_answers_support_round_trips(store, notebook):
     question = store.insert_message(notebook, conversation, "user", "q", None)
     support = {
         "units": [{"text": "a [1]", "refs": [1], "support": "supported"}],
-        "check": {"method": "lexical-overlap-v1", "supported": 1},
+        "check": {"method": "lexical-overlap-v2", "supported": 1},
     }
     answer = store.insert_message(notebook, conversation, "assistant", "a [1]", [], support)
     assert (question.units, question.check) == (None, None)

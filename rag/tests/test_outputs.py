@@ -67,11 +67,12 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
     }
     provenance = out["provenance"]
     assert provenance["check"] == {
-        "method": "lexical-overlap-v1",
+        "method": "lexical-overlap-v2",
         "threshold": 0.5,
         "supported": 0,
         "unsupported": 1,
         "unverified": 0,
+        "possible_contradiction": 0,
     }
     assert (
         provenance["prompt_version"] == "report-briefing-v4" and provenance["model"] == "test-llm"

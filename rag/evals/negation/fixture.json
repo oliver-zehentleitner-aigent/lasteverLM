@@ -1,0 +1,485 @@
+{
+ "description": "Synthetic unit/passage pairs for the negation check: half real contradictions (the unit negates what its passage states, or the reverse), half traps where a negation is present but does not contradict (idioms, another clause or subject, litotes, double negation, both negated, negation elsewhere in the passage). English and German. No real document text.",
+ "cases": [
+  {
+   "id": "en-01",
+   "language": "en",
+   "category": "not",
+   "unit": "The bridge is not open to traffic.",
+   "passage": "The bridge is open to traffic every day.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-02",
+   "language": "en",
+   "category": "not",
+   "unit": "The museum does not charge an entry fee.",
+   "passage": "The museum charges an entry fee of five euros.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-03",
+   "language": "en",
+   "category": "n't",
+   "unit": "The service isn't available on weekends.",
+   "passage": "The service is available on weekends and holidays.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-04",
+   "language": "en",
+   "category": "never",
+   "unit": "The library never closes before midnight.",
+   "passage": "The library closes before midnight on Sundays.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-05",
+   "language": "en",
+   "category": "no",
+   "unit": "There is no fee for parking at the station.",
+   "passage": "There is a fee for parking at the station.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-06",
+   "language": "en",
+   "category": "without",
+   "unit": "Members can enter without a ticket.",
+   "passage": "Members can enter with a ticket only.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-07",
+   "language": "en",
+   "category": "nothing",
+   "unit": "The report says nothing about the budget.",
+   "passage": "The report says a lot about the budget for next year.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-08",
+   "language": "en",
+   "category": "nobody",
+   "unit": "Nobody signed the contract in March.",
+   "passage": "The director signed the contract in March.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-09",
+   "language": "en",
+   "category": "not (reverse)",
+   "unit": "The vaccine is approved for children.",
+   "passage": "The vaccine is not approved for children under twelve.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-10",
+   "language": "en",
+   "category": "never (reverse)",
+   "unit": "The system stores user passwords.",
+   "passage": "The system never stores user passwords.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-11",
+   "language": "en",
+   "category": "no (reverse)",
+   "unit": "The plan includes a dental benefit.",
+   "passage": "The plan includes no dental benefit.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-12",
+   "language": "en",
+   "category": "not",
+   "unit": "The company did not report a loss in 2024.",
+   "passage": "The company reported a loss in 2024 after the merger.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-13",
+   "language": "en",
+   "category": "not",
+   "unit": "The river does not flow into the Black Sea.",
+   "passage": "The river flows into the Black Sea after Budapest.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-14",
+   "language": "en",
+   "category": "no longer",
+   "unit": "The factory no longer produces steel.",
+   "passage": "The factory produces steel for the car industry.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-15",
+   "language": "en",
+   "category": "cannot",
+   "unit": "Users cannot export their data.",
+   "passage": "Users can export their data as a CSV file.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "en-16",
+   "language": "en",
+   "category": "not only",
+   "unit": "The tool is not only cheap but also fast.",
+   "passage": "The tool is cheap and fast.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-17",
+   "language": "en",
+   "category": "not only",
+   "unit": "The rule applies not only to staff but also to visitors.",
+   "passage": "The rule applies to staff and visitors.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-18",
+   "language": "en",
+   "category": "not just",
+   "unit": "The fund supports not just schools but also libraries.",
+   "passage": "The fund supports schools and libraries.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-19",
+   "language": "en",
+   "category": "other clause",
+   "unit": "Unlike the car, the bus is not free.",
+   "passage": "The car is free for members.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-20",
+   "language": "en",
+   "category": "other clause",
+   "unit": "Although the north wing is open, the south wing is not open.",
+   "passage": "The north wing is open to visitors.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-21",
+   "language": "en",
+   "category": "other clause",
+   "unit": "The old bridge is closed, but the new bridge is not closed.",
+   "passage": "The old bridge is closed for repairs.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-22",
+   "language": "en",
+   "category": "litotes",
+   "unit": "Delays are not uncommon in winter.",
+   "passage": "Delays are common in winter.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-23",
+   "language": "en",
+   "category": "litotes",
+   "unit": "The method is not unusual in practice.",
+   "passage": "The method is usual in practice.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-24",
+   "language": "en",
+   "category": "double negation",
+   "unit": "Nobody entered without a badge.",
+   "passage": "Everyone entered with a badge.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-25",
+   "language": "en",
+   "category": "double negation",
+   "unit": "The machine never runs without oil.",
+   "passage": "The machine always runs with oil.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-26",
+   "language": "en",
+   "category": "both negated",
+   "unit": "The bridge is not open to traffic.",
+   "passage": "The bridge is not open to traffic this week.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-27",
+   "language": "en",
+   "category": "both negated",
+   "unit": "There is no fee for students.",
+   "passage": "There is no fee for students at the museum.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-28",
+   "language": "en",
+   "category": "both negated",
+   "unit": "The plan does not cover dental care.",
+   "passage": "The plan does not cover dental care or glasses.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-29",
+   "language": "en",
+   "category": "negation elsewhere",
+   "unit": "The museum is open on Monday.",
+   "passage": "The museum is open on Monday, but the cafe is not open.",
+   "expected": "consistent"
+  },
+  {
+   "id": "en-30",
+   "language": "en",
+   "category": "negation elsewhere",
+   "unit": "The train stops in Linz.",
+   "passage": "The train stops in Linz and does not stop in Wels.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-31",
+   "language": "de",
+   "category": "nicht",
+   "unit": "Die Brücke ist nicht für den Verkehr offen.",
+   "passage": "Die Brücke ist jeden Tag für den Verkehr offen.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-32",
+   "language": "de",
+   "category": "nicht",
+   "unit": "Das Museum verlangt keinen Eintritt.",
+   "passage": "Das Museum verlangt einen Eintritt von fünf Euro.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-33",
+   "language": "de",
+   "category": "kein",
+   "unit": "Es gibt keine Gebühr für das Parken am Bahnhof.",
+   "passage": "Es gibt eine Gebühr für das Parken am Bahnhof.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-34",
+   "language": "de",
+   "category": "nie",
+   "unit": "Die Bibliothek schließt nie vor Mitternacht.",
+   "passage": "Die Bibliothek schließt am Sonntag vor Mitternacht.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-35",
+   "language": "de",
+   "category": "ohne",
+   "unit": "Mitglieder kommen ohne Ticket hinein.",
+   "passage": "Mitglieder kommen nur mit Ticket hinein.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-36",
+   "language": "de",
+   "category": "nichts",
+   "unit": "Der Bericht sagt nichts über das Budget.",
+   "passage": "Der Bericht sagt viel über das Budget des nächsten Jahres.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-37",
+   "language": "de",
+   "category": "niemand",
+   "unit": "Niemand hat den Vertrag im März unterschrieben.",
+   "passage": "Die Direktorin hat den Vertrag im März unterschrieben.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-38",
+   "language": "de",
+   "category": "nicht (reverse)",
+   "unit": "Der Impfstoff ist für Kinder zugelassen.",
+   "passage": "Der Impfstoff ist für Kinder unter zwölf nicht zugelassen.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-39",
+   "language": "de",
+   "category": "nie (reverse)",
+   "unit": "Das System speichert die Passwörter der Nutzer.",
+   "passage": "Das System speichert die Passwörter der Nutzer nie.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-40",
+   "language": "de",
+   "category": "kein (reverse)",
+   "unit": "Der Tarif enthält eine Zahnleistung.",
+   "passage": "Der Tarif enthält keine Zahnleistung.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-41",
+   "language": "de",
+   "category": "nicht",
+   "unit": "Die Firma hat 2024 keinen Verlust gemeldet.",
+   "passage": "Die Firma hat 2024 nach der Fusion einen Verlust gemeldet.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-42",
+   "language": "de",
+   "category": "nicht",
+   "unit": "Der Fluss mündet nicht in das Schwarze Meer.",
+   "passage": "Der Fluss mündet nach Budapest in das Schwarze Meer.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-43",
+   "language": "de",
+   "category": "nicht mehr",
+   "unit": "Die Fabrik produziert keinen Stahl mehr.",
+   "passage": "Die Fabrik produziert Stahl für die Autoindustrie.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-44",
+   "language": "de",
+   "category": "nicht",
+   "unit": "Nutzer können ihre Daten nicht exportieren.",
+   "passage": "Nutzer können ihre Daten als CSV-Datei exportieren.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-45",
+   "language": "de",
+   "category": "nicht",
+   "unit": "Der Kurs findet am Montag nicht statt.",
+   "passage": "Der Kurs findet am Montag um zehn Uhr statt.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "de-46",
+   "language": "de",
+   "category": "nicht nur",
+   "unit": "Das Werkzeug ist nicht nur billig, sondern auch schnell.",
+   "passage": "Das Werkzeug ist billig und schnell.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-47",
+   "language": "de",
+   "category": "nicht nur",
+   "unit": "Die Regel gilt nicht nur für das Personal, sondern auch für Besucher.",
+   "passage": "Die Regel gilt für das Personal und für Besucher.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-48",
+   "language": "de",
+   "category": "nicht bloß",
+   "unit": "Der Fonds fördert nicht bloß Schulen, sondern auch Bibliotheken.",
+   "passage": "Der Fonds fördert Schulen und Bibliotheken.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-49",
+   "language": "de",
+   "category": "other clause",
+   "unit": "Anders als das Auto ist der Bus nicht kostenlos.",
+   "passage": "Das Auto ist für Mitglieder kostenlos.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-50",
+   "language": "de",
+   "category": "other clause",
+   "unit": "Obwohl der Nordflügel offen ist, ist der Südflügel nicht offen.",
+   "passage": "Der Nordflügel ist für Besucher offen.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-51",
+   "language": "de",
+   "category": "other clause",
+   "unit": "Die alte Brücke ist gesperrt, aber die neue Brücke ist nicht gesperrt.",
+   "passage": "Die alte Brücke ist wegen Reparaturen gesperrt.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-52",
+   "language": "de",
+   "category": "litotes",
+   "unit": "Verspätungen sind im Winter nicht ungewöhnlich.",
+   "passage": "Verspätungen sind im Winter gewöhnlich.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-53",
+   "language": "de",
+   "category": "litotes",
+   "unit": "Die Methode ist in der Praxis nicht unüblich.",
+   "passage": "Die Methode ist in der Praxis üblich.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-54",
+   "language": "de",
+   "category": "double negation",
+   "unit": "Niemand kam ohne Ausweis hinein.",
+   "passage": "Alle kamen mit Ausweis hinein.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-55",
+   "language": "de",
+   "category": "double negation",
+   "unit": "Die Maschine läuft nie ohne Öl.",
+   "passage": "Die Maschine läuft immer mit Öl.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-56",
+   "language": "de",
+   "category": "both negated",
+   "unit": "Die Brücke ist nicht für den Verkehr offen.",
+   "passage": "Die Brücke ist diese Woche nicht für den Verkehr offen.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-57",
+   "language": "de",
+   "category": "both negated",
+   "unit": "Für Studierende gibt es keine Gebühr.",
+   "passage": "Für Studierende gibt es im Museum keine Gebühr.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-58",
+   "language": "de",
+   "category": "both negated",
+   "unit": "Der Tarif deckt keine Zahnbehandlung ab.",
+   "passage": "Der Tarif deckt keine Zahnbehandlung und keine Brillen ab.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-59",
+   "language": "de",
+   "category": "negation elsewhere",
+   "unit": "Das Museum ist am Montag offen.",
+   "passage": "Das Museum ist am Montag offen, aber das Café ist nicht offen.",
+   "expected": "consistent"
+  },
+  {
+   "id": "de-60",
+   "language": "de",
+   "category": "negation elsewhere",
+   "unit": "Der Zug hält in Linz.",
+   "passage": "Der Zug hält in Linz und hält nicht in Wels.",
+   "expected": "consistent"
+  }
+ ]
+}

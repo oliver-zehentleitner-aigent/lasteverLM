@@ -9,6 +9,9 @@ cites (``refs``) and the result of a deterministic check (``support``):
   unit's words overlap the cited passages by at least the threshold
   (``citations.overlap``);
 - ``unsupported``: no refs, a ref no passage has, or too little overlap;
+- ``possible_contradiction``: the words overlap, but a sentence of the
+  unit negates what its passage states, or the reverse (``negation.py``;
+  not for quizzes and flashcards);
 - ``unverified``: the refs are valid but the overlap is low while the unit
   is in another language than the passages it cites, so word overlap
   cannot tell. The language is told per unit (``language_of``), falling
@@ -31,10 +34,15 @@ from lasteverlm_core import Citation
 
 from .citations import CHECK_METHOD, OVERLAP_THRESHOLD, extract_markers, language_of, overlap
 from .models import Passage, RetrievedChunk, Unit
+from .negation import contradicts
 
 PROVENANCE_VERSION = 1
 _PARAGRAPH = re.compile(r"\n\s*\n")
 SUPPORTED, UNSUPPORTED, UNVERIFIED = "supported", "unsupported", "unverified"
+POSSIBLE_CONTRADICTION = "possible_contradiction"
+# kinds whose units are not checked for negation: their explanations negate
+# wrong options on purpose
+NO_NEGATION_KINDS = frozenset({"quiz", "flashcards"})
 # what the shared view leaves out: ids of the owner's sources and chunks
 _PRIVATE_KEYS = ("chunk_id", "source_id")
 # options naming the owner's ids: the source selection, a chart's picked
@@ -42,16 +50,24 @@ _PRIVATE_KEYS = ("chunk_id", "source_id")
 PRIVATE_OPTIONS = ("sources", "charts")
 
 
-def check_units(units: list[Unit], passages: list[Passage]) -> dict[str, Any]:
+def check_units(
+    units: list[Unit], passages: list[Passage], kind: str | None = None
+) -> dict[str, Any]:
     """Mark every unit's ``target`` with its valid ``refs`` and its ``support``;
     returns the check's summary for the log."""
-    return check_against(units, {p.n: p.text for p in passages})
+    return check_against(
+        units, {p.n: p.text for p in passages}, negation=kind not in NO_NEGATION_KINDS
+    )
 
 
-def check_against(units: list[Unit], texts: dict[int, str]) -> dict[str, Any]:
+def check_against(
+    units: list[Unit], texts: dict[int, str], negation: bool = True
+) -> dict[str, Any]:
     """``check_units`` over the cited texts by number; the chat's citations
-    and a generator's passages both come down to this."""
-    counts = {SUPPORTED: 0, UNSUPPORTED: 0, UNVERIFIED: 0}
+    and a generator's passages both come down to this. A unit the words
+    support is also checked for an opposite negation, unless ``negation``
+    is off."""
+    counts = {SUPPORTED: 0, UNSUPPORTED: 0, UNVERIFIED: 0, POSSIBLE_CONTRADICTION: 0}
     # what a unit, or its passages, too short to tell fall back to
     written = language_of(" ".join(u.text for u in units))
     material = language_of(" ".join(texts[n] for u in units for n in u.refs if n in texts))
@@ -65,6 +81,8 @@ def check_against(units: list[Unit], texts: dict[int, str]) -> dict[str, Any]:
             support = UNSUPPORTED
         elif overlap(unit.text, [texts[n] for n in valid]) >= OVERLAP_THRESHOLD:
             support = SUPPORTED
+            if negation and contradicts(unit.text, [texts[n] for n in valid], written):
+                support = POSSIBLE_CONTRADICTION
         else:
             # only a real language difference makes low overlap unverified
             spoken = language_of(unit.text) or written

@@ -141,7 +141,8 @@ def _to_citation(p: Passage, n: int) -> Citation:
 # function words, and cut to their first ``WORD_PREFIX`` characters so that
 # "cloud" and "clouds" match. The threshold is set, not calibrated on rated
 # outputs (see rag/context/citations.md).
-CHECK_METHOD = "lexical-overlap-v1"
+# v2: the word check plus the negation check (negation.py)
+CHECK_METHOD = "lexical-overlap-v2"
 OVERLAP_THRESHOLD = 0.5
 WORD_PREFIX = 5
 _WORD = re.compile(r"\w+")

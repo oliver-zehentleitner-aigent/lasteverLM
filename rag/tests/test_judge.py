@@ -80,7 +80,7 @@ def test_the_eval_baseline_is_the_word_check_and_the_report_counts_hits():
         "n": 1,
         "prices": {"source": "test", "models": {"m": {"in": 1.0, "out": 2.0}}},
         "baseline": {
-            "method": "lexical-overlap-v1",
+            "method": "lexical-overlap-v2",
             "threshold": 0.5,
             "results": {"s": "supported", "o": "supported"},
         },

@@ -27,11 +27,12 @@ def test_a_unit_whose_words_its_passages_hold_is_supported():
         "support": "supported",
     }
     assert summary == {
-        "method": "lexical-overlap-v1",
+        "method": "lexical-overlap-v2",
         "threshold": 0.5,
         "supported": 1,
         "unsupported": 0,
         "unverified": 0,
+        "possible_contradiction": 0,
     }
 
 
@@ -179,3 +180,23 @@ def test_table_rows_quiz_questions_and_mindmap_nodes_are_units():
     assert "support" not in root and root["refs"] == []  # the root is no claim
     assert root["children"][0]["support"] == "supported"
     assert summary["supported"] == 1 and summary["unsupported"] == 0
+
+
+def test_a_unit_that_negates_its_passage_is_a_possible_contradiction():
+    passages = [passage(1, "The bridge over the Danube is open to traffic every day of the year.")]
+    target = {"text": "The bridge over the Danube is not open to traffic. [1]"}
+    summary = check_units([Unit(target, target["text"], [1])], passages, "report")
+    assert target["support"] == "possible_contradiction"
+    assert summary["possible_contradiction"] == 1 and summary["method"] == "lexical-overlap-v2"
+    # the same words without the negation still pass
+    same = {"text": "The bridge over the Danube is open to traffic. [1]"}
+    check_units([Unit(same, same["text"], [1])], passages, "report")
+    assert same["support"] == "supported"
+
+
+def test_quizzes_and_flashcards_are_not_checked_for_negation():
+    passages = [passage(1, "The bridge over the Danube is open to traffic every day of the year.")]
+    for kind in ("quiz", "flashcards"):
+        target = {"text": "The bridge over the Danube is not open to traffic. [1]"}
+        check_units([Unit(target, target["text"], [1])], passages, kind)
+        assert target["support"] == "supported"

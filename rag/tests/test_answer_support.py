@@ -45,11 +45,12 @@ def test_an_answer_is_checked_paragraph_by_paragraph_and_stored(settings):
         "support": "supported",
     }
     assert body["check"] == {
-        "method": "lexical-overlap-v1",
+        "method": "lexical-overlap-v2",
         "threshold": 0.5,
         "supported": 1,
         "unsupported": 1,
         "unverified": 0,
+        "possible_contradiction": 0,
     }
     messages = client.get(f"/api/rag/conversations/{CONVERSATION}/messages", headers=AUTH).json()
     assert messages[0]["units"] is None and messages[0]["check"] is None  # the question
@@ -90,3 +91,13 @@ def test_language_of_tells_english_from_german_or_says_unknown():
     assert language_of("The cat is on the mat and it is happy with that.") == "en"
     assert language_of("Die Katze ist auf der Matte und sie ist nicht traurig.") == "de"
     assert language_of("Vi und VNC") is None
+
+
+def test_a_paragraph_that_negates_its_citation_is_marked():
+    quote = "The museum charges an entry fee of five euros for adults."
+    support = check_answer(
+        "The museum does not charge an entry fee for adults [1].", [citation(1, quote)]
+    )
+    assert support is not None
+    assert support["units"][0]["support"] == "possible_contradiction"
+    assert support["check"]["possible_contradiction"] == 1

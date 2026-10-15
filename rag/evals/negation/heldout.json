@@ -1,0 +1,165 @@
+{
+ "description": "Held out: written before tuning the check, run only once at the end. Same categories as fixture.json, other sentences.",
+ "cases": [
+  {
+   "id": "hen-01",
+   "language": "en",
+   "category": "not",
+   "unit": "The clinic does not accept walk-in patients.",
+   "passage": "The clinic accepts walk-in patients every morning.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hen-02",
+   "language": "en",
+   "category": "never",
+   "unit": "The ferry never sails in January.",
+   "passage": "The ferry sails twice a week in January.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hen-03",
+   "language": "en",
+   "category": "no",
+   "unit": "The hotel has no swimming pool.",
+   "passage": "The hotel has a heated swimming pool on the roof.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hen-04",
+   "language": "en",
+   "category": "without",
+   "unit": "The form can be submitted without a signature.",
+   "passage": "The form must be submitted with a signature.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hen-05",
+   "language": "en",
+   "category": "n't (reverse)",
+   "unit": "The app works offline.",
+   "passage": "The app doesn't work offline.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hen-06",
+   "language": "en",
+   "category": "not only",
+   "unit": "The course covers not only grammar but also writing.",
+   "passage": "The course covers grammar and writing.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hen-07",
+   "language": "en",
+   "category": "other clause",
+   "unit": "While the east gate is locked, the west gate is not locked.",
+   "passage": "The east gate is locked at night.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hen-08",
+   "language": "en",
+   "category": "litotes",
+   "unit": "The risk is not insignificant.",
+   "passage": "The risk is significant.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hen-09",
+   "language": "en",
+   "category": "both negated",
+   "unit": "The software does not support Windows.",
+   "passage": "The software does not support Windows or Linux.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hen-10",
+   "language": "en",
+   "category": "negation elsewhere",
+   "unit": "The shop opens at nine.",
+   "passage": "The shop opens at nine, but the bakery does not open before ten.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hde-11",
+   "language": "de",
+   "category": "nicht",
+   "unit": "Die Klinik nimmt keine Patienten ohne Termin auf.",
+   "passage": "Die Klinik nimmt jeden Morgen Patienten ohne Termin auf.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hde-12",
+   "language": "de",
+   "category": "nie",
+   "unit": "Die Fähre fährt im Januar nie.",
+   "passage": "Die Fähre fährt im Januar zweimal pro Woche.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hde-13",
+   "language": "de",
+   "category": "kein",
+   "unit": "Das Hotel hat kein Schwimmbad.",
+   "passage": "Das Hotel hat ein beheiztes Schwimmbad auf dem Dach.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hde-14",
+   "language": "de",
+   "category": "nicht (reverse)",
+   "unit": "Die App funktioniert offline.",
+   "passage": "Die App funktioniert offline nicht.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hde-15",
+   "language": "de",
+   "category": "ohne",
+   "unit": "Das Formular kann ohne Unterschrift eingereicht werden.",
+   "passage": "Das Formular muss mit Unterschrift eingereicht werden.",
+   "expected": "contradiction"
+  },
+  {
+   "id": "hde-16",
+   "language": "de",
+   "category": "nicht nur",
+   "unit": "Der Kurs behandelt nicht nur Grammatik, sondern auch Schreiben.",
+   "passage": "Der Kurs behandelt Grammatik und Schreiben.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hde-17",
+   "language": "de",
+   "category": "other clause",
+   "unit": "Während das Osttor verschlossen ist, ist das Westtor nicht verschlossen.",
+   "passage": "Das Osttor ist nachts verschlossen.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hde-18",
+   "language": "de",
+   "category": "litotes",
+   "unit": "Das Risiko ist nicht unerheblich.",
+   "passage": "Das Risiko ist erheblich.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hde-19",
+   "language": "de",
+   "category": "both negated",
+   "unit": "Die Software unterstützt Windows nicht.",
+   "passage": "Die Software unterstützt Windows und Linux nicht.",
+   "expected": "consistent"
+  },
+  {
+   "id": "hde-20",
+   "language": "de",
+   "category": "negation elsewhere",
+   "unit": "Der Laden öffnet um neun.",
+   "passage": "Der Laden öffnet um neun, aber die Bäckerei öffnet nicht vor zehn.",
+   "expected": "consistent"
+  }
+ ]
+}
