@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.4] - 2026-10-15
+
 ### Added
 
 - Every failed attempt of an output is kept on the row as core's `AttemptRecord` (`outputs.attempt_log`, `Output.attempt_log`), and `outputs.finished_at` records when it became ready or failed (migration `0017_rag_output_attempts.sql`). `GET /api/rag/admin/outputs?id_prefix=` finds outputs by the start of their id for viewers and admins, with the owner (masked for viewers) and the attempts. Log lines name an output by its short id.
