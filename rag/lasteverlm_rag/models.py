@@ -146,6 +146,16 @@ class ChartPropose(BaseModel):
     url_refresh: list[UUID] | None = None
 
 
+class PartPropose(BaseModel):
+    """``POST /notebooks/{id}/tables/propose`` and ``…/infographics/propose``:
+    the user's notes, how many candidates at most, and the selection."""
+
+    instructions: str | None = Field(default=None, max_length=500)
+    max: int = Field(default=6, ge=1, le=6)
+    source_ids: list[UUID] | None = None
+    url_refresh: list[UUID] | None = None
+
+
 class OutputCreate(BaseModel):
     kind: OutputKind
     options: OutputOptions | None = None

@@ -67,9 +67,9 @@ KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "report": [*TEXT_OPTIONS, "report_style", "length"],
     "quiz": [*TEXT_OPTIONS, "question_count", "difficulty", "audience"],
     "flashcards": [*TEXT_OPTIONS, "card_count", "difficulty", "audience"],
-    "table": TEXT_OPTIONS,
+    "table": [*TEXT_OPTIONS, "tables"],
     "mindmap": TEXT_OPTIONS,
-    "infographic": TEXT_OPTIONS,
+    "infographic": [*TEXT_OPTIONS, "themes"],
     "audio": [*TEXT_OPTIONS, "voice", "speed", "audio_style", "audio_voice_2"],
     "decision": [*TEXT_OPTIONS, "question", "decision_type", "choices", "levels"],
     # no language: a chart is made from the picked candidates without a model call
@@ -91,6 +91,7 @@ BULLETPROOF_JUDGE = "high"
 SECOND_JUDGE = "second"  # its key among the judge models
 CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "scatter"]
 CHARTS_MAX = 12  # picked per output, and proposed per call at most
+PROPOSALS_MAX = 6  # tables or themes, picked per output and proposed per call at most
 PROPOSE_DEFAULT = 6
 INSTRUCTIONS_MAX_CHARS = 500
 REPORT_STYLES = ["briefing", "detailed", "executive_summary", "explainer", "academic"]
@@ -142,6 +143,9 @@ class OutputOptions(BaseModel):
     choices: list[str] | None = None
     levels: list[str] | None = None
     charts: list[dict[str, Any]] | None = None
+    # picked "Find tables" / "Find themes" candidates, one table or part each
+    tables: list[dict[str, Any]] | None = None
+    themes: list[dict[str, Any]] | None = None
 
 
 def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str) -> dict[str, Any]:
@@ -234,6 +238,9 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
         _resolve_decision(given)
     if kind == "chart":
         _resolve_charts(given)
+    for key in ("tables", "themes"):
+        if key in given:
+            _resolve_candidates(given, key)
     return given
 
 
@@ -253,6 +260,25 @@ def _resolve_charts(given: dict[str, Any]) -> None:
         first = exc.errors()[0]
         where = ".".join(str(p) for p in first["loc"])
         raise ValueError(f"charts: {where}: {first['msg']}") from exc
+
+
+def _resolve_candidates(given: dict[str, Any], key: str) -> None:
+    """Picked table or theme candidates, 1 to ``PROPOSALS_MAX``, each as the
+    proposal returned it; the worker makes each from its own sources."""
+    from pydantic import ValidationError
+
+    from .outputs.proposals import TableCandidate, ThemeCandidate
+
+    model = TableCandidate if key == "tables" else ThemeCandidate
+    picked = given.get(key) or []
+    if not 1 <= len(picked) <= PROPOSALS_MAX:
+        raise ValueError(f"{key}: 1 to {PROPOSALS_MAX} picked candidates")
+    try:
+        given[key] = [model.model_validate(c).model_dump() for c in picked]
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        where = ".".join(str(p) for p in first["loc"])
+        raise ValueError(f"{key}: {where}: {first['msg']}") from exc
 
 
 def _resolve_decision(given: dict[str, Any]) -> None:
@@ -309,6 +335,11 @@ def catalogue(default_voice: str, judge_models: Mapping[Any, str]) -> dict[str, 
     return {
         "judge": {"levels": JUDGE_LEVELS, "default": "off", "models": dict(judge_models)},
         "verification": {"levels": VERIFICATION_LEVELS, "default": DEFAULT_VERIFICATION},
+        # "Find tables" / "Find themes": how many candidates a proposal offers
+        "proposals": {
+            "table": {"max": PROPOSALS_MAX, "default": PROPOSALS_MAX},
+            "infographic": {"max": PROPOSALS_MAX, "default": PROPOSALS_MAX},
+        },
         "languages": [{"code": lang.code, "label": lang.label} for lang in LANGUAGES],
         "instructions": {"max_chars": INSTRUCTIONS_MAX_CHARS},
         "report": {

@@ -30,6 +30,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?, "url_refresh"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
+| POST | `/api/rag/notebooks/{id}/tables/propose`, `/api/rag/notebooks/{id}/infographics/propose` | `{"instructions"?, "max"? (1–6, default 6), "source_ids"?, "url_refresh"?}` | `{"candidates", "reason"}`: candidate tables or infographic themes, previews, nothing stored, see **Tables and themes** |
 | POST | `/api/rag/notebooks/{id}/charts/propose` | `{"instructions"?, "max"?, "source_ids"?, "url_refresh"?}` | `{"candidates", "reason"}`: candidate charts, nothing stored, see below |
 | POST | `/api/rag/estimate` | `{"kind", "options"?}` or `{"action", "options"?}` | the charge range before it runs, see **Estimate** |
 | POST | `/api/rag/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview of a voice |
@@ -703,6 +704,30 @@ sides are shown as they are), `null` when undecided. Nothing is hidden.
 `provenance.calls` lists both calls (`role` `decision` with the state's
 size, `role` `evidence`), `provenance.usage.decision` the decision
 model's input tokens.
+
+**Tables and themes.** A table or an infographic can be made from picked
+candidates, so a notebook of unrelated sources gives several tables (or
+infographic parts) instead of one that silently uses one source:
+
+1. `POST …/tables/propose` or `…/infographics/propose` reads the selected
+   sources as "Find charts" does (unread ones first, as the caller) and
+   makes one LLM call (`table_propose` / `infographic_propose`), nothing
+   stored. A table candidate is `{"id", "title", "columns", "preview"
+   (at most 3 rows), "sources": [{"source_id", "name"}], "passages",
+   "proposal"}`; a theme `{"id", "title", "headline", "facts" (at most 4
+   `{"label", "value"}`), "sources", "passages", "proposal"}`. The
+   sources are those of the passages the candidate cites; one without a
+   cited passage is not offered.
+2. `POST …/outputs` with `options.tables` (kind `table`) or
+   `options.themes` (kind `infographic`), 1–6 candidates as returned,
+   makes one table or one part per candidate, each from its own sources'
+   passages only, numbered once for all of them. The content is
+   `{"tables": [{"title", "columns", "rows", "row_refs", "candidate_id"}]}`
+   or `{"parts": [{"title", "headline", "facts", "sections",
+   "candidate_id"}]}`; the word check, the judge and coverage see their
+   units in order. A candidate citing a passage outside the selection
+   (or the notebook) is 409 `candidate_out_of_scope`. Without candidates
+   a table or infographic is made as before, in one generation.
 
 `chart`: a chart is made in two steps.
 
