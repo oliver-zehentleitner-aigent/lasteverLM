@@ -7,7 +7,7 @@
 **Status:** superseded
 **Superseded by:** 932bc8fc-0ac5-4005-929e-6c79a760f3c5
 **Evidence:** confirmed
-**Source:** the maintainer's request through the fleet lead, 2026-10-13 (one source per kind, the Zeltavia theme, the sponsor billing); seeding trigger and marker table chosen by the ingest author
+**Source:** maintainer request, 2026-10-13 (one source per kind, the Zeltavia theme, the sponsor billing); seeding trigger and marker table chosen by the ingest author
 **Revisit when:** sign-ups are open to the public at a volume where the sponsored processing becomes a cost worth limiting, or the demo content changes often enough to want re-seeding
 
 Every new user's library starts with demo sources, one per kind (five
@@ -49,7 +49,7 @@ write another service's table.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's decision through the coordinating agent, 2026-10-14 (a starter notebook he builds replaces the Zeltavia seeds; copies flagged starter, no processing, no charge); the handover to rag agreed with rag's author the same day
+**Source:** maintainer decision, 2026-10-14 (a starter notebook the maintainer builds replaces the Zeltavia seeds; copies flagged starter, no processing, no charge); the handover to rag agreed with rag the same day
 **Revisit when:** the starter grows large enough that copying its objects and chunks on first access is too slow, or users ask to receive updates of the starter after their copy
 
 A new user gets a copy of the notebook an admin marks as the starter:
