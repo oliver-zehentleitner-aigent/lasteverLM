@@ -52,10 +52,14 @@ DISPUTED_REASON = "the two judges disagree; read the passage yourself"
 # once, at this level, annotate only
 DOUBTED = frozenset({"unsupported", "unverified", "possible_contradiction"})
 STANDARD_JUDGE = "low"
-# a failing claim found supported by passages it did not cite, searched for
-# again across the output's selected sources: it passes, the passages added
+# the only verdict that is searched for again; a contradicted claim never is:
+# a conflict between sources must stay visible
+NOT_IN_SOURCE = "not_in_source"
+# a claim not in its cited passages, found supported by passages it did not
+# cite when searched for again across the output's selected sources: it
+# passes, the passages added
 SUPPORTED_ELSEWHERE: Literal["supported_elsewhere"] = "supported_elsewhere"
-# how many passages a failing claim is searched for again with
+# how many passages a claim not in its sources is searched for again with
 SEARCH_AGAIN_K = 3
 
 
@@ -88,7 +92,7 @@ class Verdict:
 
 @dataclass(frozen=True)
 class Research:
-    """Where a failing claim is searched for again: ``find`` takes the claims'
+    """Where a claim judged not_in_source is searched for again: ``find`` takes the claims'
     texts and returns, per text, the best passages of the output's selected
     sources, numbered among the output's passages (a passage new to the
     output gets the next number and is added to them)."""
@@ -174,7 +178,7 @@ def _search_again(
     units: Mapping[int, Unit],
     texts: dict[int, str],
 ) -> dict[int, tuple[Judgement, Judgement | None, Judgement | None, list[int]]]:
-    """The failing ``units`` (by index) searched for again: each is judged
+    """The ``units`` (by index) judged not_in_source searched for again: each is judged
     once more with its cited passages and the best ones it did not cite. A
     unit both judges now support is ``supported_elsewhere``, with the passages
     it gains; any other answer leaves its verdict as it was. ``texts`` gains
@@ -262,7 +266,7 @@ def judge_output(
         for i, judgement, own, other in zip(pending, judged, firsts, seconds, strict=True):
             last[i] = Verdict(judgement, number, other, own)
         # before anything is revised: a correct but under-cited unit is not rewritten
-        searched = [i for i in pending if last[i].judgement.verdict in FAILING]
+        searched = [i for i in pending if last[i].judgement.verdict == NOT_IN_SOURCE]
         again = _search_again(
             judge, second, research, {i: current.units[i] for i in searched}, texts
         )
@@ -379,7 +383,7 @@ def annotate(
         on_progress(0, total)
     judged, firsts, seconds = _judge_both(judge, second, claims, texts, finished)
     texts = dict(texts)
-    failing = {i: claims[i] for i, j in enumerate(judged) if j.verdict in FAILING}
+    failing = {i: claims[i] for i, j in enumerate(judged) if j.verdict == NOT_IN_SOURCE}
     added: dict[int, list[int]] = {}
     for i, (judgement, own, other, found) in _search_again(
         judge, second, research, failing, texts

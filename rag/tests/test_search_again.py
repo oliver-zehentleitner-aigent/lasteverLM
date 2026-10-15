@@ -102,6 +102,35 @@ def test_an_under_cited_claim_is_supported_elsewhere_and_an_invented_one_is_not(
     assert statements.count("The handbook has a panel with notes.") == 2
 
 
+def test_a_contradicted_claim_is_never_searched_into_supported(settings):
+    wrong = json.dumps(
+        {"title": "Sky", "markdown": "## Sky\n\nThe handbook has a panel, wrong colour. [1]"}
+    )
+    class Contradicting(PassageJudge):
+        def complete(self, system, user, max_tokens=None, *, thinking=None):
+            statement = user.split("\n")[1]
+            with self._lock:
+                self.statements.append(statement)
+            reply = {"verdict": "contradicted", "reason": "the colour differs", "quote": ""}
+            return CompletionResult(json.dumps(reply), Usage("llm", self.model, 120, 15))
+
+    store = FakeStore()
+    store.add_source(NOTEBOOK, "sky.pdf", summary="About the sky.")
+    judges = {lv: Contradicting(f"test-judge-{lv}") for lv in ("low", "medium", "high")}
+    client = make_client(settings, store, SearchedRetriever([SKY]), FakeLLM(wrong), judges=judges)
+    r = client.post(OUTPUTS, json={"kind": "report", "options": {}}, headers=AUTH)
+    client.worker.run_once()
+    r = client.post(f"/api/rag/outputs/{r.json()['id']}/judge", json={"level": "low"}, headers=AUTH)
+    client.worker.run_once()
+    out = client.get(f"/api/rag/outputs/{r.json()['target_id']}", headers=AUTH).json()
+    (unit,) = out["content"]["units"]
+    # the conflict stays visible: no second search, no added passage
+    assert unit["judge"]["verdict"] == "contradicted" and "added_refs" not in unit["judge"]
+    assert unit["refs"] == [1] and len(out["provenance"]["passages"]) == 1
+    assert judges["low"].statements == ["The handbook has a panel, wrong colour."]
+    assert out["provenance"]["judgements"][0]["searched_again"] == 0
+
+
 def test_at_standard_a_doubted_claim_gains_the_passage_found(settings):
     _, _, _, out = run(settings, {"verification": "standard"}, REPORT)
     assert out["status"] == "ready", out["error"]

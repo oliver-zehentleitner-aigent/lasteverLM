@@ -121,8 +121,8 @@ def test_a_failing_paragraph_is_revised_and_judged_again(settings):
             "judged": 2,
             "verdicts": {"supported": 1, "contradicted": 1},
             "usage": {"tokens_in": 240, "tokens_out": 30},
-            # the contradicted one searched for again: nothing it did not cite was found
-            "searched_again": 1,
+            # a contradicted unit is never searched for again
+            "searched_again": 0,
             "revision": {
                 "revised": 1,
                 "dropped": 0,
