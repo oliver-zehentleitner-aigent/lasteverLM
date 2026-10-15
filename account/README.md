@@ -200,7 +200,9 @@ each source kind per unit. Each row has:
 
 - `price_per_unit_cents` with `price_min_cents` and `price_max_cents`, `estimated: true` —
   from rag's `POST /api/rag/estimate` with default options (outputs, chat, judge; the
-  midpoint of its min and max; a chart is its proposal plus the chart) or from ingest's
+  midpoint of its min and max; a chart is its proposal plus the chart, since a chart is
+  always proposed first; finding tables and finding themes, optional before a table or an
+  infographic, are rows of their own: `table_propose`, `infographic_propose`) or from ingest's
   `GET /api/ingest/estimate` (one nominal page, image, audio minute or web page; ingest's
   README names the nominal sizes), plus `per_source_cents`, what a source adds once.
   Account calls both with a 60-second token of the demo user and reads only the charge

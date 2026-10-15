@@ -234,3 +234,21 @@ def test_viewer_reads_finance_but_cannot_price(client: TestClient, mailer: FakeM
         == 403
     )
     assert client.post(f"{PRICING}/preview", json={}, headers=bearer(vtoken)).status_code == 403
+
+
+def test_pricing_rules_take_the_optional_propose_actions(
+    client: TestClient, mailer: FakeMailer
+) -> None:
+    token, _ = login(client, mailer, "admin@example.org")
+    view = client.get(PRICING, headers=bearer(token)).json()
+    assert {"table_propose", "infographic_propose"} <= set(view["actions"])
+    rules = {
+        "usd_per_eur": 1.1,
+        "default_margin_pct": 0,
+        "actions": {
+            "table_propose": {"margin_pct": 30, "fixed_cents": 1},
+            "infographic_propose": {"margin_pct": 30},
+        },
+    }
+    r = client.put(PRICING, json=rules, headers=bearer(token))
+    assert r.status_code == 200, r.text
