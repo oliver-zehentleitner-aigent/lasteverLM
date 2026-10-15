@@ -489,7 +489,7 @@ def test_stored_units_are_the_units_the_generator_made(kind, document):
     _, schema = gen.prompt({"audio_style": "conversation", "question_count": 1})
     out = gen.to_output(schema.model_validate(document))
     passages = [Passage(1, "c", "s", "doc.pdf", "pdf", None, "The sky is blue.")]
-    check_units(out.units, passages, translated=False)
+    check_units(out.units, passages)
     stored = stored_units(kind, out.content)
     assert [(u.text, u.refs, u.claim) for u in stored] == [
         (u.text, u.target.get("refs", []), u.claim) for u in out.units

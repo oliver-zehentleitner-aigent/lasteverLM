@@ -32,7 +32,7 @@ PASSAGES = [
 
 def decide(options, model_answer, evidence):
     content, units = decision_content(options, model_answer, Evidence.model_validate(evidence))
-    check_units(units, PASSAGES, translated=False)
+    check_units(units, PASSAGES)
     replaced = finish_decision(content)
     return content, replaced
 

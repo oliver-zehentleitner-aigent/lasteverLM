@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The support check no longer counts every output with a chosen `language` as translated. A unit is `unverified` only when it is in another language than its cited passages, told per unit; an English output from English sources with too little overlap is `unsupported` again.
+
 ## [0.20.2] - 2026-10-15
 
 ### Added

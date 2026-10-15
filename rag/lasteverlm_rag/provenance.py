@@ -9,9 +9,11 @@ cites (``refs``) and the result of a deterministic check (``support``):
   unit's words overlap the cited passages by at least the threshold
   (``citations.overlap``);
 - ``unsupported``: no refs, a ref no passage has, or too little overlap;
-- ``unverified``: the refs are valid but the overlap is low while the output
-  was written in a chosen language, which may not be the material's, so
-  word overlap cannot tell.
+- ``unverified``: the refs are valid but the overlap is low while the unit
+  is in another language than the passages it cites, so word overlap
+  cannot tell. The language is told per unit (``language_of``), falling
+  back to the whole output's and all cited passages' language when a unit
+  or its passages say too little; unknown on either side is no difference.
 
 A unit that fails is kept and marked, never dropped, and never fails the
 output. A unit that is not a claim (an interviewer's question without refs)
@@ -40,16 +42,19 @@ _PRIVATE_KEYS = ("chunk_id", "source_id")
 PRIVATE_OPTIONS = ("sources", "charts")
 
 
-def check_units(units: list[Unit], passages: list[Passage], translated: bool) -> dict[str, Any]:
+def check_units(units: list[Unit], passages: list[Passage]) -> dict[str, Any]:
     """Mark every unit's ``target`` with its valid ``refs`` and its ``support``;
     returns the check's summary for the log."""
-    return check_against(units, {p.n: p.text for p in passages}, translated)
+    return check_against(units, {p.n: p.text for p in passages})
 
 
-def check_against(units: list[Unit], texts: dict[int, str], translated: bool) -> dict[str, Any]:
+def check_against(units: list[Unit], texts: dict[int, str]) -> dict[str, Any]:
     """``check_units`` over the cited texts by number; the chat's citations
     and a generator's passages both come down to this."""
     counts = {SUPPORTED: 0, UNSUPPORTED: 0, UNVERIFIED: 0}
+    # what a unit, or its passages, too short to tell fall back to
+    written = language_of(" ".join(u.text for u in units))
+    material = language_of(" ".join(texts[n] for u in units for n in u.refs if n in texts))
     for unit in units:
         refs = list(dict.fromkeys(unit.refs))
         valid = [n for n in refs if n in texts]
@@ -61,6 +66,10 @@ def check_against(units: list[Unit], texts: dict[int, str], translated: bool) ->
         elif overlap(unit.text, [texts[n] for n in valid]) >= OVERLAP_THRESHOLD:
             support = SUPPORTED
         else:
+            # only a real language difference makes low overlap unverified
+            spoken = language_of(unit.text) or written
+            cited = language_of(" ".join(texts[n] for n in valid)) or material
+            translated = spoken is not None and cited is not None and spoken != cited
             support = UNVERIFIED if translated else UNSUPPORTED
         unit.target["support"] = support
         counts[support] += 1
@@ -72,15 +81,13 @@ def check_answer(answer: str, citations: list[Citation]) -> dict[str, Any] | Non
     refs the markers in it. ``None`` when the answer cites nothing (an answer
     from the document list, the refusal). An answer in another language than
     its cited passages (a German question about English sources) is
-    "translated": low overlap there is ``unverified``."""
+    "translated": low overlap there is ``unverified``, told per paragraph."""
     if not citations:
         return None
     texts = {c.n: c.quote for c in citations}
     paragraphs = [p for p in _PARAGRAPH.split(answer.strip()) if p.strip()]
     units = [Unit({"text": p}, p, extract_markers(p)) for p in paragraphs]
-    spoken, cited = language_of(answer), language_of(" ".join(texts.values()))
-    translated = spoken is not None and cited is not None and spoken != cited
-    check = check_against(units, texts, translated)
+    check = check_against(units, texts)
     return {"units": [u.target for u in units], "check": check}
 
 

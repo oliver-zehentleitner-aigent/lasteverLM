@@ -943,15 +943,11 @@ class OutputService:
             generated = self._generate(booking, notebook_id, job, trace)
             # the units are marked in place, inside the content
             self._phase("checking")
-            check = generated.check or check_units(
-                generated.units, trace.passages, translated="language" in job.options
-            )
+            check = generated.check or check_units(generated.units, trace.passages)
             if "judge" in job.options:
                 generated = self._judge(job, booking, generated, trace)
                 # the word check again, on what is left after revision and removal
-                check = check_units(
-                    generated.units, trace.passages, translated="language" in job.options
-                )
+                check = check_units(generated.units, trace.passages)
             content = generated.content
             if job.kind == "decision":
                 trace.llm_verdict_text = finish_decision(content)
