@@ -14,7 +14,8 @@ own tables; `infra/` keeps only the extensions file and the runner.
 `make migrations` collects all of them from the sibling directories of
 the mono repo into `chart/files/migrations.tgz`; the chart ships the
 tarball and `db/migrate.sh` as a ConfigMap and runs the script in a
-`postgres:17-alpine` Job as a Helm pre-install/pre-upgrade hook, so a
+Job on a digest-pinned `postgres` image (18.6, Alpine 3.24) as a Helm
+pre-install/pre-upgrade hook, so a
 release cannot roll out pods against a schema that is behind. See the
 hook entry below. The script applies `infra`, then the services
 in the fixed order, each file once, each in its own transaction, and
@@ -84,7 +85,8 @@ services read too. A psql variable is the plainest way to get it into
 SQL without a templating step.
 
 **Rejected alternative:** rendering the SQL files with `sed` before
-shipping them, as the Makefile does for the Ingress — would make the
+shipping them, as the Makefile did for the Ingress before the Helm
+chart — would make the
 collected files differ from what the service directory committed,
 which defeats the audit trail.
 
@@ -92,7 +94,8 @@ which defeats the audit trail.
 
 **Id:** 7652a827-0b6a-4e1a-ad3b-fe108d3d4f4a
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** fef72023-0a18-4686-a92f-ff9ea912a073
 **Evidence:** inferred
 **Source:** infra design session, 2026-10-12
 **Revisit when:** the first `make migrate` against a real Vultr database shows which privileges the application role actually has
@@ -103,6 +106,12 @@ instance. `CREATE EXTENSION vector` is assumed to need the admin role on
 a managed database — not verified yet, which is why the evidence is
 inferred. Even if the application role turns out to have the privilege,
 keeping DDL on a role the services do not hold is the intended split.
+
+Re-checked 2026-10-15: the trigger fired with the first deploy on
+2026-10-12. The role and the database are created by the bootstrap Job,
+not by OpenTofu (the instance is an input, entry 210e2af5 below), and
+the service migrations run as the application role through `SET ROLE`,
+only the extension as the admin (the successor).
 
 ## The managed database is reachable from any IP
 
@@ -128,7 +137,7 @@ is a second apply step this skeleton does not take yet.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12 ("security exemplary, no shortcuts")
+**Source:** maintainer requirement, 2026-10-12 ("security exemplary, no shortcuts")
 **See:** database.md#the-managed-database-is-reachable-from-any-ip — f8de01a5-e14a-4479-84cc-9cbc512333bd — as of 2026-10-12
 **Revisit when:** the database is attached to the cluster's VPC, or nodes are recycled (the list has to be refreshed)
 
@@ -155,7 +164,7 @@ by the maintainer.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** family coordinator, 2026-10-12: the maintainer created the instance by hand in Frankfurt before the first run
+**Source:** the instance as found on 2026-10-12: created by hand in Frankfurt before the first run
 **Revisit when:** the instance is recreated, or the project wants the database under OpenTofu after all
 
 `tofu/` creates the cluster and the object storage only. The instance's
@@ -183,7 +192,7 @@ two databases to pay for and confuse.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12
+**Source:** maintainer requirement, 2026-10-12
 **Revisit when:** the CA rotates (the ConfigMap is rebuilt by `make secrets`), or the database moves into the VPC
 
 `scripts/dburls.py` writes every connection string with
