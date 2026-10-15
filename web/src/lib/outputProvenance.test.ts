@@ -42,8 +42,8 @@ describe('passages and claims', () => {
 describe('checkSummary', () => {
   const check = { method: 'lexical-overlap-v1', threshold: 0.3, supported: 7, unsupported: 2, unverified: 0 }
   it('counts the supported claims of all', () => {
-    expect(checkSummary(check)).toBe('Word check: 7 of 9 claims supported')
-    expect(checkSummary({ ...check, unverified: 1 })).toBe('Word check: 7 of 10 claims supported · 1 in another language')
+    expect(checkSummary(check)).toBe('Word check: words match in 7 of 9 paragraphs')
+    expect(checkSummary({ ...check, unverified: 1 })).toBe('Word check: words match in 7 of 10 paragraphs · 1 in another language')
   })
   it('says nothing without claims or a check', () => {
     expect(checkSummary({ ...check, supported: 0, unsupported: 0 })).toBeNull()
