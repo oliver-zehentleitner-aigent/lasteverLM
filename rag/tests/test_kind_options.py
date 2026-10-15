@@ -88,7 +88,7 @@ def test_a_report_is_written_in_its_style_and_length(settings):
     assert "Never add facts, roles, steps or reasons the material does not state" in prompt
     assert "about" not in prompt.split("Length:")[1].split(".")[0]
     assert llm.budgets == [8000]
-    assert out["provenance"]["prompt_version"] == "report-explainer-v4"
+    assert out["provenance"]["prompt_version"] == "report-explainer-v5"
 
 
 @pytest.mark.parametrize("length, words", [("short", 500), ("medium", 1200), ("long", 2500)])

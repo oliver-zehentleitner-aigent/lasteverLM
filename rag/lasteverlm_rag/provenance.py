@@ -140,6 +140,8 @@ class GenerationLog:
     # an undecided decision's verdict and number, withheld from the content: the
     # number is the decision model's prior, not a decision from the sources
     withheld: dict[str, Any] | None = None
+    # which selected sources the output cites, and why not where the model said
+    coverage: dict[str, Any] | None = None
 
     def record(self, check: dict[str, Any]) -> dict[str, Any]:
         in_prompt = {p.chunk_id for p in self.passages}
@@ -192,6 +194,7 @@ class GenerationLog:
             },
             **({"calls": self.calls} if self.calls else {}),
             **(self.withheld or {}),
+            **({"coverage": self.coverage} if self.coverage is not None else {}),
             **({"judge": self.judge} if self.judge else {}),
             "started_at": self.started_at,
             "finished_at": now(),
@@ -209,11 +212,50 @@ def shared_provenance(provenance: dict[str, Any] | None) -> dict[str, Any] | Non
         return [{k: v for k, v in e.items() if k not in _PRIVATE_KEYS} for e in entries]
 
     retrieval = provenance.get("retrieval", {})
+    coverage = provenance.get("coverage")
+    shown = (
+        {"coverage": {**coverage, "sources": public(coverage.get("sources", []))}}
+        if coverage
+        else {}
+    )
     return {
         **provenance,
+        **shown,
         "options": {
             k: v for k, v in provenance.get("options", {}).items() if k not in PRIVATE_OPTIONS
         },
         "retrieval": {**retrieval, "candidates": public(retrieval.get("candidates", []))},
         "passages": public(provenance.get("passages", [])),
+    }
+
+
+def source_coverage(
+    units: list[Unit],
+    passages: list[Passage],
+    sources: list[tuple[str, str]],
+    unused: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Which of the selected ``sources`` (id, name) the output cites, read
+    from the refs its units keep (every passage when it has no units, as a
+    chart); an uncited source carries the model's reason when it named it."""
+    by_n = {p.n: p.source_id for p in passages}
+    if units:
+        refs = {n for u in units for n in (u.target.get("refs") or u.refs)}
+    else:
+        refs = set(by_n)
+    cited = {by_n[n] for n in refs if n in by_n}
+    reasons = {u["source"].strip().casefold(): u["reason"] for u in unused}
+    listed = [
+        {
+            "source_id": source_id,
+            "name": name,
+            "cited": source_id in cited,
+            "reason": None if source_id in cited else reasons.get(name.strip().casefold()) or None,
+        }
+        for source_id, name in sources
+    ]
+    return {
+        "selected": len(listed),
+        "cited": sum(s["cited"] for s in listed),
+        "sources": listed,
     }

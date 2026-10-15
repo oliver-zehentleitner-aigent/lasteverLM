@@ -67,7 +67,7 @@ class ReportGenerator(JsonGenerator):
     focus_query: str = "main topics, key findings, conclusions"
     schema: type[BaseModel] = Report
     # 4: lengths are upper bounds, no filler; 3: styles and lengths; 2: cites passages
-    prompt_version: str = "4"
+    prompt_version: str = "5"  # 5: every fitting source used, an unused one named
     instructions: str = ""
 
     def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:
@@ -102,7 +102,11 @@ class ReportGenerator(JsonGenerator):
         # the check marks its paragraph unsupported
         markdown = keep_markers(generated.content["markdown"], {p.n for p in passages})
         output = self._document(generated.title, markdown, generated.units)
-        return replace(output, document=Report(title=generated.title, markdown=markdown))
+        return replace(
+            output,
+            document=Report(title=generated.title, markdown=markdown),
+            unused_sources=generated.unused_sources,
+        )
 
     # -- editing: a unit is a paragraph that is not a heading ---------------
 

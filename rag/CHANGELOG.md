@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Every output's provenance has `coverage`: which selected sources it cites, read from its units' refs, and for an uncited source the generator's own reason when it named it. Generators are asked to use every source that holds something fitting and to name one that holds nothing, and why, instead of covering every source at any cost; every generator's prompt version goes up by one.
+
 ## [0.22.5] - 2026-10-15
 
 ### Fixed

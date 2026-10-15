@@ -95,7 +95,7 @@ def test_a_proposal_returns_checked_candidates_and_stores_nothing(settings):
         {"n": 1, "chunk_id": VISITORS.chunk_id, "source_name": "doc1.pdf", "page": None}
     ]
     assert first["proposal"]["model"] == "test-llm"
-    assert first["proposal"]["prompt_version"] == "chart-v1"
+    assert first["proposal"]["prompt_version"] == "chart-v2"
     assert first["id"] != second["id"]
     system, user = llm.calls[0]
     assert "Propose up to 4 charts" in user

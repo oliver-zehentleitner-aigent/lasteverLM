@@ -217,7 +217,14 @@ output is ready, for every kind (`null` for outputs from before): `{"version", "
 "quote"}], "usage": {"llm": {"tokens_in", "tokens_out"}, "embedding":
 {"tokens_in"}, "tts": {"seconds"}}, "started_at", "finished_at",
 "check": {"method", "threshold", "supported", "unsupported",
-"unverified"}}`. The shared view carries it too, without `chunk_id`,
+"unverified", "possible_contradiction"}, "coverage": {"selected",
+"cited", "sources": [{"source_id", "name", "cited", "reason"}]}}`.
+`coverage` lists the output's selected sources (all ready uploads
+without a selection) and whether it cites each, read from the refs its
+units keep (every passage for a chart); an uncited source carries the
+model's own short reason when it named the source in its answer's
+`unused_sources` ("use every source that holds something fitting; name
+one that holds nothing, and why"), `null` otherwise. The shared view carries it too, without `chunk_id`,
 `source_id` and the source selection, so a shared document can be
 checked without logging in.
 
