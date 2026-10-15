@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.3] - 2026-10-15
+
 ### Fixed
 
 - Audio: the sticky player's bar is opaque (the panel colour, a line under it) and as wide as the transcript, so the text no longer shows through it while it scrolls.
