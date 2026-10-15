@@ -6,11 +6,12 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-13, for the admin statistics requested by the fleet lead ("total source bytes if cheap"); maintainer review in the pull request
+**Source:** service author's implementation decision, 2026-10-13, for the admin statistics ("total source bytes if cheap")
 **Revisit when:** the admin overview needs exact totals for sources created before migration 0002
 
-`GET /admin/stats` sums `sources.size_bytes`, a column added by
-migration 0002 and written by the API when it stores a source. Rows
+`GET /admin/stats` sums `library_sources.size_bytes` (on `sources` until
+the source library, migration 0003), a column added by migration 0002 and
+written by the API when it stores a source. Rows
 created before the migration have no size and count as 0; there is no
 backfill.
 

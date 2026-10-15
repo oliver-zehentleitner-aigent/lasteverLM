@@ -6,25 +6,25 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-13, after a live probe of the inference platform (its model list marks `qwen3.8-27b`, the configured `LLM_MODEL`, as accepting base64 PNG, JPEG, WebP and GIF); maintainer review in the pull request
+**Source:** service author's implementation decision, 2026-10-13, after a live probe of the inference platform (its model list marks `qwen3.8-27b`, the configured `LLM_MODEL`, as accepting base64 PNG, JPEG, WebP and GIF)
 **Revisit when:** a second service needs image input (then the call belongs in core's provider interfaces), or `LLM_MODEL` is switched to a model without image input
 
 An image source becomes text in one chat-completion call to `LLM_MODEL`:
 every legible text transcribed verbatim, then a description of the
 image, in the language of that text. The call lives in ingest
 (`loaders/image.py`) on core's `make_client` and `thinking_body`, behind a
-`ModelLoader` protocol that makes the worker check the credit before it
-and record its usage row after it.
+`ModelLoader` protocol that makes the worker record its usage row the
+moment it returns (credit is checked once, when the read starts;
+accounting.md).
 
 **Reason:** the configured chat model already reads images, so no second
 model, price or secret is needed, and one call gives both the text (for
 retrieval and citations) and what a chart or photo shows, which OCR
 alone would lose. Only ingest needs image input today; core's `LLM`
 interface is text-only and core was busy with the audio contract, so
-widening it now would have blocked on another agent for one caller.
+widening it now would have blocked on another service's work for one caller.
 A separate protocol, instead of a plain loader that calls the model
-quietly, keeps the family rule that every model call is credit-checked
-and recorded.
+quietly, keeps the family rule that every model call is booked.
 
 The first live probe returned an English description of a German
 image although the prompt asked for "the language of the text in the
@@ -36,10 +36,10 @@ about seven seconds, so no client-side downscaling was added.
 - OCR in the worker (Tesseract): a native dependency in the image, text
   only, no understanding of charts or photos.
 - A vision method on core's `LLM` interface: the right home once a
-  second service needs it (see Revisit when), not worth a cross-agent
+  second service needs it (see Revisit when), not worth a cross-service
   contract change for one caller.
 - Calling the model inside a plain `SourceLoader`: the call would be
-  neither credit-checked nor accounted.
+  neither booked nor covered by the read's credit check.
 
 ## The frontend shows an image through a presigned URL of the original
 
@@ -47,7 +47,7 @@ about seven seconds, so no client-side downscaling was added.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request through the coordinating agent, 2026-10-13: images in the library picker are chosen by seeing them, not by file name; extended by the maintainer, 2026-10-14: the library opens PDFs, texts and URL sources too
+**Source:** maintainer request, 2026-10-13: images in the library picker are chosen by seeing them, not by file name; extended by the maintainer, 2026-10-14: the library opens PDFs, texts and URL sources too
 **Revisit when:** uploaded images grow large enough that loading the originals in a list is slow, or the bucket becomes reachable only through the API
 
 Every listing that names an image source (a notebook's sources, the
