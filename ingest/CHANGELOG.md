@@ -9,15 +9,17 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.22.9] - 2026-10-15
+
+### Changed
+
+- An audio transcript that degenerated into a repetition loop is asked for once more at temperature 0.4, like an image, instead of failing at once (core's transcriber now passes sampling settings; the speech model honours the temperature and ignores penalties). A second loop fails the source; both calls are billed.
+
 ## [0.22.8] - 2026-10-15
 
 ### Added
 
 - A user can have the starter notebook made again (`POST /starter/copy`, for the help page's "Recreate"): a fresh, free copy of the current starter, with rag's handover for the outputs. Starter sources the user still has are linked (restored from the trash if need be), and only the ones that are gone are copied. Without `force=true`, a user who still has a starter notebook gets 409 `starter_exists`; there is at most one such copy an hour (429 `starter_copy_too_soon` with `retry_after`), and 404 `no_starter` without a starter. Notebooks carry `starter` (migration 0019, existing starter copies backfilled).
-
-### Changed
-
-- An audio transcript that degenerated into a repetition loop is asked for once more at temperature 0.4, like an image, instead of failing at once (core's transcriber now passes sampling settings; the speech model honours the temperature and ignores penalties). A second loop fails the source; both calls are billed.
 
 ### Fixed
 
