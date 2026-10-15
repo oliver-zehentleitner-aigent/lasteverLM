@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - rag API memory request 256Mi → 384Mi for the spaCy negation check (rag #574): about 270 MiB more per process once it checks its first answer. The rag worker's 512Mi request and both limits (1Gi, 2Gi) already cover it, and raising every rag request by 300Mi would add 1.8 GiB to nodes whose memory requests stand at 79 % and 91 %.
 
+### Fixed
+
+- `scripts/changelog_unreleased.py` compares with the merge base of the base branch and the head (`git diff base...head`), not with the base branch itself: run on a branch that is behind `main`, it counted the release sections `main` gained since as the branch's changes. In CI the checkout is the pull request's merge commit, where both give the same result.
+
 ## [0.21.2] - 2026-10-15
 
 ### Added

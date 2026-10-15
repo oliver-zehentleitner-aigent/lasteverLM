@@ -118,6 +118,22 @@ class ChangelogUnreleasedTest(unittest.TestCase):
         self.assertIn("CHANGELOG.md:", r.stderr)
         self.assertIn("[0.1.0]", r.stderr)
 
+    def test_branch_behind_main_is_not_charged_with_main_s_release(self):
+        branch_point = self.base
+        # main rolls a release after the branch was cut
+        self.change(
+            BASE.replace(
+                "## [Unreleased]\n\n### Fixed\n\n- an open fix\n\n",
+                "## [Unreleased]\n\n## [0.3.0] - 2026-10-15\n\n### Fixed\n\n- an open fix\n\n",
+            )
+        )
+        main = self.git("rev-parse", "HEAD").strip()
+        self.git("checkout", "-q", "-b", "feature", branch_point)
+        self.change(BASE.replace("- an open fix\n", "- an open fix\n- the branch's fix\n"))
+        self.base = main
+        r = self.run_check()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_unknown_base_is_a_git_failure(self):
         r = subprocess.run(
             [sys.executable, SCRIPT, "no-such-ref"], cwd=self.repo, capture_output=True, text=True
