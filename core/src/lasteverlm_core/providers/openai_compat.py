@@ -359,6 +359,15 @@ class OpenAICompatibleSpeechToText:
     `ProviderError` carrying the measured duration as usage, so the
     caller still records the call; an empty transcript is one too, with
     the reported usage. No timestamps: `verbose_json` is a 400 there.
+
+    Per call, `temperature`, `prompt` and `language` are sent when given
+    and left out otherwise, so a call without them is the request it
+    always was. These three are the ones the platform reads: it refuses a
+    temperature outside 0 to 1, a prompt over the model's 448-token
+    context and an unknown language with a 400 (a permanent
+    `ProviderError`), while `top_p`, `seed` and the penalties are
+    accepted and ignored. Core passes the values through unchecked; the
+    platform's message names the problem.
     """
 
     def __init__(self, client: OpenAI, model: str) -> None:
@@ -369,13 +378,31 @@ class OpenAICompatibleSpeechToText:
     def model(self) -> str:
         return self._model
 
-    def transcribe(self, audio: bytes, filename: str) -> TranscriptionResult:
+    def transcribe(
+        self,
+        audio: bytes,
+        filename: str,
+        *,
+        temperature: float | None = None,
+        prompt: str | None = None,
+        language: str | None = None,
+    ) -> TranscriptionResult:
         info = probe_audio(audio)
+        options: dict[str, Any] = {
+            name: value
+            for name, value in (
+                ("temperature", temperature),
+                ("prompt", prompt),
+                ("language", language),
+            )
+            if value is not None
+        }
         try:
             response = self._client.audio.transcriptions.create(
                 model=self._model,
                 file=(filename, audio, info.mime),
                 response_format="json",
+                **options,
             )
         except APIError as exc:
             raise _request_failed("transcription", exc) from exc

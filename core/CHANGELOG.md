@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `transcribe(audio, filename, *, temperature=None, prompt=None, language=None)` on `SpeechToText` and `OpenAICompatibleSpeechToText`: per-call sampling settings, sent only when given, so existing calls send the same request. They are the three the platform reads, as probed: temperature 0 to 1, a prompt within 448 tokens, an ISO 639-1 language; a bad value is the platform's 400, a permanent `ProviderError`. `top_p`, `seed` and the penalties are accepted and ignored there, so they are not offered.
+
 ## [0.21.3] - 2026-10-15
 
 ### Added

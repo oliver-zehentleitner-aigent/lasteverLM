@@ -194,12 +194,24 @@ class TextToSpeech(Protocol):
 
 
 class SpeechToText(Protocol):
-    """WAV or MP3 bytes in, the transcript and its usage (per second) out."""
+    """WAV or MP3 bytes in, the transcript and its usage (per second) out.
+
+    `temperature` (0 to 1), `prompt` (context such as names or a glossary)
+    and `language` (an ISO 639-1 code) are optional per call; left out,
+    the provider's defaults apply."""
 
     @property
     def model(self) -> str: ...
 
-    def transcribe(self, audio: bytes, filename: str) -> TranscriptionResult: ...
+    def transcribe(
+        self,
+        audio: bytes,
+        filename: str,
+        *,
+        temperature: float | None = None,
+        prompt: str | None = None,
+        language: str | None = None,
+    ) -> TranscriptionResult: ...
 
 
 class DecisionModel(Protocol):

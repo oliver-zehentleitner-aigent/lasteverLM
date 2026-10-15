@@ -425,6 +425,24 @@ def test_stt_sends_the_file_as_multipart_and_bills_the_reported_seconds() -> Non
     assert b'name="model"\r\n\r\nwhisper' in body
     assert b'name="response_format"\r\n\r\njson' in body
     assert b'filename="talk.mp3"' in body and b"Content-Type: audio/mpeg" in body
+    for left_out in (b'name="temperature"', b'name="prompt"', b'name="language"'):
+        assert left_out not in body  # the request without options is unchanged
+
+
+def test_stt_sends_sampling_options_only_when_given() -> None:
+    requests: list[httpx.Request] = []
+    answer = {"text": "Hallo", "usage": {"type": "duration", "seconds": 1}}
+    stt = OpenAICompatibleSpeechToText(transcription_client(requests, answer), "whisper")
+    stt.transcribe(
+        MP3 * 10, "talk.mp3", temperature=0.4, prompt="Glossar: Zehentleitner", language="de"
+    )
+    stt.transcribe(MP3 * 10, "talk.mp3", temperature=0)  # 0 is a value, not "unset"
+    first, second = (request.content for request in requests)
+    assert b'name="temperature"\r\n\r\n0.4' in first
+    assert b'name="prompt"\r\n\r\nGlossar: Zehentleitner' in first
+    assert b'name="language"\r\n\r\nde' in first
+    assert b'name="temperature"\r\n\r\n0' in second
+    assert b'name="prompt"' not in second and b'name="language"' not in second
 
 
 def test_stt_without_reported_usage_fails_with_the_measured_seconds() -> None:

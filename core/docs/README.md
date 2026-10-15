@@ -219,6 +219,20 @@ seconds in `tokens_in` and 0 in `tokens_out`, and `MODEL_PRICES` lists
 (`out` 0). Both providers return the usage; a billed failure carries it
 on the `ProviderError`:
 
+`transcribe(audio, filename, *, temperature=None, prompt=None,
+language=None)` sends the three options only when given:
+
+- `temperature` from 0 to 1.
+- `prompt`: context such as names or a glossary, within the model's
+  448-token context.
+- `language`: an ISO 639-1 code.
+
+These are the parameters the platform reads. It refuses a bad value
+with a 400, a permanent `ProviderError`. It accepts `top_p`, `seed` and
+the penalties too, but ignores them, so core does not offer them. A
+second attempt at a transcript that came back looping can use another
+temperature or a prompt.
+
 ```python
 try:
     speech = tts.synthesize(segment)  # SpeechResult(audio, usage)
