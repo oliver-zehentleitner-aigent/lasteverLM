@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-14
+
 ### Added
 
 - `Output.phase` (`dict | None`): where generation stands while an output is `waiting` or `processing`, `None` otherwise; rag owns its shape.
