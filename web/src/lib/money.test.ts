@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { charge, exactMoney, formatMoney, lastDays } from './money'
+import { charge, exactMoney, formatMoney, lastDays, totalCosts } from './money'
 
 describe('money', () => {
   it('shows two decimals from one euro up and up to four below', () => {
@@ -26,5 +26,13 @@ describe('money', () => {
 
   it('prices a cost with a margin and a fee', () => {
     expect(charge(10, 30, 2)).toBeCloseTo(15)
+  })
+})
+
+describe('totalCosts', () => {
+  it('adds the model costs and the infrastructure lines in EUR, counting a line without a rate apart', () => {
+    expect(totalCosts(1200, [{ amount_eur_cents: 500 }, { amount_eur_cents: 250 }])).toEqual({ total: 1950, model: 1200, infra: 750, notIncluded: 0 })
+    expect(totalCosts(1200, [{ amount_eur_cents: 500 }, { amount_eur_cents: null }])).toEqual({ total: 1700, model: 1200, infra: 500, notIncluded: 1 })
+    expect(totalCosts(0, [])).toEqual({ total: 0, model: 0, infra: 0, notIncluded: 0 })
   })
 })

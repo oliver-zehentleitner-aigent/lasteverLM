@@ -766,7 +766,6 @@ export const en = {
   'fin.page.costs': 'Costs',
   'fin.page.prices': 'Prices',
   'fin.page.revenue': 'Revenue and profit',
-  'fin.page.infrastructure': 'Infrastructure',
   'fin.page.vouchers': 'Vouchers',
   'fin.days': '{n} days',
   'fin.from': 'From',
@@ -778,7 +777,7 @@ export const en = {
   'fin.group.model': 'model',
   'fin.group.user': 'user',
   'fin.group.service': 'service',
-  'fin.costTotals': 'Cost {cost} ({usd} measured), charged {charge}',
+  'fin.costTotals': 'Model costs {cost} ({usd} measured), charged {charge}',
   'fin.col.calls': 'Calls',
   'fin.col.actions': 'Actions',
   'fin.col.cost': 'Cost',
@@ -1219,6 +1218,11 @@ export const en = {
   'judge.first': 'First judge ({model})',
   'judge.second': 'Second judge ({model})',
   'verify.slower': 'slower and dearer',
+  'fin.totalCosts': 'Total costs {total} = model costs {model} + infrastructure {infra}',
+  'fin.modelCosts': 'Model costs (model usage)',
+  'fin.infraCosts': 'Infrastructure costs',
+  'fin.notIncluded.one': '{n} USD line without a rate not included',
+  'fin.notIncluded.other': '{n} USD lines without a rate not included',
 } as const
 
 export type MessageKey = keyof typeof en

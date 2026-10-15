@@ -7,9 +7,9 @@ import { useLoad } from '../../hooks/useLoad'
 import { FINANCE_PAGES, financePageFromPath, financePath, type FinancePageId } from '../../lib/adminPages'
 import { formatTime } from '../../lib/format'
 import { rateLine } from '../../lib/exchangeRate'
-import { charge, exactMoney, formatMoney, lastDays } from '../../lib/money'
+import { charge, exactMoney, formatMoney, lastDays, totalCosts } from '../../lib/money'
 import { Money } from '../Money'
-import { t } from '../../i18n'
+import { t, tn } from '../../i18n'
 import { useCanWrite } from './canWrite'
 import { Vouchers } from './Credits'
 import { Section, Table } from './shared'
@@ -19,19 +19,19 @@ const ProfitChart = lazy(() => import('./ProfitChart'))
 
 type Range = { from: string; to: string }
 
-/** Admin > Finance: costs, prices, revenue and profit, infrastructure and
- *  vouchers, each its own page under /admin/finance/, the date range
- *  shared by the pages that take one. Every amount is EUR (core converts at
+/** Admin > Finance: revenue and profit (where it opens), costs (the model's
+ *  and the infrastructure's), prices and vouchers, each its own page under
+ *  /admin/finance/, the date range shared by the pages that take one. Every amount is EUR (core converts at
  *  booking with the rate in the price rule); the measured USD cost of
  *  usage and USD infrastructure lines are shown beside it. */
 export function FinancePage({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const page: FinancePageId = financePageFromPath(window.location.pathname) ?? 'costs'
+  const page: FinancePageId = financePageFromPath(window.location.pathname) ?? 'revenue'
   const [range, setRange] = useState<Range>(() => lastDays(30))
   const go = (p: FinancePageId) => (e: MouseEvent) => {
     e.preventDefault()
     onNavigate(financePath(p))
   }
-  const ranged = page === 'costs' || page === 'revenue' || page === 'infrastructure'
+  const ranged = page === 'costs' || page === 'revenue'
   return (
     <section className="finance">
       <nav className="kind-chips finance-nav" aria-label={t('admin.page.finance')}>
@@ -45,7 +45,6 @@ export function FinancePage({ onNavigate }: { onNavigate: (path: string) => void
       {page === 'costs' && <CostsPage range={range} />}
       {page === 'prices' && <PricesPage />}
       {page === 'revenue' && <RevenuePage range={range} onPrices={() => onNavigate(financePath('prices'))} />}
-      {page === 'infrastructure' && <InfraPage range={range} />}
       {page === 'vouchers' && <Vouchers />}
     </section>
   )
@@ -79,13 +78,34 @@ function RangePicker({ range, onChange }: { range: Range; onChange: (r: Range) =
 const usd = (c: number) => formatMoney(c, 'USD')
 const eur = (c: number) => formatMoney(c, 'EUR')
 
-/** Real cost and what was charged, per day, action, model, user or service. */
+/** All costs of the range: their total, then the model usage, then the
+ *  infrastructure (the Vultr connection, its lines and the manual ones). */
 function CostsPage({ range }: { range: Range }) {
   const [group, setGroup] = useState<CostGroup>('day')
-  const load = useCallback(() => admin.financeCosts(range.from, range.to, group), [range, group])
-  const { data, error } = useLoad<FinanceCosts | null>(load, null)
+  const loadModel = useCallback(() => admin.financeCosts(range.from, range.to, group), [range, group])
+  const model = useLoad<FinanceCosts | null>(loadModel, null)
+  const loadInfra = useCallback(() => admin.financeInfra(range.from, range.to), [range])
+  const infra = useLoad<FinanceInfra | null>(loadInfra, null)
+  const total = model.data && infra.data ? totalCosts(model.data.total_cost_cents, infra.data.entries) : null
   return (
-    <Section title={t('fin.page.costs')}>
+    <>
+      {total && (
+        <p className="cost-total">
+          <strong>{t('fin.totalCosts', { total: eur(total.total), model: eur(total.model), infra: eur(total.infra) })}</strong>
+          {total.notIncluded > 0 && <span className="muted small"> · {tn('fin.notIncluded', total.notIncluded)}</span>}
+        </p>
+      )}
+      <ModelCosts data={model.data} error={model.error} group={group} onGroup={setGroup} />
+      <InfraCosts range={range} data={infra.data} setData={infra.setData} error={infra.error} />
+    </>
+  )
+}
+
+/** Real cost of the model calls and what was charged, per day, action, model, user or service. */
+function ModelCosts({ data, error, group, onGroup }: { data: FinanceCosts | null; error: string | null; group: CostGroup; onGroup: (g: CostGroup) => void }) {
+  const setGroup = onGroup
+  return (
+    <Section title={t('fin.modelCosts')}>
       <p className="muted small">{t('fin.eurNote')}</p>
       <label className="inline">
         {t('fin.groupBy')}
@@ -398,10 +418,11 @@ function Tile({ label, cents, detail }: { label: string; cents: number; detail?:
 
 /** Infrastructure: Vultr's charges fetched daily (or how to connect it),
  *  and lines entered by hand, which can be deleted again. */
-function InfraPage({ range }: { range: Range }) {
+/** The infrastructure of the range: the Vultr connection and its sync,
+ *  the lines (Vultr's and manual ones), and adding or deleting a manual
+ *  line, which viewers only see. */
+function InfraCosts({ range, data, setData, error }: { range: Range; data: FinanceInfra | null; setData: (d: FinanceInfra) => void; error: string | null }) {
   const canWrite = useCanWrite()
-  const load = useCallback(() => admin.financeInfra(range.from, range.to), [range])
-  const { data, setData, error } = useLoad<FinanceInfra | null>(load, null)
   const { busy, error: actionError, run } = useAsync()
   const [entry, setEntry] = useState({ date: range.to, item: '', amount: '', currency: 'EUR' as 'EUR' | 'USD' })
 
@@ -445,7 +466,7 @@ function InfraPage({ range }: { range: Range }) {
   }
 
   return (
-    <Section title={t('fin.page.infrastructure')}>
+    <Section title={t('fin.infraCosts')}>
       {(error ?? actionError) && <p className="error">{error ?? actionError}</p>}
       {data && (
         <>
