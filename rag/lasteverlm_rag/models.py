@@ -141,6 +141,9 @@ class ChartPropose(BaseModel):
 
     instructions: str | None = Field(default=None, max_length=500)
     max: int = Field(default=6, ge=1, le=12)
+    # the selected sources, as for an output: absent or empty means all uploads
+    source_ids: list[UUID] | None = None
+    url_refresh: list[UUID] | None = None
 
 
 class OutputCreate(BaseModel):

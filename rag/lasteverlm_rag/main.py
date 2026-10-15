@@ -100,6 +100,7 @@ from .reading import (
     selected_uploads,
 )
 from .service import (
+    ChartOutOfScope,
     ChunkNotFound,
     ConversationNotFound,
     InsufficientCredit,
@@ -225,6 +226,7 @@ def create_app(
         # for judging an existing output or answer on request
         judges=judges,
         ingest=ingest,
+        read_wait_s=settings.answer_read_wait_s,
         output_max=output_estimator(settings.model_prices, store.pricing_rules, generators, models),
     )
     agent = AgentService(
@@ -419,10 +421,25 @@ def create_app(
         )
 
     @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/charts/propose", response_model=ChartProposals)
-    def propose_charts(notebook_id: NotebookId, body: ChartPropose, user: User) -> ChartProposals:
-        """Candidate charts; nothing is stored until the user creates a chart output."""
+    def propose_charts(
+        notebook_id: NotebookId,
+        body: ChartPropose,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> ChartProposals:
+        """Candidate charts from the selected sources; nothing is stored until
+        the user creates a chart output. Unread selected sources are read
+        first, as the caller."""
         instructions = " ".join((body.instructions or "").split()) or None
-        return outputs.propose_charts(user, str(notebook_id), instructions, body.max)
+        return outputs.propose_charts(
+            user,
+            str(notebook_id),
+            instructions,
+            body.max,
+            [str(s) for s in body.source_ids or []] or None,
+            bearer=authorization,
+            url_refresh=[str(u) for u in body.url_refresh or []],
+        )
 
     @app.post(f"{PREFIX}/outputs/voice-sample")
     def voice_sample(body: VoiceSampleRequest, user: User) -> dict[str, Any]:
@@ -668,6 +685,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(InvalidOptions)
     async def invalid_options(_: Request, exc: InvalidOptions) -> JSONResponse:
         return error(422, f"options: {exc}")
+
+    @app.exception_handler(ChartOutOfScope)
+    async def chart_out_of_scope(_: Request, exc: ChartOutOfScope) -> JSONResponse:
+        return JSONResponse({"error": str(exc), "code": "chart_out_of_scope"}, status_code=409)
 
     @app.exception_handler(InvalidSources)
     async def invalid_sources(_: Request, exc: InvalidSources) -> JSONResponse:

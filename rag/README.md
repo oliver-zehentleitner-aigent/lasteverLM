@@ -30,7 +30,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/chunks/{chunk_id}` | | `ChunkView`: the verbatim chunk, its page, position and source |
 | POST | `/api/rag/notebooks/{id}/outputs` | `{"kind", "options"?, "source_ids"?, "url_refresh"?}` | 202 `Output`, status `waiting` or `processing` |
 | GET | `/api/rag/outputs/options` | | the options catalogue, see below |
-| POST | `/api/rag/notebooks/{id}/charts/propose` | `{"instructions"?, "max"?}` | `{"candidates", "reason"}`: candidate charts, nothing stored, see below |
+| POST | `/api/rag/notebooks/{id}/charts/propose` | `{"instructions"?, "max"?, "source_ids"?, "url_refresh"?}` | `{"candidates", "reason"}`: candidate charts, nothing stored, see below |
 | POST | `/api/rag/estimate` | `{"kind", "options"?}` or `{"action", "options"?}` | the charge range before it runs, see **Estimate** |
 | POST | `/api/rag/outputs/voice-sample` | `{"voice", "speed"?, "language"?}` | `{"url", "cached"}`: a short MP3 preview of a voice |
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` made in that notebook, not in the trash |
@@ -675,9 +675,15 @@ model's input tokens.
 `chart`: a chart is made in two steps.
 
 1. `POST /api/rag/notebooks/{id}/charts/propose` takes `{"instructions"?
-   (at most 500 characters), "max"? (1–12, default 6)}`. It makes one LLM
-   call over passages retrieved for numeric material, billed as usual, and
-   returns candidates without storing anything. Each candidate is
+   (at most 500 characters), "max"? (1–12, default 6), "source_ids"?,
+   "url_refresh"?}`, the selection as for an output (absent or empty: all
+   uploads). Selected sources not read yet are read first, as the caller,
+   and waited for like a chat answer (`ANSWER_READ_WAIT_SECONDS`); still
+   unread after that, the answer is no candidates with `reason` "still
+   being read: <names>; find charts again in a moment". A failed selected
+   source is 422 as on Create. It makes one LLM call over passages
+   retrieved for numeric material from the selected sources only, billed
+   as usual, and returns candidates without storing anything. Each candidate is
    `{"id", "title", "chart_type", "x_label", "y_label", "series":
    [{"name", "points": [{"x", "y", "refs", "derived_from"?,
    "support"}]}], "note", "passages": [{"n", "chunk_id", "source_name",
@@ -689,8 +695,11 @@ model's input tokens.
      list carries `reason` "the sources contain no number series".
 2. The user picks candidates and creates the output with `{"kind":
    "chart", "options": {"charts": [picked candidates as returned],
-   "instructions"?}}`. 1–12 candidates are accepted. Every passage they
-   cite must be a chunk of this notebook, or the request is a 422.
+   "instructions"?}, "source_ids"?}`. 1–12 candidates are accepted. Every
+   passage they cite must be a chunk of an uploaded source of this notebook
+   and, with a selection, of a selected source; otherwise the request is
+   409 `{"error", "code": "chart_out_of_scope"}` (a proposal made for
+   another selection: find charts again).
    - The worker makes no model call. It loads the cited chunks again,
      numbers them once for all picked charts, and checks every value.
    - The content is `{"charts": [{"title", "chart_type", "x_label",

@@ -267,6 +267,11 @@ class OutputNotInTrash(Exception):
     """Purging needs the output to be in the trash first."""
 
 
+class ChartOutOfScope(Exception):
+    """A picked chart candidate cites a passage outside the selected sources
+    (a proposal made for another selection): 409, find charts again."""
+
+
 class InvalidSources(Exception):
     """A selected source id is not an uploaded source of the notebook."""
 
@@ -699,7 +704,12 @@ class OutputService:
         ingest: Ingest | None = None,
         clock: Callable[[], float] = time.monotonic,
         output_max: Callable[[str, Mapping[str, Any]], float] | None = None,
+        read_wait_s: float = ANSWER_WAIT_S,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        # how long finding charts waits for selected sources it started reading
+        self._read_wait_s = read_wait_s
+        self._sleep = sleep
         # ingest reads sources when an output needs them (with the creator's bearer)
         self._ingest = ingest
         # an output's estimated maximum charge in euro cents (the API's; the
@@ -759,7 +769,7 @@ class OutputService:
             # stored with the options, so the viewer shows what it was made from
             resolved["sources"] = selected
         if kind == "chart":
-            self._check_cited(notebook_id, resolved["charts"])
+            self._check_cited(notebook_id, resolved["charts"], selected)
         reserved = self._output_max(kind, resolved) if self._output_max else 0.0
         if check_credit:
             reading: list[dict[str, Any]] = []
@@ -801,19 +811,51 @@ class OutputService:
         return self._present(row)
 
     def propose_charts(
-        self, user_id: str, notebook_id: str, instructions: str | None, limit: int
+        self,
+        user_id: str,
+        notebook_id: str,
+        instructions: str | None,
+        limit: int,
+        source_ids: list[str] | None = None,
+        bearer: str | None = None,
+        url_refresh: list[str] | None = None,
     ) -> ChartProposals:
-        """Candidate charts from the notebook's number series: one LLM call
-        over passages retrieved for numeric material, billed as usual;
-        nothing is stored. Each value is checked as in the output, so the
-        user sees what holds before picking."""
+        """Candidate charts from the selected sources' number series (all
+        uploads without a selection): one LLM call over passages retrieved
+        for numeric material, billed as usual; nothing is stored. Selected
+        sources not read yet are read first, as the user, waited for as a
+        chat answer waits; never anything outside the selection. Each value
+        is checked as in the output, so the user sees what holds before
+        picking."""
         notebook = require_notebook(self._store, user_id, notebook_id)
+        selected = check_sources(self._store, notebook_id, source_ids)
         require_credit(self._store, user_id)
+        failed = failed_sources(
+            selected_uploads(self._store, notebook_id, selected), url_refresh or []
+        )
+        if failed:
+            raise SourceUnreadable(could_not_read(failed[0]))
         generator = self._generators["chart"]
         assert isinstance(generator, ChartGenerator)
+        try:
+            prepared = prepare(
+                self._store, self._ingest, bearer, notebook_id, selected, url_refresh or []
+            )
+        except InvalidRefresh as exc:
+            raise InvalidSources(str(exc)) from exc
+        pending = wait_until_read(
+            self._store, notebook_id, prepared, self._read_wait_s, sleep=self._sleep
+        )
+        if pending:
+            return ChartProposals(
+                candidates=[],
+                reason=f"still being read: {', '.join(pending)}; find charts again in a moment",
+            )
         summaries = self._store.source_summaries(notebook_id)
+        if selected:
+            summaries = [s for s in summaries if s.source_id in selected]
         if not summaries:
-            return ChartProposals(candidates=[], reason="the notebook has no ready source")
+            return ChartProposals(candidates=[], reason="no selected source is ready")
         booking = Booking.new(user_id, notebook_id, "chart_propose")
         embedded = embed_billed(self._store, self._embedder, booking, [generator.focus_query])
         chunks, _ = balanced_chunks(
@@ -823,7 +865,7 @@ class OutputService:
             summaries,
             self._k,
             self._floor,
-            None,
+            selected,
         )
         passages = number_passages(chunks)
         if not has_numbers(passages):
@@ -1568,12 +1610,24 @@ class OutputService:
         self._store.update_message_support(message_id, support)
         return message.model_copy(update={"units": targets})
 
-    def _check_cited(self, notebook_id: str, charts: Sequence[dict[str, Any]]) -> None:
-        """Every passage a picked candidate cites must be a chunk of this notebook."""
+    def _check_cited(
+        self, notebook_id: str, charts: Sequence[dict[str, Any]], selected: Sequence[str] | None
+    ) -> None:
+        """Every passage a picked candidate cites must be a chunk of this
+        notebook and, with a selection, of a selected source: a candidate
+        proposed for another selection is refused, never drawn."""
         wanted = {p["chunk_id"] for c in charts for p in c["passages"]}
-        found = {c.chunk_id for c in self._retriever.chunks(notebook_id, sorted(wanted))}
-        if wanted - found:
-            raise InvalidOptions("charts: a cited passage is not in this notebook")
+        found = self._retriever.chunks(notebook_id, sorted(wanted))
+        if wanted - {c.chunk_id for c in found}:
+            raise ChartOutOfScope("charts: a cited passage is not in this notebook")
+        if any(
+            c.source_kind == "generated" or (selected and c.source_id not in selected)
+            for c in found
+        ):
+            raise ChartOutOfScope(
+                "charts: a candidate cites a source outside the selected sources; "
+                "find charts again"
+            )
 
     def _draw(self, notebook_id: str, row: OutputRow, trace: GenerationLog) -> GeneratedOutput:
         """The picked candidates as the output, without a model call: their

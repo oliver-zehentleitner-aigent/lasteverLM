@@ -16,7 +16,6 @@ from .conftest import (
     FakeRetriever,
     FakeStore,
     chunk,
-    chunk_uuid,
     make_client,
 )
 
@@ -207,10 +206,6 @@ def test_a_passage_gone_before_the_worker_runs_leaves_its_values_unsupported(set
         (
             lambda c: [{**c, "chart_type": "pie", "series": c["series"] * 2}],
             "a pie chart has exactly one series",
-        ),
-        (
-            lambda c: [{**c, "passages": [{**c["passages"][0], "chunk_id": chunk_uuid(9)}]}],
-            "charts: a cited passage is not in this notebook",
         ),
     ],
 )

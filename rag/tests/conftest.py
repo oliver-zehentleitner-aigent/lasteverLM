@@ -946,6 +946,7 @@ def make_client(
         decision=decision,
         judges=judges,
         ingest=ingest,
+        read_wait_s=settings.answer_read_wait_s,
         # as the API wires it: an output's maximum is what its creation must find covered
         output_max=output_estimator(
             settings.model_prices,
