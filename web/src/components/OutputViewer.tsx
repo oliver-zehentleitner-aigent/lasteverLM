@@ -270,7 +270,13 @@ export function OutputViewer({
               {coverageLine(selected.provenance?.coverage) && <span className="muted small check-line coverage-line">{coverageLine(selected.provenance?.coverage)}</span>}
               {judgeSubject && (
                 <span className="no-print">
-                  <JudgeRequest subject={judgeSubject!} opened={judgeAsked} onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)} />
+                  <JudgeRequest
+                    key={selected.id}
+                    subject={judgeSubject!}
+                    opened={judgeAsked}
+                    target={{ kind: 'output', id: selected.id, start: (level) => rag.judgeOutput(selected.id, level) }}
+                    onDone={() => rag.getOutput(selected.id).then(onChanged)}
+                  />
                 </span>
               )}
               {selected.options?.sources?.length ? (

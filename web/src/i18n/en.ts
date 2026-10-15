@@ -1287,6 +1287,13 @@ export const en = {
   'tableOut.stale': 'The sources or the notes changed: find tables again for the current selection.',
   'themeOut.stale': 'The sources or the notes changed: find themes again for the current selection.',
   'proposal.stale': 'The sources or the notes changed: find the proposals again for the current selection.',
+  'judge.job.queued': 'Waiting for the judge…',
+  'judge.job.running': 'Judging…',
+  'judge.job.claim': 'Judging, claim {n} of {of}',
+  'judge.job.paragraph': 'Judging, paragraph {n} of {of}',
+  'judge.job.failed': 'The judge failed: {error}',
+  'judge.job.noReason': 'no reason given',
+  'judge.job.attempts': 'after {n} attempts',
 } as const
 
 export type MessageKey = keyof typeof en

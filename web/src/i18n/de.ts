@@ -1290,4 +1290,11 @@ export const de: Record<MessageKey, string> = {
   'tableOut.stale': 'Quellen oder Notizen haben sich geändert: Tabellen für die aktuelle Auswahl neu suchen.',
   'themeOut.stale': 'Quellen oder Notizen haben sich geändert: Themen für die aktuelle Auswahl neu suchen.',
   'proposal.stale': 'Quellen oder Notizen haben sich geändert: Vorschläge für die aktuelle Auswahl neu suchen.',
+  'judge.job.queued': 'Wartet auf den Judge…',
+  'judge.job.running': 'Judge prüft…',
+  'judge.job.claim': 'Judge prüft Aussage {n} von {of}',
+  'judge.job.paragraph': 'Judge prüft Absatz {n} von {of}',
+  'judge.job.failed': 'Der Judge ist gescheitert: {error}',
+  'judge.job.noReason': 'kein Grund angegeben',
+  'judge.job.attempts': 'nach {n} Versuchen',
 }

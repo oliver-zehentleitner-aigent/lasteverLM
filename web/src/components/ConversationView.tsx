@@ -187,8 +187,13 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
                 <JudgeRequest
                   compact
                   opened={judgeAsked?.messageId === m.id ? judgeAsked.n : 0}
-                  onJudge={(level) =>
-                    rag.judgeMessage(m.id, level).then((judged) => setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, units: judged.units, check: judged.check ?? x.check } : x))))
+                  target={{ kind: 'message', id: m.id, start: (level) => rag.judgeMessage(m.id, level) }}
+                  // the job is done: the answer's paragraphs carry the verdicts now
+                  onDone={() =>
+                    rag.listMessages(conversationId).then((list) => {
+                      const judged = list.find((x) => x.id === m.id)
+                      if (judged) setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, units: judged.units, check: judged.check ?? x.check } : x)))
+                    })
                   }
                 />
               </p>

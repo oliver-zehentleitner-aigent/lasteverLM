@@ -518,7 +518,7 @@ opens the notebook.
   this was made" lists the rounds (judged, verdicts, tokens, revisions)
   and any later judgings. **Check with a judge** on an existing output
   (in the viewer's head) and under a cited chat answer: a level and
-  Check, one billed call that annotates every claim and removes nothing;
+  Check, one billed call that annotates every claim and removes nothing, run as a background job (`POST …/judge` answers 202 with the job; `GET /api/rag/judge-jobs/{id}` every 2 s): while it runs the control says "Waiting for the judge…" or "Judging, claim 4 of 11" ("paragraph" in the chat), and when it is done the output or the answer is loaded again with its verdicts; a failure says "The judge failed: <reason>" with the attempts and the output's ID. A judgement already running, found when the output or answer opens (`GET …/judge`) or named by a 409, is followed the same way;
   the line under the level says so for every level, since revising
   happens only while an output is made.
   The share page shows all of it. The estimated charge of the chosen

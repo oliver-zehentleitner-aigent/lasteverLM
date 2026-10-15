@@ -1187,3 +1187,5 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .help-steps { padding-left: 1.4rem; display: flex; flex-direction: column; gap: 0.8rem; }
 .help-steps p { margin: 0.2rem 0 0; color: var(--muted); line-height: 1.5; }
 .help-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; margin-top: 1.5rem; }
+/* a judgement running in the background, or why it failed */
+.judge-job { display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
