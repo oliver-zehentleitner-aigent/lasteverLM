@@ -48,7 +48,7 @@ repository root's `context/`.
 
 ## I
 
-- [image-sources.md](image-sources.md) — why images are read by the platform's chat model through a billed loader in ingest, not OCR and not core; why the frontend shows them, and opens PDFs and texts, through a presigned URL; why a model-made transcript (image, vision page, audio) that loops is asked for once more, then fails
+- [image-sources.md](image-sources.md) — why images are read by the platform's chat model through a billed loader in ingest, not OCR and not core; why the frontend shows them, and opens PDFs and texts, through a presigned URL; why a model-made transcript (image, vision page, audio) that loops is asked for once more, then fails; why large images and vision pages are read in tiles
 
 ## J
 
