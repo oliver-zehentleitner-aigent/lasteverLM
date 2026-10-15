@@ -106,6 +106,7 @@ def test_a_contradicted_claim_is_never_searched_into_supported(settings):
     wrong = json.dumps(
         {"title": "Sky", "markdown": "## Sky\n\nThe handbook has a panel, wrong colour. [1]"}
     )
+
     class Contradicting(PassageJudge):
         def complete(self, system, user, max_tokens=None, *, thinking=None):
             statement = user.split("\n")[1]
