@@ -53,7 +53,7 @@ repository root's `context/`.
 
 ## J
 
-- [judge.md](judge.md) — the opt-in judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer; opt-in with the word check as the default (no judge for charts); at most three rounds of revision, then removal listed in the provenance; a judge without a usable answer marks its unit, never failing the output; a judgement on request only annotates, revising is for the judge chosen at generation; verification levels basic/standard/thorough replace the plain judge default (standard judges what the free check doubts)
+- [judge.md](judge.md) — the opt-in judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer; opt-in with the word check as the default (no judge for charts); at most three rounds of revision, then removal listed in the provenance; a judge without a usable answer marks its unit, never failing the output; a judgement on request only annotates, revising is for the judge chosen at generation; verification levels basic/standard/thorough replace the plain judge default (standard judges what the free check doubts); bulletproof pairs the high judge with deepseek-v4.1-flash, disagreement disputed (about 1 in 5 true claims on synthetic cases)
 
 ## K
 
