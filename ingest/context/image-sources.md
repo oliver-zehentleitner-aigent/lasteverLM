@@ -11,7 +11,8 @@
 
 An image source becomes text in one chat-completion call to `LLM_MODEL`:
 every legible text transcribed verbatim, then a description of the
-image, in the language of that text. The call lives in ingest
+image, in the language of that text. (Since 2026-10-15 an image over
+1.5 MP is read in tiles, one such call per tile: 062573be-f445-432a-a218-d270c1362947.) The call lives in ingest
 (`loaders/image.py`) on core's `make_client` and `thinking_body`, behind a
 `ModelLoader` protocol that makes the worker record its usage row the
 moment it returns (credit is checked once, when the read starts;
@@ -104,8 +105,9 @@ hundreds of times. The distinct-word check runs over windows, because a
 long text's share of distinct words falls with its length.
 
 A second attempt costs a second call that the read's estimate does not
-include. That overdraw is bounded by one call per image or page, and
-only for an answer that would otherwise fail.
+include. That overdraw is bounded by one call per image or page (per
+tile since tiling, 062573be-f445-432a-a218-d270c1362947), and only for an answer that would otherwise
+fail.
 
 **Alternatives:**
 - Indexing the loop as it was: the behaviour that built outputs on it.
