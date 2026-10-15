@@ -102,3 +102,32 @@ set.
   user is not charged.
 - Claiming jobs and failing them: it spends attempts and fails outputs
   for a problem the user cannot fix.
+
+## Credit is checked once, when an action starts; an action that started runs to the end
+
+**Id:** b93ff000-d488-4930-b11c-4d1e9840e1ee
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (an action that started finishes even if the balance goes negative; never spend most of it and then stop; check once at the start; a slightly negative balance is accepted)
+**Revisit when:** a single action can cost a large multiple of a typical balance, so that running it to the end leaves balances deeply negative
+
+Every action checks the balance once, when it starts: a chat answer, an
+output's creation, a judgement on request, a voice sample, and an agent
+plan at confirm. After that nothing checks again. An output's worker
+runs every attempt, judge round, revision and audio segment, and a
+confirmed plan runs every step, its outputs and explanations included,
+even when the balance goes negative on the way. A plan without credit at
+confirm answers 402 and stays proposed, with nothing run.
+
+**Reason:** an action stopped half way has spent the user's money on
+something they cannot use: a plan with its source added but no output, an
+output paid for up to its last judge round but never finished. Running to
+the end costs at most one action's overrun, which the next top-up covers,
+and the user gets what they paid for. Checking once at the start still
+keeps a user without credit from starting anything.
+
+**Rejected alternatives:**
+- Checking before every step or call: stops an action half done, after
+  most of its cost is spent (a confirmed plan did this before each step
+  until this decision).
