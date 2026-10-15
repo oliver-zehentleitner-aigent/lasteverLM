@@ -298,9 +298,9 @@ def answer_system_prompt(
 
 def _document_line(document: NotebookDocument, selected: list[str] | None) -> str:
     if document.kind == "generated":
-        return (
-            f"{_DOCUMENT_KINDS[document.output_kind or document.kind]} (generated): {document.name}"
-        )
+        # an output's title is the user's own text too (they can rename it)
+        kind = _DOCUMENT_KINDS[document.output_kind or document.kind]
+        return f"{kind} (generated): {inline(document.name)}"
     origin = "uploaded"
     if selected and document.source_id not in selected:
         origin = "uploaded, not in scope"

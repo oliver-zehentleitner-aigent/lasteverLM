@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - An output's creation and a plan's confirm start only if the balance covers their estimated maximum (with the reading of unread sources and pages fetched again) plus what the user's started work still holds: waiting outputs (`outputs.reserved_cents`, migration `0016_rag_output_reserved.sql`), a running plan's waiting explanations and ingest's funded reads. Otherwise 402 with `code: "credit_insufficient"`, `needed_cents`, `held_cents` and `available_cents`.
 
+### Fixed
+
+- The chat's document list passes a generated document's name (an output title, which the user can rename) through the same flattening as an uploaded file's name: one line, markers defused, at most 120 characters. A title with a newline could otherwise start a line of its own in the system prompt.
+
 ## [0.20.5] - 2026-10-15
 
 ### Changed
