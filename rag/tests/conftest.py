@@ -124,6 +124,7 @@ class FakeStore:
         self.bookings: list[tuple[str, uuid.UUID]] = []
         self.copies: dict[str, dict[str, Any]] = {}
         self.plans: dict[str, dict[str, Any]] = {}
+        self.preferences: dict[str, dict[str, Any]] = {}
         self.touches: list[str] = []
         self.phases: dict[str, list[dict[str, Any]]] = {}
         self.beats: list[str] = []
@@ -567,7 +568,16 @@ class FakeStore:
 
     # agent plans
     def create_plan(self, plan: dict[str, Any]) -> None:
-        self.plans[plan["id"]] = {**plan, "confirmed_at": None, "finished_at": None}
+        self.plans[plan["id"]] = {
+            "question": None,
+            "notes": [],
+            **copy.deepcopy(plan),
+            "confirmed_at": None,
+            "finished_at": None,
+        }
+
+    def user_preference(self, user_id: str, key: str) -> Any:
+        return self.preferences.get(user_id, {}).get(key)
 
     def get_plan(self, plan_id: str) -> dict[str, Any] | None:
         plan = self.plans.get(plan_id)

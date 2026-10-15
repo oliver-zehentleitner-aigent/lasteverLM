@@ -55,7 +55,7 @@ from lasteverlm_core.web import admin_only, admin_read
 
 from . import __version__
 from .admin import admin_stats, daily_stats
-from .agent_service import AgentService, PlanNotFound, PlanNotOpen
+from .agent_service import AgentService, PlanAsking, PlanNotFound, PlanNotOpen, StaleQuestion
 from .config import Settings
 from .estimate import Models, action_calls, estimate, output_calls, step_estimator
 from .ingest_client import HttpIngest, Ingest, IngestError
@@ -74,6 +74,7 @@ from .models import (
     NotebookSuggestions,
     OutputCreate,
     OutputRename,
+    PlanAnswer,
     SharedNotebook,
 )
 from .options import OutputOptions, catalogue, resolve
@@ -315,6 +316,15 @@ def create_app(
         """Run a proposed plan: ingest steps now with this request's token, the rest
         through the worker."""
         return agent.confirm(user, str(conversation_id), str(plan_id), authorization or "")
+
+    @app.post(f"{plan_path}/answer")
+    def answer_plan(
+        conversation_id: ConversationId, plan_id: uuid.UUID, body: PlanAnswer, user: User
+    ) -> dict[str, Any]:
+        """The user's answer to the plan's question; the plan is then proposed."""
+        return agent.answer(
+            user, str(conversation_id), str(plan_id), body.question_id, body.choice, body.text
+        )
 
     @app.post(f"{plan_path}/cancel")
     def cancel_plan(
@@ -619,6 +629,14 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(PlanNotFound)
     async def plan_not_found(_: Request, exc: PlanNotFound) -> JSONResponse:
         return error(404, "plan not found")
+
+    @app.exception_handler(PlanAsking)
+    async def plan_asking(_: Request, exc: PlanAsking) -> JSONResponse:
+        return error(409, "answer the question first")
+
+    @app.exception_handler(StaleQuestion)
+    async def stale_question(_: Request, exc: StaleQuestion) -> JSONResponse:
+        return error(409, "that question is no longer open")
 
     @app.exception_handler(PlanNotOpen)
     async def plan_not_open(_: Request, exc: PlanNotOpen) -> JSONResponse:

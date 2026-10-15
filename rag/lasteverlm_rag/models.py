@@ -120,6 +120,15 @@ class FeedbackRequest(BaseModel):
     comment: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] | None = None
 
 
+class PlanAnswer(BaseModel):
+    """``POST /conversations/{id}/plans/{plan_id}/answer``: one of the
+    question's choices, or text where the question takes it."""
+
+    question_id: str = Field(min_length=1, max_length=64)
+    choice: str | None = Field(default=None, max_length=64)
+    text: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
+
+
 class JudgeRequest(BaseModel):
     """``POST /outputs/{id}/judge`` and ``POST /messages/{id}/judge``."""
 

@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Audio transcript times for highlighting: each `content.transcript` entry gets `start` and `end`, its seconds within the final MP3. They are measured from the MP3 frames of its segments, so the playback speed is in them; they are contiguous and the last ends at the file's length. Older outputs have none, and a segment that cannot be measured leaves the audio without times, with a warning.
+- Agent chat questions.
+  - A plan asks when an open choice changes the cost or the result: status `asking`, with `plan.question` holding 2–4 choices, each with its estimate, and a preselected default. `POST /api/rag/conversations/{id}/plans/{plan_id}/answer` applies the answer to the steps and proposes the plan; confirm waits for it.
+  - The first question is the judge. A judge the message asks for or against is taken as said; otherwise, with the user's `judge_default` set the plan asks, and with it off the plan says "without a judge" in a note.
+  - Migration `0014_rag_plan_questions.sql`.
 
 ### Changed
 

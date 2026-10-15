@@ -136,6 +136,10 @@ class Store(Protocol):
     # the agent chat's plans
     def create_plan(self, plan: dict[str, Any]) -> None: ...
 
+    def user_preference(self, user_id: str, key: str) -> Any:
+        """One of account's per-user preferences (users.preferences), or None."""
+        ...
+
     def get_plan(self, plan_id: str) -> dict[str, Any] | None: ...
 
     def save_plan(self, plan_id: str, **fields: Any) -> None:
@@ -407,8 +411,8 @@ class PgVectorRetriever:
 _PLAN_SQL = (
     "select id::text as id, conversation_id::text as conversation_id, "
     "notebook_id::text as notebook_id, owner::text as owner, status, steps, estimate, "
-    "action_id::text as action_id, message_id::text as message_id, created_at, "
-    "confirmed_at, finished_at from plans"
+    "action_id::text as action_id, message_id::text as message_id, question, "
+    "coalesce(notes, '[]'::jsonb) as notes, created_at, confirmed_at, finished_at from plans"
 )
 
 # One copy job per call, oldest first, as the output queue claims: rows other
@@ -708,11 +712,24 @@ class PostgresStore:
         with self._pool.connection() as conn:
             conn.execute(
                 "insert into plans (id, conversation_id, notebook_id, owner, status, steps, "
-                "estimate, action_id, message_id) values (%(id)s, %(conversation_id)s, "
-                "%(notebook_id)s, %(owner)s, %(status)s, %(steps)s, %(estimate)s, "
-                "%(action_id)s, %(message_id)s)",
-                {**plan, "steps": Jsonb(plan["steps"]), "estimate": Jsonb(plan["estimate"])},
+                "estimate, action_id, message_id, question, notes) values (%(id)s, "
+                "%(conversation_id)s, %(notebook_id)s, %(owner)s, %(status)s, %(steps)s, "
+                "%(estimate)s, %(action_id)s, %(message_id)s, %(question)s, %(notes)s)",
+                {
+                    **plan,
+                    "steps": Jsonb(plan["steps"]),
+                    "estimate": Jsonb(plan["estimate"]),
+                    "question": _jsonb(plan.get("question")),
+                    "notes": Jsonb(plan.get("notes") or []),
+                },
             )
+
+    def user_preference(self, user_id: str, key: str) -> Any:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select preferences -> %s as value from users where id = %s", (key, user_id)
+            ).fetchone()
+        return row["value"] if row else None
 
     def get_plan(self, plan_id: str) -> dict[str, Any] | None:
         with self._pool.connection() as conn:
@@ -721,11 +738,20 @@ class PostgresStore:
 
     def save_plan(self, plan_id: str, **fields: Any) -> None:
         public = fields.pop("plan", None)
-        unknown = set(fields) - {"status", "steps", "confirmed_at", "finished_at"}
+        unknown = set(fields) - {
+            "status",
+            "steps",
+            "estimate",
+            "question",
+            "notes",
+            "confirmed_at",
+            "finished_at",
+        }
         if unknown:
             raise ValueError(f"not an updatable plans column: {sorted(unknown)}")
-        if "steps" in fields:
-            fields["steps"] = Jsonb(fields["steps"])
+        for name in ("steps", "estimate", "question", "notes"):
+            if name in fields:
+                fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
         with self._pool.connection() as conn, conn.transaction():
             if fields:
