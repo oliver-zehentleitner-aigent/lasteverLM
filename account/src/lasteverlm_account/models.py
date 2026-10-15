@@ -31,14 +31,23 @@ LanguageCode = Annotated[
 VoiceId = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-z0-9_-]{1,64}$")]
 
 
+VerificationLevel = Literal["basic", "standard", "thorough", "bulletproof"]
+# Deprecated: the earlier judge preference, still accepted in a PUT for one release and
+# mapped (context/preferences.md). Migration 0011 maps stored values the same way.
 JudgeDefault = Literal["off", "low", "medium", "high"]
+JUDGE_DEFAULT_TO_LEVEL: dict[str, VerificationLevel] = {
+    "off": "basic",
+    "low": "standard",
+    "medium": "thorough",
+    "high": "bulletproof",
+}
 
 
 class Preferences(BaseModel):
     """Per-user preferences. ``null`` means not set: the web's default language, the
     source's language for output, the platform's default voice, 14 days in the trash,
-    automatic PDF capture, the system theme. ``judge_default`` (off unless set) preselects
-    the judge in the output form. ``tour_done`` is false until the user finished
+    automatic PDF capture, the system theme. ``verification_level`` (basic unless set) is
+    how much checking matters and may cost. ``tour_done`` is false until the user finished
     or skipped the web's first-login tour."""
 
     ui_language: Literal["de", "en"] | None = None
@@ -48,7 +57,7 @@ class Preferences(BaseModel):
     pdf_capture: Literal["auto", "text", "vision"] | None = None  # null: auto
     theme: Literal["system", "light", "dark"] | None = None  # null: system; the web applies it
     tour_done: StrictBool = False
-    judge_default: JudgeDefault = "off"  # the output form's judge preselection
+    verification_level: VerificationLevel = "basic"
 
 
 class PreferencesUpdate(BaseModel):
@@ -61,7 +70,8 @@ class PreferencesUpdate(BaseModel):
     pdf_capture: Literal["auto", "text", "vision"] | None = None
     theme: Literal["system", "light", "dark"] | None = None
     tour_done: StrictBool | None = None  # null: back to false
-    judge_default: JudgeDefault | None = None  # null: back to off
+    verification_level: VerificationLevel | None = None  # null: back to basic
+    judge_default: JudgeDefault | None = None  # deprecated: mapped to verification_level
 
 
 Role = Literal["user", "viewer", "admin"]

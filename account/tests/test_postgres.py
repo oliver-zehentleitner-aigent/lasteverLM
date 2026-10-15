@@ -598,3 +598,30 @@ async def test_credit_history_groups_actions_and_joins_titles(repo: PostgresRepo
     assert days[-1][1] == Decimal("6.5") and days[-1][2] == 400
     page, total = await repo.credit_entries(user.id, date(2000, 1, 1), today, 10, 5)
     assert page == [] and total == 2
+
+
+async def test_migration_0011_maps_judge_default_to_verification_level(
+    repo: PostgresRepository,
+) -> None:
+    now = datetime.now(UTC)
+    users = {}
+    for name, prefs in (
+        ("off", {"judge_default": "off", "theme": "dark"}),
+        ("high", {"judge_default": "high"}),
+        ("set", {"judge_default": "low", "verification_level": "thorough"}),
+        ("junk", {"judge_default": "max"}),
+        ("none", {}),
+    ):
+        user = await repo.create_user(f"{name}@example.org", role="user", now=now)
+        await repo.set_preferences(user.id, prefs)
+        users[name] = user.id
+    migration = next(p for p in MIGRATIONS if p.name.startswith("0011_"))
+    async with repo._pool.connection() as conn:
+        await conn.execute(migration.read_text())
+        await conn.execute(migration.read_text())  # idempotent
+    got = {name: (await repo.get_user(uid)).preferences for name, uid in users.items()}  # type: ignore[union-attr]
+    assert got["off"] == {"judge_default": "off", "theme": "dark", "verification_level": "basic"}
+    assert got["high"]["verification_level"] == "bulletproof"
+    assert got["set"]["verification_level"] == "thorough"  # already set: untouched
+    assert got["junk"] == {"judge_default": "max"}  # unknown: left for the reader to ignore
+    assert got["none"] == {}

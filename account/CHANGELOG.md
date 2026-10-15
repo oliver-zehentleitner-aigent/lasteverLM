@@ -9,6 +9,14 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- The preference `judge_default` becomes `verification_level` (`basic`|`standard`|`thorough`|`bulletproof`, default `basic`): how much checking matters and may cost. Migration 0011 maps stored values (off to basic, low to standard, medium to thorough, high to bulletproof) and keeps `judge_default` in the row for the rollout; it goes at the user's next preferences write. A stored `judge_default` without the new key reads mapped.
+
+### Deprecated
+
+- `judge_default` in `PUT /me/preferences`: still accepted for one release and mapped to `verification_level` (the new field wins when both are sent); no longer returned.
+
 ## [0.21.0] - 2026-10-15
 
 ### Fixed

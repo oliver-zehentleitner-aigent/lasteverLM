@@ -67,6 +67,8 @@ repository root's `context/`.
 
 ## P
 
+- [preferences.md](preferences.md) — the verification level (basic to bulletproof) stores the user's intent rather than a judge setting; the earlier judge_default is mapped and accepted for one release
+
 - [privacy.md](privacy.md) — visitor hashing with a daily salt (shared via secret or per process), browser family only, retention at service start (re-checked against the periodic loops); sign-in attempts keep the plain client address; viewers get e-mail and IP addresses masked by the server
 
 ## Q

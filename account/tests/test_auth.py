@@ -44,7 +44,7 @@ def test_full_login_flow_issues_jwt_and_creates_user(
         "pdf_capture": None,
         "theme": None,
         "tour_done": False,
-        "judge_default": "off",
+        "verification_level": "basic",
     }
 
 
