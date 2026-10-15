@@ -806,10 +806,17 @@ class InMemoryRepository:
 
 class FakeChat:
     """The OpenAI client's chat.completions as far as the vision reader uses
-    it: one fixed answer (or error) per call, every request recorded."""
+    it: one fixed answer (or error) per call, every request recorded.
+    `answers` gives one (text, finish reason) per call instead, in order."""
 
-    def __init__(self, answer: str = "Umsatz 4,2 Mio\n\nA bar chart.", error=None) -> None:
+    def __init__(
+        self,
+        answer: str = "Umsatz 4,2 Mio\n\nA bar chart.",
+        error=None,
+        answers: list[tuple[str, str]] | None = None,
+    ) -> None:
         self.answer, self.error = answer, error
+        self.answers = list(answers or [])
         self.calls: list[dict] = []
         self.chat = SimpleNamespace(completions=self)
 
@@ -817,10 +824,9 @@ class FakeChat:
         self.calls.append(kwargs)
         if self.error:
             raise self.error
+        text, finish = self.answers.pop(0) if self.answers else (self.answer, "stop")
         return SimpleNamespace(
-            choices=[
-                SimpleNamespace(message=SimpleNamespace(content=self.answer), finish_reason="stop")
-            ],
+            choices=[SimpleNamespace(message=SimpleNamespace(content=text), finish_reason=finish)],
             usage=SimpleNamespace(prompt_tokens=202, completion_tokens=40),
         )
 

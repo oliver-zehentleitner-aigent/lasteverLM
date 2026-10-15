@@ -7,6 +7,11 @@ is chunked like a text file; citations name the source, not a position
 in it (see context/audio-sources.md). Format, size and duration are
 core's `probe_audio`: the API checks them at upload, the transcriber
 again before the call.
+
+A transcript that degenerated into a repetition loop
+(loaders/degeneration.py) fails the source and is never indexed. There is
+no second attempt: core's transcriber sends no sampling settings, so the
+same file would be transcribed the same way and billed again.
 """
 
 from __future__ import annotations
@@ -14,6 +19,9 @@ from __future__ import annotations
 from lasteverlm_core import AudioError, ProviderError, SpeechToText, probe_audio
 
 from lasteverlm_ingest.loaders import Bill, LoaderError, Passage
+from lasteverlm_ingest.loaders.degeneration import degenerated
+
+TRANSCRIPT_REASON = "the model's transcript degenerated into repetition"
 
 
 class AudioLoader:
@@ -39,4 +47,6 @@ class AudioLoader:
             bill(exc.usage)
             raise LoaderError(str(exc)) from exc
         bill(result.usage)
+        if degenerated(result.text):
+            raise LoaderError(TRANSCRIPT_REASON)
         return [Passage(text=result.text)]

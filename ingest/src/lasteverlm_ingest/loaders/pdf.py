@@ -20,7 +20,7 @@ from pypdf import PdfReader
 from pypdf.errors import PyPdfError
 
 from lasteverlm_ingest.loaders import Bill, LoaderError, Passage
-from lasteverlm_ingest.loaders.image import PAGE_PROMPT, VisionReader
+from lasteverlm_ingest.loaders.image import PAGE_PROMPT, DegeneratedError, VisionReader
 
 Capture = Literal["text", "vision", "auto"]
 CAPTURE_MODES: tuple[Capture, ...] = ("text", "vision", "auto")
@@ -157,18 +157,22 @@ class VisionPdfLoader:
                 failure: BaseException | None = None
                 for index, future in zip(batch, futures, strict=True):
                     error = future.exception()
+                    usages = error.usages if isinstance(error, DegeneratedError) else []
+                    if error is None:
+                        text, usages = future.result()
+                        texts[index] = text
+                    elif isinstance(error, DegeneratedError):
+                        error = LoaderError(f"{error} (page {index + 1})")
                     if error is not None:
                         failure = failure or error
-                        continue
-                    text, usage = future.result()
-                    texts[index] = text
                     # Every answered call is billed, also when a sibling
                     # failed or the credit ran out on an earlier one; the
                     # first failure stops the loader before the next batch.
-                    try:
-                        bill(usage)
-                    except Exception as exc:
-                        failure = failure or exc
+                    for usage in usages:
+                        try:
+                            bill(usage)
+                        except Exception as exc:
+                            failure = failure or exc
                 if failure is not None:
                     raise failure
         passages = [Passage(text=texts[i], page=i + 1) for i in sorted(texts) if texts[i].strip()]
@@ -176,5 +180,5 @@ class VisionPdfLoader:
             raise LoaderError(f"PDF holds no readable content (capture mode {self._capture})")
         return passages
 
-    def _read(self, image: bytes) -> tuple[str, Usage]:
+    def _read(self, image: bytes) -> tuple[str, list[Usage]]:
         return self._vision.read(image, "image/jpeg", PAGE_PROMPT)
