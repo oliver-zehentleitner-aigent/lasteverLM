@@ -180,6 +180,8 @@ SCOPED_RETRIEVAL_K = 12
 MAX_ATTEMPTS = 3
 # how often a running job refreshes its claim; well inside the worker's stale limit
 HEARTBEAT_S = 60.0
+# how often a counter of one step (a speech segment) is written at most
+PHASE_MIN_S = 5.0
 # how long an output may wait for its sources to be read before it fails
 WAITING_TIMEOUT_S = 30 * 60
 SUMMARY_MAX_CHARS = 500
@@ -602,6 +604,9 @@ class OutputService:
         self._clock = clock
         self._running: str | None = None
         self._calling: str | None = None  # the model of the call in flight
+        # the step the running job is in, written with the heartbeat
+        self._phase_now: dict[str, Any] | None = None
+        self._phase_at = 0.0
         self._beat_at = 0.0
         self._beat_lock = threading.Lock()
         self._store = store
@@ -915,6 +920,7 @@ class OutputService:
         source_id: str | None = None
         content: dict[str, Any] = {}
         self._running, self._beat_at, self._calling = job.id, self._clock(), None
+        self._phase_now, self._phase_at = None, 0.0
         try:
             notebook_id = job.notebook_id
             if notebook_id is None:
@@ -928,6 +934,7 @@ class OutputService:
             )
             generated = self._generate(booking, notebook_id, job, trace)
             # the units are marked in place, inside the content
+            self._phase("checking")
             check = generated.check or check_units(
                 generated.units, trace.passages, translated="language" in job.options
             )
@@ -943,10 +950,12 @@ class OutputService:
             if generated.speech is not None:
                 key = self._speak(job, booking, notebook_id, generated.speech, trace)
                 content = {**content, "key": key}
+            self._phase("indexing")
             source_id = self._index(booking, notebook_id, generated, trace)
             self._store.update_output(
                 job.id,
                 status="ready",
+                phase=None,
                 title=generated.title,
                 content=content,
                 source_id=source_id,
@@ -981,9 +990,20 @@ class OutputService:
             (str(failure) or failure.__class__.__name__)[:ERROR_LOG_CHARS],
         )
         if final:
-            self._store.update_output(job.id, status="failed", error=error)
+            self._store.update_output(job.id, status="failed", error=error, phase=None)
             return True
         self._store.release_output(job.id, error=error)
+        # waiting for the next attempt: which one, and what failed
+        self._store.update_output(
+            job.id,
+            phase={
+                "step": "retry",
+                "since": now(),
+                "n": job.attempts + 1,
+                "of": MAX_ATTEMPTS,
+                "error": _what_failed(failure, self._calling),
+            },
+        )
         return False
 
     def copy_starter(self, job: OutputCopy) -> bool:
@@ -1101,6 +1121,7 @@ class OutputService:
         summaries = self._material(notebook_id, row.options)
         selected = row.options.get("sources")
 
+        self._phase("retrieving")
         embedded = embed_billed(self._store, self._embedder, booking, [generator.focus_query])
         trace.embedding_in += embedded.usage.tokens_in
         chunks, trace.candidates = balanced_chunks(
@@ -1114,6 +1135,7 @@ class OutputService:
         )
         trace.passages = number_passages(chunks)
 
+        self._phase("writing")
         generated = generator.generate(
             self._completer(booking, trace),
             str(notebook.get("title", "")),
@@ -1144,7 +1166,25 @@ class OutputService:
             if self._clock() - self._beat_at < HEARTBEAT_S:
                 return
             self._beat_at = self._clock()
-        self._store.touch_output(self._running)
+            phase = self._phase_now
+        self._store.touch_output(self._running, phase)
+
+    def _phase(self, step: str, **counters: Any) -> None:
+        """Record the step the running job has really begun, with its counters
+        where it has any. A new step is written at once; a counter of the same
+        step (a speech segment) at most every ``PHASE_MIN_S``. Each write is
+        also the claim's heartbeat: one update for both."""
+        if self._running is None:
+            return
+        with self._beat_lock:
+            new_step = self._phase_now is None or self._phase_now["step"] != step
+            since = now() if new_step or self._phase_now is None else self._phase_now["since"]
+            self._phase_now = {"step": step, "since": since, **counters}
+            if not new_step and self._clock() - self._phase_at < PHASE_MIN_S:
+                return
+            self._phase_at = self._beat_at = self._clock()
+            phase = self._phase_now
+        self._store.touch_output(self._running, phase)
 
     def _material(self, notebook_id: str, options: dict[str, Any]) -> Summaries:
         """The ready uploads a job reads: its selection, or all of them. A
@@ -1231,6 +1271,7 @@ class OutputService:
             level=level,
             model=judge_llm.model,
             rebuild=rebuild,
+            on_phase=self._phase,
         )
         return judged
 
@@ -1365,6 +1406,7 @@ class OutputService:
             if (c := found.get(chunk_id)) is not None
         ]
         trace.focus_query = ChartGenerator.focus_query
+        self._phase("checking")
         check = check_charts(charts, {p.n: p.text for p in trace.passages})
         calls = {c.proposal.model_dump_json(): c.proposal for c in candidates}
         trace.calls = [{"role": "proposal", **call.model_dump()} for call in calls.values()] + [
@@ -1391,6 +1433,7 @@ class OutputService:
         notebook = self._store.get_notebook(notebook_id) or {}
         summaries = self._material(notebook_id, options)
         question = options["question"]
+        self._phase("retrieving")
         embedded = embed_billed(self._store, self._embedder, booking, [question])
         trace.embedding_in += embedded.usage.tokens_in
         trace.focus_query = question
@@ -1407,6 +1450,7 @@ class OutputService:
 
         state = decision_state(question, trace.passages)
         started = now()
+        self._phase("deciding")
         self._heartbeat(self._decision.model)
         decided = decide_billed(
             self._store,
@@ -1431,6 +1475,7 @@ class OutputService:
 
         started, before_in, before_out = now(), trace.llm_in, trace.llm_out
         instructions, schema = generator.evidence_prompt(options)
+        self._phase("writing")
         evidence = generator.ask(
             self._completer(booking, trace),
             str(notebook.get("title", "")),
@@ -1500,7 +1545,8 @@ class OutputService:
         if not segments:
             raise GenerationFailed("audio: the script is empty")
         parts: list[bytes] = []
-        for voice, segment in segments:
+        for index, (voice, segment) in enumerate(segments, start=1):
+            self._phase("synthesizing_speech", n=index, of=len(segments))
             self._heartbeat(getattr(self._tts, "model", None))
             result = synthesize_billed(
                 self._store,
@@ -1534,7 +1580,20 @@ class OutputService:
 
     def _present(self, row: OutputRow) -> Output:
         output = to_output(row)
-        return output.model_copy(update={"content": self._public_content(row.content)})
+        update: dict[str, Any] = {"content": self._public_content(row.content)}
+        if row.status == "waiting" and row.notebook_id is not None:
+            # computed on read: no worker runs a waiting job, so nothing writes this
+            pending = [
+                s.name
+                for s in selected_uploads(self._store, row.notebook_id, row.options.get("sources"))
+                if s.status in ("added", "processing")
+            ]
+            update["phase"] = {
+                "step": "waiting_for_sources",
+                "since": row.created_at,
+                "sources": pending,
+            }
+        return output.model_copy(update=update)
 
     def _owned(self, user_id: str, output_id: str) -> OutputRow:
         """The caller's output, in the trash or not."""
@@ -1723,6 +1782,8 @@ def to_output(row: OutputRow) -> Output:
             "deleted_at": row.deleted_at,
             "purge_at": row.purge_at,
             "provenance": row.provenance,
+            # only while running: a finished row's last phase is never shown
+            "phase": row.phase if row.status in ("waiting", "processing") else None,
         }
     )
 

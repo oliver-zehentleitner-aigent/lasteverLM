@@ -975,3 +975,15 @@ def test_waiting_outputs_and_a_failed_sources_error(store, pool, notebook):
         )
     (state,) = [s for s in store.source_states(notebook) if s.source_id == page]
     assert (state.status, state.error) == ("failed", "no text")
+
+
+def test_a_phase_is_written_with_the_heartbeat_and_cleared(store, notebook):
+    row = store.create_output(notebook, "report", "processing")
+    while (job := store.claim_output("w1", 600)) is not None and job.id != row.id:
+        pass
+    store.touch_output(row.id, {"step": "writing", "since": "t"})
+    assert store.get_output(row.id).phase == {"step": "writing", "since": "t"}
+    store.touch_output(row.id)  # a plain beat keeps the step
+    assert store.get_output(row.id).phase == {"step": "writing", "since": "t"}
+    store.update_output(row.id, status="ready", phase=None)
+    assert store.get_output(row.id).phase is None

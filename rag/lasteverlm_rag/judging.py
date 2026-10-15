@@ -72,6 +72,7 @@ def judge_output(
     level: str,
     model: str,
     rebuild: Callable[[Any], GeneratedOutput],
+    on_phase: Callable[..., None] | None = None,
 ) -> tuple[GeneratedOutput, dict[str, Any]]:
     """The judged output and the judge's log. ``judge`` is the judge model's
     billed call, ``revise`` the author model's; ``rebuild`` turns an edited
@@ -88,7 +89,9 @@ def judge_output(
     dropped: dict[int, str] = {}  # dropped by the reviser: the judge's reason
     rounds: list[dict[str, Any]] = []
 
+    phase = on_phase or (lambda step, **counters: None)
     for number in range(1, MAX_ROUNDS + 1):
+        phase("judging", n=number, of=MAX_ROUNDS)
         judged = _judge_all(judge, [current.units[i] for i in pending], texts)
         for i, judgement in zip(pending, judged, strict=True):
             last[i] = Verdict(judgement, number)
@@ -102,6 +105,7 @@ def judge_output(
         rounds.append(entry)
         if not failing or number == MAX_ROUNDS:
             break
+        phase("revising", n=number)
         revisions = _revise(revise, generator, document, failing, last, texts)
         revised: list[int] = []
         for i in failing:

@@ -289,6 +289,8 @@ class OutputRow:
     provenance: dict[str, Any] | None = None
     # the plan's action_id when an agent plan created it; else the output's own id books
     booking_id: str | None = None
+    # the step the worker is in now; None when not running
+    phase: dict[str, Any] | None = None
 
 
 class NotebookStats(BaseModel):

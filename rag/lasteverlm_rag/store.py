@@ -205,8 +205,9 @@ class Store(Protocol):
 
     def release_output(self, output_id: str, error: str | None = None) -> None: ...
 
-    def touch_output(self, output_id: str) -> None:
-        """Refresh a running job's claim (its worker is alive)."""
+    def touch_output(self, output_id: str, phase: dict[str, Any] | None = None) -> None:
+        """Refresh a running job's claim (its worker is alive) and, with
+        ``phase``, the step it is in, in one update."""
         ...
 
     def charged(self, action_id: str) -> bool:
@@ -303,11 +304,20 @@ _OUTPUT_COLUMNS = f"""
 o.id::text as id, o.notebook_id::text as notebook_id, {_OUTPUT_OWNER}::text as owner, o.kind,
 o.title, o.content, o.status, o.error, o.share_token, o.source_id::text as source_id,
 o.attempts, o.created_at, o.options, o.origin_title, o.deleted_at, o.provenance,
-o.booking_id::text as booking_id,
+o.booking_id::text as booking_id, o.phase,
 o.deleted_at + make_interval(days => {_TRASH_DAYS.format(owner=_OUTPUT_OWNER)}) as purge_at
 """
 _OUTPUT_FROM = "from outputs o left join notebooks n on n.id = o.notebook_id"
-_OUTPUT_FIELDS = {"title", "content", "status", "error", "share_token", "source_id", "provenance"}
+_OUTPUT_FIELDS = {
+    "title",
+    "content",
+    "status",
+    "error",
+    "share_token",
+    "source_id",
+    "provenance",
+    "phase",
+}
 
 # One job per call, oldest first; rows other workers hold are skipped, a claim
 # older than the stale limit (a worker that died mid-job) is taken over, and a
@@ -845,7 +855,7 @@ class PostgresStore:
         unknown = set(fields) - _OUTPUT_FIELDS
         if unknown:
             raise ValueError(f"not an updatable outputs column: {sorted(unknown)}")
-        for name in ("content", "provenance"):
+        for name in ("content", "provenance", "phase"):
             if name in fields:
                 fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
@@ -964,12 +974,12 @@ class PostgresStore:
             ).fetchone()
         return bool(row and row["charged"])
 
-    def touch_output(self, output_id: str) -> None:
+    def touch_output(self, output_id: str, phase: dict[str, Any] | None = None) -> None:
         with self._pool.connection() as conn:
             conn.execute(
-                "update outputs set claimed_at = now() "
+                "update outputs set claimed_at = now(), phase = coalesce(%s, phase) "
                 "where id = %s and claimed_by is not null and status = 'processing'",
-                (output_id,),
+                (_jsonb(phase), output_id),
             )
 
     def waiting_outputs(self, older_than_s: int) -> list[OutputRow]:
@@ -1277,4 +1287,5 @@ def _to_output(row: dict[str, Any]) -> OutputRow:
         purge_at=_str_or_none(row.get("purge_at")),
         provenance=row.get("provenance"),
         booking_id=row.get("booking_id"),
+        phase=row.get("phase"),
     )

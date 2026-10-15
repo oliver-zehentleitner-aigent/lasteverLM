@@ -133,9 +133,10 @@ def test_a_long_judged_run_refreshes_its_claim(settings):
     client.worker.run_once()
     out = client.get(f"/api/rag/outputs/{r.json()['id']}", headers=AUTH).json()
     assert out["status"] == "ready", out
-    # four judge calls of 90 s: the claim was refreshed during the run, at most once a minute
+    # four judge calls of 90 s: the claim was refreshed during the run; plain beats
+    # (no new step) come at most once a minute, step changes come with their own
     assert store.touches and set(store.touches) == {r.json()["id"]}
-    assert len(store.touches) <= now[0] / 60 + 1
+    assert store.beats and len(store.beats) <= now[0] / 60 + 1
 
 
 def test_an_output_waiting_too_long_for_its_sources_fails_uncharged(settings):
