@@ -780,3 +780,29 @@ keeps it inspectable.
 **Rejected alternatives:**
 - Showing the number with a warning: a reader takes a number as an
   answer, whatever the note beside it says.
+
+## A decision's number that little evidence stands behind is shown as a tendency, never hidden
+
+**Id:** 33354271-3f3a-41ca-9352-b1c313a92dba
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** rag's proposal after the undecided fix, approved by the coordinator for the maintainer, 2026-10-15 (conflicting stays visible with its number; one supported item or an unclear balance shows the number as a tendency; nothing hidden)
+**Revisit when:** users read a tendency as a firm answer anyway, or a threshold of two supported items turns out too low for the decisions people ask
+
+A decided number carries `weight`: `tendency` when one supported
+evidence item or an unclear balance stands behind it, `full` otherwise,
+a conflict included. `supported_evidence` gives the count. The web
+shows a tendency lighter, with the count; nothing is hidden.
+
+**Reason:** one supported item is still evidence a reader can check, so
+hiding the number would take away a result that can be followed.
+Showing it as firmly as a number many items back would overstate it.
+A conflict stays as it is, because there the reader needs both sides at
+full strength to see that they disagree.
+
+**Rejected alternatives:**
+- Hiding the number below two supported items: removes a checkable
+  result.
+- Lightening a conflict too: it would hide the disagreement the agreement
+  field exists to show.

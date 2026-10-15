@@ -667,7 +667,11 @@ Without supported evidence on either side `agreement` is `undecided`,
 is `null`: a number without evidence is the decision model's prior, not
 a decision from the sources. The LLM's own sentence goes into
 `provenance.llm_verdict_text` and the model's number into
-`provenance.model_answer_without_evidence`.
+`provenance.model_answer_without_evidence`. `supported_evidence` counts
+the supported items on both sides, and `weight` says how firmly the
+number is shown: `tendency` when one supported item or an `unclear`
+balance stands behind it, `full` otherwise (a conflict included: both
+sides are shown as they are), `null` when undecided. Nothing is hidden.
 `provenance.calls` lists both calls (`role` `decision` with the state's
 size, `role` `evidence`), `provenance.usage.decision` the decision
 model's input tokens.

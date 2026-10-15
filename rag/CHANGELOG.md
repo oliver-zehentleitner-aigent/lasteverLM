@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verification levels. `options.verification`: `basic` (word and negation check, free, the default), `standard` (also a low judge, once, for each unit the check doubts, annotate only) or `thorough` (the medium judge with revision, as `judge: medium`). `POST /estimate` returns `levels` with each level's price. Chat answers follow the user's `verification_level` (else their `judge_default`), annotate only. The agent asks for the level instead of the judge, preselecting the user's.
 - A negation check after the word check (method `lexical-overlap-v2`): a unit whose words its passages support, but which states the same predicate of the same subject with the opposite polarity ("is not open" over "is open"), is marked `possible_contradiction`, in outputs (not quizzes and flashcards) and chat answers. spaCy 3.8.7 with `en_core_web_sm` and `de_core_news_sm` 3.8.0 (pinned by hash), loaded once per process on first use: about +270 MB memory per process that checks, +446 MB image. Calibration in `docs/negation-eval.md`.
 
+### Changed
+
+- A decision says how much evidence stands behind its number: `supported_evidence` (supported items on both sides) and `weight`, `tendency` with one supported item or an unclear balance, `full` otherwise (a conflict included), `null` when undecided. The number is never hidden for it.
+
 ### Fixed
 
 - Charts stay inside the selected sources. Finding charts takes `source_ids` and `url_refresh`, reads unread selected sources first (as a chat answer does) and searches only the selection; before, it proposed from the whole notebook. Creating a chart refuses a candidate citing a passage outside the selection, from a generated source or outside the notebook with 409 `chart_out_of_scope`; before, candidates from an earlier selection were drawn.
