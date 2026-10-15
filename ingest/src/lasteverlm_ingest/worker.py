@@ -273,7 +273,8 @@ def _store_snapshot(
 ) -> str | None:
     """Keep what was read as an inert HTML file beside the source (see
     loaders/snapshot.py); None for a PDF behind a URL, whose own file is
-    what was read."""
+    what was read. Text and structured data show the text that was read
+    (structured data as its rendering, not its raw body)."""
     when = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     if fetched.media_type in ("text/html", "application/xhtml+xml"):
         try:
@@ -281,7 +282,7 @@ def _store_snapshot(
         except LookupError:  # a charset Python does not know
             html = fetched.body.decode("utf-8", errors="replace")
         page = html_snapshot(html, fetched.url, when)
-    elif fetched.media_type.startswith("text/"):
+    elif fetched.media_type != "application/pdf":
         page = text_snapshot("\n\n".join(p.text for p in passages), fetched.url, when)
     else:
         return None

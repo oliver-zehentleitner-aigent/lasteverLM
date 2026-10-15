@@ -34,6 +34,11 @@ ROUTES: dict[str, tuple[int, dict[str, str], bytes]] = {
     "/busy": (503, {"Content-Type": "text/html"}, b"later"),
     "/image": (200, {"Content-Type": "image/png"}, b"\x89PNG"),
     "/big": (200, {"Content-Type": "text/plain"}, b"x" * 5000),
+    "/languages": (
+        200,
+        {"Content-Type": "application/json; charset=utf-8"},
+        b'{"Python": 251804, "Makefile": 2310}',
+    ),
 }
 
 
@@ -176,3 +181,10 @@ def test_an_app_shell_says_it_needs_javascript():
         HtmlLoader().load(shell)
     with pytest.raises(LoaderError, match="^the page contains no readable text$"):
         HtmlLoader().load(b"<html><body><div></div></body></html>")
+
+
+def test_structured_data_is_read_and_an_unsupported_type_names_the_supported(server):
+    passages = _loader().load(f"{server}/languages".encode())
+    assert [p.text for p in passages] == ["Python: 251804\nMakefile: 2310"]
+    with pytest.raises(LoaderError, match=r"'image/png'; supported: HTML, .*JSON.*YAML"):
+        _loader().load(f"{server}/image".encode())

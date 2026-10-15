@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- A URL that returns structured data is read instead of failing with "unsupported content type": JSON (and any `+json`), NDJSON, XML (and any `+xml`, RSS and Atom included), CSV, TSV and YAML. Each value becomes a line with its key path, element path or column name, so a chunk cites it with its context; one object, element or row is one passage, and the snapshot shows the same rendering. A `text/plain` body that parses cleanly as a JSON object or array is read as JSON. XML is parsed by defusedxml (no entity expansion, no external entities or DTDs), YAML by `safe_load`; nesting over 32 levels, more than 10,000 values, CSV rows over 500 columns and fields over 100,000 characters fail the source with that reason. A type still unsupported fails with a message naming it and the supported list.
+
 ## [0.21.1] - 2026-10-15
 
 ### Changed

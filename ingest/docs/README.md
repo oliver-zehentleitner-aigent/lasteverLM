@@ -287,11 +287,37 @@ worker finishes the source in flight before it stops on SIGTERM.
 The worker fetches the URL (`lasteverlm_ingest.loaders.url`) and hands
 the body to the loader for its content type: `text/html` and
 `application/xhtml+xml` to the HTML extractor, `application/pdf` to the
-PDF loader, `text/plain` and `text/markdown` to the text loader; any
-other type fails the source. The HTML extractor drops scripts, styles
-and page chrome (`nav`, `header`, `footer`, `aside`, forms), keeps only
-`<main>`/`<article>` when the page has them, and puts the page title
-first.
+PDF loader, `text/plain` and `text/markdown` to the text loader, and
+structured data to `lasteverlm_ingest.loaders.structured`; any other type
+fails the source with a message naming the type and the supported list.
+The HTML extractor drops scripts, styles and page chrome (`nav`,
+`header`, `footer`, `aside`, forms), keeps only `<main>`/`<article>`
+when the page has them, and puts the page title first.
+
+Structured data becomes lines that carry their own context, so a chunk
+cites well wherever the chunker cuts:
+
+| Format | Content types | Rendering |
+|--------|---------------|-----------|
+| JSON | `application/json`, `text/json`, any `+json` | one line per value with its key path (`languages.Python: 12345`, `items[0].name: …`) |
+| NDJSON | `application/x-ndjson`, `application/ndjson`, `application/jsonl`, `application/x-jsonlines` | as JSON, each line numbered (`[3].id: …`) |
+| YAML | `application/yaml`, `text/yaml`, `application/x-yaml`, `text/x-yaml` | as JSON; parsed with `safe_load` only |
+| XML | `application/xml`, `text/xml`, any `+xml` (RSS, Atom) | one line per element text and attribute with its path (`rss/channel/item[2]/title: …`, `feed/entry/link@href: …`); namespaces dropped from names |
+| CSV, TSV | `text/csv` (comma, or the semicolon, tab or pipe the first lines use), `text/tab-separated-values` | one line per row, every value named by its column (`row 3: city: Graz; price: 12`); the first row is the header |
+
+One object, element or row is one passage, so its values stay together
+and apart from the next record. A `text/plain` body is read as JSON when
+it is an object or array that parses cleanly; anything else stays text.
+The snapshot shows this rendering, escaped into the same inert document
+as a text page.
+
+Beyond the body cap, a document fails the source with its reason when it
+nests deeper than 32 levels, has more than 10,000 values (XML: elements),
+a CSV row has more than 500 columns or a field more than 100,000
+characters. XML is parsed by defusedxml with entity declarations and
+external references refused: no entity expansion (billion laughs), no
+external entity or DTD is fetched. YAML aliases count every time they are
+used, so an alias bomb hits the value cap; a self-referencing one fails.
 
 The worker runs inside the cluster, so every connection is guarded: the
 host is resolved by the loader itself, every address it resolves to
