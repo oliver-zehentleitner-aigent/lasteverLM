@@ -57,7 +57,14 @@ from . import __version__
 from .admin import admin_stats, daily_stats
 from .agent_service import AgentService, PlanAsking, PlanNotFound, PlanNotOpen, StaleQuestion
 from .config import Settings
-from .estimate import Models, action_calls, estimate, output_calls, step_estimator
+from .estimate import (
+    Models,
+    action_calls,
+    estimate,
+    output_calls,
+    output_estimator,
+    step_estimator,
+)
 from .failures import failure_cause
 from .ingest_client import HttpIngest, Ingest, IngestError
 from .judge import judge_models
@@ -185,6 +192,13 @@ def create_app(
     if objects is not None:
         checks["storage"] = storage_check(objects)
     probe = dependency_probe or (DependencyProbe(checks) if checks else None)
+    models = Models(
+        llm=settings.inference.llm_model,
+        embedding=settings.inference.embedding_model,
+        decision=settings.inference.decision_model,
+        tts=settings.tts_model,
+        judges={str(k): v for k, v in settings.inference.judge_models.items()},
+    )
     # outputs are synthesized by the worker; the API presigns and deletes their files
     outputs = output_service or OutputService(
         store,
@@ -199,13 +213,7 @@ def create_app(
         # for judging an existing output or answer on request
         judges=judge_models(make_client(settings.inference), settings.inference.judge_models),
         ingest=ingest,
-    )
-    models = Models(
-        llm=settings.inference.llm_model,
-        embedding=settings.inference.embedding_model,
-        decision=settings.inference.decision_model,
-        tts=settings.tts_model,
-        judges={str(k): v for k, v in settings.inference.judge_models.items()},
+        output_max=output_estimator(settings.model_prices, store.pricing_rules, generators, models),
     )
     agent = AgentService(
         store,
@@ -695,7 +703,20 @@ def _install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(InsufficientCredit)
     async def credit_exhausted(_: Request, exc: InsufficientCredit) -> JSONResponse:
-        return error(402, "credit exhausted")
+        if exc.needed_cents is None:
+            return error(402, "credit exhausted")
+        # an output or a plan: what it needs at most, what started work holds,
+        # and the balance, for the web to say "needs up to €x, you have €y"
+        return JSONResponse(
+            {
+                "error": "credit does not cover this",
+                "code": "credit_insufficient",
+                "needed_cents": float(exc.needed_cents),
+                "held_cents": float(exc.held_cents or 0),
+                "available_cents": float(exc.available_cents or 0),
+            },
+            status_code=402,
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:

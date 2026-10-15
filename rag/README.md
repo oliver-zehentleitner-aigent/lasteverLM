@@ -517,8 +517,10 @@ Nothing runs before `POST .../plans/{plan_id}/confirm`.
   whose steps hold each `result` with the output's id, to link it.
 - **Billing and limits:** every call of a plan books under its
   `action_id`. Ingest's processing of an added source books under
-  ingest's own action. Credit is checked once, at confirm: a confirmed
-  plan runs all its steps, even if the balance goes negative on the way.
+  ingest's own action. Credit is checked once, at confirm: the balance
+  must cover the plan's maximum and its `separate` lines plus what started
+  work holds (see Configuration), and a confirmed plan then runs all its
+  steps, even if the balance goes negative on the way.
   The API's rate limit applies to confirm as to every route.
 
 **Web page age.** An answer citing a web page says how old the version
@@ -725,10 +727,20 @@ only the rest is rag's own. When an action starts (a chat answer, an
 output's creation, a plan's confirm, a judgement on request, a voice
 sample) the service runs core's credit check (`has_credit`: a positive
 balance of ledger credits minus the charges of usage, for admins as for
-everyone else) and answers 402 otherwise. It is the only check: an action
-that started runs to the end, the worker's attempts, judge rounds,
-revisions and audio segments included, even if the balance goes negative
-on the way. Every
+everyone else) and answers 402 otherwise. An output's creation and a
+plan's confirm also need the balance to cover their estimated maximum
+(the output's, or the plan's total and its `separate` lines; with the
+reading of unread sources and pages fetched again) plus what the user's
+started work still holds. That is the sum of `outputs.reserved_cents`
+(an output's maximum, set at creation) over the user's outputs in
+`waiting` or `processing`, a running plan's waiting explanations, and
+ingest's funded reads not finished (`library_sources.funded_cents` where
+`funded_request_at` is set and `status = 'processing'`). Otherwise 402
+`{"error": "credit does not cover this", "code": "credit_insufficient",
+"needed_cents", "held_cents", "available_cents"}`. That is the only
+check: an action that started runs to the end, the worker's attempts,
+judge rounds, revisions and audio segments included, even if the balance
+goes negative on the way. Every
 model call is booked as one row of the `usage` table through core's
 `record_usage`, under its user action. Core fixes the row's cost in US
 cents (from `MODEL_PRICES`) and in euro cents (at the pricing rules'

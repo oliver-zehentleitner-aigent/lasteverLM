@@ -188,6 +188,25 @@ def _cents(value: Decimal, rounding: str) -> float:
     return float(value.quantize(Decimal("0.01"), rounding=rounding))
 
 
+def output_estimator(
+    prices: ModelPrices,
+    rules: Callable[[], PricingRules],
+    generators: Mapping[Any, OutputGenerator],
+    models: Models,
+) -> Callable[[str, Mapping[str, Any]], float]:
+    """An output's estimated maximum charge in euro cents, from its resolved
+    options: what its creation must find covered and its row holds."""
+
+    def output_max(kind: str, options: Mapping[str, Any]) -> float:
+        try:
+            high = output_calls(kind, options, generators[kind], models, 1)
+        except CannotEstimate:
+            return 0.0  # the creation's own checks refuse what cannot run
+        return float(estimate(prices, rules(), f"output:{kind}", high, high)["charge_cents_max"])
+
+    return output_max
+
+
 def step_estimator(
     prices: ModelPrices,
     rules: Callable[[], PricingRules],

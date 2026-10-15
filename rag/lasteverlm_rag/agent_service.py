@@ -53,6 +53,7 @@ from .service import (
     OutputService,
     RagService,
     complete_tools_billed,
+    require_cover,
     require_credit,
     require_notebook,
     twice,
@@ -483,14 +484,22 @@ class AgentService:
     ) -> dict[str, Any]:
         """Run the plan: ingest steps now with this request's bearer, outputs
         created now (their jobs wait for sources), explanations when their
-        output is ready (the worker). Credit is checked here, once: a confirmed
-        plan runs all its steps, even if the balance goes negative on the way."""
+        output is ready (the worker). Credit is checked here, once: the balance
+        must cover the plan's maximum, ingest's lines and what started work
+        still holds; a confirmed plan then runs all its steps, even if the
+        balance goes negative on the way."""
         plan = self._owned(user_id, conversation_id, plan_id)
         if plan["status"] == "asking":
             raise PlanAsking(plan_id)
         if plan["status"] != "proposed":
             raise PlanNotOpen(plan_id)
-        require_credit(self._store, user_id)
+        # the plan's maximum and ingest's lines (pages it adds, sources read first)
+        shown = public(plan)
+        require_cover(
+            self._store,
+            user_id,
+            float(shown["estimate"].get("max", 0)) + sum(line["max"] for line in shown["separate"]),
+        )
         self._save(plan, status="running", confirmed_at=datetime.now(UTC))
         notebook_id = plan["notebook_id"]
         booking = Booking(user_id, notebook_id, "chat_answer", uuid.UUID(plan["action_id"]))

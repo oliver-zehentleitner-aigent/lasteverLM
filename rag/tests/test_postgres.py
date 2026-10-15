@@ -1060,3 +1060,45 @@ def test_a_plan_keeps_its_sources_and_a_page_says_when_it_was_read(store, pool, 
         }
     )
     assert store.get_plan(plan_id)["sources"] == sources
+
+
+def test_held_counts_waiting_outputs_plan_explanations_and_funded_reads(
+    store, pool, user, notebook
+):
+    assert store.held_cents(user) == 0
+    waiting = store.create_output(notebook, "report", "waiting", {}, None, 12.5)
+    store.create_output(notebook, "report", "processing", {}, None, 7.5)
+    done = store.create_output(notebook, "report", "processing", {}, None, 100)
+    store.update_output(done.id, status="ready")
+    conversation = store.create_conversation(notebook, "Chat H").id
+    message = store.insert_message(notebook, conversation, "assistant", "plan", [])
+    explain = {"tool": "explain_output", "state": "waiting", "estimate": {"min": 1, "max": 2}}
+    finished = {**explain, "state": "done"}
+    store.create_plan(
+        {
+            "id": str(uuid4()),
+            "conversation_id": conversation,
+            "notebook_id": notebook,
+            "owner": user,
+            "status": "running",
+            "steps": [explain, finished],
+            "estimate": {"min": 0, "max": 4},
+            "action_id": str(uuid4()),
+            "message_id": str(message.id),
+        }
+    )
+    page = add_source(pool, notebook, "processing", kind="url")
+    unfunded = add_source(pool, notebook, "processing", kind="url")
+    with pool.connection() as conn:
+        conn.execute(
+            "update library_sources set funded_cents = 3, funded_request_at = now() where id = %s",
+            (library_id_of(pool, page),),
+        )
+        # an estimate on an unfunded row is not held
+        conn.execute(
+            "update library_sources set funded_cents = 50 where id = %s",
+            (library_id_of(pool, unfunded),),
+        )
+    assert store.held_cents(user) == Decimal("25")  # 12.5 + 7.5 + 2 + 3
+    store.update_output(waiting.id, status="failed")
+    assert store.held_cents(user) == Decimal("12.5")

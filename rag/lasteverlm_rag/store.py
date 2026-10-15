@@ -16,6 +16,7 @@ import logging
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from decimal import Decimal
 from typing import Any, Literal, Protocol
 
 from lasteverlm_core import (
@@ -29,6 +30,7 @@ from lasteverlm_core import (
     Role,
     Usage,
     admin_role,
+    balance_cents,
     has_credit,
     record_usage,
 )
@@ -131,6 +133,7 @@ class Store(Protocol):
         status: OutputStatus,
         options: dict[str, Any] | None = None,
         booking_id: str | None = None,
+        reserved_cents: float = 0.0,
     ) -> OutputRow: ...
 
     # the agent chat's plans
@@ -255,6 +258,14 @@ class Store(Protocol):
 
     # credit
     def has_credit(self, user_id: str) -> bool: ...
+
+    def balance_cents(self, user_id: str) -> Decimal: ...
+
+    def held_cents(self, user_id: str) -> Decimal:
+        """What the user's started work still holds of the balance: waiting
+        outputs' maxima, a running plan's waiting explanations, and the
+        source reads ingest funded and has not finished."""
+        ...
 
     def admin_role(self, user_id: str) -> Role: ...
 
@@ -528,6 +539,25 @@ _CONVERSATION_FROM = "from conversations c join notebooks n on n.id = c.notebook
 _USER_NOTEBOOKS = "select id from notebooks where owner = %(owner)s"
 
 
+# What a user's started work still holds: rag's waiting outputs and a
+# running plan's waiting explanations, and ingest's funded reads not finished
+# (ingest's columns, see ingest's README: funded_cents with funded_request_at).
+_HELD_SQL = """
+select
+    coalesce((select sum(reserved_cents) from outputs
+              where owner = %(owner)s and status in ('waiting', 'processing')
+              and deleted_at is null), 0)
+  + coalesce((select sum((s->'estimate'->>'max')::numeric)
+              from plans p, jsonb_array_elements(p.steps) s
+              where p.owner = %(owner)s and p.status = 'running'
+              and s->>'tool' = 'explain_output' and s->>'state' in ('waiting', 'running')), 0)
+  + coalesce((select sum(funded_cents) from library_sources
+              where owner = %(owner)s and funded_request_at is not null
+              and status = 'processing' and deleted_at is null), 0)
+  as held
+"""
+
+
 class PostgresStore:
     def __init__(self, pool: Pool, prices: ModelPrices) -> None:
         self._pool = pool
@@ -695,15 +725,24 @@ class PostgresStore:
         status: OutputStatus,
         options: dict[str, Any] | None = None,
         booking_id: str | None = None,
+        reserved_cents: float = 0.0,
     ) -> OutputRow:
         output_id = _new_id()
         with self._pool.connection() as conn:
             conn.execute(
-                "insert into outputs "
-                "(id, notebook_id, owner, origin_title, kind, title, status, options, booking_id) "
-                "select %s, n.id, n.owner, n.title, %s, '', %s, %s, %s "
+                "insert into outputs (id, notebook_id, owner, origin_title, kind, title, "
+                "status, options, booking_id, reserved_cents) "
+                "select %s, n.id, n.owner, n.title, %s, '', %s, %s, %s, %s "
                 "from notebooks n where n.id = %s",
-                (output_id, kind, status, Jsonb(options or {}), booking_id, notebook_id),
+                (
+                    output_id,
+                    kind,
+                    status,
+                    Jsonb(options or {}),
+                    booking_id,
+                    reserved_cents,
+                    notebook_id,
+                ),
             )
         row = self.get_output(output_id)
         assert row is not None
@@ -1185,6 +1224,15 @@ class PostgresStore:
     def has_credit(self, user_id: str) -> bool:
         with self._pool.connection() as conn:
             return has_credit(core_connection(conn), uuid.UUID(user_id))
+
+    def balance_cents(self, user_id: str) -> Decimal:
+        with self._pool.connection() as conn:
+            return balance_cents(core_connection(conn), uuid.UUID(user_id))
+
+    def held_cents(self, user_id: str) -> Decimal:
+        with self._pool.connection() as conn:
+            row = conn.execute(_HELD_SQL, {"owner": user_id}).fetchone()
+        return Decimal(str(row["held"])) if row else Decimal(0)
 
     def user_output_contents(self, user_id: str) -> list[dict[str, Any]]:
         with self._pool.connection() as conn:

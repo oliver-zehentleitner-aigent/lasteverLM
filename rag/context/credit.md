@@ -107,7 +107,8 @@ set.
 
 **Id:** b93ff000-d488-4930-b11c-4d1e9840e1ee
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** c40ad1fc-2fa9-48c5-8326-52a5a9ac9b2c
 **Evidence:** confirmed
 **Source:** maintainer order relayed by the coordinator, 2026-10-15 (an action that started finishes even if the balance goes negative; never spend most of it and then stop; check once at the start; a slightly negative balance is accepted)
 **Revisit when:** a single action can cost a large multiple of a typical balance, so that running it to the end leaves balances deeply negative
@@ -131,3 +132,47 @@ keeps a user without credit from starting anything.
 - Checking before every step or call: stops an action half done, after
   most of its cost is spent (a confirmed plan did this before each step
   until this decision).
+
+## An output or a plan starts only if the balance covers its maximum and what started work holds
+
+**Id:** c40ad1fc-2fa9-48c5-8326-52a5a9ac9b2c
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the coordinator, 2026-10-15 (one rule for the whole system: start only within the estimated maximum plus the user's other funded work still waiting, then run to the end; ingest funds a read at request the same way); the column contract agreed with ingest the same day
+**Revisit when:** estimates turn out far above real charges, so that users with enough balance for the real cost are refused, or a new action can start work in another service without this check
+
+An output's creation and an agent plan's confirm start only if the
+balance covers their estimated maximum plus what the user's started work
+still holds. The maximum includes ingest's part: reading unread sources,
+fetching pages again, the pages a plan adds. What started work holds is
+each waiting or processing output's own maximum (`outputs.reserved_cents`,
+set at creation), a running plan's waiting explanations, and the reads
+ingest funded at request and has not finished (its `funded_cents` with
+`funded_request_at`). Each service writes its own column and reads the
+other's; nothing goes through core. Otherwise the answer is 402 with the
+needed maximum, the held amount and the balance. Once started, nothing
+checks again (b93ff000-d488-4930-b11c-4d1e9840e1ee still holds for that
+part). A chat answer, a judgement on request and a voice sample keep the
+plain positive-balance check: they are one short call each.
+
+**Reason:** a positive balance at the start let an action begin that its
+own reads could not pay for. Ingest then left the unfunded read waiting,
+and the plan or output waiting on it failed half way after 30 minutes,
+which is the half-done action that running to the end was meant to
+remove. Checking the maximum up front, with the work already started
+counted against the same balance, means everything that starts is funded
+to its end, and a one-cent balance cannot queue unbounded work. The 402
+carries the amounts so that the user is told what the action needs and
+what they have.
+
+**Rejected alternatives:**
+- A positive balance at the start (b93ff000-d488-4930-b11c-4d1e9840e1ee):
+  a started action could wait half way on an unfunded read.
+- A "confirmed" flag in the request body to ingest: rag calls ingest
+  with the user's own bearer, so any user could send it and bypass the
+  credit check.
+- A signed header from rag to ingest: needs a shared secret (the JWT
+  key used for a second purpose, absent in demo-token mode), covers only
+  rag's requests, and is still a trust path where funding at request
+  needs none.
