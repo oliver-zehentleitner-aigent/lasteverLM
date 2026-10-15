@@ -585,6 +585,10 @@ opens the notebook.
   threshold as tooltip). Under the document, folded: **Sources (n) · m passages**,
   the passages it cites grouped by source (one row per source, its pages
   and passage numbers, each opening its passage), and **How this was made**: model, prompt version,
+  the selected sources no unit cites ("Sources not used", each with the
+  generator's own reason or "not used, no reason given"; from
+  `provenance.coverage`, whose cited and selected counts also put "4 of 5
+  sources used" in the head, on the share page too),
   options, the retrieval query, usage, when and how long, the check's
   counts, the retrieval candidates with similarity and whether they went
   into the prompt, and the whole log as a JSON download. The share page

@@ -12,6 +12,7 @@ import { modelAnswerLabel } from '../lib/decision'
 import { CiteContext, useCite, type Cite } from '../hooks/useCite'
 import { useJudgeAskLabel } from '../hooks/useJudgeAsk'
 import { t } from '../i18n'
+import { unusedSources } from '../lib/coverage'
 
 
 /** A claim's markers and, when the check did not back it, its badge;
@@ -190,6 +191,20 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
           <>
             <dt>{t('outProv.options')}</dt>
             <dd>{optionsLabel(p.options, null)}</dd>
+          </>
+        )}
+        {unusedSources(p.coverage).length > 0 && (
+          <>
+            <dt>{t('coverage.unused')}</dt>
+            <dd>
+              <ul className="unused-sources">
+                {unusedSources(p.coverage).map((u, i) => (
+                  <li key={i}>
+                    {u.name}: <span className="muted">{u.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </dd>
           </>
         )}
         {p.options.instructions && (

@@ -440,7 +440,18 @@ export interface Passage {
 }
 
 /** `Output.provenance`, version 1: the generation log. */
+/** Which selected sources an output's units cite: counted from the stored
+ *  units' refs; `reason` (model-written, English) only for an uncited one
+ *  the generator named, else null. Deselected sources are not listed. */
+export interface Coverage {
+  selected: number
+  cited: number
+  sources: { source_id: string; name: string; cited: boolean; reason: string | null }[]
+}
+
 export interface Provenance {
+  /** absent on outputs made before rag counted it */
+  coverage?: Coverage
   version: number
   prompt_version: string
   model: string

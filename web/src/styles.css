@@ -1153,3 +1153,4 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 
 /* which model read a source: an image's description, a PDF page by vision, a transcript */
 .read-by { margin: 0.2rem 0; color: var(--muted); font-style: italic; }
+.unused-sources { margin: 0; padding-left: 1.1rem; }
