@@ -103,8 +103,9 @@ export function failureMessage(status: number, bodyText: string): string {
   const code = serviceCode(bodyText)
   if (code === 'model_no_answer') return modelNoAnswer(bodyText)
   if (code === 'credit_insufficient') return creditShort(bodyText)
-  // chart candidates proposed for another selection: rag refuses them on Create
+  // candidates proposed for another selection: rag refuses them on Create
   if (code === 'chart_out_of_scope') return t('chartOut.stale')
+  if (code === 'candidate_out_of_scope') return t('proposal.stale')
   const fromService = serviceError(bodyText)
   if (fromService) return fromService
   return STATUS_TEXT.has(status)

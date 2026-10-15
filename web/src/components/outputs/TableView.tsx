@@ -5,9 +5,25 @@ import { useCite } from '../../hooks/useCite'
 import { ClaimMarks } from '../OutputProvenance'
 import { t } from '../../i18n'
 
+/** A table output: one table, or, made from proposed tables, each of them
+ *  under its title, each sortable with its own CSV. */
+export function TableView({ content, title }: { content: TableContent; title: string }) {
+  if (!content.tables?.length) return <OneTable content={content} title={title} />
+  return (
+    <div className="tables">
+      {content.tables.map((tb) => (
+        <section key={tb.candidate_id} className="table-part">
+          <h3>{tb.title}</h3>
+          <OneTable content={tb} title={tb.title} />
+        </section>
+      ))}
+    </div>
+  )
+}
+
 /** Sortable table with CSV export. Sorting is done on a copy; the content
  *  itself is never mutated. */
-export function TableView({ content, title }: { content: TableContent; title: string }) {
+function OneTable({ content, title }: { content: TableContent; title: string }) {
   const [sort, setSort] = useState<{ column: number; dir: SortDir } | null>(null)
   // sorted by index, so each row keeps its passages (row_refs, same index)
   const order = useMemo(() => {

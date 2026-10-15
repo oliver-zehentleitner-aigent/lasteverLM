@@ -31,6 +31,9 @@ describe('failureMessage', () => {
     // the other 402s keep the service's sentence
     expect(failureMessage(402, '{"error":"credit exhausted"}')).toBe('credit exhausted')
   })
+  it('asks to find tables or themes again when rag refuses their candidates', () => {
+    expect(failureMessage(409, JSON.stringify({ error: 'x', code: 'candidate_out_of_scope' }))).toBe('The sources or the notes changed: find the proposals again for the current selection.')
+  })
   it('asks to find charts again when rag refuses candidates from another selection', () => {
     const body = JSON.stringify({ error: 'charts: a candidate cites a source outside the selected sources; find charts again', code: 'chart_out_of_scope' })
     expect(failureMessage(409, body)).toBe('The sources or the notes changed: find charts again for the current selection.')

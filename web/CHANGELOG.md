@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The browser tab's title names what is shown: "<document> · <notebook> · lasteverLM" in a notebook, the page elsewhere ("Settings · lasteverLM", "Admin · Finance · Costs · lasteverLM"), the title on a shared page (#602).
 - The viewer's tab bar: "Close all" at its right end, "Close others" and "Close tabs to the right" on a tab's right-click, a middle click closes a tab; none asks first.
 - A Help page (`/help`, the "?" in the header): six steps from adding sources to checking the evidence, "Show the introduction again" (moved from Settings), and "Recreate the starter notebook", a free fresh copy that asks first while the user still has one and says when the one-an-hour limit applies.
+- Table and infographic from proposals, like charts: "Find tables" / "Find themes" (at most 6), candidates as previews to tick, then Create builds each ticked one; candidates are dropped when the notebook, the selection, the pages to fetch again or the notes change. The output shows each table or theme under its title. The proposal step is shared with charts.
 
 ### Changed
 
