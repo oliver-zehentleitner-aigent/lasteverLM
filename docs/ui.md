@@ -650,7 +650,8 @@ opens the notebook.
 
 ## Settings
 
-`/settings` (in the header next to Library): first a row **Credits and
+`/settings` (from the profile menu; the top navigation has Library,
+Prices and, for admins and viewers, Admin): first a row **Credits and
 prices**, "Balance €X · View credits · Price list" (two plain links);
 then interface language
 (browser default, English, Deutsch), language of generated documents
@@ -789,7 +790,8 @@ deleted from the library) stays readable with its quote and is marked
   and `_`, counted while typing, Continue enabled once it matches, an
   eye toggle to show it; it is exchanged like the link, and an unknown,
   used or expired code says so.
-- Header, top right, left to right: the balance chip, the profile icon,
+- Header: the navigation Library, Prices and, for admins and viewers,
+  Admin (Settings is in the profile menu). Top right, left to right: the balance chip, the profile icon,
   the help icon and the light/dark toggle. The profile icon is a round
   button with the e-mail's first letter (the e-mail and "Sign out" are
   no longer in the bar); its menu shows the e-mail as a header, then
@@ -907,9 +909,9 @@ deleted from the library) stays readable with its quote and is marked
   One request per distinct question for five minutes.
 - Narrow screens: no page scrolls sideways. Below 900 px the notebook's
   columns stack (sources and documents, then viewer, then chat); below
-  640 px the header takes two lines, brand and account (theme, balance,
-  sign out) above, the navigation below, and leaves out the e-mail
-  address. The architecture diagram on Admin > System scales to its
+  640 px the header takes two lines, brand and account (balance,
+  profile, help, theme) above, the navigation (Library, Prices, Admin)
+  below. The architecture diagram on Admin > System scales to its
   card; wide admin tables scroll inside theirs.
 - Admin (for the roles `admin` and `viewer`): pages under `/admin` with
   a sub-navigation (Overview · Finance · Users · Access · Security ·
