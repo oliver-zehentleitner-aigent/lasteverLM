@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-10-15
+
+### Fixed
+
+- The chat's document list passes a generated document's name (an output title, which the user can rename) through the same flattening as an uploaded file's name: one line, markers defused, at most 120 characters. A title with a newline could otherwise start a line of its own in the system prompt.
+
 ## [0.21.0] - 2026-10-15
 
 ### Changed
@@ -17,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - A confirmed agent plan runs all its steps. Credit is checked once, at confirm (402 leaves the plan proposed), no longer before each ingest step, output and explanation, where a plan could stop half done once a step had spent the balance.
-- The chat's document list passes a generated document's name (an output title, which the user can rename) through the same flattening as an uploaded file's name: one line, markers defused, at most 120 characters. A title with a newline could otherwise start a line of its own in the system prompt.
 
 ## [0.20.5] - 2026-10-15
 
