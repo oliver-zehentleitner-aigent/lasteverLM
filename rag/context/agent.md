@@ -99,6 +99,10 @@ question: asked when the user's `judge_default` has a level, noted
 answer sets or removes one option on the named steps (`set_option`), or
 sets one argument of them (`set_arg`). Questions come one at a time.
 
+**Since the verification levels (2567fcf4-09b1-4bc9-80e7-759bce4c3326 in
+`judge.md`):** the first question is the level, not the judge; the
+mechanism is unchanged.
+
 **Re-checked 2026-10-15:** the earlier revisit condition (a question
 whose answer is not an option of a step) fired with the web-page
 question, whose answer sets `url_refresh`. The decision holds; the
