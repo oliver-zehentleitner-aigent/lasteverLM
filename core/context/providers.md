@@ -280,6 +280,7 @@ writes the evidence is rag's decision and is recorded in rag's context.
 **Status:** active
 **Evidence:** confirmed
 **Source:** the product's agent chat feature (maintainer go, 2026-10-14), requested by rag; a live call on the platform with qwen3.8-27b, two parallel calls and the follow-up turn, 2026-10-14
+**Verification:** corroborated — re-checked 2026-10-15: rag's agent uses `ToolCallingLLM` only where the `LLM` it is given has `complete_tools`, and rag still has a text-only `LLM` wrapper, so the separate protocol is still what keeps that wrapper valid
 **Revisit when:** every `LLM` in the services can call tools, or a second provider implements tool calls differently
 
 `complete_tools` lives on `ToolCallingLLM`, a protocol that extends
