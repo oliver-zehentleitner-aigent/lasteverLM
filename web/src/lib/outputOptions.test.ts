@@ -145,3 +145,22 @@ describe('twoVoices', () => {
     expect(twoVoices(undefined)).toBe(false)
   })
 })
+
+describe('the verification option', () => {
+  const verified = { ...spec, verification: { levels: ['basic', 'standard', 'thorough'], default: 'basic' }, judge: { levels: ['off', 'low', 'medium', 'high'], default: 'off', models: {} }, kinds: { report: ['language', 'judge', 'verification'] } } as OutputOptionsSpec
+  it("starts from the user's level when rag offers it, else rag's default", () => {
+    const prefs = (verification_level: 'basic' | 'standard' | 'thorough' | 'bulletproof') => ({ ui_language: null, output_language: null, audio_voice: null, verification_level })
+    expect(defaultValues(verified, undefined).verification).toBe('basic')
+    expect(defaultValues(verified, prefs('thorough')).verification).toBe('thorough')
+    expect(defaultValues(verified, prefs('bulletproof')).verification).toBe('basic')
+  })
+  it('sends a level only when it is not basic, and never the judge beside it', () => {
+    const v = { ...defaultValues(verified, undefined), judge: 'high' as const }
+    expect(buildOptions('report', verified, v)).toEqual({})
+    expect(buildOptions('report', verified, { ...v, verification: 'standard' })).toEqual({ verification: 'standard' })
+  })
+  it('names a level above basic under the title', () => {
+    expect(optionsLabel({ verification: 'thorough' }, null)).toBe('Thorough')
+    expect(optionsLabel({ verification: 'basic' }, null)).toBeNull()
+  })
+})

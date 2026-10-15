@@ -34,7 +34,7 @@ export function claimRefs(c: Claim, known: ReadonlySet<number>): number[] {
  *  tooltip. A judge without a usable answer leaves the word check shown. */
 export function supportBadge(s: Support | undefined, judged = false): Support | null {
   if (judged) return null
-  return s === 'unsupported' || s === 'unverified' ? s : null
+  return s === 'unsupported' || s === 'unverified' || s === 'possible_contradiction' ? s : null
 }
 
 /** Whether a claim has a judge's verdict (a judge without a usable answer has none). */
@@ -58,10 +58,11 @@ export function checkSummary(check: Check | null | undefined, kind?: string): st
   if (!check || kind === 'chart') return null
   // a check of another shape (no paragraph counts) gets no line rather than "NaN"
   if (![check.supported, check.unsupported, check.unverified].every((n) => Number.isFinite(n))) return null
-  const total = check.supported + check.unsupported + check.unverified
+  const contradictions = Number.isFinite(check.possible_contradiction) ? (check.possible_contradiction ?? 0) : 0
+  const total = check.supported + check.unsupported + check.unverified + contradictions
   if (total === 0) return null
   const line = tn('outProv.supported', total, { supported: check.supported })
-  return check.unverified > 0 ? `${line} · ${tn('outProv.unverifiedN', check.unverified)}` : line
+  return [line, check.unverified > 0 && tn('outProv.unverifiedN', check.unverified), contradictions > 0 && tn('outProv.contradictionsN', contradictions)].filter(Boolean).join(' · ')
 }
 
 const SENTINEL = (s: string) => `⟦support:${s}⟧`
@@ -98,7 +99,7 @@ export function decorateReport(html: string, known: ReadonlySet<number>, units: 
     .join('')
 }
 
-const TOKENS = /⟦judge:(\d+)⟧|⟦support:(supported|unsupported|unverified)⟧|\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g
+const TOKENS = /⟦judge:(\d+)⟧|⟦support:(supported|unsupported|unverified|possible_contradiction)⟧|\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g
 
 function decorateText(text: string, known: ReadonlySet<number>, units: readonly Claim[], ask?: string): string {
   return text.replace(TOKENS, (whole, judge?: string, support?: string, list?: string) => {

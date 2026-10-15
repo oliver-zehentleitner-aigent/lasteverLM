@@ -1193,6 +1193,23 @@ export const en = {
   'chat.passage': 'Passage {n}',
   'decision.none': 'No decision: the sources do not contain what is needed.',
   'chartOut.stale': 'The sources or the notes changed: find charts again for the current selection.',
+  'wordCheck.possible_contradiction': 'Word check: possible contradiction',
+  'outProv.contradictionsN.one': '{n} possible contradiction',
+  'outProv.contradictionsN.other': '{n} possible contradictions',
+  'judge.headDoubted': 'Judge ({level}, {model}): {passed} of {judged} doubted paragraphs supported',
+  'judge.doubtedLine': 'Only what the word check doubted: {judged} judged · {counts}',
+  'verify.label': 'Verification',
+  'verify.level.basic': 'Basic',
+  'verify.level.standard': 'Standard',
+  'verify.level.thorough': 'Thorough',
+  'verify.level.bulletproof': 'Bulletproof',
+  'verify.explain.basic': 'Words and negation: the word check and the negation check mark what the passages do not back. No model, no extra cost.',
+  'verify.explain.standard': 'Also a small judge on every paragraph the word check doubts; it marks, changes and removes nothing.',
+  'verify.explain.thorough': 'A stronger judge on every paragraph; what fails is revised and judged again, up to three rounds, and removed if it still fails.',
+  'verify.explain.bulletproof': 'rag\'s strictest check.',
+  'verify.default': 'Verification by default',
+  'verify.defaultHint': 'New documents start at this level, and chat answers are checked at it.',
+  'outProv.modelWithoutEvidence': 'Model\'s answer without evidence (not from the sources)',
 } as const
 
 export type MessageKey = keyof typeof en

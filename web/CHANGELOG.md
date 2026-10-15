@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Verification levels for outputs: "Verification" (Basic: words and negation; Standard: also a low judge on what those doubt, marking only; Thorough: the medium judge, revising and removing; Bulletproof once rag offers it) replaces "Check with a judge" where rag offers levels, each level with its full price, starting at the account's "Verification by default", which replaces "Judge by default" in Settings.
+- The negation check's "Word check: possible contradiction" badge and count; a Standard judging's head ("2 of 3 doubted paragraphs supported") and its line in "How this was made".
+- Decision: "Model's answer without evidence (not from the sources)" in "How this was made".
+
 ### Fixed
 
 - Decision: when the sources do not decide the question (agreement "undecided", or no `model_answer`), the panel says "No decision: the sources do not contain what is needed." without a percentage, a bar or a verdict line, also for older documents that carry numbers; what the sources do not say stays listed under the evidence.

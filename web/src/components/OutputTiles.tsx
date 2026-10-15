@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState } from 'react'
-import type { Source, Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle } from '../api/types'
+import type { Source, Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle, VerificationLevel } from '../api/types'
 import { useEstimate } from '../hooks/useEstimate'
+import { priceLabel } from '../lib/estimate'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
 import { AUDIO_STYLES, twoVoices, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
@@ -89,6 +90,11 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
         }
       : null,
   )
+  // each verification level's full price, from the same estimate
+  const levelPrice = (l: VerificationLevel): string | null => {
+    const p = price && 'estimate' in price ? price.estimate.levels?.[l] : undefined
+    return p ? priceLabel({ charge_cents_min: p.min, charge_cents_max: p.max }) : null
+  }
   // sources that cannot be read: Create would be refused, so the reasons stand in for the price
   const blocked = price && 'estimate' in price ? (price.estimate.blocked ?? []) : []
   return (
@@ -249,7 +255,20 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
               <VoiceSample voice={values.voice2} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />
             </>
           )}
-          {shown.includes('judge') && spec.judge && (
+          {shown.includes('verification') && spec.verification && (
+            <label className="verify-option">
+              {t('verify.label')}
+              <select value={values.verification} onChange={(e) => set({ verification: e.target.value as VerificationLevel })}>
+                {spec.verification.levels.map((l) => (
+                  <option key={l} value={l}>
+                    {levelPrice(l) ? `${t(`verify.level.${l}`)} · ${levelPrice(l)}` : t(`verify.level.${l}`)}
+                  </option>
+                ))}
+              </select>
+              <span className="muted small">{t(`verify.explain.${values.verification}`)}</span>
+            </label>
+          )}
+          {shown.includes('judge') && spec.judge && !spec.verification && (
             <label className="judge-option">
               {t('judge.label')}
               <select value={values.judge} onChange={(e) => set({ judge: e.target.value as JudgeLevel })}>

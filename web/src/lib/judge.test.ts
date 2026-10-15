@@ -58,3 +58,11 @@ describe('judgeAskLabel', () => {
     expect(judgeAskLabel({ failed: 'x' })).toBe('Have it judged')
   })
 })
+
+describe('a judge on what the word check doubted (verification standard)', () => {
+  it('heads with the doubted paragraphs, none when nothing was doubted', () => {
+    const run = { mode: 'doubted' as const, judged: 3, level: 'low' as const, model: 'm', verdicts: { supported: 2, contradicted: 1 } }
+    expect(judgeHead({ judge: run })).toBe('Judge (low, m): 2 of 3 doubted paragraphs supported')
+    expect(judgeHead({ judge: { ...run, judged: 0, verdicts: {} } })).toBeNull()
+  })
+})
