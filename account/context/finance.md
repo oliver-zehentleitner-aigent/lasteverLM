@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** fleet coordination with infra, 2026-10-14 (maintainer go for the finance area)
+**Source:** maintainer decision (the finance area), design agreed with infra, 2026-10-14
 **Revisit when:** account's egress gets restricted, Vultr offers a read-only billing scope, or the sync needs more than two endpoints
 
 With `VULTR_BILLING_API_KEY` set, the account process reads
@@ -42,15 +42,15 @@ compromised. Account's egress must keep 443 to api.vultr.com open.
 
 **Id:** f89faf54-14f5-4f28-bdba-130b0e0ff070
 **Type:** decision
-**Status:** needs-review
+**Status:** active
 **Evidence:** confirmed
-**Source:** implementation of the maintainer's finance brief, 2026-10-14; currency of MODEL_PRICES confirmed by the coordinator, 2026-10-14
+**Source:** maintainer decision (the finance brief), 2026-10-14; currency of MODEL_PRICES confirmed with core, 2026-10-14
 **Revisit when:** the rate is fetched automatically (ECB) instead of set by an admin, or the demo user gets real money behind it
 
 `/admin/finance/profit` is charged − model cost − infrastructure per day or month. The
 demo user's usage is reported beside it, not in it: its credit is the migration's seed,
-no one paid for it. Infrastructure enters a month as its EUR sum; a USD line without an
-admin-set rate makes that month's infrastructure and profit null instead of estimated.
+no one paid for it. Infrastructure enters a month as its EUR sum; a USD line without a
+rate makes that month's infrastructure and profit null instead of estimated.
 Daily rows get an even share of their month's infrastructure. Balances round down to
 whole cents (never in the user's favour), shown charges round up.
 
@@ -70,9 +70,14 @@ converts at booking with the pricing rules' `usd_per_eur` and stores the rate pe
 reads those and never converts usage itself, so every service shows the same figures;
 it converts infrastructure with the same rate. The rate is required (core refuses to
 book without it); migration 0010 seeds 1.1188, the ECB reference rate of 2026-10-13,
-until the maintainer confirms one, and the pricing reset keeps the rate. (Earlier
+the hourly ECB update replaces it (the exchange-rate entry below), and the pricing reset
+keeps the rate. (Earlier
 versions of this entry first assumed EUR prices, then described USD usage amounts
 before core converted at booking.)
+
+Re-checked 2026-10-15, after its `Revisit when` fired (the rate is now the ECB's,
+fetched hourly): the rule still holds. The automatic rate only makes "no rate" rarer;
+when it is missing, the figures stay null rather than estimated.
 
 ## The exchange rate is the ECB's, fetched hourly, with a manual override that pauses it
 
@@ -93,13 +98,12 @@ stale after three days without a successful fetch. An admin who stores another r
 overrides it: the mode turns manual and the hourly update pauses until switched back.
 Bookings keep the rate they were made with (core stores it per row).
 
-**Reason:** the maintainer wants the rate to follow the market without anyone keeping
-it. The ECB publishes once per working day, so an hourly check changes the rate at most
+**Reason:** the rate should follow the market without anyone keeping it. The ECB publishes once per working day, so an hourly check changes the rate at most
 once a day and costs a small public download; checking hourly instead of daily means a
 missed publication is picked up within the hour.
 
-**Rejected alternative:** a fixed rate maintained by hand — the maintainer's choice
-against it; a hand-kept rate drifts silently between updates. Fetching inside core at
+**Rejected alternative:** a fixed rate maintained by hand — a hand-kept rate drifts
+silently between updates. Fetching inside core at
 booking time — rejected because every booking would depend on an outside service being
 up; the rules row is read with a 30-second cache and the fetch runs beside the booking,
 not in it.
@@ -108,7 +112,8 @@ not in it.
 
 **Id:** a41d8d48-87be-4c7b-ac67-169d82352225
 **Type:** decision
-**Status:** needs-review
+**Status:** superseded
+**Superseded by:** 0253c931-53a0-4d42-a934-5503e9d37b62
 **Evidence:** confirmed
 **Source:** maintainer decision, design agreed with core, 2026-10-14
 **Revisit when:** actions get a per-unit count beyond seconds (pages, words), or the window of 30 days is too short for rare actions
@@ -143,13 +148,47 @@ dropped with core, a price per token is not one a user can reason about; pricing
 per page — the usage rows hold no page count, a later contract change.
 
 
+## The public price list shows estimated end prices per unit, history gives the typical range
+
+**Id:** 0253c931-53a0-4d42-a934-5503e9d37b62
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, design agreed with core, rag and ingest, 2026-10-14; implementation
+**See:** finance.md#the-public-price-list-shows-end-prices-from-measured-costs-under-todays-rules — a41d8d48-87be-4c7b-ac67-169d82352225 — as of 2026-10-15
+**Revisit when:** an estimate and the measured history disagree widely for an action, or the 30-day window is too short for rare actions
+
+`GET /api/account/prices` is public and cached five minutes. Each row's price per unit
+comes from the services' own estimates — rag's `POST /estimate` with default options,
+ingest's `GET /estimate` of one nominal unit — marked `estimated`, as a range
+(`price_min_cents`, `price_max_cents`, the midpoint as `price_per_unit_cents`) and for
+sources the part added once per source (`per_source_cents`). Sources are priced per
+page, image, audio minute or web page; a PDF has one row read as text and one by
+vision. Account calls both services as the demo user with a 60-second token and reads
+only their charge fields. A failed estimate leaves that row's price empty. The typical
+range per whole action (p25, median, p75) comes from the last 30 days of measured
+costs through the current pricing rules; fewer than five actions give none. The judge
+appears once per level. The response holds end prices, the unit, the model and the
+exchange rate; no margin, fee or cost.
+
+**Reason:** users should see what an action costs before they spend credit. History
+alone left almost every row empty, since most past usage predates the action tags,
+and it cannot price a unit it never counted; the estimate is the same number a user
+sees before an action, so the list and the action agree. History still shows what
+whole actions really cost, through today's rules so a margin change shows at once.
+
+**Rejected alternatives:** the per-unit price from history only (the predecessor) —
+empty rows and no page count; publishing the margin and the fees beside the price —
+the page is for buyers, the admin finance area keeps the margins; quoting past
+charges — they show yesterday's rules.
+
 ## The price list also comes as script-free HTML
 
 **Id:** 97909649-2b48-4ab2-b1ce-17da55d977cf
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer bug report relayed by the coordinator, 2026-10-14; `prices_page.py`
+**Source:** maintainer bug report, 2026-10-14; `prices_page.py`
 
 The web's `/prices` is a JavaScript-only page: a plain fetch gets the
 empty shell, so ingest's URL loader read nothing when the starter notebook
