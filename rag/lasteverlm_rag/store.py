@@ -854,12 +854,13 @@ class PostgresStore:
             "estimate",
             "question",
             "notes",
+            "sources",
             "confirmed_at",
             "finished_at",
         }
         if unknown:
             raise ValueError(f"not an updatable plans column: {sorted(unknown)}")
-        for name in ("steps", "estimate", "question", "notes"):
+        for name in ("steps", "estimate", "question", "notes", "sources"):
             if name in fields:
                 fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
@@ -1171,8 +1172,7 @@ class PostgresStore:
                     (source_id, row.source_id, target_notebook),
                 )
                 conn.execute(
-                    "insert into sources (id, notebook_id, library_source_id) "
-                    "values (%s, %s, %s)",
+                    "insert into sources (id, notebook_id, library_source_id) values (%s, %s, %s)",
                     (source_id, target_notebook, source_id),
                 )
                 conn.execute(

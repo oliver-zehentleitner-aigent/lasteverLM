@@ -518,8 +518,9 @@ earlier questions and the names of the notebook's documents and outputs,
 never a passage.
 
 - **Tools:** `add_url(url)`, `add_from_library(query)`,
-  `create_output(kind, options)` (every kind but chart, its options as
-  the catalogue lists them), `explain_output(output_id or "step:<n>",
+  `create_output(kind, options, sources?)` (every kind but chart, its
+  options as the catalogue lists them, `sources` the document names the
+  message gives), `explain_output(output_id or "step:<n>",
   question?)`, `list_sources()`, `list_outputs()`. None deletes anything,
   and none touches the account.
 - **No tool call:** the message is answered as before. The planning call
@@ -575,11 +576,37 @@ steps, so the outputs read the pages again first (a line of `separate`
 per page). A message that says it ("neu laden", "fresh", "the cached
 pages") sets `create_output`'s `web_pages` argument and is not asked.
 
+**Sources.** An output step is made from the sources the user means:
+
+- **Named in the message** ("erstelle aus Senior_Database_Engineer.pdf
+  eine Mindmap"): each name must be written in the message (never taken
+  from a document) and is matched against the notebook's sources: the
+  exact name, then without case and extension, then the one name that
+  contains it. The step gets `args.source_ids` and its label says "from
+  <names>". A name that matches nothing or several sources makes the step
+  invalid with that reason. A planner that leaves the names out is
+  covered too: a source name the message writes out is taken.
+- **None named:** the step is made from the request's `source_ids` (the
+  selection; all sources without one), unless the plan also adds a
+  source, which it then includes. When more than one is selected and the
+  last cited answer used only some of them, the plan asks "Which sources
+  should the new documents be made from?" with "All N selected sources"
+  and "Only <those> (just discussed)", preselected, plus each source alone
+  while there are at most four choices.
+- **A correction** ("falsches PDF", "nicht das", "nochmal mit …", "wrong
+  document", "redo with …"), at most 200 characters and not a question, is never answered
+  from the sources. It proposes the last plan's outputs again, without a
+  planning call, and asks which sources, leaving out the set the corrected
+  plan used. A source named in it is taken without asking. With no plan
+  to redo (or an answer from the sources after it) the chat asks back
+  which document to use.
+
 Questions come one at a time: answering one opens the next, and the
 plan stays `asking` until the last is answered. `plan.answered` lists
 every answered question with its `answer`, in order. `plan.sources` =
-`[{"name", "kind", "read_at"?}]` are the notebook's sources at planning
-time, `read_at` the time a web page was last read or found unchanged.
+`[{"name", "kind", "read_at"?}]` are the sources the plan's outputs read
+(updated when an answer narrows them), `read_at` the time a web page was
+last read or found unchanged.
 
 Nothing runs before `POST .../plans/{plan_id}/confirm`.
 

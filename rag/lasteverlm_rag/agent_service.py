@@ -32,10 +32,13 @@ from .agent import (
     Context,
     Step,
     build_steps,
+    is_correction,
     output_label,
     pages_question,
     public_question,
     separate,
+    sources_in,
+    sources_question,
     tool_specs,
     total,
     verification_question,
@@ -52,6 +55,7 @@ from .service import (
     InvalidOptions,
     OutputService,
     RagService,
+    check_sources,
     complete_tools_billed,
     require_cover,
     require_credit,
@@ -66,6 +70,8 @@ log = logging.getLogger(__name__)
 EXPLAIN_DEFAULT = "Explain this document: what it covers and its main points."
 TIMEOUT_ERROR = "a source did not become ready within 30 minutes"
 TERMINAL = ("done", "failed", "skipped")
+# how far back a correction looks for the plan it corrects (a run adds its own messages)
+CORRECTION_WINDOW = 20
 
 EstimateStep = Callable[[Step, str], dict[str, float]]
 
@@ -150,7 +156,9 @@ class AgentService:
         A scoped question (about one output) is always answered."""
         booking = Booking.new(user_id, notebook_id, "chat_answer")
         if self._llm is not None and bearer and output_id is None:
-            planned = self._plan(user_id, notebook_id, question, conversation_id, bearer, booking)
+            planned = self._plan(
+                user_id, notebook_id, question, conversation_id, bearer, booking, source_ids
+            )
             if planned is not None:
                 return planned
         return self._rag.ask(
@@ -173,9 +181,11 @@ class AgentService:
         conversation_id: str,
         bearer: str,
         booking: Booking,
+        source_ids: list[str] | None = None,
     ) -> Answer | None:
         assert self._llm is not None
         require_notebook(self._store, user_id, notebook_id)
+        selection = check_sources(self._store, notebook_id, source_ids)
         conversation = self._store.get_conversation(conversation_id)
         if conversation is None or conversation.owner != user_id:
             raise ConversationNotFound(conversation_id)
@@ -186,12 +196,71 @@ class AgentService:
         outputs = {
             r.id: r.title for r in self._store.list_outputs(notebook_id) if r.status == "ready"
         }
+        recent = self._store.list_messages(conversation_id, last=HISTORY_MESSAGES)
         # the planner sees names and the user's own words, never a passage
-        earlier = [
-            m.content
-            for m in self._store.list_messages(conversation_id, last=HISTORY_MESSAGES)
-            if m.role == "user"
+        earlier = [m.content for m in recent if m.role == "user"]
+        uploads = [
+            s for s in selected_uploads(self._store, notebook_id, None) if s.status != "failed"
         ]
+        names = {s.source_id: s.name for s in uploads}
+        selected = {sid: n for sid, n in names.items() if not selection or sid in selection}
+        # the sources the last answer cited, among the selected: "just discussed"
+        last_answer = next(
+            (m for m in reversed(recent) if m.role == "assistant" and m.citations), None
+        )
+        discussed = list(
+            dict.fromkeys(
+                str(c.source_id)
+                for c in (last_answer.citations if last_answer else [])
+                if str(c.source_id) in selected
+            )
+        )
+        correction = is_correction(question)
+        if correction:
+            # a correction of the last plan: the same documents again, never an
+            # answer from the sources
+            previous = None
+            for m in reversed(self._store.list_messages(conversation_id, last=CORRECTION_WINDOW)):
+                if m.plan is not None or m.citations:
+                    # the last plan, unless an answer from the sources came after it
+                    previous = m.plan
+                    break
+            if previous is None:
+                return self._no_plan_to_correct(notebook_id, conversation_id, question)
+            calls = [
+                (
+                    "create_output",
+                    {
+                        "kind": step["args"]["kind"],
+                        "options": {
+                            k: v for k, v in step["args"]["options"].items() if k != "sources"
+                        },
+                    },
+                )
+                for step in previous["steps"]
+                if step["valid"] and step["tool"] == "create_output"
+            ]
+            if not calls:
+                return self._no_plan_to_correct(notebook_id, conversation_id, question)
+            used = sorted(
+                {i for st in previous["steps"] for i in st["args"].get("source_ids") or []}
+            ) or sorted(selected)
+            return self._propose(
+                user_id,
+                notebook_id,
+                question,
+                conversation_id,
+                bearer,
+                booking,
+                calls,
+                outputs,
+                names,
+                selected,
+                selection,
+                discussed,
+                avoid=used,
+                correction=True,
+            )
         documents = self._store.notebook_documents(notebook_id)
         context = "\n".join(
             ["Earlier questions:"]
@@ -222,6 +291,41 @@ class AgentService:
             # reading or explaining alone is what an answer does: a question that
             # the planner met with read tools only is answered, never turned into a plan
             return None
+        return self._propose(
+            user_id,
+            notebook_id,
+            question,
+            conversation_id,
+            bearer,
+            booking,
+            calls,
+            outputs,
+            names,
+            selected,
+            selection,
+            discussed,
+        )
+
+    def _propose(
+        self,
+        user_id: str,
+        notebook_id: str,
+        question: str,
+        conversation_id: str,
+        bearer: str,
+        booking: Booking,
+        calls: list[tuple[str, dict[str, Any]]],
+        outputs: dict[str, str],
+        names: dict[str, str],
+        selected: dict[str, str],
+        selection: list[str] | None,
+        discussed: list[str],
+        avoid: list[str] | None = None,
+        correction: bool = False,
+    ) -> Answer:
+        """The plan for these tool calls: validated, estimated, its open
+        choices asked. ``names`` are the notebook's sources, ``selected`` the
+        ones the user selected, ``discussed`` those the last answer cited."""
         library = (
             self._library(bearer, notebook_id)
             if any(n == "add_from_library" for n, _ in calls)
@@ -249,7 +353,24 @@ class AgentService:
                     if options["verification"] == "default":
                         level = default_level if default_level != "basic" else "thorough"
                         options["verification"] = level
-        steps = build_steps(calls, Context(question, library, outputs, self._default_voice))
+        # sources the message writes out, for a planner that left them out
+        written = sources_in(question, names)
+        for name, args in calls:
+            if name == "create_output" and not args.get("sources") and written:
+                args["sources"] = written
+        named = {
+            n
+            for n, (name, args) in enumerate(calls, start=1)
+            if name == "create_output" and args.get("sources")
+        }
+        steps = build_steps(
+            calls, Context(question, library, outputs, self._default_voice, sources=names)
+        )
+        # a plan that adds a source makes its documents from all, the new one included
+        adds = any(s.valid and s.tool in ("add_url", "add_from_library") for s in steps)
+        for step in steps:
+            if step.valid and step.tool == "create_output" and selection and not adds:
+                step.args.setdefault("source_ids", list(selection))
         for step in steps:
             if not step.valid:
                 continue
@@ -266,6 +387,9 @@ class AgentService:
         steps_json = [s.as_json() for s in steps]
         outputs_steps = [s.n for s in steps if s.valid and s.tool == "create_output"]
         uploads = selected_uploads(self._store, notebook_id, None)
+        reads = _reads(steps_json)
+        # the web pages the documents read: those of their sources only
+        uploads = [u for u in uploads if reads is None or u.source_id in reads]
         # the notebook's web pages read before: their cached version is what an output reads
         pages = [
             {"library_id": s.library_id, "name": s.name, "read_at": s.read_at}
@@ -282,6 +406,22 @@ class AgentService:
         # an open choice that changes the cost or the result is asked, never decided
         questions: list[dict[str, Any]] = []
         notes: list[str] = []
+        open_sources = [n for n in outputs_steps if n not in named]
+        if open_sources and not adds and len(selected) > 1:
+            # which sources, when the message names none: asked after a correction,
+            # or when the last answer was about only some of them
+            just = discussed if 0 < len(discussed) < len(selected) else []
+            sources_q = (
+                sources_question(str(uuid.uuid4()), open_sources, selected, just, avoid)
+                if correction or just
+                else None
+            )
+            if sources_q is not None:
+                for choice in sources_q["choices"]:
+                    choice["estimate"] = _sum(steps_json)
+                questions.append(sources_q)
+            elif correction:
+                notes.append("Name the document in your message to make it from that one only.")
         open_judge = [n for n in outputs_steps if n not in judge_said]
         if open_judge and default_level != "basic":
             level_q = verification_question(str(uuid.uuid4()), open_judge, default_level)
@@ -304,18 +444,7 @@ class AgentService:
         plan_question = questions[0] if questions else None
         if plan_question is not None:
             plan_question["next"] = questions[1:]
-        added_pages = [
-            s["args"]["url"] for s in steps_json if s["valid"] and s["tool"] == "add_url"
-        ]
-        sources = [
-            {
-                "name": s.name,
-                "kind": s.kind,
-                **({"read_at": s.read_at} if s.kind == "url" and s.read_at else {}),
-            }
-            for s in uploads
-            if s.status not in ("failed",)
-        ] + [{"name": url, "kind": "url"} for url in added_pages]
+        sources = self._plan_sources(notebook_id, steps_json)
         plan = {
             "id": plan_id,
             "conversation_id": conversation_id,
@@ -327,12 +456,14 @@ class AgentService:
             "action_id": str(booking.action_id),
             "question": plan_question,
             "notes": notes,
-            "sources": sources if outputs_steps else [],
+            "sources": sources,
         }
         lines = "\n".join(
             f"{s.n}. {s.label}" + ("" if s.valid else f" (not possible: {s.invalid_reason})")
             for s in steps
         )
+        if correction:
+            lines = "The same again, from the sources you choose:\n\n" + lines
         if plan_question:
             text = (
                 f"Here is my plan, with one question first.\n\n{lines}\n\n{plan_question['text']}"
@@ -347,6 +478,36 @@ class AgentService:
         )
         self._store.create_plan({**plan, "message_id": str(message.id)})
         return Answer(message_id=message.id, answer=text, plan=public(plan))
+
+    def _plan_sources(self, notebook_id: str, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """What the plan's documents read ("Reads"): the sources their steps
+        are made from, all of the notebook's when one is not narrowed, and
+        the web pages the plan adds."""
+        if not any(s["valid"] and s["tool"] == "create_output" for s in steps):
+            return []
+        reads = _reads(steps)
+        added = [s["args"]["url"] for s in steps if s["valid"] and s["tool"] == "add_url"]
+        return [
+            {
+                "name": s.name,
+                "kind": s.kind,
+                **({"read_at": s.read_at} if s.kind == "url" and s.read_at else {}),
+            }
+            for s in selected_uploads(self._store, notebook_id, None)
+            if s.status != "failed" and (reads is None or s.source_id in reads)
+        ] + [{"name": url, "kind": "url"} for url in added]
+
+    def _no_plan_to_correct(self, notebook_id: str, conversation_id: str, question: str) -> Answer:
+        """A correction with no plan to redo (none, or an answer came after
+        it): asked back, never answered from the sources (no model call,
+        nothing charged)."""
+        text = (
+            "Which document should I use? Name it in your message, for example "
+            '"a mind map from report.pdf", or select it in the sources and ask again.'
+        )
+        self._store.insert_message(notebook_id, conversation_id, "user", question, None)
+        message = self._store.insert_message(notebook_id, conversation_id, "assistant", text, [])
+        return Answer(message_id=message.id, answer=text)
 
     def _library(self, bearer: str, notebook_id: str) -> dict[str, str]:
         """The user's library by id and name, without what the notebook has."""
@@ -396,6 +557,7 @@ class AgentService:
             raise InvalidOptions("answer: this question takes a choice, not text")
         if choice is not None:
             plan["steps"] = self._apply(open_question["apply"], choice, plan["steps"])
+            plan["sources"] = self._plan_sources(plan["notebook_id"], plan["steps"])
         estimate: dict[str, Any] = dict(_sum(plan["steps"]))
         if any(s["valid"] and s["tool"] == "create_output" for s in plan["steps"]):
             estimate["reading"] = self._reading(bearer, plan["notebook_id"], plan["steps"])
@@ -417,13 +579,20 @@ class AgentService:
                 entry["estimate"] = _sum(
                     self._apply(following["apply"], entry["id"], plan["steps"])
                 )
-            self._save(plan, status="asking", estimate=estimate, question=following)
+            self._save(
+                plan,
+                status="asking",
+                estimate=estimate,
+                question=following,
+                sources=plan.get("sources") or [],
+            )
         else:
             self._save(
                 plan,
                 status="proposed",
                 estimate=estimate,
                 question={**open_question, "history": history},
+                sources=plan.get("sources") or [],
             )
         return public(plan)
 
@@ -435,7 +604,15 @@ class AgentService:
         refresh = sorted(
             {i for s in steps if s["valid"] for i in s["args"].get("url_refresh") or []}
         )
-        return reading_lines(self._store, self._ingest, bearer, notebook_id, None, refresh)
+        reads = _reads(steps)
+        return reading_lines(
+            self._store,
+            self._ingest,
+            bearer,
+            notebook_id,
+            sorted(reads) if reads is not None else None,
+            refresh,
+        )
 
     def _refetch_cents(self, bearer: str, library_ids: list[str]) -> float:
         """What fetching these pages again may charge at most (ingest's price)."""
@@ -454,6 +631,12 @@ class AgentService:
         changed = copy.deepcopy(steps)
         for step in changed:
             if step["n"] not in apply["steps"] or not step["valid"]:
+                continue
+            if apply["kind"] == "set_sources":
+                step["args"]["source_ids"] = list(value["source_ids"])
+                step["label"] = output_label(
+                    step["args"]["kind"], step["args"]["options"], value["names"]
+                )
                 continue
             if apply["kind"] == "set_arg":
                 step["args"].pop(apply["arg"], None)
@@ -560,6 +743,7 @@ class AgentService:
                 OutputOptions.model_validate(
                     {k: v for k, v in args["options"].items() if k != "sources"}
                 ),
+                source_ids=args.get("source_ids"),
                 booking_id=plan["action_id"],
                 bearer=bearer,  # its sources not read yet are read now, as the user
                 url_refresh=args.get("url_refresh"),
@@ -699,10 +883,22 @@ class AgentService:
         return plan
 
     def _save(self, plan: dict[str, Any], **fields: Any) -> None:
-        for key in ("status", "confirmed_at", "finished_at", "estimate", "question"):
+        for key in ("status", "confirmed_at", "finished_at", "estimate", "question", "sources"):
             if key in fields:
                 plan[key] = fields[key]
         self._store.save_plan(plan["id"], steps=plan["steps"], plan=public(plan), **fields)
+
+
+def _reads(steps: list[dict[str, Any]]) -> set[str] | None:
+    """The source ids the plan's documents are made from, or None when one
+    of them reads every source."""
+    reads: set[str] = set()
+    for step in steps:
+        if step["valid"] and step["tool"] == "create_output":
+            if not step["args"].get("source_ids"):
+                return None
+            reads |= set(step["args"]["source_ids"])
+    return reads
 
 
 def _done_line(step: dict[str, Any]) -> str:
