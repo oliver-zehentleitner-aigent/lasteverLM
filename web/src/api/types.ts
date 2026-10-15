@@ -206,6 +206,8 @@ export interface Plan {
   steps: PlanStep[]
   /** a short question with two to four choices, the default preselected */
   question?: PlanQuestion | null
+  /** every question answered so far, in order (the last one also stays in `question`) */
+  answered?: PlanQuestion[]
   /** one-liners shown under the plan ("Without a judge: …") */
   notes?: string[]
   /** what the plan's outputs read: the notebook's uploads and the pages it adds */

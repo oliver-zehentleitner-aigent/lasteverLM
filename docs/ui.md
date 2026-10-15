@@ -352,7 +352,8 @@ opens the notebook.
   each with the plan's price if taken; a text field too when the
   question allows one. Run stays disabled until it is answered (`POST
   …/plans/{id}/answer`), then the card shows the updated steps and
-  total and "question → answer" as a line. The first use is the judge:
+  total and every question answered so far as a line, "question →
+  answer", in order (`plan.answered`). The first use is the judge:
   "With a judge (High, your default)" or "Without a judge". The plan's
   notes (`plan.notes`, e.g. "Without a judge: …") show under it, and
   what its outputs read, documents and pages alike (`plan.sources`,
