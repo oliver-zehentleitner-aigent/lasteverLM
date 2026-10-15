@@ -929,7 +929,9 @@ minute by a thread that runs as long as the job does, not only before a
 model call. A generated library row that no output points at and that
 is older than an hour is an orphan. `lasteverlm-rag-orphans` counts
 them per notebook id. With `ORPHAN_SWEEP=true` the worker deletes them
-once an hour; the setting ships off.
+once an hour; the setting ships off. The thread stops refreshing after
+`JOB_MAX_SECONDS` (45 minutes), logged as an error; the beats before
+each model call go on.
 
 **Reason:** the cause is inferred from the code, not from the run's
 logs. The stale-claim limit can take a live job for a dead one: one
@@ -957,3 +959,6 @@ it ships off and runs only after the dry run has been looked at.
 - A longer stale-claim limit: see 33fc1c1f-8444-4f70-b597-b459ce000c78.
 - A sweep that runs from the first deploy: deletes production rows
   nobody has looked at.
+- A beat thread without a cap: a job hung in a live process (a socket
+  without a timeout, a deadlock) would hold its claim forever and never
+  be taken over.
