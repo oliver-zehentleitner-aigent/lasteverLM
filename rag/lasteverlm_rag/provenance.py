@@ -119,8 +119,9 @@ class GenerationLog:
     judge: dict[str, Any] | None = None
     # one entry per model call that shaped the content (a decision's two)
     calls: list[dict[str, Any]] = field(default_factory=list)
-    # a decision's own verdict when "the sources do not decide this" replaced it
-    llm_verdict_text: str | None = None
+    # an undecided decision's verdict and number, withheld from the content: the
+    # number is the decision model's prior, not a decision from the sources
+    withheld: dict[str, Any] | None = None
 
     def record(self, check: dict[str, Any]) -> dict[str, Any]:
         in_prompt = {p.chunk_id for p in self.passages}
@@ -172,7 +173,7 @@ class GenerationLog:
                 ),
             },
             **({"calls": self.calls} if self.calls else {}),
-            **({"llm_verdict_text": self.llm_verdict_text} if self.llm_verdict_text else {}),
+            **(self.withheld or {}),
             **({"judge": self.judge} if self.judge else {}),
             "started_at": self.started_at,
             "finished_at": now(),

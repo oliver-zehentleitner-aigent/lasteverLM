@@ -66,14 +66,18 @@ def test_yes_no_agreement_compares_the_number_with_supported_evidence(p, pro, co
 
 def test_without_supported_evidence_the_sources_do_not_decide():
     options = {"question": "Was the bridge closed?", "decision_type": "yes_no"}
-    content, replaced = decide(
+    content, withheld = decide(
         options,
         {"probability_yes": 0.95, "answer": "yes"},
         {"verdict_text": "Yes, clearly.", "evidence_for": [UNSUPPORTED], "gaps": ["dates"]},
     )
     assert content["agreement"] == "undecided" and content["verdict_text"] == UNDECIDED_TEXT
-    assert replaced == "Yes, clearly."  # goes into the log, never silently dropped
-    assert content["model_answer"]["probability_yes"] == 0.95  # still shown
+    # no number without evidence: it is the model's prior, kept in the log only
+    assert content["model_answer"] is None
+    assert withheld == {
+        "llm_verdict_text": "Yes, clearly.",
+        "model_answer_without_evidence": {"probability_yes": 0.95, "answer": "yes"},
+    }
     assert content["evidence_for"][0]["support"] == "unsupported"
     assert content["gaps"] == ["dates"]
 
@@ -205,6 +209,8 @@ def test_an_undecided_decision_keeps_the_llms_sentence_in_the_log(settings):
     assert out["content"]["agreement"] == "undecided"
     assert out["content"]["verdict_text"] == "The sources do not decide this."
     assert out["provenance"]["llm_verdict_text"] == "Probably yes."
+    assert out["content"]["model_answer"] is None
+    assert out["provenance"]["model_answer_without_evidence"]["probability_yes"] == 0.9
 
 
 def test_a_scale_decision_is_normalised_to_its_level_labels(settings):

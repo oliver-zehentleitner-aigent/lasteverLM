@@ -629,9 +629,12 @@ compares the two: `consistent`, `conflicting` (shown, never hidden) or
 0.4 with more against too, the mirror cases conflict; for a choice or
 scale, the same pick with more supported for is consistent, a different
 pick with more supported for, or the same with more against, conflicts.
-Without supported evidence on either side `agreement` is `undecided` and
-`verdict_text` is "The sources do not decide this." whatever the number;
-the LLM's own sentence goes into `provenance.llm_verdict_text`.
+Without supported evidence on either side `agreement` is `undecided`,
+`verdict_text` is "The sources do not decide this." and `model_answer`
+is `null`: a number without evidence is the decision model's prior, not
+a decision from the sources. The LLM's own sentence goes into
+`provenance.llm_verdict_text` and the model's number into
+`provenance.model_answer_without_evidence`.
 `provenance.calls` lists both calls (`role` `decision` with the state's
 size, `role` `evidence`), `provenance.usage.decision` the decision
 model's input tokens.
