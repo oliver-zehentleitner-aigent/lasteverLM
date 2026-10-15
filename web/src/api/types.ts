@@ -161,6 +161,7 @@ export interface Answer {
   suggestions?: string[]
   /** set when the answer proposes steps; `answer` then lists them in short */
   plan?: Plan | null
+  web_pages?: WebPageUsed[]
 }
 
 /** One chat of a notebook, shown as a tab; messages belong to exactly one. */
@@ -186,6 +187,14 @@ export interface Message {
   feedback?: MessageFeedback | null
   /** an answer that proposes steps; kept current while they run */
   plan?: Plan | null
+  /** the web pages the answer cited, with when the version it read was fetched */
+  web_pages?: WebPageUsed[]
+}
+
+export interface WebPageUsed {
+  library_id: string
+  name: string
+  fetched_at: string | null
 }
 
 /** Steps the chat proposes and runs on a confirm (rag's agent). Amounts
@@ -199,6 +208,8 @@ export interface Plan {
   question?: PlanQuestion | null
   /** one-liners shown under the plan ("Without a judge: …") */
   notes?: string[]
+  /** what the plan's outputs read: the notebook's uploads and the pages it adds */
+  sources?: { name: string; kind: string; fetched_at?: string | null }[]
   /** the plan's own total; web pages' processing is billed apart (`separate`) */
   estimate: { min: number; max: number }
   /** one line per web page an add_url step adds: ingest bills its processing at the price list's price */

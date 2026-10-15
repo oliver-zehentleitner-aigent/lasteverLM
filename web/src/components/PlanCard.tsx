@@ -5,6 +5,7 @@ import { useAsync } from '../hooks/useAsync'
 import { t } from '../i18n'
 import { priceLabel } from '../lib/estimate'
 import { planActive, planChangedWork, stepTarget } from '../lib/plan'
+import { whenLabel } from '../lib/outputsList'
 
 const POLL_MS = 2500
 
@@ -84,6 +85,13 @@ export function PlanCard({ conversationId, plan, onChange, onWork, onOpen }: Pro
           </span>
         ))}
       </p>
+      {(plan.sources ?? []).length > 0 && (
+        <p className="plan-sources muted small">
+          {t('plan.uses', {
+            sources: plan.sources!.map((x) => (x.fetched_at ? t('plan.pageAsOf', { name: x.name, when: whenLabel(x.fetched_at) }) : x.name)).join(', '),
+          })}
+        </p>
+      )}
       {plan.question && <Question conversationId={conversationId} plan={plan} onChange={onChange} />}
       {(plan.notes ?? []).length > 0 && (
         <ul className="plan-notes muted small">
@@ -206,5 +214,24 @@ function Question({ conversationId, plan, onChange }: { conversationId: string; 
       )}
       {error && <p className="error small">{error}</p>}
     </div>
+  )
+}
+
+/** A plan's later message (its summary): the outputs it made, each as its
+ *  title opening it in the viewer; the full card stays on the message that
+ *  proposed it. */
+export function PlanOutputs({ plan, onOpen }: { plan: Plan; onOpen: Props['onOpen'] }) {
+  const made = plan.steps.filter((s) => s.tool === 'create_output' && s.state === 'done' && s.result?.output_id)
+  if (made.length === 0) return null
+  return (
+    <ul className="plan-outputs small">
+      {made.map((s) => (
+        <li key={s.n}>
+          <button type="button" className="link" onClick={() => onOpen({ type: 'output', id: s.result!.output_id! })}>
+            {s.result?.title || s.label}
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }

@@ -354,7 +354,13 @@ opens the notebook.
   …/plans/{id}/answer`), then the card shows the updated steps and
   total and "question → answer" as a line. The first use is the judge:
   "With a judge (High, your default)" or "Without a judge". The plan's
-  notes (`plan.notes`, e.g. "Without a judge: …") show under it.
+  notes (`plan.notes`, e.g. "Without a judge: …") show under it, and
+  what its outputs read, documents and pages alike (`plan.sources`,
+  "Reads: a.pdf, b.txt, Wikipedia (as of 15 h ago)"). Web pages a plan
+  reads come as such a question too ("use the versions already read" or
+  "fetch them again", the extra cost in its label), one question after
+  the other. The plan's later summary message shows the outputs it made
+  as their titles, each opening its tab, instead of the card again.
 
 ## Viewer, print, share
 
@@ -686,7 +692,11 @@ deleted from the library) stays readable with its quote and is marked
   format is picked) and above the chat's question field, each selected
   web page that was read has its own choice, **cached (fetched 3 h ago)
   | fetch again**, cached by default; the pages to fetch again go as
-  `url_refresh` (library ids). A selected source rag cannot read (its
+  `url_refresh` (library ids); the chat has no such line (it listed
+  only the pages and could not change an answer already given): an
+  answer that cited a web page says "Web page <name> as of 15 h ago"
+  under it (`web_pages`), with **fetch again**, which asks the same
+  question again with that page in `url_refresh`. A selected source rag cannot read (its
   estimate's `blocked`, e.g. "Source '…' could not be read: the page has
   no text without a browser") stands in for the price with its reason,
   "turn it off" (deselects it) and, for a web page, "fetch the page

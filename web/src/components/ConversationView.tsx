@@ -11,8 +11,8 @@ import { judgeBadge } from '../lib/judge'
 import { JudgeRequest } from './JudgeRequest'
 import { AnswerActions, SuggestionCards } from './AnswerActions'
 import { StarterQuestions } from './StarterQuestions'
-import { PlanCard } from './PlanCard'
-import { UrlRefresh } from './UrlRefresh'
+import { PlanCard, PlanOutputs } from './PlanCard'
+import { whenLabel } from '../lib/outputsList'
 import { BlockedSources } from './BlockedSources'
 import { keptRefresh } from '../lib/urlRefresh'
 import { PriceTag } from './PriceTag'
@@ -76,7 +76,9 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   }
 
   /** Asks `q`: from the field, or a suggestion card. */
-  async function send(q: string) {
+  /** Asks `q`: from the field, a suggestion card, or "fetch again" on an
+   *  answer's web page, which asks the same question with that page fetched again. */
+  async function send(q: string, refreshNow: string[] = urlRefresh) {
     if (!q || blocked || busy) return
     setQuestion('')
     setMessages((prev) => [
@@ -84,9 +86,9 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
       { id: `local-${Date.now()}`, role: 'user', content: q, citations: null, created_at: new Date().toISOString() },
     ])
     // a question about one document is scoped by it; the selection is for the notebook
-    const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id, scope ? undefined : sources.sourceIds, urlRefresh))
+    const answer = await run(() => rag.ask(notebookId, conversationId, q, scope?.id, scope ? undefined : sources.sourceIds, refreshNow))
     // unread sources were read, pages maybe fetched again: the lists follow
-    if (!scope && (unreadSelected > 0 || urlRefresh.length > 0)) onWork?.()
+    if (!scope && (unreadSelected > 0 || refreshNow.length > 0)) onWork?.()
     if (answer) {
       setMessages((prev) => [
         ...prev,
@@ -98,6 +100,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           units: answer.units ?? null,
           check: answer.check ?? null,
           suggestions: answer.suggestions ?? [],
+          web_pages: answer.web_pages ?? [],
           plan: answer.plan ?? null,
           feedback: null,
           created_at: new Date().toISOString(),
@@ -121,13 +124,20 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
     onCitationSelected(same ? null : c)
   }
 
+  // a plan's full card on the message that proposed it; later ones (its summary) list what it made
+  const firstPlanMessage = new Map<string, string>()
+  for (const m of messages) if (m.plan && !firstPlanMessage.has(m.plan.plan_id)) firstPlanMessage.set(m.plan.plan_id, m.id)
+  /** the question an answer answered, to ask it again */
+  const questionBefore = (i: number) => messages.slice(0, i).reverse().find((x) => x.role === 'user')?.content ?? ''
+
   return (
     <>
       <div className="messages" ref={pane}>
         {messages.map((m, i) => (
           <article key={m.id} id={`msg-${m.id}`} className={`msg ${m.role}`}>
             <AnswerText message={m} onCite={(c) => toggle(m, c)} openN={open?.messageId === m.id ? open.n : null} />
-            {m.plan && (
+            {m.plan && firstPlanMessage.get(m.plan.plan_id) !== m.id && <PlanOutputs plan={m.plan} onOpen={(target) => onOpenTab?.(target)} />}
+            {m.plan && firstPlanMessage.get(m.plan.plan_id) === m.id && (
               <PlanCard
                 conversationId={conversationId}
                 plan={m.plan}
@@ -135,6 +145,19 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
                 onWork={planWork}
                 onOpen={(target) => onOpenTab?.(target)}
               />
+            )}
+            {m.role === 'assistant' && (m.web_pages ?? []).length > 0 && (
+              <p className="page-notes muted small no-print">
+                {m.web_pages!.map((w, k) => (
+                  <span key={w.library_id}>
+                    {k > 0 && ' · '}
+                    {w.fetched_at ? t('chat.pageAsOf', { name: w.name, when: whenLabel(w.fetched_at) }) : t('chat.pageUsed', { name: w.name })}{' '}
+                    <button type="button" className="link" disabled={busy} title={t('chat.fetchAgainTitle')} onClick={() => void send(questionBefore(i), [w.library_id])}>
+                      {t('chat.fetchAgain')}
+                    </button>
+                  </span>
+                ))}
+              </p>
             )}
             {m.role === 'assistant' && checkSummary(m.check) && (
               <p
@@ -214,7 +237,6 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
           {sources.selected === 0 ? t('chat.noSources') : t('chat.sourcesOf', { n: sources.selected, total: sources.total })}
         </p>
       )}
-      {!scope && <UrlRefresh pages={webPages} refresh={refresh} onChange={setRefresh} />}
       {/* a question still answers from the rest; the reasons say what it leaves out */}
       {!scope && onDeselect && price && 'estimate' in price && (
         <BlockedSources blocked={price.estimate.blocked ?? []} webPages={webPages} refresh={refresh} onDeselect={onDeselect} onRefetch={(id) => setRefresh((prev) => new Set(prev).add(id))} />
