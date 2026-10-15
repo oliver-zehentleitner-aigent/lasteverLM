@@ -70,16 +70,14 @@ rejected because it puts the one value needed for re-identification next
 to the hashes; `replicas: 1` for account — rejected because the family
 rule is that every process can run any number of times.
 
-Pending confirmation: the maintainer was offline when this was decided
-and has not yet seen the trade-off.
-
 ## Retention runs at service start, not on a schedule
 
 **Id:** 42e9906d-a613-4f17-896e-40484c1f125d
 **Type:** decision
-**Status:** needs-review
+**Status:** active
 **Evidence:** confirmed
 **Source:** implementation, 2026-10-12
+**See:** core.md#the-account-service-purges-the-tables-cores-middleware-writes-at-every-start — 7d3f0c2e-6b1a-4e5f-9c84-2a7d51e0b6f3 — as of 2026-10-15
 **Revisit when:** the service runs for weeks without a restart, or a scheduler exists in the cluster
 
 Rows of `visit_log` older than `VISIT_RETENTION_DAYS` (default 30) and
@@ -98,6 +96,16 @@ several times, needs its own error handling and gives nothing a restart
 does not. A Kubernetes CronJob was left to the infra repository to add
 if the restart frequency turns out too low; `docs/operations.md` names
 the condition.
+
+Re-checked 2026-10-15, after its `Revisit when` fired: the process now
+runs two periodic loops of its own (the daily Vultr sync and the hourly
+exchange rate), on every replica, because their writes are idempotent.
+That weakens the rejection above: a delete by cutoff is idempotent too,
+so running the purges in such a loop would cost little. Retention still
+runs at start only, and that still holds the window in practice, since
+the service is redeployed several times a week. Moving the purges, this
+service's and core's tables alike, into a periodic loop is the follow-up
+should pods start running for weeks.
 
 ## Sign-in attempts are logged with the plain client address, unlike visits
 
@@ -140,7 +148,7 @@ makes a refusal stand out, and they are the same security purpose.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer orders relayed by the coordinator, 2026-10-14 (e-mail, then IP); core's `mask_email` (#455); `masking.py`
+**Source:** maintainer decisions, 2026-10-14 (e-mail, then IP); core's `mask_email`; `masking.py`
 
 The viewer role (read-only admin) receives every e-mail address in the
 admin API masked by core's `mask_email` (`j***e@example.com`, domain in
