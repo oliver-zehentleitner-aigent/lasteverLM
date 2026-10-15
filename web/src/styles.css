@@ -646,11 +646,15 @@ button.link.copy { font-size: 0.85em; }
 .kind-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
 .kind-chips .preset { border: 1px solid var(--line); border-radius: 999px; }
 .out-list li { gap: 0; }
-.out-row { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 0.5rem; row-gap: 0.05rem; padding: 0.35rem 0.4rem; background: none; border: none; color: inherit; text-align: left; white-space: normal; }
-.out-kind, .out-status { display: flex; min-width: 0; }
-.out-status { justify-content: flex-end; }
-.out-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.out-meta { grid-column: 2 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* an output row as a source row: the title (cut with an ellipsis) and its
+   subline under it on the left, kind and status as one group on the right,
+   the bin after them; the same padding, badge size and hover as the sources */
+.out-row { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 0.25rem; row-gap: 0.05rem; padding: 0.3rem 0.2rem; background: none; border: none; color: inherit; font: inherit; text-align: left; white-space: normal; cursor: pointer; }
+.out-title { grid-column: 1; grid-row: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.out-row:hover .out-title { color: var(--accent); }
+.out-badges { grid-column: 2; grid-row: 1; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.25rem; }
+.out-badges .badge { font-size: 0.75em; padding: 0 0.35rem; }
+.out-meta { grid-column: 1 / -1; grid-row: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* admin System: the architecture diagram, coloured through the tokens */
 .arch-wrap { overflow-x: auto; }
@@ -813,7 +817,7 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 /* inline rename in a list row: the field takes the title's place */
 .item-edit { flex: 1; min-width: 0; height: auto; padding: 0.25rem 0.4rem; font-size: inherit; }
 .out-row.editing { cursor: default; }
-.out-row.editing .item-edit { grid-column: 2 / -1; }
+.out-row.editing .item-edit { grid-column: 1 / -1; }
 /* sharing a notebook: the toggle in its row, the card under it */
 .notebooks .list li { flex-wrap: wrap; }
 /* one line, never wrapped: the name (with its badge, basis 0) takes what the icons

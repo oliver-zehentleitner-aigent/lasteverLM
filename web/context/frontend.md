@@ -191,6 +191,11 @@ an upload. The line runs between made here and added here, not by kind:
 `uploadedSources` drops only the generated sources of this notebook's
 own documents.
 
+Since 2026-10-15 an output's row has no checkbox and is laid out like a
+source row (title, its subline, kind and status, the bin): outputs are
+never picked as material for new outputs, a maintainer decision,
+because they hold no knowledge the sources do not.
+
 ## An output format is selected first, a Create button starts the job
 
 **Id:** 50dbbbc8-0fe9-4037-a53c-cdaac2bdbe3f

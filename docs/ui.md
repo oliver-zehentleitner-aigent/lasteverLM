@@ -218,9 +218,12 @@ opens the notebook.
   cancels; an empty or unchanged title saves nothing. An output is
   renamed once it is ready (before, the worker would overwrite it). The new title
   shows at once and the old one returns if the service refuses it.
-- **Outputs** (left, bottom): the generated documents, one row each:
-  the kind and the status in fixed slots, the title between them, and
-  below the title when it was made ("14 min ago", the date and time as
+- **Outputs** (left, bottom): the generated documents, one row each,
+  laid out like a source row (the same padding, badge size, ellipsis and
+  hover): the title on the left, the kind and the status as badges on
+  the right, then the red bin; no checkbox, since outputs are never
+  picked as material for new outputs (they hold nothing the sources do
+  not). Below the title when it was made ("14 min ago", the date and time as
   tooltip; the absolute time once it is older than a day) with its
   language code and, for audio, the voice, and "from 3 sources" when it
   was made from a selection (`Output.options.sources`; the names as
@@ -228,7 +231,7 @@ opens the notebook.
   list: newest first (the default, since a kind is often made again
   from the same sources), oldest first, by kind, by language, by
   status. From six documents on, kind chips filter the list. A click
-  opens the document's tab, × deletes it.
+  opens the document's tab, the bin deletes it.
 - **Viewer** (right, top): one tab per output or source the user
   opened (an output from the Outputs list, a new output on Create, a
   source by clicking its name in the Sources list, either from a
