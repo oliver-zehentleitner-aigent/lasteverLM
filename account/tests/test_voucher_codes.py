@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import uuid
+from urllib.parse import urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -76,7 +77,12 @@ def test_send_mails_the_code_allowlists_and_records(client: TestClient, mailer: 
     mail = mailer.sent[-1]
     assert mail.to == "friend@outside.test"
     assert mail.subject == "You received a lasteverLM voucher of €12.50"
-    assert code in mail.body and "https://lasteverlm.test" in mail.body
+    assert code in mail.body
+    # the exact sign-in link, parsed, not a substring of the body
+    prefix = "Sign in and redeem it: "
+    link = next(ln[len(prefix) :] for ln in mail.body.splitlines() if ln.startswith(prefix))
+    assert link == "https://lasteverlm.test"  # the fixture's PUBLIC_BASE_URL
+    assert (urlparse(link).scheme, urlparse(link).netloc) == ("https", "lasteverlm.test")
     assert "A note from the sender:\nViel Spass!" in mail.body
     allow = client.get("/api/account/admin/settings/allowlist", headers=bearer(token)).json()
     assert "friend@outside.test" in allow["allowed_addresses"]

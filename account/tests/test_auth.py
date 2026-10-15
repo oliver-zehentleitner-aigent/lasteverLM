@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 from lasteverlm_core import DEMO_USER_ID, verify_jwt
@@ -60,7 +61,10 @@ def test_request_link_refuses_an_address_without_access_and_says_so(
     assert r.status_code == 202
     assert len(mailer.sent) == 1
     assert mailer.sent[0].to == "alice@example.org"
-    assert "https://lasteverlm.test/auth/callback?token=" in mailer.sent[0].body
+    # the exact sign-in link, parsed, not a substring of the body
+    link = urlparse(next(w for w in mailer.sent[0].body.split() if w.startswith("https://")))
+    assert (link.scheme, link.netloc, link.path) == ("https", "lasteverlm.test", "/auth/callback")
+    assert parse_qs(link.query) == {"token": [mailer.sent[0].token]}
 
 
 def test_admin_email_bypasses_domain_allowlist(client: TestClient, mailer: FakeMailer) -> None:
