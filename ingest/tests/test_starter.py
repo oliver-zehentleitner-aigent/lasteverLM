@@ -147,3 +147,15 @@ def test_the_copy_happens_on_first_library_access_and_shows_the_badge(client, re
     assert UUID(lib) not in repo.library
     assert all(e["id"] != lib for e in client.get("/api/ingest/library").json())
     assert DEMO_USER_ID in repo.seeded
+
+
+def test_the_first_notebook_list_already_has_the_starter(client, repo, storage):
+    """The web's first call after sign-in is GET /notebooks, not the library."""
+    nb, made = _starter(repo, storage)
+    [notebook] = client.get("/api/ingest/notebooks").json()
+    assert notebook["title"] == "Getting started with lasteverLM" and notebook["id"] != str(nb.id)
+    listed = client.get(f"/api/ingest/notebooks/{notebook['id']}/sources").json()
+    assert sorted(s["name"] for s in listed) == sorted(made)
+    assert all(s["starter"] and s["status"] == "ready" for s in listed)
+    # Only once: listing again copies nothing more.
+    assert len(client.get("/api/ingest/notebooks").json()) == 1

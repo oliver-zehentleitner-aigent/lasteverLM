@@ -450,7 +450,8 @@ fail with "capture mode … needs a vision model".
 A new user gets a copy of the starter notebook an admin marks (account's
 settings row `starter_notebook`, `{"owner_id", "notebook_id"}`, set in
 account's admin panel). `starter.ensure_starter` runs on the owner's
-first `GET /library` or first upload:
+first `GET /notebooks` (the first thing the web loads after sign-in),
+`GET /library` (any `kind`) or upload:
 
 - The starter's uploads are copied: linked into it, `ready`, not
   trashed; never generated rows, whose outputs rag copies. First the

@@ -21,7 +21,8 @@ def repository(request: Request) -> Repository:
 
 
 def seed_if_new(request: Request, user: UUID) -> None:
-    """The starter notebook on the owner's first library access or upload."""
+    """The starter notebook on the owner's first notebook list, library
+    listing or upload; once considered, one indexed exists query."""
     deps = worker_deps(request)
     ensure_starter(deps.repository, deps.storage, user)
 
