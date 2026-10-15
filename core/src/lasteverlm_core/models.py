@@ -56,6 +56,8 @@ USAGE_ACTIONS: frozenset[str] = frozenset(
     {
         "chat_answer",
         "chart_propose",
+        "table_propose",
+        "infographic_propose",
         "summary",
         "judge",
         "decision",
@@ -84,6 +86,8 @@ _SECONDS_ACTIONS = frozenset({"output:audio", "source:audio"})
 _UNIT_KEYS = {
     "chat_answer": "question",
     "chart_propose": "chart_proposal",
+    "table_propose": "table_proposal",
+    "infographic_propose": "infographic_proposal",
     "summary": "summary",
     "judge": "check",
     "decision": "decision",

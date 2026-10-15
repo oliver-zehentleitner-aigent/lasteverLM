@@ -14,6 +14,7 @@ from lasteverlm_core import (
     USAGE_ACTION_UNITS,
     USAGE_ACTIONS,
     USAGE_SQL,
+    ActionUnit,
     ExchangeRateMissingError,
     PricingRules,
     UnpricedModelError,
@@ -75,6 +76,8 @@ def test_every_action_has_a_unit() -> None:
     assert USAGE_ACTION_UNITS["output:report"].unit == "output"
     assert USAGE_ACTION_UNITS["source:pdf"].unit == "source"  # per source, not per page
     assert USAGE_ACTION_UNITS["judge"].unit == "check"
+    assert USAGE_ACTION_UNITS["table_propose"] == ActionUnit("table_proposal", "action")
+    assert USAGE_ACTION_UNITS["infographic_propose"].unit == "infographic_proposal"
 
 
 def test_record_usage_prices_charges_and_inserts(prices: Any) -> None:
