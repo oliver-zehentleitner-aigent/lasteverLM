@@ -285,7 +285,12 @@ pods tonight and silently allow a future image to run as root.
 
 CPU requests: APIs (account, ingest, rag) 50m, workers 100m, web 25m,
 down from 100m, 200m and 50m; memory unchanged. The autoscalers'
-target rises from 70 % to 80 %.
+target rises from 70 % to 80 %. Memory follows the same rule: when rag
+gained spaCy for its negation check (about 270 MiB more per process,
+~370 MiB in use), only the rag API's request rose, 256Mi to 384Mi; the
+worker's 512Mi already covered it, and a blanket +300Mi on every rag
+pod would have added 1.8 GiB to nodes whose memory requests stood at
+79 % and 91 %, leaving pods unschedulable.
 
 **Reason:** at the old values the application alone requested 1500m
 of the two nodes' 4000m, and the platform another ~1400m, so a rollout
