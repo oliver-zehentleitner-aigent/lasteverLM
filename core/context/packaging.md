@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** family coordination, 2026-10-12 (agent A approved after a verified probe with uv 0.13)
+**Source:** a verified probe with uv 0.13, 2026-10-12
 **Revisit when:** all Python services are in the repository and a shared lockfile is wanted, or uv tolerates workspace members without a pyproject
 
 A service installs core as `uv pip install -e ../core -e '.[dev]'` in
