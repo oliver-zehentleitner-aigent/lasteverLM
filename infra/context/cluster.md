@@ -434,7 +434,9 @@ port from `account` to the API services, and on ingest's API port from
 **Reason, ingress:** core trusts the `X-Forwarded-For` nginx sets, and
 the edge rate limits live in nginx; a pod that reached a service
 directly would bypass both. Each service-to-service call gets its own
-policy naming caller and target: account's health probes, and since
+policy naming caller and target: account on the API port (the System
+page's health probes, and the user purge, which asks ingest and rag to
+delete a user's data), and since
 0.19.0 rag calling ingest with the user's bearer to have sources read
 when they are used (the "Revisit when" below fired there: 0.19.0 shipped
 without the policy, rag's calls timed out and the deploy's smoke test
@@ -446,10 +448,19 @@ port and are reached through nginx.
 **Reason, egress open:** every outbound destination is an external
 host named by DNS — Object Storage, Serverless Inference, the SMTP
 server, the managed database (public address, VPC attachment pending),
-the Vultr API for account's billing read — and Kubernetes NetworkPolicy matches only IP blocks and ports. An
+the Vultr API for account's billing read, the ECB reference rate account
+reads once an hour, and the web pages ingest reads for URL sources —
+and Kubernetes NetworkPolicy matches only IP blocks and ports. An
 egress policy would come down to "DNS, 443, 587 and the database port to
 anywhere", which blocks little and breaks on the next port a provider
 uses.
+
+**Re-checked 2026-10-15:** the trigger "a service starts calling
+another one directly" holds twice. rag calling ingest got its own
+policy with 0.19.1. account calling ingest and rag for the user purge
+goes over the port account's existing policy already opens, so it
+needed none. The decision holds: ingress restricted per caller, egress
+open.
 
 **Rejected alternatives:** per-service policies naming each caller
 (nginx only to web, account, ingest, rag) — the controller already
