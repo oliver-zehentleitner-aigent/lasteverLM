@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.9] - 2026-10-15
+
 ### Changed
 
 - A judgement on request runs as a background job: `POST …/outputs/{id}/judge` and `…/messages/{id}/judge` answer 202 with a `JudgeJob` (status, phase, attempts, attempt log) instead of the judged output or message; poll `GET /api/rag/judge-jobs/{job_id}` (or the target's `GET …/judge`) and read the target when done. Migration `0018_rag_judge_jobs.sql`. A High check of many units no longer runs past the ingress' 120 s.
