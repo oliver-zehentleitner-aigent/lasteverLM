@@ -725,7 +725,10 @@ model's input tokens.
 The check (`number-match-v1`, no model call) is strict:
 - A value is `supported` only when the number itself is written in a
   passage it cites, read in every way it can be written. `1.906` is also
-  1906, `1,9 Mio.` also 1 900 000, and `12,5 %` also 0.125.
+  1906, `1,9 Mio.` also 1 900 000, `12,5 %` also 0.125, and `1e-05`
+  0.00001. The positions of a structured source as ingest writes it
+  (`row 3: `, `[0]`, `@href`; ingest's README, "The rendering is a
+  contract") are never values, so a row number cannot support a point.
 - A computed value (a share, a sum, a difference) names its passages in
   `derived_from` and is `derived`, never `supported`.
 - Everything else is `unsupported`: a value off by one, no refs, or a

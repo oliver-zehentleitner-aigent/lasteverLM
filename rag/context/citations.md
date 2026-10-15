@@ -267,7 +267,11 @@ A chart value is `supported` only when the number itself is written in a
 passage it cites (`number-match-v1`, `lasteverlm_rag/numbers.py`). Every
 number in the passage is read in each way it can be written: `1.906` as
 1.906 and 1906, `1,9 Mio.` as 1.9 and 1 900 000, and `12,5 %` as 12.5
-and 0.125. Beyond float precision there is no tolerance. A computed value
+and 0.125, and `1e-05` as 0.00001. The positions in ingest's rendering
+of a structured source (a CSV's "row 3: ", an index "[0]", an attribute
+"@href") are never read as values, so a row number cannot support a point
+(corrected 2026-10-15, when such sources became readable). Beyond float
+precision there is no tolerance. A computed value
 (a share, a sum, a difference) names its passages in `derived_from` and
 is `derived`, never `supported`.
 
