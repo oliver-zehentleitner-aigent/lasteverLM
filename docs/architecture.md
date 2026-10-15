@@ -246,10 +246,10 @@ v1; the frontend polls `GET /sources`.
 | GET | `/healthz` | | `{"status": "ok"}` |
 
 ```json
-Answer:   {"message_id", "answer", "citations": [Citation], "units", "check", "suggestions": [str], "plan" (null unless the question asked for actions; shape owned by rag)}
+Answer:   {"message_id", "answer", "citations": [Citation], "units", "check", "suggestions": [str], "plan" (null unless the question asked for actions; shape owned by rag), "web_pages": [{"library_id", "name", "fetched_at"}] (the web sources the answer used and when each was read; shape owned by rag)}
 Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "quote" (verbatim chunk text), "similarity", "chunk_index", "chunk_count"}
 Conversation: {"id", "notebook_id", "title", "created_at"}
-Message:  {"id", "conversation_id", "role", "content", "citations", "units", "check", "suggestions": [str], "feedback": MessageFeedback | null, "plan" (as on Answer), "created_at"}
+Message:  {"id", "conversation_id", "role", "content", "citations", "units", "check", "suggestions": [str], "feedback": MessageFeedback | null, "plan" (as on Answer), "web_pages" (as on Answer), "created_at"}
 MessageFeedback: {"rating": "up"|"down", "comment": str | null, "at"}
 Output:   {"id", "notebook_id" (null once the origin notebook is deleted), "origin_title", "kind", "title", "content", "status", "error", "share_token", "source_id" (the generated library row), "options", "deleted_at", "purge_at", "provenance", "phase" (while waiting or processing, else null; shape owned by rag), "created_at"}
 ChunkView: {"chunk_id", "source_id", "source_name", "source_kind", "page", "text", "chunk_index", "chunk_count"}
