@@ -51,6 +51,7 @@ from lasteverlm_core import (
     object_key,
 )
 
+from . import mp3
 from .citations import defuse_markers, inline, map_citations, number_passages, strip_markers
 from .coverage import balance, per_source_quota, uncovered_sources
 from .ingest_client import Ingest
@@ -948,8 +949,12 @@ class OutputService:
             if job.kind == "decision":
                 trace.llm_verdict_text = finish_decision(content)
             if generated.speech is not None:
-                key = self._speak(job, booking, notebook_id, generated.speech, trace)
+                key, timings = self._speak(job, booking, notebook_id, generated.speech, trace)
                 content = {**content, "key": key}
+                if timings is not None:
+                    # each transcript entry is one spoken turn, in order: its place in the file
+                    for entry, (start, end) in zip(content["transcript"], timings, strict=True):
+                        entry["start"], entry["end"] = start, end
             self._phase("indexing")
             source_id = self._index(booking, notebook_id, generated, trace)
             self._store.update_output(
@@ -1531,21 +1536,27 @@ class OutputService:
         notebook_id: str,
         turns: Sequence[SpeechTurn],
         trace: GenerationLog,
-    ) -> str:
+    ) -> tuple[str, Sequence[tuple[float, float]] | None]:
         """Synthesize the script turn by turn, each with its speaker's voice,
         in segments (one usage row each, priced per second of generated
-        speech), and store the joined MP3; returns the object key."""
+        speech), and store the joined MP3. A segment never spans two turns,
+        so each turn's start and end in the file follow from the measured
+        length of its segments. Returns the object key and the timings, one
+        (start, end) per turn, or ``None`` when a segment could not be
+        measured."""
         if self._tts is None or self._objects is None:
             raise GenerationFailed("audio: text-to-speech is not available on this deployment")
         segments = [
-            (voice, segment)
-            for voice, text in voiced_stretches(turns, job.options)
-            for segment in split_for_speech(text)
+            (turn_index, turn_voice(turn, job.options), segment)
+            for turn_index, turn in enumerate(turns)
+            for segment in split_for_speech(turn.text)
         ]
         if not segments:
             raise GenerationFailed("audio: the script is empty")
         parts: list[bytes] = []
-        for index, (voice, segment) in enumerate(segments, start=1):
+        lengths = [0.0] * len(turns)
+        measured = True
+        for index, (turn_index, voice, segment) in enumerate(segments, start=1):
             self._phase("synthesizing_speech", n=index, of=len(segments))
             self._heartbeat(getattr(self._tts, "model", None))
             result = synthesize_billed(
@@ -1558,10 +1569,23 @@ class OutputService:
             )
             trace.tts_seconds += result.usage.tokens_in
             parts.append(result.audio)
+            if measured:
+                try:
+                    lengths[turn_index] += mp3.duration(result.audio)
+                except mp3.NotMp3 as exc:
+                    # the audio stays good; only the highlighting goes, visibly in the log
+                    log.warning("output %s: a segment could not be measured: %s", job.id, exc)
+                    measured = False
         key = object_key(notebook_id, job.id, AUDIO_FILE)
         # MP3 frames are self-contained: the segments concatenate into one stream
         self._objects.put(key, b"".join(parts), "audio/mpeg")
-        return key
+        if not measured:
+            return key, None
+        timings, start = [], 0.0
+        for length in lengths:
+            timings.append((round(start, 3), round(start + length, 3)))
+            start += length
+        return key, timings
 
     def _public_content(self, content: dict[str, Any] | None) -> dict[str, Any] | None:
         """The row keeps the object key; a reader gets a presigned URL instead,
@@ -1750,17 +1774,9 @@ def require_credit(store: Store, user_id: str) -> None:
 _VOICE_OPTION = {"narrator": "voice", "interviewer": "voice", "expert": "audio_voice_2"}
 
 
-def voiced_stretches(turns: Sequence[SpeechTurn], options: dict[str, Any]) -> list[tuple[str, str]]:
-    """The turns as (voice, text), consecutive turns of one voice joined, so a
-    narrator's paragraphs are read in as few requests as before."""
-    stretches: list[tuple[str, str]] = []
-    for turn in turns:
-        voice = options.get(_VOICE_OPTION[turn.speaker]) or options["voice"]
-        if stretches and stretches[-1][0] == voice:
-            stretches[-1] = (voice, f"{stretches[-1][1]} {turn.text}")
-        else:
-            stretches.append((voice, turn.text))
-    return stretches
+def turn_voice(turn: SpeechTurn, options: dict[str, Any]) -> str:
+    """The voice a turn is read with: its speaker's option, else ``voice``."""
+    return str(options.get(_VOICE_OPTION[turn.speaker]) or options["voice"])
 
 
 def to_output(row: OutputRow) -> Output:

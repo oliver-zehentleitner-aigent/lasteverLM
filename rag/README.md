@@ -608,18 +608,27 @@ invents nothing), `conversation` is `{"title", "turns": [{"speaker":
 answers only from the material and both must speak (at most 6000
 characters in all). The worker reads the turns with `TTS_MODEL`, the
 narrator and the interviewer with `voice`, the expert with
-`audio_voice_2`, consecutive turns of one voice as one stretch, in
-segments of at most 1500 characters that end at a sentence, one `tts`
+`audio_voice_2`, each turn (or paragraph) on its own, in segments of
+at most 1500 characters that end at a sentence, one `tts`
 usage row per segment priced per second of generated audio as the
 platform reports it, and stores the joined MP3 at
 `<notebook_id>/<output_id>/audio.mp3` in object storage. The row keeps
-`{"key", "transcript": [{"speaker", "text"}]}` (`speaker` is
-`narrator`, `interviewer` or `expert`; audio outputs from before have
-no transcript); every read (the output, the list, the shared view)
-returns `{"url", "transcript"}`, `url` a presigned GET URL valid for
-one hour. The script, with `Interviewer:` / `Expert:` labels for a
-conversation, is the indexed text, so the chat can cite what the audio
-says. Without
+`{"key", "transcript": [{"speaker", "text", "start"?, "end"?}]}`. The
+`speaker` is `narrator`, `interviewer` or `expert`; audio outputs from
+before have no transcript.
+
+- **Times:** `start` and `end` are the entry's seconds within the final
+  MP3, measured by counting each segment's MP3 frames (`mp3.py`). The
+  playback speed is therefore in them. The entries are contiguous, and
+  the last ends at the file's length.
+- **No times:** outputs from before have none. If a segment cannot be
+  measured, the audio is kept without times and a warning is logged.
+- **Reads:** every read (the output, the list, the shared view)
+  returns `{"url", "transcript"}`, `url` a presigned GET URL valid for
+  one hour.
+
+The script, with `Interviewer:` / `Expert:` labels for a conversation,
+is the indexed text, so the chat can cite what the audio says. Without
 `TTS_MODEL` an audio output fails at once with a clear error, before
 any model call.
 

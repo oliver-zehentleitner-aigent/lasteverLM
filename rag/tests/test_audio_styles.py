@@ -5,7 +5,7 @@ import pytest
 from lasteverlm_rag.models import SpeechTurn
 from lasteverlm_rag.options import second_voice
 from lasteverlm_rag.outputs.audio import Conversation
-from lasteverlm_rag.service import voiced_stretches
+from lasteverlm_rag.service import turn_voice
 
 from .conftest import (
     AUTH,
@@ -61,16 +61,16 @@ def test_a_conversation_reads_each_turn_with_its_speakers_voice(settings):
     assert out["status"] == "ready", out
     assert out["options"]["audio_voice_2"] == "aiden"  # the default second voice
     assert "an interviewer, who introduces the topic" in llm.calls[0][1]
-    # consecutive turns of one speaker are one request
-    assert [s[0] for s in tts.settings] == ["ryan", "aiden", "ryan"]
-    assert tts.inputs[1] == "Blue, according to the material. At noon, at least."
+    # every turn is read on its own (its place in the file is measured), in its voice
+    assert [s[0] for s in tts.settings] == ["ryan", "aiden", "aiden", "ryan"]
+    assert tts.inputs[1:3] == ["Blue, according to the material.", "At noon, at least."]
     assert [t["speaker"] for t in out["content"]["transcript"]] == [
         "interviewer",
         "expert",
         "expert",
         "interviewer",
     ]
-    assert len([u for _, _, u in store.usage if u.kind == "tts"]) == 3
+    assert len([u for _, _, u in store.usage if u.kind == "tts"]) == 4  # one per turn
     (generated,) = [s for s in store.sources.values() if s["kind"] == "generated"]
     assert "Interviewer: What colour is the sky?" in generated["summary"]
 
@@ -95,8 +95,9 @@ def test_a_story_is_told_by_one_narrator_in_paragraphs(settings):
             "support": "unsupported",
         },
     ]
-    assert tts.inputs == ["It began at dawn. By noon the sky was blue."]
-    assert tts.settings == [("ryan", 1.0)]
+    # each paragraph on its own, so its place in the file can be measured
+    assert tts.inputs == ["It began at dawn.", "By noon the sky was blue."]
+    assert tts.settings == [("ryan", 1.0), ("ryan", 1.0)]
 
 
 def test_the_overview_stays_the_default(settings):
@@ -138,19 +139,12 @@ def test_the_second_voice_shares_the_first_ones_native_language():
     ]
 
 
-def test_voiced_stretches_join_consecutive_turns_of_one_voice():
-    turns = [
-        SpeechTurn("interviewer", "Q1"),
-        SpeechTurn("expert", "A1"),
-        SpeechTurn("expert", "A2"),
-        SpeechTurn("narrator", "N"),
-    ]
+def test_each_turn_is_read_with_its_speakers_voice():
     options = {"voice": "ryan", "audio_voice_2": "aiden"}
-    assert voiced_stretches(turns, options) == [
-        ("ryan", "Q1"),
-        ("aiden", "A1 A2"),
-        ("ryan", "N"),
-    ]
+    assert [
+        turn_voice(SpeechTurn(speaker, "x"), options)
+        for speaker in ("interviewer", "expert", "narrator")
+    ] == ["ryan", "aiden", "ryan"]
 
 
 def faq(pairs: int, **swap) -> str:

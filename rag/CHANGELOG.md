@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Audio transcript times for highlighting: each `content.transcript` entry gets `start` and `end`, its seconds within the final MP3. They are measured from the MP3 frames of its segments, so the playback speed is in them; they are contiguous and the last ends at the file's length. Older outputs have none, and a segment that cannot be measured leaves the audio without times, with a warning.
+
+### Changed
+
+- Audio is synthesized turn by turn (paragraph by paragraph): consecutive turns of one voice are no longer joined into one stretch, so each turn's place in the file can be measured. There are more requests now. The platform bills each request in whole seconds, so a script can cost up to about a second of speech more per extra request.
+
 ## [0.20.0] - 2026-10-14
 
 ### Added
