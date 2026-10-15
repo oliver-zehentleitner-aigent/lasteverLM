@@ -1,4 +1,4 @@
-"""MP3 streams from their frame headers, without decoding: duration, and
+"""MP3 streams read from their frame headers (no decoding): duration, and
 joining segments into one file with a correct Xing header.
 
 Every MPEG audio frame starts with a 4-byte header that gives its version,
