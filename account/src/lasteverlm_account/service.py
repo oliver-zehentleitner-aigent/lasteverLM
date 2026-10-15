@@ -299,13 +299,10 @@ class AccountService:
             self.settings.access_retention_days,
         )
         # Core's middleware writes these tables and never deletes; this service owns their
-        # retention (context/core.md). A ban holds until an admin lifts it, at most BAN_MAX_DAYS.
+        # retention (context/core.md). A ban holds until an admin lifts it, at most the stored cap.
+        ban_cap = (await self.ratelimit_rules()).ban_max_days  # stored, else BAN_MAX_DAYS
         access, blocks, bans = await self.repo.purge_access_tables(
-            purge_params(
-                self.settings.access_retention_days,
-                (await self.ratelimit_rules()).ban_max_days,
-                now,
-            )
+            purge_params(self.settings.access_retention_days, ban_cap, now)
         )
         log.info(
             "retention: core tables: removed %d access_log rows, %d stale blocks older than "
@@ -314,7 +311,7 @@ class AccountService:
             blocks,
             self.settings.access_retention_days,
             bans,
-            self.settings.ban_max_days,
+            ban_cap,
         )
         log.info(
             "visitor hash salt: %s",
