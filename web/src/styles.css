@@ -123,6 +123,14 @@ button.danger { background: transparent; color: var(--danger); border-color: var
 button.link { background: none; border: none; color: var(--accent); padding: 0; }
 button.icon { background: none; border: none; color: var(--muted); padding: 0 0.4rem; font-size: 1.1em; }
 button.icon:hover { color: var(--danger); }
+/* line icons: open and share take the accent on hover; a delete is red,
+   muted at rest and full on hover (the theme's own red, light and dark) */
+.icon svg { display: block; }
+a.icon { display: inline-flex; align-items: center; color: var(--muted); padding: 0 0.4rem; }
+.icon.icon-action:not(:disabled):hover, a.icon.icon-action:hover, .icon.shared { color: var(--accent); }
+.icon.icon-danger { color: var(--danger); opacity: 0.6; }
+.icon.icon-danger:not(:disabled):hover, .icon.icon-danger:focus-visible { opacity: 1; }
+button.icon, a.icon { vertical-align: middle; }
 button.pill, a.pill { background: var(--accent-soft); color: var(--fg); border: 1px solid transparent; padding: 0.2rem 0.6rem; border-radius: 999px; text-decoration: none; }
 a.pill.active { border-color: var(--accent); }
 button.item { background: none; border: none; color: inherit; text-align: left; flex: 1; padding: 0.3rem 0.4rem; }
@@ -685,6 +693,8 @@ td.row-actions > * + * { margin-left: 0.75rem; }
 th.pick-col, td.pick-col { width: 1%; white-space: nowrap; }
 .pick-all { display: inline-flex; gap: 0.25rem; align-items: center; font-weight: normal; }
 .library tr.picked td { background: var(--accent-soft); }
+.library tr.selectable { cursor: pointer; }
+.library tr.selectable:not(.picked):hover td { background: var(--bg); }
 .selection-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.5rem 0; padding: 0.4rem 0.6rem; border-radius: var(--radius); background: var(--accent-soft); }
 .selection-bar > span { margin-right: auto; }
 .notebook-from { display: flex; gap: 0.5rem; align-items: center; flex: 0 1 30rem; min-width: 0; }

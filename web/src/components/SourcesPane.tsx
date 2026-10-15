@@ -11,6 +11,7 @@ import { StatusBadge } from './PendingReason'
 import { t } from '../i18n'
 import { priceLabel } from '../lib/estimate'
 import { whenLabel } from '../lib/outputsList'
+import { IconTrash } from './Icons'
 
 interface Props {
   notebookId: string
@@ -185,8 +186,8 @@ export function SourcesPane({ notebookId, highlightedSourceId, version, onAdd, e
                 </button>
               )}
               {audioFiles(s) && <PlayButton open={playing?.id === s.id} name={s.name} onToggle={() => togglePlayer(s)} />}
-              <button type="button" className="icon" title={t('sources.remove')} onClick={() => void remove(s)}>
-                ×
+              <button type="button" className="icon icon-danger" title={t('sources.remove')} aria-label={t('sources.removeNamed', { name: s.name })} onClick={() => void remove(s)}>
+                <IconTrash />
               </button>
             </span>
             {playing?.id === s.id && (

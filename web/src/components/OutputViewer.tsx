@@ -21,6 +21,7 @@ import { JudgeRequest } from './JudgeRequest'
 import { t } from '../i18n'
 import { renamedTitle } from '../lib/conversations'
 import { InlineRename } from './InlineRename'
+import { IconLink, IconTrash } from './Icons'
 
 interface Props {
   outputs: Output[]
@@ -254,16 +255,25 @@ export function OutputViewer({
                 <button type="button" className="link" disabled={!printable} onClick={() => window.print()}>
                   {t('viewer.print')}
                 </button>
-                <button type="button" className="link" disabled={selected.status !== 'ready'} onClick={() => setShareOpen((v) => !v)}>
-                  {selected.share_token ? t('viewer.shared') : t('viewer.share')}
-                </button>
+
                 {!fullView && (
                   <button ref={enterButton} type="button" className="link" onClick={() => onFullView(true)}>
                     {t('viewer.fullView')}
                   </button>
                 )}
-                <button type="button" className="link danger" disabled={busy} onClick={() => void remove()}>
-                  {t('common.delete')}
+                <button
+                  type="button"
+                  className={selected.share_token ? 'icon icon-action shared' : 'icon icon-action'}
+                  disabled={selected.status !== 'ready'}
+                  aria-expanded={shareOpen}
+                  title={selected.share_token ? t('viewer.sharedTitle') : t('viewer.shareTitle')}
+                  aria-label={selected.share_token ? t('viewer.sharedTitle') : t('viewer.shareTitle')}
+                  onClick={() => setShareOpen((v) => !v)}
+                >
+                  <IconLink />
+                </button>
+                <button type="button" className="icon icon-danger" disabled={busy} title={t('viewer.deleteTitle')} aria-label={t('viewer.deleteTitle')} onClick={() => void remove()}>
+                  <IconTrash />
                 </button>
               </span>
             </header>
