@@ -170,6 +170,20 @@ class Store(Protocol):
         """Ready or failed also stamps ``finished_at``."""
         ...
 
+    def finish_output(self, output_id: str, worker_id: str, **fields: Any) -> bool:
+        """``update_output`` only while ``worker_id`` holds the claim; False
+        when another worker took the job over (nothing written)."""
+        ...
+
+    def holds_output(self, output_id: str, worker_id: str) -> bool:
+        """Whether ``worker_id`` still holds the output's claim."""
+        ...
+
+    def orphaned_generated(self, older_than_s: int) -> list[dict[str, Any]]:
+        """Generated library rows older than ``older_than_s`` that no output's
+        ``source_id`` points at, as ``{"id", "notebook_ids"}`` (where linked)."""
+        ...
+
     # judgements on request, run by the worker (``judge_jobs``)
     def create_judge_job(self, job: dict[str, Any]) -> None: ...
 
@@ -1002,6 +1016,45 @@ class PostgresStore:
             conn.execute(
                 f"update outputs set {assignments} where id = %(id)s", {**fields, "id": output_id}
             )
+
+    def finish_output(self, output_id: str, worker_id: str, **fields: Any) -> bool:
+        unknown = set(fields) - _OUTPUT_FIELDS
+        if unknown:
+            raise ValueError(f"not an updatable outputs column: {sorted(unknown)}")
+        for name in ("content", "provenance", "phase"):
+            if name in fields:
+                fields[name] = _jsonb(fields[name])
+        assignments = ", ".join(f"{name} = %({name})s" for name in fields)
+        if fields.get("status") in ("ready", "failed"):
+            assignments += ", finished_at = now()"
+        with self._pool.connection() as conn:
+            cursor = conn.execute(
+                f"update outputs set {assignments} where id = %(id)s and claimed_by = %(worker)s",
+                {**fields, "id": output_id, "worker": worker_id},
+            )
+            return cursor.rowcount == 1
+
+    def holds_output(self, output_id: str, worker_id: str) -> bool:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "select claimed_by = %s as held from outputs where id = %s",
+                (worker_id, output_id),
+            ).fetchone()
+        return bool(row and row["held"])
+
+    def orphaned_generated(self, older_than_s: int) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select l.id::text as id, coalesce(array_agg(s.notebook_id::text) "
+                "filter (where s.notebook_id is not null), '{}') as notebook_ids "
+                "from library_sources l left join sources s on s.library_source_id = l.id "
+                "where l.kind = 'generated' "
+                "and l.created_at < now() - make_interval(secs => %s) "
+                "and not exists (select 1 from outputs o where o.source_id = l.id) "
+                "group by l.id order by l.id",
+                (older_than_s,),
+            ).fetchall()
+        return [{"id": r["id"], "notebook_ids": list(r["notebook_ids"])} for r in rows]
 
     def create_judge_job(self, job: dict[str, Any]) -> None:
         with self._pool.connection() as conn:

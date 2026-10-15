@@ -615,6 +615,14 @@ few seconds after the notebook, which a new user does not notice.
 **Source:** a judged report that started on 0.19.4 at 17:22 CEST, kept "processing" and failed after the 0.19.5 rollout, reported by the maintainer and relayed by the coordinator, 2026-10-14; the coordinator's go the same day for the heartbeat, the waiting limit, refusing failed sources and the final error text; the pod logs of that run were gone with the rollout, so the run itself is inferred from the code
 **Revisit when:** jobs routinely run longer than the stale-claim limit even with the heartbeat (a worker blocked in one call longer than 10 minutes), or sources routinely take longer than 30 minutes to read
 
+**Re-checked 2026-10-15:** its revisit condition fired. One worker
+request can run 180 s and is retried up to twice, so a single call
+outlasts the 10 minutes; a decision was most likely indexed twice that
+way (inferred from the code; the run's logs were not read). The
+beat now comes from a thread for the whole job and the result is fenced
+by the claim (f66cce4e-fcf8-49f1-b78a-59721117980c). The rule (a beat separates slow from dead, the
+limit stays short) and the waiting limit hold.
+
 A worker refreshes the claim of the job it runs (`claimed_at`) at most
 once a minute, before every model call, judge call and speech segment.
 Another worker takes over a job only after 10 minutes without a beat,
@@ -903,3 +911,54 @@ Create, from the right passages.
 - Finished tables as candidates (as for charts): a long table per
   candidate makes the proposal slow and dear, and most would be thrown
   away.
+
+## A job's result is written only by the worker holding its claim; orphaned generated sources are swept, off until a dry run is seen
+
+**Id:** f66cce4e-fcf8-49f1-b78a-59721117980c
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer report relayed by the coordinator, 2026-10-15 (a generated source "Is the web interface well-designed?" in a notebook's sources with no output for it; the maintainer had made and deleted that English decision); rag's diagnosis from the code the same day (two runs of one job each indexed, the later ready write won); the maintainer's go for the fence, the beat during indexing and the decision call, the sweep shipped off with a dry-run command and switched on only on his go; the beat thread instead of beats at more call sites, and not writing `source_id` at indexing, are rag's choices within that go
+**Revisit when:** "taken over by another worker" shows up in the worker log (a live job was still taken over), the dry run keeps finding new orphans after the fix, or indexing moves out of the job
+
+The ready write of an output goes through only while the worker still
+holds the claim (`claimed_by`). A worker that lost it discards its own
+generated source and file and leaves the row, its error and its
+attempts to the worker that took over. The claim is refreshed every
+minute by a thread that runs as long as the job does, not only before a
+model call. A generated library row that no output points at and that
+is older than an hour is an orphan. `lasteverlm-rag-orphans` counts
+them per notebook id. With `ORPHAN_SWEEP=true` the worker deletes them
+once an hour; the setting ships off. The thread stops refreshing after
+`JOB_MAX_SECONDS` (45 minutes), logged as an error; the beats before
+each model call go on.
+
+**Reason:** the cause is inferred from the code, not from the run's
+logs. The stale-claim limit can take a live job for a dead one: one
+model request in the worker can run 180 s with two retries, and the beat
+came only before a request. Both runs then index their document; the
+later ready write wins and the other run's generated source stays linked
+to the notebook with no output, visible as a source of its own, as the
+reported one was. The beat
+thread keeps a live job's claim whatever it waits on, at one place
+instead of one at every call site that might block, and it dies with
+its worker, so a dead worker's job is still taken over. The fence makes
+a takeover that happens anyway harmless: one result per job. A worker
+killed between indexing and saving still leaves a row, which only a
+sweep finds; an hour is far past the 10-minute claim limit, so nothing
+in flight is touched. Deleting existing rows is a production write, so
+it ships off and runs only after the dry run has been looked at.
+
+**Rejected alternatives:**
+- More beats at each call site (indexing, the decision call): a single
+  request with its retries still outlasts the limit between two beats.
+- Writing `source_id` onto the output at indexing, so a later attempt
+  removes the earlier row: a processing output would point at a
+  half-indexed source, and the fence plus the sweep already cover both
+  cases.
+- A longer stale-claim limit: see 33fc1c1f-8444-4f70-b597-b459ce000c78.
+- A sweep that runs from the first deploy: deletes production rows
+  nobody has looked at.
+- A beat thread without a cap: a job hung in a live process (a socket
+  without a timeout, a deadlock) would hold its claim forever and never
+  be taken over.

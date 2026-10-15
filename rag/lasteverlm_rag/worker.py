@@ -59,6 +59,7 @@ class Worker:
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
         agent: AgentService | None = None,
+        orphan_sweep: bool = False,
     ) -> None:
         self._store = store
         self._outputs = outputs
@@ -68,6 +69,7 @@ class Worker:
         self._sleep = sleep
         self._clock = clock
         self._next_purge: float | None = None
+        self._orphan_sweep = orphan_sweep
         self._stop = threading.Event()
 
     def stop(self) -> None:
@@ -95,7 +97,7 @@ class Worker:
             job = self._store.claim_output(self.worker_id, STALE_CLAIM_S)
             if job is None:
                 break
-            if self._outputs.process(job):
+            if self._outputs.process(job, self.worker_id):
                 finished += 1
             elif job.id in retried:
                 break  # the same job failed twice this pass; let it rest until the next
@@ -122,6 +124,8 @@ class Worker:
         purged = self._outputs.purge_expired()
         if purged:
             log.info("purged %d trashed outputs", purged)
+        if self._orphan_sweep:
+            self._outputs.sweep_orphans(apply=True)
         return purged
 
     def run_forever(self) -> None:
@@ -171,6 +175,7 @@ def main() -> None:
         judges=judge_models(
             client, {**settings.inference.judge_models, SECOND_JUDGE: settings.second_judge_model}
         ),
+        job_max_s=settings.job_max_s,
     )
     llm = OpenAICompatibleLLM(
         client, settings.inference.llm_model, max_tokens=settings.inference.llm_max_tokens
@@ -189,7 +194,7 @@ def main() -> None:
     )
     # the worker only moves confirmed plans on: no planning, no ingest calls
     agent = AgentService(store, rag, outputs, llm, None, lambda *_: {}, settings.tts_voice)
-    worker = Worker(store, outputs, agent=agent)
+    worker = Worker(store, outputs, agent=agent, orphan_sweep=settings.orphan_sweep)
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: worker.stop())
     try:

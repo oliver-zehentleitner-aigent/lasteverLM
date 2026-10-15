@@ -217,6 +217,12 @@ SCOPED_RETRIEVAL_K = 12
 MAX_ATTEMPTS = 3
 # how often a running job refreshes its claim; well inside the worker's stale limit
 HEARTBEAT_S = 60.0
+# a generated row no output points at is an orphan only after this long: an
+# attempt indexing now has not saved its output yet
+ORPHAN_AGE_S = 60 * 60
+# a job's background beat stops after this long (JOB_MAX_SECONDS): well above
+# a bulletproof report's or a long audio's run, so only a hung job goes stale
+JOB_MAX_S = 45 * 60
 # how often a counter of one step (a speech segment) is written at most
 PHASE_MIN_S = 5.0
 # how long an output may wait for its sources to be read before it fails
@@ -757,7 +763,13 @@ class OutputService:
         output_max: Callable[[str, Mapping[str, Any]], float] | None = None,
         read_wait_s: float = ANSWER_WAIT_S,
         sleep: Callable[[float], None] = time.sleep,
+        beat_interval_s: float = HEARTBEAT_S,
+        job_max_s: float = JOB_MAX_S,
     ) -> None:
+        # how often a running job's claim is refreshed while it runs, whatever it
+        # waits on, and for how long at most (a hung job must go stale)
+        self._beat_interval_s = beat_interval_s
+        self._job_max_s = job_max_s
         # how long finding charts waits for selected sources it started reading
         self._read_wait_s = read_wait_s
         self._sleep = sleep
@@ -1240,8 +1252,14 @@ class OutputService:
 
     # -- worker side ---------------------------------------------------------
 
-    def process(self, job: OutputRow) -> bool:
-        """Handle one claimed job (the claim already counted the attempt).
+    def process(self, job: OutputRow, worker_id: str | None = None) -> bool:
+        """Handle one claimed job (the claim already counted the attempt),
+        its claim kept fresh meanwhile (``_keep_claim``).
+
+        With ``worker_id`` (the worker that claimed it), the result is written
+        only while that worker still holds the claim: one that lost it to a
+        takeover discards its own generated source and file and leaves the
+        row to the worker that took over.
 
         Returns True when the job ended in ``ready`` or ``failed``, False when it
         was given back to the queue for another attempt. A ``GenerationFailed``
@@ -1252,6 +1270,44 @@ class OutputService:
         an abandoned claim and costs one attempt too. Every failure lands in the
         row with its error, never in a log only.
         """
+        stop = threading.Event()
+        beat = threading.Thread(target=self._keep_claim, args=(job.id, stop), daemon=True)
+        beat.start()
+        try:
+            return self._process(job, worker_id)
+        finally:
+            stop.set()
+            beat.join()
+
+    def _keep_claim(self, output_id: str, stop: threading.Event) -> None:
+        """Refresh the claim every ``beat_interval_s`` until the job ends: a
+        live job is never taken for a dead worker's, however long one call
+        (a model request with its retries) or the indexing takes. A dead
+        worker's thread dies with it, so its claim still goes stale. After
+        ``job_max_s`` it stops: a job hung in this process (a socket without
+        a timeout, a deadlock) must go stale too, so that another worker
+        takes it over and the fence discards whatever this one still writes.
+        The beats before each model call go on, so a job that is merely long
+        but still calling keeps its claim."""
+        started = self._clock()
+        while not stop.wait(self._beat_interval_s):
+            if self._clock() - started >= self._job_max_s:
+                log.error(
+                    "output %s: still running after %d s, the claim is no longer refreshed "
+                    "in the background; if the job hangs, another worker takes it over",
+                    short_id(output_id),
+                    int(self._job_max_s),
+                )
+                return
+            try:
+                with self._beat_lock:
+                    self._beat_at = self._clock()
+                    phase = self._phase_now
+                self._store.touch_output(output_id, phase)
+            except Exception:
+                log.exception("output %s: refreshing the claim failed", short_id(output_id))
+
+    def _process(self, job: OutputRow, worker_id: str | None) -> bool:
         source_id: str | None = None
         content: dict[str, Any] = {}
         self._running, self._beat_at, self._calling = job.id, self._clock(), None
@@ -1302,16 +1358,21 @@ class OutputService:
                         entry["start"], entry["end"] = start, end
             self._phase("indexing")
             source_id = self._index(booking, notebook_id, generated, trace)
-            self._store.update_output(
-                job.id,
-                status="ready",
-                phase=None,
-                title=generated.title,
-                content=content,
-                source_id=source_id,
-                error=None,
-                provenance=trace.record(check),
-            )
+            result: dict[str, Any] = {
+                "status": "ready",
+                "phase": None,
+                "title": generated.title,
+                "content": content,
+                "source_id": source_id,
+                "error": None,
+                "provenance": trace.record(check),
+            }
+            if worker_id is None:
+                self._store.update_output(job.id, **result)
+            elif not self._store.finish_output(job.id, worker_id, **result):
+                self._running = None
+                self._taken_over(job, source_id, content)
+                return True
             log.info(
                 "output %s (%s) ready: %r, source %s",
                 short_id(job.id),
@@ -1328,6 +1389,10 @@ class OutputService:
         # Clean up outside the except block: a cleanup failure is logged on its
         # own and can never replace the job's error.
         self._discard(job, source_id, content)
+        if worker_id is not None and not self._store.holds_output(job.id, worker_id):
+            # another worker runs it now: its row, its error, its attempts
+            self._taken_over(job, None, {})
+            return True
         final = isinstance(failure, GenerationFailed) or job.attempts >= MAX_ATTEMPTS
         charged = self._store.charged(job.booking_id or job.id)
         error = attempt_error(failure, job.attempts, final, self._calling, charged)
@@ -1459,6 +1524,31 @@ class OutputService:
             )
             expired += 1
         return expired
+
+    def _taken_over(self, job: OutputRow, source_id: str | None, content: dict[str, Any]) -> None:
+        """This worker lost the claim while it ran (its claim went stale and
+        another took the job over): what it made goes, the row is the other's."""
+        log.warning(
+            "output %s (%s) attempt %d taken over by another worker: its result is discarded",
+            short_id(job.id),
+            job.kind,
+            job.attempts,
+        )
+        self._discard_quietly(job.id, source_id, content)
+
+    def sweep_orphans(self, apply: bool) -> Sequence[dict[str, Any]]:
+        """Generated library rows no output points at, older than
+        ``ORPHAN_AGE_S`` (so nothing being indexed now): left by a worker
+        killed between indexing and saving, or a failed cleanup. With
+        ``apply`` they are deleted (links and chunks cascade). Returns them as
+        ``{"id", "notebook_ids"}``; never their names."""
+        found = self._store.orphaned_generated(ORPHAN_AGE_S)
+        if apply:
+            for row in found:
+                self._store.delete_source(row["id"])
+            if found:
+                log.info("deleted %d orphaned generated sources", len(found))
+        return found
 
     def _discard(self, job: OutputRow, source_id: str | None, content: dict[str, Any]) -> None:
         """Remove what a failed attempt left: its generated source and its file."""
