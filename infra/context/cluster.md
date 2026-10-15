@@ -569,7 +569,8 @@ narrower than the account key but not read-only.
 **Revisit when:** releases stop being cut from a branch named `agent-a/release-*`, or the CHANGELOGs move to fragments collected at release time
 
 `changelog.yml` runs `scripts/changelog_unreleased.py` on every pull
-request: each line it adds to or removes from any `CHANGELOG.md` must
+request, against the merge base of the base branch and the head: each
+line it adds to or removes from any `CHANGELOG.md` must
 lie under `## [Unreleased]` (removed lines in the old file, added ones
 in the new), else the job fails naming file, line and section. Release
 pull requests and the label `changelog-fix` skip it, because both
