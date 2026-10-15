@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- `SECURITY.md` and the root context: the mail configuration comes from the environment only, never from the database; the known OpenTofu-state limitation is listed. `docs/walkthrough.md` and `docs/ui.md`: the word check flags a flipped negation; it no longer says it sees no negation.
+
 ## [0.22.20] - 2026-10-16
 
 ### Changed

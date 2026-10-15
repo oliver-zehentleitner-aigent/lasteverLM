@@ -52,8 +52,9 @@ who reads it."
 - Ask about the absent detail. "It says the sources do not contain
   that, instead of inventing it."
 - The badges under the answer: "The word check compares words with the
-  cited passage. It is fast and free, and it sees no meaning, no
-  negation. That is what the judge is for."
+  cited passage and flags a flipped negation as a possible
+  contradiction. It is fast and free, but it sees no meaning. That is
+  what the judge is for."
 
 ## 3:00 One output, checked (1 min 30 s)
 
