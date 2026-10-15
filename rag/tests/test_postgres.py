@@ -296,6 +296,49 @@ def test_claim_waits_for_sources_counts_attempts_and_takes_over_stale_claims(sto
     assert [o.id for o in store.list_outputs(notebook)] == [job.id]
 
 
+def test_only_the_claim_holder_finishes_a_job(store, pool, notebook):
+    row = store.create_output(notebook, "report", "waiting")
+    job = store.claim_output("w1", stale_after_s=600)
+    assert job is not None and store.holds_output(job.id, "w1")
+    with pool.connection() as conn:  # w1 looked dead: w2 takes the job over
+        conn.execute(
+            "update outputs set claimed_at = now() - interval '11 minutes' where id = %s", (row.id,)
+        )
+    assert store.claim_output("w2", stale_after_s=600) is not None
+    assert not store.holds_output(row.id, "w1") and store.holds_output(row.id, "w2")
+    assert not store.finish_output(row.id, "w1", status="ready", title="late", error=None)
+    assert store.get_output(row.id).title == ""  # nothing of the late run written
+    assert store.finish_output(row.id, "w2", status="ready", title="T", content={"a": 1})
+    done = store.get_output(row.id)
+    assert (done.status, done.title, done.content, done.finished_at is not None) == (
+        "ready",
+        "T",
+        {"a": 1},
+        True,
+    )
+
+
+def test_orphaned_generated_sources_are_old_and_unreferenced(store, pool, notebook):
+    linked = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))
+    orphan = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))
+    fresh = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))
+    upload = library_id_of(pool, add_source(pool, notebook, "ready"))
+    row = store.create_output(notebook, "report", "ready")
+    store.update_output(row.id, source_id=linked)
+    with pool.connection() as conn:
+        conn.execute(
+            "update library_sources set created_at = now() - interval '2 hours' "
+            "where id = any(%s::uuid[])",
+            ([linked, orphan, upload],),
+        )
+    mine = {linked, orphan, fresh, upload}
+    old = [r for r in store.orphaned_generated(3600) if r["id"] in mine]
+    assert old == [{"id": orphan, "notebook_ids": [notebook]}]
+    assert {r["id"] for r in store.orphaned_generated(0)} & mine == {orphan, fresh}
+    store.delete_source(orphan)
+    assert [r for r in store.orphaned_generated(3600) if r["id"] in mine] == []
+
+
 def test_share_token_and_delete(store, notebook, pool):
     row = store.create_output(notebook, "quiz", "processing")
     store.update_output(row.id, share_token="tok-" + row.id, status="ready")

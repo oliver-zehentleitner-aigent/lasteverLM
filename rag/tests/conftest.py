@@ -403,6 +403,27 @@ class FakeStore:
             fields["finished_at"] = datetime.now(UTC).isoformat()
         self.outputs[output_id].update(fields)
 
+    def finish_output(self, output_id: str, worker_id: str, **fields: Any) -> bool:
+        if not self.holds_output(output_id, worker_id):
+            return False
+        self.update_output(output_id, **fields)
+        return True
+
+    def holds_output(self, output_id: str, worker_id: str) -> bool:
+        row = self.outputs.get(output_id)
+        return row is not None and row["claimed_by"] == worker_id
+
+    def orphaned_generated(self, older_than_s: int) -> list[dict[str, Any]]:
+        cutoff = datetime.now(UTC) - timedelta(seconds=older_than_s)
+        pointed = {o["source_id"] for o in self.outputs.values()}
+        return [
+            {"id": s["id"], "notebook_ids": [s["notebook_id"]] if s["notebook_id"] else []}
+            for s in sorted(self.sources.values(), key=lambda s: s["id"])
+            if s["kind"] == "generated"
+            and s["id"] not in pointed
+            and datetime.fromisoformat(s["created_at"]) < cutoff
+        ]
+
     def create_judge_job(self, job: dict[str, Any]) -> None:
         self.judge_jobs[job["id"]] = {
             **job,
@@ -514,6 +535,7 @@ class FakeStore:
             "status": status,
             "summary": summary,
             "error": None,
+            "created_at": datetime.now(UTC).isoformat(),
         }
         return source_id
 

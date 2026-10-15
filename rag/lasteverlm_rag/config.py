@@ -49,6 +49,9 @@ class Settings:
     # bulletproof's second judge, of another family than the author and the high
     # judge, chosen by evaluation (docs/second-judge-eval.md)
     second_judge_model: str = DEFAULT_SECOND_JUDGE
+    # the worker deletes orphaned generated sources (ORPHAN_SWEEP); off until the
+    # dry run (lasteverlm-rag-orphans) has been looked at
+    orphan_sweep: bool = False
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -92,7 +95,15 @@ class Settings:
             ingest_url=(env_optional("INGEST_URL", env) or "http://ingest").rstrip("/"),
             answer_read_wait_s=float(env_int("ANSWER_READ_WAIT_SECONDS", 60, env)),
             second_judge_model=second_judge,
+            orphan_sweep=_flag(env.get("ORPHAN_SWEEP", "false"), "ORPHAN_SWEEP"),
         )
+
+
+def _flag(raw: str, name: str) -> bool:
+    value = raw.strip().lower()
+    if value not in ("true", "false"):
+        raise ConfigError(f"{name} must be true or false, got {raw!r}")
+    return value == "true"
 
 
 def _unit_float(raw: str, name: str) -> float:

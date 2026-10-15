@@ -506,11 +506,24 @@ heartbeat in one update (`outputs.phase`, migration
 `0013_rag_output_phase.sql`). A counter of the same step is written at
 most every 5 s. There is no percentage and no invented counter.
 
-**Claim heartbeat.** A running job refreshes its claim (`claimed_at`) at
-most once a minute: before each model call, each judge call and each
-speech segment. Only a job whose worker stopped beating for 10 minutes is
-taken over, so a long run (a judged report, a long audio) is never run a
-second time, and never charged twice, while it is still going.
+**Claim heartbeat.** A running job refreshes its claim (`claimed_at`)
+once a minute from a thread of its own, for as long as it runs, whatever
+it waits on (one model request with its retries, the embedding of the
+indexed document); the phase writes beat too. Only a job whose worker
+stopped beating for 10 minutes is taken over, so a long run (a judged
+report, a long audio) is never run a second time, and never charged
+twice, while it is still going.
+
+**One result per job.** The ready write goes through only while the
+worker still holds the claim (`claimed_by`). A worker that lost the job
+to a takeover discards its generated source and its file, logs "taken
+over by another worker", and leaves the row, its error and its attempts
+to the worker that took over. A generated library row that no output
+points at and that is older than an hour (a worker killed between
+indexing and saving, or a failed cleanup) is an orphan:
+`lasteverlm-rag-orphans` (needs `DATABASE_URL`, reads only) prints how
+many each notebook has, by notebook id. With `ORPHAN_SWEEP=true` the
+worker deletes them, with their links and chunks, once an hour.
 
 **Agent chat.** A chat message first goes to a planning call (the LLM
 with tools, `complete_tools`). That call sees the user's message, their
@@ -878,6 +891,7 @@ missing or a configured model has no price.
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
 | `JUDGE_MODELS` | no; defaults in core | JSON level → model for the judge (`low`, `medium`, `high`), chosen from `docs/judge-eval.md`; every model needs a `MODEL_PRICES` entry, or startup refuses |
 | `INGEST_URL` | no; default `http://ingest` | ingest's API inside the cluster: reading sources when used, the agent chat's steps |
+| `ORPHAN_SWEEP` | no; default `false` | `true` lets the worker delete orphaned generated sources once an hour (see **One result per job**); anything but `true` or `false` refuses to start |
 | `ANSWER_READ_WAIT_SECONDS` | no; default 60 | how long an answer waits for sources it started reading before it answers from what is ready |
 | `DECISION_MODEL` | no; default `clef` (core) | the platform's decision model for the decision kind, used by the worker; it needs a `MODEL_PRICES` entry, `in` per million input tokens, or startup refuses |
 | `TTS_MODEL`, `TTS_VOICE` | no; voice default `ryan` | enables the audio kind; the voice is the default for audio outputs and must be one of the platform's (`vivian`, `serena`, `ryan`, ...; startup refuses any other), not an OpenAI name; the model needs a `MODEL_PRICES` entry, `in` per million seconds of generated audio |

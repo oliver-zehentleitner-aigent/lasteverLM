@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `lasteverlm-rag-orphans`: counts, per notebook id, the generated sources no output points at that are older than an hour (read only, no names). `ORPHAN_SWEEP=true` lets the worker delete them once an hour; it is off by default.
+
+### Fixed
+
+- A job runs to one result. Its claim is refreshed by a thread every minute for as long as it runs, so a single long model request (180 s with up to two retries) or the indexing can no longer let another worker take over a live job. The ready write goes through only while the worker still holds the claim; a worker that lost it discards its own generated source and file. Before, both runs indexed, the later write won, and the other's generated source stayed in the notebook's sources with no output.
+
 ## [0.22.12] - 2026-10-15
 
 ### Fixed
