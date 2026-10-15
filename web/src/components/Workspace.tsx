@@ -8,6 +8,8 @@ import { useMe } from '../hooks/useMe'
 import { canSeeAdmin, canWriteAdmin } from '../lib/roles'
 import { browserStorage, readWidth, SIDEBAR_WIDTH, writeWidth } from '../lib/layout'
 import { readLastNotebook, writeLastNotebook } from '../lib/lastNotebook'
+import { firstSelection } from '../lib/firstRun'
+import { tourDone } from '../lib/tour'
 import { ColumnDivider } from './ColumnDivider'
 import { NotebookDeleteDialog } from './NotebookDeleteDialog'
 import { NotebookList } from './NotebookList'
@@ -28,12 +30,31 @@ export function Workspace() {
   // a notebook with generated documents asks what becomes of them
   const [deleting, setDeleting] = useState<{ notebook: Notebook; outputs: number } | null>(null)
 
+  // the introduction still to show: without a notebook the workspace makes one, so the tour runs
+  const { me } = useMe()
+  const tourPending = !tourDone(me, browserStorage())
+  const madeFirst = useRef(false)
+
   useEffect(() => {
     void run(async () => {
       const list = await ingest.listNotebooks()
       setNotebooks(list)
-      setSelectedId((cur) => (cur && list.some((n) => n.id === cur) ? cur : (list[0]?.id ?? null)))
+      const pick = firstSelection(
+        list.map((n) => n.id),
+        readLastNotebook(),
+        tourPending,
+      )
+      setSelectedId(pick.select)
+      if (pick.createFirst && !madeFirst.current) {
+        madeFirst.current = true
+        // no add-sources dialog over it: the tour's first step points at "+ add"
+        const nb = await ingest.createNotebook(t('nb.firstTitle'))
+        setNotebooks([nb])
+        setSelectedId(nb.id)
+      }
     })
+    // the account is known before the workspace mounts; the list loads once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run])
 
   useEffect(() => {
@@ -41,7 +62,6 @@ export function Workspace() {
   }, [selectedId])
 
   // the starter notebook, marked in the list for admins and viewers; only an admin sets it
-  const { me } = useMe()
   const seesStarter = canSeeAdmin(me)
   const [starterId, setStarterId] = useState<string | null>(null)
   useEffect(() => {
