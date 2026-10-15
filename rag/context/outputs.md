@@ -1050,3 +1050,40 @@ one call on a takeover, never the job.
   few dozen entries per job and goes with the output by itself.
 - Journaling the speech segments: audio bytes are not row material; an
   audio handed over mid-speech synthesizes again.
+
+## A report's heading is its own line; a text that cites but yields no unit to check is never ready
+
+**Id:** b77e939c-fc87-4a87-b77b-ff62d215b973
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer report relayed by the coordinator, 2026-10-15 (an executive summary stored ready with no units and an all-zero check, its headings each followed by the paragraph on the next line; read for its structure only, with the maintainer's go); the fix, failing loud after one more try, the warning ratio and a repair command with a dry run by default ordered the same day; the repair's carrying over of judge verdicts is rag's
+**Revisit when:** another kind starts to split a markdown text into units, or the model writes structures the splitter misreads (a numbered heading without "#", a table)
+
+A report's units are its paragraphs: the lines between headings, where
+a heading is its own line only. The lines under a heading form the
+paragraph with or without a blank line between them. A text whose
+markdown has citation markers but yields no checkable unit is tried
+once more and then fails with "the document cites its sources but could
+not be split into parts to check". Fewer units than a third of the
+marker groups is logged as a warning. `lasteverlm-rag-repair-reports`
+re-splits stored reports from their markdown and runs the word check
+again, without a model call; it is a dry run unless told to apply.
+
+**Reason:** the splitter took a whole blank-line block that started with
+"#" for a heading, so a paragraph written on the line under its heading
+vanished from the units. The output was stored as ready with nothing
+checked, and a judge on request then judged nothing: a silent gap where
+the product promises every claim is checkable. A text that cites but
+yields no unit cannot be a correct output, so it fails loud instead of
+being shown as checked; one more try is worth it, since a new draft is
+usually written differently. Stored reports are repaired from what is
+already stored, so no one pays for a regeneration.
+
+**Rejected alternatives:**
+- A blank-line block starting with "#" is all heading (the behaviour
+  before): drops the paragraph under a heading.
+- Storing such an output as ready and marking it: it would still read
+  as checked in lists and shares.
+- Regenerating the affected reports: a model call for every one, and
+  their text would change.

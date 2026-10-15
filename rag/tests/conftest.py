@@ -502,6 +502,15 @@ class FakeStore:
     def delete_output(self, output_id: str) -> None:
         del self.outputs[output_id]
 
+    def report_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
+        return [
+            self._output_row(r)
+            for r in self.outputs.values()
+            if r["kind"] == "report"
+            and r["status"] == "ready"
+            and (output_ids is None or r["id"] in output_ids)
+        ]
+
     def audio_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
         return [
             self._output_row(r)
