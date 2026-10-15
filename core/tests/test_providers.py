@@ -462,6 +462,8 @@ def test_stt_http_error_is_permanent_only_for_a_lasting_refusal(
         stt.transcribe(MP3 * 10, "talk.mp3")
     assert caught.value.usage is None
     assert caught.value.permanent is permanent
+    assert caught.value.status == status
+    assert caught.value.summary == f"transcription request failed: HTTP {status}"
 
 
 def test_a_connection_failure_is_retryable() -> None:
@@ -477,3 +479,5 @@ def test_a_connection_failure_is_retryable() -> None:
     with pytest.raises(ProviderError, match="transcription request failed") as caught:
         OpenAICompatibleSpeechToText(client, "whisper").transcribe(MP3 * 10, "talk.mp3")
     assert caught.value.permanent is False
+    assert caught.value.status is None
+    assert caught.value.summary == "transcription request failed: APIConnectionError"

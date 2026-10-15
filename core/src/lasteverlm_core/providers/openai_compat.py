@@ -66,7 +66,13 @@ def _request_failed(what: str, exc: APIError) -> ProviderError:
     permanent = (
         status is not None and 400 <= status < 500 and status not in _TRANSIENT_CLIENT_ERRORS
     )
-    return ProviderError(f"{what} request failed: {exc}", permanent=permanent)
+    reason = f"HTTP {status}" if status is not None else type(exc).__name__
+    return ProviderError(
+        f"{what} request failed: {exc}",
+        permanent=permanent,
+        status=status,
+        summary=f"{what} request failed: {reason}",
+    )
 
 
 def thinking_body(enabled: bool) -> dict[str, Any]:

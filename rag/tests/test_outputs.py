@@ -99,8 +99,10 @@ def test_report_end_to_end_is_generated_indexed_and_accounted(settings):
         "purge_at",
         "provenance",
         "phase",
+        "attempt_log",
     }
     assert out["phase"] is None  # ready: no phase
+    assert out["attempt_log"] == []  # first attempt succeeded
     assert out["origin_title"] == "My notebook" and out["deleted_at"] is None
     # the generator saw the summaries and the focus-query passages
     prompt = llm.calls[0][1]
