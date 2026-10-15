@@ -84,10 +84,11 @@ reads the other services' `context/` before building against them.
 
 Beyond the NotebookLM core loop, the MVP has a sixth service that owns
 accounts: magic-link login limited to allowed e-mail domains, one-time
-voucher codes that credit a balance (default 10 EUR), a per-user
-balance that every model call draws on, and a compact admin panel with
-users, login log, an aggregated visitor log, SMTP settings and the
-domain allowlist.
+voucher codes that credit a balance (the code default is 10 EUR, the
+production value 5 EUR), a per-user balance that every model call
+draws on, and a compact admin panel with users, login log, an
+aggregated visitor log, the mail configuration (read-only, set in the
+environment) and the allowlist of domains and single addresses.
 
 **Reason:** the maintainer wants to sponsor use of the deployment for a
 known group: anyone under an allowed domain can create an account and
