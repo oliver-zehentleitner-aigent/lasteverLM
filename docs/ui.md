@@ -334,6 +334,16 @@ opens the notebook.
   badge; the word check's result is the last line of its tooltip. A
   judge without a usable answer ("no answer") leaves the word-check
   badge shown.
+  Above Basic, rag checks an answer at the user's **Verification by
+  default** inside the request (Standard: a low judge on the paragraphs
+  the word check doubts; Thorough: the medium judge on every
+  paragraph; marking only): while it waits the chat says "answering and
+  checking (Standard)…", and the answer's judged paragraphs carry the
+  judge's badges, with "Judge (low, model): 1 of 2 doubted paragraphs
+  supported" (or "N of M supported" when all were judged) under it. The
+  agent asks "How thoroughly should the new documents be checked?" with
+  each level's price as its choices, and notes "Basic check only" at
+  Basic, both through the plan card as any question.
   Answers without citations and older messages show neither. Under
   every answer a row: **Copy** (the answer with its `[n]` markers, then
   "Sources:" and one line per cited passage, `[n] name, p. x: "…"`;

@@ -1210,6 +1210,7 @@ export const en = {
   'verify.default': 'Verification by default',
   'verify.defaultHint': 'New documents start at this level, and chat answers are checked at it.',
   'outProv.modelWithoutEvidence': 'Model\'s answer without evidence (not from the sources)',
+  'chat.checking': 'answering and checking ({level})…',
 } as const
 
 export type MessageKey = keyof typeof en

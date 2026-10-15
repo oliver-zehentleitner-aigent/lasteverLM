@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verification levels for outputs: "Verification" (Basic: words and negation; Standard: also a low judge on what those doubt, marking only; Thorough: the medium judge, revising and removing; Bulletproof once rag offers it) replaces "Check with a judge" where rag offers levels, each level with its full price, starting at the account's "Verification by default", which replaces "Judge by default" in Settings.
 - The negation check's "Word check: possible contradiction" badge and count; a Standard judging's head ("2 of 3 doubted paragraphs supported") and its line in "How this was made".
 - Decision: "Model's answer without evidence (not from the sources)" in "How this was made".
+- Chat answers checked above Basic: "answering and checking (Standard)…" while the answer waits, and a line under it naming the judging ("Judge (low, model): 1 of 2 doubted paragraphs supported").
 
 ### Fixed
 

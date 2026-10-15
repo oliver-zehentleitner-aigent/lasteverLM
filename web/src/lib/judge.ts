@@ -74,3 +74,21 @@ export const JUDGE_ASK_LEVEL = 'medium'
 export function judgeAskLabel(price: EstimateState): string {
   return price && 'estimate' in price ? `${t('judge.ask')} · ${priceLabel(price.estimate)}` : t('judge.ask')
 }
+
+/** The line under a chat answer the user's verification judged: "Judge
+ *  (low, m): 2 of 3 doubted paragraphs supported" where only doubted
+ *  paragraphs were judged (standard), "Judge (medium, m): 5 of 6 supported"
+ *  where all were (thorough); from the paragraphs' own notes, null when
+ *  none was judged. */
+export function answerJudgeLine(units: readonly Claim[] | null | undefined): string | null {
+  const judged = (units ?? []).filter((u) => u.judge)
+  if (judged.length === 0) return null
+  const { level, model } = judged[0].judge!
+  const passed = judged.filter((u) => u.judge!.verdict === 'supported').length
+  const lvl = t(`judge.level.${level}`).toLowerCase()
+  // standard judges only what the word check doubted, at low
+  const all = (units ?? []).filter((u) => u.support).length
+  return judged.length < all
+    ? t('judge.headDoubted', { level: lvl, model, judged: judged.length, passed })
+    : t('judge.headLater', { level: lvl, model, passed, total: judged.length })
+}

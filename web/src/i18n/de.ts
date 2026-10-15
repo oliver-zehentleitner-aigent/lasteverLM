@@ -1213,4 +1213,5 @@ export const de: Record<MessageKey, string> = {
   'verify.default': 'Standard-Prüfung',
   'verify.defaultHint': 'Neue Dokumente beginnen mit dieser Stufe, und Chat-Antworten werden so geprüft.',
   'outProv.modelWithoutEvidence': 'Antwort des Modells ohne Belege (nicht aus den Quellen)',
+  'chat.checking': 'antworte und prüfe ({level})…',
 }
