@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- rag-worker: `terminationGracePeriodSeconds` 120 → 2760 (rag's `JOB_MAX_SECONDS` 2700 plus a minute), so a rollout or a scale-down lets a running job finish instead of killing it; rolling update `maxSurge 1`, `maxUnavailable 0`, so a new worker is ready before an old one stops claiming. Both are per-worker values (`worker.terminationGracePeriodSeconds`, `worker.strategy`); ingest-worker keeps 120 s and the default strategy.
+
 ## [0.22.2] - 2026-10-15
 
 ### Added
