@@ -677,7 +677,9 @@ converted MP3, or the upload itself for MP3 and WAV) and, when the
 upload was converted first, "original" (`original_url`). Open still
 takes the transcribed file.
 Each row has a checkbox, and a click anywhere else on the row (not on a
-link, a button or the checkbox) ticks it too; a ticked row is shaded,
+link, a button or the checkbox) ticks it too; Shift+click (on a row or
+a checkbox) adds every row from the one clicked last to this one, in
+the order shown, and never removes; a ticked row is shaded,
 and nothing opens on a double-click ("all / none" in the column header acts on the
 rows the filters show; ticks survive a filter change), across sources
 and outputs. With rows ticked a bar above the table offers:

@@ -136,3 +136,14 @@ export function pageTitleFrom(url: string): string {
   return words ? `${host} · ${words}` : host
 }
 
+
+/** The rows a Shift+click picks: every row from the one clicked last to
+ *  this one, in the order shown, both included; just this one when the
+ *  last is not shown any more (a filter changed) or there was none. */
+export function rangeIds(shown: readonly string[], last: string | null, current: string): string[] {
+  const a = last === null ? -1 : shown.indexOf(last)
+  const b = shown.indexOf(current)
+  if (b < 0) return []
+  if (a < 0) return [current]
+  return shown.slice(Math.min(a, b), Math.max(a, b) + 1)
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibraryEntry } from '../api/types'
-import { addPlan, addedSummary, bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, pageTitleFrom, purgeIn, shortUrl } from './library'
+import { addPlan, addedSummary, bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, notInNotebook, pageTitleFrom, purgeIn, shortUrl, rangeIds } from './library'
 
 const entry = (id: string, kind: LibraryEntry['kind'], name: string, notebooks: LibraryEntry['notebooks'] = [], url: string | null = null): LibraryEntry => ({
   id,
@@ -149,5 +149,19 @@ describe('the one table', () => {
   it('says what happened', () => {
     expect(addedSummary(2, 1, 'test1')).toBe('2 added, 1 was already in test1')
     expect(addedSummary(1, 0, 'test1')).toBe('1 added')
+  })
+})
+
+describe('rangeIds', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e']
+  it('takes every row between the last clicked and this one, either way', () => {
+    expect(rangeIds(ids, 'b', 'd')).toEqual(['b', 'c', 'd'])
+    expect(rangeIds(ids, 'd', 'b')).toEqual(['b', 'c', 'd'])
+    expect(rangeIds(ids, 'c', 'c')).toEqual(['c'])
+  })
+  it('is just this row without a last one that is still shown', () => {
+    expect(rangeIds(ids, null, 'c')).toEqual(['c'])
+    expect(rangeIds(ids, 'gone', 'c')).toEqual(['c'])
+    expect(rangeIds(ids, 'a', 'gone')).toEqual([])
   })
 })
