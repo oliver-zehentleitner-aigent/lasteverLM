@@ -1188,6 +1188,9 @@ export const en = {
   'adm.out.kind.internal': 'internal',
   'judge.ask': 'Have it judged',
   'judge.askTitle': 'A judge reads it against its passages, also across languages. Billed; opens Check with a judge, where the level can be changed.',
+  'outProv.passages.one': '{n} passage',
+  'outProv.passages.other': '{n} passages',
+  'chat.passage': 'Passage {n}',
 } as const
 
 export type MessageKey = keyof typeof en

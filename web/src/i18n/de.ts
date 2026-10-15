@@ -1191,4 +1191,7 @@ export const de: Record<MessageKey, string> = {
   'adm.out.kind.internal': 'intern',
   'judge.ask': 'Vom Judge prüfen lassen',
   'judge.askTitle': 'Ein Judge liest es gegen seine Passagen, auch über Sprachen hinweg. Kostenpflichtig; öffnet „Mit einem Judge prüfen“, wo die Stufe noch geändert werden kann.',
+  'outProv.passages.one': '{n} Passage',
+  'outProv.passages.other': '{n} Passagen',
+  'chat.passage': 'Passage {n}',
 }
