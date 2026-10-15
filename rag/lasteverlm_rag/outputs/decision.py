@@ -92,7 +92,7 @@ class DecisionGenerator(JsonGenerator):
     focus_query: str = "the decision question"
     schema: type[BaseModel] = Evidence
     instructions: str = ""
-    prompt_version: str = "1"
+    prompt_version: str = "2"  # 2: every fitting source used, an unused one named
     max_tokens: int = 3000
 
     def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:

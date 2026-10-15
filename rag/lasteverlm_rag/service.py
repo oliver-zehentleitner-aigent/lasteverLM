@@ -129,6 +129,7 @@ from .provenance import (
     check_units,
     now,
     shared_provenance,
+    source_coverage,
 )
 from .reading import (
     ANSWER_WAIT_S,
@@ -1126,6 +1127,8 @@ class OutputService:
             # the units are marked in place, inside the content
             self._phase("checking")
             check = generated.check or check_units(generated.units, trace.passages, job.kind)
+            # what the model said it could not use; a judge's revision rebuilds the output
+            unused = generated.unused_sources
             if "judge" in job.options:
                 generated = self._judge(job, booking, generated, trace)
                 # the word check again, on what is left after revision and removal
@@ -1135,6 +1138,17 @@ class OutputService:
             content = generated.content
             if job.kind == "decision":
                 trace.withheld = finish_decision(content)
+            # which selected sources the output cites, from the refs its units keep
+            trace.coverage = source_coverage(
+                generated.units,
+                trace.passages,
+                [
+                    (s.source_id, s.name)
+                    for s in selected_uploads(self._store, notebook_id, job.options.get("sources"))
+                    if s.status == "ready"
+                ],
+                unused,
+            )
             if generated.speech is not None:
                 key, timings = self._speak(job, booking, notebook_id, generated.speech, trace)
                 content = {**content, "key": key}

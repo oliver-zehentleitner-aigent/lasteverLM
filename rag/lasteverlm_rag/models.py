@@ -268,6 +268,8 @@ class GeneratedOutput:
     document: Any = None
     """The validated document the content was built from; the judge edits
     it and rebuilds the output (``None`` for a chart)."""
+    unused_sources: list[dict[str, str]] = field(default_factory=list)
+    """The sources the model said hold nothing fitting, with its reason."""
 
 
 @dataclass(frozen=True)

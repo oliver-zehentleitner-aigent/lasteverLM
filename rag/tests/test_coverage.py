@@ -82,7 +82,7 @@ def test_a_mind_map_gets_both_sources_and_a_gap_is_logged(settings, caplog):
         client.worker.run_once()
 
     system, prompt = llm.calls[0]
-    assert "Cover every source listed" in system
+    assert "Use every source listed" in system and "unused_sources" in system
     assert "linux_-_vi.pdf chunk 0" in prompt and "linux_-_vi.pdf chunk 1" in prompt
     assert "one branch per source" in prompt
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]

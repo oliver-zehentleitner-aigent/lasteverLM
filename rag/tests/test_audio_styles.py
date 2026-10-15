@@ -174,7 +174,7 @@ def test_an_faq_alternates_question_and_answer_with_two_voices(settings):
     transcript = out["content"]["transcript"]
     assert all("support" not in t for t in transcript[::2])
     assert all("support" in t for t in transcript[1::2])
-    assert out["provenance"]["prompt_version"] == "audio-faq-v2"
+    assert out["provenance"]["prompt_version"] == "audio-faq-v3"
 
 
 @pytest.mark.parametrize(
