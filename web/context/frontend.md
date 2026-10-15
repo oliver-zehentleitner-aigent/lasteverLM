@@ -773,3 +773,57 @@ cost split across two pages never showed what everything cost.
 connection alone (or renaming it "Vultr connection"). Rejected because
 the connection, its sync and the manual lines belong with the costs they
 produce.
+
+## Account actions live in a profile menu; the top navigation keeps Library, Prices and Admin
+
+**Id:** dab2034c-8b37-4ace-a41d-cf366ad54982
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-15
+**Revisit when:** a further account action is asked for in the bar, or the phone layout runs out of room for the icons
+
+The header's right end is the balance chip, a round profile icon with
+the e-mail's first letter, the help icon and the light/dark toggle. The
+profile menu holds what belongs to the account: the e-mail as its
+header, Credits, Redeem a voucher, Settings and Sign out. The top
+navigation keeps the pages a user works in: Library, Prices and, for
+admins and viewers, Admin. Help (`/help`) holds the guide, the
+introduction to start again and a fresh starter copy.
+
+**Reason:** the bar showed the e-mail and "Sign out" as text and a
+Settings link among the pages; grouped under the account they take one
+icon, and the navigation names only places to work in.
+
+**Rejected alternative:** Settings both in the navigation and in the
+menu. Rejected because one place per action is enough once the menu
+exists.
+
+## The balance reloads after paid work ends and while it runs, never on a fixed timer
+
+**Id:** 01ca27bd-cdfa-4a2e-a230-b851d1fe138d
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer request, 2026-10-15 (the chip followed only a page load); the triggers were this directory's call
+**Revisit when:** a service starts returning the balance with billed responses, or pushes it
+
+The header's balance and the credits page show one value, the signed-in
+user's `balance_cents`, reloaded with the account (`src/lib/balance.ts`):
+after every paid action ends (an answer, an output ready or failed, a
+read finished, a plan or a judgement ended, proposals found, a voucher
+redeemed), every 30 s only while paid work runs, and once when the tab
+is shown again; asks within a second are one reload.
+
+**Reason:** what changes the balance is known in the web: the actions it
+starts and the work it already polls. Reloading on those moments keeps
+the chip right without asking the account service while nothing
+happens.
+
+**Rejected alternative:** reloading every 30 s all the time. Rejected
+because most of the time nothing is spent, and every open tab would ask
+the account service for nothing.
+
+**Rejected alternative:** reading the balance from every billed
+response. Rejected because the services do not return it, and the
+account's booking may land after the response.
