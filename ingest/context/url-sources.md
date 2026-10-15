@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-13, for the url loader assigned on day two; maintainer review in the pull request
+**Source:** service author's implementation decision, 2026-10-13
 **Revisit when:** the cluster gets an egress policy that already blocks internal ranges for the worker, or URL sources need a proxy
 
 A URL source is stored as the URL itself; the worker fetches it, not
@@ -41,7 +41,7 @@ use the existing retry classification.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-13; maintainer review in the pull request
+**Source:** service author's implementation decision, 2026-10-13
 **Revisit when:** users report pages whose text arrives with menus, cookie banners or comments mixed in, or pages that render their content with JavaScript
 
 The HTML loader is a small `html.parser` subclass: it drops scripts,
@@ -65,13 +65,19 @@ navigation.
 - A headless browser for JavaScript-rendered pages: a browser in the
   worker image is the wrong weight for this step.
 
+Re-checked 2026-10-15, after the revisit condition fired (the starter's
+price page is a single-page app whose HTML holds no text): the decision
+holds. Such a page now fails with a reason the user can act on ("no
+readable text without JavaScript"), and the fix belongs to the page,
+a server-rendered version of it, not to a browser in the worker.
+
 ## A changed web page becomes a new version; the old one stays for its citations
 
 **Id:** 9b572655-c22f-47b1-8ba1-ecdffad01088
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's decision through the coordinating agent, 2026-10-14 (refetch, versions, old version kept read-only); the hash and the inline comparison chosen by the ingest author
+**Source:** maintainer decision, 2026-10-14 (refetch, versions, old version kept read-only); the hash and the inline comparison chosen by the ingest author
 **Revisit when:** pages are refetched often enough that old versions pile up in storage, or users want to see or restore an older version
 
 A web page can be fetched again. The worker compares the hash of the
@@ -103,7 +109,7 @@ existed have no hash; their first refetch counts as changed.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's go through the coordinating agent, 2026-10-14 (snapshot as the cache, "Original" shows what was read); the allowlist chosen by the ingest author
+**Source:** maintainer decision, 2026-10-14 (snapshot as the cache, "Original" shows what was read); the allowlist chosen by the ingest author
 **Revisit when:** users need the page's images or layout in the snapshot, or the viewer shows snapshots outside a sandbox
 
 Every read of a web page version stores the fetched HTML beside the
@@ -113,7 +119,8 @@ structure tags rather than cleaned with a blocklist: what is not known
 to be harmless is dropped, including images and every other resource
 that would load from elsewhere, so the file renders inert and tells no
 third party it was opened. An unchanged refetch keeps the snapshot of
-its version.
+its version; a version read before snapshots existed gets one then (the
+same text, so still what was read).
 
 **Alternatives:**
 - Linking the live page: it may have changed since it was read, or be
