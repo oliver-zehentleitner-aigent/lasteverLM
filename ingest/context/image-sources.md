@@ -91,9 +91,12 @@ indexed (loaders/degeneration.py): an n-gram of up to eight words repeated
 ones. An image or page that loops is asked for once more with a
 temperature of 0.4 and frequency, presence and repetition penalties. If
 it still loops, the source fails with "the model's description
-degenerated into repetition". An audio transcript fails at once, because
-core's transcriber sends no sampling settings and a second call would
-repeat the first. Every call made is billed, and nothing is indexed.
+degenerated into repetition". An audio transcript failed at once at
+first, because core's transcriber sent no sampling settings and a second
+call would have repeated the first. Since 2026-10-15 core passes a
+temperature, and a looping transcript is asked for once more at 0.4 (the
+speech model ignores penalties). Every call made is billed, and nothing
+is indexed.
 
 **Reason:** a loop is not a reading of the source. Indexed, it becomes
 the ground truth that answers, summaries and outputs are built on, and

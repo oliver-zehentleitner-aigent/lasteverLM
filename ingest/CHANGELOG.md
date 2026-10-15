@@ -15,6 +15,10 @@ preserves why it changed, in `context/`.
 
 - A user can have the starter notebook made again (`POST /starter/copy`, for the help page's "Recreate"): a fresh, free copy of the current starter, with rag's handover for the outputs. Starter sources the user still has are linked (restored from the trash if need be), and only the ones that are gone are copied. Without `force=true`, a user who still has a starter notebook gets 409 `starter_exists`; there is at most one such copy an hour (429 `starter_copy_too_soon` with `retry_after`), and 404 `no_starter` without a starter. Notebooks carry `starter` (migration 0019, existing starter copies backfilled).
 
+### Changed
+
+- An audio transcript that degenerated into a repetition loop is asked for once more at temperature 0.4, like an image, instead of failing at once (core's transcriber now passes sampling settings; the speech model honours the temperature and ignores penalties). A second loop fails the source; both calls are billed.
+
 ### Fixed
 
 - Large images and vision-read PDF pages are read in tiles. The platform scales every image to the same small budget, so a large screenshot's small text was unreadable and the vision model filled it with invented lines: on a 2880×1800 app screen, most detail lines of 72 cards were invented. An image or rendered page over 1.5 MP is cut into the fewest crops of at most 1.5 MP (a 2880×1800 screenshot into four, an A4 page into two), overlapping by 48 px. The crops are read in parallel with the loop check per tile and joined in reading order, without the lines the overlap read twice. Every call is billed, the estimate counts the tiles (recorded at upload), and the chunks view gives `tiles`. The measurements are in `docs/vision-eval.md`.

@@ -474,10 +474,10 @@ A degenerate image or page answer is asked for once more, with
 answer loops too, the source fails with "the model's description
 degenerated into repetition"; for a PDF the failing page is named. Both
 calls are billed, and nothing is indexed. An audio transcript that loops
-fails at once with "the model's transcript degenerated into repetition"
-and its call is billed. There is no second attempt for audio, because
-core's transcriber sends no sampling settings and the same file would be
-transcribed the same way.
+is asked for once more with `temperature` 0.4 (the speech model's default
+is 0; it ignores penalties); if that loops too, the source fails with
+"the model's transcript degenerated into repetition". Both calls are
+billed.
 
 ## Audio sources
 
