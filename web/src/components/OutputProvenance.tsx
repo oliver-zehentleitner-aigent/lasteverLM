@@ -15,7 +15,7 @@ import { t } from '../i18n'
 export function ClaimMarks({ claim, text }: { claim: Claim; text: string }) {
   const ctx = useCite()
   if (!ctx) return null
-  const badge = supportBadge(claim.support)
+  const badge = supportBadge(claim.support, !!claim.judge)
   return (
     <>
       {claimRefs(claim, ctx.known).map((n) => (
@@ -31,8 +31,8 @@ export function ClaimMarks({ claim, text }: { claim: Claim; text: string }) {
         </button>
       ))}
       {badge && (
-        <span className={`badge support-${badge}`} title={t(`outProv.${badge}Title`)}>
-          {t(`outProv.${badge}`)}
+        <span className={`badge support-${badge}`} title={t('wordCheck.title')}>
+          {t(`wordCheck.${badge}`)}
         </span>
       )}
       <JudgeMark claim={claim} text={text} />

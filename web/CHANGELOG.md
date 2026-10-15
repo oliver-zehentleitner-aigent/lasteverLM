@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Audio: the sticky player's bar is opaque (the panel colour, a line under it) and as wide as the transcript, so the text no longer shows through it while it scrolls.
+- The word-overlap badges say which check they belong to: "Word check: unsupported", "Word check: other language" (was "not checkable", read as the judge failing on German) and, beside a judge's badge, "Word check: supported", with one tooltip that it cannot compare across languages but the judge can; the summary reads "Word check: 7 of 9 claims supported · 2 in another language". Charts keep their own "unsupported" for the number check.
+
 ## [0.20.2] - 2026-10-15
 
 ### Added

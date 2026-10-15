@@ -680,6 +680,8 @@ fieldset.plain.span2 { grid-column: 1 / -1; }
 /* a generated document's provenance: claim badges, the passage panel, the sources and the log */
 .badge.support-unsupported { color: var(--danger); border-color: var(--danger); margin-left: 0.3rem; }
 .badge.support-unverified { color: var(--warn); border-color: var(--warn); margin-left: 0.3rem; }
+/* a word check that backed the claim, shown only beside the judge's badge */
+.badge.support-supported { color: var(--ok); border-color: var(--ok); margin-left: 0.3rem; }
 .report button.cite, .infographic button.cite, .transcript button.cite { margin: 0 0.1rem; vertical-align: baseline; }
 .infographic .marks { margin-top: 0.3rem; }
 .out-prov { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.6rem; display: flex; flex-direction: column; gap: 0.6rem; }
@@ -1085,7 +1087,10 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 
 /* audio: the player stays at the top while the transcript scrolls; the entry
    being spoken is marked, and with timings an entry plays from its start */
-.audio-view audio { position: sticky; top: 0; z-index: 1; }
+/* the sticky player's bar: the full width of the transcript, opaque in both themes
+   (the panel token), a line under it and above the transcript, so the text does not
+   show through it while it scrolls underneath */
+.audio-bar { position: sticky; top: 0; z-index: 2; align-self: stretch; display: flex; justify-content: center; background: var(--panel); border-bottom: 1px solid var(--line); padding: 0.3rem 0 0.4rem; }
 .transcript.timed p { cursor: pointer; border-radius: var(--radius); padding: 0.15rem 0.4rem; margin-left: -0.4rem; margin-right: -0.4rem; scroll-margin: 4rem 0 2rem; transition: background 0.2s; }
 .transcript.timed p:hover { background: var(--panel); }
 .transcript p.speaking { background: var(--accent-soft); }
