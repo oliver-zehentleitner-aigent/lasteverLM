@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.5] - 2026-10-15
+
 ### Changed
 
 - rag API memory request 256Mi → 384Mi for the spaCy negation check (rag #574): about 270 MiB more per process once it checks its first answer. The rag worker's 512Mi request and both limits (1Gi, 2Gi) already cover it, and raising every rag request by 300Mi would add 1.8 GiB to nodes whose memory requests stand at 79 % and 91 %.

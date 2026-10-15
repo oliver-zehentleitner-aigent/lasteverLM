@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.5] - 2026-10-15
+
 ### Changed
 
 - A claim or paragraph with a judge's verdict shows only the judge's badge, in outputs, quiz questions and chat answers; the word check's result moved into that badge's tooltip. Without a verdict (no judge, or no usable answer) the word-check badge stays. "Word check: other language" now reads "Not word-checked (other language)", followed by "Have it judged · €x" (priced at Medium), which opens the document's or the answer's Check with a judge.
