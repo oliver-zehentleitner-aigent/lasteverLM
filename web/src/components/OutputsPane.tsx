@@ -76,9 +76,6 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete, onRename, s
             <li key={o.id} id={`output-${o.id}`} className={o.id === selectedId ? 'selected' : ''}>
               {editing === o.id ? (
                 <span className="out-row editing">
-                  <span className="out-kind">
-                    <span className="badge">{kindLabel(o.kind)}</span>
-                  </span>
                   <InlineRename
                     className="item-edit out-title"
                     value={o.title || kindLabel(o.kind)}
@@ -107,11 +104,10 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete, onRename, s
                 }}
                 title={`${o.title || kindLabel(o.kind)} · ${t('outputId.label')} ${shortId(o.id)} · ${t('outputs.renameHint')}`}
               >
-                <span className="out-kind">
-                  <span className="badge">{kindLabel(o.kind)}</span>
-                </span>
+                {/* like a source row: the title and its subline, then kind and status on the right */}
                 <span className="out-title">{o.title || kindLabel(o.kind)}</span>
-                <span className="out-status">
+                <span className="out-badges">
+                  <span className="badge kind">{kindLabel(o.kind)}</span>
                   <span className={`badge ${o.status}`}>{t(`status.${o.status}`)}</span>
                 </span>
                 <span className="out-meta muted small">
