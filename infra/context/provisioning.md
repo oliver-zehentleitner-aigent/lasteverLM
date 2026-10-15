@@ -6,11 +6,11 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** infra design session, 2026-10-12; the tooling choice was delegated to infra by the family coordinator
+**Source:** infra design session, 2026-10-12; the tooling choice was delegated to infra
 **Revisit when:** the Vultr provider stops working with OpenTofu, or the project moves off Vultr
 
-The cluster, the managed database and the object storage subscription
-are declared in `tofu/` and applied with OpenTofu through the
+The cluster and the object storage subscription are declared in
+`tofu/` and applied with OpenTofu through the
 `vultr/vultr` provider (`~> 2.33`). The provider is the same binary the
 Terraform registry serves; only the CLI differs.
 
@@ -18,7 +18,9 @@ Terraform registry serves; only the CLI differs.
 `make up` and a `make down` that removes everything, which a demo that
 is torn down between sessions needs. OpenTofu is MPL-licensed, which
 suits an MIT portfolio project better than a BUSL tool, and it reads
-the HCL any reviewer who knows Terraform already reads.
+the HCL any reviewer who knows Terraform already reads. The managed
+database is not among them: it was created by hand before the first run
+and is an input (`database.md`, entry 210e2af5-c0c6-4459-8aff-9e33a06c52b2).
 
 **Rejected alternatives:** plain `vultr-cli` scripts — no state, so
 re-runs and teardown would have to be written by hand and would drift;
