@@ -77,7 +77,7 @@ export function OutputContent({ kind, title, status, error, content, onExpired, 
     case 'audio':
       return <AudioView content={content as AudioContent} onExpired={onExpired} speakerName={speakerName} />
     case 'decision':
-      return <DecisionView content={content as DecisionContent} />
+      return <DecisionView content={content as DecisionContent} title={title} />
     case 'chart':
       return (
         <Suspense fallback={<p className="muted">{t('common.loading')}</p>}>

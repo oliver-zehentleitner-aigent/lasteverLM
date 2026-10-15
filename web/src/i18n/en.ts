@@ -1191,6 +1191,7 @@ export const en = {
   'outProv.passages.one': '{n} passage',
   'outProv.passages.other': '{n} passages',
   'chat.passage': 'Passage {n}',
+  'decision.none': 'No decision: the sources do not contain what is needed.',
 } as const
 
 export type MessageKey = keyof typeof en

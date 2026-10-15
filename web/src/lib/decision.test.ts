@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DecisionContent } from '../api/types'
-import { decisionOptions, decisionProblem, defaultDecision, modelVersusEvidence, orderedDistribution, percent, presetLevels, scalePercent } from './decision'
+import { decisionOptions, decisionProblem, defaultDecision, modelVersusEvidence, orderedDistribution, percent, presetLevels, scalePercent, showQuestion, undecided, yesNo } from './decision'
 
 const keys = ['language', 'question', 'decision_type', 'choices', 'levels']
 
@@ -75,5 +75,29 @@ describe('the decision view', () => {
     expect(modelVersusEvidence(c)).toEqual({ model: 'B', evidence: 'A' })
     expect(modelVersusEvidence({ ...c, llm_choice: 'B' })).toBeNull()
     expect(modelVersusEvidence({ ...c, model_answer: { probability_yes: 0.6, answer: 'yes' } })).toBeNull()
+  })
+})
+
+describe('an undecided decision', () => {
+  it('is undecided by its agreement or by a missing answer, whatever the numbers say', () => {
+    expect(undecided({ agreement: 'undecided', model_answer: { probability_yes: 0.77, answer: 'yes' } })).toBe(true)
+    expect(undecided({ agreement: 'consistent', model_answer: null })).toBe(true)
+    expect(undecided({ agreement: 'consistent', model_answer: { probability_yes: 0.77, answer: 'yes' } })).toBe(false)
+  })
+})
+
+describe('showQuestion', () => {
+  it('leaves the question out where the title is the question', () => {
+    expect(showQuestion('Bildet lasteverLM die wichtigsten Funktionen ab?', ' Bildet lasteverLM  die wichtigsten Funktionen ab? ')).toBe(false)
+    expect(showQuestion('Is it fast?', 'My renamed decision')).toBe(true)
+    expect(showQuestion('Is it fast?', null)).toBe(true)
+  })
+})
+
+describe('yesNo', () => {
+  it('splits into two whole shares that add up to 100', () => {
+    expect(yesNo(0.77)).toEqual({ yes: 77, no: 23 })
+    expect(yesNo(0.005)).toEqual({ yes: 1, no: 99 })
+    expect(yesNo(2)).toEqual({ yes: 100, no: 0 })
   })
 })

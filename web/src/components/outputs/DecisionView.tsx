@@ -1,5 +1,5 @@
 import type { DecisionContent } from '../../api/types'
-import { modelVersusEvidence, orderedDistribution, percent, scalePercent } from '../../lib/decision'
+import { modelVersusEvidence, orderedDistribution, percent, scalePercent, showQuestion, undecided, yesNo } from '../../lib/decision'
 import { t } from '../../i18n'
 import { ClaimMarks } from '../OutputProvenance'
 
@@ -8,20 +8,27 @@ import { ClaimMarks } from '../OutputProvenance'
  *  segmented scale with the weighted position), the verdict, whether the
  *  model and the evidence agree (a disagreement is shown, never hidden),
  *  the evidence on both sides with its markers, and what the sources do
- *  not say. Colours come from the tokens only. */
-export function DecisionView({ content: c }: { content: DecisionContent }) {
+ *  not say. Colours come from the tokens only. When the sources do not
+ *  decide the question, no number at all: "No decision" and what the
+ *  sources do not say. The question is left out where the title above
+ *  already is the question. */
+export function DecisionView({ content: c, title }: { content: DecisionContent; title?: string | null }) {
   const versus = modelVersusEvidence(c)
+  const none = undecided(c)
   return (
     <div className="decision">
-      <h2 className="decision-question">{c.question}</h2>
-      <section className="verdict" aria-label={t('kind.decision')}>
-        <Answer content={c} />
-        <p className="verdict-text">{c.verdict_text}</p>
-        <p className={`agreement agreement-${c.agreement}`} title={t('decision.agreementTitle')}>
-          <span className="dot" aria-hidden="true" />
-          {t(`decision.agreement.${c.agreement}`)}
-          {versus && <span className="versus"> · {t('decision.versus', versus)}</span>}
-        </p>
+      {showQuestion(c.question, title) && <h2 className="decision-question">{c.question}</h2>}
+      <section className={none ? 'verdict undecided' : 'verdict'} aria-label={t('kind.decision')}>
+        {none ? <p className="no-decision">{t('decision.none')}</p> : <Answer content={c} />}
+        {!none && <p className="verdict-text">{c.verdict_text}</p>}
+        {/* "No decision" already says it; the agreement line would repeat it */}
+        {!none && (
+          <p className={`agreement agreement-${c.agreement}`} title={t('decision.agreementTitle')}>
+            <span className="dot" aria-hidden="true" />
+            {t(`decision.agreement.${c.agreement}`)}
+            {versus && <span className="versus"> · {t('decision.versus', versus)}</span>}
+          </p>
+        )}
         {c.agreement_note && <p className="muted small agreement-note">{c.agreement_note}</p>}
       </section>
       <div className="evidence">
@@ -44,20 +51,26 @@ export function DecisionView({ content: c }: { content: DecisionContent }) {
 
 function Answer({ content: c }: { content: DecisionContent }) {
   const a = c.model_answer
+  if (!a) return null
   if ('probability_yes' in a) {
-    const p = percent(a.probability_yes)
+    // the yes share from the left, the no share from the right, each end named with its share
+    const { yes, no } = yesNo(a.probability_yes)
     return (
-      <div className="gauge" role="img" aria-label={t('decision.gauge', { p })}>
+      <div className="gauge" role="img" aria-label={t('decision.gauge', { p: yes })}>
         <div className="gauge-value">
-          <strong>{p} %</strong> <span className="muted">{a.answer === 'yes' ? t('decision.yes') : t('decision.no')}</span>
+          <strong>{a.answer === 'yes' ? t('decision.yes') : t('decision.no')}</strong>
         </div>
         <div className="gauge-track">
-          <div className="gauge-fill" style={{ width: `${p}%` }} />
+          <div className="gauge-fill" style={{ width: `${yes}%` }} />
           <div className="gauge-mid" aria-hidden="true" />
         </div>
-        <div className="gauge-ends muted small">
-          <span>{t('decision.no')}</span>
-          <span>{t('decision.yes')}</span>
+        <div className="gauge-ends small">
+          <span>
+            {t('decision.yes')} {yes} %
+          </span>
+          <span className="muted">
+            {t('decision.no')} {no} %
+          </span>
         </div>
       </div>
     )
