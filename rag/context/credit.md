@@ -12,8 +12,9 @@
 The ask flow reads the caller's balance before embedding the question and
 answers 402 when it is zero, so a user without credit causes no provider
 call and no usage row. The balance is the sum of the `ledger` credits
-minus the sum of `usage.cost_cents`; every embedding and LLM call writes
-one `usage` row priced at write time from the `MODEL_PRICES` table in the
+minus the charges of the `usage` rows (since the finance redesign below;
+before it, their `cost_cents`); every embedding and LLM call writes one
+`usage` row priced at write time from the `MODEL_PRICES` table in the
 configuration. There is no second ledger write: the usage row is the debit.
 A configured model without a price stops the service at startup.
 
@@ -44,14 +45,15 @@ How rag groups its rows into actions is 431fb4a0-21c6-43ef-af1f-132c10ea43c2 bel
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinator's finance brief, 2026-10-14 (the actions, one action_id per user action); the coordinator's decision the same day that an output's judge rounds belong to the output; core's interface from G
-**Revisit when:** an action starts to span several requests (a proposal and the chart made from it), or pricing rules need finer actions than rag books
+**Source:** the coordinator's finance brief, 2026-10-14 (the actions, one action_id per user action); the coordinator's decision the same day that an output's judge rounds belong to the output; core's booking interface
+**Revisit when:** a second kind of action starts to span several requests (as a proposal and the chart made from it would), or pricing rules need finer actions than rag books
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — d0bef660-f3ce-4834-b27e-5775151d11be — as of 2026-10-14
 
 Every model call rag makes carries a `Booking`: who pays, the notebook,
 the action (`chat_answer`, `output:<kind>`, `chart_propose`, `judge`,
 `voice_sample`) and one `action_id` per user action. An output's id is
-its `action_id`. That covers every attempt, all TTS segments, both calls
+its `action_id`, unless an agent plan created it: then it books under
+the plan's (`outputs.booking_id`). That covers every attempt, all TTS segments, both calls
 of a decision, and the judge's rounds and revisions in generation. A
 judgement on request is a `judge` action of its own, and a chart proposal
 is separate from the chart made from it.
@@ -60,11 +62,18 @@ is separate from the chart made from it.
 decides what a user is charged for. One output is one thing the user
 asked for. Retries are the service's problem, so they must not add a
 fee, and a judge chosen for an output is part of "this output with a
-judge", one price, as the coordinator decided. A judgement asked for
+judge", one price. A judgement asked for
 later is a separate request with its own price. The proposal and the
 chart are two requests the user makes separately. An output's own id
-needs no new column and is the same in every attempt, even one taken
-over from a dead worker.
+is the same in every attempt, even one taken over from a dead worker.
+
+**Re-checked 2026-10-15:** the earlier revisit condition (an action
+spanning several requests) fired with the agent chat: a plan is one
+action across its planning call, its confirm, and the outputs and
+explanations the worker runs for it, all under the plan's `action_id`
+(0516de53-3008-408b-ad65-b15cbd365679 in `agent.md`); an output a plan
+creates keeps it in `outputs.booking_id`. The rule holds: one user
+request, one action, one fee.
 
 **Rejected alternatives:**
 - A fresh `action_id` per attempt: a retry would charge the fee again.

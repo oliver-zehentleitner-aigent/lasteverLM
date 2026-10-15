@@ -12,9 +12,14 @@
 Every generator receives the summaries ingest wrote for the notebook's
 ready sources, plus the top-k chunks retrieved for the generator's own
 focus query (a fixed phrase per kind, e.g. "figures, dates, comparisons"
-for the table). Sources of kind `generated` are left out of both: their
-summaries are not fed back in and the focus-query retrieval is unscoped
-but their chunks only exist after a previous output.
+for the table; a decision's is the user's question, and a chart makes no
+retrieval, it is drawn from the candidates picked for it). Sources of
+kind `generated` are left out of both: their summaries are not fed back
+in, and the retrieval leaves their chunks out explicitly. That holds
+also for an output linked into another notebook from the library: it
+counts as generated there too. Since 0.10.0 the input is limited to the
+user's selected sources (fb02e210-b924-46d1-85d1-861b9f8ae11d in
+`retrieval.md`).
 
 **Reason:** summaries keep large notebooks inside the context window
 (family rule); the focus query adds the concrete passages the kind needs
@@ -37,10 +42,11 @@ passages the kind does not need.
 **Revisit when:** the schema gains a generic link table or ingest takes over indexing
 **See:** outputs.md#outputs-belong-to-the-user-and-live-in-the-library-rag-owns-their-generated-rows — d9bf964d-ec53-4cd7-8bd1-adfc9a5772f2 — as of 2026-10-14
 
-When generation succeeds, the service writes a `sources` row of kind
-`generated` in the same notebook (name = the output's title, summary =
-the start of its text), chunks the document with the same 800/100 token
-windows ingest uses, embeds the chunks and inserts them. `outputs.source_id`
+When generation succeeds, the service writes a library row of kind
+`generated` and links it into the same notebook (name = the output's
+title, summary = the start of its text), chunks the document with the
+same token windows ingest uses (core's chunker, 420/50 since core moved
+them), embeds the chunks and inserts them. `outputs.source_id`
 holds that source (since 2026-10-14 its library row, which follows the
 output into the trash and is purged with it) and `scope.output_id` on
 `/ask` can restrict retrieval to it. The column is this service's
@@ -133,8 +139,11 @@ possible, synthesizes each with `TTS_MODEL` and its speaker's voice (since the a
 `tts` usage row per segment (the seconds of speech the platform
 billed, as `tokens_in`), and
 stores the segments' bytes joined as one MP3 at
-`<notebook_id>/<output_id>/audio.mp3`. The row keeps `{"key"}`; reads
-return a presigned URL. The script is also the output's index text.
+`<notebook_id>/<output_id>/audio.mp3`. The row keeps `{"key",
+"transcript"}` (each entry with its `start` and `end` since
+15b84a46-7085-4197-aaf1-3b68c01ae66b); reads return a presigned URL. The
+script is also the output's index text. Since that entry each turn is
+synthesized on its own, so a segment never spans two turns.
 
 **Reason:** the probe against the platform (`qwen3-tts-12hz-1.7b`)
 returned MP3, 24 kHz mono at 64 kbps, at about ten seconds of synthesis
@@ -160,9 +169,17 @@ dependency for no audible gain.
 **Status:** active
 **Evidence:** confirmed
 **Source:** maintainer request, relayed by the coordinator, 2026-10-13; platform probe and the Qwen3-TTS model card, 2026-10-13
-**Revisit when:** the platform changes its voices or speech limits, or rag needs a user preference it cannot get from the request
+**Revisit when:** the platform changes its voices or speech limits, or an output option should default from a user preference
 
-`POST .../outputs` takes `options`: `language` for every kind, `voice`
+**Re-checked 2026-10-15:** the earlier condition (rag needing a user
+preference it cannot get from the request) fired: rag reads two of
+account's per-user preferences from the shared database, `judge_default`
+for the agent's judge question and `trash_days` for the purge. Neither
+is an output option; output options still come explicitly from the
+client and are stored on the output. The decision holds.
+
+`POST .../outputs` takes `options`: `language` for every kind but the
+chart, `voice`
 and `speed` for audio. They are checked against one catalogue
 (`lasteverlm_rag/options.py`, served at `GET /api/rag/outputs/options`
 with which options each kind takes), resolved with audio's defaults
@@ -202,7 +219,8 @@ A preview is a fixed sentence pair per language spoken by one voice at
 one speed. It is stored at `samples/<voice>/<speed>/<language>.mp3`; a
 request first checks whether that object exists and only synthesizes
 when it does not. The first requester pays one `tts` usage row (45 to
-80 characters, one cent); every later request for the same combination,
+80 characters, the seconds spoken), charged as a `voice_sample` action
+under the pricing rules; every later request for the same combination,
 from any user, is served from storage without a model call or charge.
 
 **Reason:** previews are the same bytes for everyone, so a key built
@@ -228,7 +246,7 @@ second record of what the object store already knows.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer's screenshot and coordinator's analysis, 2026-10-13; live mind-map run, 2026-10-13
+**Source:** a screenshot of a mind map that left out a source, and its analysis, 2026-10-13; live mind-map run, 2026-10-13
 **Revisit when:** notebooks routinely hold more than a dozen sources (the 24-passage cap then leaves one chunk per source), or a reranker replaces plain cosine ranking
 
 The focus-query passages a generator sees are chosen per source first:
@@ -241,13 +259,13 @@ all sources with a branch per source on distinct topics. After
 generation, a source whose distinctive file-name words never appear in
 the document is logged as a warning with the output id.
 
-**Reason:** a mind map of a notebook with a vi PDF and a VNC PDF came
-out entirely about VNC: the global top-k for "main topics" was filled by
-VNC chunks, the prompt asked for one root theme, and the model took the
-dominant source. The summaries alone did not prevent it. With the vi
-chunks guaranteed in the input and the coverage rule in the prompt, a
-live run with the same two sources gave a root "Linux Tools: vi and
-VNC" with one branch per source. The warning is deliberately light: a
+**Reason:** a mind map of a notebook with two PDFs on different tools
+came out entirely about one of them: the global top-k for "main topics"
+was filled by that PDF's chunks, the prompt asked for one root theme,
+and the model took the dominant source. The summaries alone did not
+prevent it. With the other PDF's chunks guaranteed in the input and the
+coverage rule in the prompt, a live run with the same two sources gave
+a root naming both tools, with one branch per source. The warning is deliberately light: a
 heuristic over file names cannot decide coverage reliably enough to
 fail or retry a generation, but it makes a gap visible in the log.
 
@@ -292,7 +310,7 @@ was built.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request "delete a user in the admin panel", relayed by the coordinator with the order, 2026-10-14; account's call contract the same day
+**Source:** maintainer request to delete a user from the admin panel, relayed by the coordinator with the order, 2026-10-14; account's call contract the same day
 **Revisit when:** outputs store files somewhere other than `content.key`, or ingest's notebook delete starts removing rag's objects itself
 
 `DELETE /api/rag/admin/users/{id}` deletes the stored files of the
@@ -310,7 +328,11 @@ leaves files no row names).
 
 **Known gap:** a worker that finishes an audio output while the user is
 being deleted can store its file after the delete; that file is
-orphaned. Not handled in this change; reported to the coordinator.
+orphaned. Since the library change the worker settles a job whose row
+is gone (it deletes the file and the generated source), which narrows
+the window; one remains when the worker writes the row as ready between
+the delete's reading of the files and its deleting of the rows
+(inferred from the code, not tested).
 
 ## Outputs belong to the user and live in the library; rag owns their generated rows
 
@@ -347,7 +369,7 @@ during the rolling deploy.
 - Outputs as full library sources with many links, each surviving the
   trash: not needed by the maintainer.
 - Ingest's purge sweeping the generated rows while rag deletes the audio
-  file: rejected in favour of one owner. Ingest agreed.
+  file: rejected in favour of one owner of the generated rows.
 - Keeping the notebook cascade (the previous behaviour): it deletes what
   the maintainer wants to keep.
 
@@ -414,9 +436,8 @@ a conflict included. Without supported evidence on either side the
 verdict is the fixed "The sources do not decide this.", and the LLM's
 own sentence is kept in the provenance log.
 
-**Reason:** the coordinator's brief gave the split and the rejected
-alternatives without reasons; the reasons here are rag's and therefore
-inferred. An LLM alone gives no calibrated number; the decision model
+**Reason:** the split and the rejected alternatives were set without
+reasons; the reasons here are rag's and therefore inferred. An LLM alone gives no calibrated number; the decision model
 alone gives a number with nothing a reader can check; an LLM shown the
 number first would argue towards it, so agreement between the two would
 prove nothing. Independent calls make agreement informative and a
@@ -463,8 +484,7 @@ met (fail loud). One retry fixes a model that miscounted.
 - Accepting fewer questions than asked: it hides the miss.
 - One fixed budget for every option: it cuts off long documents.
 
-Further alternatives: unknown. The coordinator's brief named the option
-sets but none that were turned down.
+Further alternatives: unknown; none turned down is recorded.
 
 **Since 2026-10-15:** a report's length is an upper bound, no longer a
 word target, and the prompt version is `report-<style>-v4`; see 47ce2c17-0831-48ad-86c5-171b09cc9a74.
@@ -494,8 +514,8 @@ source would show the same document twice under two names. An unready
 output has nothing to read, and a failed one would show an internal
 error to a stranger.
 
-**Rejected alternatives:** unknown. The brief fixed the shape, and no
-other was weighed.
+**Rejected alternatives:** unknown. The shape was set with the request,
+and no other was weighed.
 
 ## A chart is made in two steps, from candidates the client sends back and rag checks again
 
@@ -669,7 +689,7 @@ seconds.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer order relayed by the coordinator, 2026-10-15 (from a live report that added roles, approvals and processes its sources did not contain; "at most N words; shorter when the material says less; never add facts, roles, steps or reasons the material does not state"; rejected: fixed targets)
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (from a live report that added roles, approvals and processes its sources did not contain; the bound, the shorter length for thin material and the ban on added facts as the prompt now states them; rejected: fixed targets)
 **Revisit when:** reports from rich material come out far shorter than their length asks, so that the bound is read as "write little"
 
 A report's `length` sets the most words: 500 for short, 1200 for medium,

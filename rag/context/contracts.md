@@ -18,8 +18,8 @@ coordinator's signal (which happened the same day; the mirror is deleted).
 
 **Reason:** the services are built in parallel and cannot wait for the
 library, but the types must not drift between services. A mirror that is
-deleted on the swap is cheaper than a temporary dependency on another
-agent's unpublished branch.
+deleted on the swap is cheaper than a temporary dependency on an
+unreleased library.
 
 ## Ids and timestamps stay strings inside the service; core's models parse them at the boundary
 
@@ -34,7 +34,8 @@ Core's contract models carry `UUID` and `datetime` fields. Inside this
 service the store returns ids as text and timestamps as whatever psycopg
 hands over, the internal dataclasses keep them as strings, and the
 contract models are built with `model_validate` from those strings;
-core's `record_usage`/`balance_cents` get a `UUID` cast at the call.
+core's `has_credit`, `admin_role` and `record_usage` get a `UUID` cast
+at the call.
 Citations are stored in `messages.citations` as JSON-mode dumps so the
 column holds plain strings.
 
