@@ -611,7 +611,11 @@ The rag-worker Deployment sets `terminationGracePeriodSeconds: 2760`
 (rag's `JOB_MAX_SECONDS` of 2700 plus a minute) and a rolling update
 of `maxSurge 1`, `maxUnavailable 0`. On SIGTERM a worker stops
 claiming, finishes the job it holds and exits; an idle one exits within
-its poll interval, so only busy pods use the long grace. ingest-worker
+its poll interval, so only busy pods use the long grace. The chart
+passes the same value to the worker as `WORKER_GRACE_SECONDS`: rag's
+handover on SIGTERM plans against it, and one value in `values.yaml`
+keeps the kubelet's deadline and the worker's plan from drifting apart
+(without it the worker assumes 30 s and hands over at once). ingest-worker
 keeps 120 s and the default strategy.
 
 **Reason:** a killed job is lost work the user paid for and has to wait
