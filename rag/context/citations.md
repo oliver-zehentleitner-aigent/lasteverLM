@@ -91,6 +91,9 @@ system prompt (see "The chat knows the notebook's documents" in
 `retrieval.md`). The fixed sentence without a model call remains only
 for a notebook with no ready document.
 
+How the document list and the generated passages reach that call is
+a5d7a975-c0da-4ee4-91a9-d8a01adcecc1 in `retrieval.md`.
+
 **Reason:** a question about the notebook itself ("which documents can
 you see", "the mind map you made") matches no chunk, so the refusal
 answered it wrongly. The cost is one billed LLM call for a question the
@@ -169,7 +172,7 @@ would have to decode (more ways to get it wrong than parentheses).
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer go relayed by the coordinator, 2026-10-14 ("each sentence traceable to the passage it came from"; mark, never block; a deterministic check); the method, the threshold and "unverified" were proposed by rag and approved by the coordinator the same day
+**Source:** maintainer requirement relayed by the coordinator, 2026-10-14 (every sentence traceable to the passage it came from; mark, never block; a deterministic check); the method, the threshold and "unverified" were proposed by rag and approved by the coordinator the same day
 **Revisit when:** rated outputs or answers show the 0.5 threshold marking supported units unsupported or the reverse, translated text needs a verdict, or a language other than English and German needs the translation guess
 
 Every kind cites the numbered passages of its prompt (report,
@@ -188,10 +191,10 @@ and all cited passages' language when a unit or its passages say too
 little; for any other language, or too little text, there is no
 difference and low overlap stays unsupported. A chosen output language
 alone does not make a unit translated: an English output from English
-sources is checked as such (corrected 2026-10-15; it had counted as
-translated, turning unsupported units into unverified ones).
+sources is checked as such (until 2026-10-15 a chosen language had
+counted as translated, turning unsupported units into unverified ones).
 
-Chat answers share the same check (coordinator's go, 2026-10-14): one
+Chat answers share the same check, approved on 2026-10-14: one
 unit per paragraph of an answer that cites, its refs the markers in it,
 stored with the message; an answer without citations is not checked.
 
@@ -241,15 +244,15 @@ model did, an uncited or unsupported unit is still marked, never trusted.
 Recording the note in the log lets a reader see why an output reads the
 way it does.
 
-The note is part of the options, so the shared views show it too. The
-coordinator decided this on 2026-10-14: it steers the output, so a
-reader checking the output must see it ("everything checkable"). The web
+The note is part of the options, so the shared views show it too: it
+steers the output, so a reader checking the output must be able to see
+it, like everything else that shaped it. The web
 labels it as the author's instructions and warns, in the field, that
 anyone the output is shared with can see it.
 
 **Rejected alternatives:** stripping the note from the shared views: a
-reader could not tell what shaped the document. No other placement or
-treatment was weighed in the brief.
+reader could not tell what shaped the document. Other placements or
+treatments: unknown.
 
 ## A chart's values get an exact number check, not word overlap
 
