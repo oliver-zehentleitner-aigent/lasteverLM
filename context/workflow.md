@@ -4,7 +4,8 @@
 
 **Id:** a788c54e-a18a-4f3a-a410-128c578dd5ec
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 7ad3c5a1-a7d3-408d-bbd2-f72bf7e66648
 **Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
 **Revisit when:** the number of agents or the service cut changes
@@ -82,7 +83,8 @@ in the repositories, and would not survive the project.
 
 **Id:** b8d4c63e-d5c0-4eaa-8a55-e8788155ff53
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 7ad3c5a1-a7d3-408d-bbd2-f72bf7e66648
 **Evidence:** confirmed
 **Source:** planning conversation, 2026-10-12
 **Revisit when:** the first prototype is accepted by the maintainer
@@ -105,6 +107,35 @@ write access and sets branch protection to require CI only.
 in the superseded entry). Right for the long run, rejected for the
 build phase because it would make the maintainer the bottleneck for
 six parallel agents.
+
+## Seven agent sessions in one repository; agent A reviews and merges every change
+
+**Id:** 7ad3c5a1-a7d3-408d-bbd2-f72bf7e66648
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's role assignment per session, 2026-10-12 to 2026-10-15; the repository's pull request history
+
+Seven sessions ran in parallel in the one repository (see "One
+repository with isolated contexts" in `architecture.md`). Agent A
+coordinates, reviews and merges every pull request and writes no
+service code; agents B to G each own one directory (infra, ingest, rag,
+web, account, core). A pull request is merged only when every check
+has passed, and a release is tagged only when every part of a change is
+merged. The maintainer tests the live system, decides every open
+question, and gives every go for production data, permissions and new
+features. The arrangement agreed for the time until the first
+prototype stayed for the whole build. This replaces the plan of five
+sessions and the review arrangement limited to the prototype.
+
+**Reason:** one reviewer for every change keeps the cross-service view
+in one place, and an all-checks gate catches what a reviewer misses.
+Two more coding sessions than planned gave the shared library and the
+web client an owner each instead of maintaining them on the side.
+
+**Rejected alternative:** the maintainer merging after the prototype.
+Not taken: several hundred pull requests would have taken the
+maintainer's time from testing and deciding.
 
 ## Black formats the Python services; ruff only lints
 
