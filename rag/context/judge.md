@@ -124,16 +124,25 @@ revision cheap and leaves the units that passed untouched.
 **Status:** active
 **Evidence:** inferred
 **Source:** a judged audio on 0.20.0 that failed with "the model provider failed 3 times (glm-5.3: ProviderError)", reported by the maintainer and relayed by the coordinator, 2026-10-15; its logs were gone with the rollout, so the cause is read from the code (no SDK cause, therefore not a timeout or an HTTP status, so an empty or unusable judge answer); the coordinator's go the same day for the retry, the marked unit, the larger budget and the failure kinds
-**Revisit when:** many units end without a verdict (a judge model unfit for its level), or a judge model's reasoning outgrows 4000 tokens
+**Revisit when:** many units end without a verdict (a judge model unfit for its level), or a judge model's reasoning outgrows 6000 tokens
 
 A judge call that brings no usable answer (empty, unparseable, an
 unknown verdict, or an SDK error after the client's own retries) is
 tried once more. If that fails too, the unit keeps its text and gets
 `judge: {"verdict": null, "reason": "the judge gave no usable answer:
 <kind>"}`, counted as `no_usable_answer`. It is neither revised nor
-removed, and the output goes on. The judge may use up to 4000 output
+removed, and the output goes on. The judge may use up to 6000 output
 tokens. The failure kinds also name what failed in the output's error
-and the worker's log.
+and the worker's log, and an unusable answer's structure (its keys, the
+reason's type and length, why the model stopped, how long it ran; never
+its text) goes on the unit and into the log.
+
+**Re-checked 2026-10-15:** the revisit condition (a judge's reasoning
+outgrowing 4000 tokens) nearly fired: on long production-like passages
+glm-5.3-flash used up to 3507. The limit went to 6000; only used tokens
+are billed. Reports of "answer without a reason" could not be reproduced
+in 295 calls, so the structure is now recorded to tell a cut-off answer
+from an empty reason. The decision holds.
 
 This is the one place an empty or unusable answer does not fail the
 call: everywhere else it is a provider failure (866cf948-6745-40f1-8a82-a8e20c19b5a7
