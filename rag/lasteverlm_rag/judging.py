@@ -78,6 +78,7 @@ class Verdict:
     judgement: Judgement
     round: int
     second: Judgement | None = None  # bulletproof's second judge
+    first: Judgement | None = None  # and the first's own verdict, before pairing
 
 
 @dataclass(frozen=True)
@@ -108,27 +109,34 @@ def _disputed(first: Judgement) -> Judgement:
 
 def _judge_both(
     judge: CompleteFn, second: SecondJudge | None, units: list[Unit], texts: Mapping[int, str]
-) -> tuple[list[Judgement], list[Judgement | None]]:
-    """Every unit by the judge and, for bulletproof, by the second at the same time."""
+) -> tuple[list[Judgement], list[Judgement | None], list[Judgement | None]]:
+    """Every unit by the judge and, for bulletproof, by the second at the
+    same time: the result, and each judge's own verdict."""
     if second is None:
-        return _judge_all(judge, units, texts), [None] * len(units)
+        return _judge_all(judge, units, texts), [None] * len(units), [None] * len(units)
     with ThreadPoolExecutor(2) as pool:
         mine = pool.submit(_judge_all, judge, units, texts)
         theirs = pool.submit(_judge_all, second.judge, units, texts)
         firsts, seconds = mine.result(), theirs.result()
-    return [pair(a, b) for a, b in zip(firsts, seconds, strict=True)], list(seconds)
+    paired = [pair(a, b) for a, b in zip(firsts, seconds, strict=True)]
+    return paired, list(firsts), list(seconds)
 
 
-def _second_entry(second: SecondJudge | None, judgement: Judgement | None) -> dict[str, Any]:
-    if second is None or judgement is None:
+def _second_entry(
+    second: SecondJudge | None, first: Judgement | None, judgement: Judgement | None
+) -> dict[str, Any]:
+    """Bulletproof: each judge's own verdict beside the paired result, so a
+    disputed unit shows what each said."""
+    if second is None or judgement is None or first is None:
         return {}
     return {
+        "first": {"verdict": first.verdict, "reason": first.reason, "quote": first.quote},
         "second": {
             "model": second.model,
             "verdict": judgement.verdict,
             "reason": judgement.reason,
             "quote": judgement.quote,
-        }
+        },
     }
 
 
@@ -168,9 +176,11 @@ def judge_output(
     phase = on_phase or (lambda step, **counters: None)
     for number in range(1, MAX_ROUNDS + 1):
         phase("judging", n=number, of=MAX_ROUNDS)
-        judged, seconds = _judge_both(judge, second, [current.units[i] for i in pending], texts)
-        for i, judgement, other in zip(pending, judged, seconds, strict=True):
-            last[i] = Verdict(judgement, number, other)
+        judged, firsts, seconds = _judge_both(
+            judge, second, [current.units[i] for i in pending], texts
+        )
+        for i, judgement, own, other in zip(pending, judged, firsts, seconds, strict=True):
+            last[i] = Verdict(judgement, number, other, own)
         failing = [i for i in pending if last[i].judgement.verdict in (*FAILING, DISPUTED)]
         entry: dict[str, Any] = {
             "round": number,
@@ -233,7 +243,7 @@ def judge_output(
                 "reason": j.reason,
                 "quote": j.quote,
                 "round": last[i].round,
-                **_second_entry(second, last[i].second),
+                **_second_entry(second, last[i].first, last[i].second),
             }
     log_entry: dict[str, Any] = {
         "level": level,
@@ -258,8 +268,8 @@ def annotate(
     """Judge existing units without revising: each claim's target gets its
     ``judge`` (with ``second`` beside it for bulletproof); returns the counts."""
     claims = [u for u in units if u.claim or u.refs]
-    judged, seconds = _judge_both(judge, second, claims, texts)
-    for unit, j, other in zip(claims, judged, seconds, strict=True):
+    judged, firsts, seconds = _judge_both(judge, second, claims, texts)
+    for unit, j, own, other in zip(claims, judged, firsts, seconds, strict=True):
         unit.target["judge"] = {
             "level": level,
             "model": model,
@@ -267,7 +277,7 @@ def annotate(
             "reason": j.reason,
             "quote": j.quote,
             "round": 1,
-            **_second_entry(second, other),
+            **_second_entry(second, own, other),
         }
     summary = {"level": level, "model": model, "verdicts": _counts(judged)}
     if second is not None:
