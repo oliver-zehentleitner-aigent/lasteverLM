@@ -22,7 +22,7 @@ model, price or secret is needed, and one call gives both the text (for
 retrieval and citations) and what a chart or photo shows, which OCR
 alone would lose. Only ingest needs image input today; core's `LLM`
 interface is text-only and core was busy with the audio contract, so
-widening it now would have blocked on another agent for one caller.
+widening it now would have blocked on another service's work for one caller.
 A separate protocol, instead of a plain loader that calls the model
 quietly, keeps the family rule that every model call is booked.
 
@@ -36,7 +36,7 @@ about seven seconds, so no client-side downscaling was added.
 - OCR in the worker (Tesseract): a native dependency in the image, text
   only, no understanding of charts or photos.
 - A vision method on core's `LLM` interface: the right home once a
-  second service needs it (see Revisit when), not worth a cross-agent
+  second service needs it (see Revisit when), not worth a cross-service
   contract change for one caller.
 - Calling the model inside a plain `SourceLoader`: the call would be
   neither booked nor covered by the read's credit check.
