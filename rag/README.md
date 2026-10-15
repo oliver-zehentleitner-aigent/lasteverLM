@@ -57,6 +57,13 @@ Every other endpoint takes `Authorization: Bearer <token>`. Errors are
 `{"error": "<message>"}`: 401 unauthenticated, 402 credit exhausted,
 403 admin only, 404 not yours or missing, 409 asking about an output that
 is not ready, 422 an invalid body (an ask without `conversation_id`).
+A model call the user waits for (a chat answer, the agent's planning,
+starting questions, a voice sample) is tried once more when it fails;
+the second failure is 502 `{"error": "the model did not answer", "code":
+"model_no_answer", "cause"}`, with `cause` one of `timeout`,
+`rate_limited`, `provider_error`, `empty_answer`, `truncated_answer`,
+`unparseable_answer`, `no_audio` or `unknown`, for the web to say in the
+user's language. Both attempts are billed when the provider charged them.
 
 **Conversations.** A notebook has any number of conversations, one per
 chat tab: `{"id", "notebook_id", "title", "created_at"}`. Every message

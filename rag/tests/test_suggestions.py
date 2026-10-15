@@ -95,7 +95,8 @@ def test_starting_questions_that_do_not_parse_are_a_billed_502(settings):
     store.add_source(NOTEBOOK, "sky.pdf", summary="s")
     client = make_client(settings, store, FakeRetriever([]), FakeLLM("no json"))
     r = client.get(SUGGEST, headers=AUTH)
-    assert r.status_code == 502 and len(store.usage) == 1
+    assert r.status_code == 502 and len(store.usage) == 2  # tried twice
+    assert r.json()["cause"] == "unparseable_answer"
     assert store.suggestions == {}
     other = f"/api/rag/notebooks/{OTHER_NOTEBOOK}/suggestions"
     assert client.get(other, headers=AUTH).status_code == 404

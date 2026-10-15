@@ -402,20 +402,25 @@ class RagService:
             # list, so a question about the notebook itself can be answered.
             passages = number_passages(chunks)
             history = self._store.list_messages(conversation_id, last=HISTORY_MESSAGES)
-            completion = complete_billed(
-                self._store,
-                self._llm,
-                booking,
-                answer_system_prompt(documents, selected),
-                render_answer_prompt(question, passages, history),
-                ANSWER_MAX_TOKENS,
-            )
-            # the follow-up questions come in the same call, as a tail cut off here
-            text, suggestions = split_suggestions(completion.text)
-            if not text.strip():
-                # A reasoning model can spend the whole budget on thinking and return no
-                # content; that is a provider failure, never a stored (empty) answer.
-                raise ProviderError("the model returned no answer")
+
+            def answered() -> tuple[str, list[str]]:
+                completion = complete_billed(
+                    self._store,
+                    self._llm,
+                    booking,
+                    answer_system_prompt(documents, selected),
+                    render_answer_prompt(question, passages, history),
+                    ANSWER_MAX_TOKENS,
+                )
+                # the follow-up questions come in the same call, as a tail cut off here
+                text, suggestions = split_suggestions(completion.text)
+                if not text.strip():
+                    # A reasoning model can spend the whole budget on thinking and return no
+                    # content; that is a provider failure, never a stored (empty) answer.
+                    raise ProviderError("the model returned no answer")
+                return text, suggestions
+
+            text, suggestions = twice("answer", answered)
             answer, citations = map_citations(text, passages)
             support = check_answer(answer, citations)
             # the web pages the answer cites, with when their cached version was read
@@ -466,23 +471,28 @@ class RagService:
         if cached is not None and cached[0] == key:
             return NotebookSuggestions(suggestions=cached[1], cached=True)
         require_credit(self._store, user_id)
-        result = complete_billed(
-            self._store,
-            self._llm,
-            Booking.new(user_id, notebook_id, "chat_answer"),
-            NOTEBOOK_SYSTEM,
-            notebook_prompt(str(notebook.get("title", "")), summaries),
-            NOTEBOOK_SUGGESTIONS_MAX_TOKENS,
-        )
-        try:
-            data = parse_json(result.text)
-            questions = data.get("questions") if isinstance(data, dict) else None
-            if not isinstance(questions, list):
-                raise ValueError("no questions list")
-        except ValueError as exc:
-            # billed by now; the model's answer is unusable, so it is a provider failure
-            raise ProviderError(f"suggestions: the answer did not parse ({exc})") from exc
-        suggestions = clean([str(q) for q in questions])
+        booking = Booking.new(user_id, notebook_id, "chat_answer")
+
+        def asked() -> list[Any]:
+            result = complete_billed(
+                self._store,
+                self._llm,
+                booking,
+                NOTEBOOK_SYSTEM,
+                notebook_prompt(str(notebook.get("title", "")), summaries),
+                NOTEBOOK_SUGGESTIONS_MAX_TOKENS,
+            )
+            try:
+                data = parse_json(result.text)
+                questions = data.get("questions") if isinstance(data, dict) else None
+                if not isinstance(questions, list):
+                    raise ValueError("no questions list")
+            except ValueError as exc:
+                # billed by now; the model's answer is unusable, so it is a provider failure
+                raise ProviderError(f"suggestions: the answer did not parse ({exc})") from exc
+            return questions
+
+        suggestions = clean([str(q) for q in twice("suggestions", asked)])
         self._store.save_notebook_suggestions(notebook_id, key, suggestions)
         return NotebookSuggestions(suggestions=suggestions, cached=False)
 
@@ -1698,6 +1708,16 @@ def embed_billed(
         result = embedder.embed(texts)
     store.record_usage(booking, result.usage)
     return result
+
+
+def twice[T](what: str, call: Callable[[], T]) -> T:
+    """A model call the user waits for, tried once more when it fails: one
+    transient failure should not reach them. The second failure does."""
+    try:
+        return call()
+    except ProviderError as exc:
+        log.warning("%s: the model did not answer (attempt 1 of 2): %s", what, failure_kind(exc))
+    return call()
 
 
 def complete_billed(

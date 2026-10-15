@@ -58,6 +58,7 @@ from .admin import admin_stats, daily_stats
 from .agent_service import AgentService, PlanAsking, PlanNotFound, PlanNotOpen, StaleQuestion
 from .config import Settings
 from .estimate import Models, action_calls, estimate, output_calls, step_estimator
+from .failures import failure_cause
 from .ingest_client import HttpIngest, Ingest, IngestError
 from .judge import judge_models
 from .models import (
@@ -675,8 +676,16 @@ def _install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(ProviderError)
     async def provider_error(_: Request, exc: ProviderError) -> JSONResponse:
+        # tried twice by now (``twice``): a code and a cause the web says in the user's language
         log.warning("provider failure: %s", exc)
-        return error(502, "the model did not answer; please try again")
+        return JSONResponse(
+            {
+                "error": "the model did not answer",
+                "code": "model_no_answer",
+                "cause": failure_cause(exc),
+            },
+            status_code=502,
+        )
 
     @app.exception_handler(ExchangeRateMissingError)
     async def no_exchange_rate(_: Request, exc: ExchangeRateMissingError) -> JSONResponse:

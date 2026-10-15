@@ -79,9 +79,9 @@ def test_a_synthesis_without_audio_is_a_502_billed_and_not_cached(settings):
     r = client.post(SAMPLE, json={"voice": "ryan"}, headers=AUTH)
     assert (r.status_code, r.json()) == (
         502,
-        {"error": "the model did not answer; please try again"},
+        {"error": "the model did not answer", "code": "model_no_answer", "cause": "no_audio"},
     )
     assert objects.objects == {}
-    assert [(u.kind, u.tokens_in) for _, _, u in store.usage] == [
-        ("tts", FakeTTS.seconds(SAMPLE_TEXT["en"].format(name="Ryan")))
-    ]
+    seconds = FakeTTS.seconds(SAMPLE_TEXT["en"].format(name="Ryan"))
+    # tried twice, both billed
+    assert [(u.kind, u.tokens_in) for _, _, u in store.usage] == [("tts", seconds)] * 2
