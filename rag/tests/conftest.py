@@ -125,6 +125,8 @@ class FakeStore:
         self.copies: dict[str, dict[str, Any]] = {}
         self.plans: dict[str, dict[str, Any]] = {}
         self.touches: list[str] = []
+        self.phases: dict[str, list[dict[str, Any]]] = {}
+        self.beats: list[str] = []
         self.suggestions: dict[str, tuple[str, list[str]]] = {}
         # a rate of 1: charges equal costs unless a test sets margins or a rate
         self.rules = PricingRules.parse({"usd_per_eur": 1})
@@ -287,8 +289,13 @@ class FakeStore:
         self.outputs[row["id"]] = row
         return self._output_row(row)
 
-    def touch_output(self, output_id: str) -> None:
+    def touch_output(self, output_id: str, phase: dict[str, Any] | None = None) -> None:
         self.touches.append(output_id)
+        if phase is None or phase == self.outputs[output_id].get("phase"):
+            self.beats.append(output_id)  # a plain beat: the step did not change
+        if phase is not None:
+            self.outputs[output_id]["phase"] = phase
+            self.phases.setdefault(output_id, []).append(dict(phase))
 
     def charged(self, action_id: str) -> bool:
         return any(str(i) == str(action_id) for _, i in self.bookings)

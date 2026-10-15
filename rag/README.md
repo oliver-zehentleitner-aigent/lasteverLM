@@ -35,7 +35,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/notebooks/{id}/outputs` | | `[Output]` made in that notebook, not in the trash |
 | DELETE | `/api/rag/notebooks/{id}/outputs` | | 204, every output made in that notebook into the trash |
 | GET | `/api/rag/library/outputs?kind=&trash=` | `kind` optional, `trash` default false | `[Output]`, the caller's outputs from every notebook, newest first; with `trash=true` the trashed ones |
-| GET | `/api/rag/outputs/{id}` | | `Output`; 404 when trashed |
+| GET | `/api/rag/outputs/{id}` | | `Output`; 404 when trashed; while waiting or processing `phase` says what is happening now, see **Phase** |
 | PATCH | `/api/rag/outputs/{id}` | `{"title"}` | `Output`; title trimmed, 1–200 chars, else 422; 409 unless ready; renames its generated source too |
 | DELETE | `/api/rag/outputs/{id}` | | 204, into the trash |
 | POST | `/api/rag/outputs/{id}/restore` | | 204, out of the trash |
@@ -386,6 +386,29 @@ timeout); no further attempt; nothing was charged". The worker logs every
 failed attempt at WARNING with the output id, the attempt, the model, the
 error class and the message, never a prompt.
 
+**Phase.** While an output waits or runs, `Output.phase` is
+`{"step", "since", "n"?, "of"?, "sources"?, "error"?}`. It is `null`
+once the output is ready or failed. Each step is one that really
+started:
+
+| Step | When | Fields |
+|---|---|---|
+| `waiting_for_sources` | status `waiting`, computed on read | `sources`: the names still being read |
+| `retrieving` | embedding the focus query and choosing passages | |
+| `deciding` | the decision model's call (decision only) | |
+| `writing` | the LLM writes the document (a decision's evidence) | |
+| `checking` | the support check (a chart's number check) | |
+| `judging` | a judge round (judge option only) | `n` round, `of` 3 |
+| `revising` | the revision after a judge round | `n` round |
+| `synthesizing_speech` | an audio segment | `n` segment, `of` segments |
+| `indexing` | embedding the result for chat | |
+| `retry` | between attempts | `n` next attempt, `of` 3, `error` e.g. `glm-5.3: timeout` |
+
+The worker writes a new step at once, together with the claim's
+heartbeat in one update (`outputs.phase`, migration
+`0013_rag_output_phase.sql`). A counter of the same step is written at
+most every 5 s. There is no percentage and no invented counter.
+
 **Claim heartbeat.** A running job refreshes its claim (`claimed_at`) at
 most once a minute: before each model call, each judge call and each
 speech segment. Only a job whose worker stopped beating for 10 minutes is
@@ -709,7 +732,9 @@ adds `messages.support` (`{"units", "check"}` of an answer);
 `messages.feedback` and the `notebook_suggestions` cache;
 `0011_rag_flashcards_kind.sql` allows the kind `flashcards`;
 `0012_rag_plans.sql` adds the agent chat's `plans`, `messages.plan` and
-`outputs.booking_id`. The
+`outputs.booking_id`;
+`0013_rag_output_phase.sql` adds `outputs.phase`, what a running output
+is doing. The
 migrations runner applies them after
 core, account and ingest. The
 service reads ingest's `notebooks`, `library_sources`, `sources` and

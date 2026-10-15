@@ -591,3 +591,35 @@ output stops with its reason, as an agent plan's output already did.
   output in "waiting" forever.
 - Skipping a failed source and generating from the rest: the output
   claims to cover a selection it did not read.
+
+## A running output shows the step it is really in, written with the heartbeat
+
+**Id:** 8eddb2f9-7744-4994-8982-187bd80b9246
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (a line under the generating view showing what really happens; a fake percentage and elapsed time alone rejected); the step names and writing them with the heartbeat are rag's
+**Revisit when:** a step routinely takes so long that its line looks frozen (a counter would help), or the update rate of phases shows up in the database's load
+
+While an output runs, `outputs.phase` holds the step the worker has
+really begun, with the time it began and a counter where the step has
+one (judge round n of 3, speech segment n of m, the next attempt n of
+3). A waiting output's phase, the sources still being read, is computed
+on read, because no worker runs it. The phase is written in the same
+update as the claim's heartbeat. A new step is written at once; a
+counter of the same step at most every 5 seconds. It is cleared when the
+output is ready or failed.
+
+**Reason:** a user watching "Generating…" for minutes cannot tell a slow
+step from a stuck job. Naming the real step, such as "judging, round 2
+of 3", makes the wait legible and makes a stuck job visible as a step
+that does not move. Writing it with the heartbeat keeps it honest,
+since a step is only shown once the code has entered it, and it costs
+no extra updates beyond the step changes. Steps without a natural
+counter get none, so nothing suggests a precision the worker does not
+have.
+
+**Rejected alternatives:**
+- A progress percentage: the duration of each step depends on the
+  material and the models, so any percentage would be invented.
+- Only the elapsed time: it says that something takes long, not what.
