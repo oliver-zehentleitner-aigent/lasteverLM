@@ -306,7 +306,23 @@ cites well wherever the chunker cuts:
 | CSV, TSV | `text/csv` (comma, or the semicolon, tab or pipe the first lines use), `text/tab-separated-values` | one line per row, every value named by its column (`row 3: city: Graz; price: 12`); the first row is the header |
 
 One object, element or row is one passage, so its values stay together
-and apart from the next record. A `text/plain` body is read as JSON when
+and apart from the next record.
+
+The rendering is a contract: rag's number check reads chunk text and must
+tell a value from an index, so a change here is announced to rag first.
+
+- A CSV or TSV line starts with `row <n>: ` (`n` counts data rows from
+  1); after it, `<column>: <value>` pairs are joined by `; `.
+- A JSON, NDJSON or YAML line is `<path>: <value>`. The path joins keys
+  with `.` and writes a list index as `[<n>]` (from 0) right after the
+  key or, for an NDJSON line or a top-level list, at the start.
+- An XML line is `<path>: <value>`. The path joins element names with
+  `/`, numbers repeated siblings as `[<n>]` (from 1) and names an
+  attribute as `@<name>`.
+- `row <n>` and every bracketed `[<n>]` are positions, never values. A
+  key that is itself a number (`2023: 5`) is a label and stays.
+- JSON and YAML numbers are written positionally (`0.00001`, never
+  `1e-05`); CSV and XML values stay as the source wrote them. A `text/plain` body is read as JSON when
 it is an object or array that parses cleanly; anything else stays text.
 The snapshot shows this rendering, escaped into the same inert document
 as a text page.

@@ -65,6 +65,10 @@ def test_json_keeps_the_key_path_on_every_value():
     ]
     assert _lines("json", b'{"ok": true, "none": null, "e": {}}') == ["ok: true\nnone: null\ne: {}"]
     assert _lines("json", b"42") == ["value: 42"]
+    # Floats are written positionally, never in e-notation.
+    assert _lines("json", b'{"small": 1e-05, "big": 1e20, "x": -3.5e-7}') == [
+        "small: 0.00001\nbig: 100000000000000000000\nx: -0.00000035"
+    ]
 
 
 def test_ndjson_numbers_its_lines():
