@@ -342,3 +342,41 @@ recognisable.
 **Rejected alternative:** store nothing but the kind. The owner and the
 admin would see that something failed, but not whether it was the
 provider (and which status) or the configuration.
+
+## Transcription offers only the sampling settings the platform reads
+
+**Id:** ad99818b-53f7-47f4-bd93-7b4a27094a7b
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's go for per-call transcription settings, 2026-10-15; a live probe of `/audio/transcriptions` with `whisper-large-v3-turbo` the same day
+**Revisit when:** the transcription model changes, or the platform starts refusing or honouring `top_p`, `seed` or the penalties
+
+`transcribe` takes `temperature`, `prompt` and `language` per call and
+sends each only when given. Core does not check their values. The probe
+showed which parameters the platform actually reads:
+
+- `temperature` changes the text (0.4 wrote numbers as words, 0 and 1
+  did not), and a value outside 0 to 1 or a non-number is a 400.
+- `prompt` is read: one over the model's 448-token context is a 400.
+- `language` is checked against the model's language list.
+- `top_p` (even 5), `top_k`, `min_p`, `seed`, `repetition_penalty`,
+  `frequency_penalty`, `presence_penalty`, and an invented field, are
+  all accepted with a 200 and change nothing. Two runs at temperature 1
+  with the same seed gave different text.
+
+**Reason:** a setting the platform ignores looks like a lever in the
+code and does nothing in production. A retry of a looping transcript
+built on one would fail silently. Only the three settings with a
+provable effect are offered. Leaving them out by default keeps every
+existing call's request byte-identical. The values are not checked in
+core, for the same reason speech speed is not (the platform's 400 names
+the problem, and a copy of its range would have to be kept in step).
+
+**Rejected alternative:** pass through every sampling parameter of the
+OpenAI-style API. Rejected: most of them are ignored here, as measured.
+
+**Rejected alternative:** validate the ranges in core. Rejected for the
+reason given in the speech speed entry.
+
+**See:** providers.md#speech-speed-is-passed-through-not-range-checked-in-core — dde2dae8-3797-4896-95fc-f457b45593d8 — as of 2026-10-15
