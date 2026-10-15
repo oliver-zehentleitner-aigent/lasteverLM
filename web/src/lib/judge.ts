@@ -1,4 +1,4 @@
-import type { Claim, JudgeCounts, JudgeNote, Provenance } from '../api/types'
+import type { Claim, JudgeCounts, JudgeNote, JudgeVerdict, Provenance } from '../api/types'
 import type { EstimateState } from '../hooks/useEstimate'
 import { t, tn } from '../i18n'
 import { priceLabel } from './estimate'
@@ -27,7 +27,8 @@ export function judgeHead(p: Pick<Provenance, 'judge' | 'judgements'> | null | u
     const last = run.rounds[run.rounds.length - 1]
     return t('judge.headRun', {
       level: t(`judge.level.${run.level}`).toLowerCase(),
-      model: run.model,
+      // bulletproof: both judges' models
+      model: run.second_model ? `${run.model} + ${run.second_model}` : run.model,
       passed: last.verdicts.supported ?? 0,
       total: first.judged,
       rounds: tn('judge.rounds', run.rounds.length),
@@ -49,7 +50,7 @@ export function verdictKey(j: Pick<JudgeNote, 'verdict'>): keyof JudgeCounts {
 
 /** The counts of a round or a judging, as "supported 5 · contradicted 1". */
 export function verdictCounts(v: JudgeCounts): string {
-  return (['supported', 'contradicted', 'not_in_source', 'no_usable_answer'] as const)
+  return (['supported', 'contradicted', 'disputed', 'not_in_source', 'no_usable_answer'] as const)
     .filter((k) => (v[k] ?? 0) > 0)
     .map((k) => `${t(`judge.verdict.${k}`)} ${v[k]}`)
     .join(' · ')
@@ -61,7 +62,15 @@ export function judgeBadge(c: Claim): { verdict: keyof JudgeCounts; label: strin
   const d = disagrees(c)
   // the word check's result moves into the judge's tooltip: its badge is not shown beside a verdict
   const word = c.judge.verdict && c.support ? `\n${t(`wordCheck.${c.support}`)}` : ''
-  const title = (d ? `${c.judge.reason} — ${t('judge.disagreeTitle')}` : c.judge.reason) + word
+  // bulletproof: both judges with their verdicts and reasons
+  const second = c.judge.second
+  const named = (v: JudgeVerdict | null) => t(`judge.verdict.${v ?? 'no_usable_answer'}`)
+  const first = c.judge.first
+  const both = second
+    ? (first ? `\n${t('judge.first', { model: c.judge.model })}: ${named(first.verdict)} — ${first.reason}` : '') +
+      `\n${t('judge.second', { model: second.model })}: ${named(second.verdict)} — ${second.reason}`
+    : ''
+  const title = (d ? `${c.judge.reason} — ${t('judge.disagreeTitle')}` : c.judge.reason) + both + word
   const verdict = verdictKey(c.judge)
   return { verdict, label: t(`judge.verdict.${verdict}`), title, disagree: d }
 }

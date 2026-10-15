@@ -261,7 +261,7 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
               <select value={values.verification} onChange={(e) => set({ verification: e.target.value as VerificationLevel })}>
                 {spec.verification.levels.map((l) => (
                   <option key={l} value={l}>
-                    {levelPrice(l) ? `${t(`verify.level.${l}`)} · ${levelPrice(l)}` : t(`verify.level.${l}`)}
+                    {[t(`verify.level.${l}`), levelPrice(l), l === 'bulletproof' ? t('verify.slower') : null].filter(Boolean).join(' · ')}
                   </option>
                 ))}
               </select>

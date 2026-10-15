@@ -78,3 +78,19 @@ describe('answerJudgeLine', () => {
     expect(answerJudgeLine(null)).toBeNull()
   })
 })
+
+describe('bulletproof: two judges', () => {
+  const second = { model: 'other', verdict: 'contradicted' as const, reason: 'says the opposite', quote: '' }
+  it('shows both judges in the tooltip, the first one where rag kept it', () => {
+    const disputed = { ...note('disputed'), reason: 'the two judges disagree; read the passage yourself', second, first: { verdict: 'supported' as const, reason: 'the passage says 12' } }
+    const b = judgeBadge({ judge: disputed })!
+    expect(b.label).toBe('disputed')
+    expect(b.title).toBe('the two judges disagree; read the passage yourself\nFirst judge (glm-4.6): supported — the passage says 12\nSecond judge (other): contradicted — says the opposite')
+    expect(judgeBadge({ judge: { ...disputed, first: undefined } })!.title).toBe('the two judges disagree; read the passage yourself\nSecond judge (other): contradicted — says the opposite')
+  })
+  it('counts disputed and names both models in the head', () => {
+    expect(verdictCounts({ supported: 3, disputed: 1 })).toBe('supported 3 · disputed 1')
+    const run = { level: 'high' as const, model: 'a', second_model: 'b', rounds: [{ round: 1, judged: 4, verdicts: { supported: 3, disputed: 1 }, usage: { tokens_in: 1, tokens_out: 1 } }], removed: [] }
+    expect(judgeHead({ judge: run })).toBe('Judge (high, a + b): 3 of 4 passed after 1 round')
+  })
+})

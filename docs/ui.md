@@ -466,7 +466,13 @@ opens the notebook.
   and negation: the word check and the negation check, no model),
   Standard (also a low judge on every paragraph those doubt, marking
   only), Thorough (the medium judge on everything, revising and removing
-  up to three rounds), and Bulletproof once rag lists it. Each level
+  up to three rounds), and Bulletproof (two judges of different model
+  families on every paragraph: supported only where both agree,
+  "disputed" (amber, dashed) where they disagree, kept and never
+  removed; the option reads "slower and dearer" and its line warns it
+  may mark more claims as disputed). A disputed badge's tooltip and the
+  provenance panel show both judges with their verdicts and reasons
+  (the first one where rag keeps it); the head names both models. Each level
   names its full price from the estimate's `levels`, with a line on what
   it does; it starts at the user's **Verification by default** and is
   sent only above Basic. The negation check marks a paragraph whose words
