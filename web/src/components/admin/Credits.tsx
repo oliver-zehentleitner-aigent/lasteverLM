@@ -91,7 +91,7 @@ export function Vouchers() {
   )
 }
 
-/** Fresh codes, shown once: compact chips with a copy button each, and
+/** The codes just created: compact chips with a copy button each, and
  *  "copy all" (one per line) when there are several. */
 function VoucherCodes({ codes }: { codes: string[] }) {
   const all = useRef<HTMLDivElement>(null)
@@ -121,7 +121,7 @@ function CodeChip({ code }: { code: string }) {
 const loadVouchers = () => admin.listVouchers(VOUCHER_LIMIT)
 
 /** Issued vouchers, newest first; remounted after a create so the new ones
- *  appear. The codes are never listed: the server keeps only their hashes.
+ *  appear. The codes are listed masked; an admin shows one with the eye.
  *  Open vouchers can be deleted; a redeemed one is history and has no button. */
 function VoucherList() {
   const { data, setData, error } = useLoad<Voucher[]>(loadVouchers, [])

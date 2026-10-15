@@ -417,10 +417,20 @@ export interface JudgeNote {
   first?: { verdict: JudgeVerdict | null; reason: string; quote?: string }
 }
 
+/** A judging's outcome: every judged unit once, by its last verdict
+ *  across all rounds (removed ones included); supported_elsewhere passes. */
+export interface JudgeFinal {
+  judged: number
+  passed: number
+  verdicts: JudgeCounts
+}
+
 /** A judging during generation: its rounds and the claims taken out.
  *  `mode` "doubted" (verification standard): only the units the word
  *  check doubted, judged once and annotated, with no rounds or removals. */
 export interface JudgeRun {
+  /** the outcome to count in the head; absent on outputs from before rag #680 */
+  final?: JudgeFinal
   mode?: 'doubted' | 'all'
   /** bulletproof: the second judge's model */
   second_model?: string
@@ -442,6 +452,8 @@ export interface JudgeRun {
 
 /** A judging asked for later, annotate only. */
 export interface Judgement {
+  /** the outcome to count in the head; absent before rag #680 */
+  final?: JudgeFinal
   level: Exclude<JudgeLevel, 'off'>
   model: string
   verdicts: JudgeCounts
@@ -453,8 +465,9 @@ export interface Judgement {
  *  On the share page without chunk and source ids. */
 export interface Passage {
   n: number
-  chunk_id?: string
-  source_id?: string
+  /** null on a copied starter output whose source is not in the copy: its quote only, no source to open */
+  chunk_id?: string | null
+  source_id?: string | null
   source_name: string
   source_kind: SourceKind
   page: number | null

@@ -23,6 +23,10 @@ describe('passages and claims', () => {
     expect(passageCitation(shared)).toMatchObject({ chunk_id: '', source_id: '' })
   })
 
+  it('turns a copied starter passage without a source into a citation with empty ids', () => {
+    expect(passageCitation({ ...passage, chunk_id: null, source_id: null })).toMatchObject({ chunk_id: '', source_id: '' })
+  })
+
   it('keeps the refs that exist, each once', () => {
     expect(claimRefs({ refs: [2, 9, 2, 1] }, new Set([1, 2]))).toEqual([2, 1])
     expect(claimRefs({}, new Set([1]))).toEqual([])

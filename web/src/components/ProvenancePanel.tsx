@@ -130,7 +130,9 @@ export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource
         {removed ? (
           <span className="muted small">{t('prov.gone')}</span>
         ) : (
-          onOpenSource && (
+          // a passage without a source (a copied starter output's) shows its quote only
+          onOpenSource &&
+          citation.source_id && (
             <>
               <button type="button" className="link" onClick={() => onOpenSource(citation)}>
                 {citation.source_kind === 'generated' ? t('prov.openDoc') : t('prov.open')}

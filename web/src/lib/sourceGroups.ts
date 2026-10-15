@@ -6,8 +6,8 @@ import { t, tn } from '../i18n'
 
 interface Cited {
   n: number
-  /** absent on the share page, where the name tells the sources apart */
-  source_id?: string
+  /** absent on the share page, where the name tells the sources apart; null for a copied starter passage */
+  source_id?: string | null
   source_name: string
   page: number | null
 }
