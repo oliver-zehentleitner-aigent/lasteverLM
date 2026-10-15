@@ -180,7 +180,7 @@ change left for after the finance work.
 
 **Id:** f584f5df-f447-457d-8dda-cb515bec8933
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** the account service's price list as implemented, 2026-10-15, after the maintainer chose per-unit estimates and per-page source prices
 **Verification:** corroborated — re-checked 2026-10-15 against account's `service.py`: rows come from rag's and ingest's estimate endpoints, `USAGE_ACTION_UNITS` is used to decide which observed actions count, and `charge_for` turns their observed costs into the typical range
