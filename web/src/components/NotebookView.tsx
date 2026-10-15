@@ -20,6 +20,7 @@ import { formFor } from '../lib/outputs'
 import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
 import { takeOpenOutput } from '../lib/lastNotebook'
+import { awaitsStarterOutputs, pollStarterOutputs } from '../lib/starterOutputs'
 import { afterClose, dropMissing, heldUrl, openTab, tabUrl, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
 import { ChatPane } from './ChatPane'
 import { SourceLinks } from './SourceLinks'
@@ -143,6 +144,13 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     }, OUTPUT_POLL_INTERVAL_MS)
     return () => clearInterval(t)
   }, [pending, notebookId])
+
+  // a starter copy's outputs arrive a moment after the notebook; asked again until they do
+  const awaitsStarter = outputsLoaded && awaitsStarterOutputs(uploads, outputs)
+  useEffect(() => {
+    if (!awaitsStarter) return
+    return pollStarterOutputs(() => rag.listOutputs(notebookId), setOutputs)
+  }, [awaitsStarter, notebookId])
 
   function removeOutput(id: string) {
     setOutputs((prev) => prev.filter((x) => x.id !== id))

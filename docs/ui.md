@@ -623,7 +623,9 @@ without ticking the row, a tap elsewhere closes it.
 
 A new account gets a copy of the starter notebook, if an admin has set
 one: the notebook with its sources, ready, and its outputs a few
-seconds later. The copied entries are marked "Starter" in the library,
+seconds later. While the open notebook has starter sources and no
+outputs, its outputs list is fetched again every 2 s, for at most 60 s,
+until they appear. The copied entries are marked "Starter" in the library,
 the wizard's library picker and the notebook's source list (ingest's
 `starter` flag; `demo`, its earlier name, counts too). For admins and
 viewers the starter notebook carries a "Starter" badge in the notebook
