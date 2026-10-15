@@ -15,6 +15,10 @@ preserves why it changed, in `context/`.
 
 - A new user saw no starter notebook after signing in: the copy ran only on the first library listing or upload, and the web's first call is `GET /notebooks`. The notebook list now makes the copy first, so it is in that very response (`GET /library?kind=generated` copies too); once a user is considered, it costs one indexed exists query.
 
+### Changed
+
+- A read that has started runs to the end: credit is checked once, before a source is read, not before every model call, so a vision PDF or a long recording is never stopped halfway with its first pages paid for. The balance may end slightly below zero; the owner's next read waits until it is positive again. The exchange-rate check still runs before every call.
+
 ## [0.19.6] - 2026-10-14
 
 ### Fixed
