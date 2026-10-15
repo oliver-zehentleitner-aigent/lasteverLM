@@ -18,6 +18,9 @@ function addSource(notebookId: string, body: { form?: FormData; json?: unknown }
 
 export const ingest = {
   listNotebooks: () => request<Notebook[]>(`${INGEST_PREFIX}/notebooks`),
+  /** a fresh copy of the current starter notebook, free; 409 "starter_exists"
+   *  while the user has one (then `force`), 429 "starter_copy_too_soon", 404 "no_starter" */
+  copyStarter: (force: boolean) => request<Notebook>(`${INGEST_PREFIX}/starter/copy${force ? '?force=true' : ''}`, { method: 'POST' }),
 
   createNotebook: (title: string) =>
     request<Notebook>(`${INGEST_PREFIX}/notebooks`, { method: 'POST', json: { title } }),

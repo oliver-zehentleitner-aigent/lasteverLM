@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { account } from '../api/account'
+import { openVoucher } from '../api/client'
 import type { User } from '../api/types'
 import { t } from '../i18n'
 import { versionLine } from '../lib/build'
 import { formatCents } from '../lib/format'
 import { canSeeAdmin } from '../lib/roles'
 import { setSessionTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVersion } from '../lib/theme'
+import { PopupMenu } from './PopupMenu'
 
 interface Props {
   me: User | null
-  route: 'home' | 'library' | 'settings' | 'prices' | 'credits' | 'admin'
+  route: 'home' | 'library' | 'settings' | 'prices' | 'credits' | 'help' | 'admin'
   onNavigate: (path: string) => void
   onLogout: () => void
 }
@@ -108,10 +110,8 @@ export function Header({ me, route, onNavigate, onLogout }: Props) {
         )}
       </nav>
       <div className="account">
-        <ThemeToggle />
         {me && (
           <>
-            <span className="muted email" title={me.email}>{me.email}</span>
             <a
               href="/credits"
               className={route === 'credits' ? 'pill active' : 'pill'}
@@ -125,10 +125,65 @@ export function Header({ me, route, onNavigate, onLogout }: Props) {
             </a>
           </>
         )}
-        <button type="button" className="link" onClick={onLogout}>
-          {t('header.signOut')}
-        </button>
+        <ProfileMenu email={me?.email ?? null} onNavigate={onNavigate} onLogout={onLogout} />
+        <a
+          href="/help"
+          className={route === 'help' ? 'icon help-link active' : 'icon help-link'}
+          title={t('header.help')}
+          aria-label={t('header.help')}
+          aria-current={route === 'help' ? 'page' : undefined}
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate('/help')
+          }}
+        >
+          ?
+        </a>
+        <ThemeToggle />
       </div>
     </header>
+  )
+}
+
+/** The account's round icon with the e-mail's first letter: its menu has
+ *  the e-mail as a header, then Credits, Redeem voucher (the dialog at
+ *  once), Settings and Sign out. */
+function ProfileMenu({ email, onNavigate, onLogout }: { email: string | null; onNavigate: (path: string) => void; onLogout: () => void }) {
+  const [open, setOpen] = useState(false)
+  const button = useRef<HTMLButtonElement>(null)
+  const close = useCallback(() => {
+    setOpen(false)
+    button.current?.focus()
+  }, [])
+  const initial = (email?.trim()[0] ?? '?').toUpperCase()
+  return (
+    <span className="profile">
+      <button
+        ref={button}
+        type="button"
+        className="avatar"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={email ?? t('header.account')}
+        aria-label={email ? t('header.accountOf', { email }) : t('header.account')}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {initial}
+      </button>
+      {open && (
+        <PopupMenu
+          className="profile-menu"
+          label={t('header.account')}
+          header={email && <span className="muted small" title={email}>{email}</span>}
+          onClose={close}
+          items={[
+            { label: t('header.credits'), onSelect: () => onNavigate('/credits') },
+            { label: t('header.redeem'), onSelect: openVoucher },
+            { label: t('header.settings'), onSelect: () => onNavigate('/settings') },
+            { label: t('header.signOut'), onSelect: onLogout },
+          ]}
+        />
+      )}
+    </span>
   )
 }

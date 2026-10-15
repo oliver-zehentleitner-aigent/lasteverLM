@@ -9,8 +9,6 @@ import { sampleLanguage, voiceGroups } from '../lib/outputOptions'
 import { DEFAULT_THEME, getSavedTheme, getSessionTheme, setSessionTheme, setTheme, useTheme } from '../lib/theme'
 import { VoiceSample } from './VoiceSample'
 import { formatCents } from '../lib/format'
-import { browserStorage } from '../lib/layout'
-import { noteTourDone } from '../lib/tour'
 import { language, t } from '../i18n'
 
 const NOT_SET: Preferences = { ui_language: null, output_language: null, audio_voice: null, trash_days: null, pdf_capture: null, theme: null }
@@ -58,19 +56,6 @@ export function SettingsPage() {
     setForm({ ...p, ...patch })
   }
 
-  /** Clears the account's flag and this browser's note, then opens the
-   *  notebook, where the introduction starts. */
-  async function showTourAgain() {
-    if (!me) return
-    noteTourDone(browserStorage(), me.id, false)
-    try {
-      setMe(await account.savePreferences({ tour_done: false }))
-    } catch {
-      // the demo user cannot keep preferences; clearing this browser's note is enough there
-    }
-    window.location.assign('/')
-  }
-
   return (
     <main className="settings">
       <h1>{t('set.title')}</h1>
@@ -81,11 +66,6 @@ export function SettingsPage() {
             {me && <>{t('set.balance', { value: formatCents(me.balance_cents) })} · </>}
             <a href="/credits">{t('set.viewCredits')}</a> · <a href="/prices">{t('set.priceList')}</a>
           </span>
-        </div>
-        <div className="settings-row">
-          <button type="button" className="link" onClick={() => void showTourAgain()}>
-            {t('set.tourAgain')}
-          </button>
         </div>
         <label>
           {t('set.uiLanguage')}

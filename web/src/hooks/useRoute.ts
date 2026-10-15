@@ -12,6 +12,7 @@ export type Route =
   | { name: 'settings' }
   | { name: 'prices' }
   | { name: 'credits' }
+  | { name: 'help' }
   | { name: 'shared'; token: string }
   | { name: 'shared-notebook'; token: string }
 
@@ -29,6 +30,7 @@ export function parseRoute(loc: Pick<Location, 'pathname' | 'search'>): Route {
   // public, like the share pages: no login needed
   if (loc.pathname === '/prices' || loc.pathname === '/prices/') return { name: 'prices' }
   if (loc.pathname === '/credits' || loc.pathname === '/credits/') return { name: 'credits' }
+  if (loc.pathname === '/help' || loc.pathname === '/help/') return { name: 'help' }
   const sharedNotebook = /^\/shared\/notebook\/([^/]+)$/.exec(loc.pathname)
   if (sharedNotebook) return { name: 'shared-notebook', token: decodeURIComponent(sharedNotebook[1]) }
   const shared = /^\/s\/([^/]+)$/.exec(loc.pathname)

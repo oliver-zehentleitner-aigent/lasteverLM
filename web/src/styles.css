@@ -158,15 +158,24 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .topbar nav { display: flex; gap: 1rem; flex: 1; }
 .topbar nav a { text-decoration: none; color: var(--muted); }
 .topbar nav a.active { color: var(--fg); }
-.account { display: flex; align-items: center; gap: 0.75rem; }
-.account .email { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* a phone: brand and account on the first line, the nav on its own line
-   below, the address left out (it is the account's, not needed to act) */
+.account { display: flex; align-items: center; gap: 0.6rem; }
+/* the account's round initial, its menu, and the help link: one height, round */
+.avatar, .help-link { width: 2rem; height: 2rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; padding: 0; font-weight: 600; text-decoration: none; }
+.avatar { background: var(--accent); color: var(--bg); border: none; cursor: pointer; }
+.help-link { border: 1px solid var(--line); color: var(--fg); }
+.help-link.active { border-color: var(--accent); color: var(--accent); }
+.profile { position: relative; }
+.popup-menu { position: absolute; z-index: 30; min-width: 12rem; padding: 0.25rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); }
+.profile-menu { right: 0; top: calc(100% + 0.35rem); }
+.popup-menu-header { padding: 0.35rem 0.6rem 0.4rem; border-bottom: 1px solid var(--line); margin-bottom: 0.25rem; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.popup-menu ul { margin: 0; padding: 0; list-style: none; }
+.popup-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--fg); padding: 0.4rem 0.6rem; border-radius: var(--radius); }
+.popup-menu button:not(:disabled):hover, .popup-menu button:focus-visible { background: var(--accent-soft); outline: none; }
+/* a phone: brand and account on the first line, the nav on its own line below */
 @media (max-width: 640px) {
   .topbar { flex-wrap: wrap; height: auto; gap: 0.4rem 0.75rem; }
   .topbar nav { order: 3; flex: 1 0 100%; gap: 1.25rem; }
-  .account { margin-left: auto; gap: 0.6rem; }
-  .account .email { display: none; }
+  .account { margin-left: auto; gap: 0.5rem; }
 }
 
 /* workspace */
@@ -1163,3 +1172,8 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .tab-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--fg); padding: 0.35rem 0.6rem; border-radius: var(--radius); }
 .tab-menu button:not(:disabled):hover, .tab-menu button:focus-visible { background: var(--accent-soft); outline: none; }
 .tab-menu button:disabled { color: var(--muted); }
+/* /help: the steps and the actions under them */
+.help { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1rem; }
+.help-steps { padding-left: 1.4rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.help-steps p { margin: 0.2rem 0 0; color: var(--muted); line-height: 1.5; }
+.help-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; margin-top: 1.5rem; }

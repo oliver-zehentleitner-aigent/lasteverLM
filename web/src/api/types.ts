@@ -13,6 +13,8 @@ export interface Notebook {
   created_at: string
   /** its read-only link's token; null while it is not shared */
   share_token?: string | null
+  /** made as a copy of the starter notebook (at first sign-in or from Help) */
+  starter?: boolean
 }
 
 /** `GET /api/rag/shared/notebooks/{token}`: a notebook as a reader sees it,
