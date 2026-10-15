@@ -1,6 +1,8 @@
 import { ACCOUNT_PREFIX, ADMIN_MOCK, INGEST_PREFIX, RAG_PREFIX } from '../config'
 import { ApiError, request } from './client'
 import type {
+  AdminOutputMatch,
+  AdminOutputSearch,
   FeedbackStats,
   StarterNotebook,
   ExchangeRateStatus,
@@ -47,6 +49,8 @@ export interface AdminApi {
   ragStats(): Promise<RagStats>
   /** answer ratings per day and the newest down-rated answers */
   feedback(days: number): Promise<FeedbackStats>
+  /** outputs whose ID starts with a prefix (6–32 hex characters), from rag */
+  findOutputs(prefix: string): Promise<AdminOutputSearch>
   /** daily series for the statistics charts, one endpoint per service */
   accountDaily(days: number): Promise<AccountDay[]>
   accountUsage(): Promise<AccountUsage>
@@ -129,6 +133,7 @@ const httpAdmin: AdminApi = {
   ingestStats: () => request<IngestStats>(`${INGEST_PREFIX}/admin/stats`),
   ragStats: () => request<RagStats>(`${RAG_PREFIX}/admin/stats`),
   feedback: (days) => request<FeedbackStats>(`${RAG_PREFIX}/admin/feedback?days=${days}`),
+  findOutputs: (prefix) => request<AdminOutputSearch>(`${RAG_PREFIX}/admin/outputs?id_prefix=${encodeURIComponent(prefix)}`),
   accountDaily: (days) => request<{ days: AccountDay[] }>(`${A}/stats/daily?days=${days}`).then((r) => r.days),
   accountUsage: () => request<AccountUsage>(`${A}/stats/usage`),
   ingestDaily: (days) => request<{ days: IngestDay[] }>(`${INGEST_PREFIX}/admin/stats/daily?days=${days}`).then((r) => r.days),
@@ -206,6 +211,26 @@ function mockAdmin(): AdminApi {
     { id: 'u1', email: 'admin@example.org', is_admin: true, role: 'admin', balance_cents: 1250, usage_cents: 310, granted_cents: 1560, created_at: '2026-10-01T10:00:00Z', last_login_at: '2026-10-12T18:02:00Z' },
     { id: 'u2', email: 'reader@example.org', is_admin: false, role: 'viewer', balance_cents: 0, usage_cents: 1000, granted_cents: 1000, created_at: '2026-10-05T08:00:00Z', last_login_at: '2026-10-11T09:40:00Z' },
     { id: 'u3', email: 'new@example.org', is_admin: false, role: 'user', balance_cents: 1000, usage_cents: 0, granted_cents: 1000, created_at: '2026-10-12T17:00:00Z', last_login_at: null },
+  ]
+  const mockOutputs: AdminOutputMatch[] = [
+    {
+      id: '3f9c21ab-0d4e-4c1a-9b7e-1234567890ab',
+      notebook_id: 'n1',
+      notebook_title: 'Dead reckoning',
+      kind: 'report',
+      title: 'Dead reckoning: a report',
+      status: 'failed',
+      error: 'the model did not answer',
+      created_at: '2026-10-15T12:56:00Z',
+      finished_at: '2026-10-15T12:58:10Z',
+      deleted_at: null,
+      owner: { id: 'u3', email: 'new@example.org' },
+      attempts: 2,
+      attempt_log: [
+        { at: '2026-10-15T12:57:00Z', attempt: 1, model: 'glm-4.6', error_kind: 'timeout', provider_status: null, message: 'the model did not answer in time', service: 'rag' },
+        { at: '2026-10-15T12:58:10Z', attempt: 2, model: 'glm-4.6', error_kind: 'provider_refused', provider_status: 429, message: 'the provider is limiting requests', service: 'rag' },
+      ],
+    },
   ]
   const logins: LoginEvent[] = [
     { user_id: 'u1', email: 'admin@example.org', at: '2026-10-12T18:02:00Z' },
@@ -337,6 +362,7 @@ function mockAdmin(): AdminApi {
         }),
       ),
     listUsers: () => delay([...users]),
+    findOutputs: (prefix) => delay({ matches: mockOutputs.filter((o) => o.id.replace(/-/g, '').startsWith(prefix)), truncated: false }),
     setRole: (userId, role) => {
       const u = users.find((x) => x.id === userId)
       if (!u) return Promise.reject(new Error('unknown user'))

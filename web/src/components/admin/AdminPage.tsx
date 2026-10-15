@@ -5,6 +5,7 @@ import { t } from '../../i18n'
 import { CanWriteContext } from './canWrite'
 import { Overview } from './Overview'
 import { LoginAttempts, Logins, Users } from './Users'
+import { OutputSearch } from './OutputSearch'
 import { Visits } from './Visits'
 import { FinancePage } from './Finance'
 import { AllowedSignIn } from './SignIn'
@@ -19,6 +20,7 @@ const PAGE_SECTIONS: Record<AdminPageId, (navigate: (path: string) => void) => R
   overview: (navigate) => <Overview onNavigate={navigate} />,
   users: () => (
     <>
+      <OutputSearch />
       <Users />
       <Logins />
       <LoginAttempts />

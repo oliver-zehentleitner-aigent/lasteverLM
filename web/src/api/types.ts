@@ -267,6 +267,45 @@ export interface FeedbackStats {
 export type OutputKind = 'report' | 'quiz' | 'table' | 'mindmap' | 'infographic' | 'audio' | 'decision' | 'chart' | 'flashcards'
 export type OutputStatus = 'waiting' | 'processing' | 'ready' | 'failed'
 
+/** One failed attempt at making an output, oldest first (core's
+ *  AttemptRecord): which model was called (null when none was running),
+ *  the failure's kind, the provider's HTTP status when there was one,
+ *  core's one-line text (e.g. "report: the model returned no content";
+ *  never a prompt or source text) and the service it failed in. */
+export interface AttemptLogEntry {
+  at: string
+  attempt: number
+  model: string | null
+  error_kind: 'provider_refused' | 'provider' | 'configuration' | 'timeout' | 'internal'
+  provider_status: number | null
+  message: string
+  service: 'ingest' | 'rag'
+}
+
+/** An output found by its ID prefix in the admin panel, with its owner
+ *  (the e-mail masked for viewers) and its attempts. */
+export interface AdminOutputMatch {
+  id: string
+  notebook_id: string | null
+  notebook_title: string
+  kind: OutputKind
+  title: string
+  status: OutputStatus
+  error: string | null
+  created_at: string
+  finished_at: string | null
+  deleted_at: string | null
+  owner: { id: string; email: string }
+  attempts: number
+  attempt_log: AttemptLogEntry[]
+}
+
+/** At most 20 matches, newest first; `truncated` when there are more. */
+export interface AdminOutputSearch {
+  matches: AdminOutputMatch[]
+  truncated: boolean
+}
+
 export interface Output {
   id: string
   /** the notebook it was made in; null once that notebook is deleted (the

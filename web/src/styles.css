@@ -1112,3 +1112,4 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .output-id { white-space: nowrap; }
 .output-id code { font-size: 0.95em; }
 .output-id .copy { margin-left: 0.15rem; }
+.output-match { border-top: 1px solid var(--line); padding-top: 0.5rem; margin-top: 0.5rem; }
