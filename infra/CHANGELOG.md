@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `scripts/handbook/build.mjs`: `slug()` strips tags from a heading's HTML until nothing changes, instead of in one pass (code scanning alert js/incomplete-multi-character-sanitization). The anchors of today's 107 headings are unchanged, compared old against new.
+
 ## [0.22.18] - 2026-10-15
 
 ### Changed
