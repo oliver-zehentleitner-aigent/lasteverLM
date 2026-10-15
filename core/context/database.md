@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** core design and family coordination, 2026-10-12 (account runs an async pool, ingest and rag sync ones)
+**Source:** core design, 2026-10-12 (account runs an async pool, ingest and rag sync ones)
 **Revisit when:** the services converge on one of sync and async, or core needs a connection of its own
 
 `record_usage`, `balance_cents` and the rate-limit stores take the
@@ -55,7 +55,7 @@ these rows. The admin panel joins by id and tolerates a missing notebook.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** family coordination, 2026-10-12 (maintainer: cover the SQL paths against a real PostgreSQL once Docker is on the machine); core design
+**Source:** the maintainer's request to cover the SQL paths against a real PostgreSQL once Docker was available, 2026-10-12; core design
 **Revisit when:** infra's local compose stack exists and the family's tests run against it, or account's ledger changes shape
 
 `make test-postgres` starts a `pgvector/pgvector` container, applies
@@ -63,7 +63,9 @@ core's own migrations to the empty database and runs the SQL paths
 (usage accounting, the rate-limit stores, purge, lift) against it, with
 tuple-row and dict-row connections, sync and async. The `ledger` table
 that the balance query reads belongs to the account service; the test
-creates it as the two columns the query uses. The target is not part of
+creates it as the two columns the query uses. Account's `users` (role
+and admin flag) and `settings` (key and value, for the stored rules)
+are mirrored the same way, as the columns core reads. The target is not part of
 `make check` and exits cleanly without Docker.
 
 **Reason:** the unit tests prove the helpers send the right statement

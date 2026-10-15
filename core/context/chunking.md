@@ -7,7 +7,7 @@
 **Status:** superseded
 **Superseded by:** dc660692-6bb2-4ecb-8472-f90b6297763c
 **Evidence:** confirmed
-**Source:** family coordination, 2026-10-12 (agent A: the two copies in ingest and rag are identical, move them); ingest's original design of the chunker
+**Source:** a comparison of the two copies in ingest and rag, found identical, 2026-10-12; ingest's original design of the chunker
 **Revisit when:** retrieval quality points at chunk boundaries, or the embedding provider publishes a tokenizer worth depending on
 
 `TokenWindowChunker` cuts text into windows of 800 tokens that overlap
@@ -41,11 +41,13 @@ imports core.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** ingest live run, 2026-10-12 (51-page German PDF: 66232 embedding tokens over 43 chunks of 800 regex tokens); family coordination the same day
+**Source:** ingest live run, 2026-10-12 (51-page German PDF: 66232 embedding tokens over 43 chunks of 800 regex tokens)
 **Revisit when:** retrieval quality points at chunk boundaries, the embedding model changes, or sources are mostly in a language other than German or English
 
 `TokenWindowChunker` defaults to windows of 420 regex tokens with an
-overlap of 50; ingest and rag inherit the defaults and set nothing. The
+overlap of 50. Rag uses the defaults. Ingest uses them too unless
+`CHUNK_TOKENS` or `CHUNK_OVERLAP_TOKENS` is set; the deployment sets
+neither. The
 regex token (a word or a punctuation character) stays.
 
 **Reason:** the previous defaults, 800 and 100, assumed a regex token is

@@ -7,7 +7,7 @@
 **Status:** superseded
 **Superseded by:** 0eed252c-cde9-420d-bdbc-6d0596b72810
 **Evidence:** confirmed
-**Source:** the maintainer's product rule, 2026-10-13 ("admins have unlimited credit"; admin-only endpoints in ingest and rag)
+**Source:** the maintainer's product rule, 2026-10-13 (unlimited credit for admins; admin-only endpoints in ingest and rag)
 **Revisit when:** admins stop being only the maintainer's own accounts, or a non-admin needs unlimited credit
 
 `has_credit(conn, user_id)` is the check every service runs before a model
@@ -47,6 +47,7 @@ for the token to expire.
 **Status:** active
 **Evidence:** confirmed
 **Source:** the maintainer's reversal of the admin exemption, 2026-10-13
+**Verification:** corroborated — re-checked 2026-10-15 against `usage.py`: `HAS_CREDIT_SQL` is `funded_sql` on the caller's id, `balance > 0` over `coalesce(charge_cents, cost_cents)`, with no role in it
 **Revisit when:** an account needs to run without a balance (a load test, an internal batch job)
 
 `has_credit` and `ahas_credit` are `balance_cents > 0` for every user;
@@ -55,12 +56,22 @@ like anyone else. `is_admin`, `ais_admin` and `admin_only` stay as
 built: the admin flag, read from `users` per request, gates the admin
 endpoints (the panel, the stats endpoints) and nothing else.
 
-**Reason:** the maintainer wants to exercise the voucher path himself,
-so his own testing goes through the same credit check and redemption
-every user meets; an exemption would hide a broken top-up from exactly
-the person most likely to notice it. One rule for every user also keeps
+**Reason:** the maintainer's own testing should go through the same
+credit check and voucher redemption every user meets; an exemption would
+hide a broken top-up from exactly the account most likely to notice it. One rule for every user also keeps
 the flag's meaning narrow: admin is about the panel, not about money.
 
 **Rejected alternative:** admins exempt from the credit check (the
 previous entry, briefly built and merged). Rejected by the maintainer
 for the reason above.
+
+The rule says what may start, not how often it is asked. Since
+2026-10-15 the services check it once, at the start of a user action
+(a chat answer, an output, a read of a source, a confirmed agent plan),
+and an action that has started runs to the end. So a balance can end
+below zero; `has_credit` is then false and the next action waits until
+a voucher brings it back above zero. Since the finance redesign the
+balance is credits minus `charge_cents`, what users pay, not the real
+cost (`billing.md`). `funded_sql` is the same rule as a SQL expression
+for a statement over many users, such as ingest's job claim. Where and
+when each service checks is recorded in that service's context.

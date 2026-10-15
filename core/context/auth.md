@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** core design and family coordination, 2026-10-12 (reconciling the three services' local mirrors)
+**Source:** core design, 2026-10-12, reconciling the three services' local mirrors of the resolver
 **Revisit when:** a third scheme (password, OAuth) is added, or DEMO_TOKEN is removed from the contract
 
 `current_user(authorization, auth)` is the only place a bearer token
@@ -43,7 +43,7 @@ with a leaked secret should still fail.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** security audit of core, 2026-10-14, confirmed by the coordinator; RFC 7518 section 3.2 (an HS256 key at least as long as the hash output)
+**Source:** security audit of core, 2026-10-14; RFC 7518 section 3.2 (an HS256 key at least as long as the hash output)
 **Revisit when:** the token algorithm changes from HS256
 
 `AuthSettings` raises `ConfigError` when `jwt_secret` is shorter than
@@ -66,7 +66,7 @@ service that signs.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's request for read-only reviewer access, 2026-10-14, via the coordinator (either a write flag or a second dependency was acceptable); the account service's role model the same day
+**Source:** the maintainer's request for read-only reviewer access, 2026-10-14 (either a write flag or a second dependency was acceptable); the account service's role model the same day
 **Revisit when:** a role with permissions other than "read everything" or "change everything" is needed
 
 Roles are `"user" | "viewer" | "admin"` from account's `users.role`

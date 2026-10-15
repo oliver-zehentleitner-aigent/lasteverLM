@@ -32,10 +32,10 @@ repository root's `context/`.
 ## C
 
 - [chunking.md](chunking.md) — why the token-window chunker lives in core with regex tokens and serves both parsed sources and generated documents; why its window is 420 regex tokens after measuring German text
-- [credit.md](credit.md) — why the credit check is the same positive balance for every user, admins included (an earlier admin exemption, superseded), and why the admin flag is read from users on every request instead of a JWT claim
+- [credit.md](credit.md) — why the credit check is the same positive balance for every user, admins included (an earlier admin exemption, superseded), why the admin flag is read from users on every request instead of a JWT claim, and why a balance can end below zero once an action has started
 
 ## D
-- [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys; why the SQL is tested against a throwaway container with a two-column ledger
+- [database.md](database.md) — why core has no database driver, types connections structurally and ships every helper sync and async; why usage has no foreign keys; why the SQL is tested against a throwaway container with account's tables mirrored as the columns core reads
 
 ## E
 
@@ -63,7 +63,7 @@ repository root's `context/`.
 
 ## P
 - [packaging.md](packaging.md) — why services install core by path from the same checkout instead of a uv workspace, a lockfile or a published package
-- [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why the shipped default prices are empty
+- [pricing.md](pricing.md) — why an unpriced model fails the call and the start instead of costing zero, and why core ships no default prices: the deployment's MODEL_PRICES is the one price table (the earlier reason, unknown models, superseded)
 - [providers.md](providers.md) — why embeddings request their width and why completions run with reasoning off by default; which switch the platform honours; why an unusable embedding vector fails the call; why speech speed is passed through unchecked; why a response without usage is an error; why transcription and speech synthesis are billed per second as the platform reports it; why a lasting 4xx is a permanent error; why the decision model is billed per reported input token and called through the SDK's generic post; why tool calling is a protocol of its own
 
 ## Q

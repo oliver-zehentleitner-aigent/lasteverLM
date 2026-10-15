@@ -6,8 +6,9 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's go for the finance redesign, 2026-10-14, design relayed by the coordinating agent
+**Source:** the maintainer's go for the finance redesign, 2026-10-14
 **Revisit when:** a charge has to change after the fact (refunds, a price correction applied to past usage)
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 454bd7eb-b5a2-4c63-9544-6425f342a5a6 — as of 2026-10-15
 
 Every `usage` row carries two amounts:
 
@@ -52,15 +53,20 @@ impossible.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinating agent's deploy review of the finance redesign, 2026-10-14
-**Revisit when:** the release after 0006 is deployed everywhere: then the contract migration sets the columns not null and drops the trigger
+**Source:** the deploy review of the finance redesign, 2026-10-14
+**Verification:** corroborated — re-checked 2026-10-15: releases after 0006 are deployed (v0.19.7 onward), so the contract step is due, but it has not been written; migration 0006 is still the latest and the columns are still nullable with the trigger in place, as described here
+**Revisit when:** the contract migration is written (columns not null, trigger dropped); this entry is then superseded by the one that records it
 
-`action`, `action_id` and `charge_cents` are nullable for now. A `before
-insert` trigger, `core_usage_fill_billing`, fills a missing one:
+`action`, `action_id`, `charge_cents`, `cost_usd_cents` and
+`usd_per_eur` are nullable for now. A `before insert` trigger,
+`core_usage_fill_billing`, fills the first four when missing:
 
 - `action` becomes `unknown`;
 - `action_id` becomes the row's id;
-- `charge_cents` becomes `cost_cents`.
+- `charge_cents` becomes `cost_cents`;
+- `cost_usd_cents` becomes `cost_cents`.
+
+`usd_per_eur` stays null for such a row: no rate was applied.
 
 Readers sum `coalesce(charge_cents, cost_cents)`. `record_usage` still
 refuses `unknown`, so only old code produces it.
@@ -81,8 +87,10 @@ Rejected: no column default can give `action_id` the row's own id or
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the account service's review of the finance redesign and the coordinating agent's decision, 2026-10-14
-**Revisit when:** the maintainer settles where the rate comes from (a manual value, or a daily ECB fetch with a manual override in account's sync)
+**Source:** the account service's review of the finance redesign, 2026-10-14
+**Verification:** corroborated — re-checked 2026-10-15: the rate's source is settled (account reads the ECB's daily rates every hour and writes `usd_per_eur` into the pricing row, with a manual override); core's part is unchanged: the rate is read from the rules, stored per row, and has no default
+**Revisit when:** the platform bills in a currency other than US dollars, or credits are kept in a currency other than euros
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 8295ff9e-786e-43a5-9ae7-c0f50fa7fca5 — as of 2026-10-15
 
 `MODEL_PRICES` are US cents, as the platform lists them. Credits,
 vouchers and balances are euro cents. `record_usage` books four
@@ -99,9 +107,10 @@ The rate is `usd_per_eur` in the pricing rules, the same settings row as
 the margins, so it has a single source. It is required and has no
 default: rules without a rate, including the shipped defaults, make
 `record_usage` raise `ExchangeRateMissingError` before it writes
-anything. The seed value is the ECB reference rate of 2026-10-13 (1.1188
-US dollars per euro), until the maintainer confirms a value. It is
-seeded by account's migration, because the `settings` table is
+anything. Account's migration seeded the row with the ECB reference
+rate of 2026-10-13 (1.1188 US dollars per euro); since then account
+keeps it current from the ECB (the entry linked above). The seed is in
+account's migration, because the `settings` table is
 account's and core's migrations run before it exists on a fresh
 database. Rows booked before migration 0006 were charged one to one;
 they keep that and get `usd_per_eur` null.
@@ -118,7 +127,7 @@ change would mean editing the price table.
 built-in number would charge wrongly without anyone noticing, which is
 what failing loud is for.
 
-**Rejected alternative:** `eur_per_usd`, as first proposed. Rejected:
+**Rejected alternative:** `eur_per_usd`, euros per dollar. Rejected:
 the ECB quotes dollars per euro, and storing its figure unchanged
 avoids a rounded inverse.
 
@@ -131,8 +140,9 @@ because of the table ownership and migration order above.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's go for a public price list, design agreed between the account service and core and approved by the coordinating agent, 2026-10-14
+**Source:** the maintainer's go for a public price list, design agreed between the account service and core, 2026-10-14
 **Revisit when:** a PDF should be priced per page, or an action needs a unit other than one action or a minute of audio
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — a41d8d48-87be-4c7b-ac67-169d82352225 — as of 2026-10-15
 
 Every action has a unit in `USAGE_ACTION_UNITS`, next to
 `USAGE_ACTIONS`. A test checks that both lists match. A unit is either
