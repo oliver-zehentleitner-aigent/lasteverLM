@@ -26,8 +26,10 @@ JUDGE_PROMPT_VERSION = "judge-v1"
 # the answer is short, but some judge models reason before it even with
 # thinking off, and those tokens count against the limit: glm-5.3-flash used
 # up to ~500 in the evaluation, and a glm-5.3 answer under load ran out at
-# 1500 (0.20.0). Only the tokens used are billed, so the room is free.
-JUDGE_MAX_TOKENS = 4000
+# 1500 (0.20.0); on long production-like passages glm-5.3-flash used up to
+# 3507 of 4000 (2026-10-15), so 6000. Only the tokens used are billed, so the
+# room is free.
+JUDGE_MAX_TOKENS = 6000
 REASON_MAX_CHARS = 300
 QUOTE_MAX_CHARS = 400
 
@@ -63,6 +65,37 @@ class Judgement:
     quote: str
     # whether the quote is found word for word in a cited passage
     quote_verbatim: bool
+    # no usable answer: its structure, never its text (answer_shape)
+    shape: dict[str, Any] | None = None
+
+
+class UnusableAnswer(ProviderError):
+    """A judge answer that does not parse into a verdict with a reason;
+    ``shape`` describes its structure for the log, never its text."""
+
+    def __init__(self, message: str, usage: Any, shape: dict[str, Any]) -> None:
+        super().__init__(message, usage)
+        self.shape = shape
+
+
+def answer_shape(data: Any, result: CompletionResult) -> dict[str, Any]:
+    """What an unusable answer looked like, without a word of it: the keys it
+    had, the reason's type and length, why the model stopped, how long it ran."""
+    reason = data.get("reason", ...) if isinstance(data, dict) else ...
+    return {
+        "keys": sorted(str(k) for k in data) if isinstance(data, dict) else None,
+        "reason": (
+            "missing"
+            if reason is ...
+            else (
+                f"{type(reason).__name__}({len(reason)})"
+                if isinstance(reason, str)
+                else type(reason).__name__
+            )
+        ),
+        "finish_reason": result.finish_reason,
+        "tokens_out": result.usage.tokens_out,
+    }
 
 
 def judge_user_prompt(statement: str, passages: Mapping[int, str]) -> str:
@@ -81,16 +114,22 @@ def parse_judgement(result: CompletionResult, passages: Mapping[int, str]) -> Ju
     try:
         data = parse_json(result.text)
     except (ValueError, json.JSONDecodeError) as exc:
-        raise ProviderError(f"judge: no JSON object in the answer ({exc})", result.usage) from exc
+        raise UnusableAnswer(
+            f"judge: no JSON object in the answer ({exc})",
+            result.usage,
+            answer_shape(None, result),
+        ) from exc
     verdict = data.get("verdict") if isinstance(data, dict) else None
     reason = data.get("reason") if isinstance(data, dict) else None
     quote = data.get("quote", "") if isinstance(data, dict) else None
+    shape = answer_shape(data, result)
     if verdict not in VERDICTS:
-        raise ProviderError(f"judge: unknown verdict {verdict!r}", result.usage)
+        # the verdict's value goes into the message as before: it is one word
+        raise UnusableAnswer(f"judge: unknown verdict {verdict!r}", result.usage, shape)
     if not isinstance(reason, str) or not reason.strip():
-        raise ProviderError("judge: the answer has no reason", result.usage)
+        raise UnusableAnswer("judge: the answer has no reason", result.usage, shape)
     if not isinstance(quote, str):
-        raise ProviderError("judge: the quote is not text", result.usage)
+        raise UnusableAnswer("judge: the quote is not text", result.usage, shape)
     reason = " ".join(reason.split())[:REASON_MAX_CHARS]
     quote = " ".join(quote.split())[:QUOTE_MAX_CHARS]
     flat = [" ".join(t.split()) for t in passages.values()]

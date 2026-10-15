@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Every output's provenance has `coverage`: which selected sources it cites, read from its units' refs, and for an uncited source the generator's own reason when it named it. Generators are asked to use every source that holds something fitting and to name one that holds nothing, and why, instead of covering every source at any cost; every generator's prompt version goes up by one.
 
+### Changed
+
+- The judge may use up to 6000 output tokens (was 4000; glm-5.3-flash used up to 3507 on long passages). A judge answer without a usable verdict and reason is recorded by its structure only (keys, the reason's type and length, finish reason, output tokens; never its text) as `answer_shape` on the unit and in the log.
+
 ## [0.22.5] - 2026-10-15
 
 ### Fixed
