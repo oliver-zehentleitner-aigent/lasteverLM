@@ -401,7 +401,19 @@ class FakeStore:
     def update_output(self, output_id: str, **fields: Any) -> None:
         if fields.get("status") in ("ready", "failed"):
             fields["finished_at"] = datetime.now(UTC).isoformat()
+            fields["checkpoint"] = {}
         self.outputs[output_id].update(fields)
+
+    def get_checkpoint(self, output_id: str) -> dict[str, Any]:
+        return copy.deepcopy(self.outputs[output_id].get("checkpoint") or {})
+
+    def add_checkpoint(
+        self, output_id: str, worker_id: str | None, key: str, entry: dict[str, Any]
+    ) -> None:
+        row = self.outputs.get(output_id)
+        if row is None or (worker_id is not None and row["claimed_by"] != worker_id):
+            return
+        row.setdefault("checkpoint", {})[key] = copy.deepcopy(entry)
 
     def finish_output(self, output_id: str, worker_id: str, **fields: Any) -> bool:
         if not self.holds_output(output_id, worker_id):
@@ -523,7 +535,9 @@ class FakeStore:
         self.outputs[output_id].update(claimed_by=None, error=error)
 
     def _output_row(self, row: dict[str, Any]) -> OutputRow:
-        fields = {k: v for k, v in row.items() if k not in ("claimed_by", "copied_from")}
+        fields = {
+            k: v for k, v in row.items() if k not in ("claimed_by", "copied_from", "checkpoint")
+        }
         deleted = row["deleted_at"]
         purge_at = (
             (datetime.fromisoformat(deleted) + timedelta(days=self.trash_days)).isoformat()
