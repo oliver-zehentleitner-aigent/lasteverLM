@@ -656,7 +656,11 @@ deleted from the library) stays readable with its quote and is marked
   eye toggle to show it; it is exchanged like the link, and an unknown,
   used or expired code says so.
 - Header: the balance in EUR as a pill that opens **Credits**; a 402
-  anywhere opens the one-field voucher dialog.
+  anywhere opens the one-field voucher dialog. When there is credit, just
+  not enough for an output or a plan (rag's `credit_insufficient`), the
+  dialog and the error say "This needs up to €X, you have €Y.", with
+  "(€Z is held by work still running.)" when started work holds some;
+  otherwise "Your credit is used up".
 - **Credits** (`/credits`, signed in; from the header's balance and
   from Settings): the user's own credit from `GET
   /api/account/me/credit`. On top the balance, large, with what was

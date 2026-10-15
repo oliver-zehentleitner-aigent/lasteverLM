@@ -1156,4 +1156,8 @@ export const de: Record<MessageKey, string> = {
   'http.modelCause.no_audio': 'es kam kein Audio zurück',
   'http.modelCause.unknown': 'der Grund ist nicht bekannt',
   'judge.verdict.no_usable_answer': 'keine Antwort',
+  'http.creditShort': 'Das braucht bis zu {needed}, du hast {available}.',
+  'http.creditHeld': '({held} ist durch noch laufende Arbeit gebunden.)',
+  'http.creditShortBare': 'Dein Guthaben reicht dafür nicht.',
+  'voucher.topUp': 'Gib einen Gutscheincode ein, um aufzuladen.',
 }

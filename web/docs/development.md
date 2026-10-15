@@ -94,7 +94,11 @@ upload) and the contract's codes as a fallback (401, 402, 403, 404, 409,
 415, 422, 429, 501). rag's `model_no_answer` (a model call the user
 waits for failed twice) is translated here, for every call: "The model
 did not answer, not on a second try either: <cause>", the `cause` in the
-user's language, an unknown one as "the reason is not known". A network
+user's language, an unknown one as "the reason is not known". rag's
+`credit_insufficient` 402 (output creation, a plan's confirm) reads
+"This needs up to €X, you have €Y." from its `needed_cents` and
+`available_cents`, plus what `held_cents` holds when above zero; the
+402 event carries that sentence to the voucher dialog. A network
 failure reads "Cannot reach the server".
 401 and 402 additionally raise the app-level events (sign-out, voucher
 dialog). The mapping is unit-tested in `src/api/client.test.ts`.

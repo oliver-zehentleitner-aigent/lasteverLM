@@ -27,7 +27,7 @@ type Session = { state: 'checking' } | { state: 'anonymous' } | { state: 'in'; m
 export default function App() {
   const { route, navigate } = useRoute()
   const [session, setSession] = useState<Session>(() => (getToken() ? { state: 'checking' } : { state: 'anonymous' }))
-  const [voucher, setVoucher] = useState<{ open: boolean; reason: 'manual' | 'exhausted' }>({ open: false, reason: 'manual' })
+  const [voucher, setVoucher] = useState<{ open: boolean; reason: 'manual' | 'exhausted'; short?: string | null }>({ open: false, reason: 'manual' })
 
   // The UI language: the signed-in user's preference, else the browser's.
   // Set before the children render, so every t() in this render uses it.
@@ -68,7 +68,7 @@ export default function App() {
       setToken('')
       setSession({ state: 'anonymous' })
     }
-    const onPayment = () => setVoucher({ open: true, reason: 'exhausted' })
+    const onPayment = (e: Event) => setVoucher({ open: true, reason: 'exhausted', short: e instanceof CustomEvent ? (e.detail as string | null) : null })
     const onOpenVoucher = () => setVoucher({ open: true, reason: 'manual' })
     apiEvents.addEventListener(UNAUTHORIZED, onUnauthorized)
     apiEvents.addEventListener(PAYMENT_REQUIRED, onPayment)
@@ -137,6 +137,7 @@ export default function App() {
       <VoucherDialog
         open={voucher.open}
         reason={voucher.reason}
+        short={voucher.short ?? null}
         onClose={() => setVoucher((v) => ({ ...v, open: false }))}
         onRedeemed={(updated) => {
           setSession({ state: 'in', me: updated })
