@@ -31,10 +31,14 @@ LanguageCode = Annotated[
 VoiceId = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-z0-9_-]{1,64}$")]
 
 
+JudgeDefault = Literal["off", "low", "medium", "high"]
+
+
 class Preferences(BaseModel):
     """Per-user preferences. ``null`` means not set: the web's default language, the
     source's language for output, the platform's default voice, 14 days in the trash,
-    automatic PDF capture, the system theme. ``tour_done`` is false until the user finished
+    automatic PDF capture, the system theme. ``judge_default`` (off unless set) preselects
+    the judge in the output form. ``tour_done`` is false until the user finished
     or skipped the web's first-login tour."""
 
     ui_language: Literal["de", "en"] | None = None
@@ -44,6 +48,7 @@ class Preferences(BaseModel):
     pdf_capture: Literal["auto", "text", "vision"] | None = None  # null: auto
     theme: Literal["system", "light", "dark"] | None = None  # null: system; the web applies it
     tour_done: StrictBool = False
+    judge_default: JudgeDefault = "off"  # the output form's judge preselection
 
 
 class PreferencesUpdate(BaseModel):
@@ -56,6 +61,7 @@ class PreferencesUpdate(BaseModel):
     pdf_capture: Literal["auto", "text", "vision"] | None = None
     theme: Literal["system", "light", "dark"] | None = None
     tour_done: StrictBool | None = None  # null: back to false
+    judge_default: JudgeDefault | None = None  # null: back to off
 
 
 Role = Literal["user", "viewer", "admin"]
