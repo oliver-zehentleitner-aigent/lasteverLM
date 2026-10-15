@@ -1134,4 +1134,10 @@ export const de: Record<MessageKey, string> = {
   'plan.defaultChoice': 'vorausgewählt',
   'plan.freeText': 'Oder in eigenen Worten',
   'plan.send': 'Senden',
+  'plan.uses': 'Liest: {sources}',
+  'plan.pageAsOf': '{name} (Stand {when})',
+  'chat.pageAsOf': 'Webseite {name}, Stand {when}',
+  'chat.pageUsed': 'Webseite {name}',
+  'chat.fetchAgain': 'neu abrufen',
+  'chat.fetchAgainTitle': 'Dieselbe Frage noch einmal stellen, mit frisch abgerufener Seite',
 }

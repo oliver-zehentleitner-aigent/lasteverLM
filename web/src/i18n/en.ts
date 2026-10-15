@@ -1131,6 +1131,12 @@ export const en = {
   'plan.defaultChoice': 'preselected',
   'plan.freeText': 'Or say it in your own words',
   'plan.send': 'Send',
+  'plan.uses': 'Reads: {sources}',
+  'plan.pageAsOf': '{name} (as of {when})',
+  'chat.pageAsOf': 'Web page {name} as of {when}',
+  'chat.pageUsed': 'Web page {name}',
+  'chat.fetchAgain': 'fetch again',
+  'chat.fetchAgainTitle': 'Ask the same question again with this page fetched fresh',
 } as const
 
 export type MessageKey = keyof typeof en
