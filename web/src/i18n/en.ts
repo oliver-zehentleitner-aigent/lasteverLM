@@ -1206,7 +1206,7 @@ export const en = {
   'verify.explain.basic': 'Words and negation: the word check and the negation check mark what the passages do not back. No model, no extra cost.',
   'verify.explain.standard': 'Also a small judge on every paragraph the word check doubts; it marks, changes and removes nothing.',
   'verify.explain.thorough': 'A stronger judge on every paragraph; what fails is revised and judged again, up to three rounds, and removed if it still fails.',
-  'verify.explain.bulletproof': 'rag\'s strictest check.',
+  'verify.explain.bulletproof': 'Two judges of different model families on every paragraph; supported only where both agree, "disputed" where they disagree (kept, never removed). Slower and dearer, and may mark more claims as disputed.',
   'verify.default': 'Verification by default',
   'verify.defaultHint': 'New documents start at this level, and chat answers are checked at it.',
   'outProv.modelWithoutEvidence': 'Model\'s answer without evidence (not from the sources)',
@@ -1215,6 +1215,10 @@ export const en = {
   'ws.resizeFormats': 'Resize output formats and documents',
   'decision.tendency.one': 'Tendency, based on {n} supported item',
   'decision.tendency.other': 'Tendency, based on {n} supported items',
+  'judge.verdict.disputed': 'disputed',
+  'judge.first': 'First judge ({model})',
+  'judge.second': 'Second judge ({model})',
+  'verify.slower': 'slower and dearer',
 } as const
 
 export type MessageKey = keyof typeof en

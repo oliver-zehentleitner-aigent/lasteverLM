@@ -1209,7 +1209,7 @@ export const de: Record<MessageKey, string> = {
   'verify.explain.basic': 'Wörter und Verneinung: Wort- und Verneinungsprüfung markieren, was die Passagen nicht stützen. Kein Modell, keine Zusatzkosten.',
   'verify.explain.standard': 'Dazu ein kleiner Judge für jeden Absatz, den die Wortprüfung anzweifelt; er markiert, ändert und entfernt nichts.',
   'verify.explain.thorough': 'Ein stärkerer Judge für jeden Absatz; was durchfällt, wird überarbeitet und erneut geprüft, bis zu drei Runden, und entfernt, wenn es weiter durchfällt.',
-  'verify.explain.bulletproof': 'Die strengste Prüfung von rag.',
+  'verify.explain.bulletproof': 'Zwei Judges verschiedener Modellfamilien auf jedem Absatz; gestützt nur, wo beide zustimmen, „strittig“, wo sie sich widersprechen (bleibt stehen, wird nie entfernt). Langsamer und teurer, und markiert womöglich mehr Aussagen als strittig.',
   'verify.default': 'Standard-Prüfung',
   'verify.defaultHint': 'Neue Dokumente beginnen mit dieser Stufe, und Chat-Antworten werden so geprüft.',
   'outProv.modelWithoutEvidence': 'Antwort des Modells ohne Belege (nicht aus den Quellen)',
@@ -1218,4 +1218,8 @@ export const de: Record<MessageKey, string> = {
   'ws.resizeFormats': 'Ausgabeformate und Dokumente in der Höhe ändern',
   'decision.tendency.one': 'Tendenz, gestützt auf {n} belegten Punkt',
   'decision.tendency.other': 'Tendenz, gestützt auf {n} belegte Punkte',
+  'judge.verdict.disputed': 'strittig',
+  'judge.first': 'Erster Judge ({model})',
+  'judge.second': 'Zweiter Judge ({model})',
+  'verify.slower': 'langsamer und teurer',
 }

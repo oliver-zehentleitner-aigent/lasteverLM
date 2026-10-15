@@ -77,6 +77,17 @@ export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource
             ({t(`judge.level.${judge.level}`).toLowerCase()}, {judge.model}, {t('judge.removedRound', { n: judge.round })})
           </span>
           <p>{judge.reason}</p>
+          {/* bulletproof: both judges, each with its own verdict and reason */}
+          {judge.first && (
+            <p className="small">
+              <span className="muted">{t('judge.first', { model: judge.model })}:</span> {t(`judge.verdict.${judge.first.verdict ?? 'no_usable_answer'}`)} — {judge.first.reason}
+            </p>
+          )}
+          {judge.second && (
+            <p className="small">
+              <span className="muted">{t('judge.second', { model: judge.second.model })}:</span> {t(`judge.verdict.${judge.second.verdict ?? 'no_usable_answer'}`)} — {judge.second.reason}
+            </p>
+          )}
           {judge.quote && (
             <p className="small">
               <span className="muted">{t('judge.quote')}:</span> <q>{judge.quote}</q>

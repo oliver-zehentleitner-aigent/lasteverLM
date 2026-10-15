@@ -357,7 +357,9 @@ export interface Claim {
 }
 
 export type JudgeLevel = 'off' | 'low' | 'medium' | 'high'
-export type JudgeVerdict = 'supported' | 'contradicted' | 'not_in_source'
+/** "disputed" (verification bulletproof): the two judges disagree; the
+ *  claim is kept, never removed and never counted as supported */
+export type JudgeVerdict = 'supported' | 'contradicted' | 'not_in_source' | 'disputed'
 /** a round's or a judging's counts: the verdicts, and the claims the
  *  judge gave no usable answer for */
 export type JudgeCounts = Partial<Record<JudgeVerdict | 'no_usable_answer', number>>
@@ -372,6 +374,10 @@ export interface JudgeNote {
   reason: string
   quote: string
   round: number
+  /** bulletproof: the second judge, of another model family */
+  second?: { model: string; verdict: JudgeVerdict | null; reason: string; quote: string }
+  /** bulletproof: the first judge's own reading, where the result replaced it (disputed) */
+  first?: { verdict: JudgeVerdict | null; reason: string }
 }
 
 /** A judging during generation: its rounds and the claims taken out.
@@ -379,6 +385,8 @@ export interface JudgeNote {
  *  check doubted, judged once and annotated, with no rounds or removals. */
 export interface JudgeRun {
   mode?: 'doubted' | 'all'
+  /** bulletproof: the second judge's model */
+  second_model?: string
   /** "doubted": how many units were judged */
   judged?: number
   /** "doubted": the counts of that one pass */
