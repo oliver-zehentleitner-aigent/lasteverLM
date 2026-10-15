@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- An audio's segments are joined with one Xing header for the whole stream: each segment brought its own, so a player took the first segment's length for the file's (0:12, growing while playing) and could not seek past it ("play from here"). The later headers are dropped and the first is rewritten with the total frames, bytes, a new seek table and the LAME tag's length, padding and checksums; transcript times count audio frames only. `lasteverlm-rag-repair-audio` rewrites audio stored since 0.20.2 in place (a dry run unless `--apply`, idempotent) and moves its transcript times back accordingly.
+
 ## [0.21.4] - 2026-10-15
 
 ### Added

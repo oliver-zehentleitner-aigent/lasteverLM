@@ -412,6 +412,16 @@ class FakeStore:
     def delete_output(self, output_id: str) -> None:
         del self.outputs[output_id]
 
+    def audio_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
+        return [
+            self._output_row(r)
+            for r in self.outputs.values()
+            if r["kind"] == "audio"
+            and r["status"] == "ready"
+            and "key" in (r["content"] or {})
+            and (output_ids is None or r["id"] in output_ids)
+        ]
+
     def claim_output(self, worker_id: str, stale_after_s: int) -> OutputRow | None:
         for row in sorted(self.outputs.values(), key=lambda r: r["created_at"]):
             if row["status"] not in ("waiting", "processing") or row["claimed_by"] is not None:

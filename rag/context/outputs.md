@@ -153,7 +153,11 @@ the script. The model catalog later named an input limit of 6000
 characters (2026-10-14); 1500-character segments stay well inside it,
 and the reasons above hold without it. MP3 is a stream of self-contained frames, so the segments
 concatenate without re-encoding and without an audio library in the
-image. Cutting at sentence ends keeps the joins at natural pauses.
+image. Each segment's first frame is a Xing header for that segment
+alone, though: the joined file keeps one, rewritten for the whole
+stream, and drops the others (corrected 2026-10-15; until then a player
+read the first segment's length as the file's and could not seek past
+it). Cutting at sentence ends keeps the joins at natural pauses.
 
 **Rejected alternatives:** one request for the whole script, rejected
 because the input limit is unknown and a five-minute script would be

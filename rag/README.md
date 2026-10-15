@@ -687,7 +687,16 @@ narrator and the interviewer with `voice`, the expert with
 at most 1500 characters that end at a sentence, one `tts`
 usage row per segment priced per second of generated audio as the
 platform reports it, and stores the joined MP3 at
-`<notebook_id>/<output_id>/audio.mp3` in object storage. The row keeps
+`<notebook_id>/<output_id>/audio.mp3` in object storage. The segments
+arrive as VBR, each with a Xing header (frame and byte counts, a seek
+table, a LAME tag). The joined file keeps one header for the whole
+stream, rewritten with the totals, and drops the others; otherwise a
+player takes the first segment's length for the file's and cannot seek
+past it. Audio stored from 0.20.2 until this fix has every header:
+`lasteverlm-rag-repair-audio` (needs `DATABASE_URL` and the `S3_*`
+settings) lists those it would rewrite, and with `--apply` rewrites the
+file in place and moves the transcript times back by the frames it
+drops. It is idempotent; `--output <id>` limits it to some outputs. The row keeps
 `{"key", "transcript": [{"speaker", "text", "start"?, "end"?}]}`. The
 `speaker` is `narrator`, `interviewer` or `expert`; audio outputs from
 before have no transcript.
