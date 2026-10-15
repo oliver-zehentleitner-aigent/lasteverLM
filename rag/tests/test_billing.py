@@ -108,6 +108,7 @@ def test_a_proposal_a_judgement_on_request_and_a_preview_are_actions_of_their_ow
     client.worker.run_once()
     store.bookings.clear()
     client.post(f"/api/rag/outputs/{out}/judge", json={"level": "high"}, headers=AUTH)
+    client.worker.run_once()  # the judgement runs as a job
     ((action, action_id),) = set(store.bookings)
     assert action == "judge" and action_id != uuid.UUID(out)
 

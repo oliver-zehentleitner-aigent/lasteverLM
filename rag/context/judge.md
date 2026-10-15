@@ -198,6 +198,12 @@ generation's own prompt and passages in the generator's form. Marking
 its claims tells the reader which ones hold without changing the
 document. A corrected version is a new generation with the judge on.
 
+Since 2026-10-15 a judgement on request runs as a background job, like
+an output: the request queues it (202) and the worker judges, with its
+phase and its failed attempts kept, and stores the result on the target
+as before. A synchronous High check of eleven units had run past the
+ingress' 120 s, answering 504 while the work went on.
+
 **Rejected alternatives:** unknown.
 
 ## Verification levels: how much checking an output gets is one setting, from free to a judge on everything

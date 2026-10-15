@@ -42,8 +42,10 @@ this directory implements the `/api/rag` prefix.
 | DELETE | `/api/rag/outputs/{id}` | | 204, into the trash |
 | POST | `/api/rag/outputs/{id}/restore` | | 204, out of the trash |
 | DELETE | `/api/rag/outputs/{id}/purge` | | 204, deleted for good; 409 unless in the trash |
-| POST | `/api/rag/outputs/{id}/judge` | `{"level": "low" \| "medium" \| "high"}` | `Output` with every claim judged, nothing revised or removed; see **Judge** |
-| POST | `/api/rag/messages/{id}/judge` | `{"level"}` | `Message`: an answer's paragraphs judged against its citations |
+| POST | `/api/rag/outputs/{id}/judge` | `{"level": "low" \| "medium" \| "high"}` | 202 `JudgeJob`: every claim judged in the background, nothing revised or removed; see **Judge** |
+| POST | `/api/rag/messages/{id}/judge` | `{"level"}` | 202 `JudgeJob`: an answer's paragraphs judged against its citations, in the background |
+| GET | `/api/rag/outputs/{id}/judge`, `/api/rag/messages/{id}/judge` | | the target's latest `JudgeJob`; 404 `no judgement` |
+| GET | `/api/rag/judge-jobs/{job_id}` | | `JudgeJob`: `{"job_id", "target", "target_id", "level", "status", "phase", "attempts", "attempt_log", "error", "created_at", "finished_at"}` |
 | POST | `/api/rag/outputs/{id}/share` | | `{"share_token"}` |
 | DELETE | `/api/rag/outputs/{id}/share` | | 204 |
 | GET | `/api/rag/shared/{token}` | no auth | the document without ids |
@@ -402,7 +404,19 @@ annotates, adds an entry to `provenance.judgements` and answers 409
 `nothing to judge: no cited passages` for an output without logged
 passages. `POST /messages/{id}/judge` does the same for a chat answer's
 paragraphs against its citations, stored with the message's support.
-Both are synchronous, need credit, and run four judge calls at a time.
+Both check the target, the level's model and credit, then answer 202
+with a `JudgeJob` (`judge_jobs` table, migration
+`0018_rag_judge_jobs.sql`); a second request while one is queued or
+running is 409 `a judgement is already running` with its `job_id`. The
+worker claims the job like an output job (a stale claim is taken over),
+writes `phase: {"step": "judging", "n", "of", "since"}` as it goes (both
+judges' calls counted at bulletproof), and stores the result on the
+target as before; the client polls `GET /judge-jobs/{job_id}` and reads
+the target again when `status` is `done`. A failed attempt is kept in
+`attempt_log` (core's `AttemptRecord`) and retried, three attempts in
+all; a target that can no longer be judged (gone, trashed, without
+passages) fails at once. Before, a High check of many units ran past
+the ingress' 120 s.
 
 **Reading when used.** A source linked into a notebook stays `added` (not
 read) until something needs it. Before an output is created or a question

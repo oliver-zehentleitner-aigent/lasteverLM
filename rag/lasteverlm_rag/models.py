@@ -369,3 +369,20 @@ class DailyStats(BaseModel):
     the last one today; every day and every kind present, zeros included."""
 
     days: list[DayStats]
+
+
+class JudgeJob(BaseModel):
+    """A judgement on request, run by the worker: its state while queued or
+    running, and how it ended. The result goes onto the output or message."""
+
+    job_id: str
+    target: Literal["output", "message"]
+    target_id: str
+    level: str
+    status: Literal["queued", "running", "done", "failed"]
+    phase: dict[str, Any] | None = None
+    attempts: int = 0
+    attempt_log: list[dict[str, Any]] = Field(default_factory=list)
+    error: str | None = None
+    created_at: str
+    finished_at: str | None = None

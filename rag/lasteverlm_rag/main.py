@@ -82,6 +82,7 @@ from .models import (
     DailyStats,
     EstimateRequest,
     FeedbackRequest,
+    JudgeJob,
     JudgeRequest,
     NotebookSuggestions,
     OutputCreate,
@@ -109,6 +110,8 @@ from .service import (
     InsufficientCredit,
     InvalidOptions,
     InvalidSources,
+    JudgeJobNotFound,
+    JudgementRunning,
     MessageNotFound,
     NotAnAnswer,
     NotebookNotFound,
@@ -621,10 +624,21 @@ def create_app(
         outputs.unshare(user, str(output_id))
         return Response(status_code=204)
 
-    @app.post(f"{PREFIX}/outputs/{{output_id}}/judge", response_model=Output)
-    def judge_output(output_id: OutputId, body: JudgeRequest, user: User) -> Output:
-        """Judge a ready output's claims with the level's model; annotate only."""
-        return outputs.judge_stored_output(user, str(output_id), body.level)
+    @app.post(f"{PREFIX}/outputs/{{output_id}}/judge", response_model=JudgeJob, status_code=202)
+    def judge_output(output_id: OutputId, body: JudgeRequest, user: User) -> JudgeJob:
+        """Queue a judgement of a ready output's claims (annotate only); the
+        worker runs it. Poll the job; the result lands on the output."""
+        return outputs.request_judgement(user, "output", str(output_id), body.level)
+
+    @app.get(f"{PREFIX}/outputs/{{output_id}}/judge", response_model=JudgeJob)
+    def latest_output_judgement(output_id: OutputId, user: User) -> JudgeJob:
+        """The output's latest judgement job, running or ended."""
+        return outputs.latest_judgement(user, "output", str(output_id))
+
+    @app.get(f"{PREFIX}/judge-jobs/{{job_id}}", response_model=JudgeJob)
+    def judgement_job(job_id: uuid.UUID, user: User) -> JudgeJob:
+        """A judgement job's state: queued, running (with its phase), done or failed."""
+        return outputs.judge_job(user, str(job_id))
 
     @app.post(f"{PREFIX}/messages/{{message_id}}/feedback", response_model=Message)
     def rate_message(message_id: uuid.UUID, body: FeedbackRequest, user: User) -> Message:
@@ -636,10 +650,15 @@ def create_app(
         """Starting questions for a notebook, cached until its uploads change."""
         return rag.notebook_suggestions(user, str(notebook_id))
 
-    @app.post(f"{PREFIX}/messages/{{message_id}}/judge", response_model=Message)
-    def judge_message(message_id: uuid.UUID, body: JudgeRequest, user: User) -> Message:
-        """Judge a chat answer's paragraphs against its citations; annotate only."""
-        return outputs.judge_message(user, str(message_id), body.level)
+    @app.post(f"{PREFIX}/messages/{{message_id}}/judge", response_model=JudgeJob, status_code=202)
+    def judge_message(message_id: uuid.UUID, body: JudgeRequest, user: User) -> JudgeJob:
+        """Queue a judgement of a chat answer's paragraphs (annotate only)."""
+        return outputs.request_judgement(user, "message", str(message_id), body.level)
+
+    @app.get(f"{PREFIX}/messages/{{message_id}}/judge", response_model=JudgeJob)
+    def latest_message_judgement(message_id: uuid.UUID, user: User) -> JudgeJob:
+        """The answer's latest judgement job, running or ended."""
+        return outputs.latest_judgement(user, "message", str(message_id))
 
     @app.patch(f"{PREFIX}/outputs/{{output_id}}", response_model=Output)
     def rename_output(output_id: OutputId, body: OutputRename, user: User) -> Output:
@@ -742,6 +761,16 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(CandidateOutOfScope)
     async def candidate_out_of_scope(_: Request, exc: CandidateOutOfScope) -> JSONResponse:
         return JSONResponse({"error": str(exc), "code": "candidate_out_of_scope"}, status_code=409)
+
+    @app.exception_handler(JudgementRunning)
+    async def judgement_running(_: Request, exc: JudgementRunning) -> JSONResponse:
+        return JSONResponse(
+            {"error": "a judgement is already running", "job_id": str(exc)}, status_code=409
+        )
+
+    @app.exception_handler(JudgeJobNotFound)
+    async def judge_job_not_found(_: Request, exc: JudgeJobNotFound) -> JSONResponse:
+        return error(404, "no judgement")
 
     @app.exception_handler(ChartOutOfScope)
     async def chart_out_of_scope(_: Request, exc: ChartOutOfScope) -> JSONResponse:

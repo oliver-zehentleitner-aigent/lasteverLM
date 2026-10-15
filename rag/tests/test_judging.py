@@ -355,11 +355,13 @@ def test_a_ready_output_is_judged_on_request_without_revision(settings):
     )
     path = f"/api/rag/outputs/{out['id']}/judge"
     r = client.post(path, json={"level": "high"}, headers=AUTH)
-    assert r.status_code == 200, r.text
-    units = r.json()["content"]["units"]
+    assert r.status_code == 202, r.text
+    assert r.json()["status"] == "queued"
+    client.worker.run_once()  # the judgement runs as a job
+    stored = client.get(f"/api/rag/outputs/{out['id']}", headers=AUTH).json()
+    units = stored["content"]["units"]
     assert [u["judge"]["verdict"] for u in units] == ["supported", "contradicted"]
     assert len(units) == 2  # nothing is removed on request
-    stored = client.get(f"/api/rag/outputs/{out['id']}", headers=AUTH).json()
     assert stored["content"]["units"][1]["judge"]["model"] == "test-judge-high"
     (entry,) = stored["provenance"]["judgements"]
     assert entry["verdicts"] == {"supported": 1, "contradicted": 1}
@@ -393,9 +395,10 @@ def test_a_chat_answer_is_judged_on_request(settings):
     answer = client.post(ask, json={"question": "?", "conversation_id": CONVERSATION}, headers=AUTH)
     message_id = answer.json()["message_id"]
     r = client.post(f"/api/rag/messages/{message_id}/judge", json={"level": "low"}, headers=AUTH)
-    assert r.status_code == 200, r.text
-    assert [u["judge"]["verdict"] for u in r.json()["units"]] == ["supported", "contradicted"]
+    assert r.status_code == 202, r.text
+    client.worker.run_once()
     listed = client.get(f"/api/rag/conversations/{CONVERSATION}/messages", headers=AUTH).json()
+    assert [u["judge"]["verdict"] for u in listed[-1]["units"]] == ["supported", "contradicted"]
     assert listed[-1]["units"][1]["judge"]["reason"] == "contradicted by rule"
     question_id = listed[0]["id"]
     r = client.post(f"/api/rag/messages/{question_id}/judge", json={"level": "low"}, headers=AUTH)

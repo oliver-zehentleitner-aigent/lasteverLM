@@ -73,6 +73,7 @@ from .models import (
     Conversation,
     ConversationRow,
     GeneratedOutput,
+    JudgeJob,
     NotebookDocument,
     NotebookSuggestions,
     OutputRow,
@@ -292,6 +293,14 @@ class OutputNotInTrash(Exception):
 class CandidateOutOfScope(Exception):
     """A picked table or theme candidate cites a passage outside the selected
     sources (a proposal made for another selection): 409, find them again."""
+
+
+class JudgementRunning(Exception):
+    """A judgement of this output or message is already queued or running: 409."""
+
+
+class JudgeJobNotFound(Exception):
+    """No such judgement job of the caller's: 404."""
 
 
 class ChartOutOfScope(Exception):
@@ -1789,21 +1798,131 @@ class OutputService:
             raise InvalidOptions(f"judge: no model for level {level} on this deployment")
         return judge_llm
 
-    def judge_stored_output(self, user_id: str, output_id: str, level: str) -> Output:
-        """Judge a ready output's claims on request: annotate only, nothing is
-        revised or removed. Each judged unit gets its ``judge``; the log gets
-        an entry under ``provenance.judgements``."""
-        row = self._active(user_id, output_id)
-        if row.status != "ready":
-            raise OutputNotReady(output_id)
-        if row.kind == "chart":
-            raise InvalidOptions("judge: a chart's values already have the exact number check")
-        passages = (row.provenance or {}).get("passages") or []
-        if not passages or row.content is None:
-            raise NothingToJudge(output_id)
-        judge_llm = self._judge_model(level)
+    # -- judgements on request: a job the worker runs -------------------------
+
+    def request_judgement(
+        self, user_id: str, target: Literal["output", "message"], target_id: str, level: str
+    ) -> JudgeJob:
+        """Queue a judgement of a ready output's claims or a chat answer's
+        paragraphs; the worker runs it (``process_judge_job``). Checked now:
+        the target, the level's model, credit, and no judgement already
+        running for it."""
+        notebook_id = self._judgeable(user_id, target, target_id)
+        self._judge_model(level)
         require_credit(self._store, user_id)
-        content = copy.deepcopy(row.content)
+        latest = self._store.latest_judge_job(target, target_id)
+        if latest is not None and latest["status"] in ("queued", "running"):
+            raise JudgementRunning(latest["id"])
+        job_id = str(uuid.uuid4())
+        self._store.create_judge_job(
+            {
+                "id": job_id,
+                "owner": user_id,
+                "target": target,
+                "target_id": target_id,
+                "notebook_id": notebook_id,
+                "level": level,
+            }
+        )
+        found = self._store.get_judge_job(job_id)
+        assert found is not None
+        return judge_job(found)
+
+    def judge_job(self, user_id: str, job_id: str) -> JudgeJob:
+        found = self._store.get_judge_job(job_id)
+        if found is None or found["owner"] != user_id:
+            raise JudgeJobNotFound(job_id)
+        return judge_job(found)
+
+    def latest_judgement(
+        self, user_id: str, target: Literal["output", "message"], target_id: str
+    ) -> JudgeJob:
+        found = self._store.latest_judge_job(target, target_id)
+        if found is None or found["owner"] != user_id:
+            raise JudgeJobNotFound(target_id)
+        return judge_job(found)
+
+    def _judgeable(self, user_id: str, target: str, target_id: str) -> str | None:
+        """The target's notebook, after checking it can be judged at all."""
+        if target == "output":
+            row = self._active(user_id, target_id)
+            if row.status != "ready":
+                raise OutputNotReady(target_id)
+            if row.kind == "chart":
+                raise InvalidOptions("judge: a chart's values already have the exact number check")
+            if not (row.provenance or {}).get("passages") or row.content is None:
+                raise NothingToJudge(target_id)
+            return row.notebook_id
+        found = self._store.get_message(target_id)
+        if found is None:
+            raise MessageNotFound(target_id)
+        notebook_id, message = found
+        notebook = self._store.get_notebook(notebook_id)
+        if notebook is None or notebook["owner"] != user_id:
+            raise MessageNotFound(target_id)
+        if message.role != "assistant" or not message.citations or not message.units:
+            raise NothingToJudge(target_id)
+        return notebook_id
+
+    def process_judge_job(self, job: dict[str, Any]) -> bool:
+        """Run one claimed judgement. Returns True when it ended (done, or
+        failed for good), False when it went back to the queue. A target
+        that can no longer be judged fails at once; anything else is retried
+        until ``MAX_ATTEMPTS``, every failed attempt kept on the job."""
+        job_id = job["id"]
+
+        def progress(done: int, of: int) -> None:
+            self._store.update_judge_job(
+                job_id, phase={"step": "judging", "n": done, "of": of, "since": now()}
+            )
+
+        try:
+            if job["target"] == "output":
+                self._judge_output_now(job["owner"], job["target_id"], job["level"], progress)
+            else:
+                self._judge_message_now(job["owner"], job["target_id"], job["level"], progress)
+        except Exception as exc:
+            final = isinstance(exc, FINAL_JUDGEMENT_ERRORS) or job["attempts"] >= MAX_ATTEMPTS
+            log.warning(
+                "judgement %s of %s %s attempt %d failed%s: %s",
+                short_id(job_id),
+                job["target"],
+                short_id(job["target_id"]),
+                job["attempts"],
+                "" if final else ", will retry",
+                failure_kind(exc),
+            )
+            self._store.add_judge_attempt(
+                job_id,
+                AttemptRecord.from_error(exc, attempt=job["attempts"], service="rag").model_dump(
+                    mode="json"
+                ),
+            )
+            self._store.update_judge_job(
+                job_id,
+                status="failed" if final else "queued",
+                phase=None,
+                error=public_error(exc) if final else None,
+            )
+            return final
+        self._store.update_judge_job(job_id, status="done", phase=None, error=None)
+        return True
+
+    def _judge_output_now(
+        self,
+        user_id: str,
+        output_id: str,
+        level: str,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> None:
+        """Judge a ready output's claims: annotate only, nothing is revised or
+        removed. Each judged unit gets its ``judge``; the log gets an entry
+        under ``provenance.judgements``."""
+        self._judgeable(user_id, "output", output_id)
+        row = self._active(user_id, output_id)
+        passages = (row.provenance or {}).get("passages") or []
+        judge_llm = self._judge_model(level)
+        content = copy.deepcopy(row.content or {})
         usage = {"tokens_in": 0, "tokens_out": 0}
 
         def counted(u: Usage) -> None:
@@ -1816,6 +1935,7 @@ class OutputService:
             {p["n"]: p["quote"] for p in passages},
             level=level,
             model=judge_llm.model,
+            on_progress=on_progress,
         )
         provenance = dict(row.provenance or {})
         provenance["judgements"] = [
@@ -1823,23 +1943,22 @@ class OutputService:
             {**summary, "usage": usage, "at": now()},
         ]
         self._store.update_output(row.id, content=content, provenance=provenance)
-        return self._present(replace(row, content=content, provenance=provenance))
 
-    def judge_message(self, user_id: str, message_id: str, level: str) -> Message:
+    def _judge_message_now(
+        self,
+        user_id: str,
+        message_id: str,
+        level: str,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> None:
         """Judge a chat answer's paragraphs against its citations: annotate
         only; each unit gets its ``judge``."""
+        notebook_id = self._judgeable(user_id, "message", message_id)
         found = self._store.get_message(message_id)
-        if found is None:
-            raise MessageNotFound(message_id)
-        notebook_id, message = found
-        notebook = self._store.get_notebook(notebook_id)
-        if notebook is None or notebook["owner"] != user_id:
-            raise MessageNotFound(message_id)
-        if message.role != "assistant" or not message.citations or not message.units:
-            raise NothingToJudge(message_id)
+        assert found is not None and notebook_id is not None
+        _, message = found
         judge_llm = self._judge_model(level)
-        require_credit(self._store, user_id)
-        targets = copy.deepcopy(message.units)
+        targets = copy.deepcopy(message.units or [])
         usage = {"tokens_in": 0, "tokens_out": 0}
 
         def counted(u: Usage) -> None:
@@ -1852,6 +1971,7 @@ class OutputService:
             {c.n: c.quote for c in message.citations},
             level=level,
             model=judge_llm.model,
+            on_progress=on_progress,
         )
         support = {
             "units": targets,
@@ -1859,7 +1979,6 @@ class OutputService:
             "judge": {**summary, "usage": usage, "at": now()},
         }
         self._store.update_message_support(message_id, support)
-        return message.model_copy(update={"units": targets})
 
     def _check_cited(
         self, notebook_id: str, charts: Sequence[dict[str, Any]], selected: Sequence[str] | None
@@ -2406,4 +2525,31 @@ def verification_level(store: Store, user_id: str) -> str:
         return str(level)
     return LEVEL_OF_JUDGE.get(
         str(store.user_preference(user_id, "judge_default") or "off"), "basic"
+    )
+
+
+# a judgement that cannot succeed by trying again: the target changed or went
+FINAL_JUDGEMENT_ERRORS: tuple[type[Exception], ...] = (
+    NothingToJudge,
+    OutputNotReady,
+    OutputNotFound,
+    MessageNotFound,
+    InvalidOptions,
+)
+
+
+def judge_job(row: Mapping[str, Any]) -> JudgeJob:
+    """A ``judge_jobs`` row as the API shows it."""
+    return JudgeJob(
+        job_id=str(row["id"]),
+        target=row["target"],
+        target_id=str(row["target_id"]),
+        level=str(row["level"]),
+        status=row["status"],
+        phase=row.get("phase"),
+        attempts=int(row.get("attempts") or 0),
+        attempt_log=list(row.get("attempt_log") or []),
+        error=row.get("error"),
+        created_at=str(row["created_at"]),
+        finished_at=row.get("finished_at"),
     )
