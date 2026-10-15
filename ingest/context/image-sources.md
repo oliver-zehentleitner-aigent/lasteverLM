@@ -72,3 +72,48 @@ small enough to show directly.
   through the API and need the token, which an `<img>` cannot send.
 - Thumbnails rendered at upload: a second object per image and a resize
   step, for originals that are already small.
+
+## A model-made transcript that loops is asked for once more, then fails
+
+**Id:** 6f726417-ccef-4894-bfc4-b68bd46bfe75
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-15, after the starter screenshot was read as a few labels and then hundreds of repetitions of one term until the output cap, and outputs were built from it; the detection rules, thresholds and retry settings are the ingest author's
+**Revisit when:** a real source fails with the repetition reason although its text is genuine, or the platform's vision or speech model changes
+
+Every model-made transcript (an image, a PDF page read by the vision
+model, an audio transcript) is checked for a repetition loop before it is
+indexed (loaders/degeneration.py): an n-gram of up to eight words repeated
+100 times back to back, a capped answer whose last 200 words are at least
+90 % one repetition, or 500 consecutive words with fewer than 25 distinct
+ones. An image or page that loops is asked for once more with a
+temperature of 0.4 and frequency, presence and repetition penalties. If
+it still loops, the source fails with "the model's description
+degenerated into repetition". An audio transcript fails at once, because
+core's transcriber sends no sampling settings and a second call would
+repeat the first. Every call made is billed, and nothing is indexed.
+
+**Reason:** a loop is not a reading of the source. Indexed, it becomes
+the ground truth that answers, summaries and outputs are built on, and
+nothing downstream can tell it from a real transcript. Failing loudly is
+the family rule. The thresholds sit far above what real text does: a
+table of identical labels repeats a two-word row dozens of times, a
+chorus four or five times, while the observed loop repeated its term
+hundreds of times. The distinct-word check runs over windows, because a
+long text's share of distinct words falls with its length.
+
+A second attempt costs a second call that the read's estimate does not
+include. That overdraw is bounded by one call per image or page, and
+only for an answer that would otherwise fail.
+
+**Alternatives:**
+- Indexing the loop as it was: the behaviour that built outputs on it.
+- Failing at once, without a second attempt: a loop at temperature 0 is
+  often one unlucky path, and a second call with penalties may read the
+  image; one call more is cheaper than a re-upload.
+- Trimming the loop and keeping the start: the model stopped reading
+  when it began to repeat, so the rest of the source is missing without
+  any sign of it.
+- Asking a model whether the text is degenerate: another billed call,
+  and not deterministic.

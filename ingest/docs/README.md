@@ -413,6 +413,33 @@ readable content"), whose call is still recorded as usage; other
 provider errors are retried. `IMAGE_MAX_TOKENS` (2000) caps
 the answer.
 
+### Repetition loops
+
+A model can fall into a loop: a few words, then one phrase until the
+output cap. `loaders/degeneration.py` checks every model-made transcript
+(an image, a PDF page read by the vision model, an audio transcript)
+deterministically, on word tokens. It counts as degenerate when one of
+these holds:
+
+- one n-gram of 1 to 8 words repeats back to back 100 times or more;
+- the answer stopped at the output cap (finish reason `length`) and one
+  repetition fills at least 90 % of its last 200 words;
+- some 500 consecutive words hold fewer than 25 distinct words.
+
+Real repetition passes: a table of dozens of identical labels, a chorus
+sung several times, a list of "Yes" answers.
+
+A degenerate image or page answer is asked for once more, with
+`temperature` 0.4, `frequency_penalty` 0.5, `presence_penalty` 0.3 and
+`repetition_penalty` 1.15 (the platform accepts all four). If the second
+answer loops too, the source fails with "the model's description
+degenerated into repetition"; for a PDF the failing page is named. Both
+calls are billed, and nothing is indexed. An audio transcript that loops
+fails at once with "the model's transcript degenerated into repetition"
+and its call is billed. There is no second attempt for audio, because
+core's transcriber sends no sampling settings and the same file would be
+transcribed the same way.
+
 ## Audio sources
 
 An upload named `.mp3`, `.wav`, `.m4a`, `.mp4`, `.aac`, `.ogg`, `.oga`,
