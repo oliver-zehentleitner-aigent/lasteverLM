@@ -1005,7 +1005,7 @@ class OutputService:
                 check = check_units(generated.units, trace.passages)
             content = generated.content
             if job.kind == "decision":
-                trace.llm_verdict_text = finish_decision(content)
+                trace.withheld = finish_decision(content)
             if generated.speech is not None:
                 key, timings = self._speak(job, booking, notebook_id, generated.speech, trace)
                 content = {**content, "key": key}

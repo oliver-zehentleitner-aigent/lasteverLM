@@ -13,7 +13,10 @@ Two independent calls over the same numbered passages:
 
 ``agreement`` compares the number with the balance of supported evidence
 and is shown whatever it says. Without supported evidence on either side
-the verdict is "The sources do not decide this.", whatever the number.
+there is no decision: the verdict is "The sources do not decide this."
+and the content carries no number (``model_answer`` is ``None``). A
+number with no evidence behind it is the model's prior, not a decision
+from the sources; the log keeps it, marked as such.
 """
 
 from __future__ import annotations
@@ -132,17 +135,22 @@ def decision_content(
     return content, units
 
 
-def finish_decision(content: dict[str, Any]) -> str | None:
-    """Set ``agreement`` and ``agreement_note`` from the checked evidence;
-    returns the LLM's verdict when it is replaced (undecided), for the log."""
+def finish_decision(content: dict[str, Any]) -> dict[str, Any] | None:
+    """Set ``agreement`` and ``agreement_note`` from the checked evidence.
+    Undecided, the verdict and the number leave the content; returns them
+    for the log (``llm_verdict_text``, ``model_answer_without_evidence``)."""
     pro = sum(e.get("support") == "supported" for e in content["evidence_for"])
     con = sum(e.get("support") == "supported" for e in content["evidence_against"])
     agreement, note = _agreement(content, pro, con)
     content["agreement"], content["agreement_note"] = agreement, note
     if agreement == "undecided":
-        replaced = str(content["verdict_text"])
+        withheld = {
+            "llm_verdict_text": str(content["verdict_text"]),
+            "model_answer_without_evidence": content["model_answer"],
+        }
         content["verdict_text"] = UNDECIDED_TEXT
-        return replaced
+        content["model_answer"] = None
+        return withheld
     return None
 
 
