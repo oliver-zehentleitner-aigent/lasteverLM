@@ -255,12 +255,11 @@ without credit stays `processing` in the table, unclaimed and with no
 attempt counted, and the API shows it as `waiting_for_credit` in
 sources and library entries (never stored; core's `SourceStatus`). The
 moment the owner has credit again the next claim takes it: no hook on
-account's ledger, no periodic pass. The worker also checks credit before
-every model call (an image, a PDF page, a transcription, the
-embeddings, the summary); when it has run out, the source goes back to
-the queue the same way (claim released, attempt not counted, error
-cleared) instead of failing, and the work done so far is redone when it
-resumes. The API pods never process
+account's ledger, no periodic pass. Credit is checked once, before a
+read starts: a read that has started runs to the end and books every
+call, even if the balance goes below zero on the way, so a source is
+never left half read and half paid; the owner's next read waits until
+the balance is positive again. The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
 
@@ -346,7 +345,7 @@ language of the text in the image. Because that call is billed, the
 image loader is a `ModelLoader`: the worker checks the credit before it,
 and the loader hands the call's usage to the worker's `bill` callback as
 soon as it returns, which records a `usage` row of kind `llm` before the
-embedding and summary rows and puts the source back to wait when the credit is gone. The text is then chunked, embedded and summarized like any
+embedding and summary rows. The text is then chunked, embedded and summarized like any
 other source. A model refusing the image (HTTP 400) fails the source at
 once, and so does an empty answer (a blank image: "the image holds no
 readable content"), whose call is still recorded as usage; other

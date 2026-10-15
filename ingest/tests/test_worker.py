@@ -69,18 +69,24 @@ def test_summary_failure_fails_the_source_but_keeps_chunks_and_usage():
     assert sid in repo.chunks and [u.kind for u in repo.usage] == ["embedding"]
 
 
-def test_credit_gone_after_embedding_waits_before_summary():
+def test_a_started_read_finishes_when_the_balance_goes_below_zero():
+    """Oliver's rule: never spend 90 % and then stop. Credit is checked once,
+    before the read; the read books every call and may end below zero."""
     # Less than the embedding costs (exact cents, no rounding up).
     repo = InMemoryRepository(balance=Decimal("0.001"))
     storage, summarizer = InMemoryStorage(), FakeSummarizer()
     sid = add_source(repo, storage, b"some text here")
     assert repo.claim_library_source("w", 600) == sid
     process_source(sid, deps(repo, storage, FakeEmbedder(), summarizer))
-    source = repo.library[sid]
-    # Back in the queue, the attempt not counted, until there is credit.
-    assert source.status == "processing" and source.error is None and source.attempts == 0
-    assert summarizer.calls == [] and repo.claim_library_source("w", 600) is None
-    assert [u.kind for u in repo.usage] == ["embedding"]
+    assert repo.library[sid].status == "ready" and summarizer.calls
+    assert [u.kind for u in repo.usage] == ["embedding", "llm"]
+    owner = repo.library[sid].owner
+    assert repo.balance_cents(owner) < 0
+    # The owner's next read waits until the balance is positive again.
+    nxt = add_source(repo, storage, b"another text", key="k2")
+    assert repo.claim_library_source("w", 600) is None
+    process_source(nxt, deps(repo, storage, FakeEmbedder(), summarizer))
+    assert repo.library[nxt].status == "processing" and repo.library[nxt].error is None
 
 
 def test_loader_error_marks_failed_with_message():

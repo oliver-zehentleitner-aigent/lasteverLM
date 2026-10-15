@@ -174,6 +174,28 @@ def test_worker_bills_each_page_then_embeds_and_summarizes():
     assert TEXT in text and "Scan text." in text
 
 
+def test_a_vision_pdf_is_read_to_the_end_even_if_credit_runs_out_on_the_way():
+    from decimal import Decimal
+
+    pdf = minimal_pdf([""] * 6)  # six scanned pages
+    repo, storage, chat = (
+        InMemoryRepository(balance=Decimal("0.01")),
+        InMemoryStorage(),
+        FakeChat(answer="Scan text."),
+    )
+    lib = _pdf_source(repo, storage, pdf, "vision")
+    d = deps(repo, storage, FakeEmbedder(8))
+    d = d.__class__(
+        **{**d.__dict__, "loaders": default_registry(vision=VisionReader(chat, "fake-llm"))}
+    )
+    process_source(lib, d)
+    assert repo.library[lib].status == "ready"
+    # Every page read and booked, though the balance went below zero on page one.
+    assert len(chat.calls) == 6
+    assert [u.kind for u in repo.usage] == ["llm"] * 6 + ["embedding", "llm"]
+    assert repo.balance_cents(repo.library[lib].owner) < 0
+
+
 def test_vision_capture_without_a_vision_model_fails_loud():
     repo, storage = InMemoryRepository(), InMemoryStorage()
     lib = _pdf_source(repo, storage, MIXED, "vision")

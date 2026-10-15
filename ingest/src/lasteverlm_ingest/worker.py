@@ -157,6 +157,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     notebook_id = repo.first_notebook(source_id)
     if source.storage_path is None:
         raise ProcessingError(f"source kind {source.kind!r} has nothing to load yet")
+    _may_start(repo, source)
     data = deps.storage.get(source.storage_path)
     if source.kind == "audio":
         data = _transcribable(source, data, deps)
@@ -167,8 +168,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     fetched: Fetched | None = None
     if isinstance(loader, ModelLoader):
         # Reading this source takes model calls of its own (images, PDF
-        # pages): each one is recorded as it returns, and the next one is
-        # only made while the owner still has credit.
+        # pages): each one is recorded as it returns.
         _may_call(repo, source)
 
         def bill(usage: Usage) -> None:
@@ -221,9 +221,9 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
     repo.replace_chunks(source_id, chunks, vectors)
     _record(repo, source, notebook_id, Usage("embedding", deps.embedder.model, tokens, 0))
 
-    # The summary is its own model call, so it gets its own credit check
-    # and its own usage row. Without a summary the source is not usable by
-    # the output generators, so a failure here fails the source.
+    # The summary is its own model call with its own usage row. Without a
+    # summary the source is not usable by the output generators, so a
+    # failure here fails the source.
     _may_call(repo, source)
     summary = deps.summarizer.summarize(source.name, passages)
     _record(repo, source, notebook_id, summary.usage)
@@ -303,11 +303,19 @@ def _payer(source: LibrarySource) -> UUID:
 
 
 def _may_call(repo: Repository, source: LibrarySource) -> None:
-    """Checked before every model call. Without an exchange rate in the
-    pricing rules a call could be paid upstream but not booked, and without
-    credit the owner cannot pay: either way the source waits."""
+    """Checked before every model call: without an exchange rate in the
+    pricing rules a call could be paid upstream but not booked, so the
+    source waits. Credit is not checked here: a read that has started runs
+    to the end (see `_may_start`)."""
     if not repo.has_exchange_rate():
         raise WaitForRate
+
+
+def _may_start(repo: Repository, source: LibrarySource) -> None:
+    """Checked once, before a read starts: without credit the source waits.
+    Once started, a read finishes and books every call even if the balance
+    goes below zero on the way; the owner's next read waits until it is
+    positive again."""
     if not _has_credit(repo, source):
         raise WaitForCredit
 
