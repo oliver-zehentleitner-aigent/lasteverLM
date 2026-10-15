@@ -45,3 +45,22 @@ def test_a_value_not_written_does_not_match(text, value):
 
 def test_readings_collects_every_number():
     assert {2019.0, 2020.0, 4.5, 0.045} <= readings("2019 and 2020: 4,5 %")
+
+
+def test_positions_of_a_structured_source_are_never_values():
+    # ingest's rendering (ingest/docs/README.md, "The rendering is a contract")
+    csv = "row 3: city: Graz; price: 12"
+    assert not written_in(3, [csv]) and written_in(12, [csv])
+    json_line = "items[0].price: 12.5\nlanguages.Python: 251804"
+    assert not written_in(0, [json_line])
+    assert written_in(12.5, [json_line]) and written_in(251804, [json_line])
+    xml = "rss/channel/item[2]/price@currency: 7"
+    assert not written_in(2, [xml]) and written_in(7, [xml])
+    # a numeric key is a label and stays a number
+    assert written_in(2023, ["2023: 5"]) and written_in(5, ["2023: 5"])
+
+
+def test_e_notation_is_read_as_its_value():
+    assert written_in(0.00001, ["x: 1e-05"])
+    assert written_in(2500, ["ratio: 2.5E3"])
+    assert not written_in(5, ["x: 1e-05"])

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A chart's number check no longer reads the positions of a structured source as values: a CSV's "row 3: ", an index "[0]" or an attribute "@href" (ingest's rendering contract) could make a point equal to a row number or index count as supported. E-notation ("1e-05") is now read as its value.
+
 ## [0.22.1] - 2026-10-15
 
 ### Added
