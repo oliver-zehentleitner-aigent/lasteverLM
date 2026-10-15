@@ -6,6 +6,7 @@ import { t } from '../i18n'
 import { priceLabel } from '../lib/estimate'
 import { planActive, planChangedWork, stepTarget } from '../lib/plan'
 import { whenLabel } from '../lib/outputsList'
+import { OutputId } from './OutputId'
 
 const POLL_MS = 2500
 
@@ -122,9 +123,17 @@ function Step({ step: s, proposed, onOpen }: { step: PlanStep; proposed: boolean
     <li className={`plan-step state-${s.state}${s.valid ? '' : ' invalid'}`}>
       <span className="plan-step-label">
         {target ? (
-          <button type="button" className="link" title={t('plan.open')} onClick={() => onOpen(target)}>
-            {s.result?.title || s.label}
-          </button>
+          <>
+            <button type="button" className="link" title={t('plan.open')} onClick={() => onOpen(target)}>
+              {s.result?.title || s.label}
+            </button>
+            {target.type === 'output' && (
+              <>
+                {' '}
+                <OutputId id={target.id} />
+              </>
+            )}
+          </>
         ) : (
           s.label
         )}
@@ -150,7 +159,8 @@ function Step({ step: s, proposed, onOpen }: { step: PlanStep; proposed: boolean
                   {i > 0 && ', '}
                   <button type="button" className="link" onClick={() => onOpen({ type: 'output', id: o.output_id })}>
                     {o.title}
-                  </button>
+                  </button>{' '}
+                  <OutputId id={o.output_id} />
                 </span>
               ))}
         </span>
@@ -244,7 +254,8 @@ export function PlanOutputs({ plan, onOpen }: { plan: Plan; onOpen: Props['onOpe
         <li key={s.n}>
           <button type="button" className="link" onClick={() => onOpen({ type: 'output', id: s.result!.output_id! })}>
             {s.result?.title || s.label}
-          </button>
+          </button>{' '}
+          <OutputId id={s.result!.output_id!} />
         </li>
       ))}
     </ul>

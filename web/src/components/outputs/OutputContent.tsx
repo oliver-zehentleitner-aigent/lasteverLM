@@ -13,6 +13,7 @@ import type {
   ReportContent,
   TableContent,
 } from '../../api/types'
+import { OutputId } from '../OutputId'
 import { AudioView } from './AudioView'
 import { DecisionView } from './DecisionView'
 
@@ -43,15 +44,22 @@ interface Props {
   /** while it is made: since when, and the worker's step */
   createdAt?: string | null
   phase?: OutputPhase | null
+  /** an owned output's ID, quoted after its error; absent on the share page */
+  outputId?: string
 }
 
 /** Dispatches a document to its renderer by kind. Works for an owned output
  *  and for a shared one alike, which is why it takes fields, not an Output. */
-export function OutputContent({ kind, title, status, error, content, onExpired, locate, speakerName, createdAt, phase }: Props) {
+export function OutputContent({ kind, title, status, error, content, onExpired, locate, speakerName, createdAt, phase, outputId }: Props) {
   // while it is made: its kind's shape, and what is really happening
   if (status === 'waiting') return <Generating kind={kind} createdAt={createdAt} phase={phase} fallback={t('content.waiting')} />
-  if (status === 'processing') return <Generating kind={kind} createdAt={createdAt} phase={phase} retry={error} fallback={t('content.generating')} />
-  if (status === 'failed') return <p className="error">{error ?? t('content.failed')}</p>
+  if (status === 'processing') return <Generating kind={kind} createdAt={createdAt} phase={phase} retry={error} outputId={outputId} fallback={t('content.generating')} />
+  if (status === 'failed')
+    return (
+      <p className="error">
+        {error ?? t('content.failed')} {outputId && <OutputId id={outputId} />}
+      </p>
+    )
   if (content === null || content === undefined) return <p className="muted">{t('content.none')}</p>
   switch (kind) {
     case 'report':
