@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.3] - 2026-10-15
+
 ### Added
 
 - Output ID: "ID 3f9c21ab ⧉" (the UUID's first 8 hex characters, ⧉ copies the full ID) in the viewer's head after kind and date, in full as the first row of "How this was made", at the end of every output error, next to each output a plan made in the chat, and in the Outputs list's row tooltip.
