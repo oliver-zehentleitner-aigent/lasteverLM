@@ -47,8 +47,6 @@ export function checkSummary(check: Check | null | undefined): string | null {
 }
 
 const SENTINEL = (s: string) => `⟦support:${s}⟧`
-const SENTINELS = /⟦support:(supported|unsupported|unverified)⟧/g
-const MARKER = /\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g
 
 /** The report's markdown with a sentinel after each paragraph the check
  *  did not back, found by its exact text in order (`units` are the
@@ -70,17 +68,28 @@ export function markUnsupported(markdown: string, units: readonly ({ text: strin
 }
 
 /** The rendered report's markers as buttons (known passages only; others
- *  stay text, as in the chat) and the sentinels as badges. Runs before
- *  sanitizing, so DOMPurify sees the buttons and spans too. */
+ *  stay text, as in the chat), the sentinels as badges and the judge's
+ *  badges. Only the text between tags is touched, in one pass: a marker
+ *  inside an attribute (a judge's reason in a badge's title saying "Passage
+ *  [1]") stays as it is, and what is inserted is never scanned again. Runs
+ *  before sanitizing, so DOMPurify sees the buttons and spans too. */
 export function decorateReport(html: string, known: ReadonlySet<number>, units: readonly Claim[] = []): string {
   return html
-    .replace(/⟦judge:(\d+)⟧/g, (_m, i: string) => judgeHtml(units[Number(i)], Number(i)))
-    .replace(MARKER, (whole, list: string) => {
-      const numbers = list.split(',').map((s) => Number(s.trim()))
-      if (!numbers.some((n) => known.has(n))) return whole
-      return numbers.map((n) => (known.has(n) ? `<button type="button" class="cite" data-n="${n}">${n}</button>` : `[${n}]`)).join('')
-    })
-    .replace(SENTINELS, (_m, s: string) => `<span class="badge support-${s}" title="${t('wordCheck.title')}">${t(`wordCheck.${s}` as 'wordCheck.unsupported')}</span>`)
+    .split(/(<[^>]*>)/)
+    .map((part, i) => (i % 2 === 1 ? part : decorateText(part, known, units)))
+    .join('')
+}
+
+const TOKENS = /⟦judge:(\d+)⟧|⟦support:(supported|unsupported|unverified)⟧|\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g
+
+function decorateText(text: string, known: ReadonlySet<number>, units: readonly Claim[]): string {
+  return text.replace(TOKENS, (whole, judge?: string, support?: string, list?: string) => {
+    if (judge !== undefined) return judgeHtml(units[Number(judge)], Number(judge))
+    if (support !== undefined) return `<span class="badge support-${support}" title="${t('wordCheck.title')}">${t(`wordCheck.${support}` as 'wordCheck.unsupported')}</span>`
+    const numbers = (list ?? '').split(',').map((s) => Number(s.trim()))
+    if (!numbers.some((n) => known.has(n))) return whole
+    return numbers.map((n) => (known.has(n) ? `<button type="button" class="cite" data-n="${n}">${n}</button>` : `[${n}]`)).join('')
+  })
 }
 
 /** How long the generation took, "12 s" or "2 min 5 s"; null when unknown. */
