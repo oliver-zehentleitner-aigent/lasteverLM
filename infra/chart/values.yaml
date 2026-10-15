@@ -100,8 +100,11 @@ services:
     replicas: 2
     secrets: [lasteverlm-db, lasteverlm-s3, lasteverlm-inference, lasteverlm-auth]
     optionalSecrets: []
+    # spaCy's two models for the negation check add ~270 MiB once a process
+    # checks its first answer (one uvicorn worker per pod): ~100 MiB -> ~370 MiB.
+    # The worker's 512Mi request already covers it; both limits leave room.
     resources:
-      requests: {cpu: 50m, memory: 256Mi}
+      requests: {cpu: 50m, memory: 384Mi}
       limits: {memory: 1Gi}
     hpa: {enabled: true, min: 2, max: 5, cpu: 80}
     worker:
