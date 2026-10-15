@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.15] - 2026-10-15
+
 ### Added
 
 - `lasteverlm-rag-orphans`: counts, per notebook id, the generated sources no output points at that are older than an hour (read only, no names). `ORPHAN_SWEEP=true` lets the worker delete them once an hour; it is off by default.
