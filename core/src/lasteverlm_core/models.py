@@ -209,7 +209,8 @@ class MessageFeedback(BaseModel):
     at: datetime
 
 
-def _no_suggestions(value: Any) -> Any:
+def _none_as_empty(value: Any) -> Any:
+    """A list column that is null for older rows reads as `[]`."""
     return [] if value is None else value
 
 
@@ -225,7 +226,10 @@ class Message(_Row):
     with the answer) and `feedback` (the owner's rating) are rag's too;
     an older message has `[]` and `None`. `plan` is set instead of an
     answer when the message asked for actions: the agent's steps, their
-    estimates and states; rag owns and documents its shape.
+    estimates and states; rag owns and documents its shape. `web_pages`
+    are the web sources the answer used and when each was read, so the
+    reader can have one fetched again; rag owns the entries' shape, `[]`
+    for older messages.
     """
 
     id: UUID
@@ -237,17 +241,18 @@ class Message(_Row):
     suggestions: list[str] = Field(default_factory=list, max_length=MAX_SUGGESTIONS)
     feedback: MessageFeedback | None = None
     plan: dict[str, Any] | None = None
+    web_pages: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime
 
-    _suggestions = field_validator("suggestions", mode="before")(_no_suggestions)
+    _lists = field_validator("suggestions", "web_pages", mode="before")(_none_as_empty)
 
 
 class Answer(BaseModel):
     """What the ask endpoint returns: the stored message's id, text and
     citations, the support check as on `Message` (`units`, `check`) and
     the follow-up questions (`suggestions`, stripped from the text), or
-    the agent's `plan` when the question asked for actions (as on
-    `Message`)."""
+    the agent's `plan` when the question asked for actions, and the web
+    pages the answer used (`web_pages`), all as on `Message`."""
 
     message_id: UUID
     answer: str
@@ -256,6 +261,7 @@ class Answer(BaseModel):
     check: dict[str, Any] | None = None
     suggestions: list[str] = Field(default_factory=list, max_length=MAX_SUGGESTIONS)
     plan: dict[str, Any] | None = None
+    web_pages: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Output(_Row):

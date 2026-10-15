@@ -225,6 +225,21 @@ def test_suggestions_and_feedback_are_optional_and_bounded() -> None:
     assert Answer(message_id=uuid4(), answer="a", suggestions=["Why?"]).suggestions == ["Why?"]
 
 
+def test_web_pages_default_to_empty_and_pass_through() -> None:
+    row = {
+        "id": str(uuid4()),
+        "role": "assistant",
+        "content": "a [1]",
+        "created_at": "2026-10-15T00:00:00Z",
+    }
+    assert Message.model_validate(row).web_pages == []
+    assert Message.model_validate({**row, "web_pages": None}).web_pages == []
+    pages = [{"library_id": str(uuid4()), "name": "example.org", "fetched_at": None}]
+    assert Message.model_validate({**row, "web_pages": pages}).web_pages == pages
+    assert Answer(message_id=uuid4(), answer="a").web_pages == []
+    assert Answer(message_id=uuid4(), answer="a", web_pages=pages).web_pages == pages
+
+
 def test_a_plan_is_optional_and_passed_through() -> None:
     row = {
         "id": str(uuid4()),
