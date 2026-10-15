@@ -6,8 +6,9 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family coordinator, 2026-10-12; the platform-side consequence drawn here the same day
+**Source:** maintainer decision, 2026-10-12; the platform-side consequence drawn here the same day
 **See:** cluster.md#platform-components-are-applied-as-pinned-upstream-manifests-not-helm-charts — 14fcc33f-ab6c-4af2-9b0d-d7d611a9d09c — as of 2026-10-12
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 2e06adc5-8bce-4d32-95a9-cacbafe32a4b — as of 2026-10-15
 **Revisit when:** the chart has to be split (a service released on its own cadence), or Helm leaves the toolchain
 
 Everything the application needs in the cluster — ConfigMap, the four
@@ -38,7 +39,8 @@ the `sed` layer grow into a template engine of its own.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family coordinator, 2026-10-12
+**Source:** maintainer decision, 2026-10-12
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 5a0e357d-cc6b-4e6c-8760-92a926a1f0fe — as of 2026-10-15
 **Revisit when:** the first load test shows where the pods actually saturate, or the queue moves out of Postgres
 
 Each API service and web is a Deployment with a
@@ -69,7 +71,8 @@ is one fewer thing to run.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family coordinator, 2026-10-12
+**Source:** maintainer decision, 2026-10-12
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 9b5e0211-3625-4353-ba19-64a33f39a626 — as of 2026-10-15
 **Revisit when:** the edge limits fire on legitimate traffic (uploads from one office), or the controller is replaced
 
 The Ingress carries ingress-nginx's `limit-rps`,
@@ -152,7 +155,9 @@ above.
 
 Secrets are split by what they unlock — `lasteverlm-db`,
 `lasteverlm-db-admin`, `lasteverlm-s3`, `lasteverlm-inference`,
-`lasteverlm-auth`, optional `lasteverlm-smtp` — and each Deployment
+`lasteverlm-auth`, `lasteverlm-account` (account's allowlist seeds,
+visitor hash secret, voucher key, optional billing key), optional
+`lasteverlm-smtp` — and each Deployment
 mounts only the ones its service uses; non-secret settings sit in the
 ConfigMap `lasteverlm-config` that every API service gets. `make secrets`
 builds all of them from the OpenTofu outputs and the environment with
@@ -198,12 +203,13 @@ escaping rules nobody wants to maintain.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family coordinator, 2026-10-13
+**Source:** maintainer decision, 2026-10-13
 **Revisit when:** a value in it becomes secret, or one checkout has to deploy to several environments with different values
 
 `chart/values-prod.yaml` holds the non-secret configuration of the
-production deployment: domain, ACME e-mail, model names, prices,
-embedding dimension, similarity floor, TTS model and voice, S3
+production deployment: domain, ACME e-mail, model names (answers,
+embeddings, TTS and voice, speech to text, decisions, judge levels),
+prices, embedding dimension, similarity floor, voucher credit, S3
 endpoint. `make deploy` on an operator machine and `deploy.yml` pass
 the same file to Helm; only the image tag and registry come from make
 variables. `deploy.yml` needs one secret, `KUBECONFIG_B64`, and
@@ -228,15 +234,17 @@ typed by hand per repository, and kept in two places.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer requirement relayed by the family coordinator, 2026-10-12
+**Source:** maintainer requirement, 2026-10-12
 **Revisit when:** a secret has to be shared with a system outside the cluster (then it needs a store, not a file)
 
-`make env` generates `APP_DB_PASSWORD`, `AUTH_JWT_SECRET` and
-`DEMO_TOKEN` with `openssl rand` the first time, keeps them across
-re-runs in `build/cluster.env` (mode 600, ignored by Git), and no
-target prints them. `make secrets` is the only place they go from
+`make env` generates `APP_DB_PASSWORD`, `AUTH_JWT_SECRET`,
+`DEMO_TOKEN` and `VOUCHER_KEY` with `openssl rand` the first time, keeps
+them across re-runs in `build/cluster.env` (mode 600, ignored by Git),
+and no target prints them. `make secrets` is the only place they go from
 there: into the Kubernetes Secrets. Rotation is deleting the line and
-running `make secrets` again.
+running `make secrets` again, except for `VOUCHER_KEY`: account
+encrypts the stored voucher codes with it and has no re-encryption, so
+a new key makes every stored code unreadable (`docs/operations.md`).
 
 **Reason:** a value nobody typed cannot be weak and cannot be in a
 shell history; keeping it in one ignored file makes rotation a
@@ -272,7 +280,7 @@ pods tonight and silently allow a future image to run as root.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** `kubectl top` on the cluster, 2026-10-13: idle and under five parallel smoke runs × 3; maintainer go relayed by the family coordinator
+**Source:** `kubectl top` on the cluster, 2026-10-13: idle and under five parallel smoke runs × 3; maintainer go the same day
 **Revisit when:** PDF, image or audio processing shows sustained CPU above the new requests, or the node plan changes
 
 CPU requests: APIs (account, ingest, rag) 50m, workers 100m, web 25m,
@@ -333,7 +341,7 @@ only shows this namespace (account's `context/system.md`, Id
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** security audit finding relayed by the family coordinator, 2026-10-14; checked against production the same night (a request with a forged `X-Forwarded-For: 203.0.113.9` was logged as 203.0.113.9; requests without it as a node address); Vultr CCM load balancer annotations; ingress-nginx 1.15.1 template
+**Source:** security audit finding, 2026-10-14; checked against production the same night (a request with a forged `X-Forwarded-For: 203.0.113.9` was logged as 203.0.113.9; requests without it as a node address); Vultr CCM load balancer annotations; ingress-nginx 1.15.1 template
 **Revisit when:** the load balancer changes to HTTP (layer 7) forwarding, or a CDN or second proxy is put in front of it
 
 The trust boundary for the client address is the Vultr load balancer:
@@ -367,7 +375,9 @@ together (`make platform` does), and requests fail for the moment
 between nginx switching and the load balancer applying the annotation.
 Without the hostname annotation, kube-proxy sends in-cluster requests to
 the load balancer IP straight to nginx without the header, and
-cert-manager's HTTP-01 self check fails at the next renewal.
+cert-manager's HTTP-01 self check fails at the next renewal; the
+ingress status on account's System page, which requests the public
+domain from inside the cluster, would fail the same way.
 
 ## Containers run with a read-only root filesystem, /tmp as a size-limited emptyDir, and digest-pinned Job images
 
@@ -375,7 +385,7 @@ cert-manager's HTTP-01 self check fails at the next renewal.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** infra security audit requested by the maintainer through the family coordinator, 2026-10-14; read-only behaviour tested on the local stack the same night; the reasons are drawn here
+**Source:** infra security audit requested by the maintainer, 2026-10-14; read-only behaviour tested on the local stack the same night; the reasons are drawn here
 **Revisit when:** a service needs to write outside /tmp (a cache, a model download), an upload larger than the /tmp limit has to be buffered, or the postgres image gets a numeric USER
 
 Every container (API services, workers, web, the migration Job, the
@@ -408,7 +418,7 @@ silent image change in the one container that runs DDL as admin.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** infra security audit requested by the maintainer through the family coordinator, 2026-10-14; the CNI read from the cluster (calico-node DaemonSet); the policy shape and the egress reasoning are drawn here
+**Source:** infra security audit requested by the maintainer, 2026-10-14; the CNI read from the cluster (calico-node DaemonSet); the policy shape and the egress reasoning are drawn here
 **Revisit when:** a policy engine with domain-based egress rules is installed, the managed database gets a VPC address, or a service starts calling another one directly
 
 The chart denies every incoming connection in the namespace except
@@ -447,8 +457,8 @@ closing a path; a port-based egress allowlist — see above.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** infra security audit requested by the maintainer through the family coordinator, 2026-10-14; the reasons are drawn here
-**Revisit when:** an automatic updater for action pins is enabled (then the bump path changes), or GitHub offers immutable action releases that every action used here adopts
+**Source:** infra security audit requested by the maintainer, 2026-10-14; the reasons are drawn here; Dependabot for the pins enabled by the maintainer's decision the same day (`.github/dependabot.yml`)
+**Revisit when:** GitHub offers immutable action releases that every action used here adopts
 
 Every `uses:` in `.github/workflows/` names a commit SHA with the
 release as a comment; the exception is the rolling
@@ -471,13 +481,19 @@ owners, and a mixed rule is easier to get wrong; adding Dependabot for
 the pins in the same change — it opens pull requests on its own, which
 is the maintainer's call, so it is proposed separately.
 
+**Re-checked 2026-10-15:** the trigger "an automatic updater for action
+pins is enabled" fired: Dependabot (`github-actions`, weekly) now opens
+the SHA bumps as pull requests. The decision holds: the pins stay SHAs
+with the release as a comment, and Dependabot only changes how a bump
+arrives, as a reviewed pull request instead of a hand edit.
+
 ## CI runs the Postgres suites against a PostgreSQL 18 service container, not through the directories' Docker targets
 
 **Id:** 30aca51a-5d54-4a6f-8e87-da589f31476e
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** audit finding relayed by the family coordinator, 2026-10-14 (the suites never ran in CI); image choice confirmed by the coordinator the same night; the reasons are drawn here
+**Source:** audit finding, 2026-10-14 (the suites never ran in CI); image choice confirmed in review the same night; the reasons are drawn here
 **Revisit when:** the managed instance moves to another major version, or a directory's suite needs more than one empty database
 
 The `python` job of `ci.yml` has a `pgvector/pgvector:0.8.7-pg18-trixie`
@@ -511,7 +527,7 @@ production.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** the maintainer's go for a finance view with Vultr's pending charges and invoices, 2026-10-14, relayed by the family coordinator; the choice between a CronJob and a task in account made by account's maintainer agent the same day; the permission list read from `vultr-cli user create --help`
+**Source:** the maintainer's go for a finance view with Vultr's pending charges and invoices, 2026-10-14; the choice between a CronJob and a task in account made by account's owner the same day; the permission list read from `vultr-cli user create --help`
 **Revisit when:** account's egress is restricted, the finance fetch moves out of account, or Vultr offers a read-only billing permission
 
 `VULTR_BILLING_API_KEY` is optional in `lasteverlm-account`; account
