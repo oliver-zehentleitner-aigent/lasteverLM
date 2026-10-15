@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Coverage on every output kind: the head says "4 of 5 sources used" (rag's `provenance.coverage`), and "How this was made" lists the selected sources no unit cites, each with the generator's reason or "not used, no reason given".
 
+### Changed
+
+- Library: Shift+click on a row or its checkbox adds every row from the one clicked last to this one, like a file manager; it never removes.
+- Library rows: open, share and delete are line icons (↗, a link, a bin) with tooltips and labels, delete at the right end; a click on a row ticks it like its checkbox (not on its links, buttons or the checkbox), and a ticked row is shaded. The viewer's share and delete are the same icons; the bin is red wherever it deletes (library, outputs and sources lists, viewer), muted at rest and full on hover.
+
 ## [0.22.7] - 2026-10-15
 
 ### Added

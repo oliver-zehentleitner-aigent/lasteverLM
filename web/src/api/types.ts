@@ -446,7 +446,8 @@ export interface Passage {
 export interface Coverage {
   selected: number
   cited: number
-  sources: { source_id: string; name: string; cited: boolean; reason: string | null }[]
+  /** `source_id` absent on the share page */
+  sources: { source_id?: string; name: string; cited: boolean; reason: string | null }[]
 }
 
 export interface Provenance {
