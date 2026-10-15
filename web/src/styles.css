@@ -408,7 +408,13 @@ button.link.danger { color: var(--danger); }
 
 /* audio: the player sits in the middle of the viewer, both ways */
 .viewer-body:has(> .audio-view) { display: flex; flex-direction: column; }
-.audio-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; min-height: 8rem; }
+/* the player and its transcript: centred while they fit, from the top once the
+   transcript is longer than the pane. Never shrunk below its content (flex-shrink 0:
+   with flex 1 and an explicit min-height the box was squeezed to 8rem and its
+   transcript overflowed over the header and under "How this was made"), and
+   `safe center` puts overflowing content at the start instead of spilling it above
+   the scroll origin, where the player was cut off. */
+.audio-view { flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 0.5rem; min-height: 8rem; }
 .audio-view audio { width: min(28rem, 100%); }
 /* the transcript under the player, read like text; a conversation's speaker in front of each turn */
 .transcript { align-self: stretch; max-width: 48rem; width: 100%; margin: 0.5rem auto 0; }
@@ -1017,7 +1023,7 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 /* while an output is made: a muted skeleton in its kind's shape, centred,
    with a slow shimmer (still under reduced motion), then the real status */
 .viewer-body:has(.generating) { display: flex; flex-direction: column; }
-.generating { flex: 1; min-height: 14rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 1rem; text-align: center; }
+.generating { flex: 1 0 auto; min-height: 14rem; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 0.75rem; padding: 1rem; text-align: center; }
 .gen-status, .gen-retry { margin: 0; max-width: 32rem; overflow-wrap: anywhere; }
 .gen-skeleton { --gen: var(--line); width: min(18rem, 80%); color: var(--gen); position: relative; }
 .gen-skeleton span { display: block; background: var(--gen); border-radius: 4px; animation: gen-shimmer 2.4s ease-in-out infinite; }

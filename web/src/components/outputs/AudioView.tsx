@@ -30,7 +30,7 @@ export function AudioView({ content, onExpired, speakerName = (s) => s }: Props)
     onExpired().then(setSrc, () => setFailed(true))
   }
 
-  // one block, centred in the viewer by the stylesheet
+  // one block: centred in the viewer while it fits, from the top once it does not
   return (
     <div className="audio-view">
       {failed ? (
