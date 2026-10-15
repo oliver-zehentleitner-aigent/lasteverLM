@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.22.8] - 2026-10-15
+
 ### Fixed
 
 - `USAGE_ACTION_UNITS` quotes sources in the units the public price list shows: `source:pdf` and `source:text` per `page` (new measure `pages`; the usage rows hold no page count, so an estimate prices it), `source:image` per `image`, `source:url` per `web_page`; `source:audio` stays per `audio_minute`. No action has the unit `source` any more.
