@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.22.6] - 2026-10-15
+
 ### Fixed
 
 - A model-made transcript that degenerated into a repetition loop was indexed as the source. One case was a screenshot read as a few labels followed by hundreds of "Internet-UI" until the output cap; audio, quizzes and decisions were then built from it. Every image, vision-read PDF page and audio transcript is now checked deterministically (an n-gram repeated 100 times back to back, a capped answer whose tail is one repetition, or 500 words with fewer than 25 distinct ones). An image or page is asked for once more with settings against repetition (temperature 0.4, frequency, presence and repetition penalties). If it still loops, the source fails with "the model's description degenerated into repetition" (audio: "transcript"). Every call is billed, and nothing is indexed.
