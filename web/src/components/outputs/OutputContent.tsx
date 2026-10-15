@@ -6,6 +6,7 @@ import type {
   InfographicContent,
   MindmapContent,
   OutputKind,
+  OutputPhase,
   OutputStatus,
   QuizContent,
   FlashcardsContent,
@@ -17,7 +18,7 @@ import { DecisionView } from './DecisionView'
 
 // recharts comes with it, loaded only when a chart output is opened
 const ChartView = lazy(() => import('./ChartView'))
-import { Walker } from './Walker'
+import { Generating } from './Generating'
 import { InfographicView } from './InfographicView'
 import { MindmapView } from './MindmapView'
 import { QuizView } from './QuizView'
@@ -39,22 +40,17 @@ interface Props {
   locate?: LocateRequest | null
   /** an audio transcript's speaker as shown, from its role */
   speakerName?: (speaker: string) => string
+  /** while it is made: since when, and the worker's step */
+  createdAt?: string | null
+  phase?: OutputPhase | null
 }
 
 /** Dispatches a document to its renderer by kind. Works for an owned output
  *  and for a shared one alike, which is why it takes fields, not an Output. */
-export function OutputContent({ kind, title, status, error, content, onExpired, locate, speakerName }: Props) {
-  if (status === 'waiting') return <p className="muted">{t('content.waiting')}</p>
-  if (status === 'processing')
-    return (
-      <>
-        <p className="muted">
-          {t('content.generating')} <Walker />
-        </p>
-        {/* processing with an error is a retry in flight; the error says which attempt follows */}
-        {error && <p className="muted small">{error}</p>}
-      </>
-    )
+export function OutputContent({ kind, title, status, error, content, onExpired, locate, speakerName, createdAt, phase }: Props) {
+  // while it is made: its kind's shape, and what is really happening
+  if (status === 'waiting') return <Generating kind={kind} createdAt={createdAt} phase={phase} fallback={t('content.waiting')} />
+  if (status === 'processing') return <Generating kind={kind} createdAt={createdAt} phase={phase} retry={error} fallback={t('content.generating')} />
   if (status === 'failed') return <p className="error">{error ?? t('content.failed')}</p>
   if (content === null || content === undefined) return <p className="muted">{t('content.none')}</p>
   switch (kind) {

@@ -1106,6 +1106,22 @@ export const en = {
   'audioStyle.faq': 'FAQ',
   'blocked.deselect': 'turn it off',
   'blocked.refetch': 'fetch the page again',
+  'phase.waiting_for_sources': 'Waiting for the sources to be read',
+  'phase.waitingFor': 'Reading the sources: {names}',
+  'phase.retrieving': 'Choosing the passages',
+  'phase.deciding': 'Weighing the decision',
+  'phase.writing': 'Writing',
+  'phase.checking': 'Checking against the sources',
+  'phase.judging': 'Judging',
+  'phase.judgingN': 'Judging, round {n} of {of}',
+  'phase.revising': 'Revising',
+  'phase.revisingN': 'Revising round {n}',
+  'phase.synthesizing_speech': 'Speech',
+  'phase.speechN': 'Speech, segment {n} of {of}',
+  'phase.indexing': 'Indexing for the chat',
+  'phase.retry': 'Another attempt follows',
+  'phase.retryN': 'Attempt {n} of {of} follows ({error})',
+  'phase.retryOnly': 'Attempt {n} of {of} follows',
 } as const
 
 export type MessageKey = keyof typeof en

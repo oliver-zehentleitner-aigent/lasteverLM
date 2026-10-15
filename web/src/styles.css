@@ -609,8 +609,6 @@ button.link.copy { font-size: 0.85em; }
 .out-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .out-meta { grid-column: 2 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* the figure next to "Generating…": monospace on a fixed track, muted */
-.walker { display: inline-block; vertical-align: baseline; white-space: pre; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.95em; color: var(--muted); overflow: hidden; }
 /* admin System: the architecture diagram, coloured through the tokens */
 .arch-wrap { overflow-x: auto; }
 .arch { display: block; width: 100%; max-width: 900px; height: auto; margin: 0 auto; }
@@ -1015,3 +1013,66 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 /* a web page's Original: when and which version, then the snapshot */
 .snapshot-head { margin: 0 0 0.4rem; }
 .blocked-sources { list-style: none; margin: 0.3rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; overflow-wrap: anywhere; }
+
+/* while an output is made: a muted skeleton in its kind's shape, centred,
+   with a slow shimmer (still under reduced motion), then the real status */
+.viewer-body:has(.generating) { display: flex; flex-direction: column; }
+.generating { flex: 1; min-height: 14rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 1rem; text-align: center; }
+.gen-status, .gen-retry { margin: 0; max-width: 32rem; overflow-wrap: anywhere; }
+.gen-skeleton { --gen: var(--line); width: min(18rem, 80%); color: var(--gen); position: relative; }
+.gen-skeleton span { display: block; background: var(--gen); border-radius: 4px; animation: gen-shimmer 2.4s ease-in-out infinite; }
+@keyframes gen-shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.9; } }
+/* report and the fallback: a heading and lines */
+.gen-lines { display: flex; flex-direction: column; gap: 0.5rem; }
+.gen-lines span { height: 0.6rem; }
+.gen-lines .gen-head { height: 0.9rem; width: 60%; }
+.gen-lines span:nth-child(3) { width: 92%; }
+.gen-lines span:nth-child(5) { width: 70%; }
+/* table: a grid */
+.gen-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
+.gen-grid span { height: 0.9rem; }
+.gen-grid span:nth-child(-n + 3) { opacity: 0.9; }
+/* mind map: three connected nodes */
+.gen-nodes { height: 6rem; }
+.gen-nodes .gen-node { position: absolute; width: 4.5rem; height: 1.4rem; border-radius: 999px; }
+.gen-nodes .a { left: 0; top: 2.3rem; }
+.gen-nodes .b { right: 0; top: 0.3rem; }
+.gen-nodes .c { right: 0; bottom: 0.3rem; }
+.gen-nodes .gen-link { position: absolute; height: 2px; left: 4rem; width: calc(100% - 8.2rem); transform-origin: left center; }
+.gen-nodes .ab { top: 2.9rem; transform: rotate(-16deg); }
+.gen-nodes .ac { top: 3.1rem; transform: rotate(16deg); }
+/* audio: a pulsing waveform */
+.gen-wave { display: flex; align-items: center; justify-content: center; gap: 4px; height: 4rem; }
+.gen-wave span { width: 5px; height: 30%; animation: gen-wave 1.6s ease-in-out infinite; }
+.gen-wave span:nth-child(4n + 1) { animation-delay: -0.2s; }
+.gen-wave span:nth-child(4n + 2) { animation-delay: -0.6s; }
+.gen-wave span:nth-child(4n + 3) { animation-delay: -1s; }
+.gen-wave span:nth-child(4n + 4) { animation-delay: -1.3s; }
+@keyframes gen-wave { 0%, 100% { height: 25%; opacity: 0.5; } 50% { height: 90%; opacity: 0.9; } }
+/* flashcards: one card turning slowly */
+.gen-card { perspective: 600px; display: flex; justify-content: center; }
+.gen-card .gen-flip { width: 8rem; height: 5rem; border-radius: 8px; animation: gen-flip 4s ease-in-out infinite; }
+@keyframes gen-flip { 0%, 40% { transform: rotateY(0); opacity: 0.6; } 50%, 90% { transform: rotateY(180deg); opacity: 0.85; } 100% { transform: rotateY(360deg); opacity: 0.6; } }
+/* quiz: question lines with option dots */
+.gen-quiz { display: flex; flex-direction: column; gap: 0.9rem; }
+.gen-quiz .gen-q { display: grid; grid-template-columns: 0.8rem 1fr; gap: 0.35rem 0.5rem; background: none; animation: none; }
+.gen-quiz .gen-line { grid-column: 1 / -1; height: 0.7rem; width: 85%; }
+.gen-quiz .gen-opt { width: 0.7rem; height: 0.7rem; border-radius: 50%; grid-column: 1; }
+/* chart: a few bars */
+.gen-bars { display: flex; align-items: flex-end; justify-content: center; gap: 0.5rem; height: 5rem; border-bottom: 2px solid var(--gen); }
+.gen-bars span { width: 1.4rem; border-radius: 3px 3px 0 0; }
+.gen-bars span:nth-child(1) { height: 40%; }
+.gen-bars span:nth-child(2) { height: 75%; }
+.gen-bars span:nth-child(3) { height: 55%; }
+.gen-bars span:nth-child(4) { height: 90%; }
+.gen-bars span:nth-child(5) { height: 30%; }
+/* decision: a scale with its mark */
+.gen-scale { height: 2rem; }
+.gen-scale .gen-track { position: absolute; left: 0; right: 0; top: 0.75rem; height: 0.5rem; border-radius: 999px; }
+.gen-scale .gen-mark { position: absolute; left: 62%; top: 0.25rem; width: 0.5rem; height: 1.5rem; }
+/* infographic: blocks */
+.gen-blocks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.gen-blocks span { height: 2.6rem; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .gen-skeleton span { animation: none !important; opacity: 0.6; }
+}
