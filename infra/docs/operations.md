@@ -321,6 +321,15 @@ the maintainer.
   `ban_after_strikes` 3, `strike_window_hours` 24); core reads the row
   within 30 seconds. The admin panel shows and changes the value from
   then on.
+- 2026-10-15, on v0.22.1, through `kubectl exec` in a rag-worker pod:
+  rag's `lasteverlm-rag-repair-audio` (rag #572) for the audio outputs
+  whose segments carried one Xing header each. A dry run listed 8
+  outputs; each object was first copied unchanged to
+  `repair-backup/<key>` in the bucket, with the row's old `content` as
+  `repair-backup/<key>.content.json`, then `--apply` ran for exactly
+  those 8 ids: 8 repaired, none skipped, no errors, and a second dry run
+  reported all 8 as `ok`. Undo is copying the backup object back and
+  restoring the row's `content` from the JSON.
 
 ## Teardown
 
