@@ -75,3 +75,38 @@ the user still sees every step before confirming.
   plant tool arguments.
 - Trusting the model's arguments and relying on confirmation alone: a
   user skimming a plan confirms what a document planted.
+
+## The agent asks an open choice that changes the cost or the result, instead of deciding it
+
+**Id:** 81014b92-e658-47bf-9855-8032dfe0ec4a
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (judge_default; ask when it is set and the message is silent, take an explicit message as said, a note when the default is off; a general question turn for a chat that works as a wizard; rejected: applying the default silently)
+**Revisit when:** users answer the same question the same way nearly every time (a remembered answer per notebook may serve them better), or the chat needs a question whose answer is not an option of a step
+
+A plan whose steps leave open a choice that changes the cost or the
+result asks it before it is proposed. It shows a short question with two
+to four choices, each with the plan's price if taken, one preselected.
+The answer is applied to the steps, the plan is re-estimated and then
+proposed, and only a proposed plan can run. A choice the message already
+makes is taken as said and never asked. The judge is the first such
+question: asked when the user's `judge_default` has a level, noted
+("without a judge") when it is off. The mechanism is general: the
+answer sets or removes one option on the named steps.
+
+**Reason:** a judge multiplies the calls of an output, so it is a cost
+the user should choose in the request that incurs it. A default chosen
+once in the settings is a fair starting point, but applying it silently
+would charge for a check the user may not want this time. Asking only
+when the message is silent keeps the chat quick for those who say what
+they want, and showing the price of each choice lets the answer be an
+informed one. Making it a general question turn, not a judge special
+case, is what lets later questions build on it.
+
+**Rejected alternatives:**
+- Applying the default silently: hides a cost the user did not choose
+  in this request.
+- Asking every time: slows down users who already said what they want.
+- A judge-only flag on the plan: every later question would need its
+  own.
