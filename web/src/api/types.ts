@@ -577,7 +577,8 @@ export interface AudioContent {
   /** what is said, turn by turn: `narrator` for an overview or a story (a
    *  turn per paragraph), `interviewer` and `expert` for a conversation;
    *  absent on documents made before transcripts */
-  transcript?: ({ speaker: string; text: string } & Claim)[]
+  /** `start`/`end`: seconds within the final MP3 (contiguous, the last end the duration); absent on older audio */
+  transcript?: ({ speaker: string; text: string; start?: number; end?: number } & Claim)[]
 }
 
 // account prefix

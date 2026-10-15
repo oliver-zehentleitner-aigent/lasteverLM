@@ -1082,3 +1082,12 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 @media (prefers-reduced-motion: reduce) {
   .gen-skeleton span { animation: none !important; opacity: 0.6; }
 }
+
+/* audio: the player stays at the top while the transcript scrolls; the entry
+   being spoken is marked, and with timings an entry plays from its start */
+.audio-view audio { position: sticky; top: 0; z-index: 1; }
+.transcript.timed p { cursor: pointer; border-radius: var(--radius); padding: 0.15rem 0.4rem; margin-left: -0.4rem; margin-right: -0.4rem; scroll-margin: 4rem 0 2rem; transition: background 0.2s; }
+.transcript.timed p:hover { background: var(--panel); }
+.transcript p.speaking { background: var(--accent-soft); }
+.transcript.timed p:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .transcript.timed p { transition: none; } }

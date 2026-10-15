@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Audio: the transcript follows the player: the paragraph or turn being spoken is marked and kept in view, a click on one plays from its start (rag's per-entry `start`/`end`), and the player stays at the top while the transcript scrolls. Older audio without times marks nothing.
+
 ## [0.20.1] - 2026-10-14
 
 ### Fixed
