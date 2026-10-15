@@ -1239,4 +1239,7 @@ export const de: Record<MessageKey, string> = {
   'viewer.deleteTitle': 'Dieses Dokument löschen',
   'outputs.deleteNamed': '{title} löschen',
   'sources.removeNamed': '{name} aus diesem Notebook entfernen',
+  'coverage.line': '{cited} von {selected} Quellen genutzt',
+  'coverage.noReason': 'nicht genutzt, kein Grund angegeben',
+  'coverage.unused': 'Nicht genutzte Quellen',
 }

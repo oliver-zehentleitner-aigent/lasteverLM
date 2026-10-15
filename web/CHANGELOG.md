@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Coverage on every output kind: the head says "4 of 5 sources used" (rag's `provenance.coverage`), and "How this was made" lists the selected sources no unit cites, each with the generator's reason or "not used, no reason given".
+
 ### Changed
 
 - Library: Shift+click on a row or its checkbox adds every row from the one clicked last to this one, like a file manager; it never removes.

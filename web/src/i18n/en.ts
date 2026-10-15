@@ -1236,6 +1236,9 @@ export const en = {
   'viewer.deleteTitle': 'Delete this document',
   'outputs.deleteNamed': 'Delete {title}',
   'sources.removeNamed': 'Remove {name} from this notebook',
+  'coverage.line': '{cited} of {selected} sources used',
+  'coverage.noReason': 'not used, no reason given',
+  'coverage.unused': 'Sources not used',
 } as const
 
 export type MessageKey = keyof typeof en

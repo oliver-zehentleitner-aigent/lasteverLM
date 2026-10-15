@@ -22,6 +22,7 @@ import { t } from '../i18n'
 import { renamedTitle } from '../lib/conversations'
 import { InlineRename } from './InlineRename'
 import { IconLink, IconTrash } from './Icons'
+import { coverageLine } from '../lib/coverage'
 
 interface Props {
   outputs: Output[]
@@ -238,6 +239,7 @@ export function OutputViewer({
                 </span>
               )}
               {judgeHead(selected.provenance) && <span className="muted small check-line judge-line">{judgeHead(selected.provenance)}</span>}
+              {coverageLine(selected.provenance?.coverage) && <span className="muted small check-line coverage-line">{coverageLine(selected.provenance?.coverage)}</span>}
               {judgeSubject && (
                 <span className="no-print">
                   <JudgeRequest subject={judgeSubject!} opened={judgeAsked} onJudge={(level) => rag.judgeOutput(selected.id, level).then(onChanged)} />

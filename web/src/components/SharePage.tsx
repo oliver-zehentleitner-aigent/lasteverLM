@@ -10,6 +10,7 @@ import { OutputProvenance } from './OutputProvenance'
 import { checkSummary } from '../lib/outputProvenance'
 import { judgeHead } from '../lib/judge'
 import { t } from '../i18n'
+import { coverageLine } from '../lib/coverage'
 
 function SharedShell({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -40,6 +41,7 @@ function SharedOutputView({ doc, refresh, level = 1 }: { doc: SharedOutput; refr
         {/* no spec here: it needs a login, so the codes are shown as they are */}
         {optionsLabel(doc.options, null) && <span className="muted small">{optionsLabel(doc.options, null)}</span>}
         {checkSummary(doc.provenance?.check, doc.kind) && <span className="muted small check-line">{checkSummary(doc.provenance?.check, doc.kind)}</span>}
+        {coverageLine(doc.provenance?.coverage) && <span className="muted small check-line coverage-line">{coverageLine(doc.provenance?.coverage)}</span>}
         {judgeHead(doc.provenance) && <span className="muted small check-line judge-line">{judgeHead(doc.provenance)}</span>}
         {level === 1 && formFor(doc.kind).printable && (
           <span className="actions no-print">
