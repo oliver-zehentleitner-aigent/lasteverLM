@@ -57,7 +57,7 @@ repository root's `context/`.
 
 ## O
 
-- [outputs.md](outputs.md) — generated documents: model output as untrusted content (sanitized Markdown, React for the other kinds, markers put in only where text stands), markmap on demand, citations into generated documents resolved through Output.source_id (title match superseded), "open document" finding the cited passage by shared words
+- [outputs.md](outputs.md) — generated documents: model output as untrusted content (sanitized Markdown, React for the other kinds, markers put in only where text stands), markmap on demand, citations into generated documents resolved through Output.source_id (title match superseded), "open document" finding the cited passage by shared words, only the judge's badge where it has a verdict (the word check in its tooltip)
 
 ## P
 
