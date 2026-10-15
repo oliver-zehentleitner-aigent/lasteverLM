@@ -17,9 +17,12 @@ that proposed it.
 
 Steps that need ingest run inside the confirm request, with that
 request's own bearer. Outputs go through the normal queue, under the
-plan's `action_id`. Explanations run in the worker once their output is
-ready. An output still waiting for a source 30 minutes after confirmation
-fails with the reason shown and is not charged.
+plan's `action_id`. An explanation runs as soon as its output is ready:
+at confirm for an output that already exists, in the worker for one the
+plan creates. An output still waiting for a source 30 minutes after
+confirmation fails with the reason shown and is not charged; every
+output has the same limit from its creation (33fc1c1f-8444-4f70-b597-b459ce000c78
+in `outputs.md`), which for a plan's output is the same moment.
 
 **Reason:** an agent acting on someone's notebook spends their money and
 changes what they see, so the user decides before anything happens, with
@@ -83,7 +86,7 @@ the user still sees every step before confirming.
 **Status:** active
 **Evidence:** confirmed
 **Source:** maintainer order relayed by the coordinator, 2026-10-15 (judge_default; ask when it is set and the message is silent, take an explicit message as said, a note when the default is off; a general question turn for a chat that works as a wizard; rejected: applying the default silently)
-**Revisit when:** users answer the same question the same way nearly every time (a remembered answer per notebook may serve them better), or the chat needs a question whose answer is not an option of a step
+**Revisit when:** users answer the same question the same way nearly every time (a remembered answer per notebook may serve them better), or the chat needs a question whose answer is neither an option nor an argument of a step
 
 A plan whose steps leave open a choice that changes the cost or the
 result asks it before it is proposed. It shows a short question with two
@@ -93,7 +96,13 @@ proposed, and only a proposed plan can run. A choice the message already
 makes is taken as said and never asked. The judge is the first such
 question: asked when the user's `judge_default` has a level, noted
 ("without a judge") when it is off. The mechanism is general: the
-answer sets or removes one option on the named steps.
+answer sets or removes one option on the named steps (`set_option`), or
+sets one argument of them (`set_arg`). Questions come one at a time.
+
+**Re-checked 2026-10-15:** the earlier revisit condition (a question
+whose answer is not an option of a step) fired with the web-page
+question, whose answer sets `url_refresh`. The decision holds; the
+question turn gained the second kind of answer, nothing else changed.
 
 **Reason:** a judge multiplies the calls of an output, so it is a cost
 the user should choose in the request that incurs it. A default chosen
@@ -122,7 +131,8 @@ case, is what lets later questions build on it.
 
 A plan that creates an output from a notebook holding web pages asks
 once whether to use the versions already read or fetch them again. The
-question names the page and how long ago it was read; fetching again
+question names the page and how long ago it was read (several pages:
+their number and ages); fetching again
 shows ingest's extra cost. Using the cached versions is preselected. A
 message that already says it is taken as said. Questions come one at a
 time, so this one follows the judge question when both apply. A plain
