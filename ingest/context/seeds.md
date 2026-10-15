@@ -83,3 +83,60 @@ they opened the library.
 - Falling back to the Zeltavia seeds without a starter: the maintainer
   wants one starter, not two kinds of demo content.
 
+
+## The starter can be made again: once an hour, asking first, reusing what the user still has
+
+**Id:** f8518e6e-678f-422c-8d8a-cec701c6aa56
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-15 (a user who deleted the starter notebook can make it again from the help page, free, once an hour, with a confirmation when one exists); reusing the user's sources and the notebook flag agreed in review the same day
+**Revisit when:** users make starter copies often enough that the hourly limit or the confirmation gets in their way, or the starter changes so often that a reused source is no longer what the starter holds
+
+`POST /starter/copy` makes a fresh copy of the current starter for the
+caller, whether or not they were seeded before, and charges nothing.
+Without `force`, a caller who still has a starter notebook
+(`notebooks.starter`) gets 409 `starter_exists`. There is at most one
+such copy an hour (`library_seeds.copied_at`; the first sign-in's copy
+does not count). A starter source the caller still has, matched by its
+dedupe key, is linked into the new notebook, and restored first if it is
+in the trash. Only the sources that are gone are copied.
+
+**Reason:** a user who deleted the starter notebook to tidy up has no
+other way back to the guided first steps. Deleting a notebook keeps its
+sources, and the library holds each content once per user, so copying
+the starter's sources a second time would collide with the copies the
+user still has. Linking them gives the same notebook without a
+duplicate. The hourly limit bounds the storage a user can make the
+service copy. The confirmation keeps a double click from making two
+notebooks. Both are cheap to lift if users find them in the way.
+
+**Alternatives:**
+- A hard limit of one copy ever: a user who deleted the starter notebook
+  by mistake, or deleted it again later, could never get it back. Copies
+  are free and bounded by the hourly limit, so a lifetime limit protects
+  nothing.
+- Copying every starter source again: two library rows with one dedupe
+  key, which the library's uniqueness forbids; or the user's own copies
+  would have to be deleted first, losing anything they linked elsewhere.
+- No confirmation, only the hourly limit: a user who still has the
+  notebook gets a second one without being asked.
+
+## Starter notebooks made before the flag are recognized by when they were made
+
+**Id:** 5b59e266-8c9b-4ad3-ac51-298d0ce3b5b9
+**Type:** workaround
+**Status:** active
+**Evidence:** inferred
+**Source:** migration 0019 (2026-10-15); the rule is derived from how the first copy is made, not recorded anywhere
+**Revisit when:** a user reports a notebook wrongly asked about ("you already have a starter notebook") or one that should have been
+
+Migration 0019 flags a notebook as a starter copy when it links
+starter-flagged sources and was created within a minute of its owner's
+seed (`library_seeds.seeded_at`). The first copy is made in the same
+request that writes the seed, so its notebook lands within that minute.
+A notebook the owner made later and filled with starter sources does not.
+
+**Reason:** before the flag, nothing recorded which notebook was the copy.
+The heuristic only affects whether the web asks before a second copy;
+a wrong answer costs one confirmation or one extra notebook, never data.
