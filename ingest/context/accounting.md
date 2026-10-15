@@ -4,9 +4,10 @@
 
 **Id:** 4cf5c29f-cc35-4083-82a3-7f507eacfe1d
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 678d3ed9-6763-491a-b284-7f77f974d965
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-12; maintainer review pending in the first pull request
+**Source:** service author's implementation decision, 2026-10-12
 **Revisit when:** core's default price table covers every model the inference endpoint offers, or pricing moves out of the services
 
 If `EMBEDDING_MODEL` has no entry in the effective price table
@@ -27,6 +28,31 @@ born by accident. The pricing function itself still returns zero for an
 unknown model, so that a usage row is never lost over a price; the
 startup check is what makes that path unreachable in practice.
 
+## Every configured model needs a price, or the service refuses to start
+
+**Id:** 678d3ed9-6763-491a-b284-7f77f974d965
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** service author's implementation decision, 2026-10-12, extended with the summary and transcription models; core's pricing (code)
+**Revisit when:** core's default price table covers every model the inference endpoint offers, or pricing moves out of the services
+
+`Settings.from_env` calls core's `require_prices` for `EMBEDDING_MODEL`,
+`LLM_MODEL` and `STT_MODEL`; one without an entry in the effective price
+table (core defaults plus `MODEL_PRICES`) stops the start. Core's
+`cost_cents` raises for an unpriced model as well, so no usage row is
+ever written at a silent zero tariff.
+
+**Reason:** every model call must be booked, and the usage row is the
+only debit against a user's credit. A model billed at zero would serve
+free calls until the provider's invoice arrived; failing at start-up
+names the gap to whoever writes the configuration.
+
+**Alternatives:**
+- Booking an unpriced call at zero with a warning: keeps the service up
+  through a configuration gap, and a warning nobody reads is how a free
+  tier is born by accident.
+
 ## Credit is checked before each step, not reserved; a document can overdraw by a few cents
 
 **Id:** 5bccbe95-ca18-4d02-9ca6-d9d5922a95a8
@@ -34,7 +60,7 @@ startup check is what makes that path unreachable in practice.
 **Status:** superseded
 **Superseded by:** b203f2b7-c157-4b75-834e-457f5d5d4567
 **Evidence:** confirmed
-**Source:** security and quality audit, 2026-10-14; accepted by the maintainer through the coordinating agent
+**Source:** security and quality audit, 2026-10-14; accepted by the maintainer
 **Revisit when:** a single source can cost more than a few cents (a more expensive model, much larger uploads), or account introduces reservations
 
 The worker asks core's `has_credit` before a model loader's first call
@@ -63,15 +89,18 @@ batches would leave a source half indexed and its calls billed anyway.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's decision through the coordinating agent, 2026-10-14 (adding always allowed, processing needs credit); the derived status chosen by the ingest author from the two options the decision named
+**Source:** maintainer decision, 2026-10-14 (adding always allowed, processing needs credit); the derived status chosen by the ingest author from the two options the decision named
 **Revisit when:** the claim query's balance subqueries show up in the database's slow log, or users need to see why exactly a source waits beyond the status
 
 A user without credit can add sources: the upload, URL or text is stored
-and queued like any other. Processing needs credit, so the worker's claim
-query only takes a row whose owner has a positive balance (a sponsored
-demo seed was the exception until the starter notebook replaced the demo
-seeds, 2026-10-14). The row stays `processing` in the table; the API shows
-`waiting_for_credit` when the owner has no credit. As soon as a voucher
+like any other (since 2026-10-14 as `added`, read only when it is used;
+worker.md). Processing needs credit: the worker's claim query takes a
+queued row only when its owner can pay (since 2026-10-15 by the start
+rule within the estimated maximum, entry 1bbd3b8d-5e0b-48a1-b9be-2dccca4c4a32;
+before, a positive balance; a sponsored demo seed was the exception until
+the starter notebook replaced the demo seeds, 2026-10-14). The row stays
+`processing` in the table; the API shows `waiting_for_credit` while it
+waits. As soon as a voucher
 or top-up lands in account's ledger, the next claim takes the source.
 Credit running out in the middle of a job released the claim without
 counting the attempt, so the source waited instead of failing; since
@@ -97,7 +126,7 @@ b203f2b7-c157-4b75-834e-457f5d5d4567).
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the finance redesign through the coordinating agent, 2026-10-14 (actions `source:<kind>` and `demo_seed`, one `action_id` per source); the key chosen by the ingest author
+**Source:** the finance redesign, maintainer decision, 2026-10-14 (actions `source:<kind>` and `demo_seed`, one `action_id` per source); the key chosen by the ingest author
 **Revisit when:** a source can be processed again on purpose (re-indexing with another model), which would be a new action of its own
 
 Every usage row ingest writes goes through core's `record_usage` with
@@ -111,14 +140,14 @@ so a source that took three attempts is still one action and core
 books its fixed fee once.
 
 Before every model call the worker checks that the pricing rules have an
-exchange rate, next to the credit check. Core books after the call, and
+exchange rate (credit is checked once, when the read starts; entry
+1bbd3b8d-5e0b-48a1-b9be-2dccca4c4a32). Core books after the call, and
 without a rate the booking fails; the call would then be paid upstream
 and never booked, the worst outcome. So without a rate no worker claims a source, and a
 job that finds the rate gone goes back to the queue before its next
 provider call, its attempt not counted; queued sources show "pricing has
 no exchange rate, ask an admin" and run once an admin sets the rate
-(the maintainer's decision through the coordinating agent, aligned with
-rag). Failing the source instead, the first version, would have made
+(maintainer decision, aligned with rag). Failing the source instead, the first version, would have made
 every user re-upload after the admin fixed the row. A check at start-up
 alone would not do: an admin can change the row at runtime.
 
@@ -135,7 +164,7 @@ alone would not do: an admin can change the row at runtime.
 **Status:** superseded
 **Superseded by:** 1bbd3b8d-5e0b-48a1-b9be-2dccca4c4a32
 **Evidence:** confirmed
-**Source:** the maintainer's rule through the coordinating agent, 2026-10-15 ("never spend 90 % and then stop")
+**Source:** maintainer rule, 2026-10-15 ("never spend 90 % and then stop")
 **Revisit when:** a single read can cost so much that a negative balance after it is more than a few cents, or account introduces reservations
 
 The worker checks the owner's credit once, before a read starts (the
