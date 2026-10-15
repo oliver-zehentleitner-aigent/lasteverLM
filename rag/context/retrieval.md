@@ -135,21 +135,21 @@ question that resembles none of them.
 **Type:** incident
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer's click-through, 2026-10-13, and his re-test on 0.7.1; maintainer's screenshots, 2026-10-14 (citations into linux_-_VNC-Server.pdf, chunks 7 and 9 of 17 at similarity 0.30–0.34, showing text like "&MM,:N K OP&M,MM P2QL"); ingest's fix, #276
+**Source:** maintainer's click-through, 2026-10-13, and a re-test on 0.7.1; maintainer's screenshots, 2026-10-14 (citations into the affected PDF, chunks 7 and 9 of 17 at similarity 0.30–0.34, showing text like "&MM,:N K OP&M,MM P2QL"); ingest's fix, #276
 **Verification:** corroborated
 **Revisit when:** a ready source is again missing from retrieval
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — bc473b1e-6480-4baf-ac0a-09b63d9a3200 — as of 2026-10-14
 
 A notebook held two ready PDFs. Unscoped questions about the second one
-("was ist vnc?") were refused or answered from the first PDF only; the
+were refused or answered from the first PDF only; the
 second was never among the retrieved passages, although a generated
 report summarised it in detail.
 
-The cause, observed: pages of linux_-_VNC-Server.pdf carry a text layer
+The cause, observed: pages of the second PDF carry a text layer
 of glyph codes (a font without a usable ToUnicode map). pypdf returned
 that salad, ingest's text check counted characters only, so the pages
 were chunked, embedded and marked ready. Their chunks could not match a
-question about VNC, and the model answered from the vi document. Ingest
+question about its subject, and the model answered from the first PDF. Ingest
 now requires a letter share of at least 0.6 and sends failing pages to
 the vision model in `auto` (#276). Evidence is confirmed for the
 glyph-code layer; the PDF bytes themselves were not read.
@@ -167,11 +167,11 @@ re-test's rows were not read.
 The lesson that stays: a source must not become ready unless its chunks
 carry usable embeddings. A vector with a zero norm or a non-finite
 component makes the cosine distance NaN, which the similarity floor
-drops without a trace. The guard belongs in core's embedder, which
-every service goes through: rejecting such a vector as a provider error
-makes ingest fail the source loudly and makes rag's question and output
-embeddings fail visibly, instead of a source sitting ready and
-unsearchable.
+drops without a trace. The guard is in core's embedder, which every
+service goes through: it rejects such a vector (non-finite component or
+zero norm) as a provider error, so ingest fails the source loudly and
+rag's question and output embeddings fail visibly, instead of a source
+sitting ready and unsearchable.
 
 ## An answer waits up to 60 seconds for sources being read, then answers from what is ready
 
@@ -186,7 +186,9 @@ A question whose selected sources are not read yet starts their reading
 and waits up to `ANSWER_READ_WAIT_SECONDS` (60). It then answers from
 the sources that are ready, and the answer ends by naming the ones still
 being read. An output does not answer anyone in the moment: its job
-simply waits until all its sources are read.
+waits for its sources, up to the 30-minute limit after which it fails
+uncharged (33fc1c1f-8444-4f70-b597-b459ce000c78 in `outputs.md`), and a selected source that could
+not be read stops it at once.
 
 **Reason:** a chat question expects an answer within seconds. A text or
 a short PDF is read well inside a minute; audio to transcribe or a
