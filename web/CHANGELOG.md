@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Report: a judge's reason mentioning a passage ("Passage [1] …") no longer gets a citation button inside its badge's tooltip, which showed part of the tooltip as text in the report; markers are now replaced in the text between tags only, in one pass.
 - A new user without any notebook never saw the introduction: it runs only in a notebook. The workspace now opens the first notebook (the starter one) or, with none at all and the tour still to show, makes "My first notebook" and opens it, so the tour always runs; users who have done it land where they did.
 
 ## [0.20.3] - 2026-10-15

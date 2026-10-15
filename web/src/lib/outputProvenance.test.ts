@@ -134,4 +134,15 @@ describe('judge badges in the report', () => {
     expect(html).toContain('says &lt;b&gt;&quot;no&quot;&lt;/b&gt;')
     expect(html).not.toContain('⟦')
   })
+
+  it('leaves a marker in the judge\'s reason alone: no button inside the title', () => {
+    const md = 'First claim [1].\n'
+    const units = [{ text: 'First claim [1].', refs: [1], support: 'supported' as const, judge: { level: 'low' as const, model: 'm', verdict: 'supported' as const, reason: 'Passage [1] says so', quote: '', round: 1 } }]
+    const html = decorateReport(marked.parse(markUnsupported(md, units), { async: false }) as string, new Set([1]), units)
+    // one cite button, for the paragraph's own marker
+    expect(html.match(/class="cite"/g)).toHaveLength(1)
+    expect(html).toContain('Passage [1] says so')
+    // nothing of the tooltip leaks out as text: every title closes before the next tag
+    expect(html).not.toMatch(/title="[^"]*</)
+  })
 })
