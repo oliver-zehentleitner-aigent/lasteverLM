@@ -164,8 +164,13 @@ ingest's `GET /estimate` of one nominal unit — marked `estimated`, as a range
 (`price_min_cents`, `price_max_cents`, the midpoint as `price_per_unit_cents`) and for
 sources the part added once per source (`per_source_cents`). Sources are priced per
 page, image, audio minute or web page; a PDF has one row read as text and one by
-vision. Account calls both services as the demo user with a 60-second token and reads
-only their charge fields. A failed estimate leaves that row's price empty. The typical
+vision. Finding candidates before an output is priced by whether it is always done:
+a chart is always proposed first, so `output:chart` is the proposal plus the chart;
+finding tables and finding themes are optional before a table or an infographic,
+so `table_propose` and `infographic_propose` are rows of their own and the outputs
+keep their price (folding them in would overcharge every direct table or
+infographic). Account calls both services as the demo user with a 60-second token
+and reads only their charge fields. A failed estimate leaves that row's price empty. The typical
 range per whole action (p25, median, p75) comes from the last 30 days of measured
 costs through the current pricing rules; fewer than five actions give none. The judge
 appears once per level. The response holds end prices, the unit, the model and the
