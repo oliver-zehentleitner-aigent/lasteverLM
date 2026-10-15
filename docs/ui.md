@@ -288,7 +288,8 @@ opens the notebook.
   re-fits whenever its size changes (full view, divider, window). A
   small bar on the map's top right zooms in (+), out (−) and fits it
   again (⤢); with the map focused, the keys +, − and 0 do the same.
-  Actions per document: ask about this, print, share, full view.
+  Actions per document: ask about this, print and full view as text,
+  then share (a link icon) and delete (a red bin) as icons.
 - **Column dividers** between the notebook list, the left column and
   the right column: drag them (or arrow keys when focused) to change the
   widths, remembered per browser in pixels; a double-click (or Home)
@@ -655,14 +656,18 @@ voucher hint is at Create and Ask), size ("unknown"
 for entries added before sizes were recorded, none for outputs), date,
 and the notebooks it is in as links (or "not in any notebook"); a
 output also says where it was made ("made in test1", or "made in
-deleted notebook "test1"" once that notebook is gone). **Open** works
+deleted notebook "test1"" once that notebook is gone). The row's actions
+are line icons with a tooltip and a label, in this order: open (↗),
+share (a link; accent-coloured once shared), delete (a bin, red: muted
+at rest, full on hover; the same red bin deletes in the outputs and
+sources lists and the viewer). **Open** (↗) works
 per type: an upload in a new tab (a web page at its address, an upload
 through its presigned `preview_url`; the name too; only `http(s)`
 addresses are linked, without a preview the action is disabled with a
 note); an output goes to the notebook it was made in with it selected,
 or, when that notebook is deleted, shows it read-only on this page as
 the share page does (print where the kind has it, no sharing). A ready output's row also has
-**share** ("shared" once it has a link): it opens the viewer's share
+**share**: it opens the viewer's share
 card under the row (create the read-only link, or copy and revoke it).
 **Checking an audio source** (here and in a notebook's Sources list): a
 play button per audio row mounts a player for that row only (nothing
@@ -671,7 +676,9 @@ download link "transcribed audio" (the file that was transcribed: the
 converted MP3, or the upload itself for MP3 and WAV) and, when the
 upload was converted first, "original" (`original_url`). Open still
 takes the transcribed file.
-Each row has a checkbox ("all / none" in the column header acts on the
+Each row has a checkbox, and a click anywhere else on the row (not on a
+link, a button or the checkbox) ticks it too; a ticked row is shaded,
+and nothing opens on a double-click ("all / none" in the column header acts on the
 rows the filters show; ticks survive a filter change), across sources
 and outputs. With rows ticked a bar above the table offers:
 **New notebook from n** (a title field in the bar next to the button,

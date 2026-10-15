@@ -11,6 +11,7 @@ import { formatTime } from '../lib/format'
 import { MadeFrom } from './MadeFrom'
 import { shortId } from '../lib/outputId'
 import { FILTER_FROM, SORTS, kindLabel, kindsPresent, optionsBrief, sortOutputs, whenLabel, type Sort } from '../lib/outputsList'
+import { IconTrash } from './Icons'
 
 interface Props {
   outputs: Output[]
@@ -127,8 +128,8 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete, onRename, s
                 </span>
               </button>
               )}
-              <button type="button" className="icon" title={t('outputs.delete')} onClick={() => onDelete(o)}>
-                ×
+              <button type="button" className="icon icon-danger" title={t('outputs.delete')} aria-label={t('outputs.deleteNamed', { title: o.title || kindLabel(o.kind) })} onClick={() => onDelete(o)}>
+                <IconTrash />
               </button>
             </li>
           )

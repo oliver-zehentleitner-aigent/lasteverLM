@@ -1226,6 +1226,16 @@ export const en = {
   'readBy.image': 'Described by {model}, not a verbatim transcript',
   'readBy.page': 'Page read by {model}',
   'readBy.audio': 'Transcribed by {model}',
+  'lib.openNamed': 'Open {name}',
+  'lib.shareNamed': 'Share {name}',
+  'lib.sharedNamed': '{name} is shared: manage the link',
+  'lib.deleteNamed': 'Delete {name}',
+  'lib.deleteTitle': 'Delete (to the trash)',
+  'viewer.shareTitle': 'Share',
+  'viewer.sharedTitle': 'Shared: manage the link',
+  'viewer.deleteTitle': 'Delete this document',
+  'outputs.deleteNamed': 'Delete {title}',
+  'sources.removeNamed': 'Remove {name} from this notebook',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Library rows: open, share and delete are line icons (↗, a link, a bin) with tooltips and labels, delete at the right end; a click on a row ticks it like its checkbox (not on its links, buttons or the checkbox), and a ticked row is shaded. The viewer's share and delete are the same icons; the bin is red wherever it deletes (library, outputs and sources lists, viewer), muted at rest and full on hover.
+
 ## [0.22.7] - 2026-10-15
 
 ### Added

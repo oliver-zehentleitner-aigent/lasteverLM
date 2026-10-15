@@ -16,6 +16,7 @@ import { ReadOnlyOutput, TrashedOutputs } from './LibraryOutputs'
 import { PendingReason } from './PendingReason'
 import { ShareCard } from './ShareCard'
 import { t, tn } from '../i18n'
+import { IconLink, IconOpen, IconTrash } from './Icons'
 
 interface Props {
   /** with `outputId`, that document is selected when the notebook opens */
@@ -325,7 +326,8 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
             const status = doc && out ? out.status : e.status
             return (
               <Fragment key={e.id}>
-                <tr className={picked.has(e.id) ? 'picked' : undefined}>
+                {/* a click on the row toggles it like its checkbox; links, buttons and the checkbox act on their own */}
+                <tr className={picked.has(e.id) ? 'selectable picked' : 'selectable'} onClick={(ev) => !(ev.target as HTMLElement).closest('a, button, input, label, select, textarea') && toggle(e.id)}>
                   <td className="pick-col">
                     <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} aria-label={t('lib.selectRow', { name: e.name })} />
                   </td>
@@ -392,26 +394,41 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
                   </td>
                   <td className="row-actions">
                     {files && <PlayButton open={playing?.id === e.id} name={e.name} onToggle={() => setPlaying((p) => (p?.id === e.id ? null : { id: e.id, files }))} />}
-                    {doc && out && out.status === 'ready' && (
-                      <button type="button" className="link" aria-expanded={sharing === e.id} onClick={() => setSharing((s) => (s === e.id ? null : e.id))}>
-                        {out.share_token ? t('viewer.shared') : t('viewer.share')}
-                      </button>
-                    )}
+                    {/* open, share, delete: delete at the right end */}
                     {doc ? (
-                      <button type="button" className="link" disabled={busy || !e.output_id} title={e.origin?.id ? t('lib.out.openTitle', { title: e.name }) : t('lib.out.openReadOnly', { title: e.name })} onClick={() => void open(e)}>
-                        {t('lib.open')}
+                      <button
+                        type="button"
+                        className="icon icon-action"
+                        disabled={busy || !e.output_id}
+                        title={e.origin?.id ? t('lib.out.openTitle', { title: e.name }) : t('lib.out.openReadOnly', { title: e.name })}
+                        aria-label={t('lib.openNamed', { name: e.name })}
+                        onClick={() => void open(e)}
+                      >
+                        <IconOpen />
                       </button>
                     ) : href ? (
-                      <a className="link" href={href} target="_blank" rel="noopener noreferrer">
-                        {t('lib.open')}
+                      <a className="icon icon-action" href={href} target="_blank" rel="noopener noreferrer" title={t('lib.openTitle', { name: e.name })} aria-label={t('lib.openNamed', { name: e.name })}>
+                        <IconOpen />
                       </a>
                     ) : (
-                      <button type="button" className="link" disabled title={t('lib.openUnavailable')}>
-                        {t('lib.open')}
+                      <button type="button" className="icon icon-action" disabled title={t('lib.openUnavailable')} aria-label={t('lib.openNamed', { name: e.name })}>
+                        <IconOpen />
                       </button>
                     )}
-                    <button type="button" className="link danger" disabled={busy} onClick={() => void remove(e)}>
-                      {t('common.delete')}
+                    {doc && out && out.status === 'ready' && (
+                      <button
+                        type="button"
+                        className={out.share_token ? 'icon icon-action shared' : 'icon icon-action'}
+                        aria-expanded={sharing === e.id}
+                        title={out.share_token ? t('viewer.sharedTitle') : t('viewer.shareTitle')}
+                        aria-label={t(out.share_token ? 'lib.sharedNamed' : 'lib.shareNamed', { name: e.name })}
+                        onClick={() => setSharing((s) => (s === e.id ? null : e.id))}
+                      >
+                        <IconLink />
+                      </button>
+                    )}
+                    <button type="button" className="icon icon-danger" disabled={busy} title={t('lib.deleteTitle')} aria-label={t('lib.deleteNamed', { name: e.name })} onClick={() => void remove(e)}>
+                      <IconTrash />
                     </button>
                   </td>
                 </tr>
