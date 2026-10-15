@@ -97,6 +97,7 @@ def test_a_bulletproof_output_keeps_a_disputed_unit_and_removes_a_failing_one(se
     passed, disputed = units
     assert passed["judge"]["verdict"] == "supported"
     assert passed["judge"]["second"]["verdict"] == "supported"
+    assert passed["judge"]["first"]["verdict"] == "supported"  # both judges, also when they agree
     assert (disputed["judge"]["verdict"], disputed["judge"]["reason"]) == (
         DISPUTED,
         DISPUTED_REASON,
@@ -106,6 +107,13 @@ def test_a_bulletproof_output_keeps_a_disputed_unit_and_removes_a_failing_one(se
         "verdict": "supported",
         "reason": "supported by second",
         "quote": "q",
+    }
+    # each judge's own verdict beside the result
+    assert disputed["judge"]["first"] == {
+        "model": "test-judge-high",
+        "verdict": "contradicted",
+        "reason": "contradicted by rule",
+        "quote": "The sky is blue",
     }
     assert disputed["judge"]["round"] == 3  # revised like a failing unit, judged again
     log = out["provenance"]["judge"]
