@@ -392,7 +392,9 @@ export interface Claim {
 export type JudgeLevel = 'off' | 'low' | 'medium' | 'high'
 /** "disputed" (verification bulletproof): the two judges disagree; the
  *  claim is kept, never removed and never counted as supported */
-export type JudgeVerdict = 'supported' | 'contradicted' | 'not_in_source' | 'disputed'
+/** "supported_elsewhere": backed by a passage the claim did not cite, which
+ *  the judge added to its refs; counted as supported */
+export type JudgeVerdict = 'supported' | 'supported_elsewhere' | 'contradicted' | 'not_in_source' | 'disputed'
 /** a round's or a judging's counts: the verdicts, and the claims the
  *  judge gave no usable answer for */
 export type JudgeCounts = Partial<Record<JudgeVerdict | 'no_usable_answer', number>>
@@ -409,6 +411,8 @@ export interface JudgeNote {
   round: number
   /** bulletproof: the second judge, of another model family */
   second?: { model: string; verdict: JudgeVerdict | null; reason: string; quote: string }
+  /** supported_elsewhere: the passages the judge found and added to the claim's refs */
+  added_refs?: number[]
   /** bulletproof: the first judge's own reading (its model is `model`); absent on outputs from before rag #592 */
   first?: { verdict: JudgeVerdict | null; reason: string; quote?: string }
 }
@@ -458,6 +462,8 @@ export interface Passage {
   chunk_count: number | null
   similarity: number | null
   quote: string
+  /** "judge": found by the judge for a claim that did not cite it */
+  added_by?: 'judge' | null
 }
 
 /** `Output.provenance`, version 1: the generation log. */
