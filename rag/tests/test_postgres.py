@@ -1127,3 +1127,35 @@ def test_audio_outputs_lists_ready_audio_with_a_file(store, notebook):
     assert [r.id for r in store.audio_outputs(None)] == [audio.id]
     assert store.audio_outputs([report.id]) == []
     assert [r.id for r in store.audio_outputs([audio.id])] == [audio.id]
+
+
+def test_a_judge_job_is_claimed_once_updated_and_kept(store, user, notebook):
+    output = store.create_output(notebook, "report", "processing")
+    job_id = str(uuid4())
+    store.create_judge_job(
+        {
+            "id": job_id,
+            "owner": user,
+            "target": "output",
+            "target_id": output.id,
+            "notebook_id": notebook,
+            "level": "high",
+        }
+    )
+    assert store.latest_judge_job("output", output.id)["status"] == "queued"
+    claimed = store.claim_judge_job("w1", 600)
+    assert (claimed["id"], claimed["status"], claimed["attempts"]) == (job_id, "running", 1)
+    assert store.claim_judge_job("w2", 600) is None  # held by w1
+    store.update_judge_job(job_id, phase={"step": "judging", "n": 1, "of": 2})
+    assert store.get_judge_job(job_id)["phase"]["n"] == 1
+    store.add_judge_attempt(job_id, {"attempt": 1, "error_kind": "provider"})
+    store.update_judge_job(job_id, status="queued", phase=None)
+    again = store.claim_judge_job("w2", 600)
+    assert again["attempts"] == 2 and again["attempt_log"] == [
+        {"attempt": 1, "error_kind": "provider"}
+    ]
+    store.update_judge_job(job_id, status="done", phase=None)
+    done = store.get_judge_job(job_id)
+    assert done["status"] == "done" and done["finished_at"] is not None
+    store.delete_user_data(user)
+    assert store.get_judge_job(job_id) is None

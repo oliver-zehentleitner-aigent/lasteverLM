@@ -108,15 +108,19 @@ def _disputed(first: Judgement) -> Judgement:
 
 
 def _judge_both(
-    judge: CompleteFn, second: SecondJudge | None, units: list[Unit], texts: Mapping[int, str]
+    judge: CompleteFn,
+    second: SecondJudge | None,
+    units: list[Unit],
+    texts: Mapping[int, str],
+    on_done: Callable[[], None] | None = None,
 ) -> tuple[list[Judgement], list[Judgement | None], list[Judgement | None]]:
     """Every unit by the judge and, for bulletproof, by the second at the
     same time: the result, and each judge's own verdict."""
     if second is None:
-        return _judge_all(judge, units, texts), [None] * len(units), [None] * len(units)
+        return _judge_all(judge, units, texts, on_done), [None] * len(units), [None] * len(units)
     with ThreadPoolExecutor(2) as pool:
-        mine = pool.submit(_judge_all, judge, units, texts)
-        theirs = pool.submit(_judge_all, second.judge, units, texts)
+        mine = pool.submit(_judge_all, judge, units, texts, on_done)
+        theirs = pool.submit(_judge_all, second.judge, units, texts, on_done)
         firsts, seconds = mine.result(), theirs.result()
     paired = [pair(a, b) for a, b in zip(firsts, seconds, strict=True)]
     return paired, list(firsts), list(seconds)
@@ -273,11 +277,26 @@ def annotate(
     level: str,
     model: str,
     second: SecondJudge | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> dict[str, Any]:
     """Judge existing units without revising: each claim's target gets its
-    ``judge`` (with ``second`` beside it for bulletproof); returns the counts."""
+    ``judge`` (with ``second`` beside it for bulletproof); returns the counts.
+    ``on_progress(done, of)`` follows the calls as they finish (a job's phase)."""
     claims = [u for u in units if u.claim or u.refs]
-    judged, firsts, seconds = _judge_both(judge, second, claims, texts)
+    total = len(claims) * (2 if second is not None else 1)
+    done = [0]
+    lock = threading.Lock()
+
+    def finished() -> None:
+        with lock:
+            done[0] += 1
+            count = done[0]
+        if on_progress is not None:
+            on_progress(count, total)
+
+    if on_progress is not None:
+        on_progress(0, total)
+    judged, firsts, seconds = _judge_both(judge, second, claims, texts, finished)
     for unit, j, own, other in zip(claims, judged, firsts, seconds, strict=True):
         unit.target["judge"] = {
             "level": level,
@@ -387,13 +406,18 @@ def _counting(complete: CompleteFn) -> tuple[CompleteFn, _Tally]:
     return counted, tally
 
 
-def _judge_all(judge: CompleteFn, units: list[Unit], texts: Mapping[int, str]) -> list[Judgement]:
+def _judge_all(
+    judge: CompleteFn,
+    units: list[Unit],
+    texts: Mapping[int, str],
+    on_done: Callable[[], None] | None = None,
+) -> list[Judgement]:
     """One judge call per unit, a few at a time; each sees only its own
     passages. A call without a usable answer is tried once more; if that
     fails too, the unit gets no verdict (it is kept, marked, never failing
     the output and never revised or removed)."""
 
-    def one(unit: Unit) -> Judgement:
+    def judged(unit: Unit) -> Judgement:
         cited = {n: texts[n] for n in dict.fromkeys(unit.refs) if n in texts}
         for attempt in (1, 2):
             try:
@@ -409,6 +433,12 @@ def _judge_all(judge: CompleteFn, units: list[Unit], texts: Mapping[int, str]) -
                     json.dumps(shape) if shape else "",
                 )
         return Judgement(None, f"the judge gave no usable answer: {kind}", "", False, shape)
+
+    def one(unit: Unit) -> Judgement:
+        judgement = judged(unit)
+        if on_done is not None:
+            on_done()  # a unit judged: progress for a job that is waited on
+        return judgement
 
     with ThreadPoolExecutor(JUDGE_WORKERS) as pool:
         return list(pool.map(one, units))

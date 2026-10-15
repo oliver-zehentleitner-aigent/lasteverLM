@@ -101,6 +101,12 @@ class Worker:
                 break  # the same job failed twice this pass; let it rest until the next
             else:
                 retried.add(job.id)
+        # judgements on request, after the output jobs
+        while (judgement := self._store.claim_judge_job(self.worker_id, STALE_CLAIM_S)) is not None:
+            if self._outputs.process_judge_job(judgement):
+                finished += 1
+            else:
+                break  # given back for a retry; the next pass takes it again
         if self._agent is not None:
             # after the jobs, so a plan sees the outputs this pass finished
             self._agent.advance()

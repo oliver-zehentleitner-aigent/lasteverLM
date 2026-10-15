@@ -123,6 +123,7 @@ class FakeStore:
         self.balance = balance
         self.ingest_held = 0  # ingest's funded reads not finished, in cents
         self.reserved: dict[str, float] = {}  # outputs.reserved_cents by id
+        self.judge_jobs: dict[str, dict[str, Any]] = {}
         self.emails: dict[str, str] = {}  # account's users.email by id
         self.admins = admins or set()
         self.viewers = viewers or set()
@@ -401,6 +402,50 @@ class FakeStore:
         if fields.get("status") in ("ready", "failed"):
             fields["finished_at"] = datetime.now(UTC).isoformat()
         self.outputs[output_id].update(fields)
+
+    def create_judge_job(self, job: dict[str, Any]) -> None:
+        self.judge_jobs[job["id"]] = {
+            **job,
+            "status": "queued",
+            "phase": None,
+            "attempts": 0,
+            "attempt_log": [],
+            "error": None,
+            "claimed_at": None,
+            "created_at": (datetime.now(UTC) + timedelta(seconds=len(self.judge_jobs))).isoformat(),
+            "finished_at": None,
+        }
+
+    def _public_job(self, job: dict[str, Any]) -> dict[str, Any]:
+        return {k: v for k, v in copy.deepcopy(job).items() if k != "claimed_at"}
+
+    def get_judge_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.judge_jobs.get(job_id)
+        return self._public_job(job) if job else None
+
+    def latest_judge_job(self, target: str, target_id: str) -> dict[str, Any] | None:
+        mine = [
+            j
+            for j in self.judge_jobs.values()
+            if (j["target"], j["target_id"]) == (target, target_id)
+        ]
+        return self._public_job(max(mine, key=lambda j: j["created_at"])) if mine else None
+
+    def claim_judge_job(self, worker_id: str, stale_after_s: int) -> dict[str, Any] | None:
+        for job in sorted(self.judge_jobs.values(), key=lambda j: j["created_at"]):
+            if job["status"] == "queued":
+                job.update(status="running", attempts=job["attempts"] + 1, claimed_at=worker_id)
+                return self._public_job(job)
+        return None
+
+    def update_judge_job(self, job_id: str, **fields: Any) -> None:
+        job = self.judge_jobs[job_id]
+        job.update(fields)
+        if fields.get("status") in ("done", "failed"):
+            job["finished_at"] = datetime.now(UTC).isoformat()
+
+    def add_judge_attempt(self, job_id: str, record: dict[str, Any]) -> None:
+        self.judge_jobs[job_id]["attempt_log"].append(record)
 
     def add_attempt(self, output_id: str, record: dict[str, Any]) -> None:
         log = self.outputs[output_id].setdefault("attempt_log", [])

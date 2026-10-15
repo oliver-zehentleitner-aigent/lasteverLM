@@ -170,6 +170,27 @@ class Store(Protocol):
         """Ready or failed also stamps ``finished_at``."""
         ...
 
+    # judgements on request, run by the worker (``judge_jobs``)
+    def create_judge_job(self, job: dict[str, Any]) -> None: ...
+
+    def get_judge_job(self, job_id: str) -> dict[str, Any] | None: ...
+
+    def latest_judge_job(self, target: str, target_id: str) -> dict[str, Any] | None:
+        """The target's newest job, any status."""
+        ...
+
+    def claim_judge_job(self, worker_id: str, stale_after_s: int) -> dict[str, Any] | None:
+        """The oldest queued job, or a running one whose claim is stale;
+        claiming counts an attempt."""
+        ...
+
+    def update_judge_job(self, job_id: str, **fields: Any) -> None:
+        """``status``, ``phase``, ``error``; done or failed stamps
+        ``finished_at``; every write refreshes the claim."""
+        ...
+
+    def add_judge_attempt(self, job_id: str, record: dict[str, Any]) -> None: ...
+
     def add_attempt(self, output_id: str, record: dict[str, Any]) -> None:
         """Append one failed attempt's record to ``attempt_log``."""
         ...
@@ -574,6 +595,37 @@ select
 """
 
 
+_JUDGE_JOB_SELECT = (
+    "select id::text as id, owner::text as owner, target, target_id::text as target_id, "
+    "notebook_id::text as notebook_id, level, status, phase, attempts, attempt_log, error, "
+    "created_at, finished_at from judge_jobs"
+)
+# a judgement on request: the oldest queued job, or one whose worker died
+_CLAIM_JUDGE_SQL = """
+with job as (
+    select id from judge_jobs
+    where status = 'queued'
+       or (status = 'running' and claimed_at < now() - make_interval(secs => %(stale)s))
+    order by created_at, id
+    for update skip locked
+    limit 1
+)
+update judge_jobs j set status = 'running', claimed_at = now(), claimed_by = %(worker)s,
+    attempts = j.attempts + 1
+from job where j.id = job.id
+returning j.id::text as id
+"""
+
+
+def _judge_job(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **dict(row),
+        "created_at": str(row["created_at"]),
+        "finished_at": _str_or_none(row["finished_at"]),
+        "attempt_log": list(row["attempt_log"] or []),
+    }
+
+
 class PostgresStore:
     def __init__(self, pool: Pool, prices: ModelPrices) -> None:
         self._pool = pool
@@ -950,6 +1002,57 @@ class PostgresStore:
                 f"update outputs set {assignments} where id = %(id)s", {**fields, "id": output_id}
             )
 
+    def create_judge_job(self, job: dict[str, Any]) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "insert into judge_jobs (id, owner, target, target_id, notebook_id, level) "
+                "values (%(id)s, %(owner)s, %(target)s, %(target_id)s, %(notebook_id)s, %(level)s)",
+                job,
+            )
+
+    def get_judge_job(self, job_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(f"{_JUDGE_JOB_SELECT} where id = %s", (job_id,)).fetchone()
+        return _judge_job(row) if row else None
+
+    def latest_judge_job(self, target: str, target_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                f"{_JUDGE_JOB_SELECT} where target = %s and target_id = %s "
+                "order by created_at desc limit 1",
+                (target, target_id),
+            ).fetchone()
+        return _judge_job(row) if row else None
+
+    def claim_judge_job(self, worker_id: str, stale_after_s: int) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                _CLAIM_JUDGE_SQL, {"worker": worker_id, "stale": stale_after_s}
+            ).fetchone()
+        return self.get_judge_job(row["id"]) if row else None
+
+    def update_judge_job(self, job_id: str, **fields: Any) -> None:
+        unknown = set(fields) - {"status", "phase", "error"}
+        if unknown:
+            raise ValueError(f"not an updatable judge_jobs column: {sorted(unknown)}")
+        if "phase" in fields:
+            fields["phase"] = _jsonb(fields["phase"])
+        assignments = [f"{name} = %({name})s" for name in fields] + ["claimed_at = now()"]
+        if fields.get("status") in ("done", "failed"):
+            assignments.append("finished_at = now()")
+        with self._pool.connection() as conn:
+            conn.execute(
+                f"update judge_jobs set {', '.join(assignments)} where id = %(id)s",
+                {**fields, "id": job_id},
+            )
+
+    def add_judge_attempt(self, job_id: str, record: dict[str, Any]) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update judge_jobs set attempt_log = attempt_log || %s where id = %s",
+                (Jsonb([record]), job_id),
+            )
+
     def add_attempt(self, output_id: str, record: dict[str, Any]) -> None:
         with self._pool.connection() as conn:
             conn.execute(
@@ -1308,6 +1411,7 @@ class PostgresStore:
                 owner,
             )
             conn.execute("delete from outputs where owner = %(owner)s", owner)
+            conn.execute("delete from judge_jobs where owner = %(owner)s", owner)
             for table in ("messages", "conversations"):
                 conn.execute(f"delete from {table} where notebook_id in ({_USER_NOTEBOOKS})", owner)
 
