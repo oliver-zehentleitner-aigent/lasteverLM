@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-15
+
 ### Added
 
 - Verification levels. `options.verification`: `basic` (word and negation check, free, the default), `standard` (also a low judge, once, for each unit the check doubts, annotate only) or `thorough` (the medium judge with revision, as `judge: medium`). `POST /estimate` returns `levels` with each level's price. Chat answers follow the user's `verification_level` (else their `judge_default`), annotate only. The agent asks for the level instead of the judge, preselecting the user's.
