@@ -754,8 +754,13 @@ class PostgresRepository:
     )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
+        # A generated row's link in its origin notebook (rag writes it under
+        # the row's own id) is the output itself, listed among the outputs:
+        # never a source there. Links into other notebooks have ids of their
+        # own and are listed.
         rows = self._all(
-            f"{self._SELECT_SOURCES} where s.notebook_id = %(id)s order by s.created_at, s.id",
+            f"{self._SELECT_SOURCES} where s.notebook_id = %(id)s "
+            "and not (l.kind = 'generated' and s.id = l.id) order by s.created_at, s.id",
             {"id": notebook_id},
         )
         return [StoredSource(**row) for row in rows]

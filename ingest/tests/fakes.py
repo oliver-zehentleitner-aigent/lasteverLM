@@ -226,7 +226,11 @@ class InMemoryRepository:
         )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
-        return [self._stored(i) for i, (nb, _, _) in self.links.items() if nb == notebook_id]
+        return [
+            self._stored(i)
+            for i, (nb, lib, _) in self.links.items()
+            if nb == notebook_id and not (self.library[lib].kind == "generated" and i == lib)
+        ]
 
     def get_source(self, source_id: UUID) -> StoredSource | None:
         return self._stored(source_id) if source_id in self.links else None
@@ -259,6 +263,8 @@ class InMemoryRepository:
         row's origin."""
         owner = self.notebooks[notebook_id][0]
         lib = self.add_source(notebook_id, title, "generated", None)
+        # rag writes the origin link under the row's own id
+        self.links[lib.library_id] = self.links.pop(lib.id)
         self.set_library_status(lib.library_id, status)
         self.outputs[lib.library_id] = (notebook_id, self.notebooks[notebook_id][1].title)
         self.output_ids[lib.library_id] = uuid4()

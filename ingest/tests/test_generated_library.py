@@ -60,9 +60,10 @@ def test_an_output_outlives_its_origin_notebook_and_its_unlinking(client, repo):
     origin, other = _notebook(client, "Thesis"), _notebook(client, "Talk")
     report = repo.add_output(UUID(origin), "Report")
     client.post(f"/api/ingest/notebooks/{other}/sources", json={"library_id": str(report)})
-    # Unlinked from its origin: the origin still names that notebook.
-    [link] = [s for s in client.get(f"/api/ingest/notebooks/{origin}/sources").json()]
-    assert client.delete(f"/api/ingest/sources/{link['id']}").status_code == 204
+    # Unlinked from its origin (the origin link has the row's id; it is not
+    # in the origin's source list): the origin still names that notebook.
+    assert client.get(f"/api/ingest/notebooks/{origin}/sources").json() == []
+    assert client.delete(f"/api/ingest/sources/{report}").status_code == 204
     [entry] = client.get("/api/ingest/library?kind=generated").json()
     assert entry["origin"] == {"id": origin, "title": "Thesis"}
     # The origin notebook deleted: the title snapshot remains, the id goes.
@@ -71,3 +72,25 @@ def test_an_output_outlives_its_origin_notebook_and_its_unlinking(client, repo):
     assert entry["origin"] == {"id": None, "title": "Thesis"}
     assert [n["title"] for n in entry["notebooks"]] == ["Talk"]
     assert repo.library[report].owner == DEMO_USER_ID
+
+
+def test_an_output_is_no_source_of_its_own_notebook_but_of_one_it_is_linked_into(client, repo):
+    """The origin link (rag writes it under the generated row's id) is the
+    output itself, listed under Outputs; a link into another notebook is a
+    source there. An orphan (a row no output points to, left by an abandoned
+    attempt) is an origin link too and stays out of the list."""
+    origin, other = _notebook(client, "Thesis"), _notebook(client, "Talk")
+    upload = client.post(
+        f"/api/ingest/notebooks/{origin}/sources",
+        files={"file": ("notes.txt", b"some notes", "text/plain")},
+    ).json()
+    report = repo.add_output(UUID(origin), "Report")
+    orphan = repo.add_output(UUID(origin), "Is the web interface well-designed?")
+    del repo.outputs[orphan], repo.output_ids[orphan]  # no output points to it
+    listed = client.get(f"/api/ingest/notebooks/{origin}/sources").json()
+    assert [s["id"] for s in listed] == [upload["id"]]
+    added = client.post(
+        f"/api/ingest/notebooks/{other}/sources", json={"library_id": str(report)}
+    ).json()
+    [linked] = client.get(f"/api/ingest/notebooks/{other}/sources").json()
+    assert linked["id"] == added["id"] != str(report) and linked["kind"] == "generated"
