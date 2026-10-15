@@ -1,0 +1,28 @@
+name: changelog
+
+# Every change a pull request makes to a CHANGELOG.md has to sit inside its
+# [Unreleased] section (infra/scripts/changelog_unreleased.py): a rebase over a
+# release roll tends to leave a new line under the section just released.
+# Release pull requests move lines out of [Unreleased] on purpose, and the label
+# changelog-fix marks a correction of a released section; both are skipped.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  unreleased:
+    if: >-
+      !startsWith(github.head_ref, 'agent-a/release-')
+      && !contains(github.event.pull_request.labels.*.name, 'changelog-fix')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: every CHANGELOG change inside [Unreleased]
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python3 infra/scripts/changelog_unreleased.py "origin/$BASE_REF" HEAD

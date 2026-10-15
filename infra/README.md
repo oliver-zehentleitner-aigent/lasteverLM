@@ -24,7 +24,7 @@ Let's Encrypt certificate; `compose.yaml` runs the same stack locally.
 | `platform/` | Values for the platform charts: ingress-nginx (JSON access log), cert-manager, metrics-server |
 | `db/migrations/` | Infra-owned SQL (extensions); the services' own migrations are collected at deploy time |
 | `db/migrate.sh`, `db/bootstrap.sh` | The migration runner the chart's hook Job executes, and the one-time database bootstrap |
-| `scripts/` | `dburls.py` (admin URL to the derived connection strings), `tofu_outputs.py` (tofu outputs to `cluster.env`, fails on a missing one), `web-csp-check.sh` and `csp/walk.mjs` (`make web-csp-check`), `handbook.sh` and `handbook/build.mjs` (`make handbook`) |
+| `scripts/` | `dburls.py` (admin URL to the derived connection strings), `tofu_outputs.py` (tofu outputs to `cluster.env`, fails on a missing one), `web-csp-check.sh` and `csp/walk.mjs` (`make web-csp-check`), `handbook.sh` and `handbook/build.mjs` (`make handbook`), `changelog_unreleased.py` (CHANGELOG changes only under [Unreleased], `changelog.yml`) |
 | `tests/` | The family's end-to-end smoke test (`smoke.py`) and its unit test against a stub, the unit tests of `scripts/` |
 | `docs/` | Operations runbook |
 | `context/` | Why the infrastructure is built this way ([Keep the Why](https://keepthewhy.com)) |
