@@ -7,7 +7,14 @@
 **Status:** active
 **Evidence:** confirmed
 **Source:** platform probe reported by the family, 2026-10-12; implementation session, 2026-10-12
-**Revisit when:** the LLM is called with thinking disabled and the probe no longer reproduces
+**Revisit when:** a model call can no longer end without content (no reasoning budget to run out, no length cut)
+
+**Re-checked 2026-10-15:** the earlier condition (thinking disabled and
+the probe no longer reproducing) fired in its first half: core turns
+thinking off unless a caller asks. Empty content still happens, though:
+a judge or a long document can run out of its budget (`finish_reason`
+length). The rule holds. The judge is the one deliberate exception, see
+755ed7ef-5d49-4d14-aec5-8cb96ec9f546 in `judge.md`.
 
 The platform's LLM is a reasoning model; a probe with a small token
 budget returned only reasoning tokens and empty content. The service
