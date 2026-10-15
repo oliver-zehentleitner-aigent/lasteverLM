@@ -188,7 +188,10 @@ the sources that are ready, and the answer ends by naming the ones still
 being read. An output does not answer anyone in the moment: its job
 waits for its sources, up to the 30-minute limit after which it fails
 uncharged (33fc1c1f-8444-4f70-b597-b459ce000c78 in `outputs.md`), and a selected source that could
-not be read stops it at once.
+not be read stops it at once. A proposal (charts, tables, themes) waits
+the same 60 seconds; if a source is still being read then, it proposes
+nothing and its reason names those sources, because candidates from part
+of the selection would look complete.
 
 **Reason:** a chat question expects an answer within seconds. A text or
 a short PDF is read well inside a minute; audio to transcribe or a
