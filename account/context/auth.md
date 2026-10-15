@@ -7,7 +7,7 @@
 **Status:** superseded
 **Superseded by:** a4d20488-640c-433f-98d2-dabc49c45cfa
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-12
+**Source:** implementation, 2026-10-12
 
 The shared pieces this service needs from `lasteverLM-core` — the `User`
 model, JWT issue and verify, the demo-token resolution and the demo user
@@ -20,8 +20,8 @@ Resolved the same day: core landed in `core/` of this repository and is
 installed by path (`core.md`); the mirror was deleted rather than kept
 as a re-export, because a module that only re-exports invites drift.
 
-**Reason:** the services are built at the same time by separate sessions
-and may not block on each other. The mirror is the smallest thing that
+**Reason:** the services were built in parallel and could not block on
+each other. The mirror is the smallest thing that
 lets this service be tested end to end now. The cost is a second copy of
 the token logic that must match core's byte for byte; the token format
 (HS256, `sub` = user id, issuer `lasteverlm`, 7 days) is fixed in the
@@ -41,8 +41,7 @@ the address itself is listed in `ADMIN_EMAILS`. With both lists empty and
 no admin addresses, nobody can request a link.
 
 Extended on 2026-10-13: the allowlist gained single addresses next to
-domains (maintainer decision — a partner may be one person, not a whole
-domain). Both lists are edited one entry at a time in the admin panel;
+domains, because a partner may be one person, not a whole domain. Both lists are edited one entry at a time in the admin panel;
 only the domain list has an environment seed. The fail-closed rule below
 now reads "both lists empty".
 
@@ -128,8 +127,8 @@ goes out for a refused address. This reverses the rule of the family
 contract v1 and of this service until 0.2.1, "always 202, never reveal
 whether an address is allowed".
 
-**Reason:** the maintainer wants people who have no access to be told so
-instead of waiting for a mail that never comes. The always-202 rule bought
+**Reason:** people who have no access should be told so instead of
+waiting for a mail that never comes. The always-202 rule bought
 one thing, that nobody could probe which addresses are allowed; here that
 protection is worth little: the allowlist is a handful of partner domains
 and single addresses, not a secret, and learning that a domain is allowed
@@ -139,8 +138,8 @@ because the web client also sees 403 for a banned IP and must tell the
 two apart without parsing prose.
 
 **Rejected alternative:** keeping 202 and showing a generic "if your
-address is allowed, a mail is on its way" — rejected by the maintainer
-as the worse experience for exactly the people the product is for.
+address is allowed, a mail is on its way" — rejected as the worse
+experience for exactly the people the product is for.
 
 ## Three roles on the user row; viewers read the admin panel, only admins change it
 
@@ -156,15 +155,16 @@ as the worse experience for exactly the people the product is for.
 column and is written together with `role` by the two write paths
 (`create_user`, `set_role`) so that core's `IS_ADMIN_SQL` keeps reading
 it. The role is decided at first sign-in — `ADMIN_EMAILS` and the very
-first real user become `admin`, a domain listed in `viewer_domains`
-gives `viewer`, everyone else is `user` — and changed afterwards only by
+first real user become `admin`, an address listed in `viewer_addresses`
+or a domain listed in `viewer_domains` gives `viewer`, everyone else is
+`user` — and changed afterwards only by
 an admin through `PATCH /admin/users/{id}`. Every `GET` under `/admin`
 goes through a reader dependency that admits `viewer` and `admin`; every
 write keeps the admin dependency. The last admin cannot step down (409),
 the demo user keeps `user`.
 
-**Reason:** the maintainer wants people who may look at the admin area
-without being able to change it. One column on the user row is the
+**Reason:** some people need to look at the admin area without being
+able to change it. One column on the user row is the
 smallest model that expresses "may read" apart from "may write"; a
 flag per capability would be a permission system nobody asked for.
 `is_admin` is kept rather than replaced because two other services read
