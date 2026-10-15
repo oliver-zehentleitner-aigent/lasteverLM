@@ -596,6 +596,88 @@ def test_read_by_and_vision_pages_round_trip(repo):
     assert repo.get_library_source(entry.id).read_by is None
 
 
+def test_the_starter_is_made_again_reusing_what_the_owner_still_has(repo):
+    admin, user = _user(repo), _user(repo)
+    starter = repo.create_notebook(admin, "Getting started")
+    doc = _library(repo, admin, key="sha256:handbook", name="handbook.pdf")
+    repo.set_library_status(doc.id, "ready")
+    repo.replace_chunks(
+        doc.id,
+        [Chunk(idx=0, text="one", page=1), Chunk(idx=1, text="two", page=2)],
+        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+    )
+    link, _ = repo.link_source(starter.id, doc.id)
+    _execute(
+        repo,
+        "insert into settings (key, value) values ('starter_notebook', %s::jsonb) "
+        "on conflict (key) do update set value = excluded.value",
+        (f'{{"owner_id": "{admin}", "notebook_id": "{starter.id}", "set_by": "x"}}',),
+    )
+    [source] = repo.starter_sources(repo.starter_ref())
+    first_lib = uuid4()
+    first = StarterCopy(
+        owner=user,
+        source_notebook=starter.id,
+        notebook_id=uuid4(),
+        title="Getting started",
+        sources=[(source, first_lib, uuid4(), f"{user}/{first_lib}/handbook.pdf", None, None)],
+    )
+    assert repo.copy_starter(first) is not None
+    assert repo.get_notebook(user, first.notebook_id).starter
+    assert repo.has_starter_notebook(user) and repo.starter_copy_wait(user) == 0
+    # The user deletes the notebook (the library keeps the source) and trashes it.
+    repo.delete_notebook(user, first.notebook_id)
+    repo.trash_library_source(user, first_lib)
+    assert not repo.has_starter_notebook(user)
+    assert repo.owned_by_dedupe_key(user, ["sha256:handbook"]) == {"sha256:handbook": first_lib}
+    again = StarterCopy(
+        owner=user,
+        source_notebook=starter.id,
+        notebook_id=uuid4(),
+        title="Getting started",
+        sources=[],
+        reuse=[(source, first_lib, uuid4())],
+    )
+    maps = repo.recreate_starter(again)
+    assert maps is not None and maps["source_map"][str(doc.id)] == str(first_lib)
+    assert len(maps["chunk_map"]) == 2
+    assert repo.get_library_source(first_lib).deleted_at is None
+    assert [s.library_id for s in repo.list_sources(again.notebook_id)] == [first_lib]
+    assert repo.get_notebook(user, again.notebook_id).starter
+    # One an hour: a second request is refused, nothing written.
+    wait = repo.starter_copy_wait(user)
+    assert 3500 < wait <= 3600
+    third = again.model_copy(
+        update={"notebook_id": uuid4(), "reuse": [(source, first_lib, uuid4())]}
+    )
+    assert repo.recreate_starter(third) is None
+    assert repo.get_notebook(user, third.notebook_id) is None
+
+
+def test_the_backfill_flags_only_notebooks_made_with_the_seed(repo):
+    """Migration 0019's backfill, run again on rows made before it: a
+    notebook linking starter sources and created with the owner's seed is
+    a starter copy; one the owner made later with the same sources is not."""
+    owner = _user(repo)
+    seeded, later = uuid4(), uuid4()
+    _execute(repo, "insert into library_seeds (owner) values (%s)", (owner,))
+    for notebook_id, offset in ((seeded, "0 seconds"), (later, "2 hours")):
+        _execute(
+            repo,
+            "insert into notebooks (id, owner, title, created_at) "
+            "values (%s, %s, 'nb', now() + %s::interval)",
+            (notebook_id, owner, offset),
+        )
+    entry = _library(repo, owner, starter=True)
+    for notebook_id in (seeded, later):
+        repo.link_source(notebook_id, entry.id)
+    migration = (REPO / "ingest" / "db" / "migrations" / "0019_starter_recreate.sql").read_text()
+    backfill = migration[migration.index("update notebooks") :]
+    _execute(repo, backfill, ())
+    assert repo.get_notebook(owner, seeded).starter
+    assert not repo.get_notebook(owner, later).starter
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)

@@ -78,6 +78,8 @@ class InMemoryRepository:
         # account's users.preferences -> 'trash_days'; missing means 14
         self.trash_days: dict[UUID, int] = {}
         self.seeded: set[UUID] = set()
+        # library_seeds.copied_at: the last copy made on request
+        self.copied_at: dict[UUID, datetime] = {}
         # settings "starter_notebook", and rag's output_copies handover rows
         self.starter: StarterRef | None = None
         self.output_copies: list[tuple] = []
@@ -453,11 +455,52 @@ class InMemoryRepository:
         self.seeded.add(plan.owner)
         if any(lib.owner == plan.owner and self._listed(lib) for lib in self.library.values()):
             return None
+        return self._write_starter(plan)
+
+    STARTER_COPY_INTERVAL = timedelta(hours=1)
+
+    def starter_copy_wait(self, owner):
+        copied = self.copied_at.get(owner)
+        if copied is None:
+            return 0
+        left = (copied + self.STARTER_COPY_INTERVAL - datetime.now(UTC)).total_seconds()
+        return max(0, math.ceil(left))
+
+    def has_starter_notebook(self, owner):
+        return any(o == owner and nb.starter for o, nb in self.notebooks.values())
+
+    def owned_by_dedupe_key(self, owner, keys):
+        return {
+            lib.dedupe_key: lib.id
+            for lib in self.library.values()
+            if lib.owner == owner and self._listed(lib) and lib.dedupe_key in keys
+        }
+
+    def recreate_starter(self, plan):
+        if self.starter_copy_wait(plan.owner):
+            return None
+        self.seeded.add(plan.owner)
+        self.copied_at[plan.owner] = datetime.now(UTC)
+        return self._write_starter(plan)
+
+    def _write_starter(self, plan):
         self.notebooks[plan.notebook_id] = (
             plan.owner,
-            OwnedNotebook(id=plan.notebook_id, title=plan.title, created_at=datetime.now(UTC)),
+            OwnedNotebook(
+                id=plan.notebook_id, title=plan.title, created_at=datetime.now(UTC), starter=True
+            ),
         )
         source_map, chunk_map = {}, {}
+        for source, library_id, link_id in plan.reuse:
+            self.library[library_id] = self.library[library_id].model_copy(
+                update={"deleted_at": None}
+            )
+            self.links[link_id] = (plan.notebook_id, library_id, datetime.now(UTC))
+            source_map[str(source.link_id)] = str(link_id)
+            source_map[str(source.library.id)] = str(library_id)
+            old_ids = self.chunk_ids.get(source.library.id, [])
+            new_ids = self.chunk_ids.get(library_id, [])
+            chunk_map.update({str(o): str(n) for o, n in zip(old_ids, new_ids, strict=False)})
         for source, library_id, link_id, key, converted, snapshot in plan.sources:
             old = source.library
             self.library[library_id] = old.model_copy(

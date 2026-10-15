@@ -3,11 +3,13 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from lasteverlm_ingest.api.deps import owned_notebook, repository, seed_if_new
+from lasteverlm_ingest.api.deps import owned_notebook, repository, seed_if_new, worker_deps
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.repository import OwnedNotebook
+from lasteverlm_ingest.starter import recreate_starter
 
 # One limit for a notebook title, at creation and on rename.
 TITLE_MAX = 200
@@ -81,3 +83,33 @@ def delete_notebook(request: Request, user: CurrentUser, notebook_id: UUID) -> R
     owned_notebook(repo, user, notebook_id)
     repo.delete_notebook(user, notebook_id)
     return Response(status_code=204)
+
+
+@router.post("/starter/copy", response_model=OwnedNotebook, status_code=201)
+def copy_starter_again(
+    request: Request, user: CurrentUser, force: bool = False
+) -> OwnedNotebook | JSONResponse:
+    """A fresh copy of the starter notebook for a user who deleted theirs
+    (the help page's "Recreate"): free, at most one an hour. Without
+    `force`, a user who still has a starter notebook gets 409
+    `starter_exists`, so the web can ask before it makes another."""
+    deps = worker_deps(request)
+    repo = deps.repository
+    if repo.starter_ref() is None:
+        raise HTTPException(status_code=404, detail="no_starter")
+    if not force and repo.has_starter_notebook(user):
+        raise HTTPException(status_code=409, detail="starter_exists")
+    result = recreate_starter(repo, deps.storage, user)
+    if result.refused == "too_soon":
+        return JSONResponse(
+            {"error": "starter_copy_too_soon", "retry_after": result.retry_after},
+            status_code=429,
+            headers={"Retry-After": str(result.retry_after)},
+        )
+    if result.refused == "no_starter":
+        raise HTTPException(status_code=404, detail="no_starter")
+    if result.refused == "storage" or result.notebook_id is None:
+        raise HTTPException(status_code=503, detail="storage unavailable, try again")
+    notebook = repo.get_notebook(user, result.notebook_id)
+    assert notebook is not None
+    return notebook

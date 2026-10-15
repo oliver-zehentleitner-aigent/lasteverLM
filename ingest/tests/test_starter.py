@@ -27,7 +27,7 @@ def _starter(repo, storage):
     ):
         key = f"{ADMIN}/{name}"
         storage.put(key, data, "x/original")
-        lib = repo.add_source(nb.id, name, kind, key).library_id
+        lib = repo.add_source(nb.id, name, kind, key, dedupe_key=f"sha256:{name}").library_id
         repo.set_library_status(lib, "ready")
         repo.set_library_summary(lib, f"summary of {name}")
         repo.replace_chunks(lib, [Chunk(idx=0, text=name, page=1)], [[1.0, 0.0]])
