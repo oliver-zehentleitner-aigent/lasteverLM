@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 lasteverlm-rag-worker = "lasteverlm_rag.worker:main"
+lasteverlm-rag-repair-audio = "lasteverlm_rag.repair_audio:main"
 
 [project.optional-dependencies]
 dev = [

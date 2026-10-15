@@ -1116,3 +1116,14 @@ def test_an_output_keeps_its_attempts_and_is_found_by_prefix(store, user, notebo
     assert store.get_output(row.id).finished_at is not None
     ((found, email),) = store.find_outputs(row.id.replace("-", "")[:12], 20)
     assert found.id == row.id and email == f"{user}@test.local"
+
+
+def test_audio_outputs_lists_ready_audio_with_a_file(store, notebook):
+    audio = store.create_output(notebook, "audio", "processing")
+    store.update_output(audio.id, status="ready", content={"key": "k", "transcript": []})
+    store.create_output(notebook, "audio", "processing")  # no file yet
+    report = store.create_output(notebook, "report", "processing")
+    store.update_output(report.id, status="ready", content={"markdown": "x"})
+    assert [r.id for r in store.audio_outputs(None)] == [audio.id]
+    assert store.audio_outputs([report.id]) == []
+    assert [r.id for r in store.audio_outputs([audio.id])] == [audio.id]

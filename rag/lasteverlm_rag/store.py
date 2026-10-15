@@ -179,6 +179,11 @@ class Store(Protocol):
         newest first, at most ``limit``, each with its owner's email."""
         ...
 
+    def audio_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
+        """Ready audio outputs with a stored file, in the trash or not; only
+        ``output_ids`` when given (the audio repair)."""
+        ...
+
     def delete_output(self, output_id: str) -> None: ...
 
     # the user's outputs in the library, and their trash
@@ -962,6 +967,19 @@ class PostgresStore:
                 {"prefix": id_prefix + "%", "limit": limit},
             ).fetchall()
         return [(_to_output(r), str(r["owner_email"])) for r in rows]
+
+    def audio_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
+        where = "o.kind = 'audio' and o.status = 'ready' and o.content ? 'key'"
+        params: dict[str, Any] = {}
+        if output_ids is not None:
+            where += " and o.id = any(%(ids)s::uuid[])"
+            params["ids"] = output_ids
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                f"select {_OUTPUT_COLUMNS} {_OUTPUT_FROM} where {where} order by o.created_at",
+                params,
+            ).fetchall()
+        return [_to_output(r) for r in rows]
 
     def delete_output(self, output_id: str) -> None:
         with self._pool.connection() as conn:

@@ -1675,8 +1675,15 @@ class OutputService:
                     )
                     measured = False
         key = object_key(notebook_id, job.id, AUDIO_FILE)
-        # MP3 frames are self-contained: the segments concatenate into one stream
-        self._objects.put(key, b"".join(parts), "audio/mpeg")
+        # one stream with one Xing header for all of it: concatenated as they
+        # are, the first segment's header made a player take its length for
+        # the whole file and stop seeking there
+        try:
+            joined = mp3.join(parts)
+        except mp3.NotMp3 as exc:
+            log.warning("output %s: segments joined without a header: %s", short_id(job.id), exc)
+            joined = b"".join(parts)
+        self._objects.put(key, joined, "audio/mpeg")
         if not measured:
             return key, None
         timings, start = [], 0.0
