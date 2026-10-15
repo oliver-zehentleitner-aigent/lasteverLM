@@ -286,3 +286,43 @@ cited numbers.
 - A relative tolerance: it would accept a rounded or wrong value.
 - Recomputing derived values: the formula is not stated, and checking
   it would mean guessing it.
+
+## A supported unit is also checked for negation, by its parse, before any judge
+
+**Id:** 6a581caa-fb86-436c-92e5-884548f63114
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the coordinator, 2026-10-15 (build it properly with spaCy, no word list, idioms through the parse, quizzes and flashcards out, a mark never a removal, calibrated before going live; outputs and chat answers; lexical-overlap-v2 with possible_contradiction); the calibration in `docs/negation-eval.md`
+**Revisit when:** marked units on real outputs turn out mostly fine (false positives the synthetic sets did not show), a language other than English and German becomes common, or the memory a checking process needs becomes a problem
+
+The word check counts shared words, so "is not open" passes over "is
+open". A unit the words support is therefore also parsed (spaCy, the
+small English and German models, loaded once per process) and compared
+clause by clause with the passage sentence it matches: the same
+predicate of the same subject with the opposite polarity makes it
+`possible_contradiction`, a mark, never a removal. The parse decides the
+scope: which clause a negator belongs to, which subject, coordination,
+"not only … but also", double negation and litotes. A short closed class
+of negative determiners, pronouns and prepositions that the small models
+leave unlabelled (no, nothing, never, without; kein, nichts, nie, ohne)
+is recognised by lemma; everything else comes from the dependency labels.
+Quizzes and flashcards are left out. Calibrated on 60 synthetic cases
+and 20 held out (97% and 100% of contradictions found, 0% false
+positives on traps); the judge fixture's antonyms stay out of reach.
+
+**Reason:** a claim that says the opposite of its source is the worst
+error an output can make, and the word check is blind to exactly that
+one. The parse can tell a negation of this clause from one in another
+clause, an idiom or a cancelled double negation, which a word count
+cannot. It is deterministic, free per unit and fast (about 4 ms per
+sentence pair), so it can run on every unit. The cost is the image
+(+446 MB) and memory (+270 MB per checking process).
+
+**Rejected alternatives:**
+- A word list (a negator anywhere in the sentence against none in the
+  passage): it cannot tell which clause is negated. Even a parse that
+  compared whole sentences instead of clauses, the first version of this
+  check, flagged 37% of the traps; a list is coarser still.
+- A model call per unit: a cost per unit for a question a parse answers;
+  the judge remains for what a parse cannot see (antonyms, numbers).
