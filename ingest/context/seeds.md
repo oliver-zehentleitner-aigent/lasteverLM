@@ -67,7 +67,9 @@ the demo user's expense any more.
 The copy runs where seeding ran, on the owner's first library access or
 upload, not on an internal call from account: it needs no
 service-to-service auth, and the seed mark it reuses already makes it
-happen once.
+happen once. Since 2026-10-15 it also runs on the notebook list: that is
+the web's first call after sign-in, and a new user saw no starter until
+they opened the library.
 
 **Alternatives:**
 - Linking the maintainer's rows into the user's notebook (shared library
