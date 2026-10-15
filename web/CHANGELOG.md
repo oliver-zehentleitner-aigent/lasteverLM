@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.9] - 2026-10-15
+
+### Changed
+
+- "Check with a judge" on an output or a chat answer runs in the background (rag answers with a job): the control shows "Waiting for the judge…" or "Judging, claim 4 of 11" while it runs, loads the output or answer again when it is done, and says why it failed with the output's ID; a judgement already running is picked up on opening.
+
 ## [0.22.8] - 2026-10-15
 
 ### Added
@@ -19,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- "Check with a judge" on an output or a chat answer runs in the background (rag answers with a job): the control shows "Waiting for the judge…" or "Judging, claim 4 of 11" while it runs, loads the output or answer again when it is done, and says why it failed with the output's ID; a judgement already running is picked up on opening.
 - The output format tiles flow with the column width (at least 110 px each, three a row at the default width) instead of a fixed three-column grid.
 - Mind map: the wheel scrolls, Shift+wheel scrolls sideways, Ctrl/Cmd+wheel zooms (a trackpad pinch too); before, the wheel zoomed.
 - The header's right end: the balance chip, a round profile icon with the e-mail's initial (its menu: the e-mail, Credits, Redeem a voucher, Settings, Sign out; it replaces the e-mail and "Sign out" in the bar), the help icon and the light/dark toggle.
