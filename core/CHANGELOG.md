@@ -9,6 +9,12 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `short_id(uuid)`: the first eight hex characters of a UUID, the one display form of an id for every service, log line and page.
+- `AttemptRecord` (`at`, `attempt`, `model`, `error_kind`, `provider_status`, `message`, `service`): one failed or retried attempt at a job. `AttemptRecord.from_error(exc, attempt=, service=, model=)` builds it from the exception; its message is core's own text only (a provider error's `summary`, a configuration error's message, otherwise the class name), one line, at most `MAX_ATTEMPT_MESSAGE` (500) characters. `Output.attempt_log: list[AttemptRecord]` (`[]` default, `None` read as `[]`); rag stores it.
+- `ProviderError.status` (the provider's HTTP status, when it answered with one) and `ProviderError.summary` (core's description without the provider's error text, which may quote the request).
+
 ## [0.21.0] - 2026-10-15
 
 ### Changed

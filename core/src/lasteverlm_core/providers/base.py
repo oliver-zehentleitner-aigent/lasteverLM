@@ -28,14 +28,28 @@ class ProviderError(Exception):
     that a retry will not change: a worker fails the job at once instead
     of paying for more attempts. Everything else (5xx, timeouts, 408, 409,
     429, an unusable answer) is `False`, retryable as before.
+
+    `status` is the provider's HTTP status when it answered with an error.
+    `summary` is a description written by core alone, without the
+    provider's error text (which may quote the request back): what an
+    attempt record may store. It defaults to the message, which core
+    writes itself except for a failed request.
     """
 
     def __init__(
-        self, message: str, usage: Usage | None = None, *, permanent: bool = False
+        self,
+        message: str,
+        usage: Usage | None = None,
+        *,
+        permanent: bool = False,
+        status: int | None = None,
+        summary: str | None = None,
     ) -> None:
         super().__init__(message)
         self.usage = usage
         self.permanent = permanent
+        self.status = status
+        self.summary = message if summary is None else summary
 
 
 @dataclass(frozen=True)

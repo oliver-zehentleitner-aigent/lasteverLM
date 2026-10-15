@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Any, Literal, get_args
@@ -264,6 +264,88 @@ class Answer(BaseModel):
     web_pages: list[dict[str, Any]] = Field(default_factory=list)
 
 
+def short_id(value: UUID | str) -> str:
+    """The first eight hex characters of a UUID, as every service, log line
+    and page shows an id to a person (`3f2a9c1e` for an output). It is a
+    display form, not a key: look rows up by the full UUID. A string that
+    is not a UUID is a `ValueError`."""
+    return (value if isinstance(value, UUID) else UUID(str(value))).hex[:8]
+
+
+# Longest message an attempt record keeps; anything longer is cut.
+MAX_ATTEMPT_MESSAGE = 500
+
+
+class AttemptRecord(BaseModel):
+    """One failed or retried attempt at a job (an output, a source read), as
+    the service that ran it stores it.
+
+    `message` is a short, sanitized description of what went wrong (an
+    error class and its summary). It never holds a prompt, source text or
+    a model's answer, and is cut at `MAX_ATTEMPT_MESSAGE` characters.
+    `provider_status` is the provider's HTTP status when there was one.
+    """
+
+    at: datetime
+    attempt: int = Field(ge=1)
+    model: str | None = None
+    error_kind: str = Field(min_length=1)
+    provider_status: int | None = Field(default=None, ge=100, le=599)
+    message: str = ""
+    service: UsageService
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def _cut(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            text = " ".join(value.split())  # one line: no newlines or control spacing
+            return text[:MAX_ATTEMPT_MESSAGE]
+        return value
+
+    @classmethod
+    def from_error(
+        cls,
+        exc: BaseException,
+        *,
+        attempt: int,
+        service: UsageService,
+        model: str | None = None,
+        at: datetime | None = None,
+    ) -> AttemptRecord:
+        """The record of an attempt that ended in `exc`.
+
+        `error_kind` is `provider_refused` for a `ProviderError` a retry
+        will not change, `provider` for any other, `configuration` for a
+        `ConfigError` (an unpriced model, say), `timeout` for a timeout
+        and `internal` for everything else. The message is core's own text:
+        a provider error's `summary`, a configuration error's message, and
+        otherwise only the exception's class name, because an arbitrary
+        exception's text may carry anything, a prompt included.
+        """
+        from .providers.base import ProviderError  # providers import models
+        from .settings import ConfigError
+
+        status = None
+        if isinstance(exc, ProviderError):
+            kind = "provider_refused" if exc.permanent else "provider"
+            message, status = exc.summary, exc.status
+        elif isinstance(exc, ConfigError):
+            kind, message = "configuration", str(exc)
+        elif isinstance(exc, TimeoutError):
+            kind, message = "timeout", type(exc).__name__
+        else:
+            kind, message = "internal", type(exc).__name__
+        return cls(
+            at=at or datetime.now(UTC),
+            attempt=attempt,
+            model=model,
+            error_kind=kind,
+            provider_status=status,
+            message=message,
+            service=service,
+        )
+
+
 class Output(_Row):
     """A generated document. `options` holds the resolved generation options
     (language, voice, speed) as rag stores them; older outputs carry `{}`.
@@ -279,6 +361,8 @@ class Output(_Row):
     `phase` is where generation stands while the output is `waiting` or
     `processing` (the step, since when, progress, the sources involved,
     an error), `None` otherwise; rag owns and documents its shape too.
+    `attempt_log` lists the failed or retried attempts at generating it
+    (`AttemptRecord`, oldest first), `[]` when there were none.
     """
 
     id: UUID
@@ -297,6 +381,9 @@ class Output(_Row):
     purge_at: datetime | None = None
     provenance: dict[str, Any] | None = None
     phase: dict[str, Any] | None = None
+    attempt_log: list[AttemptRecord] = Field(default_factory=list)
+
+    _attempt_log = field_validator("attempt_log", mode="before")(_none_as_empty)
 
 
 class SharedOutput(BaseModel):
