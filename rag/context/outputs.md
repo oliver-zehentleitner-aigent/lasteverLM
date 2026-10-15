@@ -451,6 +451,9 @@ conflict visible.
 - An LLM-only verdict.
 - A decision-model-only number.
 - The LLM seeing the model's number before writing the evidence.
+
+**Since 2026-10-15:** an undecided decision carries no number; see
+8471f5a5-786d-4079-b5b1-a29cf2ab172e.
 - Evidence for the model's selected option in a choice or scale: it
   breaks the independence.
 
@@ -744,3 +747,32 @@ or a log line hand support something to search for.
 - Relying on pod logs: they vanish with every rollout.
 - A separate attempts table: a join and its own cleanup for at most three
   rows that are only ever read with their output.
+
+## An undecided decision carries no number
+
+**Id:** 8471f5a5-786d-4079-b5b1-a29cf2ab172e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer report relayed by the coordinator, 2026-10-15 (a decision showed "77 % Yes" while its agreement said the sources do not decide it and no evidence was supported; a number without evidence is the model's prior, against "everything checkable")
+**Revisit when:** the decision model can say itself that the material does not decide the question, or decisions with a single supported item turn out to need the same treatment
+
+When no evidence item on either side is supported by its passages
+(agreement `undecided`), the decision's content has no number:
+`model_answer` is `null` and the verdict is "The sources do not decide
+this.". The decision model's number and the LLM's own sentence go into
+the generation log (`model_answer_without_evidence`,
+`llm_verdict_text`), marked as not from the sources. The evidence, its
+support and the gaps stay.
+
+**Reason:** the decision model answers every question, also one the
+passages say nothing about; then its number is its prior, not a
+decision from the sources. Shown next to "the sources do not decide
+this", a reader still takes the number as the answer, and nothing in the
+output lets them check it. Withholding it keeps every number in an
+output backed by evidence a reader can follow; keeping it in the log
+keeps it inspectable.
+
+**Rejected alternatives:**
+- Showing the number with a warning: a reader takes a number as an
+  answer, whatever the note beside it says.
