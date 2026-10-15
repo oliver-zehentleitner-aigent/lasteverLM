@@ -23,6 +23,8 @@ import httpcore
 
 from lasteverlm_ingest.loaders import LoaderError, Passage, SourceLoader, TransientLoaderError
 from lasteverlm_ingest.loaders.html import HtmlLoader
+from lasteverlm_ingest.loaders.structured import SUPPORTED, format_of, render, sniff_json
+from lasteverlm_ingest.loaders.text import decode_text
 
 IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 AddressCheck = Callable[[IPAddress], bool]
@@ -37,6 +39,10 @@ USER_AGENT = "lasteverLM-ingest/0.1 (+https://github.com/oliver-zehentleitner/la
 _HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 _TEXT_TYPES = frozenset({"text/plain", "text/markdown"})
 _PDF_TYPES = frozenset({"application/pdf"})
+
+
+def is_supported(media_type: str) -> bool:
+    return media_type in _HTML_TYPES | _TEXT_TYPES | _PDF_TYPES or format_of(media_type) is not None
 
 
 def is_public(address: IPAddress) -> bool:
@@ -178,7 +184,11 @@ class Fetcher:
         }
         headers = [
             (b"User-Agent", USER_AGENT.encode()),
-            (b"Accept", b"text/html,text/plain,application/pdf;q=0.9,*/*;q=0.1"),
+            (
+                b"Accept",
+                b"text/html,text/plain,application/pdf;q=0.9,application/json,"
+                b"application/xml,text/csv,application/yaml;q=0.8,*/*;q=0.1",
+            ),
         ]
         try:
             with self._pool.stream("GET", url, headers=headers, extensions=extensions) as response:
@@ -198,8 +208,10 @@ class Fetcher:
                 if status != 200:
                     raise LoaderError(f"{url} answered {status}, expected 200")
                 media_type, charset = _content_type(fields.get("content-type", ""))
-                if media_type not in _HTML_TYPES | _TEXT_TYPES | _PDF_TYPES:
-                    raise LoaderError(f"unsupported content type {media_type or 'none'!r}")
+                if not is_supported(media_type):
+                    raise LoaderError(
+                        f"unsupported content type {media_type or 'none'!r}; supported: {SUPPORTED}"
+                    )
                 body = bytearray()
                 for piece in response.iter_stream():
                     body.extend(piece)
@@ -228,7 +240,9 @@ def _content_type(value: str) -> tuple[str, str | None]:
 
 class UrlLoader:
     """Loads the URL stored as the source's object and hands the body to
-    the loader for its content type: HTML pages, plain text, PDF."""
+    the loader for its content type: HTML pages, plain text, PDF, and
+    structured data (loaders/structured.py), which is also what a
+    text/plain body becomes when it parses cleanly as JSON."""
 
     def __init__(
         self,
@@ -254,4 +268,9 @@ class UrlLoader:
             return fetched, self._html.load(fetched.body, fetched.charset)
         if fetched.media_type in _PDF_TYPES:
             return fetched, self._pdf.load(fetched.body)
+        fmt = format_of(fetched.media_type)
+        if fmt is None and fetched.media_type == "text/plain":
+            fmt = "json" if sniff_json(decode_text(fetched.body)) else None
+        if fmt is not None:
+            return fetched, render(fmt, fetched.body)
         return fetched, self._text.load(fetched.body)

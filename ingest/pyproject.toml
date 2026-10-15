@@ -23,6 +23,8 @@ dependencies = [
   "pypdfium2>=4.30",
   "pillow>=10.4",
   "httpcore>=1.0",
+  "defusedxml>=0.7",
+  "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
