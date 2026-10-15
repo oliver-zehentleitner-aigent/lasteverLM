@@ -195,10 +195,10 @@ document. A corrected version is a new generation with the judge on.
 **Status:** active
 **Evidence:** confirmed
 **Source:** maintainer decision relayed by the coordinator, 2026-10-15 (a verification level in the settings, preselected in the output form and changeable per output, asked by the chat when unclear; its price shown before Create; a "bulletproof" level that may cost but checks reliably; a unit the word check cannot check is judged from standard up; translate-then-compare rejected); rag's plan checked against the code and confirmed the same day (thorough keeps today's three rounds, standard includes unsupported units, chat not capped, judge_default high maps to bulletproof)
-**Revisit when:** most users pick the same level (the choice then costs attention for nothing), standard's judge rarely changes a doubted unit's reading, or the second judge for bulletproof is chosen
+**Revisit when:** most users pick the same level (the choice then costs attention for nothing), or standard's judge rarely changes a doubted unit's reading
 
 An output's `verification` is `basic`, `standard` or `thorough`
-(`bulletproof` follows once its second judge is chosen by evaluation).
+(and `bulletproof`, below).
 Basic is the word check and the negation check, free. Standard also
 judges, once at the low judge and annotate only, every unit that check
 doubts: unsupported, unverified (another language) and
@@ -221,6 +221,10 @@ overlap otherwise stays without any verdict. Thorough keeps the existing
 three rounds rather than one, so no level is weaker than the judge it
 replaces.
 
+**Re-checked 2026-10-15:** its revisit condition (the second judge for
+bulletproof chosen) fired; `bulletproof` now exists (873eac12-9c2e-4764-a906-cc503bc98ff2).
+The levels decision holds; the revisit condition now reads without it.
+
 **Rejected alternatives:**
 - A judge on or off with a model level (the setting before): it asks
   for a technical choice and leaves doubted units of an unjudged output
@@ -229,3 +233,44 @@ replaces.
   LLM call anyway, and a worse one than the judge.
 - Thorough with one revision round: weaker than the medium judge it
   replaces.
+
+## Bulletproof pairs the high judge with a second judge of another family; their disagreement is shown as disputed
+
+**Id:** 873eac12-9c2e-4764-a906-cc503bc98ff2
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (a level that may cost but checks safely and reliably; supported only if both judges agree; disagreement marked disputed and never silently passed; the second judge chosen by evaluation; the UI text "the two judges disagree, read the passage yourself"; the measured dispute rate stated); `docs/second-judge-eval.md` (N=3, 104 cases)
+**Revisit when:** the dispute rate on real outputs is far from one in five, the second judge passes a false claim the high judge also passes, or the platform's model list changes
+
+At `bulletproof` every unit is judged by the high judge (`glm-5.3`) and,
+at the same time, by a second judge of another family
+(`deepseek-v4.1-flash`, `SECOND_JUDGE_MODEL`). A unit is supported only
+if both say so. If both fail it, it is revised and removed as at
+thorough. If they disagree, it is `disputed`: revised like a failing
+unit and, still disputed after the third round, kept and marked "the two
+judges disagree; read the passage yourself". It is never removed for it
+and never passed. In chat answers the same pair annotates each
+paragraph.
+
+**Reason:** a level the user picks for safety must not pass a claim one
+competent judge rejects. Two judges of different families share fewer
+blind spots, and requiring both to agree turns a single judge's miss
+into a visible dispute. In the evaluation neither pair passed a false
+claim, while one candidate alone did. Disputes are the price: on the
+synthetic cases about one in five true claims ended disputed, mostly
+litotes, double negations and paraphrases the second judge read more
+strictly. Showing a dispute, rather than removing or passing the unit,
+leaves that judgement to the reader with the passage at hand.
+`deepseek-v4.1-flash` disputed slightly fewer true claims than
+`mimo-v2.6-pro-rl`, never failed a true claim together with the high
+judge, is the fastest, and adds about 9% to the judge cost.
+
+**Rejected alternatives:**
+- `minimax-m3` and `nemotron-3-nano-omni-30b-a3b-reasoning` as the second
+  judge: each passed false claims on its own in the screening.
+- `mimo-v2.6-pro-rl`: slightly more disputes, and once both judges
+  failed a true claim; its price is not in the price table.
+- Removing disputed units: a true claim would vanish on one judge's
+  stricter reading.
+- Passing them: a false claim one judge caught would pass.
