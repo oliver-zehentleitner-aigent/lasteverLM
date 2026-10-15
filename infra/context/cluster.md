@@ -553,3 +553,30 @@ change for one job.
 **Known risks:** Vultr's `billing` permission is the only billing
 permission in the list, with no read-only variant, so the key is
 narrower than the account key but not read-only.
+
+## A pull request's CHANGELOG changes must sit under [Unreleased], checked in CI
+
+**Id:** 04fe7805-1711-40cd-84d4-96b95fca89a5
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** four rebased pull requests on 2026-10-15 put their CHANGELOG lines under an already released section, among them #557 (its line under [0.21.0], shipped in 0.21.1); the check was requested the same day; run against #557's merge it names all four lines
+**Revisit when:** releases stop being cut from a branch named `agent-a/release-*`, or the CHANGELOGs move to fragments collected at release time
+
+`changelog.yml` runs `scripts/changelog_unreleased.py` on every pull
+request: each line it adds to or removes from any `CHANGELOG.md` must
+lie under `## [Unreleased]` (removed lines in the old file, added ones
+in the new), else the job fails naming file, line and section. Release
+pull requests and the label `changelog-fix` skip it, because both
+change released sections on purpose. It is an ordinary check, not a
+required one: branch protection is a repository setting outside this
+directory, and pull requests are merged only with every check green.
+
+**Reason:** a release roll renames `[Unreleased]` to the new version,
+and a pull request rebased over it lands its new line in the released
+section without a conflict, so neither git nor review notices. The
+check reads the same diff a reviewer would and fails before the merge.
+
+**Rejected alternative:** fixing the lines by hand after each release
+roll — what happened four times in one day, and every miss ships a
+wrong release section.
