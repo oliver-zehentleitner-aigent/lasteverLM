@@ -203,7 +203,10 @@ and the claim takes it later whatever the balance has become, so a
 confirmed agent plan never waits half-way on a source an earlier step
 paid for. An unfunded row waits until the balance, less what funded
 reads hold, covers its estimate. Rag applies the same rule to plans and
-outputs and counts this held amount with its own.
+outputs and counts this held amount with its own. Since 2026-10-15 ingest
+counts rag's waiting and processing outputs (`outputs.reserved_cents`)
+as held too, so a read cannot start on balance a running output has
+reserved.
 
 **Alternatives:**
 - Checking only that the balance is positive at the start (the previous
