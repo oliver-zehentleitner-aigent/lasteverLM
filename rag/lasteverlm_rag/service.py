@@ -20,6 +20,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime
+from decimal import ROUND_CEILING, Decimal
 from typing import Any
 
 from lasteverlm_core import (
@@ -117,6 +118,7 @@ from .reading import (
     could_not_read,
     failed_sources,
     prepare,
+    reading_lines,
     selected_uploads,
     still_reading_note,
     wait_until_read,
@@ -261,7 +263,21 @@ class InvalidSources(Exception):
 
 
 class InsufficientCredit(Exception):
-    """The caller's balance is zero; no provider call is made."""
+    """The caller's balance does not cover the action; no provider call is
+    made. With ``needed_cents`` (an output or a plan): the action's maximum,
+    what started work still holds, and the balance, all in euro cents."""
+
+    def __init__(
+        self,
+        user_id: str,
+        needed_cents: Decimal | None = None,
+        held_cents: Decimal | None = None,
+        available_cents: Decimal | None = None,
+    ) -> None:
+        super().__init__(user_id)
+        self.needed_cents = needed_cents
+        self.held_cents = held_cents
+        self.available_cents = available_cents
 
 
 def answer_system_prompt(
@@ -619,9 +635,13 @@ class OutputService:
         judges: Mapping[str, LLM] | None = None,
         ingest: Ingest | None = None,
         clock: Callable[[], float] = time.monotonic,
+        output_max: Callable[[str, Mapping[str, Any]], float] | None = None,
     ) -> None:
         # ingest reads sources when an output needs them (with the creator's bearer)
         self._ingest = ingest
+        # an output's estimated maximum charge in euro cents (the API's; the
+        # worker creates none)
+        self._output_max = output_max
         # the job being run and when its claim was last refreshed (the heartbeat)
         self._clock = clock
         self._running: str | None = None
@@ -661,7 +681,9 @@ class OutputService:
         check_credit: bool = True,
     ) -> Output:
         """``booking_id`` is an agent plan's action_id: the job books under it;
-        ``check_credit=False`` for a confirmed plan's step (checked at confirm).
+        ``check_credit=False`` for a confirmed plan's step (covered at confirm).
+        Otherwise the balance must cover the output's maximum, reading its
+        unread sources, and what started work still holds.
         The selected sources not read yet are read first (and the web pages in
         ``url_refresh`` checked again); the job waits for them."""
         try:
@@ -675,8 +697,17 @@ class OutputService:
             resolved["sources"] = selected
         if kind == "chart":
             self._check_cited(notebook_id, resolved["charts"])
+        reserved = self._output_max(kind, resolved) if self._output_max else 0.0
         if check_credit:
-            require_credit(self._store, user_id)
+            reading: list[dict[str, Any]] = []
+            if kind != "chart" and self._ingest is not None and bearer:
+                try:
+                    reading = reading_lines(
+                        self._store, self._ingest, bearer, notebook_id, selected, url_refresh or []
+                    )
+                except InvalidRefresh as exc:
+                    raise InvalidSources(str(exc)) from exc
+            require_cover(self._store, user_id, reserved + sum(line["max"] for line in reading))
         if kind != "chart":
             # a selected source that could not be read stops the output at once,
             # unless it is a web page the user asked to fetch again
@@ -697,7 +728,12 @@ class OutputService:
             for s in states
         )
         row = self._store.create_output(
-            notebook_id, kind, "waiting" if waiting else "processing", resolved, booking_id
+            notebook_id,
+            kind,
+            "waiting" if waiting else "processing",
+            resolved,
+            booking_id,
+            reserved,
         )
         return self._present(row)
 
@@ -1805,6 +1841,19 @@ def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, 
     if notebook is None or str(notebook.get("owner")) != user_id:
         raise NotebookNotFound(notebook_id)
     return notebook
+
+
+def require_cover(store: Store, user_id: str, needed_cents: float) -> None:
+    """The start of an output or a plan: the balance must cover the action's
+    estimated maximum plus what the user's started work still holds, so that
+    nothing started ever waits on an unfunded read. Once started, it runs to
+    the end."""
+    require_credit(store, user_id)
+    needed = Decimal(str(needed_cents)).quantize(Decimal("0.01"), rounding=ROUND_CEILING)
+    held = store.held_cents(user_id)
+    available = store.balance_cents(user_id)
+    if available < needed + held:
+        raise InsufficientCredit(user_id, needed, held, available)
 
 
 def require_credit(store: Store, user_id: str) -> None:

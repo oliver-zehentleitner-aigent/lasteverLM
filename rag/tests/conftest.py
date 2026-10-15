@@ -27,6 +27,7 @@ from lasteverlm_core import (
 from lasteverlm_core.chunking import Chunk
 
 from lasteverlm_rag.config import Settings
+from lasteverlm_rag.estimate import Models, output_estimator
 from lasteverlm_rag.main import create_app
 from lasteverlm_rag.models import (
     Booking,
@@ -118,6 +119,8 @@ class FakeStore:
         viewers: set[str] | None = None,
     ) -> None:
         self.balance = balance
+        self.ingest_held = 0  # ingest's funded reads not finished, in cents
+        self.reserved: dict[str, float] = {}  # outputs.reserved_cents by id
         self.admins = admins or set()
         self.viewers = viewers or set()
         self.messages: list[dict[str, Any]] = []
@@ -267,6 +270,7 @@ class FakeStore:
         status: OutputStatus,
         options: dict[str, Any] | None = None,
         booking_id: str | None = None,
+        reserved_cents: float = 0.0,
     ) -> OutputRow:
         notebook = self.notebooks[notebook_id]
         row = {
@@ -289,6 +293,7 @@ class FakeStore:
             "booking_id": booking_id,
         }
         self.outputs[row["id"]] = row
+        self.reserved[row["id"]] = reserved_cents
         return self._output_row(row)
 
     def touch_output(self, output_id: str, phase: dict[str, Any] | None = None) -> None:
@@ -516,6 +521,19 @@ class FakeStore:
     def has_credit(self, user_id: str) -> bool:
         return self.balance > 0
 
+    def balance_cents(self, user_id: str) -> Decimal:
+        return Decimal(self.balance)
+
+    def held_cents(self, user_id: str) -> Decimal:
+        outputs = sum(
+            Decimal(str(self.reserved.get(o["id"], 0)))
+            for o in self.outputs.values()
+            if o["owner"] == user_id
+            and o["status"] in ("waiting", "processing")
+            and o["deleted_at"] is None
+        )
+        return outputs + Decimal(str(self.ingest_held))
+
     # starter copies
     def claim_output_copy(self, worker_id: str, stale_after_s: int) -> OutputCopy | None:
         for row in self.copies.values():
@@ -715,6 +733,11 @@ class FakeIngest:
         self.items = library or []
         self.fail = fail
 
+    @property
+    def acted(self) -> list[tuple[str, str, Any]]:
+        """The calls that change something; estimates left out."""
+        return [c for c in self.calls if c[0] != "estimate_sources"]
+
     def add_url(self, bearer: str, notebook_id: str, url: str) -> dict[str, Any]:
         from lasteverlm_rag.ingest_client import IngestError
 
@@ -901,6 +924,19 @@ def make_client(
         decision=decision,
         judges=judges,
         ingest=ingest,
+        # as the API wires it: an output's maximum is what its creation must find covered
+        output_max=output_estimator(
+            settings.model_prices,
+            store.pricing_rules,
+            generators,
+            Models(
+                llm=settings.inference.llm_model,
+                embedding=settings.inference.embedding_model,
+                decision=settings.inference.decision_model,
+                tts=settings.tts_model,
+                judges={str(k): v for k, v in settings.inference.judge_models.items()},
+            ),
+        ),
     )
     app = create_app(
         settings=settings,

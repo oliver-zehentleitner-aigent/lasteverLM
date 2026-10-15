@@ -43,7 +43,7 @@ def test_an_output_reads_its_unread_sources_first_and_waits_for_them(settings):
     client, ingest = client_for(settings, store, REPORT)
     r = client.post(OUTPUTS, json={"kind": "report"}, headers=AUTH)
     assert r.status_code == 202 and r.json()["status"] == "waiting"
-    assert ingest.calls == [("process", AUTH["Authorization"], [unread])]
+    assert ingest.acted == [("process", AUTH["Authorization"], [unread])]
     assert client.worker.run_once() == 0  # still being read
 
     store.sources[unread].update(status="ready", summary="About grass.")
@@ -64,7 +64,7 @@ def test_a_web_page_is_checked_again_only_when_asked(settings):
     body = {"kind": "report", "source_ids": [ready, page], "url_refresh": [page]}
     r = client.post(OUTPUTS, json=body, headers=AUTH)
     assert r.json()["status"] == "waiting"
-    assert ingest.calls == [("refetch", AUTH["Authorization"], page)]
+    assert ingest.acted == [("refetch", AUTH["Authorization"], page)]
 
     for bad in ([ready], [unread]):  # not a web page, or not selected
         body = {"kind": "report", "source_ids": [ready, page], "url_refresh": bad}
@@ -77,7 +77,7 @@ def test_an_answer_reads_what_it_needs_and_says_what_is_still_being_read(setting
     client, ingest = client_for(settings, store, "The sky is blue [1].")
     r = client.post(ASK, json={"question": "?", "conversation_id": CONVERSATION}, headers=AUTH)
     body = r.json()
-    assert ingest.calls == [("process", AUTH["Authorization"], [unread])]
+    assert ingest.acted == [("process", AUTH["Authorization"], [unread])]
     assert body["answer"].startswith("The sky is blue [1].")
     assert "Still being read: grass.pdf." in body["answer"]
     assert [c["n"] for c in body["citations"]] == [1]
@@ -143,7 +143,7 @@ def test_an_unread_page_in_url_refresh_is_read_once(settings):
     client, ingest = client_for(settings, store)
     body = {"kind": "report", "source_ids": [ready, page], "url_refresh": [page]}
     client.post(OUTPUTS, json=body, headers=AUTH)
-    assert ingest.calls == [("process", AUTH["Authorization"], [page])]
+    assert ingest.acted == [("process", AUTH["Authorization"], [page])]
 
 
 def test_waiting_follows_the_link_when_a_changed_page_gets_a_new_library_row():

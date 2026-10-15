@@ -79,7 +79,7 @@ def test_a_failed_page_the_user_asks_to_fetch_again_is_retried(settings):
     body = {"kind": "report", "source_ids": [pdf, txt, page], "url_refresh": [page]}
     r = client.post(OUTPUTS, json=body, headers=AUTH)
     assert r.status_code == 202 and r.json()["status"] == "waiting"
-    assert ingest.calls == [("refetch", AUTH["Authorization"], page)]
+    assert ingest.acted == [("refetch", AUTH["Authorization"], page)]
 
 
 def test_the_estimate_says_which_source_blocks_and_why(settings):
