@@ -8,6 +8,10 @@ export interface Cite {
   open: number | null
   /** `judge`: the claim's judge note, shown in the panel with the passage */
   cite: (n: number, claim: string, judge?: JudgeNote) => void
+  /** "Have it judged" after a claim the word check could not measure: the
+   *  label with the judging's price, and what opens Check with a judge;
+   *  absent where nothing can be judged (the share page) */
+  judgeAsk?: { label: string; open: () => void }
 }
 
 export const CiteContext = createContext<Cite | null>(null)

@@ -1,7 +1,7 @@
 import { marked } from 'marked'
 import { describe, expect, it } from 'vitest'
 import type { Passage } from '../api/types'
-import { checkSummary, claimHtml, claimRefs, decorateReport, duration, exportName, markUnsupported, passageCitation, provenanceExport, supportBadge, unitBadges } from './outputProvenance'
+import { checkSummary, claimHtml, hasVerdict, claimRefs, decorateReport, duration, exportName, markUnsupported, passageCitation, provenanceExport, supportBadge, unitBadges } from './outputProvenance'
 
 const passage: Passage = {
   n: 2,
@@ -28,14 +28,22 @@ describe('passages and claims', () => {
     expect(claimRefs({}, new Set([1]))).toEqual([])
   })
 
-  it('badges only what is not backed', () => {
+  it('badges only what is not backed, and nothing beside a judge\'s verdict', () => {
     expect(supportBadge('supported')).toBeNull()
     expect(supportBadge(undefined)).toBeNull()
     expect(supportBadge('unsupported')).toBe('unsupported')
     expect(supportBadge('unverified')).toBe('unverified')
-    // "supported" only beside a judge's badge
-    expect(supportBadge('supported')).toBeNull()
-    expect(supportBadge('supported', true)).toBe('supported')
+    // with a verdict the judge's badge stands alone
+    expect(supportBadge('supported', true)).toBeNull()
+    expect(supportBadge('unsupported', true)).toBeNull()
+    expect(supportBadge('unverified', true)).toBeNull()
+  })
+
+  it('counts a judge without a usable answer as no verdict', () => {
+    const judge = { level: 'low' as const, model: 'm', verdict: null, reason: 'the judge gave no usable answer: timeout', quote: '', round: 1 }
+    expect(hasVerdict({ judge })).toBe(false)
+    expect(hasVerdict({ judge: { ...judge, verdict: 'supported' } })).toBe(true)
+    expect(hasVerdict({})).toBe(false)
   })
 })
 
@@ -72,6 +80,23 @@ describe('the report', () => {
     expect(html).toContain('<button type="button" class="cite" data-n="2">2</button>[7]')
     expect(html).toContain('class="badge support-unsupported"')
     expect(html).not.toContain('⟦')
+  })
+
+  it('offers "Have it judged" after a paragraph in another language, only with an action', () => {
+    const other = [{ text: 'Zweite Aussage [2].', refs: [2], support: 'unverified' as const }]
+    const md2 = 'Zweite Aussage [2].\n'
+    const render = (ask?: string) => decorateReport(marked.parse(markUnsupported(md2, other), { async: false }) as string, new Set([2]), other, ask)
+    expect(render('Have it judged · €0.02')).toContain('Not word-checked (other language)</span> <button type="button" class="link small judge-ask" data-judge-ask="1"')
+    expect(render('Have it judged · €0.02')).toContain('>Have it judged · €0.02</button>')
+    expect(render()).not.toContain('judge-ask')
+  })
+
+  it('shows only the judge\'s badge on a judged paragraph', () => {
+    const judged = [{ text: 'First claim [1].', refs: [1], support: 'unverified' as const, judge: { level: 'low' as const, model: 'm', verdict: 'supported' as const, reason: 'r', quote: '', round: 1 } }]
+    const html = decorateReport(marked.parse(markUnsupported('First claim [1].\n', judged), { async: false }) as string, new Set([1]), judged, 'Have it judged')
+    expect(html).not.toContain('support-unverified')
+    expect(html).not.toContain('judge-ask')
+    expect(html).toContain('judge-supported')
   })
 
   it('leaves markers of unknown passages as text', () => {

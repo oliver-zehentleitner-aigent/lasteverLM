@@ -128,3 +128,33 @@ provenance panel's best-matching sentence, so the two agree on what
 **Rejected alternative:** an exact substring search of the chunk in the
 page. Rejected because chunk boundaries cut through blocks and the
 rendered text drops the Markdown marks, so an exact match rarely exists.
+
+## With a judge's verdict only the judge's badge shows; the word check moves into its tooltip
+
+**Id:** 8f88bf00-2ad3-4e41-8867-2cdf65d6c649
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision after a test, 2026-10-15
+
+A claim or paragraph that has a judge's verdict shows the judge's badge
+alone, in documents, quiz questions and chat answers; the word check's
+result is the last line of that badge's tooltip. Without a verdict (no
+judge, or a judge without a usable answer) the word-check badge stays.
+A claim the word check could not measure reads "Not word-checked (other
+language)" and is followed by "Have it judged" with a price, which opens
+the document's or the answer's Check with a judge.
+
+**Reason:** where a judge has read the claim, the judge is the check
+that means something; a word-check badge beside it, above all "other
+language" beside "Judge: supported", reads as a second, contradicting
+verdict and only adds noise.
+
+**Rejected alternative:** both badges side by side as a pair, as shipped
+in 0.20.3 so that each badge said which check it came from. Rejected
+because the pair is the noise this removes.
+
+**Rejected alternative:** judging only the one claim from its badge.
+Rejected because rag judges a whole document or answer, never one
+claim; the action therefore opens Check with a judge, priced at Medium,
+the level that control starts at, where the level can still be changed.

@@ -6,7 +6,8 @@ import { useEstimate } from '../hooks/useEstimate'
 import { isRemoved, splitCitations } from '../lib/citations'
 import { isStacked } from '../lib/layout'
 import { similarityLabel } from '../lib/provenance'
-import { checkSummary, unitBadges } from '../lib/outputProvenance'
+import { checkSummary, hasVerdict, unitBadges } from '../lib/outputProvenance'
+import { useJudgeAskLabel } from '../hooks/useJudgeAsk'
 import { judgeBadge } from '../lib/judge'
 import { JudgeRequest } from './JudgeRequest'
 import { AnswerActions, SuggestionCards } from './AnswerActions'
@@ -34,6 +35,9 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
+  // "Have it judged" after a paragraph the word check could not measure opens that answer's Check with a judge
+  const [judgeAsked, setJudgeAsked] = useState<{ messageId: string; n: number } | null>(null)
+  const askLabel = useJudgeAskLabel(messages.some((m) => !m.id.startsWith('local-') && (m.units ?? []).some((u) => u.support === 'unverified' && !hasVerdict(u))))
   const { busy, error, run } = useAsync()
   // with the notebook, rag lists reading unread sources and re-reading pages apart
   const price = useEstimate({
@@ -135,7 +139,12 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
       <div className="messages" ref={pane}>
         {messages.map((m, i) => (
           <article key={m.id} id={`msg-${m.id}`} className={`msg ${m.role}`}>
-            <AnswerText message={m} onCite={(c) => toggle(m, c)} openN={open?.messageId === m.id ? open.n : null} />
+            <AnswerText
+              message={m}
+              onCite={(c) => toggle(m, c)}
+              openN={open?.messageId === m.id ? open.n : null}
+              ask={m.id.startsWith('local-') ? undefined : { label: askLabel, open: () => setJudgeAsked((cur) => ({ messageId: m.id, n: (cur?.n ?? 0) + 1 })) }}
+            />
             {m.plan && firstPlanMessage.get(m.plan.plan_id) !== m.id && <PlanOutputs plan={m.plan} onOpen={(target) => onOpenTab?.(target)} />}
             {m.plan && firstPlanMessage.get(m.plan.plan_id) === m.id && (
               <PlanCard
@@ -171,6 +180,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
               <p className="small no-print">
                 <JudgeRequest
                   compact
+                  opened={judgeAsked?.messageId === m.id ? judgeAsked.n : 0}
                   onJudge={(level) =>
                     rag.judgeMessage(m.id, level).then((judged) => setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, units: judged.units, check: judged.check ?? x.check } : x))))
                   }
@@ -270,7 +280,7 @@ const byId = (id: string) => ({
 
 /** An answer with its [n] markers as buttons and, after each citing
  *  paragraph the check did not back, its badge (the paragraph stays). */
-function AnswerText({ message, onCite, openN }: { message: Message; onCite: (c: Citation) => void; openN: number | null }) {
+function AnswerText({ message, onCite, openN, ask }: { message: Message; onCite: (c: Citation) => void; openN: number | null; ask?: { label: string; open: () => void } }) {
   if (message.role !== 'assistant' || !message.citations || message.citations.length === 0) {
     return <p>{message.content}</p>
   }
@@ -302,6 +312,11 @@ function AnswerText({ message, onCite, openN }: { message: Message; onCite: (c: 
             <span className={`badge support-${piece.badge}`} title={t('wordCheck.title')}>
               {t(`wordCheck.${piece.badge}`)}
             </span>
+          )}
+          {piece.badge === 'unverified' && ask && (
+            <button type="button" className="link small judge-ask" title={t('judge.askTitle')} onClick={ask.open}>
+              {ask.label}
+            </button>
           )}
           {piece.unit && <ChatJudgeBadge unit={piece.unit} />}
         </Fragment>

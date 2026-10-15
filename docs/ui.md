@@ -321,16 +321,19 @@ opens the notebook.
   citations as `[n]` that open the cited passage; a citation into a
   generated document opens that tab. rag checks a cited answer like a
   document: a paragraph whose words the cited passages lack gets the red
-  "Word check: words missing" badge after it (amber "Word check: other
-  language" when the answer is in another language than its sources),
+  "Word check: words missing" badge after it (amber "Not word-checked
+  (other language)" when the answer is in another language than its
+  sources, followed by **Have it judged · €x**, which opens the answer's
+  Check with a judge at Medium, priced there),
   the paragraph stays, and "Word check: words match in N of M
   paragraphs" sits under the answer (method and threshold as tooltip).
   "Supported" is the judge's word: the word check claims no meaning.
   Every word-check badge has the same tooltip: "The word check compares
   words only: it sees no meaning and no negation. That is what the judge
-  is for." A judged paragraph shows the word check beside the judge's
-  badge even when the words matched ("Word check: words match"), so the
-  two checks read as a pair.
+  is for." A paragraph with a judge's verdict shows only the judge's
+  badge; the word check's result is the last line of its tooltip. A
+  judge without a usable answer ("no answer") leaves the word-check
+  badge shown.
   Answers without citations and older messages show neither. Under
   every answer a row: **Copy** (the answer with its `[n]` markers, then
   "Sources:" and one line per cited passage, `[n] name, p. x: "…"`;
@@ -505,8 +508,11 @@ opens the notebook.
   sentence closest to the claim marked, "open in source"). A claim the
   check found too few words for has a red "Word check: words missing"
   badge, one written in another language than its sources an amber
-  "Word check: other language"; the claim stays; a judged claim also
-  shows "Word check: words match" next to "Judge: …". The head says
+  "Not word-checked (other language)" with **Have it judged · €x**
+  (opens Check with a judge in the viewer's head, at Medium; not in a
+  mind map's labels and not on the share page); the claim stays. A
+  claim with a judge's verdict shows only "Judge: …", the word check in
+  its tooltip. The head says
   "Word check: words match in 7 of 9 paragraphs · 2 in another
   language" (the check's method and
   threshold as tooltip). Under the document, folded: **Sources (n)**, the

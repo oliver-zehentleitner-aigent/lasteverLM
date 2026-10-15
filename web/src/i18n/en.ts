@@ -1135,7 +1135,7 @@ export const en = {
   'chat.fetchAgainTitle': 'Ask the same question again with this page fetched fresh',
   'wordCheck.supported': 'Word check: words match',
   'wordCheck.unsupported': 'Word check: words missing',
-  'wordCheck.unverified': 'Word check: other language',
+  'wordCheck.unverified': 'Not word-checked (other language)',
   'wordCheck.title': 'The word check compares words only: it sees no meaning and no negation. That is what the judge is for.',
   'chartOut.unsupported': 'unsupported',
   'chartOut.unsupportedTitle': 'The number check found this value in none of the cited passages.',
@@ -1186,6 +1186,8 @@ export const en = {
   'adm.out.kind.configuration': 'configuration',
   'adm.out.kind.timeout': 'timeout',
   'adm.out.kind.internal': 'internal',
+  'judge.ask': 'Have it judged',
+  'judge.askTitle': 'A judge reads it against its passages, also across languages. Billed; opens Check with a judge, where the level can be changed.',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Citation, Claim, JudgeNote, Output, Provenance } from '../api/types'
 import { formatTime } from '../lib/format'
-import { claimRefs, duration, exportName, passageCitation, provenanceExport, supportBadge } from '../lib/outputProvenance'
+import { claimRefs, duration, exportName, hasVerdict, passageCitation, provenanceExport, supportBadge } from '../lib/outputProvenance'
 import { optionsLabel } from '../lib/outputOptions'
 import { isRemoved } from '../lib/citations'
 import { ProvenancePanel } from './ProvenancePanel'
 import { judgeBadge, verdictCounts } from '../lib/judge'
 import { OutputId } from './OutputId'
 import { CiteContext, useCite, type Cite } from '../hooks/useCite'
+import { useJudgeAskLabel } from '../hooks/useJudgeAsk'
 import { t } from '../i18n'
 
 
@@ -16,7 +17,7 @@ import { t } from '../i18n'
 export function ClaimMarks({ claim, text }: { claim: Claim; text: string }) {
   const ctx = useCite()
   if (!ctx) return null
-  const badge = supportBadge(claim.support, !!claim.judge)
+  const badge = supportBadge(claim.support, hasVerdict(claim))
   return (
     <>
       {claimRefs(claim, ctx.known).map((n) => (
@@ -35,6 +36,11 @@ export function ClaimMarks({ claim, text }: { claim: Claim; text: string }) {
         <span className={`badge support-${badge}`} title={t('wordCheck.title')}>
           {t(`wordCheck.${badge}`)}
         </span>
+      )}
+      {badge === 'unverified' && ctx.judgeAsk && (
+        <button type="button" className="link small judge-ask" title={t('judge.askTitle')} onClick={ctx.judgeAsk.open}>
+          {ctx.judgeAsk.label}
+        </button>
       )}
       <JudgeMark claim={claim} text={text} />
     </>
@@ -70,6 +76,10 @@ interface Props {
   presentSources?: ReadonlySet<string> | null
   /** "open in source"; absent on the share page */
   onOpenSource?: (c: Citation) => void
+  /** "Have it judged" after a claim the word check could not measure:
+   *  what the estimate needs of the output, and what opens Check with a
+   *  judge; absent on the share page */
+  judge?: { subject: { kind: string; question_count?: number; card_count?: number }; open: () => void }
   children: ReactNode
 }
 
@@ -77,14 +87,17 @@ interface Props {
  *  through context), then the passages it cites, the one clicked last
  *  opened in the chat's provenance panel, then how it was made. Without
  *  provenance (older documents) only the renderer. */
-export function OutputProvenance({ output, provenance, presentSources = null, onOpenSource, children }: Props) {
+export function OutputProvenance({ output, provenance, presentSources = null, onOpenSource, judge, children }: Props) {
   const [open, setOpen] = useState<{ n: number; claim: string; judge?: JudgeNote } | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const passages = useMemo(() => provenance?.passages ?? [], [provenance])
   const known = useMemo(() => new Set(passages.map((p) => p.n)), [passages])
+  const askLabel = useJudgeAskLabel(!!judge && (provenance?.check?.unverified ?? 0) > 0, judge?.subject)
+  const askOpen = judge?.open
+  const judgeAsk = useMemo(() => (askOpen ? { label: askLabel, open: askOpen } : undefined), [askLabel, askOpen])
   const ctx = useMemo<Cite>(
-    () => ({ known, open: open?.n ?? null, cite: (n, claim, judge) => setOpen((cur) => (cur?.n === n && cur.claim === claim ? null : { n, claim, judge })) }),
-    [known, open],
+    () => ({ known, open: open?.n ?? null, cite: (n, claim, judge) => setOpen((cur) => (cur?.n === n && cur.claim === claim ? null : { n, claim, judge })), judgeAsk }),
+    [known, open, judgeAsk],
   )
 
   // the panel is under the document: bring it into view, inside the viewer only

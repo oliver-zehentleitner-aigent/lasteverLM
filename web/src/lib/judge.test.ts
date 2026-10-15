@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { JudgeNote } from '../api/types'
-import { disagrees, judgeBadge, judgeHead, verdictCounts } from './judge'
+import { disagrees, judgeAskLabel, judgeBadge, judgeHead, verdictCounts } from './judge'
 
 const note = (verdict: JudgeNote['verdict']): JudgeNote => ({ level: 'medium', model: 'glm-4.6', verdict, reason: 'the passage says 12', quote: '12 %', round: 1 })
 
@@ -40,5 +40,21 @@ describe('judge', () => {
     expect(disagrees({ support: 'unsupported', judge: none })).toBe(false)
     expect(judgeBadge({ support: 'supported', judge: none })).toEqual({ verdict: 'no_usable_answer', label: 'no answer', title: 'the judge gave no usable answer: timeout', disagree: false })
     expect(verdictCounts({ supported: 4, no_usable_answer: 1 })).toBe('supported 4 · no answer 1')
+  })
+})
+
+describe('the word check under a verdict', () => {
+  it("moves into the judge badge's tooltip", () => {
+    expect(judgeBadge({ support: 'unverified', judge: note('supported') })?.title).toBe('the passage says 12\nNot word-checked (other language)')
+    // no verdict: the word check keeps its own badge, the tooltip stays the reason
+    expect(judgeBadge({ support: 'unverified', judge: { ...note(null), reason: 'no usable answer' } })?.title).toBe('no usable answer')
+  })
+})
+
+describe('judgeAskLabel', () => {
+  it('names the price once it is known', () => {
+    expect(judgeAskLabel({ estimate: { charge_cents_min: 2, charge_cents_max: 2 } } as never)).toMatch(/^Have it judged · .*0\.02/)
+    expect(judgeAskLabel(null)).toBe('Have it judged')
+    expect(judgeAskLabel({ failed: 'x' })).toBe('Have it judged')
   })
 })
