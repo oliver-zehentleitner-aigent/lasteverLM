@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A negation check after the word check (method `lexical-overlap-v2`): a unit whose words its passages support, but which states the same predicate of the same subject with the opposite polarity ("is not open" over "is open"), is marked `possible_contradiction`, in outputs (not quizzes and flashcards) and chat answers. spaCy 3.8.7 with `en_core_web_sm` and `de_core_news_sm` 3.8.0 (pinned by hash), loaded once per process on first use: about +270 MB memory per process that checks, +446 MB image. Calibration in `docs/negation-eval.md`.
+
 ## [0.21.5] - 2026-10-15
 
 ### Fixed
@@ -18,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- A negation check after the word check (method `lexical-overlap-v2`): a unit whose words its passages support, but which states the same predicate of the same subject with the opposite polarity ("is not open" over "is open"), is marked `possible_contradiction`, in outputs (not quizzes and flashcards) and chat answers. spaCy 3.8.7 with `en_core_web_sm` and `de_core_news_sm` 3.8.0 (pinned by hash), loaded once per process on first use: about +270 MB memory per process that checks, +446 MB image. Calibration in `docs/negation-eval.md`.
 - Every failed attempt of an output is kept on the row as core's `AttemptRecord` (`outputs.attempt_log`, `Output.attempt_log`), and `outputs.finished_at` records when it became ready or failed (migration `0017_rag_output_attempts.sql`). `GET /api/rag/admin/outputs?id_prefix=` finds outputs by the start of their id for viewers and admins, with the owner (masked for viewers) and the attempts. Log lines name an output by its short id.
 
 ## [0.21.2] - 2026-10-15
