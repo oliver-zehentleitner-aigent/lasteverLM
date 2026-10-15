@@ -268,16 +268,51 @@ def test_a_decisions_evidence_is_judged_and_its_agreement_follows(settings):
     assert content["agreement"] == "consistent"
 
 
-def test_a_judge_answer_that_does_not_parse_fails_the_attempt_and_is_billed(settings):
-    _, store, _, _, out = run(
+def test_a_judge_without_a_usable_answer_marks_the_unit_and_never_fails_the_output(settings):
+    # 0.20.0: one unusable judge answer failed, and charged again, a whole output
+    _, store, _, judge_models, out = run(
         settings,
         "report",
         {"judge": "low"},
-        report("The sky is blue. [1]"),
+        report("The sky is blue. [1]", "The sky is wrong green. [1]"),
         judge_models=judges(broken=True),
     )
-    assert out["status"] == "processing" and "attempt 3 of 3 follows" in out["error"]
-    assert any(u.model == "test-judge-low" for _, _, u in store.usage)
+    assert out["status"] == "ready", out
+    units = out["content"]["units"]
+    assert len(units) == 2  # kept, never removed or revised
+    assert {u["judge"]["verdict"] for u in units} == {None}
+    assert units[0]["judge"]["reason"] == "the judge gave no usable answer: unparseable answer"
+    log = out["provenance"]["judge"]
+    assert log["rounds"] == [
+        {
+            "round": 1,
+            "judged": 2,
+            "verdicts": {"no_usable_answer": 2},
+            "usage": {"tokens_in": 480, "tokens_out": 60},
+        }
+    ]
+    assert log["removed"] == []
+    # each unit: the call and one more try, both billed
+    assert len(judge_models["low"].statements) == 4
+    assert [u.model for _, _, u in store.usage].count("test-judge-low") == 4
+
+
+def test_a_judge_answer_that_fails_once_is_tried_again(settings):
+    flaky = judges()
+    calls = {"n": 0}
+    inner = flaky["low"].complete
+
+    def once_broken(system, user, max_tokens=None, *, thinking=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return CompletionResult("", Usage("llm", "test-judge-low", 10, 1))
+        return inner(system, user, max_tokens)
+
+    flaky["low"].complete = once_broken
+    _, _, _, _, out = run(
+        settings, "report", {"judge": "low"}, report("The sky is blue. [1]"), judge_models=flaky
+    )
+    assert out["content"]["units"][0]["judge"]["verdict"] == "supported"
 
 
 @pytest.mark.parametrize(

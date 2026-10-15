@@ -197,6 +197,6 @@ def test_every_failed_attempt_is_logged_with_model_and_error_class(settings, cap
     lines = [r.getMessage() for r in caplog.records if output_id in r.getMessage()]
     assert lines[0] == (
         f"output {output_id} (report) attempt 1 of 3 failed, will retry: model test-llm, "
-        "ProviderError: report: the model returned no content"
+        "ProviderError (empty answer): report: the model returned no content"
     )
     assert "About the sky." not in " ".join(lines)  # never the prompt

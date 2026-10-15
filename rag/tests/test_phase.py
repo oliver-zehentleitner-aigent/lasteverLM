@@ -85,7 +85,7 @@ def test_a_failed_attempt_shows_the_retry_and_a_final_failure_clears_it(settings
     client.worker.run_once()  # two attempts, released
     phase = store.outputs[output_id]["phase"]
     assert (phase["step"], phase["n"], phase["of"]) == ("retry", 3, 3)
-    assert phase["error"] == "test-llm: ProviderError"
+    assert phase["error"] == "test-llm: empty answer"
     client.worker.run_once()
     assert store.outputs[output_id]["status"] == "failed"
     assert store.outputs[output_id]["phase"] is None

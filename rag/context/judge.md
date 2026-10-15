@@ -113,3 +113,42 @@ revision cheap and leaves the units that passed untouched.
   need judging again, and the cost scales with the document, not with
   its failures.
 - Removing silently: hides what the output lost.
+
+## A judge without a usable answer leaves its unit marked, never failing the output
+
+**Id:** 755ed7ef-5d49-4d14-aec5-8cb96ec9f546
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** a judged audio on 0.20.0 that failed with "the model provider failed 3 times (glm-5.3: ProviderError)", reported by the maintainer and relayed by the coordinator, 2026-10-15; its logs were gone with the rollout, so the cause is read from the code (no SDK cause, therefore not a timeout or an HTTP status, so an empty or unusable judge answer); the coordinator's go the same day for the retry, the marked unit, the larger budget and the failure kinds
+**Revisit when:** many units end without a verdict (a judge model unfit for its level), or a judge model's reasoning outgrows 4000 tokens
+
+A judge call that brings no usable answer (empty, unparseable, an
+unknown verdict, or an SDK error after the client's own retries) is
+tried once more. If that fails too, the unit keeps its text and gets
+`judge: {"verdict": null, "reason": "the judge gave no usable answer:
+<kind>"}`, counted as `no_usable_answer`. It is neither revised nor
+removed, and the output goes on. The judge may use up to 4000 output
+tokens. The failure kinds also name what failed in the output's error
+and the worker's log.
+
+**Reason:** the judge checks an output; it is not the output. Before,
+one unusable judge answer among dozens failed the whole job. The retry
+then paid again for retrieval, writing and every judge call already
+made, and after three attempts the user had paid three times for
+nothing. A unit without a verdict is visible as such, like any other
+status, so nothing is hidden. The larger budget addresses the likely
+cause: the GLM judges reason before answering even with thinking off.
+glm-5.3-flash used up to ~500 tokens in the evaluation, and under load
+a glm-5.3 answer can run out at 1500. Unused room costs nothing.
+
+**Rejected alternatives:**
+- Failing the output, as before: recharges everything for an add-on's
+  hiccup.
+- Treating a missing verdict as "supported": claims a check that never
+  happened.
+- Treating it as failing (revise, then remove): removes text no one
+  judged wrong.
+- A shared per-model concurrency limit across workers: nothing shows a
+  rate limit (a 429 would read "HTTP 429"), and it needs state shared by
+  all workers.

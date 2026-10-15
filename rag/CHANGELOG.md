@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Audio is synthesized turn by turn (paragraph by paragraph): consecutive turns of one voice are no longer joined into one stretch, so each turn's place in the file can be measured. There are more requests now. The platform bills each request in whole seconds, so a script can cost up to about a second of speech more per extra request.
 
+### Fixed
+
+- A judge call without a usable answer no longer fails, and charges again, a whole output. It is tried once more, then the unit is kept and marked `judge.verdict: null` with the reason ("the judge gave no usable answer: <kind>"), and counted as `no_usable_answer`. The judge's output budget is 4000 tokens, up from 1500, since judge models reason before answering.
+- Failure texts and the worker's WARNING line name the kind of failure ("empty answer (length)", "unparseable answer", "unknown verdict", "timeout", "HTTP 429") instead of only "ProviderError".
+
 ## [0.20.0] - 2026-10-14
 
 ### Added

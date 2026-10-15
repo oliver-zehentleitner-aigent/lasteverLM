@@ -54,6 +54,7 @@ from lasteverlm_core import (
 from . import mp3
 from .citations import defuse_markers, inline, map_citations, number_passages, strip_markers
 from .coverage import balance, per_source_quota, uncovered_sources
+from .failures import failure_kind
 from .ingest_client import Ingest
 from .judging import annotate, judge_output, stored_units
 from .models import (
@@ -984,7 +985,7 @@ class OutputService:
         error = attempt_error(failure, job.attempts, final, self._calling, charged)
         # the log keeps the detail (never a prompt); the row (which the user sees) the public text
         log.warning(
-            "output %s (%s) attempt %d of %d failed%s: model %s, %s: %s",
+            "output %s (%s) attempt %d of %d failed%s: model %s, %s (%s): %s",
             job.id,
             job.kind,
             job.attempts,
@@ -992,6 +993,7 @@ class OutputService:
             "" if final else ", will retry",
             self._calling or "none",
             _cause_name(failure),
+            failure_kind(failure),
             (str(failure) or failure.__class__.__name__)[:ERROR_LOG_CHARS],
         )
         if final:
@@ -1812,10 +1814,7 @@ def _cause_name(exc: Exception) -> str:
 def _what_failed(exc: Exception, model: str | None) -> str:
     """A short, safe description: the model and the error class or HTTP
     status, never the provider's message (it can carry endpoints)."""
-    cause = exc.__cause__ or exc
-    status = getattr(cause, "status_code", None)
-    name = type(cause).__name__
-    what = "timeout" if "Timeout" in name else f"HTTP {status}" if status else name
+    what = failure_kind(exc)
     return f"{model}: {what}" if model else what
 
 

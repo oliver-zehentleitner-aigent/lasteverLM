@@ -323,8 +323,13 @@ call per unit (`lasteverlm_rag/judge.py`). Its verdict is `supported`,
 - **Order.** Audio is judged before it is spoken. A decision's agreement
   follows its judged evidence.
 - **Billing and failures.** Judge calls are billed as `llm` usage of the
-  judge model. A judge answer that does not parse is a billed provider
-  error, retried like any other.
+  judge model. A judge call without a usable answer (empty, unparseable,
+  an unknown verdict, an SDK error) is tried once more. If that fails
+  too, the unit is kept and marked `judge: {"verdict": null, "reason":
+  "the judge gave no usable answer: <kind>"}`, counted as
+  `no_usable_answer` in the round's verdicts, and never revised or
+  removed. It never fails the output. The judge may use up to 4000
+  output tokens, because some judge models reason before they answer.
 
 `POST /outputs/{id}/judge` judges a ready output on request. It only
 annotates, adds an entry to `provenance.judgements` and answers 409
