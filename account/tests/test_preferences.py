@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import uuid
+from dataclasses import replace
+
+import pytest
 from fastapi.testclient import TestClient
 from lasteverlm_core import DEMO_USER_ID
 
@@ -19,7 +23,7 @@ UNSET = {
     "pdf_capture": None,
     "theme": None,
     "tour_done": False,
-    "judge_default": "off",
+    "verification_level": "basic",
 }
 
 
@@ -39,7 +43,7 @@ def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMa
         "pdf_capture": None,
         "theme": None,
         "tour_done": False,
-        "judge_default": "off",
+        "verification_level": "basic",
     }
 
     # absent keys are kept, a null clears
@@ -62,7 +66,7 @@ def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMa
         "pdf_capture": "vision",
         "theme": "dark",
         "tour_done": False,
-        "judge_default": "off",
+        "verification_level": "basic",
     }
     assert client.get("/api/account/me", headers=h).json()["preferences"]["ui_language"] == "de"
     assert client.get(PREFS, headers=h).json()["output_language"] == "en-US"
@@ -91,8 +95,6 @@ def test_stored_values_that_no_longer_validate_read_as_unset(
     client: TestClient, mailer: FakeMailer, repo: MemoryRepository
 ) -> None:
     token, user = login(client, mailer, "alice@example.org")
-    import uuid
-
     uid = uuid.UUID(user["id"])
     repo.users[uid] = UserRecord(
         uid,
@@ -110,7 +112,7 @@ def test_stored_values_that_no_longer_validate_read_as_unset(
         "pdf_capture": None,
         "theme": None,
         "tour_done": False,
-        "judge_default": "off",
+        "verification_level": "basic",
     }
 
 
@@ -149,19 +151,56 @@ def test_tour_done_is_false_until_set_and_null_resets_it(
     assert client.put(PREFS, json={"tour_done": "yes"}, headers=h).status_code == 422
 
 
-def test_judge_default_is_off_until_set_and_null_resets_it(
+def test_verification_level_is_basic_until_set_and_null_resets_it(
     client: TestClient, mailer: FakeMailer
 ) -> None:
     token, _ = login(client, mailer, "judge@example.org")
     h = bearer(token)
-    assert client.get(PREFS, headers=h).json()["judge_default"] == "off"
-    for level in ("low", "medium", "high", "off"):
-        r = client.put(PREFS, json={"judge_default": level}, headers=h)
-        assert r.status_code == 200 and r.json()["preferences"]["judge_default"] == level
-    client.put(PREFS, json={"judge_default": "high"}, headers=h)
+    assert client.get(PREFS, headers=h).json()["verification_level"] == "basic"
+    for level in ("standard", "thorough", "bulletproof", "basic"):
+        r = client.put(PREFS, json={"verification_level": level}, headers=h)
+        assert r.status_code == 200 and r.json()["preferences"]["verification_level"] == level
+    client.put(PREFS, json={"verification_level": "thorough"}, headers=h)
     client.put(PREFS, json={"theme": "dark"}, headers=h)  # other keys keep it
-    assert client.get("/api/account/me", headers=h).json()["preferences"]["judge_default"] == "high"
+    me = client.get("/api/account/me", headers=h).json()["preferences"]
+    assert me["verification_level"] == "thorough" and "judge_default" not in me
+    client.put(PREFS, json={"verification_level": None}, headers=h)
+    assert client.get(PREFS, headers=h).json()["verification_level"] == "basic"
+    for bad in ("high", "", True, 2):
+        r = client.put(PREFS, json={"verification_level": bad}, headers=h)
+        assert r.status_code == 422, bad
+
+
+@pytest.mark.parametrize(
+    ("old", "level"),
+    [("off", "basic"), ("low", "standard"), ("medium", "thorough"), ("high", "bulletproof")],
+)
+def test_an_old_client_s_judge_default_is_mapped(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository, old: str, level: str
+) -> None:
+    token, user = login(client, mailer, "old-web@example.org")
+    h = bearer(token)
+    r = client.put(PREFS, json={"judge_default": old}, headers=h)
+    assert r.status_code == 200 and r.json()["preferences"]["verification_level"] == level
+    stored = repo.users[uuid.UUID(str(user["id"]))].preferences
+    assert stored.get("verification_level", "basic") == level and "judge_default" not in stored
+
+
+def test_judge_default_edge_cases(
+    client: TestClient, mailer: FakeMailer, repo: MemoryRepository
+) -> None:
+    token, user = login(client, mailer, "edge@example.org")
+    h = bearer(token)
+    # both sent: the new field wins
+    r = client.put(
+        PREFS, json={"judge_default": "high", "verification_level": "standard"}, headers=h
+    )
+    assert r.json()["preferences"]["verification_level"] == "standard"
+    # null resets, an unknown old value is a 422
     client.put(PREFS, json={"judge_default": None}, headers=h)
-    assert client.get(PREFS, headers=h).json()["judge_default"] == "off"
-    for bad in ("max", "", True, 2):
-        assert client.put(PREFS, json={"judge_default": bad}, headers=h).status_code == 422, bad
+    assert client.get(PREFS, headers=h).json()["verification_level"] == "basic"
+    assert client.put(PREFS, json={"judge_default": "max"}, headers=h).status_code == 422
+    # a stored judge_default from before migration 0011 reads mapped
+    uid = uuid.UUID(str(user["id"]))
+    repo.users[uid] = replace(repo.users[uid], preferences={"judge_default": "medium"})
+    assert client.get(PREFS, headers=h).json()["verification_level"] == "thorough"

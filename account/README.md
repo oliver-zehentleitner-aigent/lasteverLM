@@ -23,12 +23,15 @@ prefix `/api/account`. Changes to the contract are made there first.
 `User` carries `preferences` `{ui_language: de|en|null, output_language: <language code>|null,
 audio_voice: <voice id>|null, trash_days: 1..365|null, pdf_capture: auto|text|vision|null,
 theme: system|light|dark|null, tour_done: bool,
-judge_default: off|low|medium|high}`;
+verification_level: basic|standard|thorough|bulletproof}`;
 `null` means not set (the web's default language, the source's language, the platform's
 default voice, 14 days in the trash — ingest reads `trash_days` per owner and applies the
 default — automatic PDF capture; the web sends the resolved mode per upload — and the
-system theme, applied by the web; `judge_default` is `off` until set, preselects the judge
-in the output form and is read by rag's agent chat, `null` in a `PUT` resets it to `off`; `tour_done` is `false` until the user finished or
+system theme, applied by the web; `verification_level` is `basic` until set: how much
+checking matters and may cost, read by the web's output form and rag's agent chat, `null` in
+a `PUT` resets it to `basic`. The earlier `judge_default` (off|low|medium|high) is still
+accepted in a `PUT` for one release and mapped: off to basic, low to standard, medium to
+thorough, high to bulletproof; it is no longer returned. `tour_done` is `false` until the user finished or
 skipped the web's first-login tour, and `null` in a `PUT` resets it to `false`). `PUT /me/preferences` takes any subset:
 a key with a value sets it, with `null` clears it, an absent key is kept. Validation is by
 shape only; which voices and output languages exist is rag's business.

@@ -41,6 +41,7 @@ from .ecb import EcbError, EcbRates
 from .ingress import IngressProbe
 from .mail import Mailer, MailError, magic_link_mail, voucher_mail
 from .models import (
+    JUDGE_DEFAULT_TO_LEVEL,
     ActionCharge,
     AdminAccess,
     AdminBan,
@@ -468,6 +469,9 @@ class AccountService:
         """The stored object, tolerant of keys a later version may have added or removed:
         unknown keys are ignored, a stored value that no longer validates reads as unset."""
         known = {k: v for k, v in user.preferences.items() if k in Preferences.model_fields}
+        legacy = user.preferences.get("judge_default")
+        if "verification_level" not in known and legacy in JUDGE_DEFAULT_TO_LEVEL:
+            known["verification_level"] = JUDGE_DEFAULT_TO_LEVEL[legacy]  # before migration 0011
         try:
             return Preferences(**known)
         except ValueError:
@@ -482,7 +486,14 @@ class AccountService:
             raise AccountError(403, "the shared demo user has no preferences to change")
         user = await self.user(user_id)
         merged = self.preferences_of(user).model_dump()
-        merged.update(update.model_dump(include=update.model_fields_set))
+        sent = update.model_dump(include=update.model_fields_set)
+        if "judge_default" in sent:  # an older web client: mapped, never stored as such
+            legacy = sent.pop("judge_default")
+            if "verification_level" not in sent:
+                sent["verification_level"] = (
+                    None if legacy is None else JUDGE_DEFAULT_TO_LEVEL[legacy]
+                )
+        merged.update(sent)
         await self.repo.set_preferences(user.id, {k: v for k, v in merged.items() if v is not None})
         return await self.user_view(user.id)
 
