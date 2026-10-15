@@ -382,7 +382,8 @@ opens the notebook.
   shown as its first 8 lowercase hex characters (core's `short_id`):
   "ID 3f9c21ab ⧉", where ⧉ copies the full ID (without a clipboard it
   selects it for Ctrl+C). It stands in the viewer's head after the kind
-  and the date (also in the library's view of a trashed document), in full as the first row of **How this was made**, at
+  and the date (also in the library's read-only view of a
+  document whose notebook is gone), in full as the first row of **How this was made**, at
   the end of every output error (failed, and a retry's error while it
   is made), next to each output a plan made in the chat (its step and
   the summary message), and in the Outputs list only in the row's
