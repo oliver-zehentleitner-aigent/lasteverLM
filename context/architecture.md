@@ -108,8 +108,10 @@ open-weight models cite poorly, through the same interface.
 **Source:** planning conversation, 2026-10-12
 
 Users log in with a magic link: enter an e-mail address, receive a
-link, click, done. Only addresses under domains on an allowlist get a
-link; the allowlist lives in the database, is edited in the admin
+link, click, done. Only addresses on an allowlist get a link, by domain
+or as a single address (single addresses and the viewer domains were
+added later; addresses in `ADMIN_EMAILS` are admins); the allowlist
+lives in the database, is edited in the admin
 panel, and is seeded once from an environment variable, so it never
 appears in a repository. A demo token from config resolves to a seeded
 demo user for development and recorded walkthroughs and is unset in
@@ -213,8 +215,11 @@ chosen path: a version pin to keep current in three places.
 
 Every model call writes one `usage` row with its token counts and a
 `cost_cents` priced at write time by the service that made the call,
-through a core helper and a price table from config. The balance is
-the sum of ledger credits minus the sum of usage costs. The account
+through a core helper and a price table from config, and the charge to
+the user fixed at the same moment (the cost plus the margin and fixed
+fee of the pricing rules, see the finance entries in `core/` and
+`account/`). The balance is the sum of ledger credits minus the sum of
+usage charges. The account
 service only reads usage.
 
 **Reason:** one write per call, done by the service that has the
