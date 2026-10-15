@@ -1211,6 +1211,8 @@ export const en = {
   'verify.defaultHint': 'New documents start at this level, and chat answers are checked at it.',
   'outProv.modelWithoutEvidence': 'Model\'s answer without evidence (not from the sources)',
   'chat.checking': 'answering and checking ({level})…',
+  'ws.resizeSources': 'Resize sources and output formats',
+  'ws.resizeFormats': 'Resize output formats and documents',
 } as const
 
 export type MessageKey = keyof typeof en

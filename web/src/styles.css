@@ -244,6 +244,17 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .admin th, .library th { color: var(--muted); font-weight: 500; }
 .table-scroll { overflow-x: auto; max-width: 100%; }
 
+/* the left column on wide screens: Output format capped and scrolling inside,
+   the three areas resizable by the bars between them */
+@media (min-width: 901px) {
+  .column.left .tiles { max-height: 45vh; overflow-y: auto; flex: none; }
+  .column.left .outputs { min-height: 96px; }
+  .column.left.sized-sources .sources { flex: none; height: var(--sources-h); min-height: 96px; }
+  .column.left.sized-tiles .tiles { height: var(--tiles-h); max-height: none; min-height: 140px; }
+}
+.row-divider { flex: 0 0 6px; cursor: row-resize; background: var(--line); touch-action: none; }
+.row-divider:hover, .row-divider:focus-visible { background: var(--accent); outline: none; }
+@media (max-width: 900px) { .row-divider { display: none; } }
 @media (max-width: 900px) {
   .workspace { grid-template-columns: minmax(0, 1fr); height: auto; }
   .sidebar { border-right: none; border-bottom: 1px solid var(--line); }
@@ -400,6 +411,8 @@ button.link.danger { color: var(--danger); }
 
 /* output format: Create button under the tiles */
 .tiles .create-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; flex-wrap: wrap; }
+/* Create and its price stay in view while the formats and their options scroll */
+.tiles .create-row { position: sticky; bottom: -0.75rem; background: var(--bg); border-top: 1px solid var(--line); padding: 0.4rem 0 0.75rem; margin-bottom: -0.75rem; z-index: 1; }
 /* hint on the left, the button at the right edge of the tile block */
 .tiles .create-row button { margin-left: auto; }
 /* the estimated charge sits right before Create */
