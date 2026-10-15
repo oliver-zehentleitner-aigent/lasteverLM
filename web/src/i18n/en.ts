@@ -1139,6 +1139,7 @@ export const en = {
   'wordCheck.title': 'Compares the words with the cited passage. Across languages it cannot tell; the judge can.',
   'chartOut.unsupported': 'unsupported',
   'chartOut.unsupportedTitle': 'The number check found this value in none of the cited passages.',
+  'nb.firstTitle': 'My first notebook',
 } as const
 
 export type MessageKey = keyof typeof en

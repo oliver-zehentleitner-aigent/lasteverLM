@@ -1142,4 +1142,5 @@ export const de: Record<MessageKey, string> = {
   'wordCheck.title': 'Vergleicht die Wörter mit der zitierten Passage. Über Sprachen hinweg kann sie das nicht; der Judge schon.',
   'chartOut.unsupported': 'nicht belegt',
   'chartOut.unsupportedTitle': 'Die Zahlenprüfung fand diesen Wert in keiner der zitierten Passagen.',
+  'nb.firstTitle': 'Mein erstes Notebook',
 }

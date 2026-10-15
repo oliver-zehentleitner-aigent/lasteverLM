@@ -56,7 +56,13 @@ library entry (nothing is processed twice); when it was in this
 notebook already (200), the note after the batch says so.
 
 **Introduction.** Once per user, the notebook view opens with a short
-tour: three steps over a dimmed page, each outlining its area with a
+tour. A new user lands in a notebook so the tour has its view: the
+first notebook of the list (the starter notebook, which ingest copies
+into the first list), or, without any notebook, a first one the
+workspace makes ("My first notebook", without the add-sources dialog
+over it, since the tour's first step points at "+ add"). A user who has
+done the tour lands where they always did (the notebook open last, else
+the first, else the empty state). The tour: three steps over a dimmed page, each outlining its area with a
 card and an arrow beside it: 1 "Add one or more sources" (the Sources
 panel and "+ add"), 2 "Pick an output format" (the format tiles; set
 options or keep the defaults), 3 "Create" (the Create row; without
