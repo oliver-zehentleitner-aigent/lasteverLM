@@ -60,7 +60,7 @@ def test_judge_unit_makes_one_call_with_the_judge_prompt():
     llm = FakeLLM(json.dumps({"verdict": "supported", "reason": "r", "quote": ""}))
     judgement, result = judge_unit(llm.complete, "Three wrecks lie inside it.", PASSAGES)
     assert judgement.verdict == "supported" and result.text
-    assert llm.calls[0][0] == JUDGE_SYSTEM and llm.budgets == [4000]
+    assert llm.calls[0][0] == JUDGE_SYSTEM and llm.budgets == [6000]
 
 
 def test_the_eval_baseline_is_the_word_check_and_the_report_counts_hits():
@@ -101,3 +101,63 @@ def test_the_eval_baseline_is_the_word_check_and_the_report_counts_hits():
     assert "| all | – | 1/2 (50%) | 1/2 (50%) |" in text
     assert "| low | `m` | 2 | 1 | 1/1 (100%) |" in text
     assert '`o` "The Margarethe went aground in 1880." (expected contradicted): None ×1' in text
+
+
+def test_an_unusable_answer_is_described_by_its_structure_never_its_text():
+    from lasteverlm_core import CompletionResult, Usage
+
+    from lasteverlm_rag.judge import UnusableAnswer, parse_judgement
+
+    usage = Usage("llm", "m", 10, 812)
+    secret = "The user's passage says the treasure lies under the oak."
+    cases = [
+        (
+            '{"verdict": "supported", "reason": "", "quote": "x"}',
+            ["quote", "reason", "verdict"],
+            "str(0)",
+        ),
+        ('{"verdict": "supported", "quote": "' + secret + '"}', ["quote", "verdict"], "missing"),
+        ('{"verdict": "supported", "reason": null}', ["reason", "verdict"], "NoneType"),
+    ]
+    for text, keys, reason in cases:
+        try:
+            parse_judgement(CompletionResult(text, usage, "length"), {1: secret})
+        except UnusableAnswer as exc:
+            assert exc.shape == {
+                "keys": keys,
+                "reason": reason,
+                "finish_reason": "length",
+                "tokens_out": 812,
+            }
+            assert secret not in str(exc.shape)
+        else:
+            raise AssertionError(text)
+    try:
+        parse_judgement(CompletionResult("no json at all " + secret, usage, "stop"), {})
+    except UnusableAnswer as exc:
+        assert exc.shape["keys"] is None and exc.shape["reason"] == "missing"
+
+
+def test_a_unit_without_a_usable_answer_keeps_the_answers_shape(settings, caplog):
+    from lasteverlm_core import CompletionResult, Usage
+
+    from lasteverlm_rag.judging import annotate
+    from lasteverlm_rag.models import Unit
+
+    def reasonless(system, user, max_tokens=None, *, thinking=None):
+        return CompletionResult(
+            '{"verdict": "supported", "reason": ""}', Usage("llm", "m", 5, 40), "stop"
+        )
+
+    unit = Unit({}, "The sky is blue.", [1])
+    with caplog.at_level("WARNING"):
+        annotate(reasonless, [unit], {1: "The sky is blue."}, level="medium", model="m")
+    judge = unit.target["judge"]
+    assert judge["verdict"] is None
+    assert judge["answer_shape"] == {
+        "keys": ["reason", "verdict"],
+        "reason": "str(0)",
+        "finish_reason": "stop",
+        "tokens_out": 40,
+    }
+    assert any('"reason": "str(0)"' in r.getMessage() for r in caplog.records)

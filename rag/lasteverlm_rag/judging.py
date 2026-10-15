@@ -29,7 +29,7 @@ from pydantic import BaseModel, ValidationError
 
 from .citations import defuse_markers, extract_markers
 from .failures import failure_kind
-from .judge import Judgement, judge_unit
+from .judge import Judgement, UnusableAnswer, judge_unit
 from .models import GeneratedOutput, Passage, Unit
 from .outputs import CompleteFn
 from .outputs._base import GenerationFailed, JsonGenerator, parse_json
@@ -251,6 +251,7 @@ def judge_output(
                 "reason": j.reason,
                 "quote": j.quote,
                 "round": last[i].round,
+                **({"answer_shape": j.shape} if j.shape else {}),
                 **_second_entry(second, last[i].first, last[i].second, model),
             }
     log_entry: dict[str, Any] = {
@@ -285,6 +286,7 @@ def annotate(
             "reason": j.reason,
             "quote": j.quote,
             "round": 1,
+            **({"answer_shape": j.shape} if j.shape else {}),
             **_second_entry(second, own, other, model),
         }
     summary = {"level": level, "model": model, "verdicts": _counts(judged)}
@@ -398,8 +400,15 @@ def _judge_all(judge: CompleteFn, units: list[Unit], texts: Mapping[int, str]) -
                 return judge_unit(judge, unit.text, cited)[0]
             except ProviderError as exc:
                 kind = failure_kind(exc)
-                log.warning("judge: no usable answer (attempt %d of 2): %s", attempt, kind)
-        return Judgement(None, f"the judge gave no usable answer: {kind}", "", False)
+                # the answer's structure, never its text
+                shape = exc.shape if isinstance(exc, UnusableAnswer) else None
+                log.warning(
+                    "judge: no usable answer (attempt %d of 2): %s %s",
+                    attempt,
+                    kind,
+                    json.dumps(shape) if shape else "",
+                )
+        return Judgement(None, f"the judge gave no usable answer: {kind}", "", False, shape)
 
     with ThreadPoolExecutor(JUDGE_WORKERS) as pool:
         return list(pool.map(one, units))

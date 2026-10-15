@@ -389,8 +389,12 @@ call per unit (`lasteverlm_rag/judge.py`). Its verdict is `supported`,
   too, the unit is kept and marked `judge: {"verdict": null, "reason":
   "the judge gave no usable answer: <kind>"}`, counted as
   `no_usable_answer` in the round's verdicts, and never revised or
-  removed. It never fails the output. The judge may use up to 4000
-  output tokens, because some judge models reason before they answer.
+  removed. It never fails the output. The judge may use up to 6000
+  output tokens, because some judge models reason before they answer
+  (glm-5.3-flash used up to 3507 on long passages). An unusable answer
+  is described by its structure only, never its text: `answer_shape`
+  `{"keys", "reason" (its type and length, or "missing"), "finish_reason",
+  "tokens_out"}` on the unit's `judge` and in the log line.
 
 `POST /outputs/{id}/judge` judges a ready output on request. It only
 annotates, adds an entry to `provenance.judgements` and answers 409
