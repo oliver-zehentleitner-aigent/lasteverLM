@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- `Answer.web_pages` and `Message.web_pages` (`list[dict]`, `[]` for older messages, `None` read as `[]`): the web sources an answer used and when each was read, so the reader can have one fetched again; rag owns the entries' shape.
+
 ## [0.20.0] - 2026-10-14
 
 ### Added
