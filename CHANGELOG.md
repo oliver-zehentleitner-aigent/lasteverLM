@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/walkthrough.md` rewritten for the current system: the product first (a source, a question, the evidence, one checked output), then architecture and how it was built, with who did what stated precisely. `README.md` status says live; `docs/architecture.md` names the notebook list as the starter trigger.
+
 ## [0.19.5] - 2026-10-14
 
 ### Changed

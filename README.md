@@ -44,7 +44,7 @@ and merging and a human testing the result. The reasoning behind each
 decision is recorded next to the code with
 [Keep the Why](https://keepthewhy.com).
 
-Status: the services exist and pass their checks; the first deployment is pending the cluster. The reasoning behind every decision is browsable in the [live dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
+Status: live at https://lasteverlm.zehentleitner.co, deployed on every tag with a smoke test over the public domain. The reasoning behind every decision is browsable in the [live dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
 
 ## License
 
