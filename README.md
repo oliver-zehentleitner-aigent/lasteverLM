@@ -4,6 +4,34 @@
 
 **Material in. Understanding out.** PDFs, text, web pages, images and audio go in; questions, reports, quizzes, tables, mind maps and spoken overviews come out, each sentence traceable to the passage it came from. A NotebookLM-style assistant, built to be checked.
 
+## What it does
+
+- **Sources in:** PDFs (text layer or vision for scanned pages), text and Markdown, web pages with versions and snapshots, structured URLs (JSON, XML, CSV, YAML), images and audio. Adding is free; a source is read when a question or an output needs it.
+- **Cited answers:** a chat per notebook whose answers point to the exact passages they rest on; one click opens the passage in the source.
+- **Nine outputs:** report, quiz, flashcards, data table, chart, mind map, infographic, audio (overview, story, conversation, FAQ) and decision. Tables, charts and infographics first propose candidates to pick.
+- **Checked, at the level the user chooses:** a deterministic word and negation check for free; a judge of another model family for doubted, all or, in "bulletproof", every paragraph by two judges. A paragraph the judge cannot find in its cited passages is searched for in all selected sources before it is called unsupported.
+- **Everything shows how it was made:** passages, model, prompt version, cost, coverage of the selected sources, and an ID with every failed attempt, so support can trace any output.
+- **Price before every action**, credit from vouchers, an action starts only when the credit covers it and then runs to its end.
+
+## Measured, not assumed
+
+Model choices and checks were picked by measurement, each with its method, numbers and limits:
+
+- [Judge evaluation](rag/docs/judge-eval.md): which model checks claims at which level.
+- [Second judge evaluation](rag/docs/second-judge-eval.md): the independent second judge for "bulletproof".
+- [Negation evaluation](rag/docs/negation-eval.md): the spaCy negation check, with a held-out set.
+- [Vision evaluation](ingest/docs/vision-eval.md): ten vision models, and why large images are read in tiles.
+
+## Try it
+
+The [live system](https://lasteverlm.zehentleitner.co) signs in by magic link for allowed addresses; credit comes from a voucher. Every new account starts with a notebook about lasteverLM itself, with the handbook, an FAQ, the price list and finished outputs of every kind, and the ? at the top right opens a short guide and the introduction.
+
+## How it was built
+
+Seven coding-agent sessions in three and a half days, one per part of the system and one that reviewed and merged every pull request; a maintainer who set the rules, tested every release live and decided every open question. A pull request was merged only when every check passed, a release is a tag that builds, deploys and runs a smoke test over the public domain, and every decision is written down with the alternatives it rejected. Over 640 pull requests and 80 tags; the [Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/) shows the reasoning in the order it happened.
+
+## Repository
+
 One repository for the whole system. The root is the umbrella:
 architecture, the reasoning behind it, the task board and the
 workflows. Each service is a directory with its own `context/`:
@@ -38,10 +66,7 @@ registry, deployed with one Helm chart, released with one tag. Every
 process scales horizontally; PostgreSQL is the only state and also the
 job queue for the workers.
 
-The system is built by seven coding-agent sessions working in parallel
-in this one repository, one directory each, with one of them reviewing
-and merging and a human testing the result. The reasoning behind each
-decision is recorded next to the code with
+The reasoning behind each decision is recorded next to the code with
 [Keep the Why](https://keepthewhy.com).
 
 Status: live at https://lasteverlm.zehentleitner.co, deployed on every tag with a smoke test over the public domain. The reasoning behind every decision is browsable in the [live dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
