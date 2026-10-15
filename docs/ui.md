@@ -268,7 +268,10 @@ opens the notebook.
   Without a phase (queued, or an older row) "Generating…" or "Waiting:
   its sources are read first…" with the time; a retry's error shows
   under it unless the phase already says it. Each kind has its own renderer; the audio
-  player sits centred in the pane, and the mind map fills the pane and
+  player with its transcript sits centred in the pane while it fits and
+  starts at the top once the transcript is longer, so the player is
+  visible without scrolling and nothing runs over the header or under
+  "How this was made", and the mind map fills the pane and
   re-fits whenever its size changes (full view, divider, window). A
   small bar on the map's top right zooms in (+), out (−) and fits it
   again (⤢); with the map focused, the keys +, − and 0 do the same.
