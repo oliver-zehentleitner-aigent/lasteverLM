@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A decision counts an evidence item as supported by its judge's verdict when it was judged, the word check only otherwise; disputed items are not counted and are named in `agreement_note`. Before, the count used the word check alone, so a decision in another language than its source showed "no decision" although its judges supported the evidence; agreement, weight and the shown number follow the corrected count.
+
 ## [0.22.4] - 2026-10-15
 
 ### Fixed

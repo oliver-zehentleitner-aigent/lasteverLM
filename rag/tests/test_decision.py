@@ -276,3 +276,54 @@ def test_a_number_little_evidence_stands_behind_is_a_tendency(p, pro, con, weigh
         {"verdict_text": "x", "evidence_for": pro, "evidence_against": con},
     )
     assert (content["weight"], content["supported_evidence"]) == (weight, supported)
+
+
+def judged(text, support, verdict):
+    item = {"text": text, "refs": [1], "support": support}
+    if verdict:
+        item["judge"] = {"level": "high", "model": "m", "verdict": verdict, "reason": "r"}
+    return item
+
+
+def finished(evidence_for, evidence_against, p=0.2):
+    content = {
+        "question": "Q?",
+        "decision_type": "yes_no",
+        "model_answer": {"probability_yes": p, "answer": "yes" if p >= 0.5 else "no"},
+        "verdict_text": "Nein.",
+        "evidence_for": evidence_for,
+        "evidence_against": evidence_against,
+        "gaps": [],
+    }
+    withheld = finish_decision(content)
+    return content, withheld
+
+
+def test_a_judged_item_counts_by_its_verdict_across_languages():
+    # German evidence over an English source: the word check cannot read it
+    # (unverified), the judges did and found it supported
+    german = judged("Die Brücke war 2024 wegen Reparaturen gesperrt.", "unverified", "supported")
+    content, withheld = finished([], [german])
+    assert withheld is None
+    assert content["agreement"] != "undecided" and content["supported_evidence"] == 1
+    assert content["model_answer"] == {"probability_yes": 0.2, "answer": "no"}
+    assert content["weight"] == "tendency"
+
+
+def test_judged_and_unjudged_items_mix():
+    # a judge's verdict overrides the word check; an unjudged item keeps it
+    overruled = judged("The bridge was closed in 2024.", "supported", "contradicted")
+    unjudged = judged("Traffic moved to the ferry.", "supported", None)
+    no_answer = judged("The ferry ran daily.", "supported", None)
+    no_answer["judge"] = {"verdict": None, "reason": "the judge gave no usable answer"}
+    content, _ = finished([overruled], [unjudged, no_answer], p=0.2)
+    assert content["supported_evidence"] == 2  # the unjudged and the unanswered (word check)
+    assert content["agreement"] == "consistent"
+
+
+def test_a_disputed_item_is_not_supported_and_named():
+    disputed = judged("The bridge was closed in 2024.", "supported", "disputed")
+    content, withheld = finished([], [disputed])
+    assert content["agreement"] == "undecided" and content["model_answer"] is None
+    assert withheld is not None
+    assert "1 disputed (the two judges disagree), not counted." in content["agreement_note"]

@@ -12,7 +12,9 @@ Two independent calls over the same numbered passages:
   (``llm_choice``).
 
 ``agreement`` compares the number with the balance of supported evidence
-and is shown whatever it says. Without supported evidence on either side
+and is shown whatever it says; an item counts as supported by its judge's
+verdict when it was judged, by the word check otherwise. Without
+supported evidence on either side
 there is no decision: the verdict is "The sources do not decide this."
 and the content carries no number (``model_answer`` is ``None``). A
 number with no evidence behind it is the model's prior, not a decision
@@ -143,9 +145,13 @@ def finish_decision(content: dict[str, Any]) -> dict[str, Any] | None:
     """Set ``agreement`` and ``agreement_note`` from the checked evidence.
     Undecided, the verdict and the number leave the content; returns them
     for the log (``llm_verdict_text``, ``model_answer_without_evidence``)."""
-    pro = sum(e.get("support") == "supported" for e in content["evidence_for"])
-    con = sum(e.get("support") == "supported" for e in content["evidence_against"])
+    evidence = content["evidence_for"] + content["evidence_against"]
+    pro = sum(_supported(e) for e in content["evidence_for"])
+    con = sum(_supported(e) for e in content["evidence_against"])
     agreement, note = _agreement(content, pro, con)
+    disputed = sum((e.get("judge") or {}).get("verdict") == "disputed" for e in evidence)
+    if disputed:
+        note += f" {disputed} disputed (the two judges disagree), not counted."
     content["agreement"], content["agreement_note"] = agreement, note
     content["supported_evidence"] = pro + con
     content["weight"] = _weight(agreement, pro + con)
@@ -158,6 +164,16 @@ def finish_decision(content: dict[str, Any]) -> dict[str, Any] | None:
         content["model_answer"] = None
         return withheld
     return None
+
+
+def _supported(item: dict[str, Any]) -> bool:
+    """Whether an evidence item counts as supported: its judge's verdict when
+    a judge gave one (it reads across languages, the word check cannot), the
+    word check otherwise. Disputed is not supported."""
+    verdict = (item.get("judge") or {}).get("verdict")
+    if verdict is not None:
+        return bool(verdict == "supported")
+    return bool(item.get("support") == "supported")
 
 
 def _weight(agreement: Agreement, supported: int) -> Weight | None:
