@@ -6,12 +6,13 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** family lead's instruction after the night audit, 2026-10-14 (a build-time or env switch, default off; the hash derived at build; a headless browser run in Docker by infra decides when it flips); infra's report-mode run, 2026-10-14 (`make web-csp-check` in `infra/`): 0 violations over every page, report, quiz, table, mind map, infographic, the share page and the theme toggle; the modes and the generator were this directory's call
+**Source:** instruction after the night audit, 2026-10-14 (a build-time or env switch, default off; the hash derived at build; a headless browser run in Docker by infra decides when it flips); infra's report-mode run, 2026-10-14 (`make web-csp-check` in `infra/`): 0 violations over every page, report, quiz, table, mind map, infographic, the share page and the theme toggle; the modes and the generator were this directory's call
 **Revisit when:** a page needs a source the policy does not list, an audio output shows a violation (audio was not in the run: the demo account had none; `media-src` allows any `https:` origin, which the presigned URLs are), or the storage host is fixed enough to narrow `CSP_MEDIA_SRC` to it
 
 The full policy (`default-src 'self'`, the inline theme script by its
 sha256, `style-src 'self' 'unsafe-inline'`, images and audio from
-`'self'`, `data:`/`blob:` and the object storage, `connect-src 'self'`
+`'self'`, `data:`/`blob:` and the object storage, frames from `'self'`
+and the object storage, `connect-src 'self'`
 plus `API_BASE_URL`'s origin, `object-src 'none'`, `base-uri 'none'`,
 `frame-ancestors 'none'`) is written into the image at build by
 `scripts/csp.mjs`. The build arg `CSP` picks `enforce` (the default
@@ -19,6 +20,11 @@ since the clean run), `report` (the full policy as
 `Content-Security-Policy-Report-Only` beside the enforced
 `frame-ancestors`, the mode the check runs in) or `off` (only
 `frame-ancestors`, the earlier state).
+
+**Re-checked 2026-10-15** (two of the revisit conditions fired: the
+source viewer needed frames, so `frame-src` was added with it on
+2026-10-14, and the production build narrows `CSP_MEDIA_SRC` to the
+object storage origin in infra's `docker.yml`). The decision stands.
 
 **Reason:** the reasons the earlier entry gave for not shipping a policy
 unverified still hold: a wrong one blanks a page silently. A report
@@ -45,7 +51,11 @@ so the policy and the page it protects are fixed together in one image.
 
 A `preview_url` is only ever rendered inline (as an `<img>`) for an
 image; for a PDF or text it is the presigned original and for a web page
-the page's own address, both only for the open link in a new tab. Found
+the page's own address, both only for the open link in a new tab. Since
+2026-10-14 the source viewer shows a PDF's presigned original in an
+iframe and a web page as the stored snapshot in a sandboxed iframe (no
+scripts, no same origin, no referrer); the page's own address is still
+only a link, never loaded by the viewer. Found
 by infra's walk on v0.10.2, 2026-10-14: thumbnails for every entry with
 a preview fetched each web page a user once added from the viewer's
 browser (third-party requests, an `http:` one tripping `img-src`) and
