@@ -3,8 +3,10 @@
 
     python3 infra/scripts/changelog_unreleased.py <base> [<head>]
 
-Compares <head> (default HEAD) with <base> for every CHANGELOG.md in the
-repository. Every added line must sit under `## [Unreleased]` in the new
+Compares <head> (default HEAD) with the merge base of <base> and <head>
+(what `git diff <base>...<head>` shows), for every CHANGELOG.md in the
+repository, so a branch that is behind <base> is not charged with the
+release sections <base> gained since. Every added line must sit under `## [Unreleased]` in the new
 file, every removed line under `## [Unreleased]` in the old one; a line's
 section is the nearest `## [` heading at or above it. A rebase over a
 release roll tends to leave a new line under the section just released,
@@ -72,6 +74,7 @@ def changed_lines(base: str, head: str, path: str) -> list[tuple[str, int, str]]
 
 
 def violations(base: str, head: str) -> list[str]:
+    base = git("merge-base", base, head).strip()
     problems = []
     for path in changelogs(base, head):
         before, after = content(base, path), content(head, path)
