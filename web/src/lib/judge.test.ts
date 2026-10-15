@@ -108,3 +108,24 @@ describe('supported elsewhere', () => {
     expect(judgeBadge({ judge: j('not_in_source') })!.title).toBe('r\nIn none of the selected sources.')
   })
 })
+
+describe("the head counts rag's final outcome", () => {
+  const rounds = [
+    { round: 1, judged: 3, verdicts: { supported: 2, contradicted: 1 }, usage: { tokens_in: 1, tokens_out: 1 } },
+    // round 2 re-judges only the one that failed: it passes now
+    { round: 2, judged: 1, verdicts: { supported: 1 }, usage: { tokens_in: 1, tokens_out: 1 } },
+  ]
+  it('counts a unit failing in round 1 and passing in round 2 as passed', () => {
+    const final = { judged: 3, passed: 3, verdicts: { supported: 3 } }
+    expect(judgeHead({ judge: { level: 'medium', model: 'm', rounds, removed: [], final } })).toBe('Judge (medium, m): 3 of 3 passed after 2 rounds')
+  })
+  it("falls back to the last round's counts on an output from before final", () => {
+    expect(judgeHead({ judge: { level: 'medium', model: 'm', rounds, removed: [] } })).toBe('Judge (medium, m): 1 of 3 passed after 2 rounds')
+  })
+  it('reads final on a judging asked for later and on the standard level too', () => {
+    const judgements = [{ level: 'low' as const, model: 'm', verdicts: { supported: 1, not_in_source: 1 }, usage: { tokens_in: 1, tokens_out: 1 }, at: 'now', final: { judged: 4, passed: 3, verdicts: { supported: 2, supported_elsewhere: 1, not_in_source: 1 } } }]
+    expect(judgeHead({ judgements })).toBe('Judge (low, m): 3 of 4 supported, 1 with an added citation')
+    const doubted = { mode: 'doubted' as const, judged: 2, level: 'low' as const, model: 'm', verdicts: { supported: 1 }, final: { judged: 2, passed: 2, verdicts: { supported: 2 } } }
+    expect(judgeHead({ judge: doubted })).toBe('Judge (low, m): 2 of 2 doubted paragraphs supported')
+  })
+})

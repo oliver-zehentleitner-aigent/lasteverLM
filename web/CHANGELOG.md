@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The word check's tooltip no longer says it sees no negation: "The word check compares words with the cited passage and flags a flipped negation as a possible contradiction. It sees no meaning; that is what the judge is for." (de as well). The voucher form no longer says new codes are never shown again; an admin can show one again from the list.
+- The judge's head counted only the last round ("1 of 3 passed after 2 rounds" where all three passed in the end); it now reads rag's `final`, each claim once by its last verdict, and older outputs keep the old count.
+- A passage of a copied starter output whose source is not in the copy shows its quote without "open in source".
 
 ## [0.22.19] - 2026-10-15
 

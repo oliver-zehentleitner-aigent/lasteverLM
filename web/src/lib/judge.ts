@@ -29,7 +29,8 @@ export function judgeHead(p: Pick<Provenance, 'judge' | 'judgements'> | null | u
   const run = p?.judge
   // verification standard: one pass over what the word check doubted
   if (run?.mode === 'doubted' && (run.judged ?? 0) > 0) {
-    return t('judge.headDoubted', { level: t(`judge.level.${run.level}`).toLowerCase(), model: run.model, judged: run.judged ?? 0, passed: passedOf(run.verdicts) }) + addedPart(run.verdicts)
+    const f = run.final
+    return t('judge.headDoubted', { level: t(`judge.level.${run.level}`).toLowerCase(), model: run.model, judged: f?.judged ?? run.judged ?? 0, passed: f?.passed ?? passedOf(run.verdicts) }) + addedPart(f?.verdicts ?? run.verdicts)
   }
   if (run?.rounds && run.rounds.length > 0) {
     const first = run.rounds[0]
@@ -38,15 +39,17 @@ export function judgeHead(p: Pick<Provenance, 'judge' | 'judgements'> | null | u
       level: t(`judge.level.${run.level}`).toLowerCase(),
       // bulletproof: both judges' models
       model: run.second_model ? `${run.model} + ${run.second_model}` : run.model,
-      passed: passedOf(last.verdicts),
-      total: first.judged,
+      // each unit once by its last verdict (rag's `final`); before it, the last round's counts
+      passed: run.final?.passed ?? passedOf(last.verdicts),
+      total: run.final?.judged ?? first.judged,
       rounds: tn('judge.rounds', run.rounds.length),
-    }) + addedPart(last.verdicts)
+    }) + addedPart(run.final?.verdicts ?? last.verdicts)
   }
   const latest = p?.judgements?.[p.judgements.length - 1]
   if (latest) {
-    const total = Object.values(latest.verdicts).reduce((a, b) => a + (b ?? 0), 0)
-    return t('judge.headLater', { level: t(`judge.level.${latest.level}`).toLowerCase(), model: latest.model, passed: passedOf(latest.verdicts), total }) + addedPart(latest.verdicts)
+    const f = latest.final
+    const total = f?.judged ?? Object.values(latest.verdicts).reduce((a, b) => a + (b ?? 0), 0)
+    return t('judge.headLater', { level: t(`judge.level.${latest.level}`).toLowerCase(), model: latest.model, passed: f?.passed ?? passedOf(latest.verdicts), total }) + addedPart(f?.verdicts ?? latest.verdicts)
   }
   return null
 }

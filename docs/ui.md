@@ -538,7 +538,7 @@ opens the notebook.
   claim's first passage with the judge's verdict, reason and decisive
   quote. Under the document a list **Removed after judging (N)** (text,
   verdict, reason, round) is always shown when there is one; the head
-  says "Judge (medium, model): N of M passed after K rounds", and "How
+  says "Judge (medium, model): N of M passed after K rounds" (each claim once, by its last verdict across the rounds, from rag's `final`; older outputs count the last round), and "How
   this was made" lists the rounds (judged, verdicts, tokens, revisions)
   and any later judgings. **Check with a judge** on an existing output
   (in the viewer's head) and under a cited chat answer: a level and
