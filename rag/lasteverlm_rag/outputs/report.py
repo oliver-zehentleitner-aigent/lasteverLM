@@ -16,6 +16,30 @@ from ._base import CITE_RULE, JsonGenerator
 _PARAGRAPH = re.compile(r"\n\s*\n")
 
 
+def blocks(markdown: str) -> list[str]:
+    """The report's blocks in order: a heading is its own line only, and the
+    lines under it, with or without a blank line between, are the paragraph
+    that follows. Paragraphs are otherwise separated by blank lines."""
+    found: list[str] = []
+    for chunk in _PARAGRAPH.split(markdown.strip()):
+        lines: list[str] = []
+        for line in chunk.split("\n"):
+            if line.lstrip().startswith("#"):
+                if lines:
+                    found.append("\n".join(lines))
+                    lines = []
+                found.append(line)
+            elif line.strip() or lines:
+                lines.append(line)
+        if any(line.strip() for line in lines):
+            found.append("\n".join(lines).rstrip())
+    return [b for b in found if b.strip()]
+
+
+def is_heading(block: str) -> bool:
+    return block.lstrip().startswith("#")
+
+
 class Report(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     markdown: str = Field(min_length=1)
@@ -108,12 +132,12 @@ class ReportGenerator(JsonGenerator):
             unused_sources=generated.unused_sources,
         )
 
-    # -- editing: a unit is a paragraph that is not a heading ---------------
+    # -- editing: a unit is a paragraph under or between headings -----------
 
     def _paragraphs(self, document: BaseModel) -> tuple[list[str], list[int]]:
         assert isinstance(document, Report)
-        paragraphs = [p for p in _PARAGRAPH.split(document.markdown.strip()) if p.strip()]
-        claims = [i for i, p in enumerate(paragraphs) if not p.lstrip().startswith("#")]
+        paragraphs = blocks(document.markdown)
+        claims = [i for i, p in enumerate(paragraphs) if not is_heading(p)]
         return paragraphs, claims
 
     def editable(self, document: BaseModel, index: int) -> dict[str, Any]:
@@ -148,10 +172,9 @@ class ReportGenerator(JsonGenerator):
     def _document(self, title: str, markdown: str, cited: list[Unit] | None) -> GeneratedOutput:
         """One unit per paragraph that is not a heading: its text exactly as in
         the markdown, its refs the markers the model wrote (before cleaning)."""
-        paragraphs = [p for p in _PARAGRAPH.split(markdown.strip()) if p.strip()]
         content_units: list[dict[str, Any]] = []
         units: list[Unit] = []
-        claims = [p for p in paragraphs if not p.lstrip().startswith("#")]
+        claims = [p for p in blocks(markdown) if not is_heading(p)]
         for i, paragraph in enumerate(claims):
             refs = cited[i].refs if cited else extract_markers(paragraph)
             target: dict[str, Any] = {"text": paragraph}

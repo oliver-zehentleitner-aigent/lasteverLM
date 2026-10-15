@@ -56,7 +56,14 @@ from lasteverlm_core import (
 )
 
 from . import mp3
-from .citations import defuse_markers, inline, map_citations, number_passages, strip_markers
+from .citations import (
+    MARKER_GROUP,
+    defuse_markers,
+    inline,
+    map_citations,
+    number_passages,
+    strip_markers,
+)
 from .coverage import balance, per_source_quota, uncovered_sources
 from .failures import failure_kind
 from .ingest_client import Ingest
@@ -307,6 +314,38 @@ class HandOver(BaseException):
     back to the queue at its next step, for another worker. A BaseException,
     so no ``except Exception`` on the way (a judge's retry, a cleanup) takes
     it for a failure of the step."""
+
+
+UNSPLIT = "the document cites its sources but could not be split into parts to check"
+
+
+class NoCheckableUnits(Exception):
+    """A document whose text cites passages but yields no unit to check:
+    stored, it would read as checked while nothing was. Tried once more,
+    then the output fails."""
+
+
+def units_for_markers(job: OutputRow, generated: GeneratedOutput) -> None:
+    """Fail loud on a text with citation markers and no checkable unit, and
+    warn when far fewer units than marker groups came out of it (the text
+    may have been split wrongly)."""
+    markdown = generated.content.get("markdown") if generated.content else None
+    if not isinstance(markdown, str):
+        return
+    markers = len(MARKER_GROUP.findall(markdown))
+    units = len(generated.units)
+    if markers and not units:
+        raise NoCheckableUnits(
+            f"{job.kind}: the text cites {markers} times but yields no checkable unit"
+        )
+    if units < markers / 3:
+        log.warning(
+            "output %s (%s): %d checkable units from %d citation markers",
+            short_id(job.id),
+            job.kind,
+            units,
+            markers,
+        )
 
 
 class JudgementRunning(Exception):
@@ -1374,6 +1413,7 @@ class OutputService:
                 job.owner, notebook_id, f"output:{job.kind}", uuid.UUID(job.booking_id or job.id)
             )
             generated = self._generate(booking, notebook_id, job, trace)
+            units_for_markers(job, generated)
             # the units are marked in place, inside the content
             self._phase("checking")
             check = generated.check or check_units(generated.units, trace.passages, job.kind)
@@ -1443,7 +1483,12 @@ class OutputService:
             # another worker runs it now: its row, its error, its attempts
             self._taken_over(job, None, {})
             return True
-        final = isinstance(failure, GenerationFailed) or job.attempts >= MAX_ATTEMPTS
+        final = (
+            isinstance(failure, GenerationFailed)
+            or job.attempts >= MAX_ATTEMPTS
+            # tried once more; the same splitting would fail again
+            or (isinstance(failure, NoCheckableUnits) and job.attempts >= 2)
+        )
         charged = self._store.charged(job.booking_id or job.id)
         error = attempt_error(failure, job.attempts, final, self._calling, charged)
         # the log keeps the detail (never a prompt); the row (which the user sees) the public text
@@ -2656,6 +2701,13 @@ def attempt_error(
     and whether anything was charged."""
     if isinstance(exc, GenerationFailed):
         return str(exc)
+    if isinstance(exc, NoCheckableUnits):
+        paid = "the calls made were charged" if charged else "nothing was charged"
+        return (
+            f"{UNSPLIT}; trying once more"
+            if not final
+            else f"{UNSPLIT}, {attempts} attempts; no further attempt; {paid}"
+        )
     if not final:
         return public_error(exc).split(";")[0] + (
             f" ({_what_failed(exc, model)}); attempt {attempts + 1} of {MAX_ATTEMPTS} follows"
@@ -2679,6 +2731,8 @@ def public_error(exc: Exception) -> str:
     endpoints and request details, and anything else is internal."""
     if isinstance(exc, GenerationFailed):
         return str(exc)
+    if isinstance(exc, NoCheckableUnits):
+        return f"{UNSPLIT}; trying once more"
     if isinstance(exc, ProviderError):
         return "the model provider failed; the job is retried up to three times"
     if isinstance(exc, StorageError):

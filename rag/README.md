@@ -177,8 +177,9 @@ indexes the result as a source of kind `generated` in the same notebook
 so the chat can cite it; `Output.source_id` names that source.
 
 **Provenance.** Every kind cites the numbered passages of its prompt,
-the same discipline as a chat answer: every unit (a report paragraph
-that is not a heading, an infographic fact or section, an audio
+the same discipline as a chat answer: every unit (a report paragraph:
+the lines between headings, a heading being its own line only, with or
+without a blank line under it; an infographic fact or section, an audio
 paragraph or turn, a table row, a quiz question, a mind-map node below
 the root) carries `refs` (passage numbers) and
 `support`, the result of a deterministic check after generation, with no
@@ -885,6 +886,18 @@ table, a LAME tag). The joined file keeps one header for the whole
 stream, rewritten with the totals, and drops the others; otherwise a
 player takes the first segment's length for the file's and cannot seek
 past it. Audio stored from 0.20.2 until this fix has every header:
+A text that cites passages but yields no checkable unit is never stored
+as ready: the attempt is tried once more, then the output fails with
+"the document cites its sources but could not be split into parts to
+check"; fewer units than a third of its citation markers is logged as a
+warning. Reports stored while a paragraph glued to its heading was
+dropped from the units: `lasteverlm-rag-repair-reports` (needs
+`DATABASE_URL`) lists those whose stored units differ from their
+markdown, with the unit counts, and with `--apply` writes the units and
+the word check again from the stored markdown and passages, no model
+call; a unit whose text stays keeps its judge verdict. Idempotent;
+`--output <id>` limits it.
+
 `lasteverlm-rag-repair-audio` (needs `DATABASE_URL` and the `S3_*`
 settings) lists those it would rewrite, and with `--apply` rewrites the
 file in place and moves the transcript times back by the frames it

@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `lasteverlm-rag-repair-reports`: re-splits stored reports into their checkable units from the stored markdown and runs the word check again, no model call; a dry run by default, listing each affected output with its unit counts; idempotent.
+
 ### Changed
 
 - A job taken over by another worker (a handover at a deploy, a retry, a stale claim) resumes instead of starting over: every model call it finished (the draft, each judge verdict and revision, the decision model, the focus embeddings) is kept in the output's journal (`outputs.checkpoint`, migration `0019_rag_output_checkpoint.sql`) and answered from there, without calling or booking it again. The journal is capped, never logged, and cleared when the output is ready or failed.
 
 ### Fixed
 
+- A report paragraph that follows its heading without a blank line is a checkable unit again: a heading is its own line only. Before, such paragraphs were dropped from `content.units`, so a report could be stored as ready with nothing checked (and a judge on request judged nothing). A text that cites passages but yields no checkable unit is now tried once more and then fails with a clear error; fewer units than a third of its citation markers is logged as a warning.
 - A deploy no longer leaves a running output looking hung for ten minutes. A stopping worker claims nothing new and lets its job finish while its grace period (`WORKER_GRACE_SECONDS`) allows; with less than one model request's worst case left, it hands the job over at the next step: claim cleared (only while it still holds it), phase "handing over", the attempt not counted, an `attempt_log` entry `handover`. Another worker takes it within seconds.
 
 ## [0.22.16] - 2026-10-15

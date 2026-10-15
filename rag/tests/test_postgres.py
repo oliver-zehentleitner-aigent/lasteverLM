@@ -350,6 +350,15 @@ def test_the_journal_is_kept_while_claimed_and_cleared_when_done(store, pool, no
     assert store.get_checkpoint(row.id) == {}
 
 
+def test_report_outputs_lists_ready_reports(store, notebook):
+    ready = store.create_output(notebook, "report", "ready")
+    store.create_output(notebook, "report", "processing")
+    store.create_output(notebook, "quiz", "ready")
+    assert ready.id in [o.id for o in store.report_outputs(None)]
+    assert {o.kind for o in store.report_outputs(None)} == {"report"}
+    assert [o.id for o in store.report_outputs([ready.id])] == [ready.id]
+
+
 def test_orphaned_generated_sources_are_old_and_unreferenced(store, pool, notebook):
     linked = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))
     orphan = library_id_of(pool, add_source(pool, notebook, "ready", kind="generated"))

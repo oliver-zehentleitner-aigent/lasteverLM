@@ -15,20 +15,20 @@ from .models import Passage, RetrievedChunk
 SIMILARITY_DECIMALS = 3
 
 # One bracket group: "[1]", "[1, 2]", "[ 3 ]". Several groups in a row are matched one by one.
-_MARKER_GROUP = re.compile(r"\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]")
+MARKER_GROUP = re.compile(r"\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]")
 # A name (file, document, notebook) in a prompt is one line of bounded length.
 NAME_MAX_CHARS = 120
 
 
 def strip_markers(text: str) -> str:
     """Remove every marker group, with the space before it."""
-    return re.sub(r"\s*" + _MARKER_GROUP.pattern, "", text)
+    return re.sub(r"\s*" + MARKER_GROUP.pattern, "", text)
 
 
 def defuse_markers(text: str) -> str:
     """Rewrite marker-shaped text ("[2]", "[1, 3]") as "(2)", "(1, 3)": text
     from a source cannot then pass for a citation of another passage."""
-    return _MARKER_GROUP.sub(lambda m: f"({m.group(1)})", text)
+    return MARKER_GROUP.sub(lambda m: f"({m.group(1)})", text)
 
 
 def inline(name: str, limit: int = NAME_MAX_CHARS) -> str:
@@ -66,13 +66,13 @@ def keep_markers(text: str, valid: set[int]) -> str:
         kept = [raw.strip() for raw in match.group(2).split(",") if int(raw) in valid]
         return f"{match.group(1)}[{', '.join(kept)}]" if kept else ""
 
-    return re.sub(r"(\s*)" + _MARKER_GROUP.pattern, rewrite, text)
+    return re.sub(r"(\s*)" + MARKER_GROUP.pattern, rewrite, text)
 
 
 def extract_markers(answer: str) -> list[int]:
     """Marker numbers in order of first appearance, duplicates removed."""
     seen: list[int] = []
-    for group in _MARKER_GROUP.finditer(answer):
+    for group in MARKER_GROUP.finditer(answer):
         for raw in group.group(1).split(","):
             n = int(raw)
             if n not in seen:
@@ -100,7 +100,7 @@ def map_citations(answer: str, passages: list[Passage]) -> tuple[str, list[Citat
         kept = [renumber[int(raw)] for raw in match.group(1).split(",") if int(raw) in renumber]
         return "".join(f"[{n}]" for n in kept)
 
-    cleaned = _MARKER_GROUP.sub(rewrite, answer)
+    cleaned = MARKER_GROUP.sub(rewrite, answer)
     cleaned = re.sub(r"[ \t]+([.,;:!?])", r"\1", cleaned)
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned).strip()
     citations = [_to_citation(by_n[old], new) for old, new in renumber.items()]
