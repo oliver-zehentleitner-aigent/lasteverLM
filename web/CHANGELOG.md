@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.5] - 2026-10-15
+
 ### Changed
 
 - Word check labels no longer claim meaning ("supported" is the judge's word): "Word check: words match" / "words missing" / "other language" (de "Wortprüfung: Wörter stimmen überein" / "Wörter fehlen" / "andere Sprache"), a tooltip saying it compares words only and sees no meaning or negation, and counts in paragraphs: "Word check: words match in 7 of 9 paragraphs".
