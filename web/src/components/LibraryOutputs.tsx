@@ -6,6 +6,7 @@ import { formatTime } from '../lib/format'
 import { purgeIn } from '../lib/library'
 import { formFor } from '../lib/outputs'
 import { OutputContent } from './outputs/OutputContent'
+import { OutputId } from './OutputId'
 import { t } from '../i18n'
 
 /** A document whose notebook is gone, as the share page shows one: no
@@ -25,6 +26,7 @@ export function ReadOnlyOutput({ output, onBack }: { output: Output; onBack: () 
           <h1 className="doc-title">{output.title || form.label}</h1>
           <span className="badge">{form.label}</span>
           <span className="muted small">{formatTime(output.created_at)}</span>
+          <OutputId id={output.id} />
           {form.printable && output.status === 'ready' && (
             <span className="actions no-print">
               <button type="button" className="link" onClick={() => window.print()}>
@@ -38,6 +40,7 @@ export function ReadOnlyOutput({ output, onBack }: { output: Output; onBack: () 
           title={output.title}
           status={output.status}
           error={output.error}
+          outputId={output.id}
           content={output.content}
           onExpired={() => rag.getOutput(output.id).then((o) => (o.content as AudioContent).url)}
         />

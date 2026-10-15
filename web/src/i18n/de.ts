@@ -1160,4 +1160,7 @@ export const de: Record<MessageKey, string> = {
   'http.creditHeld': '({held} ist durch noch laufende Arbeit gebunden.)',
   'http.creditShortBare': 'Dein Guthaben reicht dafür nicht.',
   'voucher.topUp': 'Gib einen Gutscheincode ein, um aufzuladen.',
+  'outputId.label': 'ID',
+  'outputId.title': 'Ausgabe-ID {id}: gib sie an, wenn du ein Problem mit diesem Dokument meldest',
+  'outputId.copy': 'Die ganze ID kopieren',
 }

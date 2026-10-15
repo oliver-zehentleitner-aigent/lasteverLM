@@ -378,6 +378,16 @@ opens the notebook.
 
 ## Viewer, print, share
 
+- **Output ID**: every output can be named by its ID, the output's UUID,
+  shown as its first 8 lowercase hex characters (core's `short_id`):
+  "ID 3f9c21ab ⧉", where ⧉ copies the full ID (without a clipboard it
+  selects it for Ctrl+C). It stands in the viewer's head after the kind
+  and the date (also in the library's read-only view of a
+  document whose notebook is gone), in full as the first row of **How this was made**, at
+  the end of every output error (failed, and a retry's error while it
+  is made), next to each output a plan made in the chat (its step and
+  the summary message), and in the Outputs list only in the row's
+  tooltip. The share page shows no ID.
 - **Provenance**: a click on `[n]` (in the answer or in the citation list
   under it) opens a panel under the answer: source name and kind, page,
   "chunk 12 of 43", the similarity of that chunk to the question as a

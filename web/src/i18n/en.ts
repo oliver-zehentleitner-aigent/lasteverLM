@@ -1157,6 +1157,9 @@ export const en = {
   'http.creditHeld': '({held} is held by work still running.)',
   'http.creditShortBare': 'Your credit does not cover this.',
   'voucher.topUp': 'Enter a voucher code to top up.',
+  'outputId.label': 'ID',
+  'outputId.title': 'Output ID {id}: quote it when reporting a problem with this document',
+  'outputId.copy': 'Copy the full ID',
 } as const
 
 export type MessageKey = keyof typeof en

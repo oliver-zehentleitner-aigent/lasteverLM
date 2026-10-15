@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { OutputKind, OutputPhase } from '../../api/types'
 import { elapsedLabel, phaseLabel } from '../../lib/generating'
+import { OutputId } from '../OutputId'
 
 /** The skeleton's shape per kind; kinds where a shape adds nothing share the lines. */
 const SHAPE: Partial<Record<OutputKind, string>> = {
@@ -64,7 +65,7 @@ function Skeleton({ kind }: { kind: OutputKind }) {
  *  view, and under it what is really happening: rag's phase when it sends
  *  one, the time since the output was created, and during a retry rag's
  *  error, which says which attempt follows. Nothing is made up. */
-export function Generating({ kind, createdAt, phase, retry, fallback }: { kind: OutputKind; createdAt?: string | null; phase?: OutputPhase | null; retry?: string | null; fallback: string }) {
+export function Generating({ kind, createdAt, phase, retry, outputId, fallback }: { kind: OutputKind; createdAt?: string | null; phase?: OutputPhase | null; retry?: string | null; outputId?: string; fallback: string }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
@@ -78,7 +79,11 @@ export function Generating({ kind, createdAt, phase, retry, fallback }: { kind: 
         {[phase ? phaseLabel(phase) : fallback, elapsed].filter(Boolean).join(' · ')}
       </p>
       {/* a retry's error, unless the phase already says it */}
-      {retry && phase?.step !== 'retry' && <p className="gen-retry muted small">{retry}</p>}
+      {retry && phase?.step !== 'retry' && (
+        <p className="gen-retry muted small">
+          {retry} {outputId && <OutputId id={outputId} />}
+        </p>
+      )}
     </div>
   )
 }

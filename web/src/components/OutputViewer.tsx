@@ -12,6 +12,7 @@ import { formFor, sourceKindLabel } from '../lib/outputs'
 import { tabKey, type ViewerTab } from '../lib/viewerTabs'
 import { SourceView } from './SourceView'
 import { OutputContent } from './outputs/OutputContent'
+import { OutputId } from './OutputId'
 import { ShareCard } from './ShareCard'
 import { OutputProvenance } from './OutputProvenance'
 import { checkSummary } from '../lib/outputProvenance'
@@ -218,6 +219,7 @@ export function OutputViewer({
               <h1 className="doc-title">{selected.title || formFor(selected.kind).label}</h1>
               <span className="badge">{formFor(selected.kind).label}</span>
               <span className="muted small">{formatTime(selected.created_at)}</span>
+              <OutputId id={selected.id} />
               {made && <span className="muted small" title={t('viewer.madeWith')}>{made}</span>}
               {checked && selected.provenance && (
                 <span className="muted small check-line" title={t('outProv.checkTitle', { method: selected.provenance.check.method, threshold: selected.provenance.check.threshold })}>
@@ -268,6 +270,7 @@ export function OutputViewer({
                 createdAt={selected.created_at}
                 phase={selected.phase ?? null}
                 error={selected.error}
+                outputId={selected.id}
                 content={selected.content}
                 onExpired={() => rag.getOutput(selected.id).then((o) => (o.content as AudioContent).url)}
                 speakerName={(s) => speakerName(s, selected.options, spec)}

@@ -6,6 +6,7 @@ import { optionsLabel } from '../lib/outputOptions'
 import { isRemoved } from '../lib/citations'
 import { ProvenancePanel } from './ProvenancePanel'
 import { judgeBadge, verdictCounts } from '../lib/judge'
+import { OutputId } from './OutputId'
 import { CiteContext, useCite, type Cite } from '../hooks/useCite'
 import { t } from '../i18n'
 
@@ -151,6 +152,14 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
     <details className="how-made">
       <summary>{t('outProv.how')}</summary>
       <dl className="kv">
+        {output.id && (
+          <>
+            <dt>{t('outputId.label')}</dt>
+            <dd>
+              <OutputId id={output.id} full />
+            </dd>
+          </>
+        )}
         <dt>{t('outProv.model')}</dt>
         <dd>{p.model}</dd>
         <dt>{t('outProv.prompt')}</dt>

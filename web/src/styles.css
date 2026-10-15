@@ -1109,3 +1109,6 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .plan-outputs { margin: 0.3rem 0 0; padding-left: 1.1rem; }
 .plan-sources { margin: 0; overflow-wrap: anywhere; }
 .page-notes { margin: 0.25rem 0 0; }
+.output-id { white-space: nowrap; }
+.output-id code { font-size: 0.95em; }
+.output-id .copy { margin-left: 0.15rem; }

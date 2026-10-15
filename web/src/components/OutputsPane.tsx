@@ -9,6 +9,7 @@ import { InlineRename } from './InlineRename'
 const OUTPUT_TITLE_MAX = 200
 import { formatTime } from '../lib/format'
 import { MadeFrom } from './MadeFrom'
+import { shortId } from '../lib/outputId'
 import { FILTER_FROM, SORTS, kindLabel, kindsPresent, optionsBrief, sortOutputs, whenLabel, type Sort } from '../lib/outputsList'
 
 interface Props {
@@ -103,7 +104,7 @@ export function OutputsPane({ outputs, selectedId, onOpen, onDelete, onRename, s
                     setEditing(o.id)
                   }
                 }}
-                title={`${o.title || kindLabel(o.kind)} · ${t('outputs.renameHint')}`}
+                title={`${o.title || kindLabel(o.kind)} · ${t('outputId.label')} ${shortId(o.id)} · ${t('outputs.renameHint')}`}
               >
                 <span className="out-kind">
                   <span className="badge">{kindLabel(o.kind)}</span>
