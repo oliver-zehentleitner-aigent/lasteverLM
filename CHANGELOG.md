@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/project.md` and `docs/architecture.md`: verification levels with the negation check and a second judge, coverage, proposals for tables and infographics, output IDs with stored attempts, structured URL data, tiled vision reads and the loop guard, the credit start rule with held amounts; voucher codes are stored encrypted as well as hashed.
+
 ## [0.21.0] - 2026-10-15
 
 ### Changed

@@ -111,6 +111,8 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - Storage object path: `<owner>/<library_id>/<name>` for an upload, `<notebook_id>/<output_id>/<name>` for a file an output produces (`audio.mp3`). Deleting a library source or an output deletes its objects; detaching a source from a notebook deletes nothing.
 - **Source library**, per user: a file or image is deduplicated by `sha256:<hex>` of its bytes (a PDF by bytes plus capture mode), a URL by `url:<normalised URL>`; the same content again links the existing entry instead of storing or processing it (one set of chunks and embeddings per entry, billed once at first processing). Nothing is shared between users; the same bytes from two users are two entries. Generated outputs are library rows of kind `generated` owned by the user, listed by `GET /library?kind=generated` with their origin notebook (`origin: {"id", "title"}`, `id` null once that notebook is deleted); linking one into another notebook (`{"library_id"}`) reuses its chunks at no cost. Rag owns their whole lifecycle (trash, restore, purge, see Outputs); ingest's trash and purge skip kind `generated`, and deleting a notebook or detaching a source removes only links. A new user's first notebook list, library listing or upload copies the admin-marked starter notebook (settings key `starter_notebook`, set in Admin): ready copies of its uploads with their objects, chunks and embeddings, flagged `starter`, no processing and no charge; rag copies its ready outputs into the new notebook (`ingest/context/seeds.md`). Without a starter nothing is seeded. Copies are the user's own: nothing is shared between users. Removing a source from a notebook detaches the link; deleting an entry in the library detaches it everywhere and moves it to the trash, where it stays for the user's `trash_days` preference (default 14) before the ingest worker purges it with its chunks and object, hourly and at start; it can be restored or purged at once meanwhile, and uploading the same bytes again restores it (`ingest/context/library.md`). Deleting a notebook detaches its sources and frees no storage (`ingest/context/library.md`).
 - **Web page versions** (`ingest/context/url-sources.md`): a page is fetched on first use and stores `fetched_at` and `content_hash` (sha256 of the whitespace-normalised extracted text). `POST /sources/{id}/refetch` compares before any model call: unchanged moves only `checked_at` and charges nothing; changed creates `version + 1`, which takes the dedupe key and every link, while the old row stays read-only with `superseded_by`. Every read version keeps an inert snapshot beside it (`_snapshot.html`, rebuilt from an allowlist, with its own CSP; `snapshot_url` presigned, `final_url` after redirects); an unchanged refetch backfills a missing one. The web shows it in a sandboxed iframe without scripts or same origin.
+- **Structured URL data** (`ingest/context/url-sources.md`): JSON, NDJSON, XML (RSS, Atom), CSV, TSV and YAML are read one value per line with its key path or column names (`languages.Python: 12345`, `row 3: city: Graz; price: 12`); positions (`row <n>:`, `[<n>]`, `@<name>`) are never values, which rag's number check relies on. defusedxml without entities, YAML `safe_load`, caps on depth, values and columns.
+- **Model-made text** (images, vision PDF pages, audio): an image or rendered page over 1.5 MP is read in overlapping tiles of at most 1.5 MP (`ingest/docs/vision-eval.md`); every transcript passes a deterministic loop guard, a looping one is retried once with other sampling settings and then fails the source; `read_by {vision, stt}` and per-chunk `vision` say which model made the text.
 
 ## Credits and accounting
 
@@ -118,8 +120,8 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 - Pricing rules: account's `settings` row `pricing`, `{"usd_per_eur": <US dollars per euro>, "default_margin_pct": 0, "actions": {"<action>": {"margin_pct"?, "fixed_cents"?}}}`, edited in the admin panel, re-read by every booking process at most every 30 seconds. The rate is required and has no default: without it nothing is booked. An action's own margin wins over the default; a fixed fee (euro cents) is booked once per `action_id` as its own `fee` row. Margin 0 and no fees: the charge is the cost in euros.
 - Core provides `record_usage(conn, user_id, notebook_id, service, action, action_id, usage, prices=, rules=)`, `estimate_charge(prices, rules, action, model, tokens_in, tokens_out)`, `balance_cents(conn, user_id)`, `has_credit(conn, user_id)` and `is_admin(conn, user_id)` (async twins with an `a` prefix), plus `lasteverlm_core.web.admin_only`, the FastAPI dependency behind every admin endpoint of ingest and rag. Services call these, never write `usage` by hand.
 - Core provides the object-storage client (`lasteverlm_core.storage`: put, get, delete, presigned GET with an expiry). Ingest and rag use it; no service carries its own S3 code.
-- A voucher is a single-use code; redeeming it writes one positive ledger row. Default amount `VOUCHER_DEFAULT_CENTS` (1000 in code, 500 in production). The code is stored hashed and shown once; the admin list never shows it.
-- At the start of a user action (a chat answer, an output, a read of a source, a confirmed agent plan) a service checks `has_credit`, i.e. `balance_cents > 0` for every user, admins included; otherwise 402 `{"error": "credit exhausted"}` (`core/context/credit.md`). An action that has started runs to the end, so a balance can end below zero; the next action then waits for a top-up. The maintainer tests with vouchers like everyone else.
+- A voucher is a single-use code; redeeming it writes one positive ledger row. Default amount `VOUCHER_DEFAULT_CENTS` (1000 in code, 500 in production). The code is looked up by its hash and also stored encrypted with a separate key (`VOUCHER_KEY`), so an admin can show it again and send it by mail; viewers never see it.
+- At the start of a user action a service checks the credit, for every user, admins included (`core/context/credit.md`). A short single call (a chat answer, a judge on request, a voice sample) needs `balance_cents > 0`. An output's creation, a confirmed agent plan and a queued source read need the balance to cover their estimated maximum plus the work already funded and still waiting (held: ingest's `funded_cents` of queued reads, rag's `outputs.reserved_cents`, running plan steps; ingest and rag compute the same sum); otherwise 402 `credit_insufficient` with `needed_cents`, `held_cents` and `available_cents`. An action that has started runs to the end, so a balance can end below zero; the next action then waits for a top-up. The maintainer tests with vouchers like everyone else.
 
 ## Authentication
 
@@ -298,8 +300,22 @@ only inserts rows and reads status; the frontend polls.
 ## Outputs (generated documents)
 
 An output is a document generated from a notebook's sources: a report,
-a quiz, a data table, a mind map, an infographic, or an audio version.
-The rag service owns them. One interface, `OutputGenerator`, one module
+a quiz, flashcards, a data table, a chart, a mind map, an infographic,
+an audio version or a decision. The rag service owns them. Every output
+has an ID (the UUID; `short_id` shows its first 8 hex characters) and an
+`attempt_log` of failed attempts (core's `AttemptRecord`: time, model,
+error kind, provider status, never a prompt), so support can trace it
+after any deploy; admins find it by ID prefix. Its provenance carries
+`coverage`: which selected sources its units cite and why the others
+were not used. Charts, data tables and infographics first propose
+candidates from the selected sources (`/charts/propose`,
+`/tables/propose`, `/infographics/propose`); creation re-checks that
+every candidate's passages lie in the selection (409
+`candidate_out_of_scope`). Every unit is checked by the word check
+(`lexical-overlap-v2`, with a spaCy negation check that marks
+`possible_contradiction`) and, by the verification level (basic,
+standard, thorough, bulletproof; `rag/context/judge.md`), by one or two
+judges. One interface, `OutputGenerator`, one module
 per kind, each with a prompt, an output schema and a renderer in web.
 
 | Kind | `content` | Rendered as |
