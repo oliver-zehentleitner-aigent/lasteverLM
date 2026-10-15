@@ -69,6 +69,7 @@ def test_the_catalogue_lists_the_new_options(settings):
         "language",
         "instructions",
         "judge",
+        "verification",
         "question_count",
         "difficulty",
         "audience",

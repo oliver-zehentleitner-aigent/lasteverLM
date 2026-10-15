@@ -19,7 +19,8 @@ from typing import Any
 
 from lasteverlm_core import ModelPrices, PricingRules, cost_cents
 
-from .judging import MAX_ROUNDS
+from .judging import MAX_ROUNDS, STANDARD_JUDGE
+from .options import THOROUGH_JUDGE
 from .outputs import OutputGenerator
 from .outputs._base import JsonGenerator
 from .suggestions import NOTEBOOK_SUGGESTIONS_MAX_TOKENS
@@ -93,7 +94,20 @@ def output_calls(
     level = options.get("judge")
     if level:
         calls += judge_calls(kind, options, models, str(level), case, revise=True)
+    elif options.get("verification") == "standard" and case == 1:
+        # at most every unit is doubted and judged once; at least none
+        calls += judge_calls(kind, options, models, STANDARD_JUDGE, case, revise=False)
     return calls
+
+
+def level_options(options: Mapping[str, Any], level: str) -> dict[str, Any]:
+    """The same output's options at another verification level."""
+    base = {k: v for k, v in options.items() if k not in ("judge", "verification")}
+    if level == "standard":
+        return {**base, "verification": "standard"}
+    if level == "thorough":
+        return {**base, "verification": "thorough", "judge": THOROUGH_JUDGE}
+    return base
 
 
 def judge_calls(

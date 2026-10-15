@@ -319,6 +319,25 @@ credit), every later one, from any user, gets the stored file
 (`"cached": true`) without a model call. The URL is presigned for one
 hour. 503 when the deployment has no text-to-speech.
 
+**Verification levels.** `options.verification` says how much checking
+an output gets and may cost: `basic` (default, absent when stored) is the
+word check and the negation check, free; `standard` also judges every
+unit those doubt (`unsupported`, `unverified`, `possible_contradiction`)
+once at the `low` judge, annotate only (`provenance.judge`: `{"mode":
+"doubted", "judged", "level", "model", "verdicts", ...}`); `thorough` is
+the judge at `medium` with revision, below (stored as `verification:
+"thorough"` with `judge: "medium"`). Sending both `verification` and
+`judge` is 422; charts take neither. `GET /outputs/options` lists the
+levels, and `POST /estimate` with a `kind` adds `levels`: `{"basic",
+"standard", "thorough"}`, each `{"min", "max"}` in euro cents, the
+output's price at that level. A chat answer follows the user's level
+(account's `verification_level`, else their older `judge_default`: off
+basic, low standard, medium and high thorough), annotate only, inside the
+answer's request: standard judges its doubted paragraphs at low,
+thorough every paragraph at medium; `Message.support.judge` holds the
+summary. `bulletproof` (a second judge) comes later; until then that
+preference reads as thorough.
+
 **Judge.** `options.judge` (`off` by default, `low`, `medium` or
 `high`) is offered for every kind except `chart`, whose values already
 get the exact number check. With a level set, the word check is followed
@@ -495,16 +514,19 @@ and one preselected. `POST .../answer` applies the choice to the steps
 (it sets or removes an option and re-validates and re-estimates them),
 records the answer as a user turn, and proposes the plan. Confirm answers
 409 `answer the question first` until then. The mechanism is general,
-and the judge is its first question:
+and the verification level is its first question:
 
-- **Message says:** a judge the message asks for or against ("with
-  judge", "ohne Prüfung", "judge high") is taken as said, and "with a
-  judge" without a level is the user's `judge_default`, or `medium`
-  when that is off.
-- **Message does not say, default off:** no judge, and `plan.notes` says
+- **Message says:** a level the message names ("check it thoroughly",
+  "ohne Prüfung") is taken as said, and "with a check" without a level is
+  the user's own level, or `thorough` when theirs is basic. A `judge`
+  option from an older planner reads as its level.
+- **Message does not say, level basic:** no judge, and `plan.notes` says
   so in one line.
-- **Message does not say, default set:** the plan asks, with "With a
-  judge (<level>, your default)" preselected and "Without a judge".
+- **Message does not say, level above basic:** the plan asks "How
+  thoroughly should the new documents be checked?" with
+  `verification:basic`, `verification:standard` and
+  `verification:thorough`, each with its estimate, the user's level
+  preselected.
 
 The second question is the web pages. A plan that creates an output from
 a notebook holding web pages asks once, "<page> was read 15 h ago: use

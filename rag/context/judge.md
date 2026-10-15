@@ -47,7 +47,8 @@ a bet on harder material, not something this experiment shows
 
 **Id:** 5af3cb49-03f5-41b3-abe5-daaa4d6a6d6b
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 2567fcf4-09b1-4bc9-80e7-759bce4c3326
 **Evidence:** inferred
 **Source:** maintainer design relayed by the coordinator, 2026-10-14 (`judge` off by default, supersedes nothing); the measurements in `docs/judge-eval.md`; the reasons and leaving charts out are rag's
 **Revisit when:** judge calls become cheap and fast enough to run on every output unnoticed, or users turn the judge on for most outputs anyway
@@ -186,3 +187,45 @@ its claims tells the reader which ones hold without changing the
 document. A corrected version is a new generation with the judge on.
 
 **Rejected alternatives:** unknown.
+
+## Verification levels: how much checking an output gets is one setting, from free to a judge on everything
+
+**Id:** 2567fcf4-09b1-4bc9-80e7-759bce4c3326
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the coordinator, 2026-10-15 (a verification level in the settings, preselected in the output form and changeable per output, asked by the chat when unclear; its price shown before Create; a "bulletproof" level that may cost but checks reliably; a unit the word check cannot check is judged from standard up; translate-then-compare rejected); rag's plan checked against the code and confirmed the same day (thorough keeps today's three rounds, standard includes unsupported units, chat not capped, judge_default high maps to bulletproof)
+**Revisit when:** most users pick the same level (the choice then costs attention for nothing), standard's judge rarely changes a doubted unit's reading, or the second judge for bulletproof is chosen
+
+An output's `verification` is `basic`, `standard` or `thorough`
+(`bulletproof` follows once its second judge is chosen by evaluation).
+Basic is the word check and the negation check, free. Standard also
+judges, once at the low judge and annotate only, every unit that check
+doubts: unsupported, unverified (another language) and
+possible_contradiction, so each of them ends with a real verdict.
+Thorough is the judge at medium with up to three rounds of revision, as
+the judge option did before. The estimate prices every level before
+Create; the form preselects the user's `verification_level`; the agent
+asks for the level when the message does not say and the user's level is
+above basic. Chat answers follow the user's level, annotate only. The
+older `judge` option and `judge_default` keep working, read as their
+level.
+
+**Reason:** a user cares how reliable a document is and what it costs,
+not which judge model at which level runs. One setting from free to
+thorough says that directly, and showing every level's price before
+Create lets the user decide per output. Standard spends a judge only
+where the free check has a doubt, which is where a verdict changes what
+a reader can trust; a unit in another language or with too little word
+overlap otherwise stays without any verdict. Thorough keeps the existing
+three rounds rather than one, so no level is weaker than the judge it
+replaces.
+
+**Rejected alternatives:**
+- A judge on or off with a model level (the setting before): it asks
+  for a technical choice and leaves doubted units of an unjudged output
+  without a verdict.
+- Translating a unit in another language and comparing words again: an
+  LLM call anyway, and a worse one than the judge.
+- Thorough with one revision round: weaker than the medium judge it
+  replaces.

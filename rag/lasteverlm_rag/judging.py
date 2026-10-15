@@ -44,6 +44,10 @@ SUPPORTED = "supported"
 # what is revised and, if it stays, removed; a unit without a verdict is neither
 FAILING = ("contradicted", "not_in_source")
 NO_USABLE_ANSWER = "no_usable_answer"
+# standard verification: what the word and negation checks doubt is judged
+# once, at this level, annotate only
+DOUBTED = frozenset({"unsupported", "unverified", "possible_contradiction"})
+STANDARD_JUDGE = "low"
 
 
 def _counts(judgements: Iterable[Judgement]) -> dict[str, int]:

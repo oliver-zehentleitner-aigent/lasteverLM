@@ -32,18 +32,18 @@ from .agent import (
     Context,
     Step,
     build_steps,
-    judge_question,
     output_label,
     pages_question,
     public_question,
     separate,
     tool_specs,
     total,
+    verification_question,
 )
 from .citations import inline
 from .ingest_client import Ingest, IngestError
 from .models import Booking
-from .options import OutputOptions, resolve
+from .options import LEVEL_OF_JUDGE, OutputOptions, resolve
 from .provenance import now
 from .reading import reading_lines, selected_uploads
 from .service import (
@@ -57,6 +57,7 @@ from .service import (
     require_credit,
     require_notebook,
     twice,
+    verification_level,
 )
 from .store import Store
 
@@ -226,9 +227,9 @@ class AgentService:
             if any(n == "add_from_library" for n, _ in calls)
             else {}
         )
-        # a judge the message asked for (or against) is taken as said; "default" is the
-        # user's own level, or the middle one when their default is off
-        default_level = str(self._store.user_preference(user_id, "judge_default") or "off")
+        # a level the message names is taken as said; "default" is the user's own
+        # level, or thorough when theirs is basic (they asked for a check)
+        default_level = verification_level(self._store, user_id)
         judge_said: set[int] = set()
         # how the message says to treat the notebook's web pages, per output step
         pages_said = {
@@ -238,10 +239,16 @@ class AgentService:
         }
         for n, (name, args) in enumerate(calls, start=1):
             options = args.get("options")
-            if name == "create_output" and isinstance(options, dict) and "judge" in options:
-                judge_said.add(n)
-                if options["judge"] == "default":
-                    options["judge"] = default_level if default_level != "off" else "medium"
+            if name == "create_output" and isinstance(options, dict):
+                if "judge" in options:  # a planner of the older prompt
+                    options["verification"] = LEVEL_OF_JUDGE.get(
+                        str(options.pop("judge")), "default"
+                    )
+                if "verification" in options:
+                    judge_said.add(n)
+                    if options["verification"] == "default":
+                        level = default_level if default_level != "basic" else "thorough"
+                        options["verification"] = level
         steps = build_steps(calls, Context(question, library, outputs, self._default_voice))
         for step in steps:
             if not step.valid:
@@ -276,15 +283,15 @@ class AgentService:
         questions: list[dict[str, Any]] = []
         notes: list[str] = []
         open_judge = [n for n in outputs_steps if n not in judge_said]
-        if open_judge and default_level != "off":
-            judge_q = judge_question(str(uuid.uuid4()), open_judge, default_level)
-            for choice in judge_q["choices"]:
-                choice["estimate"] = _sum(self._apply(judge_q["apply"], choice["id"], steps_json))
-            questions.append(judge_q)
+        if open_judge and default_level != "basic":
+            level_q = verification_question(str(uuid.uuid4()), open_judge, default_level)
+            for choice in level_q["choices"]:
+                choice["estimate"] = _sum(self._apply(level_q["apply"], choice["id"], steps_json))
+            questions.append(level_q)
         elif open_judge:
             notes.append(
-                "Without a judge: the new documents are not checked by a second model. "
-                "Ask for one if you want it."
+                "Basic check only (words and negation): the new documents are not checked by "
+                "a judge. Ask for one if you want it."
             )
         open_pages = [n for n in outputs_steps if n not in pages_said]
         if open_pages and pages:
@@ -457,6 +464,8 @@ class AgentService:
                 raise ValueError(f"unknown question kind {apply['kind']!r}")
             options = {k: v for k, v in step["args"]["options"].items()}
             options.pop(apply["option"], None)
+            for other in apply.get("clears", []):
+                options.pop(other, None)  # the level replaces a legacy judge
             if value is not None:
                 options[apply["option"]] = value
             kind = step["args"]["kind"]

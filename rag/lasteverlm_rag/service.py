@@ -60,7 +60,7 @@ from .citations import defuse_markers, inline, map_citations, number_passages, s
 from .coverage import balance, per_source_quota, uncovered_sources
 from .failures import failure_kind
 from .ingest_client import Ingest
-from .judging import annotate, judge_output, stored_units
+from .judging import DOUBTED, STANDARD_JUDGE, annotate, judge_output, stored_units
 from .models import (
     Booking,
     Conversation,
@@ -77,7 +77,14 @@ from .models import (
     SpeechTurn,
     Unit,
 )
-from .options import OutputOptions, language_name, resolve
+from .options import (
+    LEVEL_OF_JUDGE,
+    THOROUGH_JUDGE,
+    VERIFICATION_LEVELS,
+    OutputOptions,
+    language_name,
+    resolve,
+)
 from .outputs import CompleteFn, OutputGenerator
 from .outputs._base import GenerationFailed, JsonGenerator, parse_json
 from .outputs.chart import (
@@ -356,7 +363,10 @@ class RagService:
         ingest: Ingest | None = None,
         read_wait_s: float = ANSWER_WAIT_S,
         sleep: Callable[[float], None] = time.sleep,
+        judges: Mapping[str, LLM] | None = None,
     ) -> None:
+        # the judge models an answer's verification level asks
+        self._judges = judges or {}
         # ingest reads sources when an answer needs them (with the asker's bearer)
         self._ingest = ingest
         self._read_wait_s = read_wait_s
@@ -441,6 +451,8 @@ class RagService:
             text, suggestions = twice("answer", answered)
             answer, citations = map_citations(text, passages)
             support = check_answer(answer, citations)
+            if support is not None:
+                self._verify(user_id, booking, support, citations)
             # the web pages the answer cites, with when their cached version was read
             pages = cited_pages(self._store, notebook_id, citations)
             if pages and support is not None:
@@ -475,6 +487,55 @@ class RagService:
             suggestions=suggestions,
             web_pages=(support or {}).get("web_pages", []),
         )
+
+    def _verify(
+        self,
+        user_id: str,
+        booking: Booking,
+        support: dict[str, Any],
+        citations: Sequence[Citation],
+    ) -> None:
+        """The user's verification level on a chat answer, annotate only, in
+        the request: standard judges the paragraphs the checks doubt once at
+        low, thorough every paragraph at medium. Basic adds nothing."""
+        level = verification_level(self._store, user_id)
+        if level not in ("standard", "thorough"):
+            return
+        judge_level = STANDARD_JUDGE if level == "standard" else THOROUGH_JUDGE
+        judge_llm = self._judges.get(judge_level)
+        if judge_llm is None:
+            log.warning("chat verification %s: no judge model for level %s", level, judge_level)
+            return
+        units = [
+            Unit(t, str(t["text"]), list(t.get("refs") or []))
+            for t in support["units"]
+            if t.get("refs") and (level == "thorough" or t.get("support") in DOUBTED)
+        ]
+        usage = {"tokens_in": 0, "tokens_out": 0}
+        lock = threading.Lock()
+
+        def judge(
+            system: str, user: str, max_tokens: int | None = None, *, thinking: bool | None = None
+        ) -> CompletionResult:
+            result = complete_billed(self._store, judge_llm, booking, system, user, max_tokens)
+            with lock:
+                usage["tokens_in"] += result.usage.tokens_in
+                usage["tokens_out"] += result.usage.tokens_out
+            return result
+
+        summary = annotate(
+            judge,
+            units,
+            {c.n: c.quote for c in citations},
+            level=judge_level,
+            model=judge_llm.model,
+        )
+        support["judge"] = {
+            "mode": "doubted" if level == "standard" else "all",
+            "judged": len(units),
+            **summary,
+            "usage": usage,
+        }
 
     def notebook_suggestions(self, user_id: str, notebook_id: str) -> NotebookSuggestions:
         """Starting questions over the notebook's source summaries: one model
@@ -1003,6 +1064,8 @@ class OutputService:
                 generated = self._judge(job, booking, generated, trace)
                 # the word check again, on what is left after revision and removal
                 check = check_units(generated.units, trace.passages, job.kind)
+            elif job.options.get("verification") == "standard":
+                self._judge_doubted(booking, generated, trace)
             content = generated.content
             if job.kind == "decision":
                 trace.withheld = finish_decision(content)
@@ -1375,6 +1438,36 @@ class OutputService:
             on_phase=self._phase,
         )
         return judged
+
+    def _judge_doubted(
+        self, booking: Booking, generated: GeneratedOutput, trace: GenerationLog
+    ) -> None:
+        """Standard verification: every unit the word and negation checks
+        doubt is judged once at low, annotate only; supported units keep
+        the word check."""
+        doubted = [
+            u
+            for u in generated.units
+            if u.target.get("support") in DOUBTED and u.target.get("refs")
+        ]
+        judge_llm = self._judges.get(STANDARD_JUDGE)
+        if judge_llm is None:
+            raise GenerationFailed(f"judge: no model for level {STANDARD_JUDGE} on this deployment")
+
+        def counted(usage: Usage) -> None:
+            trace.judge_in += usage.tokens_in
+            trace.judge_out += usage.tokens_out
+
+        if doubted:
+            self._phase("judging", n=1, of=1)
+        summary = annotate(
+            self._judge_call(judge_llm, booking, counted),
+            doubted,
+            {p.n: p.text for p in trace.passages},
+            level=STANDARD_JUDGE,
+            model=judge_llm.model,
+        )
+        trace.judge = {"mode": "doubted", "judged": len(doubted), **summary}
 
     def _judge_call(
         self,
@@ -1998,3 +2091,16 @@ def public_error(exc: Exception) -> str:
     if isinstance(exc, StorageError):
         return "storing the audio failed; the job is retried up to three times"
     return "internal error while generating; the job is retried up to three times"
+
+
+def verification_level(store: Store, user_id: str) -> str:
+    """The user's verification level (account's ``verification_level``), or
+    what their older ``judge_default`` amounts to; basic without either."""
+    level = store.user_preference(user_id, "verification_level")
+    if level in VERIFICATION_LEVELS:
+        return str(level)
+    if level == "bulletproof":
+        return "thorough"  # until the second judge exists, the most there is
+    return LEVEL_OF_JUDGE.get(
+        str(store.user_preference(user_id, "judge_default") or "off"), "basic"
+    )
