@@ -273,11 +273,12 @@ even below zero, so a source is never left half read and half paid.
   (migration 0017).
 
 - **Held:** started work is the owner's funded rows (`processing`, not
-  trashed) plus rag's outputs that are `waiting` or `processing` and not
-  trashed (`outputs.reserved_cents`, rag's migration 0016).
+  trashed), rag's outputs that are `waiting` or `processing` and not
+  trashed (`outputs.reserved_cents`, rag's migration 0016), and the
+  estimated maximum of every `explain_output` step still `waiting` or
+  `running` in a running agent plan (`plans.steps`).
 
-Rag counts the same two sums for its own start check, plus the
-explanation steps of a running agent plan. The API pods never process
+Rag computes the same sum for its own start check. The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
 

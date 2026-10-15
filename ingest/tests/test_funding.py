@@ -98,3 +98,27 @@ def test_an_outputs_reservation_makes_a_queued_source_wait(client, repo):
     repo.reservations[output] = (DEMO_USER_ID, "ready", needed * Decimal("1.5"))
     assert [s["status"] for s in client.get(url).json()] == ["processing"]
     assert repo.claim_library_source("w", 600) == UUID(lib)
+
+
+def test_a_running_plans_explain_step_makes_a_queued_source_wait(client, repo):
+    """Rag holds the estimated maximum of a running plan's explain steps;
+    ingest counts the same, so the read waits until the step has run."""
+    lib, url = _add(client, "a.txt")
+    estimate = client.post("/api/ingest/sources/estimate", json={"library_ids": [lib]}).json()
+    needed = Decimal(estimate["items"][0]["charge_cents_max"])
+    repo.credits[DEMO_USER_ID] = needed * 2
+    step = {
+        "tool": "explain_output",
+        "state": "waiting",
+        "estimate": {"max": float(needed * 3 / 2)},
+    }
+    done = {"tool": "explain_output", "state": "done", "estimate": {"max": 1000}}
+    plan = uuid4()
+    repo.plans[plan] = (DEMO_USER_ID, "running", [done, step])
+    _process(client, lib)
+    assert repo.library[UUID(lib)].funded_request_at is None
+    assert [s["status"] for s in client.get(url).json()] == ["waiting_for_credit"]
+    assert repo.claim_library_source("w", 600) is None
+    # The step ran: it holds nothing any more, the read starts.
+    repo.plans[plan] = (DEMO_USER_ID, "running", [done, {**step, "state": "done"}])
+    assert repo.claim_library_source("w", 600) == UUID(lib)

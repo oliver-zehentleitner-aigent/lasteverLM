@@ -546,6 +546,41 @@ def test_an_outputs_reservation_counts_as_held_in_the_claim(repo):
     assert _claim_all(repo) == {source.id}
 
 
+def test_a_running_plans_explain_step_counts_as_held_in_the_claim(repo):
+    """Rag's running plans hold the estimated maximum of their explain steps
+    still to run; ingest counts the same sum."""
+    import json
+    from decimal import Decimal
+
+    _claim_all(repo)
+    owner = _user(repo, cents=10)
+    notebook = repo.create_notebook(owner, "nb")
+    conversation, plan = uuid4(), uuid4()
+    _execute(
+        repo,
+        "insert into conversations (id, notebook_id, title) values (%s, %s, 'chat')",
+        (conversation, notebook.id),
+    )
+    steps = [
+        {"tool": "explain_output", "state": "waiting", "estimate": {"max": 8}},
+        {"tool": "explain_output", "state": "done", "estimate": {"max": 50}},
+        {"tool": "create_output", "state": "waiting", "estimate": {"max": 50}},
+    ]
+    _execute(
+        repo,
+        "insert into plans (id, conversation_id, notebook_id, owner, status, steps, "
+        "estimate, action_id) values (%s, %s, %s, %s, 'running', %s::jsonb, '{}', %s)",
+        (plan, conversation, notebook.id, owner, json.dumps(steps), uuid4()),
+    )
+    assert repo.held_cents(owner) == 8
+    source = _library(repo, owner, queued=False)
+    repo.queue_for_processing(owner, [source.id], {source.id: Decimal(5)})
+    assert _claim_all(repo) == set()  # 10 - 8 held = 2 < 5: it waits
+    _execute(repo, "update plans set status = 'done' where id = %s", (plan,))
+    assert repo.held_cents(owner) == 0
+    assert _claim_all(repo) == {source.id}
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)

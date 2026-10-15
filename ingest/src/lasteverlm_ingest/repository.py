@@ -539,7 +539,8 @@ class Repository(Protocol):
     def held_cents(self, owner: UUID) -> Decimal:
         """What the owner's started work holds of the balance: the estimated
         maxima of their funded reads still waiting, plus what rag's waiting
-        and processing outputs reserve (`outputs.reserved_cents`)."""
+        and processing outputs reserve (`outputs.reserved_cents`) and the
+        estimated maxima of their running plans' explain steps."""
         ...
 
     def has_credit(self, user_id: UUID) -> bool:
@@ -810,12 +811,18 @@ class PostgresRepository:
     # the balance, less what the owner's started work holds, covers this
     # read's estimated maximum (funded_cents, stored when it was queued; 0
     # for rows queued before estimates existed). Started work is the
-    # owner's other funded reads still waiting and rag's waiting and
-    # processing outputs (`outputs.reserved_cents`), the sum rag holds too.
+    # owner's other funded reads still waiting, rag's waiting and
+    # processing outputs (`outputs.reserved_cents`) and the explain steps
+    # of their running agent plans: the sum rag holds, so neither service
+    # lets through what the other already counts as taken.
     _RESERVED = (
         "coalesce((select sum(o.reserved_cents) from outputs o "
         "where o.owner = {owner} and o.status in ('waiting', 'processing') "
-        "and o.deleted_at is null), 0)"
+        "and o.deleted_at is null), 0) + "
+        "coalesce((select sum((s->'estimate'->>'max')::numeric) "
+        "from plans p, jsonb_array_elements(p.steps) s "
+        "where p.owner = {owner} and p.status = 'running' "
+        "and s->>'tool' = 'explain_output' and s->>'state' in ('waiting', 'running')), 0)"
     )
     # One parenthesised sum: the claim subtracts it as a whole.
     _HELD = (
