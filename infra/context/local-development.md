@@ -10,8 +10,8 @@
 **Revisit when:** MinIO publishes public images again, or RustFS stops being maintained
 
 `compose.yaml` runs `rustfs/rustfs:1.0.1` as the S3 endpoint the
-ingest and rag services write to locally. The task asked for MinIO,
-but MinIO no longer publishes pullable images; building it from source
+ingest and rag services write to locally. MinIO was the planned
+local storage, but MinIO no longer publishes pullable images; building it from source
 on every developer machine is not a reasonable start-up step.
 
 **Reason:** RustFS speaks the S3 API the services use through boto3
@@ -66,7 +66,8 @@ API paths a test or curl sends.
 **Revisit when:** the compose file is used for anything reachable from another machine
 
 The database passwords, the storage keys, the JWT secret, the demo
-token and the visitor hash secret in `compose.yaml` are fixed,
+token, the visitor hash secret and the voucher key in `compose.yaml`
+are fixed,
 readable values such as `local-dev-password`. They are not secrets
 and are not used anywhere else: the deployment never reads this file,
 `make secrets` generates its own values with `openssl rand`, and

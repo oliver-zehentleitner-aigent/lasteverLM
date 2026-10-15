@@ -9,7 +9,7 @@
 **Source:** Vultr API `GET /v2/object-storage/clusters`, queried 2026-10-12
 **Revisit when:** Vultr opens an object storage cluster in `fra`
 
-The compute region is `fra` (nearest to the maintainer), but Vultr has
+The compute region is `fra` (nearest to where the demo is used), but Vultr has
 no object storage cluster there; the available European clusters are in
 `ams`. `object_storage_region` therefore defaults to `ams` separately
 from `region`. Uploads cross one hop between the regions, which at the

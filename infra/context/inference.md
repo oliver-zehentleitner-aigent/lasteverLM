@@ -6,9 +6,10 @@
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** `GET https://api.vultrinference.com/v1/models` on 2026-10-12 (catalog, prices, context lengths), embedding probes the same day; the choice itself was delegated to infra by the family coordinator because the maintainer was offline; the same catalog read again on 2026-10-14 (qwen3.8-27b's prices, the TTS unit)
+**Source:** `GET https://api.vultrinference.com/v1/models` on 2026-10-12 (catalog, prices, context lengths), embedding probes the same day; the choice itself was delegated to infra while the maintainer was offline; the same catalog read again on 2026-10-14 (qwen3.8-27b's prices, the TTS unit)
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — b57ab97c-0eee-43b3-a7ee-06226e2d9714 — as of 2026-10-14
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — b8b85840-a958-42e9-90b4-a9205d5b6f40 — as of 2026-10-14
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — b059feca-be73-4d1f-8af6-e5d3fd46b228 — as of 2026-10-15
 **Revisit when:** a Llama-class or a stronger multilingual model appears in the catalog, the demo's answer quality is judged, or the prices change
 
 `LLM_MODEL=qwen3.8-27b`, `EMBEDDING_MODEL=qwen3-embedding-4b`,
@@ -16,8 +17,8 @@
 `MODEL_PRICES` from the catalog's prices: qwen3.8-27b
 `{"in":15,"out":100}` cents per million input and output tokens,
 qwen3-embedding-4b 5, and qwen3-tts-12hz-1.7b 28000 cents per million
-seconds of output audio. The maintainer can flip any of these with one
-value in the environment and `make deploy`.
+seconds of output audio. Any of these is one value in
+`chart/values-prod.yaml` and a release away.
 
 The two catalog reads disagree on qwen3.8-27b: the read of 2026-10-12
 was recorded as one price per model, 100 cents for `in` and `out`; the
@@ -30,7 +31,7 @@ are 15 and 100 since 2026-10-14.
 **Reason:** the catalog has no Llama-class model at all. Among the text
 models, qwen3.8-27b is multilingual (German sources are the demo case),
 has 262k context, is in the same family as the only embedding model,
-and costs a third of the strongest option. qwen3-embedding-4b is the
+and costs a fifth (input) to a third (output) of the strongest option. qwen3-embedding-4b is the
 only embedding model; its native 2560 dimensions exceed pgvector's
 2000-dimension limit for HNSW and IVFFlat indexes, and the API honours
 the OpenAI `dimensions` parameter (verified with 1024 and 1536), so
@@ -54,6 +55,12 @@ read as "token" on 2026-10-12), core first priced `tts` usage per
 million characters of input text, and core and rag now record the
 seconds the platform reports (`x-usage-seconds`), so the 28000 applies
 to seconds (the two See lines).
+
+**Re-checked 2026-10-15:** the trigger "the prices change" fired with
+the 2026-10-14 catalog read (qwen3.8-27b 15 / 100 instead of 100 / 100).
+The choice holds: the new prices make qwen3.8-27b cheaper on input, and
+none of the other reasons (multilingual, context length, same family
+as the embeddings) depended on the price.
 
 ## Speech to text: whisper-large-v3-turbo, priced per second of audio
 
@@ -126,13 +133,14 @@ verified against an invoice. clef and clef-flash run only in `atl`
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** the family coordinator's request on 2026-10-14 for rag's opt-in judge (levels low, medium and high) with models of another family than the author model; prices and regions from `GET https://api.vultrinference.com/v1/models` the same day; the level mapping from rag's evaluation of 2026-10-14 (`rag/docs/judge-eval.md`)
+**Source:** the request of 2026-10-14 for rag's opt-in judge (levels low, medium and high) with models of another family than the author model; prices and regions from `GET https://api.vultrinference.com/v1/models` the same day; the level mapping from rag's evaluation of 2026-10-14 (`rag/docs/judge-eval.md`)
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — fda0071d-05c0-4a5a-9253-6a35dc7d137a — as of 2026-10-14
 **Revisit when:** rag measures the judge again and changes the mapping, a model is dropped, or the catalog changes a price or region
 
 `JUDGE_MODELS` is set explicitly in `chart/values-prod.yaml` and
 `compose.yaml`: `low` deepseek-v4.1-flash, `medium` glm-5.3-flash,
-`high` glm-5.3. That swaps `low` and `medium` against core's defaults:
+`high` glm-5.3. That swapped `low` and `medium` against core's first
+defaults, which core has since adopted (`DEFAULT_JUDGE_MODELS`):
 in rag's evaluation the GLM models spent 3 to 4 times the output tokens
 of deepseek-v4.1-flash, so glm-5.3-flash cost more per call despite the
 lower list price. `MODEL_PRICES` carries all three, added before the
