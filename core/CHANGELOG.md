@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.21.3] - 2026-10-15
+
 ### Added
 
 - `short_id(uuid)`: the first eight hex characters of a UUID, the one display form of an id for every service, log line and page.
