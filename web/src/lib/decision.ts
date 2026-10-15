@@ -84,7 +84,29 @@ export function orderedDistribution(dist: Record<string, number>, order: readonl
  *  options (choice and scale), for the "model: B, evidence: A" line. */
 export function modelVersusEvidence(c: DecisionContent): { model: string; evidence: string } | null {
   const a = c.model_answer
+  if (undecided(c) || !a) return null
   const model = 'choice' in a ? a.choice : 'level' in a ? a.level : null
   if (!model || !c.llm_choice || c.llm_choice === model) return null
   return { model, evidence: c.llm_choice }
+}
+
+/** The sources do not decide the question: no number is shown, whatever
+ *  the decision model said. rag sends `model_answer: null` for it; older
+ *  outputs still carry numbers next to "undecided", which are ignored. */
+export function undecided(c: Pick<DecisionContent, 'agreement' | 'model_answer'>): boolean {
+  return c.agreement === 'undecided' || !c.model_answer
+}
+
+const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
+
+/** Whether the question needs its own heading: not when the document's
+ *  title already is the question (rag titles a decision with it). */
+export function showQuestion(question: string, title: string | null | undefined): boolean {
+  return !title || norm(title) !== norm(question)
+}
+
+/** A yes/no answer's two shares in whole percent, adding up to 100. */
+export function yesNo(probabilityYes: number): { yes: number; no: number } {
+  const yes = percent(probabilityYes)
+  return { yes, no: 100 - yes }
 }

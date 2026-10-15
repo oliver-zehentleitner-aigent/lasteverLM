@@ -566,7 +566,9 @@ export type Agreement = 'consistent' | 'conflicting' | 'unclear' | 'undecided'
 export interface DecisionContent {
   question: string
   decision_type: DecisionType
+  /** null when the sources do not decide the question (agreement "undecided") */
   model_answer:
+    | null
     | { probability_yes: number; answer: 'yes' | 'no' }
     | { choice: string; distribution: Record<string, number>; confidence: number }
     | { level: string; score: number; legend: string[]; distribution: Record<string, number>; confidence: number }

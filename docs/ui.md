@@ -487,15 +487,20 @@ opens the notebook.
   for Choice an editable list of 2–8 options, for Scale 3–7 ordered
   levels, lowest first, preset "very unlikely … very likely". Create
   waits for a valid form and says what is missing. The document: the
-  question as its title, then the decision model's answer in a panel:
-  yes/no as a horizontal gauge (No to Yes, the percentage of yes, a mark
-  at 50 %), a choice as one bar per option with the model's answer
+  question as its title (not repeated as a heading under it while the
+  title is the question), then the decision model's answer in a panel:
+  yes/no as the answer in words over a horizontal bar, yes filled from
+  the left, "Yes 77 %" and "No 23 %" at its ends, a mark at 50 %; a choice as one bar per option with the model's answer
   highlighted and its confidence, a scale as segments with the level it
   lands on filled and a mark at the weighted position; under it the
   verdict, and whether the decision model and the evidence agree
   (green), disagree (amber, never hidden, with "model: B, evidence: A"
   when they name different options), cannot be told, or the sources do
-  not decide it, with rag's one-sentence reason. Then Evidence for and
+  not decide it, with rag's one-sentence reason. When the sources do
+  not decide it (agreement "undecided", rag's `model_answer` null) the
+  panel, dashed, says only "No decision: the sources do not contain what
+  is needed." with the reason: no number, no bar, no verdict line, for
+  older documents with numbers too. Then Evidence for and
   Evidence against side by side (stacked on a phone) with their markers
   and badges, and "What the sources do not say". "How this was made"
   lists both calls (decision and evidence: model, prompt, duration, the

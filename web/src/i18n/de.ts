@@ -1194,4 +1194,5 @@ export const de: Record<MessageKey, string> = {
   'outProv.passages.one': '{n} Passage',
   'outProv.passages.other': '{n} Passagen',
   'chat.passage': 'Passage {n}',
+  'decision.none': 'Keine Entscheidung: Die Quellen enthalten nicht, was dafür nötig ist.',
 }
