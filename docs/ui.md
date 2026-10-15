@@ -523,6 +523,23 @@ opens the notebook.
   happens only while an output is made.
   The share page shows all of it. The estimated charge of the chosen
   level stands next to Check (see "Prices").
+- **Table and infographic from proposals** (where rag's catalogue has
+  `proposals.table` / `proposals.infographic`): the same step as the
+  chart's below. **Find tables** (`POST …/tables/propose`) or **Find
+  themes** (`POST …/infographics/propose`), at most 1–6 (the
+  catalogue's max and default), with the notes and the selection as
+  Create sends them, priced by `table_propose` / `infographic_propose`;
+  each candidate as a small preview (a table's columns and up to three
+  rows; a theme's headline and up to four facts) with the sources it
+  rests on and a checkbox, all ticked to start. Create sends the ticked
+  ones exactly as proposed (`options.tables` / `options.themes`) and
+  waits until at least one is ticked. Candidates belong to the notebook,
+  the selection, the pages to fetch again and the notes; a change drops
+  them with "find tables (themes) again for the current selection", as
+  rag's `candidate_out_of_scope` refusal reads. The output shows each
+  table (sortable, its own CSV) or each theme's part of the infographic
+  under its title; older outputs, one table or one infographic, look as
+  before. The chart's step is the same component.
 - **Chart** ("number series from the sources, drawn and checked"). Under
   the tiles: the optional notes, how many charts at most (1–12, 6 by
   default) and **Find charts**, one billed model call (`POST

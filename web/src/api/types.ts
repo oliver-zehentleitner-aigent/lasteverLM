@@ -520,6 +520,9 @@ export interface OutputOptions {
   verification?: VerificationLevel
   /** chart: the picked candidates exactly as proposed (create only) */
   charts?: ChartCandidate[]
+  /** table and infographic: the picked candidates exactly as proposed (create only, 1–6) */
+  tables?: TableCandidate[]
+  themes?: ThemeCandidate[]
   /** in a response only: the source ids the document was made from,
    *  absent when all sources were used (the request sends `source_ids`) */
   sources?: string[]
@@ -564,6 +567,8 @@ export interface OutputOptionsSpec {
   judge?: { levels: JudgeLevel[]; default: JudgeLevel; models: Partial<Record<JudgeLevel, string>> }
   verification?: { levels: VerificationLevel[]; default: VerificationLevel }
   chart?: { chart_types: ChartType[]; charts_max: number; propose_max: number; propose_default: number }
+  /** the kinds made from proposals besides charts: how many may be proposed and ticked */
+  proposals?: Partial<Record<'table' | 'infographic', { max: number; default: number }>>
   kinds: Partial<Record<OutputKind, OutputOption[]>>
 }
 
@@ -680,6 +685,27 @@ export interface TableContent {
   rows: (string | number | null)[][]
   /** one per row, same index: what the row rests on; absent on older tables */
   row_refs?: Claim[]
+  /** made from proposed tables: one per ticked candidate, each like a single table */
+  tables?: (Omit<TableContent, 'tables'> & { title: string; candidate_id: string })[]
+}
+
+/** What a proposal shares: the sources and passages it rests on, and the call that made it. */
+interface ProposalBase {
+  id: string
+  title: string
+  sources: { source_id: string; name: string }[]
+  passages: { n: number; chunk_id: string; source_name: string; page: number | null }[]
+  proposal: { model: string; prompt_version: string; tokens_in: number; tokens_out: number; proposed_at: string }
+}
+/** A proposed table: its columns and up to three rows to preview. */
+export interface TableCandidate extends ProposalBase {
+  columns: string[]
+  preview: string[][]
+}
+/** A proposed infographic theme: its headline and up to four facts to preview. */
+export interface ThemeCandidate extends ProposalBase {
+  headline: string
+  facts: { label: string; value: string }[]
 }
 /** `refs` on every node with provenance, `support` once checked (the root
  *  has none unless it cites) */
@@ -694,6 +720,8 @@ export interface InfographicContent {
   headline: string
   facts: ({ label: string; value: string } & Claim)[]
   sections: ({ title: string; text: string } & Claim)[]
+  /** made from proposed themes: one part per ticked theme, each like a single infographic */
+  parts?: (Omit<InfographicContent, 'parts'> & { title: string; candidate_id: string })[]
 }
 export interface AudioContent {
   url: string

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState } from 'react'
-import type { Source, Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle, VerificationLevel } from '../api/types'
+import type { Source, Audience, ChartCandidate, JudgeLevel, AudioStyle, Difficulty, OutputKind, OutputOptions, OutputOptionsSpec, ReportLength, ReportStyle, TableCandidate, ThemeCandidate, VerificationLevel } from '../api/types'
 import { useEstimate } from '../hooks/useEstimate'
 import { priceLabel } from '../lib/estimate'
 import { useMe } from '../hooks/useMe'
@@ -15,10 +15,15 @@ import { RedeemLink } from './RedeemLink'
 
 // recharts comes with it, loaded only when the chart kind is picked
 const ChartProposals = lazy(() => import('./ChartProposals'))
+
+type ProposedKind = 'chart' | 'table' | 'infographic'
+/** what Create waits for while nothing is ticked */
+const NEED_PICK = { chart: 'chartOut.needPick', table: 'tableOut.needPick', infographic: 'themeOut.needPick' } as const
 import { DecisionForm } from './DecisionForm'
 import { decisionOptions, decisionProblem, defaultDecision, type DecisionValues } from '../lib/decision'
 import { language, t } from '../i18n'
 import { proposalKey } from '../lib/chartOutput'
+import { TableProposals, ThemeProposals } from './TableProposals'
 
 interface Props {
   /** for the chart kind's proposal call */
@@ -58,15 +63,16 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
   const isDecision = selected === 'decision'
   // a rag that predates the catalogue entry still gets the contract's keys
   const decisionKeys = spec?.kinds.decision ?? ['language', 'question', 'decision_type', 'choices', 'levels']
-  // the chart kind: the proposed charts ticked for Create
+  // the kinds made from proposals: charts, and tables and infographic themes where rag proposes them
   const isChart = selected === 'chart'
-  // proposed charts belong to the selection, notebook and notes they were found for;
+  const proposed: ProposedKind | null = isChart ? 'chart' : selected === 'table' && spec?.proposals?.table ? 'table' : selected === 'infographic' && spec?.proposals?.infographic ? 'infographic' : null
+  // proposals belong to the selection, notebook and notes they were found for;
   // once any of these changes they are dropped, never sent
   const selection = proposalKey(notebookId, sourceIds, values?.instructions ?? '', urlRefresh)
-  const [picked, setPicked] = useState<{ key: string; charts: ChartCandidate[] }>({ key: selection, charts: [] })
-  const charts = picked.key === selection ? picked.charts : []
-  const setCharts = (list: ChartCandidate[]) => setPicked({ key: selection, charts: list })
-  const problem = isDecision ? decisionProblem(dv, spec) : isChart && charts.length === 0 ? t('chartOut.needPick') : null
+  const [picked, setPicked] = useState<{ key: string; kind: ProposedKind | null; list: unknown[] }>({ key: selection, kind: null, list: [] })
+  const ticked = picked.key === selection && picked.kind === proposed ? picked.list : []
+  const pick = (list: unknown[]) => setPicked({ key: selection, kind: proposed, list })
+  const problem = isDecision ? decisionProblem(dv, spec) : proposed && ticked.length === 0 ? t(NEED_PICK[proposed]) : null
   // without credit sources still go in (and wait); outputs cannot be made
   const noCredit = me !== null && me !== undefined && me.balance_cents <= 0
   const hint = blocker ?? problem
@@ -75,7 +81,9 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
   const options = (kind: OutputKind): OutputOptions => ({
     ...(spec && values ? buildOptions(kind, spec, values) : {}),
     ...(isDecision ? decisionOptions(dv, decisionKeys) : {}),
-    ...(isChart ? { charts } : {}),
+    ...(proposed === 'chart' ? { charts: ticked as ChartCandidate[] } : {}),
+    ...(proposed === 'table' ? { tables: ticked as TableCandidate[] } : {}),
+    ...(proposed === 'infographic' ? { themes: ticked as ThemeCandidate[] } : {}),
   })
   // what Create would charge; a chart's estimate does not depend on the picked charts
   // with the notebook, rag lists reading unread sources and re-reading pages apart
@@ -297,10 +305,16 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
           )}
         </div>
       )}
-      {isChart && values && (
+      {proposed === 'chart' && values && (
         <Suspense fallback={<p className="muted small">{t('common.loading')}</p>}>
-          <ChartProposals notebookId={notebookId} spec={spec} instructions={values.instructions} selection={selection} sourceIds={sourceIds} urlRefresh={urlRefresh} picked={charts} onPick={setCharts} />
+          <ChartProposals notebookId={notebookId} spec={spec} instructions={values.instructions} selection={selection} sourceIds={sourceIds} urlRefresh={urlRefresh} picked={ticked as ChartCandidate[]} onPick={pick} />
         </Suspense>
+      )}
+      {proposed === 'table' && values && (
+        <TableProposals notebookId={notebookId} spec={spec} instructions={values.instructions} selection={selection} sourceIds={sourceIds} urlRefresh={urlRefresh} picked={ticked as TableCandidate[]} onPick={pick} />
+      )}
+      {proposed === 'infographic' && values && (
+        <ThemeProposals notebookId={notebookId} spec={spec} instructions={values.instructions} selection={selection} sourceIds={sourceIds} urlRefresh={urlRefresh} picked={ticked as ThemeCandidate[]} onPick={pick} />
       )}
       {selected && <UrlRefresh pages={webPages} refresh={refresh} onChange={setRefresh} />}
       <BlockedSources blocked={blocked} webPages={webPages} refresh={refresh} onDeselect={onDeselect} onRefetch={(id) => setRefresh((prev) => new Set(prev).add(id))} />

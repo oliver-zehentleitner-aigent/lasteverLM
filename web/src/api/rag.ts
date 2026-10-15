@@ -1,7 +1,7 @@
 import { RAG_PREFIX } from '../config'
 import { request } from './client'
 import type { Estimate, EstimateRequest } from '../lib/estimate'
-import type { FeedbackStats, Plan, Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput } from './types'
+import type { FeedbackStats, Plan, Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput, TableCandidate, ThemeCandidate } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -108,6 +108,11 @@ export const rag = {
   unshare: (id: string) => request<void>(`${out(id)}/share`, { method: 'DELETE' }),
   /** Charts the notebook's sources could carry: one billed model call (402
    *  without credit); an empty list says why in `reason`. */
+  /** tables and infographic themes to pick before Create, proposed like charts */
+  proposeTables: (notebookId: string, body: { instructions?: string; max?: number; source_ids?: string[]; url_refresh?: string[] }) =>
+    request<{ candidates: TableCandidate[]; reason: string | null }>(`${nb(notebookId)}/tables/propose`, { method: 'POST', json: body }),
+  proposeThemes: (notebookId: string, body: { instructions?: string; max?: number; source_ids?: string[]; url_refresh?: string[] }) =>
+    request<{ candidates: ThemeCandidate[]; reason: string | null }>(`${nb(notebookId)}/infographics/propose`, { method: 'POST', json: body }),
   /** proposes from the selected sources (absent: all), reading unread ones first like the chat */
   proposeCharts: (notebookId: string, body: { instructions?: string; max?: number; source_ids?: string[]; url_refresh?: string[] }) =>
     request<{ candidates: ChartCandidate[]; reason: string | null }>(`${nb(notebookId)}/charts/propose`, { method: 'POST', json: body }),

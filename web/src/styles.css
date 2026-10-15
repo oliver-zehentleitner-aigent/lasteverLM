@@ -872,6 +872,16 @@ main.prices-page:not(.shared) { box-sizing: border-box; width: 100%; max-width: 
 .proposal-grid li.picked { border-color: var(--accent); }
 .proposal { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 0.4rem; color: var(--fg); font-size: 0.9em; cursor: pointer; }
 .proposal input { grid-row: span 3; margin-top: 0.15rem; }
+/* table and theme previews in the proposal grid */
+.proposal-table { width: 100%; border-collapse: collapse; margin-top: 0.3rem; table-layout: fixed; }
+.proposal-table th, .proposal-table td { text-align: left; padding: 0.1rem 0.25rem; border-bottom: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proposal-table th { color: var(--muted); font-weight: 500; }
+.proposal-theme { margin-top: 0.3rem; }
+.proposal-theme .proposal-headline { margin: 0 0 0.2rem; font-weight: 500; }
+.proposal-theme ul { margin: 0; padding-left: 1rem; }
+/* an output made of several proposed tables or themes: each part under its title */
+.table-part + .table-part, .infographic-part + .infographic-part { margin-top: 1.4rem; }
+.infographic-part .part-title, .table-part h3 { margin: 0 0 0.5rem; }
 .proposal-title { font-weight: 600; overflow-wrap: anywhere; }
 .send-fields { display: flex; flex-direction: column; gap: 0.5rem; max-width: 28rem; }
 .code-cell { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }

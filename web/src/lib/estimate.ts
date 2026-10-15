@@ -5,7 +5,7 @@ import { formatCents } from './format'
  *  another action. */
 export type EstimateRequest = (
   | { kind: string; options?: Record<string, unknown> }
-  | { action: 'chat_answer' | 'chart_propose' | 'voice_sample' | 'judge'; options?: Record<string, unknown> }
+  | { action: 'chat_answer' | 'chart_propose' | 'table_propose' | 'infographic_propose' | 'voice_sample' | 'judge'; options?: Record<string, unknown> }
 ) & {
   /** with the notebook, the answer lists reading its unread sources (and re-reading pages) apart */
   notebook_id?: string
