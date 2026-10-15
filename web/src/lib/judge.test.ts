@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { JudgeNote } from '../api/types'
-import { disagrees, judgeAskLabel, judgeBadge, judgeHead, verdictCounts } from './judge'
+import { answerJudgeLine, disagrees, judgeAskLabel, judgeBadge, judgeHead, verdictCounts } from './judge'
 
 const note = (verdict: JudgeNote['verdict']): JudgeNote => ({ level: 'medium', model: 'glm-4.6', verdict, reason: 'the passage says 12', quote: '12 %', round: 1 })
 
@@ -64,5 +64,17 @@ describe('a judge on what the word check doubted (verification standard)', () =>
     const run = { mode: 'doubted' as const, judged: 3, level: 'low' as const, model: 'm', verdicts: { supported: 2, contradicted: 1 } }
     expect(judgeHead({ judge: run })).toBe('Judge (low, m): 2 of 3 doubted paragraphs supported')
     expect(judgeHead({ judge: { ...run, judged: 0, verdicts: {} } })).toBeNull()
+  })
+})
+
+describe('answerJudgeLine', () => {
+  const j = (verdict: 'supported' | 'contradicted', level: 'low' | 'medium' = 'low') => ({ level, model: 'm', verdict, reason: '', quote: '', round: 1 })
+  it('names a judging of the doubted paragraphs, or of all of them', () => {
+    expect(answerJudgeLine([{ support: 'supported' }, { support: 'unsupported', judge: j('supported') }, { support: 'unverified', judge: j('contradicted') }])).toBe('Judge (low, m): 1 of 2 doubted paragraphs supported')
+    expect(answerJudgeLine([{ support: 'supported', judge: j('supported', 'medium') }, { support: 'unsupported', judge: j('contradicted', 'medium') }])).toBe('Judge (medium, m): 1 of 2 supported')
+  })
+  it('is null without a judged paragraph', () => {
+    expect(answerJudgeLine([{ support: 'supported' }])).toBeNull()
+    expect(answerJudgeLine(null)).toBeNull()
   })
 })

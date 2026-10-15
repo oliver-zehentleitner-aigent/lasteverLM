@@ -9,7 +9,7 @@ import { isStacked } from '../lib/layout'
 import { similarityLabel } from '../lib/provenance'
 import { checkSummary, hasVerdict, unitBadges } from '../lib/outputProvenance'
 import { useJudgeAskLabel } from '../hooks/useJudgeAsk'
-import { judgeBadge } from '../lib/judge'
+import { answerJudgeLine, judgeBadge } from '../lib/judge'
 import { JudgeRequest } from './JudgeRequest'
 import { AnswerActions, SuggestionCards } from './AnswerActions'
 import { StarterQuestions } from './StarterQuestions'
@@ -21,6 +21,7 @@ import { PriceTag } from './PriceTag'
 import { ProvenancePanel } from './ProvenancePanel'
 import { t, tn } from '../i18n'
 import type { ChatPaneProps } from './ChatPane'
+import { useMe } from '../hooks/useMe'
 
 interface ConversationProps extends ChatPaneProps {
   conversationId: string
@@ -36,6 +37,9 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [open, setOpen] = useState<{ messageId: string; n: number } | null>(null)
+  // above basic rag checks the answer inside the request, a few seconds longer: say so while it waits
+  const level = useMe().me?.preferences?.verification_level ?? 'basic'
+  const checking = level !== 'basic'
   // "Have it judged" after a paragraph the word check could not measure opens that answer's Check with a judge
   const [judgeAsked, setJudgeAsked] = useState<{ messageId: string; n: number } | null>(null)
   const askLabel = useJudgeAskLabel(messages.some((m) => !m.id.startsWith('local-') && (m.units ?? []).some((u) => u.support === 'unverified' && !hasVerdict(u))))
@@ -177,6 +181,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
                 {checkSummary(m.check)}
               </p>
             )}
+            {m.role === 'assistant' && answerJudgeLine(m.units) && <p className="muted small check-line judge-line">{answerJudgeLine(m.units)}</p>}
             {m.role === 'assistant' && m.citations && m.citations.length > 0 && !m.id.startsWith('local-') && (
               <p className="small no-print">
                 <JudgeRequest
@@ -238,7 +243,7 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
             {m.role === 'assistant' && i === messages.length - 1 && !busy && <SuggestionCards suggestions={m.suggestions ?? []} disabled={busy || blocked} onAsk={(q) => void send(q)} />}
           </article>
         ))}
-        {busy && <p className="muted">{!scope && unreadSelected > 0 ? tn('chat.reading', unreadSelected) : '…'}</p>}
+        {busy && <p className="muted">{!scope && unreadSelected > 0 ? tn('chat.reading', unreadSelected) : checking ? t('chat.checking', { level: t(`verify.level.${level}`) }) : '…'}</p>}
         {messages.length === 0 && !busy && <p className="muted">{t('chat.empty')}</p>}
         {messages.length === 0 && !busy && <StarterQuestions notebookId={notebookId} disabled={blocked} onAsk={(q) => void send(q)} />}
       </div>
