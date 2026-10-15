@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Changed
+
+- `README.md`: what the system does, the four published evaluations, how to try it and how it was built.
+
 ## [0.22.9] - 2026-10-15
 
 ### Changed
