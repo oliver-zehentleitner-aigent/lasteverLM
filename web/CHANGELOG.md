@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Audio voices: the voices rag recommends for the output language come first, under "Recommended"; without a voice of the user's own, the language's default voices are preselected and follow a change of language until a voice is picked by hand.
+
 ## [0.22.18] - 2026-10-15
 
 ### Added

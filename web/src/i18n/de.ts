@@ -1315,4 +1315,5 @@ export const de: Record<MessageKey, string> = {
   'judge.notInSourceTitle': 'In keiner der ausgewählten Quellen.',
   'judge.addedRef': 'vom Judge ergänzt',
   'judge.alsoFound': 'auch belegt in',
+  'tiles.recommended': 'Empfohlen',
 }
