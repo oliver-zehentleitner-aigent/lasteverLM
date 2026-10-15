@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.20.4] - 2026-10-15
+
 ### Fixed
 
 - A new user saw no starter notebook after signing in: the copy ran only on the first library listing or upload, and the web's first call is `GET /notebooks`. The notebook list now makes the copy first, so it is in that very response (`GET /library?kind=generated` copies too); once a user is considered, it costs one indexed exists query.
