@@ -6,13 +6,15 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** implementation decision, 2026-10-12; family lead's stack approval of the same day
+**Source:** implementation decision, 2026-10-12; the stack was approved for the family the same day
 **Revisit when:** the app grows past a handful of routes or needs components a CSS file cannot carry
 
-Routing is a small hook over `history.pushState` with three routes (home,
-`/auth/callback`, `/admin`); styling is one plain CSS file with
-variables for light and dark. Runtime dependencies are React and
-React DOM only.
+Routing is a small hook over `history.pushState` (`parseRoute` in
+`src/hooks/useRoute.ts`, a pure, tested function); styling is one plain
+CSS file with variables for light and dark. Beyond React and React DOM
+the runtime dependencies are libraries for single features, each with
+an entry of its own: `marked` and DOMPurify for reports, markmap for the
+mind map, recharts for charts.
 
 **Reason:** the family rule is to keep dependencies minimal, and the MVP
 is time-boxed with an explicit "no polishing pass". Three routes do not
@@ -23,6 +25,12 @@ its conventions than it saves in a layout this small.
 Rejected as dependency and build weight for no visible gain at this
 size. Tailwind was explicitly left to this repository's call and declined
 for the same reason.
+
+**Re-checked 2026-10-15** (the revisit condition fired: nine routes now,
+home, sign-in callback, admin, library, settings, prices, credits and
+the two share pages): still holds. Each route is one line in
+`parseRoute` with its test, and none has nested routes, loaders or
+guards a router would bring.
 
 ## 401 and 402 are application events, raised once in the fetch wrapper
 
@@ -51,7 +59,7 @@ globally, so one place in the client matches the contract's shape.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** implementation decision, 2026-10-12, on the family lead's request to build the admin pages before the account service exists
+**Source:** implementation decision, 2026-10-12, to build the admin pages before the account service existed
 **Revisit when:** the account service is deployed and the admin endpoints are verified against it
 
 `src/api/admin.ts` defines `AdminApi`, implemented twice: against
@@ -68,13 +76,20 @@ waiting for the service. Interception adds a dev dependency and hides
 which calls are real; waiting would serialize two agents that are meant
 to work in parallel.
 
+**Re-checked 2026-10-15** (the revisit condition fired: the account
+service is deployed and the admin pages run against it): still holds.
+New admin pages (finance, answer feedback, the starter notebook) were
+again built against the mock before their endpoints were merged, which
+is the case the interface is for.
+
 ## Two columns: sources and output forms left, viewer and chat right
 
 **Id:** f81a9fe1-d433-4e32-b143-ed29542a8722
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** d686221c-1c49-4b9b-bf09-4c49e8b74f88
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family lead, 2026-10-12
+**Source:** maintainer decision, 2026-10-12
 **Revisit when:** the outputs API lands in the family contract, or a generated form needs more room than a tab
 
 The workspace has two columns. Left: the sources of the notebook on top
@@ -89,15 +104,49 @@ that produced the questions, and the tiles make the available forms
 visible without a menu. Saved answers, the one thing a notes pane would
 have held, become a Report.
 
-**Rejected alternative:** the three-pane NotebookLM shape with a notes
+**Rejected alternative:** the three-pane shape with a notes
 pane, which the first skeleton had. Rejected by the maintainer: notes
 without a server side were a browser-local stopgap, and the outputs make
 the pane redundant. See the superseded entry in `notes.md`.
 
-The outputs endpoints and the per-kind content shapes are the family
-lead's proposal and not confirmed in the contract yet; the client and the
+The outputs endpoints and the per-kind content shapes were a proposal
+and not confirmed in the contract yet; the client and the
 viewer are built to the proposal, the per-kind renderers wait for the
 confirmation (`src/components/outputs/OutputContent.tsx`).
+
+
+**Superseded** on 2026-10-15: the two columns stay, but the viewer no
+longer has a tab per document, the left column gained the Outputs list,
+and the forms are nine. The successor states the layout as it is.
+
+## Two columns: sources, output formats and outputs left, viewer and chat right
+
+**Id:** d686221c-1c49-4b9b-bf09-4c49e8b74f88
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-12 (two columns, no notes pane); maintainer decisions of 2026-10-13 (generated documents in a list of their own) and 2026-10-14 (tabs only for what was opened)
+**Revisit when:** the left column cannot hold sources, formats and outputs at a usual window height, or a third column is asked for
+
+The workspace has two columns. Left: the notebook's sources on top, the
+output formats below as tiles (nine kinds), then the Outputs list.
+Right: the viewer on top, with a tab for each source or output the user
+opened (see the entry on the viewer's tabs), the chat below. There is
+no notes pane.
+
+**Reason:** what the user put in and what was made from it are the two
+lists the work starts from, so they share a column; reading and asking
+happen side by side in the other. The tiles keep every format visible
+without a menu, and saved answers, the one thing a notes pane would
+have held, become an output.
+
+**Rejected alternative:** the three-pane shape with a notes pane, which
+the first skeleton had (see `notes.md`). Rejected because the outputs
+make the pane redundant.
+
+**Rejected alternative:** a tab for every output of the notebook, as
+the predecessor had. Rejected because the strip grew with outputs nobody
+opened; the Outputs list is the index instead.
 
 ## Generated documents are listed under Outputs, not among the sources
 
@@ -105,7 +154,7 @@ confirmation (`src/components/outputs/OutputContent.tsx`).
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer feedback after the 0.4.0 click-through, relayed by the family lead, 2026-10-13
+**Source:** maintainer feedback after a test of 0.4.0, 2026-10-13
 **Revisit when:** generated documents stop being sources of kind `generated` in the backend, or a notebook holds so many documents that the left column needs another shape
 
 The left column has three parts: the uploaded sources (PDF, text, web
@@ -141,13 +190,14 @@ own documents.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** maintainer request after a click-through, relayed by the family lead, 2026-10-13
+**Source:** maintainer request after a test of the app, 2026-10-13
 **Revisit when:** creating a document becomes free, or users ask for several formats in one go
 
 The output tiles are a single choice: a click or Enter selects a
 format, and only the Create button under them starts a generation. The
-button is disabled without a selection or while no upload of the
-notebook is ready, and a hint says which (`createBlocker` in
+button is disabled without a selection or while no selected source is
+ready or merely added (an added one is read when the output is made),
+and a hint says which (`createBlocker` in
 `src/lib/outputs.ts`).
 
 **Reason:** the maintainer did not want a click on a tile to start a
@@ -164,7 +214,7 @@ before. Rejected by the maintainer.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request for tall documents relayed by the family lead, 2026-10-13; window versus column and the toggle were left to this directory's call
+**Source:** maintainer request for tall documents, 2026-10-13; window versus column and the toggle were left to this directory's call
 **Revisit when:** a browser run shows the toggle is missed, or the left column is needed while reading a document in full view
 
 The full view puts the open document over the whole window, with the
@@ -193,7 +243,7 @@ fallback.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request for a statistics page relayed by the family lead, 2026-10-13 (an established React library, a pinned version, no hand-rolled SVG); the choice of library was this directory's call
+**Source:** maintainer request for a statistics page, 2026-10-13 (an established React library, a pinned version, no hand-rolled SVG); the choice of library was this directory's call
 **Revisit when:** recharts drops React 19 support or a major release changes its API, or the admin chunk becomes too large to load comfortably
 
 The admin overview draws its charts with recharts 3.10.1, pinned exactly
@@ -217,13 +267,18 @@ and theming and tooltips go through its own configuration objects.
 set of packages for the same charts, and visx is a toolkit of low-level
 primitives, close to the hand-rolled SVG the request ruled out.
 
+Since 2026-10-14 recharts also draws the chart output kind, its
+proposals and Admin > Finance's profit chart. Each is loaded with
+`React.lazy` where it is used (`ChartView`, `ChartProposals`,
+`ProfitChart`), so the main bundle still carries none of it.
+
 ## The provenance panel marks the best-matching sentence, not an exact span
 
 **Id:** 77c5025b-1e4c-41f0-a41c-46db75cdcaf3
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request that citations visibly prove their origin, relayed by the family lead, 2026-10-13; rag's citation shape of the same day (the full chunk text, no span)
+**Source:** maintainer request that citations visibly prove their origin, 2026-10-13; rag's citation shape of the same day (the full chunk text, no span)
 **Revisit when:** rag returns the character span of the cited passage within the chunk
 
 The panel shows the whole cited chunk and marks one sentence in it: the
@@ -251,7 +306,7 @@ covers it.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request for a German and English interface ("a small translation layer, one map per language, a t() helper, no heavy i18n library"), relayed by the family lead, 2026-10-13; the module-level language and the form of address were this directory's call
+**Source:** maintainer request for a German and English interface (a small translation layer, one map per language, a t() helper, no i18n library), 2026-10-13; the module-level language and the form of address were this directory's call
 **Revisit when:** a third language, plural rules beyond one/other, or right-to-left text is needed
 
 Every visible string goes through `t(key, vars)` from `src/i18n/`:
@@ -290,7 +345,7 @@ switch touches only `de.ts`.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer review of the 0.7.1 overview ("too many tiles, several large and mostly empty, some red without anything he can do"), relayed by the family lead, 2026-10-13
+**Source:** maintainer review of the 0.7.1 overview (too many tiles, several large and mostly empty, and red where the admin had nothing to act on), 2026-10-13
 **Revisit when:** an admin page appears where failed sources or documents can be inspected or retried
 
 The overview has one KPI row of six plain tiles and, only when needed,
@@ -317,9 +372,10 @@ report the oldest pending time.
 
 **Id:** d3394545-e3bc-48fd-bae6-5243374ba47a
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** f7247127-8c63-4428-8ae3-593f3b07712f
 **Evidence:** confirmed
-**Source:** maintainer request for a light and dark switch ("system" as default, every colour through the existing tokens), relayed by the family lead, 2026-10-13; the reasons below are this directory's
+**Source:** maintainer request for a light and dark switch ("system" as default, every colour through the existing tokens), 2026-10-13; the reasons below are this directory's
 **Revisit when:** a third theme (high contrast, say) is asked for, or a component needs a colour that is not a token
 
 Every colour of the app is a custom property in `styles.css`: the light
@@ -347,13 +403,49 @@ and the contrast test could not see them.
 **Rejected alternative:** light as the default. Rejected because it
 ignores the device setting the user already made.
 
+
+**Superseded** on 2026-10-15: the tokens stand as described, but the
+default is no longer the system's setting. Since the theme became a
+per-session choice (2026-10-14) a user without a saved theme starts in
+light (`DEFAULT_THEME` in `src/lib/theme.ts`); see the successor.
+
+## Light and dark through tokens only, light by default
+
+**Id:** f7247127-8c63-4428-8ae3-593f3b07712f
+**Type:** decision
+**Status:** active
+**Evidence:** unknown
+**Source:** maintainer request for a light and dark switch, 2026-10-13 (every colour through the existing tokens); maintainer decision on the session theme, 2026-10-14, which made light the default (`DEFAULT_THEME`); the reason for light over the system's setting was not given
+**Revisit when:** the reason for the light default is known, a third theme (high contrast, say) is asked for, or a component needs a colour that is not a token
+
+Every colour is a custom property in `styles.css`: the light values on
+`:root`, the dark ones under `:root[data-theme='dark']` and, for the
+system setting, the same values under `prefers-color-scheme: dark` for a
+root without `data-theme='light'`. Components carry no colour of their
+own; the charts read the tokens as values, the mind map maps markmap's
+variables to them, and a test checks that both dark blocks match and
+that text and chart lines meet their WCAG contrast. A user without a
+saved theme starts in light; "system" stays a choice in Settings.
+
+**Reason:** the tokens: a theme is a set of values, not a hunt through
+components, and the contrast is checked by a test instead of by eye
+(confirmed, as in the predecessor). The light default: unknown. It came
+with the decision to keep the header toggle to the session; no reason
+for preferring light over the system's setting was recorded.
+
+**Rejected alternative:** a theme class on the root with per-component
+dark rules. Rejected: every component would need two sets of colours,
+and the contrast test could not see them.
+
+**Rejected alternative:** the system's setting as the default, as the
+predecessor had. Replaced by light; why is the open part above.
 ## The header toggle switches light and dark only; "system" lives in Settings
 
 **Id:** de0e4933-ad37-44b3-8f5d-b8d738b2b150
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** maintainer request relayed by the family lead, 2026-10-13 (drop "system" from the header toggle, start from the theme on screen, a click under "system" sets the explicit opposite); the reason is not stated there and is inferred below
+**Source:** maintainer request, 2026-10-13 (drop "system" from the header toggle, start from the theme on screen, a click under "system" sets the explicit opposite); the reason is not stated there and is inferred below
 **Revisit when:** someone asks for "system" back in the header, or a browser run shows the toggle confusing
 
 The header toggle replaced a three-step cycle (light, dark, system). It
@@ -404,7 +496,7 @@ visible for anyone debugging.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request relayed by the family lead, 2026-10-13 ("SVG, no library", recharts "not the tool here", static layout with live numbers); the layout and the data mapping were this directory's call
+**Source:** maintainer request, 2026-10-13 (plain SVG without a diagram library, not recharts, a static layout with live numbers); the layout and the data mapping were this directory's call
 **Revisit when:** the set of deployments changes often enough that a fixed layout needs editing each time, or the diagram has to show more than the chart's deployments and the three external services
 
 The System page draws the architecture as one SVG component with fixed
@@ -413,7 +505,10 @@ workers in the middle, PostgreSQL, object storage and the inference API
 as external boxes below, the lines routed between the boxes. Only the
 numbers are live: replicas ready of total, the build, and the attention
 colour for an unhealthy deployment, mapped from the System data by the
-chart's deployment names in a tested function.
+chart's deployment names in a tested function. Since 2026-10-14 the
+ingress box takes its colour from the account service's outside probe
+of the public URL, and the web box shows its pods' image tags as its
+build; the layout is unchanged.
 
 **Reason:** the topology is fixed and small, so coordinates are less code
 than a layout engine and keep the picture the same on every visit, which
@@ -432,7 +527,7 @@ large dependency for a picture whose layout never changes.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request relayed by the family lead, 2026-10-14 (a checkbox per source, all on by default, remembered per notebook in the browser); rag's request shape (`source_ids`, absent or empty meaning all); what is stored and the empty case were this directory's call
+**Source:** maintainer request, 2026-10-14 (a checkbox per source, all on by default, remembered per notebook in the browser); rag's request shape (`source_ids`, absent or empty meaning all); what is stored and the empty case were this directory's call
 **Revisit when:** the selection is stored in the account instead of the browser, or rag gives an empty `source_ids` a meaning of its own
 
 The browser keeps, per notebook, the ids of the sources turned off, not
@@ -460,7 +555,7 @@ what the screen shows.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family lead, 2026-10-14 (documents become library items; deleting a notebook asks whether they go too or stay); rag's contract (`DELETE /api/rag/notebooks/{id}/outputs`, the notebook reference set to null by a foreign key when ingest deletes the notebook); the order was this directory's call
+**Source:** maintainer decision, 2026-10-14 (documents become library items; deleting a notebook asks whether they go too or stay); rag's contract (`DELETE /api/rag/notebooks/{id}/outputs`, the notebook reference set to null by a foreign key when ingest deletes the notebook); the order was this directory's call
 **Revisit when:** one service deletes a notebook and its documents together, or the documents' delete can run after the notebook is gone
 
 With "delete them too" the web first calls rag to move the notebook's
@@ -485,7 +580,7 @@ set the documents' notebook to null.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family lead, 2026-10-14
+**Source:** maintainer decision, 2026-10-14
 **Revisit when:** users ask for the toggle to remember across sessions again, or the account gains per-device preferences
 
 The toggle writes to the browser session only (sessionStorage) and
@@ -500,8 +595,8 @@ belongs in Settings. It also spares the shared demo account, which
 cannot store preferences, a refused request on every click.
 
 **Rejected alternative:** the toggle writes the account preference, as
-before. Rejected because the maintainer found the next device changed
-by a click made elsewhere.
+before. Rejected because the next device then changed by a click made
+elsewhere.
 
 ## Prices are shown in whole cents rounded outwards; a failed estimate is always said, never hidden
 
@@ -509,7 +604,7 @@ by a click made elsewhere.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** request relayed by the family lead, 2026-10-14 (every price a user sees is the estimate's charge; a failed estimate says "price unavailable" with the error in the tooltip); rag's contract (`POST /api/rag/estimate`, charge in euro cents to a hundredth, rounded outwards, 422 for options that do not fit, 503 without an exchange rate); the display and the failure handling were this directory's call
+**Source:** maintainer request, 2026-10-14 (every price a user sees is the estimate's charge; a failed estimate says "price unavailable" with the error in the tooltip); rag's contract (`POST /api/rag/estimate`, charge in euro cents to a hundredth, rounded outwards, 422 for options that do not fit, 503 without an exchange rate); the display and the failure handling were this directory's call
 
 Next to each billed action the estimate's charge range is shown in
 whole euro cents, the low end rounded down and the high end up, so the
@@ -531,9 +626,8 @@ without its question).
 **Rejected alternative:** the admin's precision (sub-cent amounts with
 up to six decimals, as on Admin > Finance). Rejected for users: it suits
 an admin comparing costs, not a user deciding whether to click. Also
-rejected: hiding the price when the estimate fails, the first version of
-this PR; the family lead asked for the failure to be said, since an
-empty space next to a button reads as free.
+rejected: hiding the price when the estimate fails, as first built,
+because an empty space next to a button reads as free.
 
 ## The public price list groups by the action's prefix and shows small prices with two significant digits
 
@@ -541,7 +635,7 @@ empty space next to a button reads as free.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer go relayed by the family lead, 2026-10-14 (groups Sources, Chat, Outputs, Extras; price per unit, typical range, model; "no experience yet"; no margins); the account service's contract (`GET /api/account/prices`, units as stable keys, sub-cent amounts to four places); the grouping rule and the number format were this directory's call
+**Source:** maintainer decision, 2026-10-14 (groups Sources, Chat, Outputs, Extras; price per unit, typical range, model; "no experience yet"; no margins); the account service's contract (`GET /api/account/prices`, units as stable keys, sub-cent amounts to four places); the grouping rule and the number format were this directory's call
 
 `/prices` puts each action into a group by its name: `source:` is
 Sources, `output:` is Outputs, `chat_answer` is Chat, and everything
@@ -569,7 +663,7 @@ under the same prefix rule.
 **Type:** workaround
 **Status:** active
 **Evidence:** confirmed
-**Source:** request relayed by the family lead and ingest's change (#414), 2026-10-14: a source waiting on the rate carries `error` "pricing has no exchange rate, ask an admin", and the source shape has no code or attempt count
+**Source:** ingest's change for sources waiting on the exchange rate, 2026-10-14: a source waiting on the rate carries `error` "pricing has no exchange rate, ask an admin", and the source shape has no code or attempt count
 
 The source list and the library tell the missing rate from a real retry
 by comparing `error` with that exact sentence (`NO_RATE_REASON` in
@@ -588,7 +682,7 @@ for the error, or the sentence changes in ingest or rag
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer decision relayed by the family lead, 2026-10-14 (sources open as tabs with an Original and an As read view; tabs only for what was opened, closable, in the order opened, kept per notebook across a reload, sessionStorage); the storage key, the tab key and the restored tab's position were this directory's call
+**Source:** maintainer decision, 2026-10-14 (sources open as tabs with an Original and an As read view; tabs only for what was opened, closable, in the order opened, kept per notebook across a reload, sessionStorage); the storage key, the tab key and the restored tab's position were this directory's call
 
 The viewer shows one tab per output or source the user opened, in the
 order opened. Each tab can be closed, and opening one that is already
@@ -615,7 +709,7 @@ localStorage, which would carry yesterday's tabs into today's work.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer wish relayed by the family lead, 2026-10-14 (the notebook's suggestions as cards in an empty chat, with the price hint); rag's contract (`GET /api/rag/notebooks/{id}/suggestions`, the first call billed, cached until the uploads change); loading on a click was this directory's call
+**Source:** maintainer request, 2026-10-14 (the notebook's suggestions as cards in an empty chat, with the price hint); rag's contract (`GET /api/rag/notebooks/{id}/suggestions`, the first call billed, cached until the uploads change); loading on a click was this directory's call
 
 An empty chat shows **Suggest questions** with its estimated price. The
 notebook's questions are fetched only when that button is clicked, and
@@ -627,7 +721,11 @@ an empty chat is not a request for anything, so it should not spend
 credit. A user should see the price and choose, as for every other
 billed action.
 
+This applies the family's rule that every extra cost is the user's own
+action (`../../context/architecture.md`, "The cheaper path is the
+default").
+
 **Rejected alternative:** loading the questions as soon as an empty chat
-opens, as the wish read literally. Rejected because every new chat in a
+opens, as the request read literally. Rejected because every new chat in a
 notebook whose cache had been cleared by a changed source would charge
 without a click.
