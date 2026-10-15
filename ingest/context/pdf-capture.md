@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's request through the fleet lead, 2026-10-13 (modes, default, renderer choice); measurement on two scanned A4 pages the same day
+**Source:** maintainer request, 2026-10-13 (modes, default, renderer choice); measurement on two scanned A4 pages the same day
 **Revisit when:** the vision model's price or quality changes enough that `vision` should be the default, or scans of more than 100 pages are uploaded regularly
 
 A PDF upload has a capture mode: `text` (text layer only), `vision`
@@ -35,9 +35,10 @@ legible for the model without paying for pixels it does not need. pdfium
 is not thread-safe (the first version rendered in worker threads and
 crashed the test run with a segmentation fault), so pages are rendered
 one at a time and only the model calls run in parallel, four at once.
-Every answered call is billed as it returns and the credit is checked
-before the next batch, so a long scan stops when the credit runs out
-instead of overspending it.
+Every answered call is billed as it returns. The credit was first
+checked before each batch, so a long scan stopped when it ran out;
+since 2026-10-15 a scan that has started is read to the end and the
+credit is checked once, before it starts (accounting.md).
 
 **Alternatives:**
 - PyMuPDF as the renderer: AGPL, would taint an MIT repository.
@@ -54,7 +55,7 @@ instead of overspending it.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** security and quality audit, 2026-10-14; the number decided by the maintainer through the coordinating agent
+**Source:** security and quality audit, 2026-10-14; the number decided by the maintainer
 **Revisit when:** users upload legitimate documents longer than 2000 pages, or jobs get a time limit of their own
 
 Every capture mode starts by extracting the text layer of every page, so
@@ -80,7 +81,7 @@ book a user would reasonably add, so the cap costs no real use.
 **Type:** incident
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's screenshots through the coordinating agent, 2026-10-14: a citation into linux_-_VNC-Server.pdf page 2 (chunk 9 of 17) showing "&MM,:N K OP&M,MM P2QL +457$$$ LL R! 3'.SM" at similarity 0.34, and linux_-_vi.pdf page 1 cited as clean text
+**Source:** the maintainer's screenshots, 2026-10-14: a citation into linux_-_VNC-Server.pdf page 2 (chunk 9 of 17) showing "&MM,:N K OP&M,MM P2QL +457$$$ LL R! 3'.SM" at similarity 0.34, and linux_-_vi.pdf page 1 cited as clean text
 **Verification:** corroborated
 **Revisit when:** a real page with a legible layer is sent to the model or skipped, or a glyph-code layer passes the check
 
