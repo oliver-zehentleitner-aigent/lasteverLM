@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A report's `length` is an upper bound (at most 500 / 1200 / 2500 words), no longer a word target: the prompt asks for less when the material says less and forbids adding facts, roles, steps or reasons the material does not state. Prompt version `report-<style>-v4`.
+
 ## [0.20.3] - 2026-10-15
 
 ### Fixed
