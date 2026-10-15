@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-14
+
 ### Added
 
 - `Output.phase` (core #511): what a waiting or running output is doing now. It is one of `waiting_for_sources` (with the names still being read), `retrieving`, `deciding`, `writing`, `checking`, `judging` (round n of 3), `revising`, `synthesizing_speech` (segment n of m), `indexing` or `retry` (attempt n of 3 and the short error), with the time the step began. Each step is written when it really starts, in the same update as the claim's heartbeat, and cleared once the output is ready or failed. Migration `0013_rag_output_phase.sql`.
