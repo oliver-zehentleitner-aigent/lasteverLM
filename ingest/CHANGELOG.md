@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- Sources say which model made their text. A linked source and the chunks view carry `read_by: {"vision": <model> | null, "stt": <model> | null}`: the vision model for an image or vision-read PDF pages, the speech model for a recording, `null` otherwise and for sources read before. Each chunk in the chunks view carries `vision`: true for an image, and for a PDF chunk that starts on a page the vision model read. In `auto` capture that is only the pages without a text layer. Recorded when a read finishes (migration 0018: `library_sources.read_by`, `vision_pages`) and kept on starter copies.
+
 ## [0.22.6] - 2026-10-15
 
 ### Fixed

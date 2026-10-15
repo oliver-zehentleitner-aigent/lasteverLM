@@ -581,6 +581,21 @@ def test_a_running_plans_explain_step_counts_as_held_in_the_claim(repo):
     assert _claim_all(repo) == {source.id}
 
 
+def test_read_by_and_vision_pages_round_trip(repo):
+    owner = _user(repo)
+    notebook = repo.create_notebook(owner, "nb")
+    entry = _library(repo, owner)
+    repo.link_source(notebook.id, entry.id)
+    assert repo.get_library_source(entry.id).read_by is None
+    repo.set_read_by(entry.id, {"vision": "qwen-vl", "stt": None}, [2, 5])
+    lib = repo.get_library_source(entry.id)
+    assert lib.read_by == {"vision": "qwen-vl", "stt": None} and lib.vision_pages == [2, 5]
+    [source] = repo.list_sources(notebook.id)
+    assert source.read_by == lib.read_by and source.vision_pages == [2, 5]
+    repo.set_read_by(entry.id, None, None)
+    assert repo.get_library_source(entry.id).read_by is None
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)
@@ -727,6 +742,7 @@ def test_the_starter_notebook_is_copied_once_with_chunks_and_the_handover(repo):
     doc = _library(repo, admin, kind="pdf", name="handbook.pdf", capture="text")
     repo.set_library_status(doc.id, "ready")
     repo.set_library_summary(doc.id, "the handbook")
+    repo.set_read_by(doc.id, {"vision": "qwen-vl", "stt": None}, [2])
     repo.replace_chunks(
         doc.id,
         [Chunk(idx=0, text="one", page=1), Chunk(idx=1, text="two", page=2)],
@@ -761,6 +777,7 @@ def test_the_starter_notebook_is_copied_once_with_chunks_and_the_handover(repo):
     copy = repo.get_library_source(new_lib)
     assert copy.owner == user and copy.starter and copy.status == "ready"
     assert copy.summary == "the handbook" and copy.capture == "text"
+    assert copy.read_by == {"vision": "qwen-vl", "stt": None} and copy.vision_pages == [2]
     assert [s.id for s in repo.list_sources(new_nb)] == [new_link]
     assert maps["source_map"] == {str(link.id): str(new_link), str(doc.id): str(new_lib)}
     with repo.connection() as conn:

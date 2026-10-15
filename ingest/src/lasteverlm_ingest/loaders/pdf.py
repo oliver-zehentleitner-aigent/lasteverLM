@@ -133,15 +133,25 @@ class VisionPdfLoader:
         self._capture = capture
         self._max_pages = max_pages
 
+    @property
+    def model(self) -> str:
+        return self._vision.model
+
+    def vision_pages(self, data: bytes) -> list[int]:
+        """The 1-based pages the vision model reads: every page (`vision`),
+        or those without a legible text layer (`auto`)."""
+        return [i + 1 for i in self._to_read(text_pages(data))]
+
+    def _to_read(self, pages: list[str]) -> list[int]:
+        if self._capture == "vision":
+            return list(range(len(pages)))
+        return [i for i, text in enumerate(pages) if not has_text(text)]
+
     def load_billed(self, data: bytes, bill: Bill) -> list[Passage]:
         pages = text_pages(data)
-        texts: dict[int, str] = {}
-        to_read: list[int] = []
-        for index, text in enumerate(pages):
-            if self._capture == "auto" and has_text(text):
-                texts[index] = text
-            else:
-                to_read.append(index)
+        to_read = self._to_read(pages)
+        unread = set(range(len(pages))) - set(to_read)
+        texts: dict[int, str] = {i: pages[i] for i in unread}
         if len(to_read) > self._max_pages:
             raise LoaderError(
                 f"PDF has {len(to_read)} pages for the vision model (capture mode "
