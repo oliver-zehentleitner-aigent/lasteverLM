@@ -203,15 +203,19 @@ before the user starts.
 
 `USAGE_ACTION_UNITS` gives every action an `ActionUnit(unit, measure)`.
 With measure `action` the unit is one action, counted once per
-`action_id`. With measure `seconds` it is `audio_minute`: the seconds in
-`tokens_in` of the action's `tts` or `stt` rows divided by 60.
+`action_id` (`question`, `output`, `check`, `image`, `web_page`, ...).
+With measure `seconds` it is `audio_minute`: the seconds in `tokens_in`
+of the action's `tts` or `stt` rows divided by 60. With measure `pages`
+it is `page`, for a text or PDF source. The usage rows hold no page
+count, so only an estimate prices it. These are the units the account
+service's price list shows.
 `charge_for(rules, action, cost_eur_cents)` puts the observed euro cost
 of a whole past action (the sum of `cost_cents` per `action_id`) through
 the current rules. It applies the margin and adds the fee once.
 
 The account service's public price list takes its per-unit prices from
 rag's and ingest's estimates. It quotes sources per page, image, audio
-minute or web page, under its own unit keys. It uses core's
+minute or web page, the units above. It uses core's
 `USAGE_ACTION_UNITS` and `charge_for` for the typical range of a whole
 action from the last thirty days (`core/context/billing.md`).
 

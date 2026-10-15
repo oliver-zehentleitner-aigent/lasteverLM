@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Fixed
+
+- `USAGE_ACTION_UNITS` quotes sources in the units the public price list shows: `source:pdf` and `source:text` per `page` (new measure `pages`; the usage rows hold no page count, so an estimate prices it), `source:image` per `image`, `source:url` per `web_page`; `source:audio` stays per `audio_minute`. No action has the unit `source` any more.
+
 ### Added
 
 - `transcribe(audio, filename, *, temperature=None, prompt=None, language=None)` on `SpeechToText` and `OpenAICompatibleSpeechToText`: per-call sampling settings, sent only when given, so existing calls send the same request. They are the three the platform reads, as probed: temperature 0 to 1, a prompt within 448 tokens, an ISO 639-1 language; a bad value is the platform's 400, a permanent `ProviderError`. `top_p`, `seed` and the penalties are accepted and ignored there, so they are not offered.

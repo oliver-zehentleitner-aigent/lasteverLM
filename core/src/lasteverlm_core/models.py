@@ -66,10 +66,12 @@ USAGE_ACTIONS: frozenset[str] = frozenset(
     }
 )
 UNKNOWN_ACTION = "unknown"
-# How a price list counts an action: once per action_id ("action"), or per
+# How the price list counts an action: once per action_id ("action"), per
 # minute of the audio seconds its tts or stt rows hold in tokens_in
-# ("seconds"). `unit` is a stable key the frontend translates.
-UnitMeasure = Literal["action", "seconds"]
+# ("seconds"), or per page of a text or PDF source ("pages"; the usage rows
+# hold no page count, so only an estimate prices it). `unit` is a stable
+# key the frontend translates, the same the account service's list shows.
+UnitMeasure = Literal["action", "seconds", "pages"]
 
 
 @dataclass(frozen=True)
@@ -81,7 +83,10 @@ class ActionUnit:
 
 
 _SECONDS_ACTIONS = frozenset({"output:audio", "source:audio"})
+_PAGE_ACTIONS = frozenset({"source:text", "source:pdf"})
 _UNIT_KEYS = {
+    "source:image": "image",
+    "source:url": "web_page",
     "chat_answer": "question",
     "chart_propose": "chart_proposal",
     "summary": "summary",
@@ -95,9 +100,10 @@ USAGE_ACTION_UNITS: Mapping[str, ActionUnit] = MappingProxyType(
         action: (
             ActionUnit("audio_minute", "seconds")
             if action in _SECONDS_ACTIONS
-            else ActionUnit(
-                _UNIT_KEYS.get(action) or ("output" if action.startswith("output:") else "source"),
-                "action",
+            else (
+                ActionUnit("page", "pages")
+                if action in _PAGE_ACTIONS
+                else ActionUnit(_UNIT_KEYS.get(action) or "output", "action")
             )
         )
         for action in sorted(USAGE_ACTIONS)
