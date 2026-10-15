@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.21] - 2026-10-16
+
 ### Added
 
 - `lasteverlm-rag-repair-copies`: restores a cited passage that a starter copy lost and maps the starter's source ids left in a copy's table or infographic options and coverage; mapped by source name and chunk position, a dry run by default, idempotent.
