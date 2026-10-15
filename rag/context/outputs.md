@@ -769,6 +769,12 @@ the generation log (`model_answer_without_evidence`,
 `llm_verdict_text`), marked as not from the sources. The evidence, its
 support and the gaps stay.
 
+An item counts as supported by its judge's verdict when it was judged,
+by the word check otherwise; a disputed item is not supported and is
+named in the agreement note (corrected 2026-10-15: the count had used
+the word check only, so a German decision over an English source showed
+"no decision" although both judges supported its evidence).
+
 **Reason:** the decision model answers every question, also one the
 passages say nothing about; then its number is its prior, not a
 decision from the sources. Shown next to "the sources do not decide

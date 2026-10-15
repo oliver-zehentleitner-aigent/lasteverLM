@@ -674,7 +674,12 @@ compares the two: `consistent`, `conflicting` (shown, never hidden) or
 0.4 with more against too, the mirror cases conflict; for a choice or
 scale, the same pick with more supported for is consistent, a different
 pick with more supported for, or the same with more against, conflicts.
-Without supported evidence on either side `agreement` is `undecided`,
+An evidence item counts as supported by its judge's verdict when it was
+judged (`supported` counts, `disputed` and a failing verdict do not; a
+judge that gave no answer leaves the word check), and by the word check
+otherwise: the judge reads across languages, the word check cannot.
+`agreement_note` names disputed items ("N disputed (the two judges
+disagree), not counted."). Without supported evidence on either side `agreement` is `undecided`,
 `verdict_text` is "The sources do not decide this." and `model_answer`
 is `null`: a number without evidence is the decision model's prior, not
 a decision from the sources. The LLM's own sentence goes into
