@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-12, on top of the family decision to queue in PostgreSQL with `FOR UPDATE SKIP LOCKED`; maintainer review pending in the first pull request
+**Source:** service author's implementation decision, 2026-10-12, on top of the family decision to queue in PostgreSQL with `FOR UPDATE SKIP LOCKED`
 **Revisit when:** upload volume makes a two-second pickup latency or the polling load on the database noticeable
 
 The family decided that source processing leaves the API process and
@@ -24,9 +24,11 @@ database. The stale takeover is the only recovery path for a crashed
 worker, because nothing else ever looks at a claimed row.
 
 Not every failure is retried. A failure a retry cannot change — an
-unreadable file, no extractable text, credit exhausted — fails the
-source at once, because three more attempts would only delay the answer
-the user needs. A failure that may pass next time — object storage, the
+unreadable file, no extractable text — fails the source at once,
+because three more attempts would only delay the answer the user needs.
+(Credit exhausted was in this list until 2026-10-14; since then such a
+source is not failed but waits in the queue, unclaimed and with no
+attempt counted: 8b4d8fdd-3b1f-4f35-be45-452e15385df9.) A failure that may pass next time — object storage, the
 embedding or summary request, anything unexpected — leaves the row
 `processing` with the error, so the stale-claim timeout hands it to the
 next worker; the third attempt that fails ends it as `failed`, the
@@ -49,7 +51,7 @@ enough and one write per job cheaper than one per heartbeat. (Vision capture sin
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-12; maintainer review pending in the first pull request
+**Source:** service author's implementation decision, 2026-10-12
 **Revisit when:** uploads grow beyond what a request should hold in memory
 
 `POST /notebooks/{id}/sources` writes the source row and uploads the
@@ -73,16 +75,21 @@ Saves the round trip through the bucket, rejected because it ties the
 worker to the API process and makes a crashed upload leave a
 `processing` row with no file behind it.
 
-The credit check runs in the handler, so the user gets a 402 before
-anything is stored, and again in the worker before each model call,
-because the balance can change in between.
+The credit check first ran in the handler (a 402 before anything was
+stored) and again in the worker before each model call. Since 2026-10-14
+adding a source needs no credit (8b4d8fdd-3b1f-4f35-be45-452e15385df9),
+and credit is checked once, before a read starts
+(1bbd3b8d-5e0b-48a1-b9be-2dccca4c4a32).
 
 The order inside the handler is part of the decision: the object goes to
 the bucket first and the claimable row is written after it. A
 `processing` row is in the queue the moment it exists; with the row
 first, a worker polling in that instant claimed it and found no object
 (`NoSuchKey`, the v0.7.1 smoke failure, 2026-10-13). A failed upload now
-leaves no row at all (503), instead of a row marked failed.
+leaves no row at all (503), instead of a row marked failed. (Since
+2026-10-14 a new row is `added` and not claimable until the source is
+used: d80fd88e-9269-4b75-bcb2-f215e4fcd1f7. The handler keeps the
+object-first order, so a failed upload still leaves no row.)
 
 ## A failed summary fails the source, even though its chunks are written
 
@@ -90,7 +97,7 @@ leaves no row at all (503), instead of a row marked failed.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-12; maintainer review pending in the first pull request
+**Source:** service author's implementation decision, 2026-10-12
 **Revisit when:** a retry endpoint for a single source exists, or the output generators learn to work without a summary
 
 The summary is the last step of processing. When the model call for it
@@ -116,7 +123,7 @@ trace of why.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the v0.7.1 smoke failure, 2026-10-13: an attempt failed with `NoSuchKey` and no second attempt came within 15 minutes; the fix was requested by the fleet lead; the backoff values are the ingest author's
+**Source:** the v0.7.1 smoke failure, 2026-10-13: an attempt failed with `NoSuchKey` and no second attempt came within 15 minutes; the backoff values are the ingest author's
 **Revisit when:** a provider's rate limit or outage outlasts 20 seconds often enough that three attempts within that window fail sources that would have passed later
 
 After a transient failure the worker keeps the row `processing` with the
@@ -212,7 +219,7 @@ costs one indexed update per call instead of a timer.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's decision through the coordinating agent, 2026-10-14 (analysis starts only when a source is used); the stored status and the endpoint chosen by the ingest author with rag's author
+**Source:** the maintainer's decision, 2026-10-14 (analysis starts only when a source is used); the stored status and the endpoint chosen by the ingest author with rag's author
 **Revisit when:** users expect their sources to be ready the moment they add them, or the wait before a first answer grows long
 
 Adding a source only stores it, as `added`, stored in
