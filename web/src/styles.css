@@ -898,14 +898,14 @@ main.prices-page:not(.shared) { box-sizing: border-box; width: 100%; max-width: 
 /* the judge: its verdict next to the word check's, amber where they disagree */
 .badge.judge { margin-left: 0.3rem; background: none; font: inherit; font-size: 0.75em; cursor: pointer; }
 .badge.judge:disabled { cursor: default; opacity: 1; }
-.badge.judge-supported { color: var(--ok); border-color: var(--ok); }
+.badge.judge-supported, .badge.judge-supported_elsewhere { color: var(--ok); border-color: var(--ok); }
 .badge.judge-contradicted { color: var(--danger); border-color: var(--danger); }
 .badge.judge-disputed { color: var(--warn); border-color: var(--warn); border-style: dashed; }
 .judge-note.judge-disputed { border-left-color: var(--warn); }
 .badge.judge-not_in_source, .badge.judge-dropped, .badge.judge-no_usable_answer { color: var(--muted); border-color: var(--muted); border-style: dashed; }
 .badge.judge.disagree { outline: 2px solid var(--warn); outline-offset: 1px; }
 .judge-note { border-left: 3px solid var(--line); padding: 0.3rem 0.6rem; background: var(--bg); border-radius: var(--radius); }
-.judge-note.judge-supported { border-left-color: var(--ok); }
+.judge-note.judge-supported, .judge-note.judge-supported_elsewhere { border-left-color: var(--ok); }
 .judge-note.judge-contradicted { border-left-color: var(--danger); }
 .judge-note p { margin: 0.25rem 0 0; }
 .judge-removed { border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: var(--radius); padding: 0.5rem 0.75rem; }
@@ -1224,3 +1224,8 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .balance-value.changed { animation: balance-flash 1.2s ease-out; border-radius: var(--radius); }
 @keyframes balance-flash { from { background: var(--accent-soft); color: var(--accent); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .balance-value.changed { animation: none; } }
+
+/* a passage the judge found and added to a claim: a small dot on its number, "added by the judge" as tooltip */
+.cite.added { position: relative; }
+.cite.added::after { content: ''; position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.added-refs { font-size: 0.85em; color: var(--muted); margin-left: 0.3rem; }

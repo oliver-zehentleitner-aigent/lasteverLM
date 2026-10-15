@@ -185,3 +185,19 @@ describe('the negation check', () => {
     expect(checkSummary(check)).toBe('Word check: words match in 6 of 9 paragraphs · 2 possible contradictions')
   })
 })
+
+describe('passages the judge added', () => {
+  const judge = { level: 'medium' as const, model: 'm', verdict: 'supported_elsewhere' as const, reason: 'r', quote: '', round: 1, added_refs: [4] }
+  it('follow the judge badge in a report as "also found in", marked', () => {
+    const units = [{ text: 'First claim [1].', refs: [1, 4], support: 'supported' as const, judge }]
+    const html = decorateReport(marked.parse(markUnsupported('First claim [1].\n', units), { async: false }) as string, new Set([1, 4]), units)
+    expect(html).toContain('<span class="added-refs">also found in <button type="button" class="cite added" data-n="4" title="added by the judge">4</button></span>')
+    // the text's own marker stays a plain button
+    expect(html).toContain('<button type="button" class="cite" data-n="1">1</button>')
+  })
+  it('are marked where a renderer draws every ref (a mind map label), and not repeated', () => {
+    const html = claimHtml({ refs: [1, 4], support: 'supported', judge }, new Set([1, 4]), 0)
+    expect(html.match(/data-n="4"/g)).toHaveLength(1)
+    expect(html).toContain('class="cite added" data-n="4"')
+  })
+})

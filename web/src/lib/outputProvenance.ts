@@ -103,7 +103,7 @@ const TOKENS = /⟦judge:(\d+)⟧|⟦support:(supported|unsupported|unverified|p
 
 function decorateText(text: string, known: ReadonlySet<number>, units: readonly Claim[], ask?: string): string {
   return text.replace(TOKENS, (whole, judge?: string, support?: string, list?: string) => {
-    if (judge !== undefined) return judgeHtml(units[Number(judge)], Number(judge))
+    if (judge !== undefined) return judgeHtml(units[Number(judge)], Number(judge), true, known)
     if (support !== undefined) return supportHtml(support as Support, ask)
     const numbers = (list ?? '').split(',').map((s) => Number(s.trim()))
     if (!numbers.some((n) => known.has(n))) return whole
@@ -150,10 +150,12 @@ export function unitBadges(answer: string, units: readonly AnswerUnit[] | null |
 /** A claim's markers and badge as HTML, for a renderer that takes HTML (the
  *  mind map's labels); added before sanitizing, like the report's. */
 export function claimHtml(c: Claim, known: ReadonlySet<number>, index?: number): string {
-  const buttons = claimRefs(c, known).map((n) => `<button type="button" class="cite" data-n="${n}">${n}</button>`)
+  // the judge's added passages are in refs already: marked, not repeated
+  const added = new Set(addedRefs(c))
+  const buttons = claimRefs(c, known).map((n) => (added.has(n) ? citeHtml(n, true) : citeHtml(n)))
   const badge = supportBadge(c.support, hasVerdict(c) && index !== undefined)
   const span = badge ? supportHtml(badge) : ''
-  const judge = c.judge && index !== undefined ? judgeHtml(c, index) : ''
+  const judge = c.judge && index !== undefined ? judgeHtml(c, index, false) : ''
   return buttons.length || span || judge ? ` ${buttons.join('')}${span}${judge}` : ''
 }
 
@@ -161,8 +163,19 @@ const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
 /** A unit's judge badge as HTML, `data-u` its index among the renderer's
  *  units; the reason (model text) is escaped, and sanitized after. */
-function judgeHtml(c: Claim | undefined, index: number): string {
+function judgeHtml(c: Claim | undefined, index: number, withAdded = true, known?: ReadonlySet<number>): string {
   const b = c ? judgeBadge(c) : null
   if (!b) return ''
-  return `<button type="button" class="badge judge judge-${b.verdict}${b.disagree ? ' disagree' : ''}" data-u="${index}" title="${escapeAttr(b.title)}">${escapeAttr(`${t('judge.section')}: ${b.label}`)}</button>`
+  const badge = `<button type="button" class="badge judge judge-${b.verdict}${b.disagree ? ' disagree' : ''}" data-u="${index}" title="${escapeAttr(b.title)}">${escapeAttr(`${t('judge.section')}: ${b.label}`)}</button>`
+  // a report's text keeps its own markers: the passages the judge added follow the badge
+  const added = withAdded ? addedRefs(c!).filter((n) => !known || known.has(n)) : []
+  return added.length ? `${badge} <span class="added-refs">${escapeAttr(t('judge.alsoFound'))} ${added.map((n) => citeHtml(n, true)).join('')}</span>` : badge
 }
+
+/** A passage marker as HTML; one the judge added is marked and says so. */
+function citeHtml(n: number, added = false): string {
+  return added ? `<button type="button" class="cite added" data-n="${n}" title="${escapeAttr(t('judge.addedRef'))}">${n}</button>` : `<button type="button" class="cite" data-n="${n}">${n}</button>`
+}
+
+/** The passages a judge found for a claim that did not cite them. */
+export const addedRefs = (c: Claim): number[] => c.judge?.added_refs ?? []

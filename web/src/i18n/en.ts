@@ -1306,6 +1306,12 @@ export const en = {
   'vch.deleteTitle': 'Delete the voucher',
   'vch.deleteLabel': 'Delete the {amount} voucher',
   'vch.sentToShort': 'sent to {to}',
+  'judge.verdict.supported_elsewhere': 'supported · citation added',
+  'judge.withAdded.one': ', {n} with an added citation',
+  'judge.withAdded.other': ', {n} with an added citation',
+  'judge.notInSourceTitle': 'In none of the selected sources.',
+  'judge.addedRef': 'added by the judge',
+  'judge.alsoFound': 'also found in',
 } as const
 
 export type MessageKey = keyof typeof en

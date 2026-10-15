@@ -94,3 +94,17 @@ describe('bulletproof: two judges', () => {
     expect(judgeHead({ judge: run })).toBe('Judge (high, a + b): 3 of 4 passed after 1 round')
   })
 })
+
+describe('supported elsewhere', () => {
+  const j = (verdict: 'supported' | 'supported_elsewhere' | 'contradicted' | 'not_in_source', level: 'low' | 'medium' = 'medium') => ({ level, model: 'm', verdict, reason: 'r', quote: '', round: 1 })
+  it('counts as supported, and the head says how many got an added citation', () => {
+    const judgements = [{ level: 'low' as const, model: 'm', verdicts: { supported: 4, supported_elsewhere: 3, not_in_source: 3 }, usage: { tokens_in: 1, tokens_out: 1 }, at: 'now' }]
+    expect(judgeHead({ judgements })).toBe('Judge (low, m): 7 of 10 supported, 3 with an added citation')
+    expect(answerJudgeLine([{ support: 'supported', judge: j('supported') }, { support: 'unsupported', judge: j('supported_elsewhere') }])).toBe('Judge (medium, m): 2 of 2 supported, 1 with an added citation')
+    expect(verdictCounts({ supported: 2, supported_elsewhere: 1 })).toBe('supported 2 · supported · citation added 1')
+  })
+  it('is green, never a disagreement with a backed word check, and not in source says where it looked', () => {
+    expect(judgeBadge({ support: 'supported', judge: j('supported_elsewhere') })).toMatchObject({ verdict: 'supported_elsewhere', label: 'supported · citation added', disagree: false })
+    expect(judgeBadge({ judge: j('not_in_source') })!.title).toBe('r\nIn none of the selected sources.')
+  })
+})

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Citation, Claim, JudgeNote, Output, Provenance } from '../api/types'
 import { formatTime } from '../lib/format'
-import { claimRefs, duration, exportName, hasVerdict, passageCitation, provenanceExport, supportBadge } from '../lib/outputProvenance'
+import { addedRefs, claimRefs, duration, exportName, hasVerdict, passageCitation, provenanceExport, supportBadge } from '../lib/outputProvenance'
 import { optionsLabel } from '../lib/outputOptions'
 import { isRemoved } from '../lib/citations'
 import { ProvenancePanel } from './ProvenancePanel'
@@ -21,14 +21,16 @@ export function ClaimMarks({ claim, text }: { claim: Claim; text: string }) {
   const ctx = useCite()
   if (!ctx) return null
   const badge = supportBadge(claim.support, hasVerdict(claim))
+  const added = new Set(addedRefs(claim))
   return (
     <>
       {claimRefs(claim, ctx.known).map((n) => (
         <button
           key={n}
           type="button"
-          className={ctx.open === n ? 'cite open' : 'cite'}
-          title={t('outProv.citeTitle', { n })}
+          // a passage the judge added to the claim is marked and says so
+          className={[ctx.open === n ? 'cite open' : 'cite', added.has(n) ? 'added' : ''].join(' ').trim()}
+          title={added.has(n) ? `${t('outProv.citeTitle', { n })} · ${t('judge.addedRef')}` : t('outProv.citeTitle', { n })}
           aria-pressed={ctx.open === n}
           onClick={() => ctx.cite(n, text)}
         >
@@ -141,7 +143,13 @@ export function OutputProvenance({ output, provenance, presentSources = null, on
                     <span key={l.page ?? 'none'} className="locator">
                       {l.page != null && <span className="muted small"> · {t('chat.page', { page: l.page })}</span>}
                       {l.passages.map((p) => (
-                        <button key={p.n} type="button" className={open?.n === p.n ? 'cite open' : 'cite'} onClick={() => setOpen((cur) => (cur?.n === p.n ? null : { n: p.n, claim: '' }))}>
+                        <button
+                          key={p.n}
+                          type="button"
+                          className={[open?.n === p.n ? 'cite open' : 'cite', p.added_by === 'judge' ? 'added' : ''].join(' ').trim()}
+                          title={p.added_by === 'judge' ? t('judge.addedRef') : undefined}
+                          onClick={() => setOpen((cur) => (cur?.n === p.n ? null : { n: p.n, claim: '' }))}
+                        >
                           {p.n}
                         </button>
                       ))}

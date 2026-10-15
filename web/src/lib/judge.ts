@@ -10,8 +10,17 @@ import { priceLabel } from './estimate'
  *  check could not measure (another language) is no disagreement. */
 export function disagrees(c: Claim): boolean {
   if (!c.judge?.verdict || !c.support || c.support === 'unverified') return false
-  return (c.support === 'supported') !== (c.judge.verdict === 'supported')
+  return (c.support === 'supported') !== backed(c.judge.verdict)
 }
+
+/** Whether a verdict backs the claim: supported, or supported by a passage
+ *  the judge added to its citations. */
+export const backed = (v: JudgeVerdict | null | undefined): boolean => v === 'supported' || v === 'supported_elsewhere'
+
+const passedOf = (v: JudgeCounts | undefined) => (v?.supported ?? 0) + (v?.supported_elsewhere ?? 0)
+
+/** ", 3 with an added citation" after a head that counts some, else nothing. */
+const addedPart = (v: JudgeCounts | undefined) => ((v?.supported_elsewhere ?? 0) > 0 ? tn('judge.withAdded', v!.supported_elsewhere!) : '')
 
 /** "Judge (medium, glm-4.6): 7 of 9 passed after 2 rounds" for a judging
  *  while it was made; "Judge (low, …): 5 of 6 supported" for the latest
@@ -20,7 +29,7 @@ export function judgeHead(p: Pick<Provenance, 'judge' | 'judgements'> | null | u
   const run = p?.judge
   // verification standard: one pass over what the word check doubted
   if (run?.mode === 'doubted' && (run.judged ?? 0) > 0) {
-    return t('judge.headDoubted', { level: t(`judge.level.${run.level}`).toLowerCase(), model: run.model, judged: run.judged ?? 0, passed: run.verdicts?.supported ?? 0 })
+    return t('judge.headDoubted', { level: t(`judge.level.${run.level}`).toLowerCase(), model: run.model, judged: run.judged ?? 0, passed: passedOf(run.verdicts) }) + addedPart(run.verdicts)
   }
   if (run?.rounds && run.rounds.length > 0) {
     const first = run.rounds[0]
@@ -29,15 +38,15 @@ export function judgeHead(p: Pick<Provenance, 'judge' | 'judgements'> | null | u
       level: t(`judge.level.${run.level}`).toLowerCase(),
       // bulletproof: both judges' models
       model: run.second_model ? `${run.model} + ${run.second_model}` : run.model,
-      passed: last.verdicts.supported ?? 0,
+      passed: passedOf(last.verdicts),
       total: first.judged,
       rounds: tn('judge.rounds', run.rounds.length),
-    })
+    }) + addedPart(last.verdicts)
   }
   const latest = p?.judgements?.[p.judgements.length - 1]
   if (latest) {
     const total = Object.values(latest.verdicts).reduce((a, b) => a + (b ?? 0), 0)
-    return t('judge.headLater', { level: t(`judge.level.${latest.level}`).toLowerCase(), model: latest.model, passed: latest.verdicts.supported ?? 0, total })
+    return t('judge.headLater', { level: t(`judge.level.${latest.level}`).toLowerCase(), model: latest.model, passed: passedOf(latest.verdicts), total }) + addedPart(latest.verdicts)
   }
   return null
 }
@@ -50,7 +59,7 @@ export function verdictKey(j: Pick<JudgeNote, 'verdict'>): keyof JudgeCounts {
 
 /** The counts of a round or a judging, as "supported 5 · contradicted 1". */
 export function verdictCounts(v: JudgeCounts): string {
-  return (['supported', 'contradicted', 'disputed', 'not_in_source', 'no_usable_answer'] as const)
+  return (['supported', 'supported_elsewhere', 'contradicted', 'disputed', 'not_in_source', 'no_usable_answer'] as const)
     .filter((k) => (v[k] ?? 0) > 0)
     .map((k) => `${t(`judge.verdict.${k}`)} ${v[k]}`)
     .join(' · ')
@@ -62,6 +71,8 @@ export function judgeBadge(c: Claim): { verdict: keyof JudgeCounts; label: strin
   const d = disagrees(c)
   // the word check's result moves into the judge's tooltip: its badge is not shown beside a verdict
   const word = c.judge.verdict && c.support ? `\n${t(`wordCheck.${c.support}`)}` : ''
+  // not in source: the judge looked through every selected source
+  const where = c.judge.verdict === 'not_in_source' ? `\n${t('judge.notInSourceTitle')}` : ''
   // bulletproof: both judges with their verdicts and reasons
   const second = c.judge.second
   const named = (v: JudgeVerdict | null) => t(`judge.verdict.${v ?? 'no_usable_answer'}`)
@@ -70,7 +81,7 @@ export function judgeBadge(c: Claim): { verdict: keyof JudgeCounts; label: strin
     ? (first ? `\n${t('judge.first', { model: c.judge.model })}: ${named(first.verdict)} — ${first.reason}` : '') +
       `\n${t('judge.second', { model: second.model })}: ${named(second.verdict)} — ${second.reason}`
     : ''
-  const title = (d ? `${c.judge.reason} — ${t('judge.disagreeTitle')}` : c.judge.reason) + both + word
+  const title = (d ? `${c.judge.reason} — ${t('judge.disagreeTitle')}` : c.judge.reason) + where + both + word
   const verdict = verdictKey(c.judge)
   return { verdict, label: t(`judge.verdict.${verdict}`), title, disagree: d }
 }
@@ -93,11 +104,11 @@ export function answerJudgeLine(units: readonly Claim[] | null | undefined): str
   const judged = (units ?? []).filter((u) => u.judge)
   if (judged.length === 0) return null
   const { level, model } = judged[0].judge!
-  const passed = judged.filter((u) => u.judge!.verdict === 'supported').length
+  const passed = judged.filter((u) => backed(u.judge!.verdict)).length
+  const added = judged.filter((u) => u.judge!.verdict === 'supported_elsewhere').length
   const lvl = t(`judge.level.${level}`).toLowerCase()
   // standard judges only what the word check doubted, at low
   const all = (units ?? []).filter((u) => u.support).length
-  return judged.length < all
-    ? t('judge.headDoubted', { level: lvl, model, judged: judged.length, passed })
-    : t('judge.headLater', { level: lvl, model, passed, total: judged.length })
+  const head = judged.length < all ? t('judge.headDoubted', { level: lvl, model, judged: judged.length, passed }) : t('judge.headLater', { level: lvl, model, passed, total: judged.length })
+  return head + (added > 0 ? tn('judge.withAdded', added) : '')
 }

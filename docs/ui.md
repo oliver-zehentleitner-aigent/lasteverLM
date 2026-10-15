@@ -516,8 +516,16 @@ opens the notebook.
   per level from rag's catalogue), with a line on what the level does. A judge reads
   each claim against its passages while the output is made; claims it
   fails are revised or taken out. In the output each claim gets a second
-  badge next to the word check's: supported (green), contradicted (red),
-  not in source (dashed) or no answer (dashed; the judge gave no usable
+  badge next to the word check's: supported (green), supported ·
+  citation added (green: backed by a passage the claim did not cite,
+  which the judge added to its refs as `judge.added_refs`; counted as
+  supported, the head adding ", 3 with an added citation"; the added
+  numbers carry a small green dot and "added by the judge" as tooltip,
+  in a report as "also found in [n]" after the badge, since the text
+  keeps its own markers, and in the Sources list; the passage opens like
+  any other), contradicted (red),
+  not in source (dashed; "In none of the selected sources." in the
+  tooltip, since the judge searched them again) or no answer (dashed; the judge gave no usable
   answer twice, its reason in the tooltip, never counted as a
   disagreement), amber-outlined where the word check reads it the other
   way. A click on it opens the provenance panel at the

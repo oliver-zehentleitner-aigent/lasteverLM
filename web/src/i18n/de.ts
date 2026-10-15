@@ -1309,4 +1309,10 @@ export const de: Record<MessageKey, string> = {
   'vch.deleteTitle': 'Gutschein löschen',
   'vch.deleteLabel': 'Gutschein über {amount} löschen',
   'vch.sentToShort': 'gesendet an {to}',
+  'judge.verdict.supported_elsewhere': 'belegt · Zitat ergänzt',
+  'judge.withAdded.one': ', {n} mit ergänztem Zitat',
+  'judge.withAdded.other': ', {n} mit ergänztem Zitat',
+  'judge.notInSourceTitle': 'In keiner der ausgewählten Quellen.',
+  'judge.addedRef': 'vom Judge ergänzt',
+  'judge.alsoFound': 'auch belegt in',
 }
