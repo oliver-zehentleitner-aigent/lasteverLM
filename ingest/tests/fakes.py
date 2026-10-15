@@ -88,6 +88,8 @@ class InMemoryRepository:
         self.outputs: dict[UUID, tuple[UUID | None, str]] = {}
         self.output_ids: dict[UUID, UUID] = {}
         self.retry_at: dict[UUID, datetime] = {}
+        # rag's outputs.reserved_cents: output id -> (owner, status, cents).
+        self.reservations: dict[UUID, tuple[UUID, str, Decimal]] = {}
 
     # -- test helpers ----------------------------------------------------------
 
@@ -706,14 +708,14 @@ class InMemoryRepository:
 
     def _fundable(self, lib):
         """The claim query's rule: funded at request, or the balance less what
-        other funded reads hold covers this read's estimate."""
+        started work holds covers this read's estimate."""
         if lib.funded_request_at is not None:
             return True
-        held = self.funded_waiting_cents(lib.owner)  # this row is not funded
+        held = self.held_cents(lib.owner)  # this row is not funded
         balance = self.balance_cents(lib.owner)
         return balance > 0 and balance - held >= (lib.funded_cents or 0)
 
-    def funded_waiting_cents(self, owner):
+    def held_cents(self, owner):
         return sum(
             (
                 lib.funded_cents or Decimal(0)
@@ -722,6 +724,13 @@ class InMemoryRepository:
                 and lib.funded_request_at is not None
                 and lib.status == "processing"
                 and lib.deleted_at is None
+            ),
+            Decimal(0),
+        ) + sum(
+            (
+                cents
+                for who, status, cents in self.reservations.values()
+                if who == owner and status in ("waiting", "processing")
             ),
             Decimal(0),
         )

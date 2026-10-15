@@ -536,9 +536,10 @@ class Repository(Protocol):
         """The user's balance (core's: credits minus charges)."""
         ...
 
-    def funded_waiting_cents(self, owner: UUID) -> Decimal:
-        """What the owner's funded reads still waiting hold of the balance:
-        the sum of their estimated maxima."""
+    def held_cents(self, owner: UUID) -> Decimal:
+        """What the owner's started work holds of the balance: the estimated
+        maxima of their funded reads still waiting, plus what rag's waiting
+        and processing outputs reserve (`outputs.reserved_cents`)."""
         ...
 
     def has_credit(self, user_id: UUID) -> bool:
@@ -806,13 +807,23 @@ class PostgresRepository:
     # May the worker process this row: its owner has a positive balance
     # (core's expression: credits minus charges).
     # or its read was funded when it was asked for (funded_request_at), or
-    # the balance, less what the owner's funded reads still waiting hold,
-    # covers this read's estimated maximum (funded_cents, stored when it
-    # was queued; 0 for rows queued before estimates existed).
+    # the balance, less what the owner's started work holds, covers this
+    # read's estimated maximum (funded_cents, stored when it was queued; 0
+    # for rows queued before estimates existed). Started work is the
+    # owner's other funded reads still waiting and rag's waiting and
+    # processing outputs (`outputs.reserved_cents`), the sum rag holds too.
+    _RESERVED = (
+        "coalesce((select sum(o.reserved_cents) from outputs o "
+        "where o.owner = {owner} and o.status in ('waiting', 'processing') "
+        "and o.deleted_at is null), 0)"
+    )
+    # One parenthesised sum: the claim subtracts it as a whole.
     _HELD = (
-        "coalesce((select sum(f.funded_cents) from library_sources f "
+        "(coalesce((select sum(f.funded_cents) from library_sources f "
         "where f.owner = l.owner and f.funded_request_at is not null "
-        "and f.status = 'processing' and f.deleted_at is null and f.id <> l.id), 0)"
+        "and f.status = 'processing' and f.deleted_at is null and f.id <> l.id), 0) + "
+        + _RESERVED.format(owner="l.owner")
+        + ")"
     )
     _FUNDED = (
         f"(l.funded_request_at is not null or ({funded_sql('l.owner')} and "
@@ -1417,9 +1428,11 @@ class PostgresRepository:
         with self._pool.connection() as conn:
             return Decimal(core_balance_cents(conn, user_id))
 
-    def funded_waiting_cents(self, owner: UUID) -> Decimal:
+    def held_cents(self, owner: UUID) -> Decimal:
         row = self._one(
-            "select coalesce(sum(funded_cents), 0) as held from library_sources "
+            "select coalesce(sum(funded_cents), 0) + "
+            + self._RESERVED.format(owner="%(owner)s")
+            + " as held from library_sources "
             "where owner = %(owner)s and funded_request_at is not null "
             "and status = 'processing' and deleted_at is null",
             {"owner": owner},

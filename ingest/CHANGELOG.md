@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Changed
+
+- What started work holds now includes rag's waiting and processing outputs (`outputs.reserved_cents`): a read starts only if the balance covers its estimate plus the owner's funded reads still waiting plus those reservations, in the claim and when a request is funded, the sum rag holds too. Before, a read could start on the balance a running output had reserved.
+
 ## [0.21.0] - 2026-10-15
 
 ### Changed
