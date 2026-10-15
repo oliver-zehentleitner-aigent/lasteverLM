@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-10-15
+
 ### Added
 
 - Verification Bulletproof: two judges of different families, "disputed" (amber, dashed; kept, never removed) where they disagree, both judges with their verdicts and reasons in the badge's tooltip and the provenance panel, both models in the head; the option says "slower and dearer" and that it may mark more claims as disputed.
