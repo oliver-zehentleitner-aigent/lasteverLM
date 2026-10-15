@@ -1,7 +1,7 @@
 import { RAG_PREFIX } from '../config'
-import { request } from './client'
+import { ApiError, request } from './client'
 import type { Estimate, EstimateRequest } from '../lib/estimate'
-import type { FeedbackStats, Plan, Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput, TableCandidate, ThemeCandidate } from './types'
+import type { FeedbackStats, Plan, Answer, ChartCandidate, JudgeLevel, Chunk, Conversation, Message, Output, OutputKind, OutputOptions, OutputOptionsSpec, SharedNotebook, SharedOutput, TableCandidate, ThemeCandidate, JudgeJob } from './types'
 
 const nb = (id: string) => `${RAG_PREFIX}/notebooks/${encodeURIComponent(id)}`
 const out = (id: string) => `${RAG_PREFIX}/outputs/${encodeURIComponent(id)}`
@@ -88,11 +88,20 @@ export const rag = {
   outputOptions: () => request<OutputOptionsSpec>(`${RAG_PREFIX}/outputs/options`),
   /** also without a notebook; 404 while it is in the trash */
   getOutput: (id: string) => request<Output>(out(id)),
-  /** annotate only: every claim gets a judge note; 402 without credit, 409 without logged passages */
-  judgeOutput: (id: string, level: Exclude<JudgeLevel, 'off'>) => request<Output>(`${out(id)}/judge`, { method: 'POST', json: { level } }),
-  /** a cited answer, annotated the same way */
+  /** annotate only, as a background job: every claim gets a judge note once it is done;
+   *  402 without credit, 409 while one runs (its job_id in the body) */
+  judgeOutput: (id: string, level: Exclude<JudgeLevel, 'off'>) => request<JudgeJob>(`${out(id)}/judge`, { method: 'POST', json: { level } }),
+  /** a cited answer, judged the same way */
   judgeMessage: (id: string, level: Exclude<JudgeLevel, 'off'>) =>
-    request<Message>(`${RAG_PREFIX}/messages/${encodeURIComponent(id)}/judge`, { method: 'POST', json: { level } }),
+    request<JudgeJob>(`${RAG_PREFIX}/messages/${encodeURIComponent(id)}/judge`, { method: 'POST', json: { level } }),
+  /** the job, polled until it is done or failed */
+  getJudgeJob: (jobId: string) => request<JudgeJob>(`${RAG_PREFIX}/judge-jobs/${encodeURIComponent(jobId)}`),
+  /** the target's latest judgement job, to resume after a reload; null when it was never judged */
+  latestJudgeJob: (target: 'output' | 'message', id: string) =>
+    request<JudgeJob>(target === 'output' ? `${out(id)}/judge` : `${RAG_PREFIX}/messages/${encodeURIComponent(id)}/judge`).catch((e: unknown) => {
+      if (e instanceof ApiError && e.status === 404) return null
+      throw e
+    }),
   renameOutput: (id: string, title: string) => request<Output>(out(id), { method: 'PATCH', json: { title } }),
   /** moves it to the trash: out of every notebook, its share link off */
   deleteOutput: (id: string) => request<void>(out(id), { method: 'DELETE' }),

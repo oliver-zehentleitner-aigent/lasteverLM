@@ -288,6 +288,25 @@ export type OutputStatus = 'waiting' | 'processing' | 'ready' | 'failed'
  *  the failure's kind, the provider's HTTP status when there was one,
  *  core's one-line text (e.g. "report: the model returned no content";
  *  never a prompt or source text) and the service it failed in. */
+/** A judgement asked for on an output or a chat answer, run as a background
+ *  job: queued, running with its progress, then done (the verdicts are on
+ *  the target) or failed after rag's own retries. */
+export interface JudgeJob {
+  job_id: string
+  target: 'output' | 'message'
+  target_id: string
+  level: Exclude<JudgeLevel, 'off'>
+  status: 'queued' | 'running' | 'done' | 'failed'
+  /** while running: how many claims or paragraphs are judged of all */
+  phase: { step: 'judging'; n: number; of: number; since?: string } | null
+  attempts: number
+  attempt_log: AttemptLogEntry[]
+  /** failed: the public one-line reason */
+  error: string | null
+  created_at: string
+  finished_at: string | null
+}
+
 export interface AttemptLogEntry {
   at: string
   attempt: number
