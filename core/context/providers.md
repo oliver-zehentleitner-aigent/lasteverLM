@@ -279,7 +279,7 @@ writes the evidence is rag's decision and is recorded in rag's context.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the agent chat (maintainer go, 2026-10-14), requested by rag; a live call on the platform with qwen3.8-27b, two parallel calls and the follow-up turn, 2026-10-14
+**Source:** the product's agent chat feature (maintainer go, 2026-10-14), requested by rag; a live call on the platform with qwen3.8-27b, two parallel calls and the follow-up turn, 2026-10-14
 **Revisit when:** every `LLM` in the services can call tools, or a second provider implements tool calls differently
 
 `complete_tools` lives on `ToolCallingLLM`, a protocol that extends
