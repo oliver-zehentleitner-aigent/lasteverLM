@@ -3,6 +3,7 @@
 import logging
 import re
 import uuid
+from collections.abc import Mapping
 from functools import partial
 from typing import Annotated, Any
 
@@ -63,6 +64,7 @@ from .estimate import (
     Models,
     action_calls,
     estimate,
+    level_options,
     output_calls,
     output_estimator,
     step_estimator,
@@ -87,7 +89,7 @@ from .models import (
     PlanAnswer,
     SharedNotebook,
 )
-from .options import OutputOptions, catalogue, resolve
+from .options import VERIFICATION_LEVELS, OutputOptions, catalogue, resolve
 from .outputs import OutputGenerator, registry
 from .outputs.chart import ChartProposals
 from .reading import (
@@ -155,6 +157,7 @@ def create_app(
     voice_samples: VoiceSamples | None = None,
     dependency_probe: DependencyProbe | None = None,
     ingest: Ingest | None = None,
+    judges: Mapping[str, LLM] | None = None,
 ) -> FastAPI:
     """Build the app. Dependencies can be injected for tests; otherwise they come from settings."""
     settings = settings or Settings.from_env()
@@ -182,6 +185,9 @@ def create_app(
     generators = generators or registry(tts_available=settings.tts_model is not None)
 
     ingest = ingest or HttpIngest(settings.ingest_url)
+    # one set of judge models: a chat answer's verification, outputs judged on request
+    if judges is None:
+        judges = judge_models(make_client(settings.inference), settings.inference.judge_models)
     rag = RagService(
         store,
         retriever,
@@ -192,6 +198,7 @@ def create_app(
         generated_slots=settings.retrieval_generated_slots,
         ingest=ingest,
         read_wait_s=settings.answer_read_wait_s,
+        judges=judges,
     )
     objects = S3Storage(settings.s3) if settings.s3 else None
     if objects is not None:
@@ -216,7 +223,7 @@ def create_app(
         objects=objects,
         default_voice=settings.tts_voice,
         # for judging an existing output or answer on request
-        judges=judge_models(make_client(settings.inference), settings.inference.judge_models),
+        judges=judges,
         ingest=ingest,
         output_max=output_estimator(settings.model_prices, store.pricing_rules, generators, models),
     )
@@ -458,6 +465,19 @@ def create_app(
         except ValueError as exc:  # a pydantic ValidationError is one too
             raise InvalidOptions(str(exc)) from exc
         result = estimate(settings.model_prices, store.pricing_rules(), action, low, high)
+        if body.kind is not None and body.kind != "chart":
+            # the same output at every verification level, for the form to show
+            result["levels"] = {}
+            for level in VERIFICATION_LEVELS:
+                variant = level_options(options, level)
+                lo, hi = (
+                    output_calls(body.kind, variant, generator, models, case) for case in (0, 1)
+                )
+                priced = estimate(settings.model_prices, store.pricing_rules(), action, lo, hi)
+                result["levels"][level] = {
+                    "min": priced["charge_cents_min"],
+                    "max": priced["charge_cents_max"],
+                }
         result["separate"] = []
         result["blocked"] = []
         if body.notebook_id is not None:

@@ -972,6 +972,7 @@ def make_client(
         voice_samples=VoiceSamples(store, tts, objects),
         dependency_probe=dependency_probe,
         ingest=ingest,
+        judges=judges,
     )
     client = TestClient(app, raise_server_exceptions=False)
     client.worker = Worker(  # type: ignore[attr-defined]

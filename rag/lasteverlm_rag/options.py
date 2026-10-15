@@ -62,7 +62,7 @@ VOICES = [
 ]
 SPEED_MIN, SPEED_MAX, SPEED_STEP, SPEED_DEFAULT = 0.75, 1.5, 0.25, 1.0
 
-TEXT_OPTIONS = ["language", "instructions", "judge"]
+TEXT_OPTIONS = ["language", "instructions", "judge", "verification"]
 KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "report": [*TEXT_OPTIONS, "report_style", "length"],
     "quiz": [*TEXT_OPTIONS, "question_count", "difficulty", "audience"],
@@ -77,6 +77,15 @@ KIND_OPTIONS: dict[OutputKind, list[str]] = {
     "chart": ["instructions", "charts"],
 }
 JUDGE_LEVELS = ["off", "low", "medium", "high"]
+# how much checking an output gets, and may cost: basic is the word check and
+# the negation check (free); standard also judges the units those doubt, once
+# at low; thorough judges every unit at medium with revision (the judge option)
+VERIFICATION_LEVELS = ["basic", "standard", "thorough"]
+DEFAULT_VERIFICATION = "basic"
+# what a level means for the generation-time judge, where it uses it
+THOROUGH_JUDGE = "medium"
+# the legacy judge_default preference, read as a level
+LEVEL_OF_JUDGE = {"off": "basic", "low": "standard", "medium": "thorough", "high": "thorough"}
 CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "scatter"]
 CHARTS_MAX = 12  # picked per output, and proposed per call at most
 PROPOSE_DEFAULT = 6
@@ -114,6 +123,7 @@ class OutputOptions(BaseModel):
     language: str | None = None
     instructions: str | None = None
     judge: str | None = None
+    verification: str | None = None
     report_style: str | None = None
     length: str | None = None
     question_count: int | None = None
@@ -149,8 +159,21 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
             raise ValueError(f"instructions: at most {INSTRUCTIONS_MAX_CHARS} characters")
         if text:
             given["instructions"] = text
+    stored_thorough = (
+        given.get("verification") == "thorough" and given.get("judge") == THOROUGH_JUDGE
+    )
+    if "judge" in given and "verification" in given and not stored_thorough:
+        raise ValueError("verification: send either verification or judge")
     if given.get("judge") == "off":
         del given["judge"]  # off is the default and stays absent
+    if "verification" in given:
+        level = given["verification"]
+        if level not in VERIFICATION_LEVELS:
+            raise ValueError(f"verification: unknown value {level!r}")
+        if level == DEFAULT_VERIFICATION:
+            del given["verification"]  # basic is the default and stays absent
+        elif level == "thorough":
+            given["judge"] = THOROUGH_JUDGE  # today's judge at medium
     for key, allowed_values in (
         ("judge", JUDGE_LEVELS),
         ("report_style", REPORT_STYLES),
@@ -279,6 +302,7 @@ def is_voice(voice_id: str) -> bool:
 def catalogue(default_voice: str, judge_models: Mapping[Any, str]) -> dict[str, Any]:
     return {
         "judge": {"levels": JUDGE_LEVELS, "default": "off", "models": dict(judge_models)},
+        "verification": {"levels": VERIFICATION_LEVELS, "default": DEFAULT_VERIFICATION},
         "languages": [{"code": lang.code, "label": lang.label} for lang in LANGUAGES],
         "instructions": {"max_chars": INSTRUCTIONS_MAX_CHARS},
         "report": {
@@ -339,3 +363,11 @@ def catalogue(default_voice: str, judge_models: Mapping[Any, str]) -> dict[str, 
         },
         "kinds": KIND_OPTIONS,
     }
+
+
+def verification_of(options: Mapping[str, Any]) -> str:
+    """The level an output was made with: its own option, or what a legacy
+    ``judge`` option amounts to."""
+    if "verification" in options:
+        return str(options["verification"])
+    return LEVEL_OF_JUDGE.get(str(options.get("judge") or "off"), DEFAULT_VERIFICATION)

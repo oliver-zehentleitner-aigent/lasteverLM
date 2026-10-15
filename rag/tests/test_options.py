@@ -55,6 +55,7 @@ def test_the_catalogue_lists_languages_voices_speeds_and_options_per_kind(settin
         "language",
         "instructions",
         "judge",
+        "verification",
         "report_style",
         "length",
     ]
@@ -62,6 +63,7 @@ def test_the_catalogue_lists_languages_voices_speeds_and_options_per_kind(settin
         "language",
         "instructions",
         "judge",
+        "verification",
         "voice",
         "speed",
         "audio_style",

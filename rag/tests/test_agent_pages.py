@@ -84,20 +84,20 @@ def test_a_message_that_says_fresh_or_cached_is_not_asked(settings):
     assert plan["status"] == "proposed" and "url_refresh" not in plan["steps"][0]["args"]
 
 
-def test_a_judge_question_and_a_page_question_come_one_after_the_other(settings):
+def test_a_level_question_and_a_page_question_come_one_after_the_other(settings):
     store, _, _, client = notebook_with_a_page(settings, [MAKE_QUIZ])
-    store.preferences[OWNER] = {"judge_default": "high"}
+    store.preferences[OWNER] = {"verification_level": "thorough"}
     plan = ask(client, "Make a quiz of 5 questions.")["plan"]
     path = plan_path(plan["plan_id"])
     first = plan["question"]
-    assert first["default"] == "judge:high" and plan["answered"] == []
+    assert first["default"] == "verification:thorough" and plan["answered"] == []
     second = client.post(
         f"{path}/answer",
-        json={"question_id": first["question_id"], "choice": "judge:off"},
+        json={"question_id": first["question_id"], "choice": "verification:basic"},
         headers=AUTH,
     ).json()
     assert second["status"] == "asking" and second["question"]["default"] == "pages:cached"
-    assert [q["answer"]["choice"] for q in second["answered"]] == ["judge:off"]
+    assert [q["answer"]["choice"] for q in second["answered"]] == ["verification:basic"]
     r = client.post(f"{path}/confirm", headers=AUTH)
     assert r.status_code == 409
     done = client.post(
@@ -106,7 +106,10 @@ def test_a_judge_question_and_a_page_question_come_one_after_the_other(settings)
         headers=AUTH,
     ).json()
     assert done["status"] == "proposed"
-    assert [q["answer"]["choice"] for q in done["answered"]] == ["judge:off", "pages:cached"]
+    assert [q["answer"]["choice"] for q in done["answered"]] == [
+        "verification:basic",
+        "pages:cached",
+    ]
 
 
 def test_a_plain_answer_says_how_old_the_cited_web_page_is(settings):
