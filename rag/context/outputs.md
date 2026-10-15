@@ -623,3 +623,39 @@ have.
 - A progress percentage: the duration of each step depends on the
   material and the models, so any percentage would be invented.
 - Only the elapsed time: it says that something takes long, not what.
+
+## An audio's transcript times are measured from its MP3 frames, each turn spoken on its own
+
+**Id:** 15b84a46-7085-4197-aaf1-3b68c01ae66b
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (highlight the text being read; measured duration preferred over provider seconds if cheap); a platform probe the same day (the same sentence at speed 1.0 gave 5.7 s of audio billed as 6 s, at speed 1.5 4.0 s billed as 7 s; mutagen agrees with the frame count within the encoder delay); choosing per-turn synthesis is rag's
+**Revisit when:** the platform returns timestamps or word timings itself, or a format other than MP3
+
+Each transcript entry gets `start` and `end`, its seconds in the final
+file. They are the sum of its segments' durations, measured by walking
+the MP3 frame headers (`mp3.py`, no decoder). A segment never spans
+two turns, so every turn is synthesized on its own. Before, consecutive
+turns of one voice were joined into one stretch. If a segment cannot be
+measured, the audio stays as it is without times, and a warning is
+logged.
+
+**Reason:** the billed seconds are not the audio's length. They are
+whole seconds, and at another speed they are not even close: in the
+probe, 4.0 s of audio at speed 1.5 was billed as 7 s. Highlighting off
+by seconds would be worse than none. Counting frames is exact for the
+joined stream: each segment's silent encoder-delay frames are played
+too, which a tool that reads one file on its own leaves out. It costs
+one pass over bytes rag already holds. Joined stretches would hide where
+one paragraph ends and the next begins. Synthesizing per turn makes the
+boundaries real, at the price of more requests, each billed in whole
+seconds.
+
+**Rejected alternatives:**
+- The provider's billed seconds: whole seconds, and wrong at other speeds.
+- Estimating from the number of characters: invented, and wrong for
+  every voice and speed.
+- Keeping the joined stretches and splitting their time by characters:
+  the boundaries inside a stretch would be guesses.
+- A decoding library: a dependency for what the frame headers already say.
