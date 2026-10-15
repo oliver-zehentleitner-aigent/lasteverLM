@@ -597,3 +597,36 @@ check reads the same diff a reviewer would and fails before the merge.
 **Rejected alternative:** fixing the lines by hand after each release
 roll — what happened four times in one day, and every miss ships a
 wrong release section.
+
+## A draining rag worker may finish its job: 2760 s grace, one surge pod at a time
+
+**Id:** fbb08f48-0740-4d2a-abe7-0e2cacb8cc39
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** rollouts on 2026-10-15 killed running rag jobs (a judged output outlasts the 120 s grace); the maintainer's go the same day; node memory requests read from the cluster (2386Mi and 3200Mi of 3709Mi allocatable per node); the worker's SIGTERM handling read from `rag/lasteverlm_rag/worker.py`
+**Revisit when:** a rollout's helm wait times out on Pending rag-worker pods, rag's `JOB_MAX_SECONDS` changes, or the node pool grows or shrinks
+
+The rag-worker Deployment sets `terminationGracePeriodSeconds: 2760`
+(rag's `JOB_MAX_SECONDS` of 2700 plus a minute) and a rolling update
+of `maxSurge 1`, `maxUnavailable 0`. On SIGTERM a worker stops
+claiming, finishes the job it holds and exits; an idle one exits within
+its poll interval, so only busy pods use the long grace. ingest-worker
+keeps 120 s and the default strategy.
+
+**Reason:** a killed job is lost work the user paid for and has to wait
+for again. With `maxUnavailable 0` a new worker is ready before an old
+one stops claiming, so new jobs never wait on draining pods. A draining
+pod keeps its 512Mi memory request until its job ends; the nodes had
+about 1.8 GiB of requests free, so about three busy workers can drain at
+once. Beyond that a replacement stays Pending until a job ends: the
+deploy's `helm --wait` (10 min) can then time out and mark the deploy
+red although the rollout completes by itself.
+
+**Rejected alternatives:** keeping 120 s and relying only on rag's
+handover on SIGTERM (the job restarts elsewhere) — the handover is the
+safety net, but a restarted judged output costs its model calls twice;
+`maxSurge` 100 % — every replacement at once, which on a scaled-up
+worker set (up to 6) would ask for more memory than the nodes have
+free; a third node for the headroom — the maintainer's cost call, not
+needed at today's job counts.
