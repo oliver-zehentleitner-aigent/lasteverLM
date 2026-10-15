@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-15
+
 ### Added
 
 - Verification levels for outputs: "Verification" (Basic: words and negation; Standard: also a low judge on what those doubt, marking only; Thorough: the medium judge, revising and removing; Bulletproof once rag offers it) replaces "Check with a judge" where rag offers levels, each level with its full price, starting at the account's "Verification by default", which replaces "Judge by default" in Settings.
