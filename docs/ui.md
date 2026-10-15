@@ -71,7 +71,7 @@ Back, Skip; done in three clicks. Finishing or skipping sets the
 account's `tour_done` preference, and a note in this browser for an
 account that cannot keep it (the shared demo user, or an account
 service before the preference). Not shown over the add-sources dialog.
-Settings has "Show the introduction again", which clears both and
+**Help** (`/help`) has "Show the introduction again", which clears both and
 opens the notebook.
 
 ## The notebook view
@@ -635,7 +635,7 @@ opens the notebook.
 
 `/settings` (in the header next to Library): first a row **Credits and
 prices**, "Balance €X · View credits · Price list" (two plain links);
-"Show the introduction again" (see Adding sources); then interface language
+then interface language
 (browser default, English, Deutsch), language of generated documents
 (same as the sources, or one of rag's languages) and the voice for
 audio (default, or one of rag's voices, with the same sample button),
@@ -772,7 +772,26 @@ deleted from the library) stays readable with its quote and is marked
   and `_`, counted while typing, Continue enabled once it matches, an
   eye toggle to show it; it is exchanged like the link, and an unknown,
   used or expired code says so.
-- Header: the balance in EUR as a pill that opens **Credits**; a 402
+- Header, top right, left to right: the balance chip, the profile icon,
+  the help icon and the light/dark toggle. The profile icon is a round
+  button with the e-mail's first letter (the e-mail and "Sign out" are
+  no longer in the bar); its menu shows the e-mail as a header, then
+  **Credits**, **Redeem a voucher** (the dialog at once), **Settings**
+  and **Sign out** (focus on the first item, arrow keys, Home/End,
+  Escape back to the button; a click elsewhere closes it). The help
+  icon "?" opens `/help`. On a phone the three icons stay, next to the
+  brand on the first line.
+- **Help** (`/help`): six steps in the interface language (add sources,
+  select them, ask, pick a format and a verification level, Create,
+  check the evidence), then "Show the introduction again" (moved here
+  from Settings) and **Recreate the starter notebook** (`POST
+  /api/ingest/starter/copy`, free): it opens the new copy, whose
+  documents the notebook asks for until they arrive; while the user
+  still has a starter copy rag's ingest answers `starter_exists` and the
+  page asks "You already have it. Create another copy?" before sending
+  `?force=true`; one copy an hour ("try again in N minutes"), and no
+  starter set says so.
+- The balance in EUR as a pill that opens **Credits**; a 402
   anywhere opens the one-field voucher dialog. When there is credit, just
   not enough for an output or a plan (rag's `credit_insufficient`), the
   dialog and the error say "This needs up to €X, you have €Y.", with

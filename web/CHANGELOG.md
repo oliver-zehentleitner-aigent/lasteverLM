@@ -12,11 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage on every output kind: the head says "4 of 5 sources used" (rag's `provenance.coverage`), and "How this was made" lists the selected sources no unit cites, each with the generator's reason or "not used, no reason given".
 - The browser tab's title names what is shown: "<document> · <notebook> · lasteverLM" in a notebook, the page elsewhere ("Settings · lasteverLM", "Admin · Finance · Costs · lasteverLM"), the title on a shared page (#602).
 - The viewer's tab bar: "Close all" at its right end, "Close others" and "Close tabs to the right" on a tab's right-click, a middle click closes a tab; none asks first.
+- A Help page (`/help`, the "?" in the header): six steps from adding sources to checking the evidence, "Show the introduction again" (moved from Settings), and "Recreate the starter notebook", a free fresh copy that asks first while the user still has one and says when the one-an-hour limit applies.
 
 ### Changed
 
 - The output format tiles flow with the column width (at least 110 px each, three a row at the default width) instead of a fixed three-column grid.
 - Mind map: the wheel scrolls, Shift+wheel scrolls sideways, Ctrl/Cmd+wheel zooms (a trackpad pinch too); before, the wheel zoomed.
+- The header's right end: the balance chip, a round profile icon with the e-mail's initial (its menu: the e-mail, Credits, Redeem a voucher, Settings, Sign out; it replaces the e-mail and "Sign out" in the bar), the help icon and the light/dark toggle.
 - Library: Shift+click on a row or its checkbox adds every row from the one clicked last to this one, like a file manager; it never removes.
 - Library rows: open, share and delete are line icons (↗, a link, a bin) with tooltips and labels, delete at the right end; a click on a row ticks it like its checkbox (not on its links, buttons or the checkbox), and a ticked row is shaded. The viewer's share and delete are the same icons; the bin is red wherever it deletes (library, outputs and sources lists, viewer), muted at rest and full on hover.
 
