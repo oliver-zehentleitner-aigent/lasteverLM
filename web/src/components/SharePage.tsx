@@ -39,7 +39,7 @@ function SharedOutputView({ doc, refresh, level = 1 }: { doc: SharedOutput; refr
         <span className="muted small">{formatTime(doc.created_at)}</span>
         {/* no spec here: it needs a login, so the codes are shown as they are */}
         {optionsLabel(doc.options, null) && <span className="muted small">{optionsLabel(doc.options, null)}</span>}
-        {checkSummary(doc.provenance?.check) && <span className="muted small check-line">{checkSummary(doc.provenance?.check)}</span>}
+        {checkSummary(doc.provenance?.check, doc.kind) && <span className="muted small check-line">{checkSummary(doc.provenance?.check, doc.kind)}</span>}
         {judgeHead(doc.provenance) && <span className="muted small check-line judge-line">{judgeHead(doc.provenance)}</span>}
         {level === 1 && formFor(doc.kind).printable && (
           <span className="actions no-print">

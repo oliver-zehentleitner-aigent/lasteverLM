@@ -14,6 +14,11 @@ interface Props {
   spec: OutputOptionsSpec | null
   /** the notes, which steer the proposal too */
   instructions: string
+  /** what the candidates were found for (notebook, sources, notes); a change makes them stale */
+  selection: string
+  /** the selected sources and the pages to fetch again, sent as on Create */
+  sourceIds?: string[]
+  urlRefresh?: string[]
   picked: ChartCandidate[]
   onPick: (picked: ChartCandidate[]) => void
 }
@@ -24,19 +29,28 @@ interface Props {
  *  type, number of values and how many the check backed, each with a
  *  checkbox. Create takes the ticked ones exactly as proposed. Loaded on
  *  demand with recharts. */
-export default function ChartProposals({ notebookId, spec, instructions, picked, onPick }: Props) {
+export default function ChartProposals({ notebookId, spec, instructions, selection, sourceIds, urlRefresh = [], picked, onPick }: Props) {
   const lim = spec?.chart ?? { chart_types: [], charts_max: 12, propose_max: 12, propose_default: 6 }
   const [max, setMax] = useState(lim.propose_default)
-  const [found, setFound] = useState<{ candidates: ChartCandidate[]; reason: string | null } | null>(null)
+  const [found, setFound] = useState<{ candidates: ChartCandidate[]; reason: string | null; selection: string } | null>(null)
+  // found for another selection: not shown, not sent (the tiles drop the picks themselves)
+  const stale = found !== null && found.selection !== selection
   const { busy, error, run } = useAsync()
   const colors = useChartColors()
   const price = useEstimate({ action: 'chart_propose' })
 
   async function find() {
     const notes = instructions.trim().replace(/\s+/g, ' ')
-    const r = await run(() => rag.proposeCharts(notebookId, { max, ...(notes ? { instructions: notes } : {}) }))
+    const r = await run(() =>
+      rag.proposeCharts(notebookId, {
+        max,
+        ...(notes ? { instructions: notes } : {}),
+        ...(sourceIds ? { source_ids: sourceIds } : {}),
+        ...(urlRefresh.length > 0 ? { url_refresh: urlRefresh } : {}),
+      }),
+    )
     if (r) {
-      setFound(r)
+      setFound({ ...r, selection })
       // everything proposed starts ticked, up to the limit of one output
       onPick(r.candidates.slice(0, lim.charts_max))
     }
@@ -65,8 +79,9 @@ export default function ChartProposals({ notebookId, spec, instructions, picked,
       </div>
       <p className="muted small">{t('chartOut.findHint')}</p>
       {error && <p className="error">{error}</p>}
-      {found && found.candidates.length === 0 && <p className="notice small">{t('chartOut.none', { reason: found.reason ?? '—' })}</p>}
-      {found && found.candidates.length > 0 && (
+      {stale && found.candidates.length > 0 && <p className="notice small">{t('chartOut.stale')}</p>}
+      {found && !stale && found.candidates.length === 0 && <p className="notice small">{t('chartOut.none', { reason: found.reason ?? '—' })}</p>}
+      {found && !stale && found.candidates.length > 0 && (
         <ul className="proposal-grid">
           {found.candidates.map((c) => (
             <li key={c.id} className={isPicked(c) ? 'picked' : undefined}>

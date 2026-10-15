@@ -1195,4 +1195,5 @@ export const de: Record<MessageKey, string> = {
   'outProv.passages.other': '{n} Passagen',
   'chat.passage': 'Passage {n}',
   'decision.none': 'Keine Entscheidung: Die Quellen enthalten nicht, was dafür nötig ist.',
+  'chartOut.stale': 'Quellen oder Notizen haben sich geändert: Charts für die aktuelle Auswahl neu suchen.',
 }

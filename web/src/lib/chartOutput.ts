@@ -73,3 +73,11 @@ export function chartFileName(title: string, ext: 'png' | 'csv'): string {
   const base = title.normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase().slice(0, 60)
   return `${base || 'chart'}.${ext}`
 }
+
+/** What a chart proposal belongs to: the notebook, the selected sources
+ *  (all of them when none are given), the pages fetched again and the
+ *  notes. Candidates found for another key are stale: proposed from other
+ *  material, they must not be sent with Create. */
+export function proposalKey(notebookId: string, sourceIds: readonly string[] | undefined, instructions: string, urlRefresh: readonly string[] = []): string {
+  return JSON.stringify([notebookId, sourceIds ? [...sourceIds].sort() : null, [...urlRefresh].sort(), instructions.trim().replace(/\s+/g, ' ')])
+}

@@ -102,7 +102,7 @@ export function OutputViewer({
   // "Have it judged" in the document opens Check with a judge in the head
   const [judgeAsked, setJudgeAsked] = useState(0)
   const askJudge = useCallback(() => setJudgeAsked((n) => n + 1), [])
-  const checked = checkSummary(selected?.provenance?.check)
+  const checked = checkSummary(selected?.provenance?.check, selected?.kind)
   const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
     shown.map((x) => x.key),
     active?.key ?? null,

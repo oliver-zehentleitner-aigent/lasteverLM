@@ -17,6 +17,7 @@ const ChartProposals = lazy(() => import('./ChartProposals'))
 import { DecisionForm } from './DecisionForm'
 import { decisionOptions, decisionProblem, defaultDecision, type DecisionValues } from '../lib/decision'
 import { language, t } from '../i18n'
+import { proposalKey } from '../lib/chartOutput'
 
 interface Props {
   /** for the chart kind's proposal call */
@@ -58,7 +59,12 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
   const decisionKeys = spec?.kinds.decision ?? ['language', 'question', 'decision_type', 'choices', 'levels']
   // the chart kind: the proposed charts ticked for Create
   const isChart = selected === 'chart'
-  const [charts, setCharts] = useState<ChartCandidate[]>([])
+  // proposed charts belong to the selection, notebook and notes they were found for;
+  // once any of these changes they are dropped, never sent
+  const selection = proposalKey(notebookId, sourceIds, values?.instructions ?? '', urlRefresh)
+  const [picked, setPicked] = useState<{ key: string; charts: ChartCandidate[] }>({ key: selection, charts: [] })
+  const charts = picked.key === selection ? picked.charts : []
+  const setCharts = (list: ChartCandidate[]) => setPicked({ key: selection, charts: list })
   const problem = isDecision ? decisionProblem(dv, spec) : isChart && charts.length === 0 ? t('chartOut.needPick') : null
   // without credit sources still go in (and wait); outputs cannot be made
   const noCredit = me !== null && me !== undefined && me.balance_cents <= 0
@@ -274,7 +280,7 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
       )}
       {isChart && values && (
         <Suspense fallback={<p className="muted small">{t('common.loading')}</p>}>
-          <ChartProposals notebookId={notebookId} spec={spec} instructions={values.instructions} picked={charts} onPick={setCharts} />
+          <ChartProposals notebookId={notebookId} spec={spec} instructions={values.instructions} selection={selection} sourceIds={sourceIds} urlRefresh={urlRefresh} picked={charts} onPick={setCharts} />
         </Suspense>
       )}
       {selected && <UrlRefresh pages={webPages} refresh={refresh} onChange={setRefresh} />}

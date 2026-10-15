@@ -108,7 +108,8 @@ export const rag = {
   unshare: (id: string) => request<void>(`${out(id)}/share`, { method: 'DELETE' }),
   /** Charts the notebook's sources could carry: one billed model call (402
    *  without credit); an empty list says why in `reason`. */
-  proposeCharts: (notebookId: string, body: { instructions?: string; max?: number }) =>
+  /** proposes from the selected sources (absent: all), reading unread ones first like the chat */
+  proposeCharts: (notebookId: string, body: { instructions?: string; max?: number; source_ids?: string[]; url_refresh?: string[] }) =>
     request<{ candidates: ChartCandidate[]; reason: string | null }>(`${nb(notebookId)}/charts/propose`, { method: 'POST', json: body }),
   /** No auth: a shared notebook's public page; 404 for an unknown or revoked token. */
   getSharedNotebook: (token: string) =>

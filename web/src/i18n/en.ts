@@ -1192,6 +1192,7 @@ export const en = {
   'outProv.passages.other': '{n} passages',
   'chat.passage': 'Passage {n}',
   'decision.none': 'No decision: the sources do not contain what is needed.',
+  'chartOut.stale': 'The sources or the notes changed: find charts again for the current selection.',
 } as const
 
 export type MessageKey = keyof typeof en
