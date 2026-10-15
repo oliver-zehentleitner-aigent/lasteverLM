@@ -120,7 +120,23 @@ def test_a_degenerate_pdf_page_fails_the_pdf_naming_the_tile_and_the_page():
     assert len(billed) == 2 * T  # both attempts on every tile, all billed
 
 
-def test_a_degenerate_transcript_fails_the_recording_and_its_call_is_billed():
+def test_a_looping_transcript_is_asked_for_again_at_a_higher_temperature():
+    from lasteverlm_ingest.loaders.audio import RETRY_TEMPERATURE
+
+    repo, storage = InMemoryRepository(), InMemoryStorage()
+    sid = _add_audio(repo, storage)
+    looped = "Welcome to the show. " + "Thank you. " * 150
+    good = "Welcome to the show. Today we talk about the lake and its water."
+    transcriber = FakeTranscriber(answers=[looped, good])
+    process_source(sid, _audio_deps(repo, storage, transcriber))
+    source = repo.library[sid]
+    assert source.status == "ready"
+    assert transcriber.settings == [{"temperature": None}, {"temperature": RETRY_TEMPERATURE}]
+    assert [u.kind for u in repo.usage][:2] == ["stt", "stt"]  # both calls billed
+    assert any(good in c.text for c, _ in repo.chunks[sid])
+
+
+def test_a_transcript_that_loops_twice_fails_and_both_calls_are_billed():
     repo, storage = InMemoryRepository(), InMemoryStorage()
     sid = _add_audio(repo, storage)
     looped = "Welcome to the show. " + "Thank you. " * 150
@@ -128,4 +144,4 @@ def test_a_degenerate_transcript_fails_the_recording_and_its_call_is_billed():
     source = repo.library[sid]
     assert source.status == "failed"
     assert source.error == "the model's transcript degenerated into repetition"
-    assert sid not in repo.chunks and [u.kind for u in repo.usage] == ["stt"]
+    assert sid not in repo.chunks and [u.kind for u in repo.usage] == ["stt", "stt"]

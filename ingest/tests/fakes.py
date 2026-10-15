@@ -955,20 +955,29 @@ class FakeTranscriber:
     """Core's SpeechToText: one fixed transcript (or error) per call, every
     recording recorded with its file name."""
 
-    def __init__(self, answer: str = "Hallo und willkommen zur Sendung.", error=None) -> None:
+    def __init__(
+        self,
+        answer: str = "Hallo und willkommen zur Sendung.",
+        error=None,
+        answers: list[str] | None = None,
+    ) -> None:
         self.answer = answer
         self.error = error
+        self.answers = list(answers or [])
         self.calls: list[tuple[bytes, str]] = []
+        self.settings: list[dict] = []
 
     @property
     def model(self) -> str:
         return "fake-stt"
 
-    def transcribe(self, audio: bytes, filename: str) -> TranscriptionResult:
+    def transcribe(self, audio: bytes, filename: str, **settings) -> TranscriptionResult:
         self.calls.append((audio, filename))
+        self.settings.append(settings)
         if self.error is not None:
             raise self.error
-        return TranscriptionResult(self.answer, Usage("stt", "fake-stt", 90, 0), 90.0)
+        text = self.answers.pop(0) if self.answers else self.answer
+        return TranscriptionResult(text, Usage("stt", "fake-stt", 90, 0), 90.0)
 
 
 def _keys(libs: list[LibrarySource]) -> list[str]:
