@@ -5,6 +5,7 @@ import { useAsync } from '../hooks/useAsync'
 import { t } from '../i18n'
 import { flash } from '../lib/locate'
 import { CHUNK_PAGE, chunkPageOffset } from '../lib/viewerTabs'
+import { readByLine } from '../lib/readBy'
 
 /** A source as the system read it: the extracted text chunk by chunk,
  *  each with its number (and page, for a PDF), 50 at a time. Opened from a
@@ -45,6 +46,8 @@ export function SourceRead({ sourceId, chunkId, chunkIndex }: { sourceId: string
   return (
     <div className="source-read">
       <p className="muted small">{t('srcView.readIntro', { n: data.chunk_count })}</p>
+      {/* an image or audio: the whole text is a model's; a PDF says it per page below */}
+      {data.kind !== 'pdf' && readByLine(data.kind, data.read_by) && <p className="read-by small">{readByLine(data.kind, data.read_by)}</p>}
       {pager}
       <ol className="chunks" ref={list}>
         {data.chunks.map((c) => (
@@ -52,6 +55,7 @@ export function SourceRead({ sourceId, chunkId, chunkIndex }: { sourceId: string
             <span className="chunk-no muted small">
               {t('srcView.chunk', { n: c.index + 1 })}
               {c.page !== null && ` · ${t('srcView.page', { n: c.page })}`}
+              {data.kind === 'pdf' && readByLine('pdf', data.read_by, c.vision) && ` · ${readByLine('pdf', data.read_by, c.vision)}`}
             </span>
             <p>{c.text}</p>
           </li>

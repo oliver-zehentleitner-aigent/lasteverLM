@@ -23,7 +23,7 @@ import { takeOpenOutput } from '../lib/lastNotebook'
 import { awaitsStarterOutputs, pollStarterOutputs } from '../lib/starterOutputs'
 import { afterClose, dropMissing, heldUrl, openTab, tabUrl, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
 import { ChatPane } from './ChatPane'
-import { SourceLinks } from './SourceLinks'
+import { SourceInfo, SourceLinks } from './SourceLinks'
 import { citationTarget } from '../lib/openEntry'
 import { ColumnDivider } from './ColumnDivider'
 import { RowDivider } from './RowDivider'
@@ -275,9 +275,11 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   }
 
   const sourceLink = useCallback((id: string, page: number | null) => citationTarget(uploads?.find((s) => s.id === id), page), [uploads])
+  const sourceInfo = useCallback((id: string) => uploads?.find((s) => s.id === id), [uploads])
 
   return (
     <SourceLinks.Provider value={sourceLink}>
+      <SourceInfo.Provider value={sourceInfo}>
       <div
         ref={columnsRef}
         className={['columns', fullView ? 'full' : '', fullView && chatOpen ? 'chat-open' : ''].join(' ').trim()}
@@ -450,6 +452,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
       </div>
       {/* not over the add-sources dialog */}
       {!wizard && <Tour />}
+      </SourceInfo.Provider>
     </SourceLinks.Provider>
   )
 }

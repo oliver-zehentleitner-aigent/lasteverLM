@@ -37,6 +37,10 @@ export interface Source {
   library_id?: string | null
   /** how a PDF was read; null for other kinds */
   capture?: 'auto' | 'text' | 'vision' | null
+  /** the models that read it: an image or a PDF's pages by vision, audio by
+   *  transcription; null for text, text-layer PDFs, web pages, unread ones
+   *  and those read before ingest recorded it */
+  read_by?: ReadBy | null
   /** copied from the starter notebook a new account gets */
   starter?: boolean
   /** the same flag under ingest's name before the starter notebook */
@@ -119,9 +123,17 @@ export interface SourceChunks {
   library_id: string
   kind: SourceKind
   capture: 'auto' | 'text' | 'vision' | null
+  read_by?: ReadBy | null
   chunk_count: number
   offset: number
-  chunks: { chunk_id: string; index: number; page: number | null; text: string }[]
+  /** `vision`: the chunk starts on a page the vision model read (every chunk of an image) */
+  chunks: { chunk_id: string; index: number; page: number | null; text: string; vision?: boolean }[]
+}
+
+/** Which model read a source, recorded when it was read. */
+export interface ReadBy {
+  vision: string | null
+  stt: string | null
 }
 
 /** `GET /api/rag/chunks/{id}`: one chunk with its position, for citations

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sources read by a model say so (ingest's `read_by`): "Described by <model>, not a verbatim transcript" on an image, "Page read by <model>" on a PDF page the vision model read, "Transcribed by <model>" on audio, in the source's "As read" and in the citation panel.
+
 ## [0.22.2] - 2026-10-15
 
 ### Changed

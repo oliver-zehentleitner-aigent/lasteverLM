@@ -252,7 +252,14 @@ opens the notebook.
   extracted and answers from (`GET /api/ingest/sources/{id}/chunks`),
   50 chunks a page with previous/next, each with its number ("Chunk
   12", and the page for a PDF); opened from a citation it loads the page
-  the cited chunk is on, marks it and scrolls it into view. A source not
+  the cited chunk is on, marks it and scrolls it into view. What a model
+  produced says so, from ingest's `read_by`: an image's text is headed
+  "Described by <model>, not a verbatim transcript", audio's
+  "Transcribed by <model>", and each PDF chunk on a page the vision
+  model read adds "Page read by <model>" (`vision` per chunk). The
+  citation panel shows the same line for the cited passage (for a PDF in
+  auto capture it asks ingest for that one chunk); sources read before
+  ingest recorded the model show none. A source not
   read yet says "Not read yet: it is read when you ask or create." with
   **read now** and its price (ingest's estimate; the basis beside it). As read is
   the default for text and web pages, Original for images, audio and
