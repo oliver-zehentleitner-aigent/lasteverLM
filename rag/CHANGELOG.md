@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.20.2] - 2026-10-14
+## [0.20.2] - 2026-10-15
 
 ### Added
 
@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A judge call without a usable answer no longer fails, and charges again, a whole output. It is tried once more, then the unit is kept and marked `judge.verdict: null` with the reason ("the judge gave no usable answer: <kind>"), and counted as `no_usable_answer`. The judge's output budget is 4000 tokens, up from 1500, since judge models reason before answering.
 - Failure texts and the worker's WARNING line name the kind of failure ("empty answer (length)", "unparseable answer", "unknown verdict", "timeout", "HTTP 429") instead of only "ProviderError".
 
-## [0.20.0] - 2026-10-14
+## [0.20.0] - 2026-10-15
 
 ### Added
 

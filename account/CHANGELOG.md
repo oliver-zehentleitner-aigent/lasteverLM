@@ -9,7 +9,7 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
-## [0.20.2] - 2026-10-14
+## [0.20.2] - 2026-10-15
 
 ### Added
 

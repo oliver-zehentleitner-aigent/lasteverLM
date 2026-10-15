@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.20.2] - 2026-10-14
+## [0.20.2] - 2026-10-15
 
 ### Added
 
@@ -20,13 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Chat: the "Web pages: cached | fetch again" line above the question field is gone (it listed only pages and changed nothing for an answer already given); the plan's question and the answer's page note replace it.
 
-## [0.20.1] - 2026-10-14
+## [0.20.1] - 2026-10-15
 
 ### Fixed
 
 - Audio output view: a long transcript no longer overlaps the header and the sources below, and the player shows at the top. The block was squeezed to its 8rem minimum (`flex: 1` with an explicit `min-height`) and its overflow centred above the scroll origin (`justify-content: center`); it now keeps its content height (`flex: 1 0 auto`) and centres only while it fits (`safe center`). The generating view gets the same.
 
-## [0.20.0] - 2026-10-14
+## [0.20.0] - 2026-10-15
 
 ### Added
 
