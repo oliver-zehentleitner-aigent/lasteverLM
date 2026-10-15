@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A new user's starter copy showed no outputs: rag copies them a moment after the notebook, and the copy now opens at once, so the first list came back empty and nothing asked again. While the open notebook has starter sources and no outputs, the outputs are fetched again every 2 s for at most 60 s, until they appear.
+
 ## [0.21.0] - 2026-10-15
 
 ### Changed
