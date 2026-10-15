@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.11] - 2026-10-15
+
 ### Changed
 
 - The top navigation no longer has "Settings", which is in the profile menu; it keeps Library, Prices and, for admins and viewers, Admin. `/settings` stays reachable by link.
