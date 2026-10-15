@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.4] - 2026-10-15
+
 ### Fixed
 
 - A new user without any notebook never saw the introduction: it runs only in a notebook. The workspace now opens the first notebook (the starter one) or, with none at all and the tour still to show, makes "My first notebook" and opens it, so the tour always runs; users who have done it land where they did.
