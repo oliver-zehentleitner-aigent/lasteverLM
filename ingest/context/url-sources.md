@@ -132,3 +132,50 @@ same text, so still what was read).
   site, or the snapshot would have to fetch and store them, at a cost
   for every read.
 
+
+## Structured data behind a URL is read as lines that name their context
+
+**Id:** c5d9c848-f07c-40e6-bc2e-f4b6ea07a22d
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-15 (a URL that returns structured data must be readable: the formats, the citation rule, the limits and the hostile-input cases); the line-per-value rendering and the limit values are the ingest author's
+**Revisit when:** users ask about datasets larger than 10,000 values, or core's chunker learns to cut at record boundaries
+
+JSON, NDJSON, YAML, XML (RSS and Atom included), CSV and TSV are read.
+Every value becomes one line that names its context: JSON, NDJSON and
+YAML by the key path (`languages.Python: 12345`), XML by the element
+path (`rss/channel/item[2]/title: …`), CSV and TSV by the column, with
+the header repeated on every row (`row 3: city: Graz; price: 12`). One
+object, element or row is one passage. The snapshot shows the same
+rendering. A `text/plain` body that parses cleanly as a JSON object or
+array is read as JSON.
+
+**Reason:** the chunker windows text over passages, so it can cut a
+document anywhere. A line that carries its own path or column keeps its
+meaning in any chunk, and a number is never cited without saying what it
+measures. The request named pretty-printed JSON and YAML; indented text
+was not chosen because a chunk that starts inside a nested object would
+hold values without the keys above them, which the same request ruled
+out ("the key path kept in each chunk").
+
+Parsing is bounded beyond the body cap: 32 levels of nesting, 10,000
+values (XML: elements), 500 CSV columns and 100,000 characters per CSV
+field. Exceeding a limit fails the source with that reason. XML goes
+through defusedxml, which refuses entity declarations and external
+references, so neither a billion-laughs document nor an external
+entity is expanded or fetched. YAML is read with `safe_load` only, and
+an alias counts every time it is used, so an alias bomb hits the value
+cap.
+
+**Alternatives:**
+- Refusing structured data, the previous behaviour: an API answer such
+  as a repository's language statistics failed with "unsupported content
+  type", although it is exactly the kind of fact a user wants cited.
+- Pretty-printed JSON or YAML as the text: readable as a whole, but a
+  chunk cut inside a nested object loses the path of its values.
+- A CSV table with its header once at the top: every chunk after the
+  first would hold numbers without their columns.
+- The standard library's XML parser alone: the bundled expat limits
+  entity amplification, but defusedxml refuses entity declarations and
+  external references outright, whatever the expat build allows.
