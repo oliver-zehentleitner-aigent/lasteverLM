@@ -74,7 +74,7 @@ repository root's `context/`.
 
 ## S
 
-- [seeds.md](seeds.md) — why every new user gets a copy of the admin's starter notebook (ready copies, no charge, rag copies the outputs), and the demo library it replaced
+- [seeds.md](seeds.md) — why every new user gets a copy of the admin's starter notebook (ready copies, no charge, rag copies the outputs), and the demo library it replaced; why the starter can be made again once an hour, asking first and reusing the user's sources; how starter notebooks made before the flag are recognized
 
 ## T
 
