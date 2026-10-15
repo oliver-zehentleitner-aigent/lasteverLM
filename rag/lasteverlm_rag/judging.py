@@ -22,7 +22,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from lasteverlm_core import CompletionResult, ProviderError
 from pydantic import BaseModel, ValidationError
@@ -44,6 +44,10 @@ SUPPORTED = "supported"
 # what is revised and, if it stays, removed; a unit without a verdict is neither
 FAILING = ("contradicted", "not_in_source")
 NO_USABLE_ANSWER = "no_usable_answer"
+# bulletproof: the two judges disagree; revised like a failing unit, never
+# removed for it, and shown: the reader decides
+DISPUTED: Literal["disputed"] = "disputed"
+DISPUTED_REASON = "the two judges disagree; read the passage yourself"
 # standard verification: what the word and negation checks doubt is judged
 # once, at this level, annotate only
 DOUBTED = frozenset({"unsupported", "unverified", "possible_contradiction"})
@@ -73,6 +77,59 @@ Rules:
 class Verdict:
     judgement: Judgement
     round: int
+    second: Judgement | None = None  # bulletproof's second judge
+
+
+@dataclass(frozen=True)
+class SecondJudge:
+    """Bulletproof's second judge: its billed call and its model."""
+
+    judge: CompleteFn
+    model: str
+
+
+def pair(first: Judgement, second: Judgement) -> Judgement:
+    """Bulletproof's verdict from two judges: supported only if both say so;
+    failing if both fail (the first's verdict); disputed if one passes and
+    one fails. A judge without a usable answer passes nothing."""
+    if first.verdict == SUPPORTED and second.verdict == SUPPORTED:
+        return first
+    if first.verdict in FAILING:
+        return first if second.verdict != SUPPORTED else _disputed(first)
+    if second.verdict in FAILING:
+        return second if first.verdict != SUPPORTED else _disputed(first)
+    # a judge gave no usable answer and the other passed (or neither answered)
+    return first if first.verdict is None else second
+
+
+def _disputed(first: Judgement) -> Judgement:
+    return Judgement(DISPUTED, DISPUTED_REASON, first.quote, first.quote_verbatim)
+
+
+def _judge_both(
+    judge: CompleteFn, second: SecondJudge | None, units: list[Unit], texts: Mapping[int, str]
+) -> tuple[list[Judgement], list[Judgement | None]]:
+    """Every unit by the judge and, for bulletproof, by the second at the same time."""
+    if second is None:
+        return _judge_all(judge, units, texts), [None] * len(units)
+    with ThreadPoolExecutor(2) as pool:
+        mine = pool.submit(_judge_all, judge, units, texts)
+        theirs = pool.submit(_judge_all, second.judge, units, texts)
+        firsts, seconds = mine.result(), theirs.result()
+    return [pair(a, b) for a, b in zip(firsts, seconds, strict=True)], list(seconds)
+
+
+def _second_entry(second: SecondJudge | None, judgement: Judgement | None) -> dict[str, Any]:
+    if second is None or judgement is None:
+        return {}
+    return {
+        "second": {
+            "model": second.model,
+            "verdict": judgement.verdict,
+            "reason": judgement.reason,
+            "quote": judgement.quote,
+        }
+    }
 
 
 def judge_output(
@@ -86,12 +143,18 @@ def judge_output(
     model: str,
     rebuild: Callable[[Any], GeneratedOutput],
     on_phase: Callable[..., None] | None = None,
+    second: SecondJudge | None = None,
 ) -> tuple[GeneratedOutput, dict[str, Any]]:
     """The judged output and the judge's log. ``judge`` is the judge model's
     billed call, ``revise`` the author model's; ``rebuild`` turns an edited
-    document into the output."""
+    document into the output. With ``second`` (bulletproof) every unit is
+    judged by both: a disputed unit is revised like a failing one and, if
+    still disputed at the end, kept and marked."""
     texts = {p.n: p.text for p in passages}
     judge, judged_usage = _counting(judge)
+    if second is not None:
+        counted_second, _ = _counting(second.judge)
+        second = SecondJudge(_tallied(counted_second, judged_usage), second.model)
     revise, revised_usage = _counting(revise)
     document = generated.document
     if document is None:
@@ -105,10 +168,10 @@ def judge_output(
     phase = on_phase or (lambda step, **counters: None)
     for number in range(1, MAX_ROUNDS + 1):
         phase("judging", n=number, of=MAX_ROUNDS)
-        judged = _judge_all(judge, [current.units[i] for i in pending], texts)
-        for i, judgement in zip(pending, judged, strict=True):
-            last[i] = Verdict(judgement, number)
-        failing = [i for i in pending if last[i].judgement.verdict in FAILING]
+        judged, seconds = _judge_both(judge, second, [current.units[i] for i in pending], texts)
+        for i, judgement, other in zip(pending, judged, seconds, strict=True):
+            last[i] = Verdict(judgement, number, other)
+        failing = [i for i in pending if last[i].judgement.verdict in (*FAILING, DISPUTED)]
         entry: dict[str, Any] = {
             "round": number,
             "judged": len(pending),
@@ -170,8 +233,17 @@ def judge_output(
                 "reason": j.reason,
                 "quote": j.quote,
                 "round": last[i].round,
+                **_second_entry(second, last[i].second),
             }
-    return final, {"level": level, "model": model, "rounds": rounds, "removed": removed}
+    log_entry: dict[str, Any] = {
+        "level": level,
+        "model": model,
+        "rounds": rounds,
+        "removed": removed,
+    }
+    if second is not None:
+        log_entry["second_model"] = second.model
+    return final, log_entry
 
 
 def annotate(
@@ -181,12 +253,13 @@ def annotate(
     *,
     level: str,
     model: str,
+    second: SecondJudge | None = None,
 ) -> dict[str, Any]:
     """Judge existing units without revising: each claim's target gets its
-    ``judge``; returns the counts."""
+    ``judge`` (with ``second`` beside it for bulletproof); returns the counts."""
     claims = [u for u in units if u.claim or u.refs]
-    judged = _judge_all(judge, claims, texts)
-    for unit, j in zip(claims, judged, strict=True):
+    judged, seconds = _judge_both(judge, second, claims, texts)
+    for unit, j, other in zip(claims, judged, seconds, strict=True):
         unit.target["judge"] = {
             "level": level,
             "model": model,
@@ -194,8 +267,12 @@ def annotate(
             "reason": j.reason,
             "quote": j.quote,
             "round": 1,
+            **_second_entry(second, other),
         }
-    return {"level": level, "model": model, "verdicts": _counts(judged)}
+    summary = {"level": level, "model": model, "verdicts": _counts(judged)}
+    if second is not None:
+        summary["second_model"] = second.model
+    return summary
 
 
 def stored_units(kind: str, content: Mapping[str, Any]) -> list[Unit]:
@@ -261,6 +338,20 @@ class _Tally:
             taken = {"tokens_in": self._in, "tokens_out": self._out}
             self._in = self._out = 0
         return taken
+
+
+def _tallied(complete: CompleteFn, tally: _Tally) -> CompleteFn:
+    """``complete`` with its usage added to an existing tally (the second
+    judge's tokens count with the first's round)."""
+
+    def counted(
+        system: str, user: str, max_tokens: int | None = None, *, thinking: bool | None = None
+    ) -> CompletionResult:
+        result = complete(system, user, max_tokens, thinking=thinking)
+        tally.add(result.usage.tokens_in, result.usage.tokens_out)
+        return result
+
+    return counted
 
 
 def _counting(complete: CompleteFn) -> tuple[CompleteFn, _Tally]:

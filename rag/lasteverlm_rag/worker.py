@@ -35,6 +35,7 @@ from lasteverlm_core import (
 from .agent_service import AgentService
 from .config import Settings
 from .judge import judge_models
+from .options import SECOND_JUDGE
 from .outputs import registry
 from .service import OutputService, RagService
 from .store import PgVectorRetriever, PostgresStore, Store, make_pool
@@ -161,7 +162,9 @@ def main() -> None:
         default_voice=settings.tts_voice,
         # the worker's client timeout also covers a long state (26 s at 112k tokens)
         decision=OpenAICompatibleDecision(client, settings.inference.decision_model),
-        judges=judge_models(client, settings.inference.judge_models),
+        judges=judge_models(
+            client, {**settings.inference.judge_models, SECOND_JUDGE: settings.second_judge_model}
+        ),
     )
     llm = OpenAICompatibleLLM(
         client, settings.inference.llm_model, max_tokens=settings.inference.llm_max_tokens

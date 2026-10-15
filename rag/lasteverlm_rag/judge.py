@@ -57,7 +57,8 @@ Reply with one JSON object only, no prose, no code fences:
 @dataclass(frozen=True)
 class Judgement:
     # None: the judge gave no usable answer, twice; the unit is kept, marked
-    verdict: Verdict | None
+    # "disputed": bulletproof's two judges disagree (judging.pair)
+    verdict: Verdict | Literal["disputed"] | None
     reason: str
     quote: str
     # whether the quote is found word for word in a cited passage

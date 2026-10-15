@@ -25,6 +25,8 @@ from lasteverlm_core import (
 
 from .options import is_voice
 
+DEFAULT_SECOND_JUDGE = "deepseek-v4.1-flash"
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -44,12 +46,16 @@ class Settings:
     ingest_url: str = "http://ingest"
     # how long an answer waits for sources it started reading (ANSWER_READ_WAIT_SECONDS)
     answer_read_wait_s: float = 60.0
+    # bulletproof's second judge, of another family than the author and the high
+    # judge, chosen by evaluation (docs/second-judge-eval.md)
+    second_judge_model: str = DEFAULT_SECOND_JUDGE
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
         env = os.environ if env is None else env
         inference = InferenceSettings.from_env(env)
         tts_model = env_optional("TTS_MODEL", env)
+        second_judge = env_optional("SECOND_JUDGE_MODEL", env) or DEFAULT_SECOND_JUDGE
         prices = load_model_prices(env)
         require_prices(
             prices,
@@ -58,6 +64,7 @@ class Settings:
                 inference.embedding_model,
                 inference.decision_model,
                 *inference.judge_models.values(),
+                second_judge,
                 *([tts_model] if tts_model else []),
             ],
         )
@@ -84,6 +91,7 @@ class Settings:
             log_level=(env_optional("LOG_LEVEL", env) or "INFO").upper(),
             ingest_url=(env_optional("INGEST_URL", env) or "http://ingest").rstrip("/"),
             answer_read_wait_s=float(env_int("ANSWER_READ_WAIT_SECONDS", 60, env)),
+            second_judge_model=second_judge,
         )
 
 

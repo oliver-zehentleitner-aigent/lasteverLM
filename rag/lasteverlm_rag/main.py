@@ -89,7 +89,7 @@ from .models import (
     PlanAnswer,
     SharedNotebook,
 )
-from .options import VERIFICATION_LEVELS, OutputOptions, catalogue, resolve
+from .options import SECOND_JUDGE, VERIFICATION_LEVELS, OutputOptions, catalogue, resolve
 from .outputs import OutputGenerator, registry
 from .outputs.chart import ChartProposals
 from .reading import (
@@ -188,7 +188,10 @@ def create_app(
     ingest = ingest or HttpIngest(settings.ingest_url)
     # one set of judge models: a chat answer's verification, outputs judged on request
     if judges is None:
-        judges = judge_models(make_client(settings.inference), settings.inference.judge_models)
+        judges = judge_models(
+            make_client(settings.inference),
+            {**settings.inference.judge_models, SECOND_JUDGE: settings.second_judge_model},
+        )
     rag = RagService(
         store,
         retriever,
@@ -210,7 +213,10 @@ def create_app(
         embedding=settings.inference.embedding_model,
         decision=settings.inference.decision_model,
         tts=settings.tts_model,
-        judges={str(k): v for k, v in settings.inference.judge_models.items()},
+        judges={
+            **{str(k): v for k, v in settings.inference.judge_models.items()},
+            SECOND_JUDGE: settings.second_judge_model,
+        },
     )
     # outputs are synthesized by the worker; the API presigns and deletes their files
     outputs = output_service or OutputService(

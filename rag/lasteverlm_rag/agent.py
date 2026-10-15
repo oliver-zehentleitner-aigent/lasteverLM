@@ -348,6 +348,7 @@ LEVEL_LABELS = {
     "basic": "Basic: the word and negation check, free",
     "standard": "Standard: a judge for what that check doubts",
     "thorough": "Thorough: a judge for everything, with revision",
+    "bulletproof": "Bulletproof: two judges of different families, slower and dearer",
 }
 
 

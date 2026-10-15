@@ -412,7 +412,7 @@ def test_audio_settings_need_object_storage():
     prices = '{"test-llm": {"in": 1, "out": 1}, "test-embedding": {"in": 1, "out": 0}, '
     prices += '"test-tts": {"in": 1, "out": 0}, "test-decision": {"in": 1, "out": 0}, '
     prices += '"test-judge-low": {"in": 1, "out": 1}, "test-judge-medium": {"in": 1, "out": 1}, '
-    prices += '"test-judge-high": {"in": 1, "out": 1}}'
+    prices += '"test-judge-high": {"in": 1, "out": 1}, "test-judge-second": {"in": 1, "out": 1}}'
     env = {**BASE_ENV, "DEMO_TOKEN": "d", "MODEL_PRICES": prices, "TTS_MODEL": "test-tts"}
     with pytest.raises(ConfigError, match="S3_ENDPOINT"):
         Settings.from_env(env)

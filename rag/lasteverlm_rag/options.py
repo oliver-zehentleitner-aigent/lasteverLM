@@ -80,12 +80,15 @@ JUDGE_LEVELS = ["off", "low", "medium", "high"]
 # how much checking an output gets, and may cost: basic is the word check and
 # the negation check (free); standard also judges the units those doubt, once
 # at low; thorough judges every unit at medium with revision (the judge option)
-VERIFICATION_LEVELS = ["basic", "standard", "thorough"]
+VERIFICATION_LEVELS = ["basic", "standard", "thorough", "bulletproof"]
 DEFAULT_VERIFICATION = "basic"
 # what a level means for the generation-time judge, where it uses it
 THOROUGH_JUDGE = "medium"
 # the legacy judge_default preference, read as a level
-LEVEL_OF_JUDGE = {"off": "basic", "low": "standard", "medium": "thorough", "high": "thorough"}
+LEVEL_OF_JUDGE = {"off": "basic", "low": "standard", "medium": "thorough", "high": "bulletproof"}
+# bulletproof: the high judge and a second judge of another family, both on every unit
+BULLETPROOF_JUDGE = "high"
+SECOND_JUDGE = "second"  # its key among the judge models
 CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "scatter"]
 CHARTS_MAX = 12  # picked per output, and proposed per call at most
 PROPOSE_DEFAULT = 6
@@ -159,8 +162,9 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
             raise ValueError(f"instructions: at most {INSTRUCTIONS_MAX_CHARS} characters")
         if text:
             given["instructions"] = text
-    stored_thorough = (
-        given.get("verification") == "thorough" and given.get("judge") == THOROUGH_JUDGE
+    stored_thorough = (given.get("verification"), given.get("judge")) in (
+        ("thorough", THOROUGH_JUDGE),
+        ("bulletproof", BULLETPROOF_JUDGE),
     )
     if "judge" in given and "verification" in given and not stored_thorough:
         raise ValueError("verification: send either verification or judge")
@@ -174,6 +178,8 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
             del given["verification"]  # basic is the default and stays absent
         elif level == "thorough":
             given["judge"] = THOROUGH_JUDGE  # today's judge at medium
+        elif level == "bulletproof":
+            given["judge"] = BULLETPROOF_JUDGE  # the high judge, with the second beside it
     for key, allowed_values in (
         ("judge", JUDGE_LEVELS),
         ("report_style", REPORT_STYLES),
