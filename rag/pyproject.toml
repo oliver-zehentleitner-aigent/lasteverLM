@@ -24,6 +24,7 @@ dependencies = [
 lasteverlm-rag-worker = "lasteverlm_rag.worker:main"
 lasteverlm-rag-repair-audio = "lasteverlm_rag.repair_audio:main"
 lasteverlm-rag-repair-reports = "lasteverlm_rag.repair_reports:main"
+lasteverlm-rag-repair-copies = "lasteverlm_rag.repair_copies:main"
 lasteverlm-rag-orphans = "lasteverlm_rag.orphans:main"
 
 [project.optional-dependencies]

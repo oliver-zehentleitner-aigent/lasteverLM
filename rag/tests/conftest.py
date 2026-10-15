@@ -502,6 +502,12 @@ class FakeStore:
     def delete_output(self, output_id: str) -> None:
         del self.outputs[output_id]
 
+    def starter_copies(self) -> list[tuple[str, str]]:
+        return [(r["id"], r["copied_from"]) for r in self.outputs.values() if r.get("copied_from")]
+
+    def chunk_ids_at(self, source_id: str, indexes: list[int]) -> dict[int, str]:
+        return {i: f"{source_id}:{i}" for i in indexes}
+
     def report_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
         return [
             self._output_row(r)
