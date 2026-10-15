@@ -77,16 +77,6 @@ export function Header({ me, route, onNavigate, onLogout }: Props) {
           {t('header.library')}
         </a>
         <a
-          href="/settings"
-          className={route === 'settings' ? 'active' : undefined}
-          onClick={(e) => {
-            e.preventDefault()
-            onNavigate('/settings')
-          }}
-        >
-          {t('header.settings')}
-        </a>
-        <a
           href="/prices"
           className={route === 'prices' ? 'active' : undefined}
           onClick={(e) => {
