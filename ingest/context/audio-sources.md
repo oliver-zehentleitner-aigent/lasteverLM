@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's go for audio sources through the coordinating agent, 2026-10-14; the platform catalog's limits for the transcription model (MP3 and WAV only, 26214400 bytes, 4 hours)
+**Source:** maintainer decision, 2026-10-14; the platform catalog's limits for the transcription model (MP3 and WAV only, 26214400 bytes, 4 hours)
 **Revisit when:** the platform's transcription model returns timestamps or segments, or accepts more formats
 
 An MP3 or WAV upload is sent to the platform's transcription model in
@@ -14,9 +14,10 @@ one call; the transcript becomes one passage without a page number and
 is chunked like a text file. The platform answers with plain text and
 no timestamps, so there is nothing to cite inside a recording beyond
 the passage itself: a citation names the recording and quotes the
-chunk. Only MP3 and WAV are accepted, because those are the only formats
-the model takes; other audio is refused at upload by name ("audio must
-be MP3 or WAV"), not converted. The model's limits (25 MiB, four hours)
+chunk. The model takes only MP3 and WAV; since the same day other audio
+is converted to MP3 before it is transcribed (entry
+0dbe2dcc-c149-4c5a-92f9-31509c436828), where it was first refused at
+upload by name. The model's limits (25 MiB, four hours)
 are core's `probe_audio`, and the API runs it at upload, separate from
 `MAX_UPLOAD_BYTES`: a file the model would refuse never costs a stored
 object and a queued job, and ingest keeps no second copy of the numbers.
@@ -43,7 +44,7 @@ job over mid-call and the recording would be billed twice.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's wish through the coordinating agent, 2026-10-14 (conversion, both files kept and offered); the build variant decided by the coordinating agent the same day on the measured sizes below
+**Source:** maintainer decision, 2026-10-14 (conversion, both files kept and offered); the build variant chosen the same day on the measured sizes below
 **Revisit when:** the platform's transcription model accepts more formats, or a format users upload is not among the built demuxers and decoders
 
 M4A/MP4 (a video's audio track too), AAC, Ogg (Vorbis, Opus), FLAC and
@@ -57,7 +58,7 @@ to the MP3. The original is capped separately (60 MiB, below the ingress
 body limit). A retry reuses the stored MP3.
 
 A WAV over the model's 25 MiB is converted the same way instead of being
-refused (the maintainer's go, 2026-10-14); a WAV within the cap and every
+refused (maintainer decision, 2026-10-14); a WAV within the cap and every
 MP3 pass through. Transcription is billed per second of audio, so the
 format does not change what a recording costs; it only decides whether
 it fits the cap, and a 44.1 kHz stereo WAV reaches 25 MiB after about
