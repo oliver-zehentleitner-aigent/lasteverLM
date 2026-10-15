@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OutputOptionsSpec } from '../api/types'
-import { buildOptions, defaultValues, optionsLabel, sampleLanguage, secondVoice, speakerName, speedSteps, voiceGroups, twoVoices } from './outputOptions'
+import { buildOptions, defaultValues, languageVoices, voiceChoices, optionsLabel, sampleLanguage, secondVoice, speakerName, speedSteps, voiceGroups, twoVoices } from './outputOptions'
 
 const spec: OutputOptionsSpec = {
   languages: [
@@ -162,5 +162,29 @@ describe('the verification option', () => {
   it('names a level above basic under the title', () => {
     expect(optionsLabel({ verification: 'thorough' }, null)).toBe('Thorough')
     expect(optionsLabel({ verification: 'basic' }, null)).toBeNull()
+  })
+})
+
+describe('voices by language', () => {
+  const byLang = {
+    ...spec,
+    audio: { ...spec.audio, defaults_by_language: { de: { voice: 'sohee', audio_voice_2: 'aiden' }, en: { voice: 'ryan', audio_voice_2: 'vivian' } }, recommended: { de: ['sohee', 'aiden'], en: ['ryan', 'serena', 'gone'] } },
+  } as OutputOptionsSpec
+  it("starts from the output language's voices without the user's own, the interface language while it follows the sources", () => {
+    expect(defaultValues(byLang, undefined, 'de')).toMatchObject({ voice: 'sohee', voice2: 'aiden' })
+    expect(defaultValues(byLang, { ui_language: null, output_language: 'en', audio_voice: null }, 'de')).toMatchObject({ voice: 'ryan', voice2: 'vivian' })
+    // the user's own voice wins
+    expect(defaultValues(byLang, { ui_language: null, output_language: 'en', audio_voice: 'aiden' }, 'de').voice).toBe('aiden')
+    // a language without defaults keeps rag's default voice
+    expect(defaultValues(byLang, undefined, 'fr').voice).toBe('ryan')
+    expect(languageVoices(byLang, '')).toBeNull()
+  })
+  it('lists the recommended voices first, then the others by gender', () => {
+    expect(voiceChoices(byLang, 'en').map((g) => [g.key, g.voices.map((v) => v.id)])).toEqual([
+      ['recommended', ['ryan', 'serena']],
+      ['female', ['vivian', 'sohee']],
+      ['male', ['aiden']],
+    ])
+    expect(voiceChoices(byLang, '').map((g) => g.key)).toEqual(['female', 'male'])
   })
 })

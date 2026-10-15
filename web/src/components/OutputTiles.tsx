@@ -4,7 +4,7 @@ import { useEstimate } from '../hooks/useEstimate'
 import { priceLabel } from '../lib/estimate'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
-import { AUDIO_STYLES, twoVoices, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, voiceGroups, type OptionValues } from '../lib/outputOptions'
+import { AUDIO_STYLES, twoVoices, INSTRUCTIONS_MAX, buildOptions, defaultValues, optionsFor, sampleLanguage, secondVoice, speedSteps, type OptionValues, languageVoices, voiceChoices } from '../lib/outputOptions'
 import { OUTPUT_FORMS, createBlocker, tileNote } from '../lib/outputs'
 import { VoiceSample } from './VoiceSample'
 import { PriceTag } from './PriceTag'
@@ -54,7 +54,11 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
   const spec = useOutputOptions()
   const { me } = useMe()
   const [chosen, setChosen] = useState<OptionValues | null>(null)
-  const values = chosen ?? (spec ? defaultValues(spec, me?.preferences) : null)
+  const values = chosen ?? (spec ? defaultValues(spec, me?.preferences, language()) : null)
+  // a voice picked by hand (or the user's own) stays; else the language's default follows the language
+  const [voiceByHand, setVoiceByHand] = useState(false)
+  const ownVoice = !!me?.preferences?.audio_voice
+  const voiceLanguage = values?.language || language()
   const shown = selected && spec ? optionsFor(selected, spec) : []
   const set = (patch: Partial<OptionValues>) => values && setChosen({ ...values, ...patch })
   // the decision's question and lists, kept apart from the shared options
@@ -131,7 +135,14 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
           {shown.includes('language') && (
             <label>
               {t('tiles.language')}
-              <select value={values.language} onChange={(e) => set({ language: e.target.value })}>
+              <select
+                value={values.language}
+                onChange={(e) => {
+                  const lang = e.target.value
+                  const follow = !voiceByHand && !ownVoice ? languageVoices(spec, lang || language()) : null
+                  set({ language: lang, ...(follow ? { voice: follow.voice, voice2: follow.voice2 } : {}) })
+                }}
+              >
                 <option value="">{t('tiles.sameAsSources')}</option>
                 {spec.languages.map((l) => (
                   <option key={l.code} value={l.code}>
@@ -157,9 +168,13 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
             <VoiceSelect
               label={t('tiles.voice')}
               spec={spec}
+              language={voiceLanguage}
               value={values.voice}
               // the two speakers of a conversation never share a voice (rag refuses that)
-              onChange={(voice) => set({ voice, voice2: voice === values.voice2 ? secondVoice(spec, voice) : values.voice2 })}
+              onChange={(voice) => {
+                setVoiceByHand(true)
+                set({ voice, voice2: voice === values.voice2 ? secondVoice(spec, voice) : values.voice2 })
+              }}
             />
           )}
           {shown.includes('speed') && (
@@ -259,7 +274,17 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
           {shown.includes('voice') && <VoiceSample voice={values.voice} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />}
           {shown.includes('audio_voice_2') && twoVoices(values.style) && (
             <>
-              <VoiceSelect label={t('tiles.voice2')} spec={spec} value={values.voice2} exclude={values.voice} onChange={(voice2) => set({ voice2 })} />
+              <VoiceSelect
+                label={t('tiles.voice2')}
+                spec={spec}
+                language={voiceLanguage}
+                value={values.voice2}
+                exclude={values.voice}
+                onChange={(voice2) => {
+                  setVoiceByHand(true)
+                  set({ voice2 })
+                }}
+              />
               <VoiceSample voice={values.voice2} speed={values.speed} language={sampleLanguage(values.language, spec, language())} />
             </>
           )}
@@ -337,13 +362,16 @@ export function OutputTiles({ notebookId, selected, hasReadySource, noneSelected
 
 /** The voices grouped female and male; `exclude` leaves one out (the
  *  first speaker's, in the second voice's select). */
-function VoiceSelect({ label, spec, value, exclude, onChange }: { label: string; spec: OutputOptionsSpec; value: string; exclude?: string; onChange: (voice: string) => void }) {
+/** A voice select: the voices rag recommends for the language first, then
+ *  the others by gender. */
+function VoiceSelect({ label, spec, language: lang, value, exclude, onChange }: { label: string; spec: OutputOptionsSpec; language: string; value: string; exclude?: string; onChange: (voice: string) => void }) {
+  const groupLabel = (key: string) => (key === 'recommended' ? t('tiles.recommended') : key === 'female' ? t('tiles.female') : t('tiles.male'))
   return (
     <label>
       {label}
       <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {voiceGroups(spec).map((g) => (
-          <optgroup key={g.gender} label={g.gender === 'female' ? t('tiles.female') : t('tiles.male')}>
+        {voiceChoices(spec, lang).map((g) => (
+          <optgroup key={g.key} label={groupLabel(g.key)}>
             {g.voices
               .filter((v) => v.id !== exclude)
               .map((v) => (

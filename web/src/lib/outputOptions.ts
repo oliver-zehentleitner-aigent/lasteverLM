@@ -58,16 +58,20 @@ export function optionsFor(kind: OutputKind, spec: OutputOptionsSpec): OutputOpt
 
 /** Starting values: the user's preferences where set, the spec's defaults
  *  otherwise; language stays empty (same as sources) without a preference. */
-export function defaultValues(spec: OutputOptionsSpec, prefs: Preferences | undefined): OptionValues {
+export function defaultValues(spec: OutputOptionsSpec, prefs: Preferences | undefined, uiLanguage = ''): OptionValues {
   const voiceIds = new Set(spec.audio.voices.map((v) => v.id))
   const langCodes = new Set(spec.languages.map((l) => l.code))
-  const voice = prefs?.audio_voice && voiceIds.has(prefs.audio_voice) ? prefs.audio_voice : spec.audio.default_voice
+  const language = prefs?.output_language && langCodes.has(prefs.output_language) ? prefs.output_language : ''
+  // the user's own voice wins; else the output language's default (the interface's while it follows the sources)
+  const own = prefs?.audio_voice && voiceIds.has(prefs.audio_voice) ? prefs.audio_voice : null
+  const byLanguage = own ? null : languageVoices(spec, language || uiLanguage)
+  const voice = own ?? byLanguage?.voice ?? spec.audio.default_voice
   return {
-    language: prefs?.output_language && langCodes.has(prefs.output_language) ? prefs.output_language : '',
+    language,
     voice,
     speed: spec.audio.speed.default,
     style: 'overview',
-    voice2: secondVoice(spec, voice),
+    voice2: byLanguage?.voice2 ?? secondVoice(spec, voice),
     instructions: '',
     reportStyle: spec.report?.default_style ?? 'briefing',
     length: spec.report?.default_length ?? 'medium',
@@ -143,4 +147,24 @@ export function sampleLanguage(chosen: string | null | undefined, spec: OutputOp
   const offered = (code: string) => spec.languages.some((l) => l.code === code)
   if (chosen && offered(chosen)) return chosen
   return offered(uiLanguage) ? uiLanguage : undefined
+}
+
+/** A language's default voices from rag's catalogue, when it has them and
+ *  they are offered; null otherwise. */
+export function languageVoices(spec: OutputOptionsSpec, language: string): { voice: string; voice2: string } | null {
+  const d = language ? spec.audio.defaults_by_language?.[language] : undefined
+  const ids = new Set(spec.audio.voices.map((v) => v.id))
+  if (!d || !ids.has(d.voice)) return null
+  return { voice: d.voice, voice2: d.audio_voice_2 && ids.has(d.audio_voice_2) && d.audio_voice_2 !== d.voice ? d.audio_voice_2 : secondVoice(spec, d.voice) }
+}
+
+/** The voice select's groups: the voices rag recommends for the language
+ *  first ("Recommended", in its order), then the others by gender; without
+ *  recommendations just by gender. */
+export function voiceChoices(spec: OutputOptionsSpec, language: string): { key: string; voices: OutputOptionsSpec['audio']['voices'] }[] {
+  const byId = new Map(spec.audio.voices.map((v) => [v.id, v]))
+  const recommended = (language ? (spec.audio.recommended?.[language] ?? []) : []).flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []))
+  const rest = new Set(recommended.map((v) => v.id))
+  const groups = voiceGroups(spec).map((g) => ({ key: g.gender, voices: g.voices.filter((v) => !rest.has(v.id)) }))
+  return [...(recommended.length ? [{ key: 'recommended', voices: recommended }] : []), ...groups.filter((g) => g.voices.length > 0)]
 }

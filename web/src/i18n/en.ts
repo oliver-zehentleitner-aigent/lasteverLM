@@ -1312,6 +1312,7 @@ export const en = {
   'judge.notInSourceTitle': 'In none of the selected sources.',
   'judge.addedRef': 'added by the judge',
   'judge.alsoFound': 'also found in',
+  'tiles.recommended': 'Recommended',
 } as const
 
 export type MessageKey = keyof typeof en

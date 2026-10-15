@@ -562,6 +562,10 @@ export interface OutputOptionsSpec {
     voices: { id: string; label: string; gender: 'male' | 'female'; language: string }[]
     default_voice: string
     speed: { min: number; max: number; step: number; default: number }
+    /** per output language: the voice (and a conversation's second) rag picks without one sent */
+    defaults_by_language?: Partial<Record<string, { voice: string; audio_voice_2?: string }>>
+    /** per output language: the voices that speak it best, listed first */
+    recommended?: Partial<Record<string, string[]>>
   }
   /** the decision kind's limits; absent from a service without it */
   decision?: {

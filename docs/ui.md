@@ -175,7 +175,12 @@ opens the notebook.
   Between the tiles and the button, the selected format's options as
   rag's `GET /outputs/options` lists them per kind: language for every
   kind ("same as the sources" or one of the listed languages), voice
-  (grouped female and male) and speed for audio, with a "sample" button
+  (the voices rag recommends for the output language first, under
+  "Recommended", then the others grouped female and male; without a
+  voice of the user's own the output language's default voice, and a
+  conversation's second, is preselected, the interface language's while
+  the output follows the sources, and again when the language changes
+  as long as no voice was picked by hand) and speed for audio, with a "sample" button
   that plays a short sentence pair in that voice, speed and language
   (the interface language when "same as the sources" is chosen); the
   sample is fetched on click only, since the first one per combination
