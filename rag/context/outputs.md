@@ -845,3 +845,38 @@ document it does not fit, where the model would have to invent the link.
 - Taking the model's own list of used sources: not checkable; the refs
   are.
 - Silently leaving unused sources out: the reader cannot see the gap.
+
+## A table or an infographic over several sources is made from picked candidates, one per set of things
+
+**Id:** 136a32e4-61ca-4a7e-977b-ca4c672b391a
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the coordinator, 2026-10-15 (a table or infographic over several sources used one and ignored the rest; the chart pattern for both, up to 6 candidates from the selected sources, one table or section per ticked candidate, the scope checked on create, the notes steering the search; rejected: one forced cross-source table, silently picking the best source); preview candidates rather than finished ones, rag's proposal, approved the same day
+**Revisit when:** users mostly pick a single candidate (the extra step then costs more than it gives), or candidates often come back for sources the reader thinks belong together
+
+"Find tables" and "Find themes" propose up to six candidates from the
+selected sources, each a preview (a table's title, columns and a few
+rows; a theme's headline and a few facts) with the sources it comes
+from. Creating the output makes one full table, or one infographic
+part, per picked candidate, each from its own sources' passages only,
+in one document whose units the word check, the judge and coverage see
+in order. A candidate that cites a passage outside the selection is
+refused, as for charts. Without candidates the output is made in one
+generation, as before.
+
+**Reason:** a single "the one table" prompt over unrelated sources
+gives either a table from one source, silently ignoring the rest, or a
+table forcing unrelated things into common columns. Letting the user
+pick what the sources actually hold, one set of things per table, keeps
+every table true to its sources and shows what each draws on. Previews
+keep the proposal one cheap call; the full extraction happens once, at
+Create, from the right passages.
+
+**Rejected alternatives:**
+- One table forced across all sources: unrelated things in common
+  columns, cells the sources do not fill.
+- Silently picking the best source: the others vanish without a trace.
+- Finished tables as candidates (as for charts): a long table per
+  candidate makes the proposal slow and dear, and most would be thrown
+  away.
