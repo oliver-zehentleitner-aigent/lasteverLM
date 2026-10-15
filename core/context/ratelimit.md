@@ -148,7 +148,7 @@ its ninety days by however long the service had been running.
 
 **Id:** 39da528f-5128-45cb-9393-41240be9cac4
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** the maintainer's request to see and edit the ban and block rules in the admin panel, 2026-10-13; design relayed by the coordinating agent
 **Revisit when:** a threshold must apply faster than thirty seconds, or the settings read shows up in request latency
