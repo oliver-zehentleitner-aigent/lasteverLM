@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- An audio's voices follow its output language when the user sent none, as the maintainer chose them by listening: German Dylan and Ono Anna (second voice), English Ryan and Vivian; other languages keep the default. The options catalogue gives `audio.defaults_by_language` and `audio.recommended` (voice ids per language: German Dylan, Eric, Uncle Fu, Ono Anna, Sohee; English Ryan, Aiden, Vivian, Serena).
+
 ## [0.22.18] - 2026-10-15
 
 ### Added

@@ -302,10 +302,16 @@ An FAQ has 5 to 8 questions a listener would most likely ask about the
 material, each followed by its answer: the interviewer asks with `voice`,
 the expert answers with `audio_voice_2`, in strict turn. The answers get
 the support check, and the questions carry no claim.
-`audio_voice_2` is the expert's voice and only valid for `conversation` and `faq`,
-where it defaults to the next voice with the same native language as
-`voice` in catalogue order (`ryan` → `aiden`, `vivian` → `serena`), or
-`ryan` when there is none. An option the kind does not take, an unknown
+`audio_voice_2` is the expert's voice and only valid for `conversation` and `faq`.
+Without a voice sent, the output `language` picks both voices, chosen by
+listening: `de` → `dylan` and `ono_anna`, `en` → `ryan` and `vivian`
+(`VOICE_DEFAULTS`); a voice the client sends (the user's own preference)
+always wins. Otherwise, and for other languages, `voice` is the
+deployment's `TTS_VOICE` and the second voice the next one with the same
+native language as `voice` in catalogue order (`ryan` → `aiden`,
+`vivian` → `serena`), or `ryan` when there is none. The catalogue's
+`audio.defaults_by_language` and `audio.recommended` (voice ids per
+language, to list first) carry these. An option the kind does not take, an unknown
 key, code, style or voice, a second voice equal to the first, or a speed
 off the offered range (0.75–1.5 in steps of 0.25) is a 422. Without `language` the document
 follows the language of its sources; with it the generator is told to

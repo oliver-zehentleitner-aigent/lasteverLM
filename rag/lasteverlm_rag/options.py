@@ -60,6 +60,17 @@ VOICES = [
     Voice("ono_anna", "Ono Anna", "female", "ja"),
     Voice("sohee", "Sohee", "female", "ko"),
 ]
+# per output language, chosen by listening: the voices without a user's own
+# preference (first, and the second of a conversation or an FAQ), and the
+# ones worth listing first; other languages keep the deployment's default
+VOICE_DEFAULTS = {
+    "de": {"voice": "dylan", "audio_voice_2": "ono_anna"},
+    "en": {"voice": "ryan", "audio_voice_2": "vivian"},
+}
+VOICES_RECOMMENDED = {
+    "de": ["dylan", "eric", "uncle_fu", "ono_anna", "sohee"],
+    "en": ["ryan", "aiden", "vivian", "serena"],
+}
 SPEED_MIN, SPEED_MAX, SPEED_STEP, SPEED_DEFAULT = 0.75, 1.5, 0.25, 1.0
 
 TEXT_OPTIONS = ["language", "instructions", "judge", "verification"]
@@ -225,11 +236,16 @@ def resolve(kind: OutputKind, options: OutputOptions | None, default_voice: str)
         given.setdefault("difficulty", DEFAULT_DIFFICULTY)
         given.setdefault("audience", DEFAULT_AUDIENCE)
     if kind == "audio":
-        given.setdefault("voice", default_voice)
+        # a voice the client sends (the user's own preference) always wins
+        by_language = VOICE_DEFAULTS.get(str(given.get("language") or ""), {})
+        given.setdefault("voice", by_language.get("voice", default_voice))
         given.setdefault("speed", SPEED_DEFAULT)
         given.setdefault("audio_style", DEFAULT_AUDIO_STYLE)
         if given["audio_style"] in TWO_VOICE_STYLES:
-            given.setdefault("audio_voice_2", second_voice(given["voice"]))
+            second = by_language.get("audio_voice_2")
+            if second is None or second == given["voice"]:
+                second = second_voice(given["voice"])
+            given.setdefault("audio_voice_2", second)
             if given["audio_voice_2"] == given["voice"]:
                 raise ValueError("audio_voice_2: must differ from voice")
         elif "audio_voice_2" in given:
@@ -365,6 +381,10 @@ def catalogue(default_voice: str, judge_models: Mapping[Any, str]) -> dict[str, 
                 for v in VOICES
             ],
             "default_voice": default_voice,
+            # without a voice of the user's own: these by output language (else
+            # default_voice); recommended ones are listed first
+            "defaults_by_language": VOICE_DEFAULTS,
+            "recommended": VOICES_RECOMMENDED,
             "styles": AUDIO_STYLES,
             "default_style": DEFAULT_AUDIO_STYLE,
             "speed": {
