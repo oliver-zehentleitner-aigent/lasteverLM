@@ -33,7 +33,7 @@ repository root's `context/`.
 
 - [citations.md](citations.md) — citations are mapped by the service, not the model; made-up markers dropped, markers split and renumbered densely, and why an unmatched question still reaches the model (only an empty notebook is refused without it); provenance (verbatim chunk, score, position) on every citation; why marker-shaped text from sources is rewritten before prompts; generated outputs: units checked by word overlap without a model, marked never blocked; the user's instructions steer a generator but never override the rules or the citation rules (and stay visible when shared); a chart's values get an exact number check, not word overlap
 
-- [contracts.md](contracts.md) — why the shared contract types are mirrored locally until the core library ships
+- [contracts.md](contracts.md) — ids and timestamps stay strings inside the service and core's models parse them at the boundary; the local mirror of the contract types before the core library shipped (superseded)
 
 - [conversations.md](conversations.md) — several conversations per notebook instead of one history (tags rejected), and how much history the model sees; suggested questions as a text tail of the answer's call
 
@@ -53,7 +53,7 @@ repository root's `context/`.
 
 ## J
 
-- [judge.md](judge.md) — the opt-in judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer; opt-in with the word check as the default (no judge for charts); at most three rounds of revision, then removal listed in the provenance; a judge without a usable answer marks its unit, never failing the output
+- [judge.md](judge.md) — the opt-in judge: another model family than the author, the level-to-model mapping measured (evals/judge, docs/judge-eval.md), low and medium swapped because hidden reasoning made the cheaper-listed model dearer; opt-in with the word check as the default (no judge for charts); at most three rounds of revision, then removal listed in the provenance; a judge without a usable answer marks its unit, never failing the output; a judgement on request only annotates, revising is for the judge chosen at generation
 
 ## K
 
@@ -69,9 +69,9 @@ repository root's `context/`.
 
 ## P
 
-- [persistence.md](persistence.md) — why a question and its answer are written together, after the answer exists
+- [persistence.md](persistence.md) — why a question and its answer are written together, after the answer exists (the agent chat's own single turns aside)
 
-- [providers.md](providers.md) — why a model reply without content is a provider failure (502 on ask, retry in the worker), never an empty answer
+- [providers.md](providers.md) — why a model reply without content is a provider failure (502 on ask, retry in the worker), never an empty answer; the judge as the one exception
 
 ## Q
 
