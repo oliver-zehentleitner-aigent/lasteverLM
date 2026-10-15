@@ -256,24 +256,29 @@ attempt counted, and the API shows it as `waiting_for_credit` in
 sources and library entries (never stored; core's `SourceStatus`). The
 moment the owner has credit again the next claim takes it: no hook on
 account's ledger, no periodic pass. An action starts only if the balance
-covers its estimated maximum plus that of the owner's other funded reads
-still waiting; once started it runs to the end and books every call,
+covers its estimated maximum plus what the owner's started work holds;
+once started it runs to the end and books every call,
 even below zero, so a source is never left half read and half paid.
 
 - **Funded at request:** when `POST /sources/process` or a refetch queues
   a read, ingest stores its estimated maximum (`funded_cents`, from the
   same estimate as `POST /sources/estimate`). If the balance covers that
-  plus what the owner's funded reads still waiting hold, it marks the
+  plus what the owner's started work holds, it marks the
   row `funded_request_at`. The claim takes such a row whatever the
   balance is by then.
 - **Not funded:** an unmarked row is claimed once the balance, less what
-  funded reads hold, covers its estimate; until then it shows
+  started work holds, covers its estimate; until then it shows
   `waiting_for_credit`.
 - **Release:** both columns clear when the read ends, ready or failed
   (migration 0017).
 
-Rag counts the same held amount (funded rows, `processing`, not trashed)
-for its own start check. The API pods never process
+- **Held:** started work is the owner's funded rows (`processing`, not
+  trashed), rag's outputs that are `waiting` or `processing` and not
+  trashed (`outputs.reserved_cents`, rag's migration 0016), and the
+  estimated maximum of every `explain_output` step still `waiting` or
+  `running` in a running agent plan (`plans.steps`).
+
+Rag computes the same sum for its own start check. The API pods never process
 anything, so they stay stateless and the workers scale on their own. A
 worker finishes the source in flight before it stops on SIGTERM.
 

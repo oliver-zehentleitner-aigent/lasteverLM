@@ -283,12 +283,13 @@ async def create_source(
             repo.retry_library_source(existing.id)
         return _link(deps, response, user, notebook_id, existing.id)
 
-    # Adding is always allowed; processing needs credit. Without it the
-    # source is stored and queued, and waits (see the claim query).
+    # Adding is always allowed and costs nothing: the source is stored as
+    # `added` and read only when it is used (POST /sources/process).
     library_id = uuid4()
     key = object_key(user, library_id, "url" if kind == "url" else name)
-    # The object first, the row after: a `processing` row is claimable the
-    # moment it exists, so a worker must never find one without its object.
+    # The object first, the row after: a row never exists without its
+    # object, so a failed upload leaves no row and a worker that reads the
+    # source later always finds its object.
     try:
         if kind == "image":
             object_type = sniff_image_type(data)
@@ -319,8 +320,8 @@ async def create_source(
         # link that one, our object is not needed.
         with contextlib.suppress(StorageError):
             deps.storage.delete(key)
-    # Nothing else happens here: the library source is in the queue, a
-    # worker claims it (see worker.run_worker).
+    # Nothing else happens here: the library source waits as `added` until
+    # it is asked for, then a worker claims it (see worker.run_worker).
     return _link(deps, response, user, notebook_id, created.id)
 
 

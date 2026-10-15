@@ -485,7 +485,7 @@ def test_the_claim_honours_funding_at_request_and_estimates(repo):
     repo.queue_for_processing(owner, [funded.id], {funded.id: Decimal(8)}, funded=True)
     row = repo.get_library_source(funded.id)
     assert row.funded_request_at is not None and row.funded_cents == 8
-    assert repo.funded_waiting_cents(owner) == 8
+    assert repo.held_cents(owner) == 8
     # Not funded, estimate 5: 10 - 8 held = 2 < 5, it waits; estimate 1 fits.
     big = _library(repo, owner, queued=False)
     repo.queue_for_processing(owner, [big.id], {big.id: Decimal(5)})
@@ -498,13 +498,87 @@ def test_the_claim_honours_funding_at_request_and_estimates(repo):
     repo.set_library_status(funded.id, "ready")
     done = repo.get_library_source(funded.id)
     assert done.funded_request_at is None and done.funded_cents is None
-    assert repo.funded_waiting_cents(owner) == 0
+    assert repo.held_cents(owner) == 0
     _execute(
         repo, "insert into ledger (user_id, amount_cents, reason) values (%s, 10, 'x')", (owner,)
     )
     free = repo.balance_cents(owner)
     assert 1 <= free < 5
     assert _claim_all(repo) == {small.id}  # only the small one fits
+
+
+def test_an_outputs_reservation_counts_as_held_in_the_claim(repo):
+    """Rag's waiting and processing outputs hold their reserved_cents; ingest
+    counts them like a funded read, so both services hold the same sum."""
+    from decimal import Decimal
+
+    _claim_all(repo)
+    owner = _user(repo, cents=10)
+    notebook = repo.create_notebook(owner, "nb")
+    output = uuid4()
+    _execute(
+        repo,
+        "insert into outputs (id, notebook_id, kind, status, owner, origin_title, reserved_cents) "
+        "values (%s, %s, 'report', 'waiting', %s, 'nb', 8)",
+        (output, notebook.id, owner),
+    )
+    # A trashed output holds nothing, nor does another user's.
+    _execute(
+        repo,
+        "insert into outputs (id, notebook_id, kind, status, owner, origin_title, "
+        "reserved_cents, deleted_at) values (%s, %s, 'report', 'waiting', %s, 'nb', 50, now())",
+        (uuid4(), notebook.id, owner),
+    )
+    stranger = _user(repo)
+    theirs = repo.create_notebook(stranger, "theirs")
+    _execute(
+        repo,
+        "insert into outputs (id, notebook_id, kind, status, owner, origin_title, reserved_cents) "
+        "values (%s, %s, 'report', 'processing', %s, 'theirs', 50)",
+        (uuid4(), theirs.id, stranger),
+    )
+    assert repo.held_cents(owner) == 8
+    source = _library(repo, owner, queued=False)
+    repo.queue_for_processing(owner, [source.id], {source.id: Decimal(5)})
+    assert _claim_all(repo) == set()  # 10 - 8 held = 2 < 5: it waits
+    _execute(repo, "update outputs set status = 'ready' where id = %s", (output,))
+    assert repo.held_cents(owner) == 0
+    assert _claim_all(repo) == {source.id}
+
+
+def test_a_running_plans_explain_step_counts_as_held_in_the_claim(repo):
+    """Rag's running plans hold the estimated maximum of their explain steps
+    still to run; ingest counts the same sum."""
+    import json
+    from decimal import Decimal
+
+    _claim_all(repo)
+    owner = _user(repo, cents=10)
+    notebook = repo.create_notebook(owner, "nb")
+    conversation, plan = uuid4(), uuid4()
+    _execute(
+        repo,
+        "insert into conversations (id, notebook_id, title) values (%s, %s, 'chat')",
+        (conversation, notebook.id),
+    )
+    steps = [
+        {"tool": "explain_output", "state": "waiting", "estimate": {"max": 8}},
+        {"tool": "explain_output", "state": "done", "estimate": {"max": 50}},
+        {"tool": "create_output", "state": "waiting", "estimate": {"max": 50}},
+    ]
+    _execute(
+        repo,
+        "insert into plans (id, conversation_id, notebook_id, owner, status, steps, "
+        "estimate, action_id) values (%s, %s, %s, %s, 'running', %s::jsonb, '{}', %s)",
+        (plan, conversation, notebook.id, owner, json.dumps(steps), uuid4()),
+    )
+    assert repo.held_cents(owner) == 8
+    source = _library(repo, owner, queued=False)
+    repo.queue_for_processing(owner, [source.id], {source.id: Decimal(5)})
+    assert _claim_all(repo) == set()  # 10 - 8 held = 2 < 5: it waits
+    _execute(repo, "update plans set status = 'done' where id = %s", (plan,))
+    assert repo.held_cents(owner) == 0
+    assert _claim_all(repo) == {source.id}
 
 
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):

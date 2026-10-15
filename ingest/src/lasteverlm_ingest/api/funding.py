@@ -1,13 +1,14 @@
 """Whether a request to read sources is funded at its start.
 
 The rule for every action: it starts only if the balance covers its
-estimated maximum plus the estimated maximum of the owner's other funded
-reads still waiting; once started it runs to the end, even below zero.
+estimated maximum plus what the owner's started work holds (other funded
+reads still waiting, and rag's waiting and processing outputs); once
+started it runs to the end, even below zero.
 Overdraw is then bounded by how far the estimate misses. A funded read
 is marked on its row (`funded_request_at`, holding `funded_cents`), and
 the claim takes it whatever the balance is by then. An unfunded one
-keeps its estimate too and is claimed once the balance, less what funded
-reads hold, covers it (see context/accounting.md).
+keeps its estimate too and is claimed once the balance, less what started
+work holds, covers it (see context/accounting.md).
 """
 
 from __future__ import annotations
@@ -41,5 +42,5 @@ def funding_for(
         return {}, False
     needed = sum(maxima.values(), Decimal(0))
     balance = repo.balance_cents(owner)
-    funded = balance > 0 and balance >= needed + repo.funded_waiting_cents(owner)
+    funded = balance > 0 and balance >= needed + repo.held_cents(owner)
     return maxima, funded

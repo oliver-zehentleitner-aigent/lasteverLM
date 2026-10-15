@@ -203,7 +203,15 @@ and the claim takes it later whatever the balance has become, so a
 confirmed agent plan never waits half-way on a source an earlier step
 paid for. An unfunded row waits until the balance, less what funded
 reads hold, covers its estimate. Rag applies the same rule to plans and
-outputs and counts this held amount with its own.
+outputs and counts this held amount with its own. Since 2026-10-15 ingest
+counts rag's waiting and processing outputs (`outputs.reserved_cents`)
+and the explain steps still to run in running agent plans as held too,
+the same sum rag computes. The held amount is one definition: if the two
+services computed different numbers, one would let through what the
+other already counts as taken. Both read the shared database anyway, as
+rag reads `library_sources.funded_cents`; the sum is written out in each
+service's SQL, and a core helper is the place to move it once a third
+service needs it.
 
 **Alternatives:**
 - Checking only that the balance is positive at the start (the previous

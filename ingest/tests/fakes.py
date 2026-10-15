@@ -88,6 +88,10 @@ class InMemoryRepository:
         self.outputs: dict[UUID, tuple[UUID | None, str]] = {}
         self.output_ids: dict[UUID, UUID] = {}
         self.retry_at: dict[UUID, datetime] = {}
+        # rag's outputs.reserved_cents: output id -> (owner, status, cents).
+        self.reservations: dict[UUID, tuple[UUID, str, Decimal]] = {}
+        # rag's plans: plan id -> (owner, plan status, steps as rag stores them).
+        self.plans: dict[UUID, tuple[UUID, str, list[dict]]] = {}
 
     # -- test helpers ----------------------------------------------------------
 
@@ -706,24 +710,45 @@ class InMemoryRepository:
 
     def _fundable(self, lib):
         """The claim query's rule: funded at request, or the balance less what
-        other funded reads hold covers this read's estimate."""
+        started work holds covers this read's estimate."""
         if lib.funded_request_at is not None:
             return True
-        held = self.funded_waiting_cents(lib.owner)  # this row is not funded
+        held = self.held_cents(lib.owner)  # this row is not funded
         balance = self.balance_cents(lib.owner)
         return balance > 0 and balance - held >= (lib.funded_cents or 0)
 
-    def funded_waiting_cents(self, owner):
-        return sum(
-            (
-                lib.funded_cents or Decimal(0)
-                for lib in self.library.values()
-                if lib.owner == owner
-                and lib.funded_request_at is not None
-                and lib.status == "processing"
-                and lib.deleted_at is None
-            ),
-            Decimal(0),
+    def held_cents(self, owner):
+        return (
+            sum(
+                (
+                    lib.funded_cents or Decimal(0)
+                    for lib in self.library.values()
+                    if lib.owner == owner
+                    and lib.funded_request_at is not None
+                    and lib.status == "processing"
+                    and lib.deleted_at is None
+                ),
+                Decimal(0),
+            )
+            + sum(
+                (
+                    cents
+                    for who, status, cents in self.reservations.values()
+                    if who == owner and status in ("waiting", "processing")
+                ),
+                Decimal(0),
+            )
+            + sum(
+                (
+                    Decimal(str(step["estimate"]["max"]))
+                    for who, status, steps in self.plans.values()
+                    if who == owner and status == "running"
+                    for step in steps
+                    if step.get("tool") == "explain_output"
+                    and step.get("state") in ("waiting", "running")
+                ),
+                Decimal(0),
+            )
         )
 
     def has_credit(self, user_id: UUID) -> bool:

@@ -111,14 +111,14 @@ class CreditView:
 
     def status(self, status: str, funded: bool = False, estimate: Decimal | None = None) -> str:
         # A read funded when it was asked for does not wait for credit; any
-        # other waits until the balance, less what funded reads hold, covers
-        # its estimated maximum (the claim query's rule).
+        # other waits until the balance, less what started work holds,
+        # covers its estimated maximum (the claim query's rule).
         if status != "processing" or funded:
             return status
         if not self._read_free:
             self._read_free = True
             balance = self._repo.balance_cents(self._owner)
-            held = self._repo.funded_waiting_cents(self._owner)
+            held = self._repo.held_cents(self._owner)
             # None: no positive balance, nothing can start.
             self._free = balance - held if balance > 0 else None
         if self._free is not None and self._free >= (estimate or 0):
