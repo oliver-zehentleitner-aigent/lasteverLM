@@ -538,9 +538,13 @@ LLM call and stores nothing. The user picks some, and `POST .../outputs`
 with `{"kind": "chart", "options": {"charts": [...]}}` creates the output
 from the picked objects, without a second extraction. Each candidate
 carries the chunk ids of its passages. At creation every chunk must
-belong to the notebook (else 422). The worker loads them again, numbers
-them once for all picked charts, and checks every value anew; any
-`support` the client sends is ignored.
+belong to an uploaded source of the notebook and, with a selection, to a
+selected source (else 409 `chart_out_of_scope`); finding charts reads
+and searches only the selected sources (corrected 2026-10-15: before,
+it proposed from the whole notebook and a candidate from an earlier
+selection was drawn). The worker loads them again, numbers them once for
+all picked charts, and checks every value anew; any `support` the client
+sends is ignored.
 
 **Reason:** the user decides what is drawn, and nothing is drawn that the
 sources do not hold. Proposing first lets a person pick from what the
