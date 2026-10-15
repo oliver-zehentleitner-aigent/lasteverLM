@@ -1102,3 +1102,17 @@ def test_held_counts_waiting_outputs_plan_explanations_and_funded_reads(
     assert store.held_cents(user) == Decimal("25")  # 12.5 + 7.5 + 2 + 3
     store.update_output(waiting.id, status="failed")
     assert store.held_cents(user) == Decimal("12.5")
+
+
+def test_an_output_keeps_its_attempts_and_is_found_by_prefix(store, user, notebook):
+    row = store.create_output(notebook, "report", "processing")
+    assert store.get_output(row.id).attempt_log == []
+    record = {"at": "2026-10-15T10:00:00+00:00", "attempt": 1, "model": "m", "service": "rag"}
+    store.add_attempt(row.id, record)
+    store.add_attempt(row.id, {**record, "attempt": 2})
+    assert [a["attempt"] for a in store.get_output(row.id).attempt_log] == [1, 2]
+    assert store.get_output(row.id).finished_at is None
+    store.update_output(row.id, status="failed", error="e")
+    assert store.get_output(row.id).finished_at is not None
+    ((found, email),) = store.find_outputs(row.id.replace("-", "")[:12], 20)
+    assert found.id == row.id and email == f"{user}@test.local"

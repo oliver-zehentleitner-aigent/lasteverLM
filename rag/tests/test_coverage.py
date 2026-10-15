@@ -87,7 +87,7 @@ def test_a_mind_map_gets_both_sources_and_a_gap_is_logged(settings, caplog):
     assert "one branch per source" in prompt
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert warnings == [
-        f"output {output_id} (mindmap) does not mention source 'linux_-_vi.pdf' of its input"
+        f"output {output_id[:8]} (mindmap) does not mention source 'linux_-_vi.pdf' of its input"
     ]
     # the document is kept: a gap is logged, not failed
     assert client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()["status"] == "ready"

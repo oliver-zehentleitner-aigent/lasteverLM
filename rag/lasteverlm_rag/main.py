@@ -1,6 +1,7 @@
 """FastAPI application. Endpoints follow the rag section of docs/architecture.md in the parent."""
 
 import logging
+import re
 import uuid
 from functools import partial
 from typing import Annotated, Any
@@ -41,6 +42,7 @@ from lasteverlm_core import (
     SharedOutput,
     current_user,
     make_client,
+    mask_email,
 )
 from lasteverlm_core.health import (
     DEPENDENCY_TIMEOUT_SECONDS,
@@ -127,6 +129,9 @@ from .voice_samples import SpeechUnavailable, VoiceSampleRequest, VoiceSamples
 
 PREFIX = "/api/rag"
 
+# the admin output search: 6 to 32 hex digits of an id, at most this many matches
+ID_PREFIX = re.compile(r"[0-9a-f]{6,32}")
+ADMIN_OUTPUTS_MAX = 20
 # how many down-rated answers the admin overview lists
 FEEDBACK_LATEST = 20
 log = logging.getLogger("lasteverlm_rag")
@@ -583,6 +588,39 @@ def create_app(
         if store.admin_role(str(reader)) != "admin":
             return {**overview, "latest_down": [], "detail": "admins only"}
         return overview
+
+    @app.get(f"{PREFIX}/admin/outputs")
+    def find_outputs(reader: AdminReader, id_prefix: str) -> dict[str, Any]:
+        """Outputs by the start of their id, as a log line or a user names one
+        (short ids are its first eight hex digits): status, times and every
+        failed attempt. A viewer sees the owner's email masked."""
+        assert store is not None
+        prefix = id_prefix.replace("-", "").lower()
+        if not ID_PREFIX.fullmatch(prefix):
+            raise HTTPException(422, "id_prefix: at least 6 hex characters")
+        found = store.find_outputs(prefix, ADMIN_OUTPUTS_MAX + 1)
+        admin = store.admin_role(str(reader)) == "admin"
+        return {
+            "matches": [
+                {
+                    "id": row.id,
+                    "notebook_id": row.notebook_id,
+                    "notebook_title": row.origin_title,
+                    "kind": row.kind,
+                    "title": row.title,
+                    "status": row.status,
+                    "error": row.error,
+                    "created_at": row.created_at,
+                    "finished_at": row.finished_at,
+                    "deleted_at": row.deleted_at,
+                    "owner": {"id": row.owner, "email": email if admin else mask_email(email)},
+                    "attempts": row.attempts,
+                    "attempt_log": row.attempt_log,
+                }
+                for row, email in found[:ADMIN_OUTPUTS_MAX]
+            ],
+            "truncated": len(found) > ADMIN_OUTPUTS_MAX,
+        }
 
     @app.delete(f"{PREFIX}/admin/users/{{target}}", status_code=204)
     def delete_user_data(target: uuid.UUID, _: AdminWriter) -> Response:

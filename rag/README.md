@@ -49,6 +49,7 @@ this directory implements the `/api/rag` prefix.
 | GET | `/api/rag/shared/notebooks/{token}` | no auth | `{"title", "sources": [{"name", "kind"}], "outputs": [SharedOutput]}`, see below |
 | GET | `/api/rag/admin/stats` | viewers and admins | `AdminStats`, see below |
 | GET | `/api/rag/admin/stats/daily?days=` | viewers and admins; `days` 1–365, default 30 | `DailyStats`, see below |
+| GET | `/api/rag/admin/outputs?id_prefix=` | viewers and admins; 6–32 hex digits of an output id, hyphens ignored, any case (422 otherwise) | `{"matches": [{"id", "notebook_id", "notebook_title", "kind", "title", "status", "error", "created_at", "finished_at", "deleted_at", "owner": {"id", "email"}, "attempts", "attempt_log"}], "truncated"}`, at most 20, newest first; a viewer gets the email masked (core's `mask_email`) |
 | GET | `/api/rag/admin/feedback?days=` | viewers and admins; `days` 1–365, default 30 | `{"days": [{"day", "up", "down"}], "latest_down": [{"message_id", "notebook_id", "at", "comment", "answer", "question"}]}`, the 20 newest down-rated answers; a viewer gets the counts with `latest_down: []` and `"detail": "admins only"` |
 | DELETE | `/api/rag/admin/users/{id}` | admins only | 204, see below |
 | GET | `/healthz`, `/api/rag/healthz` | no auth | core's `Health`: `{"status": "ok", "version", "commit", "dependencies": {"postgres", "storage", "inference"}}`, each `ok` or `down` (core's `DependencyProbe`: 2 s per check, cached 15 s; `storage` only with object storage configured); a dependency that is down never fails the probe |
@@ -400,8 +401,19 @@ happens next. While a retry is pending, it names the failure and ends
 model and the error class (never the provider's message), and states
 whether calls were charged: "the model provider failed 3 times (glm-5.3:
 timeout); no further attempt; nothing was charged". The worker logs every
-failed attempt at WARNING with the output id, the attempt, the model, the
-error class and the message, never a prompt.
+failed attempt at WARNING with the output's short id (core's `short_id`,
+its first eight hex digits), the attempt, the model, the error class and
+the message, never a prompt.
+
+Every failed attempt is also kept on the row (`outputs.attempt_log`,
+migration `0017_rag_output_attempts.sql`), so the history outlives the
+pods' logs: `Output.attempt_log` is a list of core's `AttemptRecord`,
+`{"at", "attempt", "model", "error_kind", "provider_status", "message",
+"service": "rag"}`, oldest first. `error_kind` is `provider`,
+`provider_refused`, `configuration`, `timeout` or `internal`, and the
+message is core's own text, never a prompt or source text. Outputs from
+before have `[]`. `outputs.finished_at` is set when an output becomes
+ready or failed.
 
 **Phase.** While an output waits or runs, `Output.phase` is
 `{"step", "since", "n"?, "of"?, "sources"?, "error"?}`. It is `null`

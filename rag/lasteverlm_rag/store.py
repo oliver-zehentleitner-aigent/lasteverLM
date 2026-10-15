@@ -166,7 +166,18 @@ class Store(Protocol):
 
     def list_outputs(self, notebook_id: str) -> list[OutputRow]: ...
 
-    def update_output(self, output_id: str, **fields: Any) -> None: ...
+    def update_output(self, output_id: str, **fields: Any) -> None:
+        """Ready or failed also stamps ``finished_at``."""
+        ...
+
+    def add_attempt(self, output_id: str, record: dict[str, Any]) -> None:
+        """Append one failed attempt's record to ``attempt_log``."""
+        ...
+
+    def find_outputs(self, id_prefix: str, limit: int) -> list[tuple[OutputRow, str]]:
+        """Outputs whose dashless id starts with ``id_prefix`` (lowercase hex),
+        newest first, at most ``limit``, each with its owner's email."""
+        ...
 
     def delete_output(self, output_id: str) -> None: ...
 
@@ -319,7 +330,7 @@ _OUTPUT_COLUMNS = f"""
 o.id::text as id, o.notebook_id::text as notebook_id, {_OUTPUT_OWNER}::text as owner, o.kind,
 o.title, o.content, o.status, o.error, o.share_token, o.source_id::text as source_id,
 o.attempts, o.created_at, o.options, o.origin_title, o.deleted_at, o.provenance,
-o.booking_id::text as booking_id, o.phase,
+o.booking_id::text as booking_id, o.phase, o.attempt_log, o.finished_at,
 o.deleted_at + make_interval(days => {_TRASH_DAYS.format(owner=_OUTPUT_OWNER)}) as purge_at
 """
 _OUTPUT_FROM = "from outputs o left join notebooks n on n.id = o.notebook_id"
@@ -927,10 +938,30 @@ class PostgresStore:
             if name in fields:
                 fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
+        if fields.get("status") in ("ready", "failed"):
+            assignments += ", finished_at = now()"
         with self._pool.connection() as conn:
             conn.execute(
                 f"update outputs set {assignments} where id = %(id)s", {**fields, "id": output_id}
             )
+
+    def add_attempt(self, output_id: str, record: dict[str, Any]) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update outputs set attempt_log = attempt_log || %s where id = %s",
+                (Jsonb([record]), output_id),
+            )
+
+    def find_outputs(self, id_prefix: str, limit: int) -> list[tuple[OutputRow, str]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                f"select {_OUTPUT_COLUMNS}, coalesce(u.email, '') as owner_email {_OUTPUT_FROM} "
+                f"left join users u on u.id = {_OUTPUT_OWNER} "
+                "where replace(o.id::text, '-', '') like %(prefix)s "
+                "order by o.created_at desc limit %(limit)s",
+                {"prefix": id_prefix + "%", "limit": limit},
+            ).fetchall()
+        return [(_to_output(r), str(r["owner_email"])) for r in rows]
 
     def delete_output(self, output_id: str) -> None:
         with self._pool.connection() as conn:
@@ -1372,4 +1403,6 @@ def _to_output(row: dict[str, Any]) -> OutputRow:
         provenance=row.get("provenance"),
         booking_id=row.get("booking_id"),
         phase=row.get("phase"),
+        attempt_log=list(row.get("attempt_log") or []),
+        finished_at=_str_or_none(row.get("finished_at")),
     )

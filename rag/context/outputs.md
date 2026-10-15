@@ -708,3 +708,35 @@ short one, which is the honest size.
 
 **Rejected alternatives:**
 - Fixed word targets per length: fill short material with invention.
+
+## An output keeps every failed attempt on its row, and support finds it by its short id
+
+**Id:** 3b920d95-1ecd-4d77-b292-bfc2a238edeb
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (store failed attempts in the database with core's attempt record, an admin search by id prefix, short ids in log lines; rejected: relying on pod logs); core's `AttemptRecord` and `short_id` the same day
+**Revisit when:** an output can take far more than three attempts, so that its list grows without bound, or attempts need to be queried across outputs (a failure-rate report), which a list on the row makes awkward
+
+Every failed attempt of an output is appended to `outputs.attempt_log` as
+core's `AttemptRecord`: when, which attempt, the model in flight, the
+kind of failure, the provider's HTTP status and core's own message,
+never a prompt or source text. `outputs.finished_at` records when the
+output became ready or failed. The owner sees the list on the output;
+viewers and admins find outputs by the first six or more hex digits of
+the id (`GET /api/rag/admin/outputs`), with the owner masked for
+viewers. Log lines name an output by its short id, the same prefix.
+
+**Reason:** twice an output failed and the pod logs of its run were gone
+with the next rollout (33fc1c1f-8444-4f70-b597-b459ce000c78 and
+755ed7ef-5d49-4d14-aec5-8cb96ec9f546 had to read the cause from the code).
+A record on the row survives every deploy, is deleted with the output,
+and needs no log access. A list on the row rather than a table: an output
+has at most three attempts, they are always read with the output, and a
+jsonb append needs no join or second lifecycle. The short id lets a user
+or a log line hand support something to search for.
+
+**Rejected alternatives:**
+- Relying on pod logs: they vanish with every rollout.
+- A separate attempts table: a join and its own cleanup for at most three
+  rows that are only ever read with their output.
