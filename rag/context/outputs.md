@@ -258,7 +258,9 @@ every ready upload contributes its two best chunks regardless of the
 similarity floor, then the remaining budget (at least `RETRIEVAL_K`, two
 per source, capped at 24 passages; above the cap one chunk per source,
 round robin) is filled from the global ranking. The system rules require
-every listed source to be covered, and the mind map's root must span
+every listed source that holds something fitting to be used, and a
+source that holds nothing fitting to be named with its reason (since
+60868238-7044-4145-8a8a-cf8ac1c806d5; before, every source had to be covered), and the mind map's root must span
 all sources with a branch per source on distinct topics. After
 generation, a source whose distinctive file-name words never appear in
 the document is logged as a warning with the output id.
@@ -812,3 +814,34 @@ full strength to see that they disagree.
   result.
 - Lightening a conflict too: it would hide the disagreement the agreement
   field exists to show.
+
+## An output says which selected sources it used, and names the ones it could not use with a reason
+
+**Id:** 60868238-7044-4145-8a8a-cf8ac1c806d5
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision relayed by the coordinator, 2026-10-15 (a table or infographic over several sources silently used one; for every kind, coverage computed from the refs, the cited and uncited selected sources with a short reason when the generator gives one; every prompt to use every fitting source and name the ones it cannot use)
+**Revisit when:** generators often name a source as unusable that the reader finds fitting, or coverage turns out to be read as a quality score rather than a description
+
+Every output's provenance carries `coverage`: the selected sources, each
+marked cited or not, read deterministically from the refs the output's
+units keep. The generators are told to use every source that holds
+something fitting for the document and to name, in `unused_sources`, a
+source that holds nothing fitting, with one sentence why; that sentence
+becomes the uncited source's reason. Before, the rule was to cover every
+source, and nothing showed which ones a document actually used.
+
+**Reason:** a document over several sources that silently drew on one
+looked complete. Reading the refs tells the reader exactly which sources
+stand behind it, without trusting the model's own account; the model's
+reason only explains a gap the refs already show. Asking for every
+fitting source rather than every source avoids forcing a source into a
+document it does not fit, where the model would have to invent the link.
+
+**Rejected alternatives:**
+- Covering every source at any cost (the previous rule): forces
+  unrelated material into the document.
+- Taking the model's own list of used sources: not checkable; the refs
+  are.
+- Silently leaving unused sources out: the reader cannot see the gap.
