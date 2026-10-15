@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-15
+
 ### Changed
 
 - An output's creation and a plan's confirm start only if the balance covers their estimated maximum (with the reading of unread sources and pages fetched again) plus what the user's started work still holds: waiting outputs (`outputs.reserved_cents`, migration `0016_rag_output_reserved.sql`), a running plan's waiting explanations and ingest's funded reads. Otherwise 402 with `code: "credit_insufficient"`, `needed_cents`, `held_cents` and `available_cents`.

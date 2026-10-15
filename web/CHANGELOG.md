@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-15
+
 ### Changed
 
 - Check with a judge on an existing output or a chat answer: each level's line says what that judging does, read every paragraph against its passages and mark it, changing and removing nothing (it promised revising, which happens only while an output is made); the Check button's tooltip says the same, and "No judge" in the output options speaks of paragraphs, not claims.
