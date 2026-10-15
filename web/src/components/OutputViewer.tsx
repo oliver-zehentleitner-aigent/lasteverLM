@@ -265,6 +265,8 @@ export function OutputViewer({
                 locate={locate ?? null}
                 title={selected.title}
                 status={selected.status}
+                createdAt={selected.created_at}
+                phase={selected.phase ?? null}
                 error={selected.error}
                 content={selected.content}
                 onExpired={() => rag.getOutput(selected.id).then((o) => (o.content as AudioContent).url)}

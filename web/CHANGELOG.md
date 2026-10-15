@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- While an output is made the document view shows a muted skeleton in its kind's shape (shimmering, still under reduced motion) and under it the worker's real step from rag's `phase` ("Judging, round 2 of 3", "Reading the sources: a.pdf", "Attempt 2 of 3 follows (…)") with the time since it was created; the walking ASCII figure is gone.
+
 ## [0.19.7] - 2026-10-14
 
 ### Fixed

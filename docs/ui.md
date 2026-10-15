@@ -252,9 +252,22 @@ opens the notebook.
   the default for text and web pages, Original for images, audio and
   PDFs. An output's header shows
   "from 3 sources" when it was made from a selection, processing tabs
-  show a spinner and poll; the pane says "Generating…" with a small
-  ASCII figure walking beside it (decorative, still under reduced
-  motion). Each kind has its own renderer; the audio
+  show a spinner and poll. While an output is made (waiting or
+  processing) the pane shows, centred, a small muted skeleton in its
+  kind's shape with a slow shimmer (report: a heading and lines; table:
+  a grid; mind map: three connected nodes; audio: a pulsing waveform;
+  flashcards: a card turning; quiz: question lines with option dots;
+  chart: bars; decision: a scale with its mark; infographic: blocks),
+  static under reduced motion, in the theme's line colour. Under it what
+  is really happening, from the output's `phase` (only what the worker
+  wrote): "Reading the sources: a.pdf", "Choosing the passages",
+  "Weighing the decision", "Writing", "Checking against the sources",
+  "Judging, round 2 of 3", "Revising round 1", "Speech, segment 3 of
+  8", "Indexing for the chat", "Attempt 2 of 3 follows (glm-5.3:
+  timeout)", then " · 1:42", the time since the output was created.
+  Without a phase (queued, or an older row) "Generating…" or "Waiting:
+  its sources are read first…" with the time; a retry's error shows
+  under it unless the phase already says it. Each kind has its own renderer; the audio
   player sits centred in the pane, and the mind map fills the pane and
   re-fits whenever its size changes (full view, divider, window). A
   small bar on the map's top right zooms in (+), out (−) and fits it

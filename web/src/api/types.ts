@@ -273,6 +273,8 @@ export interface Output {
   options?: OutputOptions
   /** how it was made and what each claim rests on; null for older outputs */
   provenance?: Provenance | null
+  /** what the worker is doing now; null once ready or failed and while queued */
+  phase?: OutputPhase | null
 }
 
 /** How the check judged a claim: backed by its passages, not backed (no
@@ -1024,4 +1026,17 @@ export interface CreditEntry {
   notebook: { id: string; title: string | null } | null
   output: { id: string; title: string | null } | null
   source: { id: string; title: string | null } | null
+}
+
+/** One step of making an output, as the worker writes it. `n`/`of` only on
+ *  judging, revising (n only), synthesizing_speech and retry. */
+export interface OutputPhase {
+  step: 'waiting_for_sources' | 'retrieving' | 'deciding' | 'writing' | 'checking' | 'judging' | 'revising' | 'synthesizing_speech' | 'indexing' | 'retry'
+  since: string
+  n?: number
+  of?: number
+  /** waiting_for_sources: the names still being read */
+  sources?: string[]
+  /** retry: the short failure */
+  error?: string
 }
