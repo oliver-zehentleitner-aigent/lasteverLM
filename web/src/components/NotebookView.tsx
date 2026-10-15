@@ -21,7 +21,7 @@ import type { LocateRequest } from '../lib/locate'
 import { readExcluded, selection, toggled, writeExcluded } from '../lib/sourceSelection'
 import { takeOpenOutput } from '../lib/lastNotebook'
 import { awaitsStarterOutputs, pollStarterOutputs } from '../lib/starterOutputs'
-import { afterClose, dropMissing, heldUrl, openTab, tabUrl, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab } from '../lib/viewerTabs'
+import { afterClose, dropMissing, heldUrl, openTab, tabUrl, readTabs, sessionStore, tabKey, writeTabs, type ViewerTab, tabsToClose } from '../lib/viewerTabs'
 import { ChatPane } from './ChatPane'
 import { SourceInfo, SourceLinks } from './SourceLinks'
 import { citationTarget } from '../lib/openEntry'
@@ -37,9 +37,12 @@ import { SourcesPane } from './SourcesPane'
 import { Wizard } from './Wizard'
 import { Tour } from './Tour'
 import { t } from '../i18n'
+import { docTitle, useDocumentTitle } from '../lib/docTitle'
 
 interface ViewProps {
   notebookId: string
+  /** for the browser tab's title */
+  notebookTitle: string
   /** the add-sources dialog is open */
   wizard: boolean
   onWizard: (open: boolean) => void
@@ -48,7 +51,7 @@ interface ViewProps {
 /** Everything that belongs to one notebook; remounted by key on a switch.
  *  Holds the outputs because tiles create them, the viewer shows them and
  *  the chat cites them. */
-export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
+export function NotebookView({ notebookId, notebookTitle, wizard, onWizard }: ViewProps) {
   const [outputs, setOutputs] = useState<Output[]>([])
   // the viewer's tabs: what was opened, in that order, kept for the browser session
   const [tabs, setTabs] = useState<ViewerTab[]>(() => readTabs(sessionStore(), notebookId).tabs)
@@ -61,6 +64,15 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
   function closeTab(key: string) {
     setActiveKey((cur) => (cur === key ? afterClose(tabs.map(tabKey), key) : cur))
     setTabs((prev) => prev.filter((x) => tabKey(x) !== key))
+  }
+  /** close all, the others or those to the right; no confirmation, every tab can be opened again */
+  function closeTabs(which: 'all' | 'others' | 'right', key: string | null) {
+    const keys = tabs.map(tabKey)
+    const closing = tabsToClose(keys, key, which)
+    if (closing.length === 0) return
+    // the tab the command was given on stays and comes to the front if the active one went
+    setActiveKey((cur) => (which === 'all' ? null : cur !== null && closing.includes(cur) ? key : cur))
+    setTabs((prev) => prev.filter((x) => !closing.includes(tabKey(x))))
   }
   const openOutput = useCallback((id: string) => open({ type: 'output', id }), [open])
   // the output whose tab is in front, for the Outputs list's mark and a located passage
@@ -274,6 +286,10 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
     setLocate((prev) => ({ outputId: match.id, text: c.quote, nonce: (prev?.nonce ?? 0) + 1 }))
   }
 
+  // the browser tab: the document in front, then the notebook
+  const frontOutput = selectedOutput ? outputs.find((o) => o.id === selectedOutput) : undefined
+  const frontSource = activeKey?.startsWith('source:') ? uploads?.find((x) => `source:${x.id}` === activeKey) : undefined
+  useDocumentTitle(docTitle(frontOutput ? frontOutput.title || formFor(frontOutput.kind).label : frontSource?.name, notebookTitle))
   const sourceLink = useCallback((id: string, page: number | null) => citationTarget(uploads?.find((s) => s.id === id), page), [uploads])
   const sourceInfo = useCallback((id: string) => uploads?.find((s) => s.id === id), [uploads])
 
@@ -374,6 +390,7 @@ export function NotebookView({ notebookId, wizard, onWizard }: ViewProps) {
             activeKey={activeKey}
             onActivate={setActiveKey}
             onClose={closeTab}
+            onCloseTabs={closeTabs}
           onSourcesChanged={() => setSourcesVersion((v) => v + 1)}
             onChanged={(o) => setOutputs((prev) => prev.map((x) => (x.id === o.id ? o : x)))}
             onRename={(o, title) => void renameOutput(o, title)}

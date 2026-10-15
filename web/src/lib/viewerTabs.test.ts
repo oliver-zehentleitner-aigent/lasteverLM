@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterClose, chunkPageOffset, tabUrl, heldUrl, URL_FRESH_MS, defaultView, dropMissing, openTab, readTabs, tabKey, writeTabs, type ViewerTab } from './viewerTabs'
+import { afterClose, chunkPageOffset, tabUrl, heldUrl, URL_FRESH_MS, defaultView, dropMissing, openTab, readTabs, tabKey, writeTabs, type ViewerTab, tabsToClose } from './viewerTabs'
 
 const memory = () => {
   const m = new Map<string, string>()
@@ -87,5 +87,16 @@ describe('tabUrl', () => {
     expect(tabUrl({ kind: 'url', preview_url: 'https://example.org/page', snapshot_url: 'https://s/snap?sig=1' })).toBe('https://s/snap?sig=1')
     expect(tabUrl({ kind: 'url', preview_url: 'https://example.org/page', snapshot_url: null })).toBeNull()
     expect(tabUrl({ kind: 'pdf', preview_url: 'https://s/a.pdf?sig=1' })).toBe('https://s/a.pdf?sig=1')
+  })
+})
+
+describe('closing several tabs', () => {
+  const keys = ['a', 'b', 'c', 'd']
+  it('picks all, the others, or those to the right', () => {
+    expect(tabsToClose(keys, 'b', 'all')).toEqual(keys)
+    expect(tabsToClose(keys, 'b', 'others')).toEqual(['a', 'c', 'd'])
+    expect(tabsToClose(keys, 'b', 'right')).toEqual(['c', 'd'])
+    expect(tabsToClose(keys, 'd', 'right')).toEqual([])
+    expect(tabsToClose(keys, 'x', 'others')).toEqual([])
   })
 })

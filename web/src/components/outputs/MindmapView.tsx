@@ -3,7 +3,7 @@ import type { Markmap } from 'markmap-view'
 import type { MindmapContent, MindmapNode } from '../../api/types'
 import { t } from '../../i18n'
 import { bestMatchIndex, firstLine, type LocateRequest } from '../../lib/locate'
-import { mapAction } from '../../lib/mapKeys'
+import { mapAction, wheelAction } from '../../lib/mapKeys'
 import { cleanTree, toMarkdown } from '../../lib/mindmap'
 import { sanitizeHtml } from '../../lib/sanitize'
 import { claimHtml } from '../../lib/outputProvenance'
@@ -50,8 +50,18 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
         // the labels are the model's text and markmap renders them as HTML
         const clean = cleanTree(root, sanitizeHtml)
         const el = svg.current
-        const mm = Markmap.create(el, { autoFit: false, maxWidth: LABEL_MAX_WIDTH })
+        // the wheel scrolls (Shift: sideways) and Ctrl/Cmd+wheel zooms; markmap's d3 zoom
+        // keeps Ctrl+wheel, which is also how a trackpad's pinch arrives
+        const mm = Markmap.create(el, { autoFit: false, maxWidth: LABEL_MAX_WIDTH, scrollForPan: true, pan: false })
         map.current = mm
+        const onWheel = (e: WheelEvent) => {
+          const action = wheelAction(e)
+          if (action.kind === 'zoom-native') return
+          e.preventDefault()
+          if (action.kind === 'zoom') void mm.rescale(action.by)
+          else mm.handlePan({ deltaX: action.dx, deltaY: action.dy, preventDefault: () => {} } as unknown as WheelEvent)
+        }
+        el.addEventListener('wheel', onWheel, { passive: false })
         // fitting an SVG without a size scales the map to nothing
         const sized = () => {
           const r = el.getBoundingClientRect()
@@ -74,6 +84,7 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
         const observer = new ResizeObserver(refit)
         if (box.current) observer.observe(box.current)
         destroy = () => {
+          el.removeEventListener('wheel', onWheel)
           observer.disconnect()
           cancelAnimationFrame(frame)
           map.current = null

@@ -15,12 +15,15 @@ import { NotebookDeleteDialog } from './NotebookDeleteDialog'
 import { NotebookList } from './NotebookList'
 import { t } from '../i18n'
 import { NotebookView } from './NotebookView'
+import { docTitle, useDocumentTitle } from '../lib/docTitle'
 
 /** The two-column screen. Left: sources, then the output forms as tiles.
  *  Right: the viewer with one tab per generated document, then the chat. */
 export function Workspace() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(readLastNotebook)
+  // with a notebook open, its view names the browser tab
+  useDocumentTitle(selectedId ? null : docTitle())
   // the notebook the add-sources dialog is open for
   const [wizardFor, setWizardFor] = useState<string | null>(null)
   // the notebook list's width, remembered per browser; null is the stylesheet's
@@ -167,7 +170,7 @@ export function Workspace() {
         }}
       />
       {selectedId ? (
-        <NotebookView key={selectedId} notebookId={selectedId} wizard={wizardFor === selectedId}
+        <NotebookView key={selectedId} notebookId={selectedId} notebookTitle={notebooks.find((n) => n.id === selectedId)?.title ?? ''} wizard={wizardFor === selectedId}
           onWizard={(open) => setWizardFor(open ? selectedId : null)}
         />
       ) : (

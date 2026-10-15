@@ -1242,4 +1242,7 @@ export const de: Record<MessageKey, string> = {
   'coverage.line': '{cited} von {selected} Quellen genutzt',
   'coverage.noReason': 'nicht genutzt, kein Grund angegeben',
   'coverage.unused': 'Nicht genutzte Quellen',
+  'viewer.closeAll': 'Alle schließen',
+  'viewer.closeOthers': 'Andere schließen',
+  'viewer.closeRight': 'Tabs rechts schließen',
 }

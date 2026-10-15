@@ -155,11 +155,12 @@ opens the notebook.
   ticked, the chat and Create say to tick one; a question or a
   document then sends `source_ids` (the ticked link ids) and none while
   all are ticked.
-- **Output format** (left, middle): the output kinds as tiles, always
-  three to a row (Report, Quiz, Data table / Mindmap, Infographic,
-  Audio / Decision, Chart) at a fixed 8rem width; the column starts at, and cannot be
-  dragged below, the width of that grid (27rem). Only on a phone,
-  where the columns stack, do the three tiles share the width. A click
+- **Output format** (left, middle): the output kinds as tiles in their
+  order (Report, Quiz, Data table, Mindmap, Infographic, Audio,
+  Decision, Chart), flowing with the column: as many to a row as fit at
+  110 px at least, three at the column's default and narrowest width
+  (27rem), more when it is dragged wider, each row only as high as its
+  tiles. A click
   (or Enter on a focused tile) only selects one, highlighted, and the
   selection stays while the notebook is open; the **Create** button
   at the right edge below the tiles starts the job for the selected
@@ -288,6 +289,9 @@ opens the notebook.
   re-fits whenever its size changes (full view, divider, window). A
   small bar on the map's top right zooms in (+), out (−) and fits it
   again (⤢); with the map focused, the keys +, − and 0 do the same.
+  On the map the wheel scrolls (a trackpad both ways), Shift+wheel
+  scrolls sideways, and Ctrl+wheel (a trackpad's pinch) or Cmd+wheel
+  zooms; dragging pans.
   Actions per document: ask about this, print and full view as text,
   then share (a link icon) and delete (a red bin) as icons.
 - **Column dividers** between the notebook list, the left column and
@@ -311,7 +315,16 @@ opens the notebook.
   not fit: the active tab is scrolled into view, a mouse wheel scrolls
   the bar, and the arrow keys, Home and End move between tabs (only the
   active tab is in the Tab order). In the chat bar only the tabs
-  scroll; "+" and the height presets stay in place.
+  scroll; "+" and the height presets stay in place. The viewer's bar
+  ends in **Close all**, outside the scrolling tabs; a right-click on
+  a tab offers **Close others** and **Close tabs to the right**, and a
+  middle click closes it. None asks first: every tab can be opened
+  again from the lists.
+- **Browser tab title**: the document in front and the notebook ("Report ·
+  My notebook · lasteverLM"), else the page ("Library · lasteverLM",
+  "Admin · Finance · Costs · lasteverLM"), on a shared page its title;
+  names in the interface language, each part cut at 60 characters, set
+  as text.
 - **Divider** between viewer and chat: drag it (or arrow keys when it
   has focus) to change the split; the split is remembered per browser,
   a double-click (or Home) resets it to half and half. Three presets

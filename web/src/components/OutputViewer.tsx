@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { rag } from '../api/rag'
 import type { AudioContent, Citation, Output, Source } from '../api/types'
 import { MadeFrom } from './MadeFrom'
@@ -33,6 +33,8 @@ interface Props {
   activeKey: string | null
   onActivate: (key: string) => void
   onClose: (key: string) => void
+  /** close all, the others or those right of a tab (no confirmation: every tab can be reopened) */
+  onCloseTabs: (which: 'all' | 'others' | 'right', key: string | null) => void
   /** a source tab's "read now" started reading: the Sources list reloads */
   onSourcesChanged: () => void
   onChanged: (o: Output) => void
@@ -69,6 +71,7 @@ export function OutputViewer({
   activeKey,
   onActivate,
   onClose,
+  onCloseTabs,
   onSourcesChanged,
   onChanged,
   onRename,
@@ -105,6 +108,9 @@ export function OutputViewer({
   const [judgeAsked, setJudgeAsked] = useState(0)
   const askJudge = useCallback(() => setJudgeAsked((n) => n + 1), [])
   const checked = checkSummary(selected?.provenance?.check, selected?.kind)
+  // a tab's right-click menu: where it opened and for which tab
+  const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
   const { ref: tabsRef, onWheel: onTabsWheel, onKeyDown: onTabsKey } = useTabStrip(
     shown.map((x) => x.key),
     active?.key ?? null,
@@ -173,7 +179,8 @@ export function OutputViewer({
           </button>
         </div>
       )}
-      <div className="tabs no-print" role="tablist" aria-label={t('viewer.documents')} ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
+      <div className="tabs-row no-print">
+      <div className="tabs" role="tablist" aria-label={t('viewer.documents')} ref={tabsRef} onWheel={onTabsWheel} onKeyDown={onTabsKey}>
         {shown.map(({ tab, key, output: o, source: src }) => {
           const label = o ? o.title || formFor(o.kind).label : (src?.name ?? '')
           if (o && editing === o.id)
@@ -192,7 +199,21 @@ export function OutputViewer({
               />
             )
           return (
-            <span key={key} className={`tab viewer-tab${tab.type === 'source' ? ' source-tab' : ''}${o ? ` status-${o.status}` : ''}${key === active?.key ? ' active' : ''}`}>
+            <span
+              key={key}
+              className={`tab viewer-tab${tab.type === 'source' ? ' source-tab' : ''}${o ? ` status-${o.status}` : ''}${key === active?.key ? ' active' : ''}`}
+              // a middle click closes the tab; its mousedown would start the browser's autoscroll
+              onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+              onAuxClick={(e) => {
+                if (e.button !== 1) return
+                e.preventDefault()
+                onClose(key)
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setMenu({ key, x: e.clientX, y: e.clientY })
+              }}
+            >
               <button
                 type="button"
                 role="tab"
@@ -222,6 +243,13 @@ export function OutputViewer({
         })}
         {shown.length === 0 && <span className="muted">{t('viewer.noDocs')}</span>}
       </div>
+      {shown.length > 0 && (
+        <button type="button" className="link small close-all" onClick={() => onCloseTabs('all', null)}>
+          {t('viewer.closeAll')}
+        </button>
+      )}
+      </div>
+      {menu && <TabMenu at={menu} last={shown[shown.length - 1]?.key === menu.key} only={shown.length === 1} onPick={(which) => onCloseTabs(which, menu.key)} onDone={closeMenu} />}
       {(error || actionError) && <p className="error no-print">{error ?? actionError}</p>}
       <div className="viewer-body printable" ref={body}>
         {active?.source && <SourceView source={active.source} tab={active.tab} onRead={onSourcesChanged} />}
@@ -306,5 +334,50 @@ export function OutputViewer({
         )}
       </div>
     </section>
+  )
+}
+
+/** A tab's right-click menu: "Close others" and "Close tabs to the right",
+ *  at the pointer; a click elsewhere, Escape or a pick closes it. The
+ *  first entry takes the focus, the arrow keys move between them. */
+function TabMenu({ at, last, only, onPick, onDone }: { at: { x: number; y: number }; last: boolean; only: boolean; onPick: (which: 'others' | 'right') => void; onDone: () => void }) {
+  const ref = useRef<HTMLUListElement>(null)
+  useEffect(() => {
+    ref.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+    const away = (e: Event) => {
+      if (!ref.current?.contains(e.target as Node)) onDone()
+    }
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && onDone()
+    document.addEventListener('pointerdown', away)
+    document.addEventListener('keydown', key)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      document.removeEventListener('keydown', key)
+    }
+  }, [onDone])
+  const pick = (which: 'others' | 'right') => {
+    onPick(which)
+    onDone()
+  }
+  function move(e: ReactKeyboardEvent<HTMLUListElement>) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const items = [...(ref.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])]
+    const i = items.indexOf(document.activeElement as HTMLButtonElement)
+    items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
+  }
+  return (
+    <ul className="tab-menu" role="menu" ref={ref} style={{ left: at.x, top: at.y }} onKeyDown={move}>
+      <li role="none">
+        <button type="button" role="menuitem" disabled={only} onClick={() => pick('others')}>
+          {t('viewer.closeOthers')}
+        </button>
+      </li>
+      <li role="none">
+        <button type="button" role="menuitem" disabled={last} onClick={() => pick('right')}>
+          {t('viewer.closeRight')}
+        </button>
+      </li>
+    </ul>
   )
 }
