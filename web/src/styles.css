@@ -1140,3 +1140,6 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 /* a tendency: the number and its bars lighter, the reason under them */
 .verdict.tendency .gauge, .verdict.tendency .choices, .verdict.tendency .scale { opacity: 0.55; }
 .tendency-note { margin: 0; color: var(--muted); font-style: italic; }
+
+/* which model read a source: an image's description, a PDF page by vision, a transcript */
+.read-by { margin: 0.2rem 0; color: var(--muted); font-style: italic; }

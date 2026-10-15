@@ -1223,6 +1223,9 @@ export const en = {
   'fin.infraCosts': 'Infrastructure costs',
   'fin.notIncluded.one': '{n} USD line without a rate not included',
   'fin.notIncluded.other': '{n} USD lines without a rate not included',
+  'readBy.image': 'Described by {model}, not a verbatim transcript',
+  'readBy.page': 'Page read by {model}',
+  'readBy.audio': 'Transcribed by {model}',
 } as const
 
 export type MessageKey = keyof typeof en

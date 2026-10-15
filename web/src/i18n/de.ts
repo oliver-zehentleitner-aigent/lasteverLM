@@ -1226,4 +1226,7 @@ export const de: Record<MessageKey, string> = {
   'fin.infraCosts': 'Infrastrukturkosten',
   'fin.notIncluded.one': '{n} USD-Posten ohne Kurs nicht enthalten',
   'fin.notIncluded.other': '{n} USD-Posten ohne Kurs nicht enthalten',
+  'readBy.image': 'Beschrieben von {model}, keine wörtliche Abschrift',
+  'readBy.page': 'Seite gelesen von {model}',
+  'readBy.audio': 'Transkribiert von {model}',
 }

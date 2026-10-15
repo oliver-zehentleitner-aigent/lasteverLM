@@ -4,7 +4,9 @@ import type { Citation, JudgeNote } from '../api/types'
 import { chunkPosition, claimFor, highlightPassage, similarityLabel, similarityPercent } from '../lib/provenance'
 import { t } from '../i18n'
 import { verdictKey } from '../lib/judge'
-import { useSourceLink } from './SourceLinks'
+import { useSourceInfo, useSourceLink } from './SourceLinks'
+import { ingest } from '../api/ingest'
+import { readByLine } from '../lib/readBy'
 
 interface Props {
   citation: Citation
@@ -44,6 +46,29 @@ export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource
     }
   }, [old, citation.chunk_id])
 
+  // which model read the cited source; a PDF in auto capture says it per page,
+  // so its chunk is asked once whether the vision model read that page
+  const source = useSourceInfo()(citation.source_id)
+  const readBy = source?.read_by
+  const index = chunk?.index ?? citation.chunk_index ?? null
+  const askPage = citation.source_kind === 'pdf' && !!readBy?.vision && source?.capture !== 'vision' && index !== null
+  const [pageVision, setPageVision] = useState<{ index: number; vision: boolean } | null>(null)
+  useEffect(() => {
+    if (!askPage || index === null) return
+    let live = true
+    ingest.sourceChunks(citation.source_id, index, 1).then(
+      (r) => live && setPageVision({ index, vision: r.chunks[0]?.vision ?? false }),
+      () => {
+        // unknown: no line rather than a wrong one
+      },
+    )
+    return () => {
+      live = false
+    }
+  }, [askPage, citation.source_id, index])
+  const vision = source?.capture === 'vision' || (pageVision !== null && pageVision.index === index && pageVision.vision)
+  const readLine = readByLine(citation.source_kind, readBy, citation.source_kind === 'pdf' ? vision : undefined)
+
   const text = chunk?.text ?? citation.quote
   const position = chunkPosition(chunk?.index ?? citation.chunk_index, chunk?.count ?? citation.chunk_count)
   const sim = similarityLabel(citation.similarity)
@@ -59,6 +84,7 @@ export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource
         {citation.page != null && <span className="muted small">{t('chat.page', { page: citation.page })}</span>}
         {position && <span className="muted small">{position}</span>}
       </header>
+      {readLine && <p className="read-by small">{readLine}</p>}
       {sim !== null && citation.similarity != null && (
         <div className="similarity" title={t('prov.similarityTitle')}>
           <span className="muted small">{t('prov.similarity')}</span>
