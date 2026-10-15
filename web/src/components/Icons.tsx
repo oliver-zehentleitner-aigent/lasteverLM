@@ -33,3 +33,23 @@ export function IconTrash() {
     </svg>
   )
 }
+
+/** an eye: show what is hidden */
+export function IconEye() {
+  return (
+    <svg {...base}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+/** an envelope: send by mail */
+export function IconMail() {
+  return (
+    <svg {...base}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  )
+}

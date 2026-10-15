@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes } from './format'
+import { formatBytes, formatShortTime } from './format'
 
 describe('formatBytes', () => {
   it('keeps bytes whole and steps up by 1024 with one decimal', () => {
@@ -10,5 +10,16 @@ describe('formatBytes', () => {
 
   it('stops at TB', () => {
     expect(formatBytes(3 * 1024 ** 5)).toBe('3072.0 TB')
+  })
+})
+
+describe('formatShortTime', () => {
+  it('is day, month and time, the year only when it is another', () => {
+    const now = new Date('2026-10-15T12:00:00')
+    const same = formatShortTime('2026-10-15T20:53:00', now)
+    expect(same).toMatch(/20:53|8:53/)
+    expect(same).not.toMatch(/2026/)
+    expect(formatShortTime('2025-03-02T09:05:00', now)).toMatch(/2025/)
+    expect(formatShortTime(null, now)).toBe('never')
   })
 })

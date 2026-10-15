@@ -1191,3 +1191,25 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 .help-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; margin-top: 1.5rem; }
 /* a judgement running in the background, or why it failed */
 .judge-job { display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+/* Admin > Finance > Vouchers: the table fits its panel without scrolling
+   sideways; long addresses cut with an ellipsis (full in the tooltip);
+   on a phone every row is a card with its labels */
+.voucher-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+.voucher-table th, .voucher-table td { text-align: left; padding: 0.35rem 0.45rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.voucher-table th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+.voucher-table .clip { display: inline-block; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.voucher-table .two-line { display: flex; flex-direction: column; }
+.voucher-table .voucher-badges { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.voucher-table .sent { display: block; margin-top: 0.2rem; }
+.voucher-table td.row-actions { white-space: nowrap; text-align: right; }
+.code-reveal { position: relative; display: inline-block; }
+.code-popover { position: absolute; right: 0; top: calc(100% + 0.3rem); z-index: 20; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); white-space: nowrap; }
+@media (max-width: 640px) {
+  .voucher-table thead { display: none; }
+  .voucher-table, .voucher-table tbody, .voucher-table tr, .voucher-table td { display: block; width: 100%; }
+  .voucher-table tr { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; margin-bottom: 0.6rem; background: var(--panel); }
+  .voucher-table td { border: none; padding: 0.2rem 0; display: flex; gap: 0.6rem; }
+  .voucher-table td[data-label]::before { content: attr(data-label); color: var(--muted); flex: 0 0 7rem; }
+  .voucher-table td.row-actions { justify-content: flex-end; }
+  .voucher-table .clip { max-width: 100%; }
+}
