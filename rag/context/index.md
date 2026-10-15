@@ -37,7 +37,7 @@ repository root's `context/`.
 
 - [conversations.md](conversations.md) — several conversations per notebook instead of one history (tags rejected), and how much history the model sees; suggested questions as a text tail of the answer's call
 
-- [credit.md](credit.md) — the credit check before any provider call, and how usage is priced (through core's helpers); every usage row booked under its user action, an output with its judge rounds as one action; without an exchange rate nothing that calls a model runs
+- [credit.md](credit.md) — the credit check before any provider call, once per action (a started action runs to the end), and how usage is priced (through core's helpers); every usage row booked under its user action, an output with its judge rounds as one action; without an exchange rate nothing that calls a model runs
 
 ## D
 
