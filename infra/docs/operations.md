@@ -275,6 +275,7 @@ Owned here, stored at the repository root in `.github/workflows/`:
 | `ci.yml` | push, pull request, path-filtered per directory | `make check` in the directories that changed; for core, account, ingest and rag also the Postgres suite (`tests/test_postgres.py`) against a `pgvector/pgvector` PostgreSQL 18 service container, failing on any skipped test |
 | `docker.yml` | push to `main`, tags `v*` | builds every service image with the repository root as context (`-f <service>/Dockerfile .`), pushes to ghcr.io tagged with the Git SHA and the tag; web gets `CSP_MEDIA_SRC`, the `s3Endpoint` of `chart/values-prod.yaml`, so its CSP loads images, audio and frames only from that storage origin |
 | `deploy.yml` | tags `v*` (after `docker.yml`), and manual with a tag input | `make deploy TAG=<tag>` in `infra/` with the kubeconfig from a repository secret, then the smoke test where a demo token is configured |
+| `changelog.yml` | pull request (also when a label is added or removed) | `scripts/changelog_unreleased.py`: every line a pull request adds to or removes from any `CHANGELOG.md` must sit under `## [Unreleased]`; fails naming the file, line and section. Skipped for release pull requests (head branch `agent-a/release-*`) and for the label `changelog-fix` |
 | `ktw-lint.yml` | push to `main`, pull request | the Keep the Why structure check for the root and every sub-project |
 | `pages.yml` | push to `main` | the Keep the Why dashboard export |
 | `black.yml` | push to `main`, pull request | `black --check` in every Python directory |

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `changelog.yml` with `scripts/changelog_unreleased.py` (and unit tests): a pull request fails when a line it adds to or removes from any `CHANGELOG.md` sits outside `## [Unreleased]`, naming the file, line and section; release pull requests (`agent-a/release-*`) and the label `changelog-fix` are exempt. Rebased pull requests had put their lines under a released section four times on 2026-10-15.
+
 ## [0.19.4] - 2026-10-14
 
 ### Fixed
