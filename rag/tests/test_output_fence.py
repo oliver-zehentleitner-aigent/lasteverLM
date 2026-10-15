@@ -101,6 +101,26 @@ def test_the_claim_is_refreshed_while_indexing(settings):
     assert store.beats.count(job.id) == beats  # the beat ends with the job
 
 
+def test_the_background_beat_stops_at_the_job_cap_so_a_hung_job_goes_stale(settings, caplog):
+    store, outputs, job = claimed(settings, REPORT)
+    outputs._beat_interval_s, outputs._job_max_s = 0.01, 0.05
+    create = store.create_generated_source
+    late: list[int] = []
+
+    def hung(*args):
+        time.sleep(0.1)  # past the cap: no beat from here on
+        before = store.beats.count(job.id)
+        time.sleep(0.1)
+        late.append(store.beats.count(job.id) - before)
+        return create(*args)
+
+    store.create_generated_source = hung
+    with caplog.at_level(logging.ERROR, logger="lasteverlm_rag.service"):
+        assert outputs.process(job, "w1")
+    assert late == [0]
+    assert "the claim is no longer refreshed in the background" in caplog.text
+
+
 # -- orphaned generated sources --
 
 

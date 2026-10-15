@@ -509,7 +509,10 @@ most every 5 s. There is no percentage and no invented counter.
 **Claim heartbeat.** A running job refreshes its claim (`claimed_at`)
 once a minute from a thread of its own, for as long as it runs, whatever
 it waits on (one model request with its retries, the embedding of the
-indexed document); the phase writes beat too. Only a job whose worker
+indexed document); the phase writes beat too. The thread stops after
+`JOB_MAX_SECONDS` (45 min) with an error in the log, so a job hung in a
+live process (a socket without a timeout, a deadlock) goes stale and is
+taken over; a job still making calls keeps beating before each call. Only a job whose worker
 stopped beating for 10 minutes is taken over, so a long run (a judged
 report, a long audio) is never run a second time, and never charged
 twice, while it is still going.
@@ -891,6 +894,7 @@ missing or a configured model has no price.
 | `AUTH_JWT_SECRET` or `DEMO_TOKEN` | one of them | bearer token scheme; both set means JWT first, demo token second |
 | `JUDGE_MODELS` | no; defaults in core | JSON level → model for the judge (`low`, `medium`, `high`), chosen from `docs/judge-eval.md`; every model needs a `MODEL_PRICES` entry, or startup refuses |
 | `INGEST_URL` | no; default `http://ingest` | ingest's API inside the cluster: reading sources when used, the agent chat's steps |
+| `JOB_MAX_SECONDS` | no; default 2700 | how long a running job's claim is refreshed in the background at most; then only its calls beat, and a hung job goes stale after 10 more minutes |
 | `ORPHAN_SWEEP` | no; default `false` | `true` lets the worker delete orphaned generated sources once an hour (see **One result per job**); anything but `true` or `false` refuses to start |
 | `ANSWER_READ_WAIT_SECONDS` | no; default 60 | how long an answer waits for sources it started reading before it answers from what is ready |
 | `DECISION_MODEL` | no; default `clef` (core) | the platform's decision model for the decision kind, used by the worker; it needs a `MODEL_PRICES` entry, `in` per million input tokens, or startup refuses |

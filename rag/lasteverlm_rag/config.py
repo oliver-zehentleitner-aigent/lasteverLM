@@ -52,6 +52,8 @@ class Settings:
     # the worker deletes orphaned generated sources (ORPHAN_SWEEP); off until the
     # dry run (lasteverlm-rag-orphans) has been looked at
     orphan_sweep: bool = False
+    # how long a job's claim is refreshed in the background at most (JOB_MAX_SECONDS)
+    job_max_s: float = 45 * 60
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -96,7 +98,14 @@ class Settings:
             answer_read_wait_s=float(env_int("ANSWER_READ_WAIT_SECONDS", 60, env)),
             second_judge_model=second_judge,
             orphan_sweep=_flag(env.get("ORPHAN_SWEEP", "false"), "ORPHAN_SWEEP"),
+            job_max_s=float(_positive("JOB_MAX_SECONDS", env_int("JOB_MAX_SECONDS", 45 * 60, env))),
         )
+
+
+def _positive(name: str, value: int) -> int:
+    if value <= 0:
+        raise ConfigError(f"{name} must be positive, got {value}")
+    return value
 
 
 def _flag(raw: str, name: str) -> bool:

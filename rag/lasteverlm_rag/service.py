@@ -220,6 +220,9 @@ HEARTBEAT_S = 60.0
 # a generated row no output points at is an orphan only after this long: an
 # attempt indexing now has not saved its output yet
 ORPHAN_AGE_S = 60 * 60
+# a job's background beat stops after this long (JOB_MAX_SECONDS): well above
+# a bulletproof report's or a long audio's run, so only a hung job goes stale
+JOB_MAX_S = 45 * 60
 # how often a counter of one step (a speech segment) is written at most
 PHASE_MIN_S = 5.0
 # how long an output may wait for its sources to be read before it fails
@@ -761,9 +764,12 @@ class OutputService:
         read_wait_s: float = ANSWER_WAIT_S,
         sleep: Callable[[float], None] = time.sleep,
         beat_interval_s: float = HEARTBEAT_S,
+        job_max_s: float = JOB_MAX_S,
     ) -> None:
-        # how often a running job's claim is refreshed while it runs, whatever it waits on
+        # how often a running job's claim is refreshed while it runs, whatever it
+        # waits on, and for how long at most (a hung job must go stale)
         self._beat_interval_s = beat_interval_s
+        self._job_max_s = job_max_s
         # how long finding charts waits for selected sources it started reading
         self._read_wait_s = read_wait_s
         self._sleep = sleep
@@ -1277,8 +1283,22 @@ class OutputService:
         """Refresh the claim every ``beat_interval_s`` until the job ends: a
         live job is never taken for a dead worker's, however long one call
         (a model request with its retries) or the indexing takes. A dead
-        worker's thread dies with it, so its claim still goes stale."""
+        worker's thread dies with it, so its claim still goes stale. After
+        ``job_max_s`` it stops: a job hung in this process (a socket without
+        a timeout, a deadlock) must go stale too, so that another worker
+        takes it over and the fence discards whatever this one still writes.
+        The beats before each model call go on, so a job that is merely long
+        but still calling keeps its claim."""
+        started = self._clock()
         while not stop.wait(self._beat_interval_s):
+            if self._clock() - started >= self._job_max_s:
+                log.error(
+                    "output %s: still running after %d s, the claim is no longer refreshed "
+                    "in the background; if the job hangs, another worker takes it over",
+                    short_id(output_id),
+                    int(self._job_max_s),
+                )
+                return
             try:
                 with self._beat_lock:
                     self._beat_at = self._clock()

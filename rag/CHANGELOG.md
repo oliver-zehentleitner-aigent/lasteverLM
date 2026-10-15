@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A job runs to one result. Its claim is refreshed by a thread every minute for as long as it runs, so a single long model request (180 s with up to two retries) or the indexing can no longer let another worker take over a live job. The ready write goes through only while the worker still holds the claim; a worker that lost it discards its own generated source and file. Before, both runs indexed, the later write won, and the other's generated source stayed in the notebook's sources with no output.
+- A job runs to one result. Its claim is refreshed by a thread every minute for as long as it runs, so a single long model request (180 s with up to two retries) or the indexing can no longer let another worker take over a live job. The ready write goes through only while the worker still holds the claim; a worker that lost it discards its own generated source and file. Before, both runs indexed, the later write won, and the other's generated source stayed in the notebook's sources with no output. The background refresh stops after `JOB_MAX_SECONDS` (default 45 min), logged as an error, so a job hung in a live process still goes stale and is taken over.
 
 ## [0.22.12] - 2026-10-15
 

@@ -175,6 +175,7 @@ def main() -> None:
         judges=judge_models(
             client, {**settings.inference.judge_models, SECOND_JUDGE: settings.second_judge_model}
         ),
+        job_max_s=settings.job_max_s,
     )
     llm = OpenAICompatibleLLM(
         client, settings.inference.llm_model, max_tokens=settings.inference.llm_max_tokens
