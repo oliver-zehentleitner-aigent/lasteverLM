@@ -38,6 +38,7 @@ from lasteverlm_ingest.loaders.convert import MEDIA_TYPES, sniff_container
 from lasteverlm_ingest.loaders.image import sniff_image_type
 from lasteverlm_ingest.loaders.pdf import CAPTURE_MODES, DEFAULT_CAPTURE, Capture, pdf_page_count
 from lasteverlm_ingest.loaders.text import decode_text
+from lasteverlm_ingest.loaders.tiles import image_tiles
 from lasteverlm_ingest.loaders.url import check_url
 from lasteverlm_ingest.repository import ChunkText, NewLibrarySource, StoredSource
 from lasteverlm_ingest.worker import WorkerDeps
@@ -248,7 +249,12 @@ async def create_source(
         if kind == "image" and sniff_image_type(data) is None:
             raise HTTPException(status_code=415, detail="not a PNG, JPEG, WebP or GIF image")
         audio_type, seconds = _audio_type(data) if kind == "audio" else (None, None)
-        pages = pdf_page_count(data) if kind == "pdf" else None
+        # The pieces a model reads: a PDF's pages, an image's tiles.
+        pages = (
+            pdf_page_count(data)
+            if kind == "pdf"
+            else image_tiles(data) if kind == "image" else None
+        )
         name = safe_name(upload.filename)
         url = None
         capture: Capture | None = _capture(form.get("capture")) if kind == "pdf" else None
@@ -394,6 +400,9 @@ class SourceChunks(BaseModel):
     kind: str
     capture: str | None
     read_by: ReadBy | None = None
+    # An image read in tiles: how many (the "As read" view can say so);
+    # null for every other kind and for images read whole.
+    tiles: int | None = None
     chunk_count: int
     offset: int
     chunks: list[ChunkText]
@@ -426,6 +435,9 @@ def source_chunks(
         kind=source.kind,
         capture=source.capture,
         read_by=ReadBy(**source.read_by) if source.read_by else None,
+        tiles=(
+            source.page_count if source.kind == "image" and (source.page_count or 0) > 1 else None
+        ),
         chunk_count=count,
         offset=offset,
         chunks=chunks,

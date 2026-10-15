@@ -418,6 +418,39 @@ readable content"), whose call is still recorded as usage; other
 provider errors are retried. `IMAGE_MAX_TOKENS` (2000) caps
 the answer.
 
+### Large images are read in tiles
+
+The platform scales every image to about the same small input budget,
+roughly 400–600 tokens whatever its size, before the vision model sees it.
+On a large screenshot the small text then becomes unreadable, and the
+model fills it with plausible but invented lines. On a 2880×1800 app screen
+with 72 cards, 68 of 160 lines were right read whole, and 159 of 160 in
+four tiles ([vision-eval.md](vision-eval.md)).
+
+An image over 1.5 MP is therefore cut (`loaders/tiles.py`) into the
+fewest equal crops of at most 1.5 MP each, overlapping by 48 px:
+
+| Image | Tiles |
+|---|---|
+| 1920×1080 | 2 |
+| 2880×1800 | 4 of 1464×924 |
+| 3840×2160 | 6 |
+
+The crops are read in parallel, each with the image prompt and its own
+loop check. A PNG stays PNG, so small text stays sharp. The answers are
+joined in reading order, left to right and top to bottom. A line of at
+least 20 characters that a tile shares with the tile above or to its left
+is the overlap read twice, and is dropped from the later tile; shorter
+lines such as "OK" are kept, since they may really repeat. Every call is
+billed. If a tile fails, the answered tiles are billed and the image fails
+with that tile's error ("… (tile 2 of 4)"). An image Pillow cannot decode
+is sent whole, as before.
+
+The upload records the tile count in `library_sources.page_count`. The
+estimate charges one call per tile ("image, read in 4 tiles"; an image
+uploaded before tiling counts as 1–4). The chunks view gives `tiles` for
+an image read in more than one.
+
 ### Repetition loops
 
 A model can fall into a loop: a few words, then one phrase until the
@@ -516,7 +549,11 @@ are `text`.
 
 Pages for the model are rendered with pypdfium2 at 150 dpi, long edge at
 most 2000 px (A4: 1241 × 1754), as JPEG, one at a time (pdfium is not
-thread-safe); up to four model calls run at once. Each call is
+thread-safe); up to four pages are read at once. A rendered page over
+1.5 MP is read in tiles like a large image, one tile after another: an A4
+or letter page in two. On a dense scanned A4 page, read whole, 37 of 60
+lines were right; read in two tiles, 60 of 60 ([vision-eval.md](vision-eval.md)).
+The estimate counts two tiles of input per vision page. Each call is
 `LLM_MODEL` with the page and a transcription prompt, billed as it
 returns like an image; every answered call is billed even when another
 page of the batch fails, and the credit is checked before the next

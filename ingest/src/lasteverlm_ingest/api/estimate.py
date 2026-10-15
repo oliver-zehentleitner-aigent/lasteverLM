@@ -39,10 +39,18 @@ WEB_PAGE_TOKENS = 6000
 # measured on two scanned A4 pages (context/pdf-capture.md); the
 # transcript is then embedded.
 VISION_PAGE_IN, VISION_PAGE_OUT = 515, 960
+# A rendered page is read in tiles (loaders/tiles.py): an A4 or letter page
+# at the render DPI in two. Each tile costs a call's input; the transcript,
+# the output, stays about one page (docs/vision-eval.md).
+VISION_PAGE_TILES = 2
 # One image: the former demo map, 537 input and 119 output tokens
 # (measured); a photo of a printed page answers longer, so the output is
 # taken as a page's transcript.
 IMAGE_IN, IMAGE_OUT = 540, 500
+# An image over the tiling threshold is read in tiles, each a call of its
+# own; the upload records how many (page_count). For an image uploaded
+# before that, up to this many (a 2880×1800 screenshot).
+IMAGE_TILES_UNKNOWN = 4
 # One minute of audio: 60 billed seconds of transcription; speech is about
 # 150 words a minute, about 200 tokens to embed.
 MINUTE_SECONDS, MINUTE_TOKENS = 60, 200
@@ -68,7 +76,10 @@ def _units() -> dict[Kind, _Unit]:
         "pdf_vision": _Unit(
             "source:pdf",
             "page",
-            (("llm", VISION_PAGE_IN, VISION_PAGE_OUT), (embed, VISION_PAGE_OUT, 0)),
+            (
+                ("llm", VISION_PAGE_TILES * VISION_PAGE_IN, VISION_PAGE_OUT),
+                (embed, VISION_PAGE_OUT, 0),
+            ),
         ),
         "image": _Unit(
             "source:image", "image", (("llm", IMAGE_IN, IMAGE_OUT), (embed, IMAGE_OUT, 0))
@@ -209,7 +220,7 @@ def _embed(tokens: int) -> Calls:
 
 def _vision(pages: int) -> Calls:
     return (
-        ("llm", pages * VISION_PAGE_IN, pages * VISION_PAGE_OUT),
+        ("llm", pages * VISION_PAGE_TILES * VISION_PAGE_IN, pages * VISION_PAGE_OUT),
         *_embed(pages * VISION_PAGE_OUT),
     )
 
@@ -227,8 +238,21 @@ def _unread(p: _Pricing, lib: LibrarySource, max_pages: int) -> tuple[Decimal, D
         high = p.charge(action, _embed(WEB_PAGE_MAX_TOKENS), WEB_PAGE_MAX_TOKENS)
         return low, high, "web page, not fetched yet"
     if lib.kind == "image":
-        charge = p.charge(action, (("llm", IMAGE_IN, IMAGE_OUT), *_embed(IMAGE_OUT)), IMAGE_OUT)
-        return charge, charge, "image"
+        low_tiles, high_tiles = (
+            (lib.page_count, lib.page_count) if lib.page_count else (1, IMAGE_TILES_UNKNOWN)
+        )
+
+        def image(tiles: int) -> Decimal:
+            out = tiles * IMAGE_OUT
+            return p.charge(action, (("llm", tiles * IMAGE_IN, out), *_embed(out)), out)
+
+        if not lib.page_count:
+            basis = f"image, 1–{IMAGE_TILES_UNKNOWN} tiles"
+        elif lib.page_count == 1:
+            basis = "image"
+        else:
+            basis = f"image, read in {lib.page_count} tiles"
+        return image(low_tiles), image(high_tiles), basis
     if lib.kind == "pdf":
         known = lib.page_count is not None
         low_pages, high_pages = (lib.page_count, lib.page_count) if known else (1, max_pages)

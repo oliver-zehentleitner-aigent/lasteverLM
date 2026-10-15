@@ -81,6 +81,8 @@ class StoredSource(Source):
     # pages the vision model read; null when no model did.
     read_by: dict[str, str | None] | None = None
     vision_pages: list[int] | None = Field(default=None, exclude=True)
+    # A PDF's pages, an image's tiles: the pieces a model reads.
+    page_count: int | None = Field(default=None, exclude=True)
 
 
 class LibrarySource(BaseModel):
@@ -721,7 +723,7 @@ class PostgresRepository:
         "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
         "l.capture, l.starter, l.transcribed_path, l.version, l.fetched_at, l.final_url, "
         "l.checked_at, l.snapshot_path, l.funded_request_at, l.funded_cents, "
-        "l.read_by, l.vision_pages "
+        "l.read_by, l.vision_pages, l.page_count "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 

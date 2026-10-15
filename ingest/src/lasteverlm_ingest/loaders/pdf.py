@@ -20,7 +20,12 @@ from pypdf import PdfReader
 from pypdf.errors import PyPdfError
 
 from lasteverlm_ingest.loaders import Bill, LoaderError, Passage
-from lasteverlm_ingest.loaders.image import PAGE_PROMPT, DegeneratedError, VisionReader
+from lasteverlm_ingest.loaders.image import (
+    PAGE_PROMPT,
+    DegeneratedError,
+    PartialRead,
+    VisionReader,
+)
 
 Capture = Literal["text", "vision", "auto"]
 CAPTURE_MODES: tuple[Capture, ...] = ("text", "vision", "auto")
@@ -167,12 +172,14 @@ class VisionPdfLoader:
                 failure: BaseException | None = None
                 for index, future in zip(batch, futures, strict=True):
                     error = future.exception()
-                    usages = error.usages if isinstance(error, DegeneratedError) else []
+                    usages: list[Usage] = []
                     if error is None:
                         text, usages = future.result()
                         texts[index] = text
-                    elif isinstance(error, DegeneratedError):
-                        error = LoaderError(f"{error} (page {index + 1})")
+                    elif isinstance(error, PartialRead):
+                        usages, error = error.usages, error.cause
+                        if isinstance(error, DegeneratedError):
+                            error = LoaderError(f"{error} (page {index + 1})")
                     if error is not None:
                         failure = failure or error
                     # Every answered call is billed, also when a sibling
@@ -191,4 +198,7 @@ class VisionPdfLoader:
         return passages
 
     def _read(self, image: bytes) -> tuple[str, list[Usage]]:
-        return self._vision.read(image, "image/jpeg", PAGE_PROMPT)
+        # A rendered A4 page is over 2 MP: read in tiles (two for A4), one
+        # after another, since the pages already run in parallel.
+        text, usages, _ = self._vision.read_tiled(image, "image/jpeg", PAGE_PROMPT)
+        return text, usages

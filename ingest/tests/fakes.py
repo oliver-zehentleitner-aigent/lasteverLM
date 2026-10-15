@@ -220,6 +220,7 @@ class InMemoryRepository:
             transcribed_path=lib.transcribed_path,
             read_by=lib.read_by,
             vision_pages=lib.vision_pages,
+            page_count=lib.page_count,
         )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
