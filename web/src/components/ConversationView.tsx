@@ -4,6 +4,7 @@ import type { AnswerUnit, Citation, Message } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { useEstimate } from '../hooks/useEstimate'
 import { isRemoved, splitCitations } from '../lib/citations'
+import { groupBySource, sourcesHead } from '../lib/sourceGroups'
 import { isStacked } from '../lib/layout'
 import { similarityLabel } from '../lib/provenance'
 import { checkSummary, hasVerdict, unitBadges } from '../lib/outputProvenance'
@@ -189,23 +190,33 @@ export function ConversationView({ notebookId, conversationId, scope, presentSou
             )}
             {m.role === 'assistant' && m.citations && m.citations.length > 0 && (
               <footer className="cites">
-                {m.citations.map((c) => (
-                  <button
-                    key={c.n}
-                    type="button"
-                    className={[open?.messageId === m.id && open.n === c.n ? 'cite open' : 'cite', isRemoved(c.source_id, presentSources) ? 'removed' : '']
-                      .join(' ')
-                      .trim()}
-                    onClick={() => toggle(m, c)}
-                    title={isRemoved(c.source_id, presentSources) ? t('chat.removedTitle', { name: c.source_name }) : c.source_name}
-                  >
-                    [{c.n}] {c.source_name}
-                    {c.page != null && <span className="muted"> {t('chat.page', { page: c.page })}</span>}
-                    {similarityLabel(c.similarity) && <span className="muted"> · {similarityLabel(c.similarity)}</span>}
-                    {c.source_kind === 'generated' && <span className="muted"> · {t('chat.generated')}</span>}
-                    {isRemoved(c.source_id, presentSources) && <span className="muted"> · {t('chat.sourceRemoved')}</span>}
-                  </button>
-                ))}
+                <span className="cites-head muted small">{sourcesHead(groupBySource(m.citations).length, m.citations.length)}</span>
+                {groupBySource(m.citations).map((g) => {
+                  const removed = isRemoved(g.first.source_id, presentSources)
+                  return (
+                    <span key={g.key} className={removed ? 'cite-source removed' : 'cite-source'} title={removed ? t('chat.removedTitle', { name: g.name }) : g.name}>
+                      <span className="name">{g.name}</span>
+                      {g.first.source_kind === 'generated' && <span className="muted"> · {t('chat.generated')}</span>}
+                      {removed && <span className="muted"> · {t('chat.sourceRemoved')}</span>}
+                      {g.locators.map((l) => (
+                        <span key={l.page ?? 'none'} className="locator">
+                          {l.page != null && <span className="muted"> · {t('chat.page', { page: l.page })}</span>}
+                          {l.passages.map((c) => (
+                            <button
+                              key={c.n}
+                              type="button"
+                              className={open?.messageId === m.id && open.n === c.n ? 'cite open' : 'cite'}
+                              onClick={() => toggle(m, c)}
+                              title={[t('chat.passage', { n: c.n }), similarityLabel(c.similarity)].filter(Boolean).join(' · ')}
+                            >
+                              {c.n}
+                            </button>
+                          ))}
+                        </span>
+                      ))}
+                    </span>
+                  )
+                })}
               </footer>
             )}
             {open?.messageId === m.id &&

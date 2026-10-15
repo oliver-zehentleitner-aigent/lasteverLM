@@ -7,6 +7,7 @@ import { isRemoved } from '../lib/citations'
 import { ProvenancePanel } from './ProvenancePanel'
 import { judgeBadge, verdictCounts } from '../lib/judge'
 import { OutputId } from './OutputId'
+import { groupBySource, sourcesHead } from '../lib/sourceGroups'
 import { CiteContext, useCite, type Cite } from '../hooks/useCite'
 import { useJudgeAskLabel } from '../hooks/useJudgeAsk'
 import { t } from '../i18n'
@@ -95,6 +96,7 @@ export function OutputProvenance({ output, provenance, presentSources = null, on
   const askLabel = useJudgeAskLabel(!!judge && (provenance?.check?.unverified ?? 0) > 0, judge?.subject)
   const askOpen = judge?.open
   const judgeAsk = useMemo(() => (askOpen ? { label: askLabel, open: askOpen } : undefined), [askLabel, askOpen])
+  const groups = useMemo(() => groupBySource(passages), [passages])
   const ctx = useMemo<Cite>(
     () => ({ known, open: open?.n ?? null, cite: (n, claim, judge) => setOpen((cur) => (cur?.n === n && cur.claim === claim ? null : { n, claim, judge })), judgeAsk }),
     [known, open, judgeAsk],
@@ -126,20 +128,26 @@ export function OutputProvenance({ output, provenance, presentSources = null, on
         </div>
         {passages.length > 0 && (
           <details className="out-sources">
-            <summary>{t('outProv.sources', { n: passages.length })}</summary>
-            <ol className="passages">
-              {passages.map((p) => (
-                <li key={p.n}>
-                  <button type="button" className={open?.n === p.n ? 'cite open' : 'cite'} onClick={() => setOpen((cur) => (cur?.n === p.n ? null : { n: p.n, claim: '' }))}>
-                    {p.n}
-                  </button>{' '}
-                  <span className="name" title={p.source_name}>
-                    {p.source_name}
+            <summary>{sourcesHead(groups.length, passages.length)}</summary>
+            <ul className="passages">
+              {groups.map((g) => (
+                <li key={g.key}>
+                  <span className="name" title={g.name}>
+                    {g.name}
                   </span>
-                  {p.page != null && <span className="muted small"> · {t('chat.page', { page: p.page })}</span>}
+                  {g.locators.map((l) => (
+                    <span key={l.page ?? 'none'} className="locator">
+                      {l.page != null && <span className="muted small"> · {t('chat.page', { page: l.page })}</span>}
+                      {l.passages.map((p) => (
+                        <button key={p.n} type="button" className={open?.n === p.n ? 'cite open' : 'cite'} onClick={() => setOpen((cur) => (cur?.n === p.n ? null : { n: p.n, claim: '' }))}>
+                          {p.n}
+                        </button>
+                      ))}
+                    </span>
+                  ))}
                 </li>
               ))}
-            </ol>
+            </ul>
           </details>
         )}
         {(provenance.judge?.removed.length ?? 0) > 0 && <RemovedClaims removed={provenance.judge!.removed} />}

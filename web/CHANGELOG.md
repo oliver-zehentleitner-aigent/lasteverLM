@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - A claim or paragraph with a judge's verdict shows only the judge's badge, in outputs, quiz questions and chat answers; the word check's result moved into that badge's tooltip. Without a verdict (no judge, or no usable answer) the word-check badge stays. "Word check: other language" now reads "Not word-checked (other language)", followed by "Have it judged · €x" (priced at Medium), which opens the document's or the answer's Check with a judge.
+- A document's "Sources" and the citation list under a chat answer show one row per source with its pages and passage numbers ("handbook.pdf · p. 27 1 2", "faq.txt 4 7"), each number still opening its passage, under "Sources (4) · 8 passages"; before, a source cited twice was listed twice. A chat passage's similarity moved into its number's tooltip.
 
 ### Fixed
 

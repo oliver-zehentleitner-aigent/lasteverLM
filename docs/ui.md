@@ -405,8 +405,11 @@ opens the notebook.
   report, quiz, table or infographic the text block sharing the most
   words with the chunk scrolls into the middle and flashes; a mind map
   fits and flashes the node whose label matches the chunk's first line
-  (or only fits). Also in the full view. The citation list shows
-  page and similarity inline, e.g. `[1] linux_-_vi.pdf p. 2 · 0.71`.
+  (or only fits). Also in the full view. The citation list under an
+  answer, like a document's **Sources**, has one row per source with
+  its page and passage numbers, e.g. `handbook.pdf · p. 27 1 2 · p. 31 5`
+  and `faq.txt 4 7`, headed "Sources (4) · 8 passages"; each number
+  opens its passage, its tooltip gives the similarity.
   Citations from before this carry no position or similarity; the panel
   completes the position and the full text from `GET /api/rag/chunks/{id}`
   when the chunk still exists. Shared documents carry no citations, so
@@ -515,8 +518,9 @@ opens the notebook.
   its tooltip. The head says
   "Word check: words match in 7 of 9 paragraphs · 2 in another
   language" (the check's method and
-  threshold as tooltip). Under the document, folded: **Sources (n)**, the
-  passages it cites, and **How this was made**: model, prompt version,
+  threshold as tooltip). Under the document, folded: **Sources (n) · m passages**,
+  the passages it cites grouped by source (one row per source, its pages
+  and passage numbers, each opening its passage), and **How this was made**: model, prompt version,
   options, the retrieval query, usage, when and how long, the check's
   counts, the retrieval candidates with similarity and whether they went
   into the prompt, and the whole log as a JSON download. The share page
