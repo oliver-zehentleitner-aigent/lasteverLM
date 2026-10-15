@@ -19,6 +19,7 @@ UNSET = {
     "pdf_capture": None,
     "theme": None,
     "tour_done": False,
+    "judge_default": "off",
 }
 
 
@@ -38,6 +39,7 @@ def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMa
         "pdf_capture": None,
         "theme": None,
         "tour_done": False,
+        "judge_default": "off",
     }
 
     # absent keys are kept, a null clears
@@ -60,6 +62,7 @@ def test_preferences_partial_update_and_clear(client: TestClient, mailer: FakeMa
         "pdf_capture": "vision",
         "theme": "dark",
         "tour_done": False,
+        "judge_default": "off",
     }
     assert client.get("/api/account/me", headers=h).json()["preferences"]["ui_language"] == "de"
     assert client.get(PREFS, headers=h).json()["output_language"] == "en-US"
@@ -107,6 +110,7 @@ def test_stored_values_that_no_longer_validate_read_as_unset(
         "pdf_capture": None,
         "theme": None,
         "tour_done": False,
+        "judge_default": "off",
     }
 
 
@@ -143,3 +147,21 @@ def test_tour_done_is_false_until_set_and_null_resets_it(
     client.put(PREFS, json={"tour_done": None}, headers=h)
     assert client.get(PREFS, headers=h).json()["tour_done"] is False
     assert client.put(PREFS, json={"tour_done": "yes"}, headers=h).status_code == 422
+
+
+def test_judge_default_is_off_until_set_and_null_resets_it(
+    client: TestClient, mailer: FakeMailer
+) -> None:
+    token, _ = login(client, mailer, "judge@example.org")
+    h = bearer(token)
+    assert client.get(PREFS, headers=h).json()["judge_default"] == "off"
+    for level in ("low", "medium", "high", "off"):
+        r = client.put(PREFS, json={"judge_default": level}, headers=h)
+        assert r.status_code == 200 and r.json()["preferences"]["judge_default"] == level
+    client.put(PREFS, json={"judge_default": "high"}, headers=h)
+    client.put(PREFS, json={"theme": "dark"}, headers=h)  # other keys keep it
+    assert client.get("/api/account/me", headers=h).json()["preferences"]["judge_default"] == "high"
+    client.put(PREFS, json={"judge_default": None}, headers=h)
+    assert client.get(PREFS, headers=h).json()["judge_default"] == "off"
+    for bad in ("max", "", True, 2):
+        assert client.put(PREFS, json={"judge_default": bad}, headers=h).status_code == 422, bad
