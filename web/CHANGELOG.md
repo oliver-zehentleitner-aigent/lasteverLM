@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.18] - 2026-10-15
+
 ### Added
 
 - The judge's "supported · citation added" (de "belegt · Zitat ergänzt"): a claim backed by a passage it did not cite gets a green badge, the passage the judge added is marked with a dot and "added by the judge" (in a report as "also found in [n]", and in the Sources list), and the heads count it as supported ("7 of 10 supported, 3 with an added citation"). "Not in source" says "In none of the selected sources." in its tooltip.
