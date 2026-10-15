@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-14
+
 ### Added
 
 - Agent chat: a plan's summary message links each output it made by its title (opens the tab); a plan shows what its outputs read, documents and pages alike; an answer that cited a web page says how old the version was, with "fetch again" asking the same question with the page fetched fresh.

@@ -9,6 +9,8 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-14
+
 ### Added
 
 - Preference `judge_default` (`off`|`low`|`medium`|`high`, default `off`): whether the user generally wants a judge, set with `PUT /me/preferences` and returned in `/me`; the web preselects the output form's judge from it and rag's agent chat reads it. `null` resets it to `off`. No migration: preferences are the `users.preferences` jsonb, an absent key reads as `off`.

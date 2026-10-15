@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-14
+
 ### Added
 
 - Audio transcript times for highlighting: each `content.transcript` entry gets `start` and `end`, its seconds within the final MP3. They are measured from the MP3 frames of its segments, so the playback speed is in them; they are contiguous and the last ends at the file's length. Older outputs have none, and a segment that cannot be measured leaves the audio without times, with a warning.
