@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.14] - 2026-10-15
+
 ### Changed
 
 - The introduction has seven steps: the new-notebook field, Sources, Output format, Outputs, the viewer, the chat, and Credit, which opens the profile menu and the voucher dialog and outlines both (leaving the step closes them, nothing is redeemed); an area not on screen leaves the card in the middle. The no-credit line under Create is gone.
