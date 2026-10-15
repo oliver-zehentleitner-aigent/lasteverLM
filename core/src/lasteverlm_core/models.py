@@ -270,6 +270,9 @@ class Output(_Row):
     never part of the model: it is always the caller. `provenance` is the
     generation log rag stores with the output (`outputs.provenance`); rag
     owns and documents its shape, `None` for outputs made before it.
+    `phase` is where generation stands while the output is `waiting` or
+    `processing` (the step, since when, progress, the sources involved,
+    an error), `None` otherwise; rag owns and documents its shape too.
     """
 
     id: UUID
@@ -287,6 +290,7 @@ class Output(_Row):
     deleted_at: datetime | None = None
     purge_at: datetime | None = None
     provenance: dict[str, Any] | None = None
+    phase: dict[str, Any] | None = None
 
 
 class SharedOutput(BaseModel):

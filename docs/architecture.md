@@ -251,7 +251,7 @@ Citation: {"n", "source_id", "source_name", "source_kind", "chunk_id", "page", "
 Conversation: {"id", "notebook_id", "title", "created_at"}
 Message:  {"id", "conversation_id", "role", "content", "citations", "units", "check", "suggestions": [str], "feedback": MessageFeedback | null, "plan" (as on Answer), "created_at"}
 MessageFeedback: {"rating": "up"|"down", "comment": str | null, "at"}
-Output:   {"id", "notebook_id" (null once the origin notebook is deleted), "origin_title", "kind", "title", "content", "status", "error", "share_token", "source_id" (the generated library row), "options", "deleted_at", "purge_at", "provenance", "created_at"}
+Output:   {"id", "notebook_id" (null once the origin notebook is deleted), "origin_title", "kind", "title", "content", "status", "error", "share_token", "source_id" (the generated library row), "options", "deleted_at", "purge_at", "provenance", "phase" (while waiting or processing, else null; shape owned by rag), "created_at"}
 ChunkView: {"chunk_id", "source_id", "source_name", "source_kind", "page", "text", "chunk_index", "chunk_count"}
 RagStats: {"notebooks": {"total"}, "messages": {"total", "last_24h"}, "outputs": {"by_kind": {<kind>: n}, "by_status": {<status>: n}},
            "jobs": {"pending", "running", "failed"}, "shared": {"outputs"}}
