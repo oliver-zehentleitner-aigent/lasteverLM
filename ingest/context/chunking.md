@@ -7,7 +7,7 @@
 **Status:** superseded
 **Superseded by:** none — the chunker moved to `core/` with its reasoning; the successor entry lives in that project, see below
 **Evidence:** confirmed
-**Source:** service author's implementation decision, 2026-10-12; maintainer review pending in the first pull request
+**Source:** service author's implementation decision, 2026-10-12
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — 68bf3811-c6ef-4454-95d0-4b6f9200c961 — as of 2026-10-12
 
 A token for the purpose of the ~800/100 window is a word or a single
