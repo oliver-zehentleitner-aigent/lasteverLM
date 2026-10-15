@@ -200,7 +200,7 @@ def test_empty_model_content_is_retried_as_a_provider_failure(settings):
     row = store.outputs[output_id]
     assert (row["status"], row["attempts"]) == ("processing", 2)
     assert row["error"] == (
-        "the model provider failed (test-llm: ProviderError); attempt 3 of 3 follows"
+        "the model provider failed (test-llm: empty answer); attempt 3 of 3 follows"
     )
     assert client.worker.run_once() == 1  # third attempt gets content
     assert client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()["status"] == "ready"

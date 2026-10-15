@@ -19,15 +19,16 @@ import json
 import logging
 import threading
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 
-from lasteverlm_core import CompletionResult
+from lasteverlm_core import CompletionResult, ProviderError
 from pydantic import BaseModel, ValidationError
 
 from .citations import defuse_markers, extract_markers
+from .failures import failure_kind
 from .judge import Judgement, judge_unit
 from .models import GeneratedOutput, Passage, Unit
 from .outputs import CompleteFn
@@ -40,6 +41,14 @@ JUDGE_WORKERS = 4
 REVISE_PROMPT_VERSION = "revise-v1"
 REVISE_MAX_TOKENS = 4000
 SUPPORTED = "supported"
+# what is revised and, if it stays, removed; a unit without a verdict is neither
+FAILING = ("contradicted", "not_in_source")
+NO_USABLE_ANSWER = "no_usable_answer"
+
+
+def _counts(judgements: Iterable[Judgement]) -> dict[str, int]:
+    return dict(Counter(j.verdict or NO_USABLE_ANSWER for j in judgements))
+
 
 REVISE_SYSTEM = """You correct parts of a document so that the passages they cite support them.
 
@@ -95,11 +104,11 @@ def judge_output(
         judged = _judge_all(judge, [current.units[i] for i in pending], texts)
         for i, judgement in zip(pending, judged, strict=True):
             last[i] = Verdict(judgement, number)
-        failing = [i for i in pending if last[i].judgement.verdict != SUPPORTED]
+        failing = [i for i in pending if last[i].judgement.verdict in FAILING]
         entry: dict[str, Any] = {
             "round": number,
             "judged": len(pending),
-            "verdicts": dict(Counter(last[i].judgement.verdict for i in pending)),
+            "verdicts": _counts(last[i].judgement for i in pending),
             "usage": judged_usage.take(),
         }
         rounds.append(entry)
@@ -132,7 +141,7 @@ def judge_output(
         if not pending:
             break
 
-    failed = {i for i, v in last.items() if v.judgement.verdict != SUPPORTED}
+    failed = {i for i, v in last.items() if v.judgement.verdict in FAILING}
     gone = failed | set(dropped)
     removed = [
         {
@@ -182,7 +191,7 @@ def annotate(
             "quote": j.quote,
             "round": 1,
         }
-    return {"level": level, "model": model, "verdicts": dict(Counter(j.verdict for j in judged))}
+    return {"level": level, "model": model, "verdicts": _counts(judged)}
 
 
 def stored_units(kind: str, content: Mapping[str, Any]) -> list[Unit]:
@@ -264,11 +273,20 @@ def _counting(complete: CompleteFn) -> tuple[CompleteFn, _Tally]:
 
 
 def _judge_all(judge: CompleteFn, units: list[Unit], texts: Mapping[int, str]) -> list[Judgement]:
-    """One judge call per unit, a few at a time; each sees only its own passages."""
+    """One judge call per unit, a few at a time; each sees only its own
+    passages. A call without a usable answer is tried once more; if that
+    fails too, the unit gets no verdict (it is kept, marked, never failing
+    the output and never revised or removed)."""
 
     def one(unit: Unit) -> Judgement:
         cited = {n: texts[n] for n in dict.fromkeys(unit.refs) if n in texts}
-        return judge_unit(judge, unit.text, cited)[0]
+        for attempt in (1, 2):
+            try:
+                return judge_unit(judge, unit.text, cited)[0]
+            except ProviderError as exc:
+                kind = failure_kind(exc)
+                log.warning("judge: no usable answer (attempt %d of 2): %s", attempt, kind)
+        return Judgement(None, f"the judge gave no usable answer: {kind}", "", False)
 
     with ThreadPoolExecutor(JUDGE_WORKERS) as pool:
         return list(pool.map(one, units))

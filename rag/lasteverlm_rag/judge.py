@@ -24,9 +24,10 @@ from .outputs._base import parse_json
 
 JUDGE_PROMPT_VERSION = "judge-v1"
 # the answer is short, but some judge models reason before it even with
-# thinking off, and those tokens count against the limit (glm-5.3-flash used
-# up to ~500 in a probe)
-JUDGE_MAX_TOKENS = 1500
+# thinking off, and those tokens count against the limit: glm-5.3-flash used
+# up to ~500 in the evaluation, and a glm-5.3 answer under load ran out at
+# 1500 (0.20.0). Only the tokens used are billed, so the room is free.
+JUDGE_MAX_TOKENS = 4000
 REASON_MAX_CHARS = 300
 QUOTE_MAX_CHARS = 400
 
@@ -55,7 +56,8 @@ Reply with one JSON object only, no prose, no code fences:
 
 @dataclass(frozen=True)
 class Judgement:
-    verdict: Verdict
+    # None: the judge gave no usable answer, twice; the unit is kept, marked
+    verdict: Verdict | None
     reason: str
     quote: str
     # whether the quote is found word for word in a cited passage

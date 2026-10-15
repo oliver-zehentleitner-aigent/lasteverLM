@@ -60,7 +60,7 @@ def test_judge_unit_makes_one_call_with_the_judge_prompt():
     llm = FakeLLM(json.dumps({"verdict": "supported", "reason": "r", "quote": ""}))
     judgement, result = judge_unit(llm.complete, "Three wrecks lie inside it.", PASSAGES)
     assert judgement.verdict == "supported" and result.text
-    assert llm.calls[0][0] == JUDGE_SYSTEM and llm.budgets == [1500]
+    assert llm.calls[0][0] == JUDGE_SYSTEM and llm.budgets == [4000]
 
 
 def test_the_eval_baseline_is_the_word_check_and_the_report_counts_hits():
