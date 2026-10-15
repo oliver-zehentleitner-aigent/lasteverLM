@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `docs/operations.md`: the hand-made changes log records the production audio repair of 2026-10-15 (8 outputs, backups under `repair-backup/` in the bucket).
+
 ## [0.21.5] - 2026-10-15
 
 ### Changed
