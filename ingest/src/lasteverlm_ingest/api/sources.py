@@ -112,10 +112,20 @@ class SourceFromJson(BaseModel):
     capture: str | None = None
 
 
+class ReadBy(BaseModel):
+    """The models that made a source's text: `vision` for an image or PDF
+    pages read by the vision model, `stt` for a recording."""
+
+    vision: str | None = None
+    stt: str | None = None
+
+
 class LinkedSource(Source):
     """A source in a notebook, with the library source it links. `status`
     is `waiting_for_credit` for a queued source whose owner has no credit
-    (shown, never stored)."""
+    (shown, never stored). `read_by` is null when no model made the text
+    (plain text, a text-layer PDF, a web page) and for sources read before
+    it was recorded."""
 
     library_id: UUID
     capture: str | None = None
@@ -130,6 +140,7 @@ class LinkedSource(Source):
     snapshot_url: str | None = None
     preview_url: str | None = None
     original_url: str | None = None
+    read_by: ReadBy | None = None
 
 
 def _capture(value: object) -> Capture:
@@ -382,6 +393,7 @@ class SourceChunks(BaseModel):
     library_id: UUID
     kind: str
     capture: str | None
+    read_by: ReadBy | None = None
     chunk_count: int
     offset: int
     chunks: list[ChunkText]
@@ -402,11 +414,18 @@ def source_chunks(
     repo = repository(request)
     source = owned_source(repo, user, source_id)
     count, chunks = repo.list_chunks(source.library_id, offset, limit)
+    vision_model = (source.read_by or {}).get("vision")
+    pages = set(source.vision_pages or [])
+    for chunk in chunks:
+        # A chunk carries the page of its first token: one that starts on a
+        # vision page counts as read by vision. An image has no pages.
+        chunk.vision = bool(vision_model) and (source.kind == "image" or chunk.page in pages)
     return SourceChunks(
         source_id=source.id,
         library_id=source.library_id,
         kind=source.kind,
         capture=source.capture,
+        read_by=ReadBy(**source.read_by) if source.read_by else None,
         chunk_count=count,
         offset=offset,
         chunks=chunks,

@@ -66,7 +66,7 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | POST | `/notebooks/{id}/sources/bulk` | 200 | `{"library_ids": [...]}` (1–200): links the caller's library entries into their notebook at once, uploads (any status, not trashed) and ready outputs alike; nothing is processed or billed. Answers `{"added": [library_id], "already": [library_id]}` in the order given (duplicates counted once); an existing link is `already`, never doubled (unique `sources_link_idx`). One transaction: if any id is unknown, someone else's, trashed or an unfinished output, nothing is added and the answer is 404 naming them |
 | POST | `/notebooks/{id}/sources` | 202 / 200 | multipart `file` (PDF, `.txt`, `.md`, PNG, JPEG, WebP, GIF) with an optional field `capture` for PDFs (`text`, `vision`, `auto`; default `auto`), JSON `{"url"}` (`http`/`https`, no credentials in the URL), or JSON `{"library_id"}` (add from the library: an upload not in the trash, or a ready output; nothing is processed or billed, the chunks are reused; 404 otherwise); 200 with the existing source when it is already in this notebook |
 | GET | `/sources/{id}/text` | 200 | the stored file of a text or Markdown source, read or not, as `text/plain; charset=utf-8` (decoded as the text loader decodes it: UTF-8, else Latin-1), for the viewer's "Original" view; owner only (404 otherwise), 415 for other kinds, 413 above 2 MiB |
-| GET | `/sources/{id}/chunks?offset=0&limit=50` | 200 | the "As read" view, owner only (404 otherwise): `{"source_id", "library_id", "kind", "capture", "chunk_count", "offset", "chunks": [{"chunk_id", "index", "page", "text"}]}`, in order of `index` (`chunks.idx`, a citation's `chunk_index`; `chunk_id` is a citation's `chunk_id`); `limit` 1–200; `page` for PDFs, null otherwise; audio chunks carry no position (no timestamps from the platform) |
+| GET | `/sources/{id}/chunks?offset=0&limit=50` | 200 | the "As read" view, owner only (404 otherwise): `{"source_id", "library_id", "kind", "capture", "read_by", "chunk_count", "offset", "chunks": [{"chunk_id", "index", "page", "text", "vision"}]}`, in order of `index` (`chunks.idx`, a citation's `chunk_index`; `chunk_id` is a citation's `chunk_id`); `limit` 1–200; `page` for PDFs, null otherwise; audio chunks carry no position (no timestamps from the platform); `read_by` as on a source; `vision` is true for every chunk of an image and for a PDF chunk that starts on a page the vision model read (the page its citation names) |
 | DELETE | `/sources/{id}` | 204 | detach: removes the source from this notebook, it stays in the library |
 | GET | `/library` | 200 | the caller's library (uploads), newest first, with where-used |
 | GET | `/library?kind=all` | 200 | uploads and ready outputs in one list, newest first; every entry has `notebooks` (the notebooks it is linked into, so the web can tell whether it is in a given one), outputs also `origin` and `output_id` |
@@ -83,9 +83,14 @@ sits outermost: 429 when a client IP exceeds `RATE_LIMIT_PER_MINUTE`,
 | DELETE | `/admin/users/{id}` | 204 | admins only (viewers 403): everything the user owns in ingest. The stored objects of their library (trash and converted recordings included) are deleted first, then their library rows (generated ones too, chunks cascade), notebooks (links and rag's rows cascade) and seed mark in one transaction. A storage failure is 503 `{"error"}` naming the count and the first key, with every row kept for a retry. Idempotent: 204 also when nothing is left or the user never existed. Account calls it, with the admin's bearer, after rag's purge and before deleting the user |
 
 A source is `{"id", "notebook_id", "name", "kind", "status", "error",
-"created_at", "library_id", "capture", "starter", "version", "fetched_at", "final_url", "checked_at", "snapshot_url", "preview_url", "original_url"}`; name,
-kind, status, error, capture and starter are the library source's. A
-library entry is
+"created_at", "library_id", "capture", "starter", "version", "fetched_at", "final_url", "checked_at", "snapshot_url", "preview_url", "original_url", "read_by"}`; name,
+kind, status, error, capture and starter are the library source's.
+`read_by` names the models that made the source's text,
+`{"vision": "<model>" | null, "stt": "<model>" | null}`: `vision` for an
+image or a PDF whose pages the vision model read, `stt` for a recording.
+It is `null` when no model made the text (plain text, a PDF read by its
+text layer only, a web page), for a source not read yet, and for sources
+read before it was recorded (migration 0018). A library entry is
 
 ```json
 {"id": "…", "name": "notes.txt", "kind": "text", "status": "ready", "error": null,

@@ -42,7 +42,10 @@ from lasteverlm_ingest.loaders import (
     TransientLoaderError,
     loader_key,
 )
+from lasteverlm_ingest.loaders.audio import AudioLoader
 from lasteverlm_ingest.loaders.convert import convert_to_mp3, sniff_container
+from lasteverlm_ingest.loaders.image import ImageLoader
+from lasteverlm_ingest.loaders.pdf import VisionPdfLoader
 from lasteverlm_ingest.loaders.snapshot import html_snapshot, text_snapshot
 from lasteverlm_ingest.loaders.url import Fetched, UrlLoader
 from lasteverlm_ingest.repository import MAX_ATTEMPTS, LibrarySource, Repository
@@ -179,6 +182,7 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
             _may_call(repo, source)
 
         passages = loader.load_billed(data, bill)
+        repo.set_read_by(source_id, *_read_by(loader, data))
     elif isinstance(loader, UrlLoader):
         fetched, passages = loader.load_page(data)
     else:
@@ -237,6 +241,21 @@ def _run(source: LibrarySource, deps: WorkerDeps) -> None:
         summary.usage.tokens_in,
         summary.usage.tokens_out,
     )
+
+
+def _read_by(
+    loader: ModelLoader, data: bytes
+) -> tuple[dict[str, str | None] | None, list[int] | None]:
+    """Which model made the source's text, and the PDF pages the vision
+    model read (None for an image: all of it, it has no pages)."""
+    if isinstance(loader, ImageLoader):
+        return {"vision": loader.model, "stt": None}, None
+    if isinstance(loader, AudioLoader):
+        return {"vision": None, "stt": loader.model}, None
+    if isinstance(loader, VisionPdfLoader):
+        pages = loader.vision_pages(data)
+        return ({"vision": loader.model, "stt": None} if pages else None), pages or None
+    return None, None
 
 
 # The converted recording's object name; safe_name never yields a leading

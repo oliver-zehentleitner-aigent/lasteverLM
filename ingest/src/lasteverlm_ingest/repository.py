@@ -77,6 +77,10 @@ class StoredSource(Source):
     funded_cents: Decimal | None = Field(default=None, exclude=True)
     snapshot_path: str | None = None
     transcribed_path: str | None = None
+    # Which models made the text ({"vision": …, "stt": …}), and the PDF
+    # pages the vision model read; null when no model did.
+    read_by: dict[str, str | None] | None = None
+    vision_pages: list[int] | None = Field(default=None, exclude=True)
 
 
 class LibrarySource(BaseModel):
@@ -113,6 +117,8 @@ class LibrarySource(BaseModel):
     checked_at: datetime | None = None
     funded_request_at: datetime | None = None
     funded_cents: Decimal | None = None
+    read_by: dict[str, str | None] | None = None
+    vision_pages: list[int] | None = None
 
 
 class NotebookUse(BaseModel):
@@ -262,6 +268,9 @@ class ChunkText(BaseModel):
     index: int
     page: int | None
     text: str
+    # The vision model read it (an image, or a PDF page read by vision);
+    # set by the API from the source's read_by and vision_pages.
+    vision: bool = False
 
 
 # Family rule: after three attempts a job is failed with its last error.
@@ -361,6 +370,16 @@ class Repository(Protocol):
     ) -> None:
         """A web page was read: when, the hash of its extracted text, the
         address after redirects and the key of its snapshot."""
+        ...
+
+    def set_read_by(
+        self,
+        library_id: UUID,
+        read_by: dict[str, str | None] | None,
+        vision_pages: list[int] | None,
+    ) -> None:
+        """Which models made the source's text, and the PDF pages the vision
+        model read; None for both when no model did."""
         ...
 
     def refetch_unchanged(
@@ -701,7 +720,8 @@ class PostgresRepository:
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
         "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
         "l.capture, l.starter, l.transcribed_path, l.version, l.fetched_at, l.final_url, "
-        "l.checked_at, l.snapshot_path, l.funded_request_at, l.funded_cents "
+        "l.checked_at, l.snapshot_path, l.funded_request_at, l.funded_cents, "
+        "l.read_by, l.vision_pages "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -841,7 +861,8 @@ class PostgresRepository:
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
         "l.starter, l.transcribed_path, l.page_count, l.duration_seconds, l.version, "
         "l.fetched_at, l.content_hash, l.refetch_requested_at, l.superseded_by, "
-        "l.snapshot_path, l.final_url, l.checked_at, l.funded_request_at, l.funded_cents"
+        "l.snapshot_path, l.final_url, l.checked_at, l.funded_request_at, l.funded_cents, "
+        "l.read_by, l.vision_pages"
     )
     # Library sources in the library (not in the trash).
     # Older versions of a web page are kept read-only, out of every list.
@@ -920,6 +941,23 @@ class PostgresRepository:
                     "hash": content_hash,
                     "final": final_url,
                     "snap": snapshot_path,
+                },
+            )
+
+    def set_read_by(
+        self,
+        library_id: UUID,
+        read_by: dict[str, str | None] | None,
+        vision_pages: list[int] | None,
+    ) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                "update library_sources set read_by = %(read_by)s::jsonb, "
+                "vision_pages = %(pages)s where id = %(id)s",
+                {
+                    "id": library_id,
+                    "read_by": json.dumps(read_by) if read_by is not None else None,
+                    "pages": vision_pages,
                 },
             )
 
@@ -1087,10 +1125,12 @@ class PostgresRepository:
                     "insert into library_sources (id, owner, name, kind, dedupe_key, url, "
                     "size_bytes, storage_path, transcribed_path, capture, starter, status, "
                     "summary, page_count, duration_seconds, version, fetched_at, checked_at, "
-                    "content_hash, final_url, snapshot_path) values (%(id)s, %(owner)s, "
+                    "content_hash, final_url, snapshot_path, read_by, vision_pages) values "
+                    "(%(id)s, %(owner)s, "
                     "%(name)s, %(kind)s, %(key)s, %(url)s, %(size)s, %(path)s, %(converted)s, "
                     "%(capture)s, true, 'ready', %(summary)s, %(pages)s, %(seconds)s, "
-                    "%(version)s, %(fetched)s, %(checked)s, %(hash)s, %(final)s, %(snapshot)s)",
+                    "%(version)s, %(fetched)s, %(checked)s, %(hash)s, %(final)s, %(snapshot)s, "
+                    "%(read_by)s::jsonb, %(vision_pages)s)",
                     {
                         "id": library_id,
                         "owner": plan.owner,
@@ -1111,6 +1151,8 @@ class PostgresRepository:
                         "hash": old.content_hash,
                         "final": old.final_url,
                         "snapshot": snapshot,
+                        "read_by": json.dumps(old.read_by) if old.read_by is not None else None,
+                        "vision_pages": old.vision_pages,
                     },
                 )
                 cur.execute(

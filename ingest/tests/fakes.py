@@ -218,6 +218,8 @@ class InMemoryRepository:
             checked_at=lib.checked_at,
             snapshot_path=lib.snapshot_path,
             transcribed_path=lib.transcribed_path,
+            read_by=lib.read_by,
+            vision_pages=lib.vision_pages,
         )
 
     def list_sources(self, notebook_id: UUID) -> list[StoredSource]:
@@ -293,6 +295,11 @@ class InMemoryRepository:
                 "final_url": final_url,
                 "snapshot_path": snapshot_path,
             }
+        )
+
+    def set_read_by(self, library_id, read_by, vision_pages):
+        self.library[library_id] = self.library[library_id].model_copy(
+            update={"read_by": read_by, "vision_pages": vision_pages}
         )
 
     def refetch_unchanged(self, library_id, snapshot_path=None, final_url=None):
