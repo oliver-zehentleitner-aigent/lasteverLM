@@ -20,7 +20,9 @@ text and by vision are two library sources, because their chunks differ.
 **Reason:** a scanned PDF had no text layer and failed; a mixed PDF lost
 its scanned pages silently. `auto` makes both work and pays only for
 the pages that need it: `vision` costs one model call per page (about
-515 input and 960 output tokens per A4 page in the measurement), `auto`
+515 input and 960 output tokens per A4 page in the measurement; since
+2026-10-15 a rendered A4 page is read in two tiles, so about twice the
+input for the same output, image-sources.md 062573be-f445-432a-a218-d270c1362947), `auto`
 costs nothing on a PDF with a text layer on every page. The text layer is
 exact where it exists; the model's transcription of a scan is good but
 misread a running header in the measurement, which is why `auto`
