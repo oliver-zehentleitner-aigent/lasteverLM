@@ -82,6 +82,8 @@ def test_every_action_has_a_unit() -> None:
     assert USAGE_ACTION_UNITS["source:audio"] == ActionUnit("audio_minute", "seconds")
     assert "source" not in {u.unit for u in USAGE_ACTION_UNITS.values()}
     assert USAGE_ACTION_UNITS["judge"].unit == "check"
+    assert USAGE_ACTION_UNITS["table_propose"] == ActionUnit("table_proposal", "action")
+    assert USAGE_ACTION_UNITS["infographic_propose"].unit == "infographic_proposal"
 
 
 def test_record_usage_prices_charges_and_inserts(prices: Any) -> None:
