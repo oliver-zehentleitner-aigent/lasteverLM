@@ -346,7 +346,15 @@ opens the notebook.
   it found, a library add how many it added. Each done step reloads the
   Sources and Outputs lists and the conversation, where an explanation
   arrives as a normal cited answer and, at the end, the plan's summary.
-  After a reload the card shows the plan as it stands.
+  After a reload the card shows the plan as it stands. A plan can first
+  **ask** (status `asking`, `plan.question`): its question with two to
+  four choices as buttons, the preselected one outlined in the accent,
+  each with the plan's price if taken; a text field too when the
+  question allows one. Run stays disabled until it is answered (`POST
+  …/plans/{id}/answer`), then the card shows the updated steps and
+  total and "question → answer" as a line. The first use is the judge:
+  "With a judge (High, your default)" or "Without a judge". The plan's
+  notes (`plan.notes`, e.g. "Without a judge: …") show under it.
 
 ## Viewer, print, share
 
