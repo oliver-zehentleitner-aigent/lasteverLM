@@ -121,6 +121,8 @@ def test_a_failing_paragraph_is_revised_and_judged_again(settings):
             "judged": 2,
             "verdicts": {"supported": 1, "contradicted": 1},
             "usage": {"tokens_in": 240, "tokens_out": 30},
+            # a contradicted unit is never searched for again
+            "searched_again": 0,
             "revision": {
                 "revised": 1,
                 "dropped": 0,
@@ -132,6 +134,7 @@ def test_a_failing_paragraph_is_revised_and_judged_again(settings):
             "judged": 1,
             "verdicts": {"supported": 1},
             "usage": {"tokens_in": 120, "tokens_out": 15},
+            "searched_again": 0,
         },
     ]
     assert log["removed"] == []
@@ -289,6 +292,7 @@ def test_a_judge_without_a_usable_answer_marks_the_unit_and_never_fails_the_outp
             "judged": 2,
             "verdicts": {"no_usable_answer": 2},
             "usage": {"tokens_in": 480, "tokens_out": 60},
+            "searched_again": 0,
         }
     ]
     assert log["removed"] == []

@@ -297,3 +297,45 @@ judge, is the fastest, and adds about 9% to the judge cost.
 - Removing disputed units: a true claim would vanish on one judge's
   stricter reading.
 - Passing them: a false claim one judge caught would pass.
+
+## A claim not in its cited passages is searched for again across the selected sources before it is revised or marked
+
+**Id:** af935823-96f3-454a-b084-282db5072b5f
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (a report judged High on request showed 4 of 10 supported, six paragraphs not_in_source whose details are very likely in the sources, only not in the passages cited; "not in the source" reads as "wrong"; search again before rejecting, "supported_elsewhere" with the found passages as added citations, before revising, at generation and on request, the extra calls in the estimate's maximum, the writer prompts citing every detail, the word check again; rejected: judging against all passages up front); the shape (refs plus judge.added_refs, added_by on the passage) agreed with the web the same day; contradicted claims excluded the same day, after rag pointed out that a second source supporting them would hide the conflict; chat answers left out of this step is rag's
+**Revisit when:** searching again rarely finds anything (the extra call costs for nothing), or chat answers need the same
+
+A claim the judge finds `not_in_source` is searched
+for across the output's selected sources: its text is embedded and the
+best three passages are retrieved without a floor. It is then judged
+once more with its cited passages and the ones it did not cite. Supported
+now (by both judges at bulletproof), it is `supported_elsewhere`: it
+passes, its refs gain the passages found (`judge.added_refs` names them),
+a passage new to the output joins its passages with `added_by: "judge"`,
+and the word check runs again. Otherwise the verdict stays, and
+`not_in_source` means in no selected source. A `contradicted` claim is
+never searched again. This happens before any
+revision, at generation (standard, thorough, bulletproof) and on request,
+not for chat answers. The writer prompts now ask for a citation per detail
+and to leave out a detail no passage states.
+
+**Reason:** the judge sees only the passages a claim cites, so a true
+claim the writer cited too narrowly was marked as if it were invented,
+and a reader takes "not in the source" for "wrong". Searching once more
+before rejecting separates under-cited from invented. Doing it before the
+revision keeps a correct paragraph from being rewritten or removed for a
+citing slip. Adding what was found as citations makes the support
+checkable, as every claim must be. Only failing units pay for the extra
+call; the writer rule makes under-citing rarer to begin with.
+
+**Rejected alternatives:**
+- Judging every unit against all passages up front: a much longer prompt
+  for every unit, most of them already supported by what they cite.
+- Leaving not_in_source as it was: true claims shown as wrong.
+- Upgrading the verdict without adding the passages: a pass the reader
+  cannot check.
+- Searching a contradicted claim again too: a second source that
+  supports it would turn it into a pass and hide that the sources
+  disagree, which the reader must see.

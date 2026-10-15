@@ -26,7 +26,9 @@ SOURCE_LANGUAGE = "Write in the language the material is written in."
 CITE_RULE = (
     'Cite the "Relevant passages" by their numbers: every statement taken from the '
     "material names the passage or passages it comes from. Use only numbers listed under "
-    '"Relevant passages"; state nothing that none of them supports.'
+    '"Relevant passages"; state nothing that none of them supports. Every detail (a name, '
+    "a number, a step, a limit, a feature) needs its own citation; a detail that no passage "
+    "states is left out, never filled in or guessed."
 )
 
 SYSTEM_RULES = """You create documents strictly from the material the user provides.

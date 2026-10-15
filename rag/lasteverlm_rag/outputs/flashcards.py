@@ -56,7 +56,8 @@ class FlashcardsGenerator(JsonGenerator):
     kind: OutputKind = "flashcards"
     focus_query: str = "key terms, definitions, facts, names, numbers"
     schema: type[BaseModel] = Deck
-    prompt_version: str = "2"  # 2: every fitting source used, an unused one named
+    # 2: every fitting source used, an unused one named
+    prompt_version: str = "3"  # 3: every detail cited, one no passage states left out
     instructions: str = ""
 
     def prompt(self, options: Mapping[str, Any]) -> tuple[str, type[BaseModel]]:

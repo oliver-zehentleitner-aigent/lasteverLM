@@ -112,7 +112,8 @@ class ChartGenerator(JsonGenerator):
     kind: OutputKind = "chart"
     focus_query: str = "numbers, figures, statistics, amounts, percentages, values over time"
     schema: type[BaseModel] = Proposal
-    prompt_version: str = "2"  # 2: every fitting source used, an unused one named
+    # 2: every fitting source used, an unused one named
+    prompt_version: str = "3"  # 3: every detail cited, one no passage states left out
     max_tokens: int = 6000
     instructions: str = ""
 

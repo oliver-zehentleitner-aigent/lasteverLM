@@ -194,6 +194,8 @@ class Passage:
     similarity: float | None = None
     chunk_index: int | None = None
     chunk_count: int | None = None
+    # "judge": found when a failing claim was searched for again, not in the prompt
+    added_by: str | None = None
 
 
 @dataclass(frozen=True)

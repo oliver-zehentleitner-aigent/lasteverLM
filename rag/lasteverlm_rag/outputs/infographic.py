@@ -30,7 +30,8 @@ class InfographicGenerator(JsonGenerator):
     kind: OutputKind = "infographic"
     focus_query: str = "striking numbers, key facts, the one-line message"
     schema: type[BaseModel] = Infographic
-    prompt_version: str = "3"  # 3: every fitting source, unused named; 2: cites passages
+    # 3: every fitting source, unused named; 2: cites passages
+    prompt_version: str = "4"  # 4: every detail cited, one no passage states left out
     instructions: str = (
         "Design an infographic from the material: one headline, 4 to 8 key facts as short "
         "label/value pairs (numbers where the material has them), and 3 to 5 short sections "

@@ -25,7 +25,8 @@ class MindmapGenerator(JsonGenerator):
     kind: OutputKind = "mindmap"
     focus_query: str = "structure, main themes and their sub-topics"
     schema: type[BaseModel] = Mindmap
-    prompt_version: str = "3"  # 3: every fitting source, unused named; 2: cites passages
+    # 3: every fitting source, unused named; 2: cites passages
+    prompt_version: str = "4"  # 4: every detail cited, one no passage states left out
     instructions: str = (
         "Build a mind map of the material: one root node whose label spans all sources (for "
         "sources on distinct topics, name them together, e.g. 'Linux administration: vi and "
