@@ -132,7 +132,8 @@ alone would not do: an admin can change the row at runtime.
 
 **Id:** b203f2b7-c157-4b75-834e-457f5d5d4567
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** 1bbd3b8d-5e0b-48a1-b9be-2dccca4c4a32
 **Evidence:** confirmed
 **Source:** the maintainer's rule through the coordinating agent, 2026-10-15 ("never spend 90 % and then stop")
 **Revisit when:** a single read can cost so much that a negative balance after it is more than a few cents, or account introduces reservations
@@ -152,4 +153,36 @@ every call, because without it a call cannot be booked at all.
   user.
 - Reserving an estimated cost up front: needs an estimator and a hold in
   account, for what is at most one read's cost.
+
+## An action starts only if its estimated maximum is covered; then it runs to the end
+
+**Id:** 1bbd3b8d-5e0b-48a1-b9be-2dccca4c4a32
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-15 (one rule for every service: start only within the balance, then finish)
+**Revisit when:** reads overdraw by more than their estimate often enough to matter, or account introduces reservations of its own
+
+A read starts only if the owner's balance covers its estimated maximum
+plus the estimated maxima of their other funded reads still waiting;
+once started it runs to the end, even below zero. Overdraw is bounded by
+how far the estimate misses, not by how often a user asks.
+
+When a process or refetch request queues a read, its estimate is stored
+on the row. If the check passes, the row is marked funded at request,
+and the claim takes it later whatever the balance has become, so a
+confirmed agent plan never waits half-way on a source an earlier step
+paid for. An unfunded row waits until the balance, less what funded
+reads hold, covers its estimate. Rag applies the same rule to plans and
+outputs and counts this held amount with its own.
+
+**Alternatives:**
+- Checking only that the balance is positive at the start (the previous
+  rule, entry b203f2b7-c157-4b75-834e-457f5d5d4567): a user with one cent could queue any amount of
+  work, or many requests before the first was read.
+- A client-set "confirmed" flag on the request: the web and rag send the
+  same bearer, so the flag could be forged and would lift every limit.
+- A service proof (an HMAC header from rag): another secret path, and it
+  still left the web's own requests unbounded; the start rule closes the
+  gap for every caller alike.
 
