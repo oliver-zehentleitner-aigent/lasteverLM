@@ -1153,6 +1153,10 @@ export const en = {
   'http.modelCause.no_audio': 'no audio came back',
   'http.modelCause.unknown': 'the reason is not known',
   'judge.verdict.no_usable_answer': 'no answer',
+  'http.creditShort': 'This needs up to {needed}, you have {available}.',
+  'http.creditHeld': '({held} is held by work still running.)',
+  'http.creditShortBare': 'Your credit does not cover this.',
+  'voucher.topUp': 'Enter a voucher code to top up.',
 } as const
 
 export type MessageKey = keyof typeof en

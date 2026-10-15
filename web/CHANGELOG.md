@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A 402 while there is credit, just not enough for an output or a plan (rag's `credit_insufficient`), no longer says "Your credit is used up": the voucher dialog and the error read "This needs up to €3.20, you have €1.00." (de "Das braucht bis zu …, du hast …"), with "(€0.50 is held by work still running.)" when started work holds some.
 - A claim the judge gave no usable answer for (`judge.verdict: null`) shows "Judge: no answer" (dashed) with the reason in its tooltip, instead of an untranslated key, and is never marked as disagreeing with the word check; the counts list it as "no answer".
 
 ## [0.20.5] - 2026-10-15

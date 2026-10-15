@@ -22,6 +22,15 @@ describe('failureMessage', () => {
     expect(failureMessage(418, '')).toBe('The server answered with HTTP 418.')
     expect(failureMessage(500, '{"error":"   "}')).toBe('The server hit an error (HTTP 500)')
   })
+  it('says what an action needs against what there is, when the credit does not cover it', () => {
+    const body = (extra: object) => JSON.stringify({ error: 'credit does not cover this', code: 'credit_insufficient', ...extra })
+    expect(failureMessage(402, body({ needed_cents: 320, held_cents: 0, available_cents: 100 }))).toBe('This needs up to €3.20, you have €1.00.')
+    expect(failureMessage(402, body({ needed_cents: 320.5, held_cents: 50, available_cents: 300 }))).toBe('This needs up to €3.21, you have €3.00. (€0.50 is held by work still running.)')
+    // amounts missing: still no raw English
+    expect(failureMessage(402, body({}))).toBe('Your credit does not cover this.')
+    // the other 402s keep the service's sentence
+    expect(failureMessage(402, '{"error":"credit exhausted"}')).toBe('credit exhausted')
+  })
   it("says why the model did not answer, in the user's language, from rag's cause", () => {
     const body = (cause: unknown) => JSON.stringify({ error: 'the model did not answer', code: 'model_no_answer', cause })
     expect(failureMessage(502, body('truncated_answer'))).toBe('The model did not answer, not on a second try either: the answer was cut off at its length limit. Try again in a moment.')
@@ -62,6 +71,17 @@ describe('request', () => {
     await expect(request('/x')).rejects.toMatchObject({ message: 'credit exhausted' })
     expect(seen).toEqual([UNAUTHORIZED, PAYMENT_REQUIRED])
     apiEvents.removeEventListener(UNAUTHORIZED, on)
+    apiEvents.removeEventListener(PAYMENT_REQUIRED, on)
+  })
+  it("carries the short-credit sentence on the 402 event, null for an exhausted credit", async () => {
+    const details: unknown[] = []
+    const on = (e: Event) => details.push((e as CustomEvent).detail)
+    apiEvents.addEventListener(PAYMENT_REQUIRED, on)
+    stub(402, '{"error":"credit exhausted"}')
+    await expect(request('/x')).rejects.toBeInstanceOf(ApiError)
+    stub(402, JSON.stringify({ error: 'credit does not cover this', code: 'credit_insufficient', needed_cents: 320, held_cents: 0, available_cents: 100 }))
+    await expect(request('/x')).rejects.toMatchObject({ code: 'credit_insufficient', message: 'This needs up to €3.20, you have €1.00.' })
+    expect(details).toEqual([null, 'This needs up to €3.20, you have €1.00.'])
     apiEvents.removeEventListener(PAYMENT_REQUIRED, on)
   })
   it('turns a network failure into a readable message', async () => {
