@@ -253,3 +253,26 @@ def test_a_decision_needs_its_question(settings):
     client = make_client(settings, FakeStore(), FakeRetriever([]), FakeLLM())
     r = client.post(OUTPUTS, json={"kind": "decision"}, headers=AUTH)
     assert r.status_code == 422 and "question" in r.json()["error"]
+
+
+FOR_2 = {"text": "The bridge was closed for repairs in 2024.", "refs": [1]}
+
+
+@pytest.mark.parametrize(
+    ("p", "pro", "con", "weight", "supported"),
+    [
+        (0.8, [FOR], [], "tendency", 1),  # one supported item behind it
+        (0.8, [FOR, FOR_2], [], "full", 2),
+        (0.5, [FOR], [AGAINST], "tendency", 2),  # unclear: the number shows as a tendency
+        (0.2, [FOR, FOR_2], [], "full", 2),  # a conflict stays visible as it is
+        (0.8, [UNSUPPORTED], [], None, 0),  # undecided: no number at all
+    ],
+)
+def test_a_number_little_evidence_stands_behind_is_a_tendency(p, pro, con, weight, supported):
+    options = {"question": "Was the bridge closed?", "decision_type": "yes_no"}
+    content, _ = decide(
+        options,
+        {"probability_yes": p, "answer": "yes" if p >= 0.5 else "no"},
+        {"verdict_text": "x", "evidence_for": pro, "evidence_against": con},
+    )
+    assert (content["weight"], content["supported_evidence"]) == (weight, supported)

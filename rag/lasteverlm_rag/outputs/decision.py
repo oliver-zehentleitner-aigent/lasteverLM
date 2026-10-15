@@ -16,7 +16,9 @@ and is shown whatever it says. Without supported evidence on either side
 there is no decision: the verdict is "The sources do not decide this."
 and the content carries no number (``model_answer`` is ``None``). A
 number with no evidence behind it is the model's prior, not a decision
-from the sources; the log keeps it, marked as such.
+from the sources; the log keeps it, marked as such. A number one supported
+item or an unclear balance stands behind is shown as a tendency
+(``weight``), never hidden: a reader can still check that item.
 """
 
 from __future__ import annotations
@@ -36,6 +38,8 @@ EVIDENCE_MAX = 8
 GAPS_MAX = 6
 
 Agreement = Literal["consistent", "conflicting", "unclear", "undecided"]
+# how firmly a decided number is shown (``finish_decision``)
+Weight = Literal["full", "tendency"]
 
 
 class EvidenceItem(BaseModel):
@@ -143,6 +147,8 @@ def finish_decision(content: dict[str, Any]) -> dict[str, Any] | None:
     con = sum(e.get("support") == "supported" for e in content["evidence_against"])
     agreement, note = _agreement(content, pro, con)
     content["agreement"], content["agreement_note"] = agreement, note
+    content["supported_evidence"] = pro + con
+    content["weight"] = _weight(agreement, pro + con)
     if agreement == "undecided":
         withheld = {
             "llm_verdict_text": str(content["verdict_text"]),
@@ -152,6 +158,17 @@ def finish_decision(content: dict[str, Any]) -> dict[str, Any] | None:
         content["model_answer"] = None
         return withheld
     return None
+
+
+def _weight(agreement: Agreement, supported: int) -> Weight | None:
+    """How firmly the number is shown: a ``tendency`` when one supported item
+    or an unclear balance stands behind it, ``full`` otherwise (a conflict
+    included: both sides are shown as they are), none when undecided."""
+    if agreement == "undecided":
+        return None
+    if agreement == "unclear" or (agreement == "consistent" and supported == 1):
+        return "tendency"
+    return "full"
 
 
 def _agreement(content: dict[str, Any], pro: int, con: int) -> tuple[Agreement, str]:
