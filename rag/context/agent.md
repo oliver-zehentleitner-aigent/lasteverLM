@@ -110,3 +110,35 @@ case, is what lets later questions build on it.
 - Asking every time: slows down users who already said what they want.
 - A judge-only flag on the plan: every later question would need its
   own.
+
+## Before an output reads a web page again, the plan asks, with the page's age and the price
+
+**Id:** 3e2cbd75-6e9f-4b12-9f2d-49e1986fd45d
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (done message links the outputs; the web-page cache asked through the question turn with "use the cached version" preselected; plain answers show the age of a cited page; rejected: the permanent refresh control under the chat)
+**Revisit when:** users pick "fetch again" nearly every time (fresh may be the better default), or ingest re-checks pages on its own schedule so a cached page is rarely old
+
+A plan that creates an output from a notebook holding web pages asks
+once whether to use the versions already read or fetch them again. The
+question names the page and how long ago it was read; fetching again
+shows ingest's extra cost. Using the cached versions is preselected. A
+message that already says it is taken as said. Questions come one at a
+time, so this one follows the judge question when both apply. A plain
+answer that cites a web page carries the time its version was read, and
+the plan's summary message names and links what was made.
+
+**Reason:** whether a page is still current matters only at the moment
+something is made from it, and the user can judge that only knowing how
+old it is and what fetching again costs. Asking there, with both in
+front of them, makes the refresh a choice in the request that pays for
+it. The cached version is the default because it is free and usually
+recent enough. Showing the age on plain answers lets the user notice a
+stale page where it matters and ask again with it fetched.
+
+**Rejected alternatives:**
+- A permanent refresh control under the chat: unclear what it applied
+  to, and it had no effect once an output was created.
+- Always fetching again: charges for every output even when the page is
+  minutes old.
