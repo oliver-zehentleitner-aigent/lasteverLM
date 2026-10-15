@@ -117,3 +117,42 @@ only for an answer that would otherwise fail.
   any sign of it.
 - Asking a model whether the text is degenerate: another billed call,
   and not deterministic.
+
+## Large images and vision pages are read in tiles
+
+**Id:** 062573be-f445-432a-a218-d270c1362947
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer decision, 2026-10-15, after the vision evaluation (docs/vision-eval.md) showed the platform scales every image to the same small input budget; tile size, overlap and the duplicate rule are the ingest author's
+**Revisit when:** the platform reads images at a resolution that depends on their size, or a vision model reads a 2880×1800 screenshot whole as well as in tiles
+
+An image or rendered PDF page over 1.5 MP is cut into the fewest equal
+crops of at most 1.5 MP, overlapping by 48 px (loaders/tiles.py). They
+are read separately, with the loop check per tile, and joined in reading
+order. A line of at least 20 characters that a tile shares with the tile
+above or to its left is dropped from the later tile. The upload records
+the tile count, and the estimate charges a call per tile.
+
+**Reason:** the platform scales every image to about 400–600 input
+tokens, whatever its size. On a large screenshot, small text becomes
+unreadable, and every model tested filled it with plausible lines that
+are not in the image: wrong numbers, one line copied onto every card, a
+label read as another word. A transcript like that is worse than none,
+because it is indexed and cited as the source. In tiles, the same models
+read the same screenshot and a dense scanned page almost without error.
+The cost is about one input budget per tile; the output stays about the
+same.
+
+A short line shared by neighbouring tiles is kept, because it may be a
+real repetition (a status column of "OK"); a long one is the overlap.
+
+**Alternatives:**
+- Switching the vision model: all ten models on the platform invented
+  lines on the large screenshot. The cause is the scaling before the
+  model, so no model choice fixes it.
+- Keeping the full-image read: the loop check cannot catch the failure,
+  because invented text varies and looks like a transcript.
+- A whole-image description beside the tiles: the downscaled image is
+  where the invented lines come from, so its description would bring
+  them back.
