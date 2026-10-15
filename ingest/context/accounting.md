@@ -31,7 +31,8 @@ startup check is what makes that path unreachable in practice.
 
 **Id:** 5bccbe95-ca18-4d02-9ca6-d9d5922a95a8
 **Type:** decision
-**Status:** active
+**Status:** superseded
+**Superseded by:** b203f2b7-c157-4b75-834e-457f5d5d4567
 **Evidence:** confirmed
 **Source:** security and quality audit, 2026-10-14; accepted by the maintainer through the coordinating agent
 **Revisit when:** a single source can cost more than a few cents (a more expensive model, much larger uploads), or account introduces reservations
@@ -72,8 +73,10 @@ demo seed was the exception until the starter notebook replaced the demo
 seeds, 2026-10-14). The row stays `processing` in the table; the API shows
 `waiting_for_credit` when the owner has no credit. As soon as a voucher
 or top-up lands in account's ledger, the next claim takes the source.
-Credit running out in the middle of a job releases the claim without
-counting the attempt, so the source waits instead of failing.
+Credit running out in the middle of a job released the claim without
+counting the attempt, so the source waited instead of failing; since
+2026-10-15 a started read is no longer stopped for credit at all (entry
+b203f2b7-c157-4b75-834e-457f5d5d4567).
 
 **Alternatives:**
 - Refusing the add with 402, the state before: the user could not even
@@ -124,4 +127,29 @@ alone would not do: an admin can change the row at runtime.
   hiccup would book the fixed fee again for the same user action.
 - Booking the summary as action `summary`: splits one user action (adding
   a source) into two in the user's statement.
+
+## A read that has started runs to the end; credit is checked once, before it starts
+
+**Id:** b203f2b7-c157-4b75-834e-457f5d5d4567
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the maintainer's rule through the coordinating agent, 2026-10-15 ("never spend 90 % and then stop")
+**Revisit when:** a single read can cost so much that a negative balance after it is more than a few cents, or account introduces reservations
+
+The worker checks the owner's credit once, before a read starts (the
+claim query takes only sources whose owner has a positive balance, and
+the read checks again as it begins). Once started, the read runs to the
+end and books every call, even if the balance goes below zero on the
+way: a user may end slightly negative, and their next read waits until
+the balance is positive again. The exchange rate is still checked before
+every call, because without it a call cannot be booked at all.
+
+**Alternatives:**
+- A credit check before every model call (the previous rule): a vision
+  PDF or a long recording stopped in the middle with the pages read so
+  far paid for and the source not usable, the worst outcome for the
+  user.
+- Reserving an estimated cost up front: needs an estimator and a hold in
+  account, for what is at most one read's cost.
 
