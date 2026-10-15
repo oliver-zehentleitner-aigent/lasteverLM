@@ -135,9 +135,14 @@ def test_ask_with_empty_model_content_is_a_502_and_stores_nothing(settings):
     r = client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
 
     assert r.status_code == 502
-    assert r.json() == {"error": "the model did not answer; please try again"}
+    assert r.json() == {
+        "error": "the model did not answer",
+        "code": "model_no_answer",
+        "cause": "empty_answer",
+    }
     assert store.messages == []
-    assert [u.kind for _, _, u in store.usage] == ["embedding", "llm"]  # the tokens were spent
+    # tried twice, and the tokens of both attempts were spent
+    assert [u.kind for _, _, u in store.usage] == ["embedding", "llm", "llm"]
 
 
 def test_ask_refuses_when_nothing_passes_the_floor(settings):
@@ -433,6 +438,7 @@ def test_a_provider_error_after_billing_still_writes_the_usage_row(settings):
     assert [(u.kind, u.tokens_in, u.tokens_out) for _, _, u in store.usage] == [
         ("embedding", 7, 0),
         ("llm", 40, 900),
+        ("llm", 40, 900),
     ]
     assert store.messages == []
 
@@ -452,3 +458,43 @@ def test_the_decision_model_needs_a_price():
     prices = '{"test-llm": {"in": 1, "out": 1}, "test-embedding": {"in": 1, "out": 0}}'
     with pytest.raises(ConfigError, match="test-decision"):
         Settings.from_env({**BASE_ENV, "DEMO_TOKEN": "d", "MODEL_PRICES": prices})
+
+
+def test_a_model_failure_is_tried_once_more_before_it_reaches_the_user(settings):
+    store = FakeStore()
+    llm = FakeLLM("  \n", "The fact [1].")
+    client = make_client(settings, store, FakeRetriever([chunk(1, "fact")]), llm)
+    r = client.post(ASK, json={"conversation_id": CONVERSATION, "question": "q"}, headers=AUTH)
+    assert r.status_code == 200 and r.json()["answer"] == "The fact [1]."
+    assert len(llm.calls) == 2
+
+
+def test_a_failure_cause_is_one_code_the_web_can_translate():
+    from lasteverlm_rag.failures import CAUSES, failure_cause
+
+    class Timeout(Exception):
+        pass
+
+    class Status(Exception):
+        def __init__(self, status_code):
+            self.status_code = status_code
+
+    def wrapped(cause):
+        exc = ProviderError("completion request failed")
+        exc.__cause__ = cause
+        return exc
+
+    cases = {
+        wrapped(Timeout()): "timeout",
+        wrapped(Status(429)): "rate_limited",
+        wrapped(Status(503)): "provider_error",
+        ProviderError("empty answer (finish_reason='length')"): "truncated_answer",
+        ProviderError("the model returned no answer"): "empty_answer",
+        ProviderError("judge: no JSON object in the answer (x)"): "unparseable_answer",
+        ProviderError("suggestions: the answer did not parse (x)"): "unparseable_answer",
+        ProviderError("the synthesis returned no audio"): "no_audio",
+        ProviderError("something else"): "unknown",
+    }
+    for exc, cause in cases.items():
+        assert failure_cause(exc) == cause, exc
+        assert cause in CAUSES

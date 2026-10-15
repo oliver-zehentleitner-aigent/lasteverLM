@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - A report's `length` is an upper bound (at most 500 / 1200 / 2500 words), no longer a word target: the prompt asks for less when the material says less and forbids adding facts, roles, steps or reasons the material does not state. Prompt version `report-<style>-v4`.
+- A failed model call the user waits for (chat answer, planning, starting questions, voice sample) is tried once more. The second failure is 502 with `code: "model_no_answer"` and a `cause` the web can translate (`timeout`, `rate_limited`, `provider_error`, `empty_answer`, `truncated_answer`, `unparseable_answer`, `no_audio`, `unknown`), instead of the English "the model did not answer; please try again".
 
 ## [0.20.3] - 2026-10-15
 

@@ -55,6 +55,7 @@ from .service import (
     complete_tools_billed,
     require_credit,
     require_notebook,
+    twice,
 )
 from .store import Store
 
@@ -199,14 +200,18 @@ class AgentService:
             + [f"- {oid}: {inline(title)}" for oid, title in outputs.items()]
             + ["", "The user's message:", question]
         )
-        result = complete_tools_billed(
-            self._store,
-            self._llm,
-            booking,
-            PLANNER_SYSTEM,
-            [{"role": "user", "content": context}],
-            tool_specs(),
-            PLANNER_MAX_TOKENS,
+        llm = self._llm
+        result = twice(
+            "planning",
+            lambda: complete_tools_billed(
+                self._store,
+                llm,
+                booking,
+                PLANNER_SYSTEM,
+                [{"role": "user", "content": context}],
+                tool_specs(),
+                PLANNER_MAX_TOKENS,
+            ),
         )
         if not result.tool_calls or result.text.strip() == NO_ACTION:
             return None
