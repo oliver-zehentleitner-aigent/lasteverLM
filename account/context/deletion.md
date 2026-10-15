@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-14 (maintainer wanted deletion in the admin panel)
+**Source:** maintainer decision (deletion in the admin panel), 2026-10-14
 **Revisit when:** a fourth service holds user data, or a deletion must survive a service being down for long (then a queued job)
 
 `DELETE /admin/users/{id}` (admin only, never the reader role) refuses the
@@ -31,8 +31,8 @@ last makes the failure mode honest: the user is either fully gone or
 still listed, and listed means "try again".
 
 **Rejected alternatives:** a soft-delete flag on the user row with the
-data left in place — rejected because the maintainer's wish is that the
-data is gone, and a flag that hides a user while their objects keep
+data left in place — rejected because the requirement is that the data
+is gone, and a flag that hides a user while their objects keep
 costing storage is the opposite of that; per-service cleanup jobs that
 sweep for users no longer in `users` — rejected because the deletion
 would complete at an unknown later time, could not be reported to the
@@ -45,4 +45,4 @@ record with the e-mail.
 
 **Consequence:** the aggregated usage cost in `/admin/stats` drops by
 the deleted user's share; the ledger total drops by their credits. Both
-are consequences of a hard delete the maintainer chose.
+are consequences of the hard delete.

@@ -17,15 +17,15 @@ refuses to start without it). Admins can show the code again
 the list shows it masked. Codes created before 0008 have no `code_enc` and
 stay unrecoverable.
 
-**Reason:** the maintainer wants to see, copy and mail vouchers after
-creating them. A voucher code is money: whoever reads it can redeem it. Keeping
+**Reason:** admins need to see, copy and mail vouchers after creating
+them. A voucher code is money: whoever reads it can redeem it. Keeping
 the key out of the database means a leaked dump or backup alone still yields no
 spendable code; it takes the database and the cluster secret together. The hash
 stays the lookup path, so the redeem needs neither the key nor a decryption.
 
 **Rejected alternatives:** a plaintext code column — rejected because it turns
-any database leak into spendable credit; keeping hash-only storage — rejected by
-the maintainer, it makes "show again" and "send later" impossible; deriving the
+any database leak into spendable credit; keeping hash-only storage — rejected because
+it makes "show again" and "send later" impossible; deriving the
 key from `AUTH_JWT_SECRET` — rejected because a leak of one secret would expose
 both sessions and vouchers.
 

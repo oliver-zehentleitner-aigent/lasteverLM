@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** fleet coordination, 2026-10-13 (maintainer wanted a System page in the admin panel)
+**Source:** maintainer decision (a System page in the admin panel), 2026-10-13
 **Revisit when:** the page needs more than two list calls (watches, logs, exec), or a second service needs cluster data
 
 `GET /admin/system` lists the namespace's pods and deployments by calling

@@ -33,8 +33,11 @@ rejected because the SQL this service needs (`on conflict`, a
 and would either be dumbed down for SQLite or tested against a different
 dialect than the one in production; testing only against a real
 PostgreSQL — rejected because it would make every test run depend on a
-service none of the agent sessions has locally. Known cost: the
-PostgreSQL implementation's own correctness is covered only by
-`tests/test_postgres.py`, which runs when `TEST_DATABASE_URL` is set and
-is otherwise skipped, so a CI job with a PostgreSQL service container is
-the missing piece.
+database a development machine may not have. The PostgreSQL
+implementation's own correctness is covered by `tests/test_postgres.py`,
+which runs when `TEST_DATABASE_URL` is set: locally against a throwaway
+container, and in CI, whose job for this service starts a PostgreSQL
+service container and sets it. The tables of other services it reads
+are mostly stand-ins; the starter readiness check is tested against
+ingest's real migrations, because a stand-in there once hid a column
+that had moved.
