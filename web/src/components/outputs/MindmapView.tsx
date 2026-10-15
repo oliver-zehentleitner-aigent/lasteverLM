@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, type KeyboardEvent } from 'react'
 import type { Markmap } from 'markmap-view'
 import type { MindmapContent, MindmapNode } from '../../api/types'
 import { t } from '../../i18n'
@@ -17,7 +17,11 @@ import { useCite } from '../../hooks/useCite'
  *  A small control bar on the map (fit, zoom in, zoom out) and the keys 0,
  *  + and − on the focused map bring it back after panning and zooming; it
  *  sits on the map itself, so the viewer, the full view and the shared
- *  page all have it. */
+ *  page all have it. Labels wrap at LABEL_MAX_WIDTH: unwrapped, one long
+ *  label made the map so wide that fitting shrank it to an unreadable
+ *  sliver. The map is built again only when its content changes, not
+ *  when a poll hands over an equal output, and it is fitted once it is
+ *  drawn and only while the pane has a size. */
 export function MindmapView({ content, locate }: { content: MindmapContent; locate?: LocateRequest | null }) {
   const box = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -25,6 +29,13 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
   const map = useRef<Markmap | null>(null)
   const cite = useCite()
   const known = cite?.known
+  // equal content and markers keep the map: a poll's new objects must not rebuild it
+  const contentKey = useMemo(() => JSON.stringify(content.root), [content])
+  const knownKey = known ? [...known].sort((a, b) => a - b).join(',') : ''
+  const latest = useRef({ content, known })
+  useEffect(() => {
+    latest.current = { content, known }
+  }, [content, known])
 
   useEffect(() => {
     let destroy: (() => void) | undefined
@@ -32,18 +43,35 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
     Promise.all([import('markmap-lib'), import('markmap-view')])
       .then(([{ Transformer }, { Markmap }]) => {
         if (cancelled || !svg.current) return
+        const { content, known } = latest.current
         // with provenance each node carries its markers and badge, as HTML in its label
         const order = nodeOrder(content.root)
         const { root } = new Transformer().transform(toMarkdown(content.root, 0, known ? (n) => claimHtml(n, known, order.indexOf(n)) : undefined))
         // the labels are the model's text and markmap renders them as HTML
         const clean = cleanTree(root, sanitizeHtml)
-        const mm = Markmap.create(svg.current, { autoFit: true }, clean)
+        const el = svg.current
+        const mm = Markmap.create(el, { autoFit: false, maxWidth: LABEL_MAX_WIDTH })
         map.current = mm
+        // fitting an SVG without a size scales the map to nothing
+        const sized = () => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && r.height > 0
+        }
+        let drawn = false
         let frame = 0
-        const observer = new ResizeObserver(() => {
+        const refit = () => {
           cancelAnimationFrame(frame)
-          frame = requestAnimationFrame(() => void mm.fit())
+          frame = requestAnimationFrame(() => {
+            if (drawn && sized()) void mm.fit()
+          })
+        }
+        // the first fit once the nodes are drawn and measured, then on every size change
+        void mm.setData(clean).then(() => {
+          if (cancelled) return
+          drawn = true
+          refit()
         })
+        const observer = new ResizeObserver(refit)
         if (box.current) observer.observe(box.current)
         destroy = () => {
           observer.disconnect()
@@ -59,7 +87,7 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
       cancelled = true
       destroy?.()
     }
-  }, [content, known])
+  }, [contentKey, knownKey])
 
   // "open document" on a citation: fit the map, then flash the node whose
   // label matches the chunk's first line (the outline starts at its node)
@@ -135,6 +163,9 @@ export function MindmapView({ content, locate }: { content: MindmapContent; loca
     </div>
   )
 }
+
+/** px at which a label wraps (markmap's maxWidth) */
+const LABEL_MAX_WIDTH = 280
 
 /** The nodes in the order toMarkdown writes them, root first: a judge
  *  badge's index into this list finds its node again. */
