@@ -158,3 +158,55 @@ because the pair is the noise this removes.
 Rejected because rag judges a whole document or answer, never one
 claim; the action therefore opens Check with a judge, priced at Medium,
 the level that control starts at, where the level can still be changed.
+
+## Proposed charts, tables and themes belong to the selection they were found for
+
+**Id:** 4611ea6d-dd36-45eb-8e97-b9f53ac911d7
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer report of a chart built from candidates of an earlier selection, 2026-10-15; the mechanism was this directory's call
+**Revisit when:** proposals are found on the server for the selection at Create time, without a separate step
+
+Charts, tables and infographic themes are proposed first and ticked
+before Create. A proposal is found with the notebook, the selected
+sources, the pages to fetch again and the notes; the web keeps the
+ticked candidates together with that key (`proposalKey`) and drops them
+as soon as any part changes, saying "find … again for the current
+selection". rag refuses stale candidates on Create as well
+(`chart_out_of_scope`, `candidate_out_of_scope`). One component serves
+all three kinds (`Proposals.tsx`).
+
+**Reason:** a candidate carries numbers or rows taken from the sources
+it was found in; sent after the selection changed, it builds an output
+from material the user has just deselected.
+
+**Rejected alternative:** relying on rag's refusal alone. Rejected
+because the user would learn of the mismatch only after pressing Create,
+with the old previews still ticked on screen.
+
+## Passages a judge added to a claim are marked, after the badge in a report
+
+**Id:** eadfbcea-bc22-45a3-98be-c81524886d9e
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer request for the judge's "supported elsewhere", 2026-10-15; how to show the added passages was this directory's call
+**Revisit when:** rag starts writing added citations into the generated text itself
+
+When a judge finds a claim backed by a passage it did not cite, rag
+adds the passage (`judge.added_refs`, `added_by: "judge"`) and the
+verdict reads "supported · citation added", counted as supported. Each
+added number carries a small green dot and "added by the judge"; in a
+report they follow the judge's badge as "also found in [n]", elsewhere
+the claim's own marker is marked, and so is the passage in the Sources
+list.
+
+**Reason:** the user should see which support the model wrote and which
+the judge found afterwards. A report's Markdown keeps the generator's
+markers, so the added ones cannot appear in the text without rewriting
+it.
+
+**Rejected alternative:** inserting the added markers into the report's
+text. Rejected because it would change the generated document and the
+check's units, which are matched by their exact text.
