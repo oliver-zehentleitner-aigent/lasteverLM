@@ -962,3 +962,40 @@ it ships off and runs only after the dry run has been looked at.
 - A beat thread without a cap: a job hung in a live process (a socket
   without a timeout, a deadlock) would hold its claim forever and never
   be taken over.
+
+## A stopping worker finishes its job while its grace allows, then hands it over at a step
+
+**Id:** 924c4527-f045-4167-b725-a2535077fb21
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (a rollout at 22:19 killed a running quiz and infographic mid-judge; the takeover came only after the 10-minute stale claim and started from scratch, so they looked hung for 20 minutes and paid twice; "self-healing must be fast and cheap"; more time at deploy so jobs finish; hand over only when the remaining grace drops below one call's worst case; read the grace from the chart; rejected: restart from scratch, wait for the stale claim); handing over at a step boundary rather than cutting a call is rag's
+**Revisit when:** resuming from checkpoints exists (a handover then costs little, and an earlier handover may be worth it), the worker's request timeout or retries change (the worst case of one call moves), or handovers show up in most deploys (the grace is too short for the jobs)
+
+On SIGTERM the worker claims nothing new and its running job goes on.
+Once less than one model request's worst case (180 s, tried three times)
+is left of the grace period, read from `WORKER_GRACE_SECONDS` as the
+chart sets it, the job is handed over before its next model call. The
+claim is cleared only while this worker still holds it
+(f66cce4e-fcf8-49f1-b78a-59721117980c), the phase reads "handing over",
+the attempt is not counted, and the attempt log says why. Another worker
+claims it at its next poll. With the grace about as long as the longest
+job, a deploy normally lets every job finish on its own pod; the
+handover is the safety net.
+
+**Reason:** a killed job is noticed only when its claim goes stale, ten
+minutes later, and then starts over: the user sees a job that seems to
+hang and pays again for calls already made. Finishing on the stopping
+pod costs nothing and repeats nothing. Where the grace cannot cover the
+rest, releasing the claim at a step boundary gets the job going
+elsewhere within seconds. The boundary is before a model call, so no
+paid request is cut off half way. Reading the grace from the chart
+keeps the deadline right when infra changes it, instead of a guess in
+the code.
+
+**Rejected alternatives:**
+- Restart from scratch after a kill (the behaviour before): looks hung,
+  and every call already made is paid again.
+- Waiting for the stale claim: ten minutes in which nothing happens.
+- Handing over at once on SIGTERM: until steps are checkpointed, the
+  next worker regenerates, so the paid work is thrown away.
