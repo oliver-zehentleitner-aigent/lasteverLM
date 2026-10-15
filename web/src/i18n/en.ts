@@ -1122,6 +1122,7 @@ export const en = {
   'phase.retry': 'Another attempt follows',
   'phase.retryN': 'Attempt {n} of {of} follows ({error})',
   'phase.retryOnly': 'Attempt {n} of {of} follows',
+  'audio.playFrom': 'Play from here',
 } as const
 
 export type MessageKey = keyof typeof en

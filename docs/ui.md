@@ -376,7 +376,11 @@ opens the notebook.
   card grid, audio as a player with the transcript under it (a
   narrator's paragraphs as text; a conversation or an FAQ with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
-  none). **Flashcards** one card at a time: "Card 3 of 15" over a large
+  none). The player stays at the top while the transcript scrolls. With
+  per-entry times (`start`, `end` in seconds within the MP3) the entry
+  being spoken is marked and kept in view as it plays, and a click (or
+  Enter) on an entry plays from its start; a citation marker in it stays
+  a citation. Older audio without times marks nothing. **Flashcards** one card at a time: "Card 3 of 15" over a large
   card that a click (or Space or Enter, with the cards focused) turns
   between front and back; ← and → (buttons and keys) move, wrapping;
   **Shuffle** mixes the order. A card with a hint offers "Show a hint"

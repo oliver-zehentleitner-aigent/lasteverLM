@@ -1125,4 +1125,5 @@ export const de: Record<MessageKey, string> = {
   'phase.retry': 'Ein weiterer Versuch folgt',
   'phase.retryN': 'Versuch {n} von {of} folgt ({error})',
   'phase.retryOnly': 'Versuch {n} von {of} folgt',
+  'audio.playFrom': 'Ab hier abspielen',
 }
