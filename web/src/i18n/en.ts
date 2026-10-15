@@ -1123,6 +1123,8 @@ export const en = {
   'phase.retryN': 'Attempt {n} of {of} follows ({error})',
   'phase.retryOnly': 'Attempt {n} of {of} follows',
   'audio.playFrom': 'Play from here',
+  'set.judgeDefault': 'Judge by default',
+  'set.judgeDefaultHint': 'New outputs start with this level; you can change it per output.',
 } as const
 
 export type MessageKey = keyof typeof en

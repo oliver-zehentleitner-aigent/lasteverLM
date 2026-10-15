@@ -597,6 +597,8 @@ export interface Preferences {
   theme?: 'system' | 'light' | 'dark' | null
   /** the first-login introduction was finished or skipped; absent from an older account service */
   tour_done?: boolean
+  /** the judge level new outputs start with; "off" by default, absent from an older account service */
+  judge_default?: JudgeLevel | null
 }
 
 /** user: the app only; viewer: reads the admin panel; admin: everything */

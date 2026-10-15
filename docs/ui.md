@@ -503,7 +503,10 @@ library source stays in the trash (1–365, empty for 14), and how PDFs
 are read by default (Auto, Text or Vision). Saved together with
 `PUT /api/account/me/preferences`; an empty choice clears the value.
 The preferred language and voice are preselected in the output options
-and used by the wizard, which has no option menus. The interface
+and used by the wizard, which has no option menus. **Judge by default**
+(off, low, medium, high, with each level's model; `judge_default`)
+preselects the judge option of new outputs when rag offers that level;
+changing it for one output does not change the preference. The interface
 language is stored here and applied by the translation layer. The
 shared demo account cannot change settings (403, shown as the
 service's sentence).

@@ -128,6 +128,13 @@ describe('the judge option', () => {
     expect(buildOptions('report', judged, v)).toEqual({})
     expect(buildOptions('report', judged, { ...v, judge: 'medium' })).toEqual({ judge: 'medium' })
   })
+
+  it('starts from the user\'s default when rag offers that level', () => {
+    const prefs = { ui_language: null, output_language: null, audio_voice: null, judge_default: 'high' as const }
+    expect(defaultValues(judged, prefs).judge).toBe('high')
+    const fewer = { ...judged, judge: { ...judged.judge!, levels: ['off', 'low'] } } as OutputOptionsSpec
+    expect(defaultValues(fewer, prefs).judge).toBe('off')
+  })
 })
 
 describe('twoVoices', () => {
