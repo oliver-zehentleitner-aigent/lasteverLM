@@ -26,8 +26,7 @@ def run(name: str = "fixture") -> tuple[list[dict[str, Any]], float]:
     cases = json.loads((HERE / f"{name}.json").read_text())["cases"]
     started = time.monotonic()
     results = [
-        {**c, "flagged": contradicts(c["unit"], [c["passage"]], c["language"])}
-        for c in cases
+        {**c, "flagged": contradicts(c["unit"], [c["passage"]], c["language"])} for c in cases
     ]
     return results, time.monotonic() - started
 
@@ -44,7 +43,10 @@ def report(results: list[dict[str, Any]], seconds: float) -> str:
             f"| {language or 'all'} | {hits}/{len(real)} ({hits / len(real):.0%}) "
             f"| {false}/{len(traps)} ({false / len(traps):.0%}) |"
         )
-    out = ["| language | contradictions flagged | traps flagged (false positives) |", "|---|---|---|"]
+    out = [
+        "| language | contradictions flagged | traps flagged (false positives) |",
+        "|---|---|---|",
+    ]
     out += lines
     by_category: dict[tuple[str, str], list[bool]] = defaultdict(list)
     for r in results:

@@ -35,8 +35,12 @@ ALIGN_THRESHOLD = 0.5
 MODELS = {"en": "en_core_web_sm", "de": "de_core_news_sm"}
 # negators the small models leave unlabeled, by lemma (a closed class)
 NEGATORS = {
-    "en": frozenset({"no", "none", "nothing", "nobody", "nowhere", "neither", "nor", "never", "without"}),
-    "de": frozenset({"kein", "keine", "nichts", "niemand", "nie", "niemals", "nirgends", "weder", "ohne"}),
+    "en": frozenset(
+        {"no", "none", "nothing", "nobody", "nowhere", "neither", "nor", "never", "without"}
+    ),
+    "de": frozenset(
+        {"kein", "keine", "nichts", "niemand", "nie", "niemals", "nirgends", "weder", "ohne"}
+    ),
 }
 # a negator on one of these ("not only", "nicht nur") scopes the particle
 FOCUS = frozenset({"only", "just", "merely", "nur", "bloß", "lediglich"})
@@ -136,8 +140,10 @@ def clauses(sentence: str, language: str) -> list[Clause]:
             continue
         negator = _is_negator(token, language)
         # a negator and what it modifies ("no longer") are not arguments
-        if token.pos_ in CONTENT_POS and not negator and not any(
-            _is_negator(c, language) for c in token.children if token.pos_ == "ADV"
+        if (
+            token.pos_ in CONTENT_POS
+            and not negator
+            and not any(_is_negator(c, language) for c in token.children if token.pos_ == "ADV")
         ):
             words[clause.i].add(token.lemma_.lower())
         if negator:
@@ -228,7 +234,7 @@ def _same_subject(a: Clause, b: Clause) -> bool:
 
 
 def _litotes(a: Clause, b: Clause) -> bool:
-    """"not uncommon" over "common": a negated prefixed predicate whose stem
+    """ "not uncommon" over "common": a negated prefixed predicate whose stem
     the other clause states."""
     return (a.prefixed is not None and a.prefixed == b.predicate) or (
         b.prefixed is not None and b.prefixed == a.predicate
