@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from lasteverlm_ingest.api.deps import worker_deps
 from lasteverlm_ingest.auth import CurrentUser
 from lasteverlm_ingest.repository import LibrarySource
+from lasteverlm_ingest.worker import WorkerDeps
 
 router = APIRouter()
 
@@ -263,6 +264,37 @@ def _unread(p: _Pricing, lib: LibrarySource, max_pages: int) -> tuple[Decimal, D
     return Decimal(0), Decimal(0), lib.kind
 
 
+def pricing_for(deps: WorkerDeps) -> _Pricing:
+    """The prices, the current pricing rules and the models a read uses."""
+    inference = deps.settings.inference
+    return _Pricing(
+        rules=deps.repository.pricing_rules(),
+        prices=deps.settings.model_prices,
+        models={
+            "embedding": inference.embedding_model,
+            "llm": inference.llm_model,
+            "stt": inference.stt_model,
+        },
+        summary_in=deps.settings.summary_input_tokens,
+        summary_out=deps.settings.summary_max_tokens,
+    )
+
+
+def estimate_read(
+    pricing: _Pricing, lib: LibrarySource, refetch: bool, max_pages: int
+) -> tuple[Decimal, Decimal, str]:
+    """What reading `lib` would charge, (min, max, basis): an unread one
+    from what is stored about it, a web page fetched again as up to one
+    web page, anything read already nothing. Raises
+    `ExchangeRateMissingError` without a rate."""
+    if lib.status == "added":
+        return _unread(pricing, lib, max_pages)
+    if refetch and lib.kind == "url":
+        high = pricing.charge("source:url", _embed(WEB_PAGE_TOKENS), WEB_PAGE_TOKENS)
+        return Decimal(0), high, "re-read if changed"
+    return Decimal(0), Decimal(0), "read already"
+
+
 @router.post("/sources/estimate", response_model=SourcesEstimate)
 def estimate_sources(
     request: Request, user: CurrentUser, body: SourcesEstimateRequest
@@ -284,34 +316,16 @@ def estimate_sources(
         raise HTTPException(
             status_code=404, detail=f"library sources not found: {', '.join(missing)}"
         )
-    inference = deps.settings.inference
-    pricing = _Pricing(
-        rules=repo.pricing_rules(),
-        prices=deps.settings.model_prices,
-        models={
-            "embedding": inference.embedding_model,
-            "llm": inference.llm_model,
-            "stt": inference.stt_model,
-        },
-        summary_in=deps.settings.summary_input_tokens,
-        summary_out=deps.settings.summary_max_tokens,
-    )
+    pricing = pricing_for(deps)
     refetch = set(body.refetch)
     items = []
     try:
         for library_id in ids:
             lib = found[library_id]
             assert lib is not None
-            if lib.status == "added":
-                low, high, basis = _unread(pricing, lib, deps.settings.pdf_vision_max_pages)
-            elif library_id in refetch and lib.kind == "url":
-                calls = _embed(WEB_PAGE_TOKENS)
-                low = Decimal(0)
-                high = pricing.charge("source:url", calls, WEB_PAGE_TOKENS)
-                basis = "re-read if changed"
-            else:
-                low = high = Decimal(0)
-                basis = "read already"
+            low, high, basis = estimate_read(
+                pricing, lib, library_id in refetch, deps.settings.pdf_vision_max_pages
+            )
             items.append(
                 SourceEstimate(
                     library_id=library_id,

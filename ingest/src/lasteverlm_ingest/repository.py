@@ -21,6 +21,7 @@ import json
 import logging
 import secrets
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
@@ -34,9 +35,11 @@ from lasteverlm_core import (
     Source,
     Usage,
     UsageRecord,
+    balance_sql,
     funded_sql,
 )
 from lasteverlm_core import admin_role as core_admin_role
+from lasteverlm_core import balance_cents as core_balance_cents
 from lasteverlm_core import has_credit as core_has_credit
 from lasteverlm_core import record_usage as core_record_usage
 from pydantic import BaseModel, ConfigDict, Field
@@ -70,6 +73,8 @@ class StoredSource(Source):
     fetched_at: datetime | None = None
     final_url: str | None = None
     checked_at: datetime | None = None
+    funded_request_at: datetime | None = Field(default=None, exclude=True)
+    funded_cents: Decimal | None = Field(default=None, exclude=True)
     snapshot_path: str | None = None
     transcribed_path: str | None = None
 
@@ -106,6 +111,8 @@ class LibrarySource(BaseModel):
     snapshot_path: str | None = None
     final_url: str | None = None
     checked_at: datetime | None = None
+    funded_request_at: datetime | None = None
+    funded_cents: Decimal | None = None
 
 
 class NotebookUse(BaseModel):
@@ -158,6 +165,8 @@ class LibraryEntry(BaseModel):
     fetched_at: datetime | None = None
     final_url: str | None = None
     checked_at: datetime | None = None
+    funded_request_at: datetime | None = Field(default=None, exclude=True)
+    funded_cents: Decimal | None = Field(default=None, exclude=True)
     snapshot_path: str | None = Field(default=None, exclude=True)
     notebooks: list[NotebookUse]
     origin: Origin | None = None
@@ -191,6 +200,8 @@ class TrashEntry(BaseModel):
     fetched_at: datetime | None = None
     final_url: str | None = None
     checked_at: datetime | None = None
+    funded_request_at: datetime | None = Field(default=None, exclude=True)
+    funded_cents: Decimal | None = Field(default=None, exclude=True)
     snapshot_path: str | None = Field(default=None, exclude=True)
     preview_url: str | None = None
     original_url: str | None = None
@@ -331,7 +342,9 @@ class Repository(Protocol):
         again when it is used."""
         ...
 
-    def request_refetch(self, library_id: UUID) -> LibrarySource | None:
+    def request_refetch(
+        self, library_id: UUID, estimate_cents: Decimal | None = None, funded: bool = False
+    ) -> LibrarySource | None:
         """Ask for a web page to be fetched again: a read current version
         goes to `processing` with `refetch_requested_at` set (the worker
         compares and either keeps it or makes a new version); an unread or
@@ -369,11 +382,19 @@ class Repository(Protocol):
         Returns the new id."""
         ...
 
-    def queue_for_processing(self, owner: UUID, library_ids: list[UUID]) -> ProcessResult:
+    def queue_for_processing(
+        self,
+        owner: UUID,
+        library_ids: list[UUID],
+        estimates: dict[UUID, Decimal] | None = None,
+        funded: bool = False,
+    ) -> ProcessResult:
         """Move the owner's `added` library sources to `processing`, so a
         worker reads them; the others are left as they are. When any id is
         not the owner's (unknown, someone else's, trashed), nothing is
-        queued and those ids are `missing`."""
+        queued and those ids are `missing`. Each queued row stores its
+        estimated maximum (`funded_cents`); `funded` marks them funded at
+        request (`funded_request_at`)."""
         ...
 
     def is_seeded(self, owner: UUID) -> bool:
@@ -509,6 +530,15 @@ class Repository(Protocol):
     def has_exchange_rate(self) -> bool:
         """Do the pricing rules (account's settings row, cached 30 s) have
         `usd_per_eur`: without it no model call can be booked."""
+        ...
+
+    def balance_cents(self, user_id: UUID) -> Decimal:
+        """The user's balance (core's: credits minus charges)."""
+        ...
+
+    def funded_waiting_cents(self, owner: UUID) -> Decimal:
+        """What the owner's funded reads still waiting hold of the balance:
+        the sum of their estimated maxima."""
         ...
 
     def has_credit(self, user_id: UUID) -> bool:
@@ -669,7 +699,7 @@ class PostgresRepository:
         "select s.id, s.notebook_id, l.name, l.kind, l.status, l.error, s.created_at, "
         "l.id as library_id, l.owner, l.storage_path, l.url, l.summary, l.attempts, l.size_bytes, "
         "l.capture, l.starter, l.transcribed_path, l.version, l.fetched_at, l.final_url, "
-        "l.checked_at, l.snapshot_path "
+        "l.checked_at, l.snapshot_path, l.funded_request_at, l.funded_cents "
         "from sources s join library_sources l on l.id = s.library_source_id"
     )
 
@@ -775,13 +805,25 @@ class PostgresRepository:
     _LISTED = "l.kind <> 'generated'"
     # May the worker process this row: its owner has a positive balance
     # (core's expression: credits minus charges).
-    _FUNDED = funded_sql("l.owner")
+    # or its read was funded when it was asked for (funded_request_at), or
+    # the balance, less what the owner's funded reads still waiting hold,
+    # covers this read's estimated maximum (funded_cents, stored when it
+    # was queued; 0 for rows queued before estimates existed).
+    _HELD = (
+        "coalesce((select sum(f.funded_cents) from library_sources f "
+        "where f.owner = l.owner and f.funded_request_at is not null "
+        "and f.status = 'processing' and f.deleted_at is null and f.id <> l.id), 0)"
+    )
+    _FUNDED = (
+        f"(l.funded_request_at is not null or ({funded_sql('l.owner')} and "
+        f"{balance_sql('l.owner')} - {_HELD} >= coalesce(l.funded_cents, 0)))"
+    )
     _LIBRARY_COLUMNS = (
         "l.id, l.owner, l.name, l.kind, l.dedupe_key, l.url, l.size_bytes, l.storage_path, "
         "l.status, l.error, l.summary, l.attempts, l.created_at, l.deleted_at, l.capture, "
         "l.starter, l.transcribed_path, l.page_count, l.duration_seconds, l.version, "
         "l.fetched_at, l.content_hash, l.refetch_requested_at, l.superseded_by, "
-        "l.snapshot_path, l.final_url, l.checked_at"
+        "l.snapshot_path, l.final_url, l.checked_at, l.funded_request_at, l.funded_cents"
     )
     # Library sources in the library (not in the trash).
     # Older versions of a web page are kept read-only, out of every list.
@@ -828,14 +870,18 @@ class PostgresRepository:
         assert found is not None
         return found
 
-    def request_refetch(self, library_id: UUID) -> LibrarySource | None:
+    def request_refetch(
+        self, library_id: UUID, estimate_cents: Decimal | None = None, funded: bool = False
+    ) -> LibrarySource | None:
         row = self._one(
             "update library_sources set status = 'processing', error = null, attempts = 0, "
             "retry_at = null, claimed_at = null, claimed_by = null, "
-            "refetch_requested_at = case when status = 'ready' then now() end "
+            "refetch_requested_at = case when status = 'ready' then now() end, "
+            "funded_request_at = case when %(funded)s then now() end, "
+            "funded_cents = %(estimate)s::numeric "
             "where id = %(id)s and kind = 'url' and superseded_by is null "
             "and deleted_at is null and status in ('ready', 'added', 'failed') returning id",
-            {"id": library_id},
+            {"id": library_id, "funded": funded, "estimate": estimate_cents},
         )
         return self.get_library_source(library_id) if row else None
 
@@ -869,6 +915,7 @@ class PostgresRepository:
             cur.execute(
                 "update library_sources set status = 'ready', checked_at = now(), "
                 "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null, "
+                "funded_request_at = null, funded_cents = null, "
                 "snapshot_path = coalesce(snapshot_path, %(snap)s), "
                 "final_url = coalesce(final_url, %(final)s) "
                 "where id = %(id)s",
@@ -880,23 +927,32 @@ class PostgresRepository:
         with self._pool.connection() as conn, conn.cursor() as cur:
             # The dedupe key is unique per owner: the old row gives it up first.
             cur.execute(
-                "select dedupe_key from library_sources where id = %(id)s for update",
+                "select dedupe_key, funded_request_at, funded_cents from library_sources "
+                "where id = %(id)s for update",
                 {"id": library_id},
             )
             row = cur.fetchone()
-            key = row[0] if row else None
+            key, funded_at, funded = row if row else (None, None, None)
             cur.execute(
                 "update library_sources set dedupe_key = null, status = 'ready', "
-                "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null "
+                "refetch_requested_at = null, claimed_at = null, claimed_by = null, error = null, "
+                "funded_request_at = null, funded_cents = null "
                 "where id = %(id)s",
                 {"id": library_id},
             )
             cur.execute(
                 "insert into library_sources (id, owner, name, kind, dedupe_key, url, size_bytes, "
-                "storage_path, starter, status, version) "
+                "storage_path, starter, status, version, funded_request_at, funded_cents) "
                 "select %(new)s, owner, name, kind, %(key)s, url, size_bytes, storage_path, "
-                "starter, 'processing', version + 1 from library_sources where id = %(id)s",
-                {"new": new_id, "id": library_id, "key": key},
+                "starter, 'processing', version + 1, %(funded_at)s, %(funded)s "
+                "from library_sources where id = %(id)s",
+                {
+                    "new": new_id,
+                    "id": library_id,
+                    "key": key,
+                    "funded_at": funded_at,
+                    "funded": funded,
+                },
             )
             cur.execute(
                 "update library_sources set superseded_by = %(new)s where id = %(id)s",
@@ -908,7 +964,13 @@ class PostgresRepository:
             )
         return new_id
 
-    def queue_for_processing(self, owner: UUID, library_ids: list[UUID]) -> ProcessResult:
+    def queue_for_processing(
+        self,
+        owner: UUID,
+        library_ids: list[UUID],
+        estimates: dict[UUID, Decimal] | None = None,
+        funded: bool = False,
+    ) -> ProcessResult:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 "select l.id from library_sources l where l.id = any(%(ids)s) "
@@ -925,6 +987,14 @@ class PostgresRepository:
                 {"ids": library_ids},
             )
             queued = {row[0] for row in cur.fetchall()}
+            for library_id, cents in (estimates or {}).items():
+                if library_id in queued:
+                    cur.execute(
+                        "update library_sources set funded_cents = %(cents)s, "
+                        "funded_request_at = case when %(funded)s then now() end "
+                        "where id = %(id)s",
+                        {"id": library_id, "cents": cents, "funded": funded},
+                    )
         return ProcessResult(
             queued=[i for i in library_ids if i in queued],
             unchanged=[i for i in library_ids if i not in queued],
@@ -1066,7 +1136,7 @@ class PostgresRepository:
     _LIBRARY_ENTRIES = f"""
     select l.id, l.name, l.kind, l.status, l.error, l.size_bytes, l.url, l.created_at,
            l.capture, l.starter, l.storage_path, l.transcribed_path, l.version, l.fetched_at,
-           l.final_url, l.checked_at, l.snapshot_path,
+           l.final_url, l.checked_at, l.snapshot_path, l.funded_request_at, l.funded_cents,
            coalesce(json_agg(json_build_object('id', n.id, 'title', n.title, 'source_id', s.id)
                              order by s.created_at) filter (where s.id is not null),
                     '[]') as notebooks
@@ -1183,8 +1253,13 @@ class PostgresRepository:
 
     def set_library_status(self, library_id: UUID, status: str, error: str | None = None) -> None:
         with self._pool.connection() as conn, conn.cursor() as cur:
+            # A read that ends (ready or failed) gives back what it held.
             cur.execute(
-                "update library_sources set status = %(status)s, error = %(error)s "
+                "update library_sources set status = %(status)s, error = %(error)s, "
+                "funded_request_at = case when %(status)s in ('ready', 'failed') then null "
+                "else funded_request_at end, "
+                "funded_cents = case when %(status)s in ('ready', 'failed') then null "
+                "else funded_cents end "
                 "where id = %(id)s",
                 {"status": status, "error": error, "id": library_id},
             )
@@ -1337,6 +1412,19 @@ class PostgresRepository:
     def has_exchange_rate(self) -> bool:
         with self._pool.connection() as conn:
             return self._rules.current(conn).usd_per_eur is not None
+
+    def balance_cents(self, user_id: UUID) -> Decimal:
+        with self._pool.connection() as conn:
+            return Decimal(core_balance_cents(conn, user_id))
+
+    def funded_waiting_cents(self, owner: UUID) -> Decimal:
+        row = self._one(
+            "select coalesce(sum(funded_cents), 0) as held from library_sources "
+            "where owner = %(owner)s and funded_request_at is not null "
+            "and status = 'processing' and deleted_at is null",
+            {"owner": owner},
+        )
+        return Decimal(row["held"]) if row else Decimal(0)
 
     def has_credit(self, user_id: UUID) -> bool:
         with self._pool.connection() as conn:

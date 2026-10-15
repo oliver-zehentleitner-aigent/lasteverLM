@@ -312,11 +312,12 @@ def _may_call(repo: Repository, source: LibrarySource) -> None:
 
 
 def _may_start(repo: Repository, source: LibrarySource) -> None:
-    """Checked once, before a read starts: without credit the source waits.
+    """Checked once, before a read starts: without credit the source waits,
+    unless its read was funded when it was asked for (see api/funding.py).
     Once started, a read finishes and books every call even if the balance
     goes below zero on the way; the owner's next read waits until it is
     positive again."""
-    if not _has_credit(repo, source):
+    if source.funded_request_at is None and not _has_credit(repo, source):
         raise WaitForCredit
 
 

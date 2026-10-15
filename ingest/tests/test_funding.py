@@ -1,0 +1,79 @@
+"""A read is funded when it is asked for: if the balance covers its
+estimated maximum plus the owner's other funded reads still waiting, it
+is marked and later read whatever the balance is by then."""
+
+from decimal import Decimal
+from uuid import UUID
+
+from lasteverlm_core import DEMO_USER_ID
+
+
+def _add(client, name, size=3000):
+    nb = client.post("/api/ingest/notebooks", json={"title": "nb"}).json()["id"]
+    url = f"/api/ingest/notebooks/{nb}/sources"
+    r = client.post(url, files={"file": (name, b"x" * size, "text/plain")}).json()
+    return r["library_id"], url
+
+
+def _process(client, *ids):
+    r = client.post("/api/ingest/sources/process", json={"library_ids": list(ids)})
+    assert r.status_code == 200
+    return r.json()
+
+
+def test_funded_at_request_is_read_after_the_balance_went_negative(client, repo, run_queue):
+    lib, url = _add(client, "a.txt")
+    _process(client, lib)
+    row = repo.library[UUID(lib)]
+    assert row.funded_request_at is not None and row.funded_cents > 0
+    # Something else spent the balance before a worker came to it.
+    repo.credits[DEMO_USER_ID] = -5
+    assert [s["status"] for s in client.get(url).json()] == ["processing"]  # not waiting
+    assert run_queue() == 1
+    done = repo.library[UUID(lib)]
+    assert done.status == "ready" and done.funded_request_at is None and done.funded_cents is None
+
+
+def test_requested_at_zero_waits(client, repo):
+    lib, url = _add(client, "a.txt")
+    repo.credits[DEMO_USER_ID] = 0
+    _process(client, lib)
+    assert repo.library[UUID(lib)].funded_request_at is None
+    assert [s["status"] for s in client.get(url).json()] == ["waiting_for_credit"]
+    assert repo.claim_library_source("w", 600) is None
+
+
+def test_a_balance_below_the_estimate_does_not_fund_the_request(client, repo):
+    lib, url = _add(client, "big.txt", size=4000)
+    repo.credits[DEMO_USER_ID] = Decimal("0.0001")  # positive, but far below the estimate
+    _process(client, lib)
+    assert repo.library[UUID(lib)].funded_request_at is None
+    assert repo.claim_library_source("w", 600) is None
+
+
+def test_funded_work_still_waiting_counts_against_the_next_request(client, repo):
+    first, _ = _add(client, "a.txt")
+    second, _ = _add(client, "b.txt", size=3001)
+    estimate = client.post(
+        "/api/ingest/sources/estimate", json={"library_ids": [first, second]}
+    ).json()["items"]
+    one = Decimal(estimate[0]["charge_cents_max"])
+    # Enough for one read, not for two.
+    repo.credits[DEMO_USER_ID] = one * Decimal("1.5")
+    _process(client, first)
+    _process(client, second)
+    assert repo.library[UUID(first)].funded_request_at is not None
+    assert repo.library[UUID(second)].funded_request_at is None
+    assert repo.funded_waiting_cents(DEMO_USER_ID) == repo.library[UUID(first)].funded_cents
+
+
+def test_a_refetch_is_funded_and_a_new_version_keeps_the_funding(client, repo):
+    nb = client.post("/api/ingest/notebooks", json={"title": "nb"}).json()["id"]
+    r = client.post(f"/api/ingest/notebooks/{nb}/sources", json={"url": "https://x.test/"}).json()
+    lib = UUID(r["library_id"])
+    repo.set_library_status(lib, "ready")
+    assert client.post(f"/api/ingest/sources/{r['id']}/refetch").status_code == 202
+    held = repo.library[lib].funded_cents
+    assert repo.library[lib].funded_request_at is not None and held > 0
+    new = repo.new_version(lib)
+    assert repo.library[new].funded_cents == held and repo.library[lib].funded_cents is None

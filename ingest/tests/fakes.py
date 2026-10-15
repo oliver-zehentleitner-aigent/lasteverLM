@@ -206,6 +206,8 @@ class InMemoryRepository:
             size_bytes=lib.size_bytes,
             capture=lib.capture,
             starter=lib.starter,
+            funded_request_at=lib.funded_request_at,
+            funded_cents=lib.funded_cents,
             version=lib.version,
             fetched_at=lib.fetched_at,
             final_url=lib.final_url,
@@ -254,7 +256,7 @@ class InMemoryRepository:
         assert self.library[lib.library_id].owner == owner
         return lib.library_id
 
-    def request_refetch(self, library_id):
+    def request_refetch(self, library_id, estimate_cents=None, funded=False):
         lib = self.library.get(library_id)
         if (
             lib is None
@@ -270,6 +272,8 @@ class InMemoryRepository:
                 "error": None,
                 "attempts": 0,
                 "refetch_requested_at": datetime.now(UTC) if lib.status == "ready" else None,
+                "funded_request_at": datetime.now(UTC) if funded else None,
+                "funded_cents": estimate_cents,
             }
         )
         self.claimed.pop(library_id, None)
@@ -295,6 +299,8 @@ class InMemoryRepository:
                 "checked_at": datetime.now(UTC),
                 "refetch_requested_at": None,
                 "error": None,
+                "funded_request_at": None,
+                "funded_cents": None,
                 "snapshot_path": lib.snapshot_path or snapshot_path,
                 "final_url": lib.final_url or final_url,
             }
@@ -326,6 +332,8 @@ class InMemoryRepository:
                 "status": "ready",
                 "refetch_requested_at": None,
                 "superseded_by": new_id,
+                "funded_request_at": None,
+                "funded_cents": None,
             }
         )
         self.claimed.pop(library_id, None)
@@ -334,7 +342,7 @@ class InMemoryRepository:
                 self.links[link_id] = (nb, new_id, created)
         return new_id
 
-    def queue_for_processing(self, owner, library_ids):
+    def queue_for_processing(self, owner, library_ids, estimates=None, funded=False):
         missing = [
             i
             for i in library_ids
@@ -346,7 +354,13 @@ class InMemoryRepository:
         for library_id in library_ids:
             lib = self.library[library_id]
             if lib.status == "added":
-                self.library[library_id] = lib.model_copy(update={"status": "processing"})
+                update = {"status": "processing"}
+                if estimates and library_id in estimates:
+                    update |= {
+                        "funded_cents": estimates[library_id],
+                        "funded_request_at": datetime.now(UTC) if funded else None,
+                    }
+                self.library[library_id] = lib.model_copy(update=update)
                 result.queued.append(library_id)
             else:
                 result.unchanged.append(library_id)
@@ -482,6 +496,8 @@ class InMemoryRepository:
             created_at=lib.created_at,
             capture=lib.capture,
             starter=lib.starter,
+            funded_request_at=lib.funded_request_at,
+            funded_cents=lib.funded_cents,
             version=lib.version,
             fetched_at=lib.fetched_at,
             final_url=lib.final_url,
@@ -592,9 +608,10 @@ class InMemoryRepository:
         return uses[0][1] if uses else None
 
     def set_library_status(self, library_id: UUID, status: str, error: str | None = None) -> None:
-        self.library[library_id] = self.library[library_id].model_copy(
-            update={"status": status, "error": error}
-        )
+        update = {"status": status, "error": error}
+        if status in ("ready", "failed"):
+            update |= {"funded_request_at": None, "funded_cents": None}
+        self.library[library_id] = self.library[library_id].model_copy(update=update)
 
     def release_for_retry(self, library_id: UUID, error: str, delay_seconds: float) -> None:
         self.library[library_id] = self.library[library_id].model_copy(update={"error": error})
@@ -620,7 +637,7 @@ class InMemoryRepository:
                 and lib.id not in self.claimed
                 and lib.attempts < MAX_ATTEMPTS
                 and self.retry_at.get(lib.id, datetime.min.replace(tzinfo=UTC)) <= datetime.now(UTC)
-                and self.has_credit(lib.owner)
+                and self._fundable(lib)
             ):
                 self.claimed[lib.id] = worker_id
                 self.library[lib.id] = lib.model_copy(update={"attempts": lib.attempts + 1})
@@ -687,6 +704,28 @@ class InMemoryRepository:
     def has_exchange_rate(self) -> bool:
         return self.rules.usd_per_eur is not None
 
+    def _fundable(self, lib):
+        """The claim query's rule: funded at request, or the balance less what
+        other funded reads hold covers this read's estimate."""
+        if lib.funded_request_at is not None:
+            return True
+        held = self.funded_waiting_cents(lib.owner)  # this row is not funded
+        balance = self.balance_cents(lib.owner)
+        return balance > 0 and balance - held >= (lib.funded_cents or 0)
+
+    def funded_waiting_cents(self, owner):
+        return sum(
+            (
+                lib.funded_cents or Decimal(0)
+                for lib in self.library.values()
+                if lib.owner == owner
+                and lib.funded_request_at is not None
+                and lib.status == "processing"
+                and lib.deleted_at is None
+            ),
+            Decimal(0),
+        )
+
     def has_credit(self, user_id: UUID) -> bool:
         # core's rule: a positive balance, for every user alike (admins too).
         return self.balance_cents(user_id) > 0
@@ -705,9 +744,7 @@ class InMemoryRepository:
         waiting = sum(
             1
             for lib in listed
-            if lib.status == "processing"
-            and lib.id not in self.claimed
-            and not self.has_credit(lib.owner)
+            if lib.status == "processing" and lib.id not in self.claimed and not self._fundable(lib)
         )
         return AdminStats(
             sources=counts,
