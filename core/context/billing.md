@@ -183,8 +183,8 @@ change left for after the finance work.
 **Status:** active
 **Evidence:** confirmed
 **Source:** the account service's price list as implemented, 2026-10-15, after the maintainer chose per-unit estimates and per-page source prices
-**Verification:** corroborated — re-checked 2026-10-15 against account's `service.py`: rows come from rag's and ingest's estimate endpoints, `USAGE_ACTION_UNITS` is used to decide which observed actions count, and `charge_for` turns their observed costs into the typical range
-**Revisit when:** the price list needs a unit core should own (a per-page count in the usage rows), or `USAGE_ACTION_UNITS` is dropped or aligned with the units the list shows
+**Verification:** corroborated — re-checked 2026-10-15 after core's units were aligned with the list, and before that against account's `service.py`: rows come from rag's and ingest's estimate endpoints, `USAGE_ACTION_UNITS` is used to decide which observed actions count, and `charge_for` turns their observed costs into the typical range
+**Revisit when:** the price list needs a unit core should own from history (a per-page count in the usage rows), or the list and `USAGE_ACTION_UNITS` name a unit differently again
 **See:** https://github.com/oliver-zehentleitner/lasteverLM — 0253c931-53a0-4d42-a934-5503e9d37b62 — as of 2026-10-15
 
 The public price list combines three parts:
@@ -192,7 +192,7 @@ The public price list combines three parts:
 - **Price per unit:** the services' own estimates. rag's estimate gives
   outputs, chat and the judge, ingest's estimate of one nominal unit
   gives sources. Sources are quoted per page, image, audio minute or web
-  page, under unit keys the account service sets itself.
+  page.
 - **Typical range per whole action:** the observed euro costs of the
   last thirty days, put through the current rules with core's
   `charge_for`. So a changed margin shows at once, as before.
@@ -204,8 +204,12 @@ What core keeps for this:
   lists equal);
 - `charge_for`.
 
-The `unit` a source action has in core (`source`) is no longer what the
-list shows. A PDF is no longer quoted per source.
+A PDF is no longer quoted per source. Since 2026-10-15
+`USAGE_ACTION_UNITS` names the same units the list shows (`page` with the
+measure `pages` for text and PDF sources, `image`, `web_page`,
+`audio_minute`), so there is one definition of a unit. Before that, core
+still said `source` for the source actions while the list showed pages,
+and the field was used only as a filter.
 
 **Reason:** the history-only price left most rows empty, because most
 past usage predates the action tags. It also could not price a page it

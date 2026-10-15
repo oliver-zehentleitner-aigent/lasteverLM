@@ -14,6 +14,7 @@ from lasteverlm_core import (
     USAGE_ACTION_UNITS,
     USAGE_ACTIONS,
     USAGE_SQL,
+    ActionUnit,
     ExchangeRateMissingError,
     PricingRules,
     UnpricedModelError,
@@ -73,7 +74,13 @@ def test_every_action_has_a_unit() -> None:
     assert {USAGE_ACTION_UNITS[a].unit for a in seconds} == {"audio_minute"}
     assert USAGE_ACTION_UNITS["chat_answer"].unit == "question"
     assert USAGE_ACTION_UNITS["output:report"].unit == "output"
-    assert USAGE_ACTION_UNITS["source:pdf"].unit == "source"  # per source, not per page
+    # sources as the account service's price list shows them
+    assert USAGE_ACTION_UNITS["source:pdf"] == ActionUnit("page", "pages")
+    assert USAGE_ACTION_UNITS["source:text"] == ActionUnit("page", "pages")
+    assert USAGE_ACTION_UNITS["source:image"] == ActionUnit("image", "action")
+    assert USAGE_ACTION_UNITS["source:url"] == ActionUnit("web_page", "action")
+    assert USAGE_ACTION_UNITS["source:audio"] == ActionUnit("audio_minute", "seconds")
+    assert "source" not in {u.unit for u in USAGE_ACTION_UNITS.values()}
     assert USAGE_ACTION_UNITS["judge"].unit == "check"
 
 
