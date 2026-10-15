@@ -297,6 +297,43 @@ broker, no extra component: PostgreSQL's row locks make any number of
 workers safe, and a dead pod costs at most one retry delay. The API
 only inserts rows and reads status; the frontend polls.
 
+### The life of an output job (`rag/context/outputs.md`, `infra/context/cluster.md`)
+
+A job heals itself when a worker dies or is replaced, quickly and
+without paying twice.
+
+- **Heartbeat.** While a job runs, a background thread refreshes its
+  claim every minute, and every model call and phase change refreshes
+  it too, so a live job is never taken over. The thread stops after
+  `JOB_MAX_SECONDS` (2700 s) and logs it loudly; a job that hangs then
+  goes stale and is taken over.
+- **Fence.** Only the worker that holds the claim may store the result
+  (`finish_output … where claimed_by = worker`). A worker that lost its
+  claim discards what it made, including its generated library row.
+- **Graceful rollout.** A rag worker gets a termination grace of 2760 s
+  (`WORKER_GRACE_SECONDS`, one chart value for both), and the rollout
+  starts new pods first (`maxSurge 1`, `maxUnavailable 0`). On SIGTERM a
+  worker claims nothing new and finishes its job; only when the
+  remaining grace drops below one worst-case model call (540 s) does it
+  hand the job over: claim cleared, phase "handing over", the attempt
+  not counted. Another worker picks it up within seconds.
+- **Resume from a journal.** Every billed model call of a job (the
+  draft, each judge verdict and revision, the decision model, the focus
+  embeddings) is stored in `outputs.checkpoint`, keyed by a hash of its
+  request and an occurrence number. A worker that takes over runs the
+  job from the top and answers known calls from the journal: no
+  provider call, no second usage row. A changed notebook changes the
+  request, so that call is made fresh. Speech segments and the final
+  embedding are not journaled. The journal is capped and cleared when
+  the output is ready or failed.
+- **Orphan sweep.** A generated library row that no output references
+  and that is older than an hour is removed by a sweep; it ships
+  switched off (`ORPHAN_SWEEP`), with a read-only count command
+  (`lasteverlm-rag-orphans`), because switching it on writes to
+  production.
+- **Failed attempts** are kept on the output (`attempt_log`), so the
+  history survives every deploy.
+
 ## Outputs (generated documents)
 
 An output is a document generated from a notebook's sources: a report,

@@ -104,6 +104,11 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   The judge models were chosen by published evaluations
   ([judge](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/judge-eval.md),
   [second judge](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/second-judge-eval.md)).
+  A paragraph the judge does not find in its cited passages is searched
+  for in all selected sources and judged again; if it is found there,
+  it counts as supported with the citation added and marked, and only
+  what is in none of the sources stays unsupported. A contradiction is
+  never searched away: a conflict between sources stays visible.
   With a judge verdict only the judge's badge shows; the word check
   never claims meaning. "Check with a judge" on an existing output or
   chat answer annotates only, runs as a background job and shows its
@@ -117,6 +122,12 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
 - **Every output has an ID**, shown in its head and after every error,
   copied with one click; every failed attempt is stored with it, so
   support finds what happened after any deploy.
+- **Outputs never feed new outputs.** A generated document holds no
+  knowledge its sources do not, so outputs are made from original
+  sources only; the chat can still talk about an output.
+- **Voices:** the defaults per output language come from a listening
+  test (German Dylan and Ono Anna, English Ryan and Vivian), with the
+  recommended voices listed first; a user's own choice always wins.
 - **Outputs belong to the user**, live in the library, survive the
   deletion of the notebook they were made in, and can be added to
   other notebooks as sources.
@@ -241,6 +252,15 @@ rate, so nothing is paid upstream and left unbooked; actions pinned by
 commit with Dependabot, images with provenance and SBOM; code scanning
 at zero open alerts.
 
+## Reliability
+
+Every job heals itself: a running job keeps its claim with a heartbeat,
+only the worker holding it may store the result, a rollout gives
+workers time to finish and hands a job over cleanly when it cannot, and
+a worker that takes over resumes from a journal of the model calls
+already paid, so nothing is paid twice. Details in the
+[architecture](architecture.md).
+
 ## How it was built
 
 One maintainer and seven coding-agent sessions over three days: one
@@ -249,9 +269,9 @@ Every change went through a pull request that was merged only when
 every check had passed; every decision was written down with the
 alternatives it rejected, and is browsable in the
 [Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/).
-More than 450 pull requests and over forty tags; a fix is
+More than 640 pull requests and 80 tags; a fix is
 typically live four minutes after its tag. The
-[walkthrough](walkthrough.md) is the script for a guided tour.
+[walkthrough](walkthrough.md) is the script for a guided tour. The full account, with numbers, is in [How it was built](how-it-was-built.md).
 
 ## Deliberately not built
 

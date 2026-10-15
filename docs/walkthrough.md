@@ -57,13 +57,19 @@ who reads it."
 
 ## 3:00 One output, checked (1 min 30 s)
 
-- Create a short report with the judge on medium. While it runs, the
-  view shows its real step: retrieving, writing, judging round one.
+- Create a short report at verification level "Thorough". While it
+  runs, the view shows its real step: retrieving, writing, judging
+  round one.
 - Open it: every paragraph carries its passages, the word check, and
   the judge's verdict. "The judge is a model of another family than the
   writer. A paragraph it does not find in the sources is revised once
   and judged again; what still fails is removed and listed as removed,
   never hidden."
+- Point at a green "Judge: supported · citation added" badge and its
+  marked citation. "This paragraph cited too little. Before calling it
+  unsupported, the judge searched all selected sources, found the
+  passage and added it. Only what is in none of the sources stays
+  unsupported, and a contradiction is never searched away."
 - "How this was made": model, prompt version, the passages that went
   in, tokens, time and cost.
 - Share: open the link in a private window. "Read-only, no login, with
