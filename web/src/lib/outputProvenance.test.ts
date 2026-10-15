@@ -176,3 +176,12 @@ describe('judge badges in the report', () => {
     expect(html).not.toMatch(/title="[^"]*</)
   })
 })
+
+describe('the negation check', () => {
+  it('badges a possible contradiction and counts it', () => {
+    expect(supportBadge('possible_contradiction')).toBe('possible_contradiction')
+    expect(supportBadge('possible_contradiction', true)).toBeNull()
+    const check = { method: 'lexical-overlap-v2', threshold: 0.5, supported: 6, unsupported: 1, unverified: 0, possible_contradiction: 2 }
+    expect(checkSummary(check)).toBe('Word check: words match in 6 of 9 paragraphs · 2 possible contradictions')
+  })
+})

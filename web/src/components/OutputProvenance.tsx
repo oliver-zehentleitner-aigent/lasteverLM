@@ -8,6 +8,7 @@ import { ProvenancePanel } from './ProvenancePanel'
 import { judgeBadge, verdictCounts } from '../lib/judge'
 import { OutputId } from './OutputId'
 import { groupBySource, sourcesHead } from '../lib/sourceGroups'
+import { modelAnswerLabel } from '../lib/decision'
 import { CiteContext, useCite, type Cite } from '../hooks/useCite'
 import { useJudgeAskLabel } from '../hooks/useJudgeAsk'
 import { t } from '../i18n'
@@ -150,7 +151,7 @@ export function OutputProvenance({ output, provenance, presentSources = null, on
             </ul>
           </details>
         )}
-        {(provenance.judge?.removed.length ?? 0) > 0 && <RemovedClaims removed={provenance.judge!.removed} />}
+        {(provenance.judge?.removed?.length ?? 0) > 0 && <RemovedClaims removed={provenance.judge!.removed!} />}
         <HowMade output={output} provenance={provenance} />
       </section>
     </CiteContext.Provider>
@@ -244,6 +245,11 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
           </table>
         </div>
       )}
+      {p.model_answer_without_evidence && (
+        <p className="small">
+          <span className="muted">{t('outProv.modelWithoutEvidence')}:</span> {modelAnswerLabel(p.model_answer_without_evidence)}
+        </p>
+      )}
       {p.llm_verdict_text && (
         <p className="small">
           <span className="muted">{t('outProv.llmVerdict')}:</span> {p.llm_verdict_text}
@@ -257,8 +263,9 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
               <p className="small">
                 {t(`judge.level.${p.judge.level}`)} · {t('judge.model', { model: p.judge.model })}
               </p>
+              {p.judge.mode === 'doubted' && <p className="small">{t('judge.doubtedLine', { judged: p.judge.judged ?? 0, counts: verdictCounts(p.judge.verdicts ?? {}) })}</p>}
               <ul className="small">
-                {p.judge.rounds.map((r) => (
+                {(p.judge.rounds ?? []).map((r) => (
                   <li key={r.round}>
                     {t('judge.roundLine', { round: r.round, judged: r.judged, counts: verdictCounts(r.verdicts), tin: r.usage.tokens_in, tout: r.usage.tokens_out })}
                     {r.revision && ` · ${t('judge.revisionLine', { revised: r.revision.revised, dropped: r.revision.dropped })}`}
@@ -266,7 +273,7 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
                 ))}
               </ul>
               {/* the list itself sits under the document, outside this fold, so it is never hidden */}
-              {p.judge.removed.length > 0 && <p className="small">{t('judge.removed', { n: p.judge.removed.length })}</p>}
+              {(p.judge.removed?.length ?? 0) > 0 && <p className="small">{t('judge.removed', { n: p.judge.removed!.length })}</p>}
             </>
           )}
           {(p.judgements ?? []).map((j, i) => (
@@ -308,7 +315,7 @@ function HowMade({ output, provenance: p }: { output: Props['output']; provenanc
 
 /** The claims a judging took out, with the verdict and the reason; shown
  *  under the document and again in the log, never folded away. */
-function RemovedClaims({ removed }: { removed: NonNullable<Provenance['judge']>['removed'] }) {
+function RemovedClaims({ removed }: { removed: NonNullable<NonNullable<Provenance['judge']>['removed']> }) {
   return (
     <section className="judge-removed">
       <h4>{t('judge.removed', { n: removed.length })}</h4>

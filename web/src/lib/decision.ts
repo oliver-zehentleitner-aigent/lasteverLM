@@ -110,3 +110,14 @@ export function yesNo(probabilityYes: number): { yes: number; no: number } {
   const yes = percent(probabilityYes)
   return { yes, no: 100 - yes }
 }
+
+/** A decision model's answer in one line: "Yes 77 %", "B 62 %", "likely"
+ *  (with the confidence for a choice or a scale). */
+export function modelAnswerLabel(a: NonNullable<DecisionContent['model_answer']>): string {
+  if ('probability_yes' in a) {
+    const yes = percent(a.probability_yes)
+    return a.answer === 'yes' ? `${t('decision.yes')} ${yes} %` : `${t('decision.no')} ${100 - yes} %`
+  }
+  if ('level' in a) return `${a.level} · ${t('decision.confidence', { p: percent(a.confidence) })}`
+  return `${a.choice} ${percent(a.distribution[a.choice] ?? 0)} % · ${t('decision.confidence', { p: percent(a.confidence) })}`
+}

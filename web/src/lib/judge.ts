@@ -18,7 +18,11 @@ export function disagrees(c: Claim): boolean {
  *  one asked for afterwards; null without either. */
 export function judgeHead(p: Pick<Provenance, 'judge' | 'judgements'> | null | undefined): string | null {
   const run = p?.judge
-  if (run && run.rounds.length > 0) {
+  // verification standard: one pass over what the word check doubted
+  if (run?.mode === 'doubted' && (run.judged ?? 0) > 0) {
+    return t('judge.headDoubted', { level: t(`judge.level.${run.level}`).toLowerCase(), model: run.model, judged: run.judged ?? 0, passed: run.verdicts?.supported ?? 0 })
+  }
+  if (run?.rounds && run.rounds.length > 0) {
     const first = run.rounds[0]
     const last = run.rounds[run.rounds.length - 1]
     return t('judge.headRun', {

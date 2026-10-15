@@ -441,9 +441,22 @@ opens the notebook.
   as a green or amber edge. **CSV for Anki** downloads `front;back`, one
   card a line, both fields quoted. Nothing is saved; the share page
   shows the same, read-only by nature.
-- **Judge**. Every kind but the chart has the option **Check with a
-  judge**: Off (default), Low, Medium or High (the model per level from
-  rag's catalogue), with a line on what the level does. A judge reads
+- **Verification**. Every kind but the chart has the option
+  **Verification** (`verification`, from rag's catalogue): Basic (words
+  and negation: the word check and the negation check, no model),
+  Standard (also a low judge on every paragraph those doubt, marking
+  only), Thorough (the medium judge on everything, revising and removing
+  up to three rounds), and Bulletproof once rag lists it. Each level
+  names its full price from the estimate's `levels`, with a line on what
+  it does; it starts at the user's **Verification by default** and is
+  sent only above Basic. The negation check marks a paragraph whose words
+  match but whose statement is reversed: amber "Word check: possible
+  contradiction", counted in the head ("· 2 possible contradictions").
+  At Standard the head reads "Judge (low, model): 2 of 3 doubted
+  paragraphs supported" and "How this was made" lists that one pass.
+  Where rag offers no verification yet, the older **Check with a judge**
+  option shows instead: Off (default), Low, Medium or High (the model
+  per level from rag's catalogue), with a line on what the level does. A judge reads
   each claim against its passages while the output is made; claims it
   fails are revised or taken out. In the output each claim gets a second
   badge next to the word check's: supported (green), contradicted (red),
@@ -510,7 +523,8 @@ opens the notebook.
   Evidence against side by side (stacked on a phone) with their markers
   and badges, and "What the sources do not say". "How this was made"
   lists both calls (decision and evidence: model, prompt, duration, the
-  passages and characters the decision model read). The bars grow in on
+  passages and characters the decision model read) and "Model's answer
+  without evidence (not from the sources)" when rag stores it. The bars grow in on
   opening, not under reduced motion; only the theme tokens colour it.
   Printable; on the share page read-only like every kind.
 - **What a document rests on** (rag's `provenance`; documents made
@@ -574,10 +588,13 @@ library source stays in the trash (1–365, empty for 14), and how PDFs
 are read by default (Auto, Text or Vision). Saved together with
 `PUT /api/account/me/preferences`; an empty choice clears the value.
 The preferred language and voice are preselected in the output options
-and used by the wizard, which has no option menus. **Judge by default**
-(off, low, medium, high, with each level's model; `judge_default`)
-preselects the judge option of new outputs when rag offers that level;
-changing it for one output does not change the preference. The interface
+and used by the wizard, which has no option menus. **Verification by
+default** (`verification_level`: the levels rag offers, a stored one rag
+does not offer yet kept in the list) preselects new outputs'
+verification when rag offers that level, and is the level chat answers
+are checked at; changing it for one output does not change the
+preference. Against a rag without verification levels the older **Judge
+by default** (`judge_default`) shows instead. The interface
 language is stored here and applied by the translation layer. The
 shared demo account cannot change settings (403, shown as the
 service's sentence).

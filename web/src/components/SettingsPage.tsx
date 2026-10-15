@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { account } from '../api/account'
-import type { JudgeLevel, Preferences } from '../api/types'
+import type { JudgeLevel, Preferences, VerificationLevel } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { useMe } from '../hooks/useMe'
 import { useOutputOptions } from '../hooks/useOutputOptions'
@@ -158,7 +158,24 @@ export function SettingsPage() {
             language={sampleLanguage(p.output_language, spec, language())}
           />
         )}
-        {spec?.judge && (
+        {spec?.verification && (
+          <label>
+            {t('verify.default')}
+            <select value={p.verification_level ?? 'basic'} onChange={(e) => set({ verification_level: e.target.value as VerificationLevel })}>
+              {spec.verification.levels.map((l) => (
+                <option key={l} value={l}>
+                  {t(`verify.level.${l}`)}
+                </option>
+              ))}
+              {/* a stored level rag does not offer (yet), kept visible rather than silently replaced */}
+              {p.verification_level && !spec.verification.levels.includes(p.verification_level) && <option value={p.verification_level}>{t(`verify.level.${p.verification_level}`)}</option>}
+            </select>
+            <span className="muted small">
+              {t(`verify.explain.${p.verification_level ?? 'basic'}`)} {t('verify.defaultHint')}
+            </span>
+          </label>
+        )}
+        {spec?.judge && !spec.verification && (
           <label>
             {t('set.judgeDefault')}
             <select value={p.judge_default ?? 'off'} onChange={(e) => set({ judge_default: e.target.value as JudgeLevel })}>

@@ -144,6 +144,8 @@ export interface Check {
   supported: number
   unsupported: number
   unverified: number
+  /** the negation check (lexical-overlap-v2): words match, the statement is reversed */
+  possible_contradiction?: number
 }
 
 /** A citing paragraph of an answer, `text` exactly as in the answer
@@ -338,7 +340,13 @@ export interface Output {
  *  refs, a number not in the prompt, too little overlap), or not
  *  measurable (written in another language than its sources). A unit
  *  without `support` is no claim (a heading, a question). */
-export type Support = 'supported' | 'unsupported' | 'unverified'
+export type Support = 'supported' | 'unsupported' | 'unverified' | 'possible_contradiction'
+
+/** How thoroughly an output or an answer is checked. basic: the word check
+ *  and the negation check; standard: also a low judge on what those doubt,
+ *  annotate only; thorough: the medium judge on everything, revising and
+ *  removing; bulletproof: rag's strictest (offered when rag lists it). */
+export type VerificationLevel = 'basic' | 'standard' | 'thorough' | 'bulletproof'
 
 /** A claim's passages (numbers into `provenance.passages`) and verdict. */
 export interface Claim {
@@ -366,18 +374,25 @@ export interface JudgeNote {
   round: number
 }
 
-/** A judging during generation: its rounds and the claims taken out. */
+/** A judging during generation: its rounds and the claims taken out.
+ *  `mode` "doubted" (verification standard): only the units the word
+ *  check doubted, judged once and annotated, with no rounds or removals. */
 export interface JudgeRun {
+  mode?: 'doubted' | 'all'
+  /** "doubted": how many units were judged */
+  judged?: number
+  /** "doubted": the counts of that one pass */
+  verdicts?: JudgeCounts
   level: Exclude<JudgeLevel, 'off'>
   model: string
-  rounds: {
+  rounds?: {
     round: number
     judged: number
     verdicts: JudgeCounts
     usage: { tokens_in: number; tokens_out: number }
     revision?: { revised: number; dropped: number; usage: { tokens_in: number; tokens_out: number } }
   }[]
-  removed: { text: string; verdict: JudgeVerdict | 'dropped in revision'; reason: string; round: number }[]
+  removed?: { text: string; verdict: JudgeVerdict | 'dropped in revision'; reason: string; round: number }[]
 }
 
 /** A judging asked for later, annotate only. */
@@ -425,6 +440,8 @@ export interface Provenance {
   calls?: { role: 'decision' | 'evidence'; model: string; prompt_version: string; usage: Record<string, unknown>; started_at: string; finished_at: string; state?: { passages: number; chars: number } }[]
   /** an undecided decision: the evidence model's own sentence */
   llm_verdict_text?: string
+  /** decision: what the decision model answered without the evidence; not from the sources */
+  model_answer_without_evidence?: DecisionContent['model_answer'] | null
   /** judged while it was made; claims it failed are removed and listed */
   judge?: JudgeRun
   /** judgings asked for afterwards, oldest first */
@@ -462,8 +479,11 @@ export interface OutputOptions {
   card_count?: number
   difficulty?: Difficulty
   audience?: Audience
-  /** a judge reads every claim against its passages while the output is made */
+  /** a judge reads every claim against its passages while the output is
+   *  made; API clients only, the app sends `verification` */
   judge?: JudgeLevel
+  /** how thoroughly the output is checked; absent is basic */
+  verification?: VerificationLevel
   /** chart: the picked candidates exactly as proposed (create only) */
   charts?: ChartCandidate[]
   /** in a response only: the source ids the document was made from,
@@ -508,6 +528,7 @@ export interface OutputOptionsSpec {
   }
   instructions?: { max_chars: number }
   judge?: { levels: JudgeLevel[]; default: JudgeLevel; models: Partial<Record<JudgeLevel, string>> }
+  verification?: { levels: VerificationLevel[]; default: VerificationLevel }
   chart?: { chart_types: ChartType[]; charts_max: number; propose_max: number; propose_default: number }
   kinds: Partial<Record<OutputKind, OutputOption[]>>
 }
@@ -662,6 +683,8 @@ export interface Preferences {
   tour_done?: boolean
   /** the judge level new outputs start with; "off" by default, absent from an older account service */
   judge_default?: JudgeLevel | null
+  /** what new outputs' verification starts at and how chat answers are checked */
+  verification_level?: VerificationLevel
 }
 
 /** user: the app only; viewer: reads the admin panel; admin: everything */

@@ -1,4 +1,4 @@
-import type { Audience, AudioStyle, Difficulty, JudgeLevel, OutputKind, OutputOption, OutputOptions, OutputOptionsSpec, Preferences, ReportLength, ReportStyle } from '../api/types'
+import type { Audience, AudioStyle, Difficulty, JudgeLevel, OutputKind, OutputOption, OutputOptions, OutputOptionsSpec, Preferences, ReportLength, ReportStyle, VerificationLevel } from '../api/types'
 import { t } from '../i18n'
 
 /** The option values a form holds; '' for language means "same as the sources". */
@@ -17,8 +17,11 @@ export interface OptionValues {
   cardCount: number
   difficulty: Difficulty
   audience: Audience
-  /** a judge while the output is made; sent only when not off */
+  /** a judge while the output is made; sent only when not off, and only to a
+   *  rag that offers no verification levels yet */
   judge: JudgeLevel
+  /** how thoroughly the output is checked; sent only when not basic */
+  verification: VerificationLevel
 }
 
 /** rag's limit for the instructions, when the catalogue does not say. */
@@ -74,6 +77,7 @@ export function defaultValues(spec: OutputOptionsSpec, prefs: Preferences | unde
     audience: spec.quiz?.default_audience ?? 'adults',
     // the user's default when rag offers that level, else rag's
     judge: prefs?.judge_default && (spec.judge?.levels ?? []).includes(prefs.judge_default) ? prefs.judge_default : (spec.judge?.default ?? 'off'),
+    verification: prefs?.verification_level && (spec.verification?.levels ?? []).includes(prefs.verification_level) ? prefs.verification_level : (spec.verification?.default ?? 'basic'),
   }
 }
 
@@ -94,7 +98,9 @@ export function buildOptions(kind: OutputKind, spec: OutputOptionsSpec, v: Optio
     if (key === 'card_count') out.card_count = v.cardCount
     if (key === 'difficulty') out.difficulty = v.difficulty
     if (key === 'audience') out.audience = v.audience
-    if (key === 'judge' && v.judge !== 'off') out.judge = v.judge
+    if (key === 'verification' && spec.verification && v.verification !== 'basic') out.verification = v.verification
+    // the older judge option only where rag has no verification levels: sending both is refused
+    if (key === 'judge' && !spec.verification && v.judge !== 'off') out.judge = v.judge
   }
   return out
 }
@@ -127,6 +133,7 @@ export function optionsLabel(o: OutputOptions | undefined, spec: OutputOptionsSp
   if (o.card_count !== undefined) parts.push(t('opt.cards', { n: o.card_count }))
   if (o.difficulty) parts.push(t(`opt.difficulty.${o.difficulty}`))
   if (o.audience) parts.push(t(`opt.audience.${o.audience}`))
+  if (o.verification && o.verification !== 'basic') parts.push(t(`verify.level.${o.verification}`))
   return parts.length ? parts.join(' · ') : null
 }
 

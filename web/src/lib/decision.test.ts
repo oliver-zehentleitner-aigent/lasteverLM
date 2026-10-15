@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DecisionContent } from '../api/types'
-import { decisionOptions, decisionProblem, defaultDecision, modelVersusEvidence, orderedDistribution, percent, presetLevels, scalePercent, showQuestion, undecided, yesNo } from './decision'
+import { decisionOptions, decisionProblem, defaultDecision, modelAnswerLabel, modelVersusEvidence, orderedDistribution, percent, presetLevels, scalePercent, showQuestion, undecided, yesNo } from './decision'
 
 const keys = ['language', 'question', 'decision_type', 'choices', 'levels']
 
@@ -99,5 +99,14 @@ describe('yesNo', () => {
     expect(yesNo(0.77)).toEqual({ yes: 77, no: 23 })
     expect(yesNo(0.005)).toEqual({ yes: 1, no: 99 })
     expect(yesNo(2)).toEqual({ yes: 100, no: 0 })
+  })
+})
+
+describe('modelAnswerLabel', () => {
+  it('puts the answer in one line, the share of what it answered', () => {
+    expect(modelAnswerLabel({ probability_yes: 0.77, answer: 'yes' })).toBe('Yes 77 %')
+    expect(modelAnswerLabel({ probability_yes: 0.2, answer: 'no' })).toBe('No 80 %')
+    expect(modelAnswerLabel({ choice: 'B', distribution: { A: 0.38, B: 0.62 }, confidence: 0.7 })).toMatch(/^B 62 % · /)
+    expect(modelAnswerLabel({ level: 'likely', score: 3.2, legend: ['a', 'likely'], distribution: {}, confidence: 0.5 })).toMatch(/^likely · /)
   })
 })
