@@ -86,12 +86,14 @@ from .models import (
     NotebookSuggestions,
     OutputCreate,
     OutputRename,
+    PartPropose,
     PlanAnswer,
     SharedNotebook,
 )
 from .options import SECOND_JUDGE, VERIFICATION_LEVELS, OutputOptions, catalogue, resolve
 from .outputs import OutputGenerator, registry
 from .outputs.chart import ChartProposals
+from .outputs.proposals import TableProposals, ThemeProposals
 from .reading import (
     InvalidRefresh,
     could_not_read,
@@ -100,6 +102,7 @@ from .reading import (
     selected_uploads,
 )
 from .service import (
+    CandidateOutOfScope,
     ChartOutOfScope,
     ChunkNotFound,
     ConversationNotFound,
@@ -447,6 +450,50 @@ def create_app(
             url_refresh=[str(u) for u in body.url_refresh or []],
         )
 
+    @app.post(f"{PREFIX}/notebooks/{{notebook_id}}/tables/propose", response_model=TableProposals)
+    def propose_tables(
+        notebook_id: NotebookId,
+        body: PartPropose,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> TableProposals:
+        """Candidate tables from the selected sources: previews, nothing stored."""
+        found = outputs.propose_parts(
+            user,
+            str(notebook_id),
+            "table",
+            *_propose_args(body),
+            bearer=authorization,
+            url_refresh=[str(u) for u in body.url_refresh or []],
+        )
+        assert isinstance(found, TableProposals)
+        return found
+
+    @app.post(
+        f"{PREFIX}/notebooks/{{notebook_id}}/infographics/propose", response_model=ThemeProposals
+    )
+    def propose_themes(
+        notebook_id: NotebookId,
+        body: PartPropose,
+        user: User,
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> ThemeProposals:
+        """Candidate infographic themes from the selected sources: previews, nothing stored."""
+        found = outputs.propose_parts(
+            user,
+            str(notebook_id),
+            "infographic",
+            *_propose_args(body),
+            bearer=authorization,
+            url_refresh=[str(u) for u in body.url_refresh or []],
+        )
+        assert isinstance(found, ThemeProposals)
+        return found
+
+    def _propose_args(body: PartPropose) -> tuple[str | None, int, list[str] | None]:
+        instructions = " ".join((body.instructions or "").split()) or None
+        return instructions, body.max, [str(s) for s in body.source_ids or []] or None
+
     @app.post(f"{PREFIX}/outputs/voice-sample")
     def voice_sample(body: VoiceSampleRequest, user: User) -> dict[str, Any]:
         """A short preview of a voice; synthesized once per voice, speed and
@@ -691,6 +738,10 @@ def _install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(InvalidOptions)
     async def invalid_options(_: Request, exc: InvalidOptions) -> JSONResponse:
         return error(422, f"options: {exc}")
+
+    @app.exception_handler(CandidateOutOfScope)
+    async def candidate_out_of_scope(_: Request, exc: CandidateOutOfScope) -> JSONResponse:
+        return JSONResponse({"error": str(exc), "code": "candidate_out_of_scope"}, status_code=409)
 
     @app.exception_handler(ChartOutOfScope)
     async def chart_out_of_scope(_: Request, exc: ChartOutOfScope) -> JSONResponse:

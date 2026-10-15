@@ -21,7 +21,7 @@ from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import ROUND_CEILING, Decimal
-from typing import Any
+from typing import Any, Literal
 
 from lasteverlm_core import (
     DEFAULT_TTS_VOICE,
@@ -121,6 +121,18 @@ from .outputs.decision import (
     decision_title,
     finish_decision,
     model_answer,
+)
+from .outputs.proposals import (
+    PART_LIST,
+    PART_OPTION,
+    PROPOSE,
+    Composite,
+    CompositeGenerator,
+    TableProposals,
+    ThemeProposals,
+    composite_title,
+    idea_task,
+    part_task,
 )
 from .provenance import (
     PRIVATE_OPTIONS,
@@ -275,6 +287,11 @@ class NothingToJudge(Exception):
 
 class OutputNotInTrash(Exception):
     """Purging needs the output to be in the trash first."""
+
+
+class CandidateOutOfScope(Exception):
+    """A picked table or theme candidate cites a passage outside the selected
+    sources (a proposal made for another selection): 409, find them again."""
 
 
 class ChartOutOfScope(Exception):
@@ -795,6 +812,14 @@ class OutputService:
             resolved["sources"] = selected
         if kind == "chart":
             self._check_cited(notebook_id, resolved["charts"], selected)
+        for key in ("tables", "themes"):
+            if key in resolved:
+                try:
+                    self._check_cited(notebook_id, resolved[key], selected)
+                except ChartOutOfScope as exc:
+                    raise CandidateOutOfScope(
+                        str(exc).replace("charts:", f"{key}:").replace("find charts", f"find {key}")
+                    ) from exc
         reserved = self._output_max(kind, resolved) if self._output_max else 0.0
         if check_credit:
             reading: list[dict[str, Any]] = []
@@ -835,6 +860,142 @@ class OutputService:
         )
         return self._present(row)
 
+    def _proposal_material(
+        self,
+        user_id: str,
+        notebook_id: str,
+        source_ids: list[str] | None,
+        bearer: str | None,
+        url_refresh: list[str] | None,
+        action: str,
+        focus_query: str,
+        what: str,
+    ) -> str | tuple[dict[str, Any], list[SourceSummary], list[Passage], Booking]:
+        """What a proposal is made from: the selected sources (all uploads
+        without a selection), the unread ones read first as the user and
+        waited for as a chat answer waits, and the passages retrieved for
+        ``focus_query`` from them only. A reason instead when there is
+        nothing to propose from yet."""
+        notebook = require_notebook(self._store, user_id, notebook_id)
+        selected = check_sources(self._store, notebook_id, source_ids)
+        require_credit(self._store, user_id)
+        failed = failed_sources(
+            selected_uploads(self._store, notebook_id, selected), url_refresh or []
+        )
+        if failed:
+            raise SourceUnreadable(could_not_read(failed[0]))
+        try:
+            prepared = prepare(
+                self._store, self._ingest, bearer, notebook_id, selected, url_refresh or []
+            )
+        except InvalidRefresh as exc:
+            raise InvalidSources(str(exc)) from exc
+        pending = wait_until_read(
+            self._store, notebook_id, prepared, self._read_wait_s, sleep=self._sleep
+        )
+        if pending:
+            return f"still being read: {', '.join(pending)}; find {what} again in a moment"
+        summaries = self._store.source_summaries(notebook_id)
+        if selected:
+            summaries = [s for s in summaries if s.source_id in selected]
+        if not summaries:
+            return "no selected source is ready"
+        booking = Booking.new(user_id, notebook_id, action)
+        embedded = embed_billed(self._store, self._embedder, booking, [focus_query])
+        chunks, _ = balanced_chunks(
+            self._retriever,
+            notebook_id,
+            embedded.vectors[0],
+            summaries,
+            self._k,
+            self._floor,
+            selected,
+        )
+        return notebook, summaries, number_passages(chunks), booking
+
+    def propose_parts(
+        self,
+        user_id: str,
+        notebook_id: str,
+        kind: Literal["table", "infographic"],
+        instructions: str | None,
+        limit: int,
+        source_ids: list[str] | None = None,
+        bearer: str | None = None,
+        url_refresh: list[str] | None = None,
+    ) -> TableProposals | ThemeProposals:
+        """Candidate tables or infographic themes from the selected sources:
+        one LLM call, billed as usual, nothing stored. Each candidate is a
+        preview with the sources it comes from; creating the output makes it
+        in full, from those sources only."""
+        spec = PROPOSE[kind]
+        result_type = TableProposals if kind == "table" else ThemeProposals
+        what = "tables" if kind == "table" else "themes"
+        material = self._proposal_material(
+            user_id,
+            notebook_id,
+            source_ids,
+            bearer,
+            url_refresh,
+            str(spec["action"]),
+            str(spec["focus_query"]),
+            what,
+        )
+        if isinstance(material, str):
+            return result_type(candidates=[], reason=material)
+        notebook, summaries, passages, booking = material
+        generator = self._generators[kind]
+        assert isinstance(generator, JsonGenerator)
+        trace = GenerationLog(
+            prompt_version=f"{kind}-propose-v{generator.prompt_version}",
+            model=self._llm.model,
+            options={},
+            focus_query=str(spec["focus_query"]),
+            k=self._k,
+            floor=self._floor,
+        )
+        task, schema = idea_task(kind, limit)
+        ideas = generator.ask(
+            self._completer(booking, trace),
+            str(notebook.get("title", "")),
+            summaries,
+            passages,
+            task,
+            schema,
+            None,
+            user_instructions=instructions,
+        )
+        call = ProposalCall(
+            model=self._llm.model,
+            prompt_version=trace.prompt_version,
+            tokens_in=trace.llm_in,
+            tokens_out=trace.llm_out,
+            proposed_at=trace.started_at,
+        )
+        by_n = {p.n: p for p in passages}
+        candidates = []
+        for idea in list(getattr(ideas, what))[:limit]:
+            cited = [by_n[n] for n in dict.fromkeys(idea.refs) if n in by_n]
+            if not cited:
+                continue  # a candidate with no passage behind it is not offered
+            sources = list({p.source_id: p.source_name for p in cited}.items())
+            candidates.append(
+                {
+                    **idea.model_dump(exclude={"refs"}),
+                    "id": secrets.token_hex(8),
+                    "sources": [{"source_id": sid, "name": name} for sid, name in sources],
+                    "passages": [
+                        PassageRef(
+                            n=p.n, chunk_id=p.chunk_id, source_name=p.source_name, page=p.page
+                        )
+                        for p in cited
+                    ],
+                    "proposal": call,
+                }
+            )
+        reason = None if candidates else f"the sources hold no {what[:-1]} to propose"
+        return result_type.model_validate({"candidates": candidates, "reason": reason})
+
     def propose_charts(
         self,
         user_id: str,
@@ -852,47 +1013,21 @@ class OutputService:
         chat answer waits; never anything outside the selection. Each value
         is checked as in the output, so the user sees what holds before
         picking."""
-        notebook = require_notebook(self._store, user_id, notebook_id)
-        selected = check_sources(self._store, notebook_id, source_ids)
-        require_credit(self._store, user_id)
-        failed = failed_sources(
-            selected_uploads(self._store, notebook_id, selected), url_refresh or []
-        )
-        if failed:
-            raise SourceUnreadable(could_not_read(failed[0]))
         generator = self._generators["chart"]
         assert isinstance(generator, ChartGenerator)
-        try:
-            prepared = prepare(
-                self._store, self._ingest, bearer, notebook_id, selected, url_refresh or []
-            )
-        except InvalidRefresh as exc:
-            raise InvalidSources(str(exc)) from exc
-        pending = wait_until_read(
-            self._store, notebook_id, prepared, self._read_wait_s, sleep=self._sleep
-        )
-        if pending:
-            return ChartProposals(
-                candidates=[],
-                reason=f"still being read: {', '.join(pending)}; find charts again in a moment",
-            )
-        summaries = self._store.source_summaries(notebook_id)
-        if selected:
-            summaries = [s for s in summaries if s.source_id in selected]
-        if not summaries:
-            return ChartProposals(candidates=[], reason="no selected source is ready")
-        booking = Booking.new(user_id, notebook_id, "chart_propose")
-        embedded = embed_billed(self._store, self._embedder, booking, [generator.focus_query])
-        chunks, _ = balanced_chunks(
-            self._retriever,
+        material = self._proposal_material(
+            user_id,
             notebook_id,
-            embedded.vectors[0],
-            summaries,
-            self._k,
-            self._floor,
-            selected,
+            source_ids,
+            bearer,
+            url_refresh,
+            "chart_propose",
+            generator.focus_query,
+            "charts",
         )
-        passages = number_passages(chunks)
+        if isinstance(material, str):
+            return ChartProposals(candidates=[], reason=material)
+        notebook, summaries, passages, booking = material
         if not has_numbers(passages):
             # no digit in any passage: nothing to draw, and no model call to pay for
             return ChartProposals(candidates=[], reason=NO_SERIES)
@@ -1360,6 +1495,8 @@ class OutputService:
             return self._decide(booking, notebook_id, row, trace)
         if row.kind == "chart":
             return self._draw(notebook_id, row, trace)
+        if PART_OPTION.get(row.kind) in row.options:
+            return self._make_parts(booking, notebook_id, row, trace)
         generator = self._generators[row.kind]
         notebook = self._store.get_notebook(notebook_id) or {}
         summaries = self._material(notebook_id, row.options)
@@ -1397,6 +1534,75 @@ class OutputService:
                 inline(name),
             )
         return generated
+
+    def _make_parts(
+        self, booking: Booking, notebook_id: str, row: OutputRow, trace: GenerationLog
+    ) -> GeneratedOutput:
+        """One table (or infographic part) per picked candidate, each from its
+        own sources' passages only; the passages are numbered once for all of
+        them, so the check and the judge see one document."""
+        key = PART_OPTION[row.kind]
+        base = self._generators[row.kind]
+        assert isinstance(base, JsonGenerator)
+        picked = row.options[key]
+        notebook = self._store.get_notebook(notebook_id) or {}
+        summaries = self._material(notebook_id, row.options)
+        self._phase("retrieving")
+        aims = [
+            f"{c['title']} {' '.join(c.get('columns') or [])} {c.get('headline', '')}"
+            for c in picked
+        ]
+        embedded = embed_billed(self._store, self._embedder, booking, aims)
+        trace.embedding_in += embedded.usage.tokens_in
+        chunks_of: list[list[RetrievedChunk]] = []
+        for candidate, vector in zip(picked, embedded.vectors, strict=True):
+            own = {s["source_id"] for s in candidate["sources"]}
+            mine = [s for s in summaries if s.source_id in own]
+            if not mine:
+                raise GenerationFailed(f"{candidate['title']}: none of its sources is ready")
+            found, _ = balanced_chunks(
+                self._retriever, notebook_id, vector, mine, self._k, self._floor, sorted(own)
+            )
+            chunks_of.append(found)
+        merged = list({c.chunk_id: c for found in chunks_of for c in found}.values())
+        trace.passages = number_passages(merged)
+        numbered = {p.chunk_id: p for p in trace.passages}
+        parts, unused = [], []
+        for index, (candidate, found) in enumerate(zip(picked, chunks_of, strict=True), start=1):
+            self._phase("writing", n=index, of=len(picked))
+            own = {s["source_id"] for s in candidate["sources"]}
+            extras: dict[str, Any] = {}
+            parts.append(
+                base.ask(
+                    self._completer(booking, trace),
+                    str(notebook.get("title", "")),
+                    [s for s in summaries if s.source_id in own],
+                    [numbered[c.chunk_id] for c in found],
+                    part_task(row.kind, candidate, base.prompt(row.options)[0]),
+                    base.schema,
+                    language_name(row.options.get("language")),
+                    user_instructions=row.options.get("instructions"),
+                    max_tokens=base.budget(row.options),
+                    extras=extras,
+                )
+            )
+            unused += extras.get("unused_sources", [])
+        document = Composite(
+            title=composite_title([str(getattr(p, "title", "")) for p in parts]),
+            parts=parts,
+            candidate_ids=[str(c["id"]) for c in picked],
+        )
+        generator = CompositeGenerator(base, PART_LIST[row.kind])
+        return replace(generator.to_output(document), document=document, unused_sources=unused)
+
+    def _generator_for(self, row: OutputRow) -> OutputGenerator:
+        """The kind's generator, or the composite over it when the output is
+        made from picked candidates."""
+        base = self._generators[row.kind]
+        key = PART_OPTION.get(row.kind)
+        if key is not None and key in row.options and isinstance(base, JsonGenerator):
+            return CompositeGenerator(base, PART_LIST[row.kind])
+        return base
 
     def _heartbeat(self, model: str | None = None) -> None:
         """Refresh the running job's claim, at most every ``HEARTBEAT_S``: a
@@ -1482,7 +1688,7 @@ class OutputService:
         judge_llm = self._judges.get(level)
         if judge_llm is None:
             raise GenerationFailed(f"judge: no model for level {level} on this deployment")
-        generator = self._generators[job.kind]
+        generator = self._generator_for(job)
         assert isinstance(generator, JsonGenerator)
         if job.kind == "decision":
             answer = generated.content["model_answer"]

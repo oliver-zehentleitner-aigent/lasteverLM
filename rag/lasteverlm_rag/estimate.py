@@ -77,6 +77,11 @@ def output_calls(
     case: int,
 ) -> list[Call]:
     """The calls of one output job; ``case`` 0 is low, 1 is high."""
+    picked = options.get("tables") or options.get("themes")
+    if picked:
+        # one table (or infographic part) per picked candidate, each made like one output
+        one = {key: value for key, value in options.items() if key not in ("tables", "themes")}
+        return output_calls(kind, one, generator, models, case) * len(picked)
     if kind == "chart":
         # made from picked candidates without a model call; only the index
         return [Call(models.embedding, 2000 * (case + 1))]
@@ -159,7 +164,7 @@ def action_calls(action: str, options: Mapping[str, Any], models: Models, case: 
             Call(models.embedding, QUERY_TOKENS),
             Call(models.llm, PROMPT_TOKENS[case], ANSWER_TOKENS[case]),
         ]
-    if action == "chart_propose":
+    if action in ("chart_propose", "table_propose", "infographic_propose"):
         return [Call(models.embedding, QUERY_TOKENS), Call(models.llm, PROMPT_TOKENS[case], 6000)]
     if action == "voice_sample":
         if models.tts is None:
