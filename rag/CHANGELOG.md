@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.20] - 2026-10-16
+
 ### Fixed
 
 - `mp3.py` is analysed by CodeQL again: its first docstring line read "decoding: duration", which the extractor took for a PEP 263 encoding declaration (`duration`) and skipped the file. Reworded; a test keeps `coding:`/`coding=` out of the first two lines of every rag source file.

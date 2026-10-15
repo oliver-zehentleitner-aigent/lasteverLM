@@ -6,17 +6,16 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+## [0.22.20] - 2026-10-16
+
 ### Changed
 
 - `docs/architecture.md`: the life of an output job (heartbeat, fence, graceful rollout and handover, resume from the journal, orphan sweep). `docs/project.md`: the judge's search before rejecting, outputs never feeding outputs, voice defaults, a reliability section, current numbers. `docs/walkthrough.md`: a checked report at Thorough with an added citation.
+- `README.md`: what the system does, the four published evaluations, how to try it and how it was built.
 
 ### Added
 
 - `docs/how-it-was-built.md`: the build as an experiment, with the roles, the timeline, the numbers, how the work was kept in check, and what went wrong.
-
-### Changed
-
-- `README.md`: what the system does, the four published evaluations, how to try it and how it was built.
 
 ## [0.22.9] - 2026-10-15
 
