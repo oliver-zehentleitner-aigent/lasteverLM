@@ -14,8 +14,9 @@ sources. They are rendered with `marked` and passed through DOMPurify
 before `dangerouslySetInnerHTML`. The mind map's labels go through
 markmap, which renders each node as HTML, so every node is passed
 through DOMPurify too (this was missed at first and fixed on
-2026-10-14). The other kinds (quiz, table, infographic) are rendered
-through React, which escapes text. The shared page `/s/<token>` uses the
+2026-10-14). The other kinds (quiz, table, infographic, audio
+transcripts, decisions, charts, flashcards) are rendered through React,
+which escapes text. The shared page `/s/<token>` uses the
 same renderers.
 
 **Reason:** the content is only as trustworthy as the sources it was
@@ -38,6 +39,11 @@ sanitizing. Rejected because string edits on sanitized HTML are trusted
 blindly: a marker that happened to sit inside an attribute would be
 turned into markup no sanitizer checked.
 
+Since 2026-10-15 the markers, word-check badges and judge badges are
+put in only where text stands between tags, in one pass, so nothing
+inserted is scanned again. A judge's reason quoting "Passage [1]" in a
+badge's tooltip had turned into a button inside that attribute.
+
 ## markmap is loaded on demand
 
 **Id:** c052fbee-b171-4ac1-9149-ed6afd66a5d4
@@ -52,7 +58,7 @@ mind map is opened. The chunk is larger than Vite's default warning
 limit; the limit is raised in `vite.config.ts` with a comment saying why.
 
 **Reason:** the main bundle is what every visitor downloads, the mind map
-is one of six kinds. The family spec names markmap, so replacing it was
+is one of nine kinds. The family spec names markmap, so replacing it was
 not on the table; a lighter tree renderer would mean a second
 visualization to maintain.
 
@@ -91,9 +97,9 @@ whose `source_id` equals the citation's `source_id` and opens its tab.
 **Reason:** the id is exact where a title match was fragile (repeated or
 edited titles), and it is one field on a row rag already owns.
 
-**Rejected alternative:** an `output_id` on the citation. Rejected by
-the family lead as a change to a shape three services read, for the same
-information the output row can carry.
+**Rejected alternative:** an `output_id` on the citation. Rejected as a
+change to a shape three services read, for the same information the
+output row can carry.
 
 ## "Open document" finds the cited passage by shared words, not by an offset
 
@@ -101,7 +107,7 @@ information the output row can carry.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** maintainer request relayed by the family lead, 2026-10-13 (open the generated document, scroll to and flash the matching text, in a mind map the node matching the chunk's first line); how the passage is found was this directory's call
+**Source:** maintainer request, 2026-10-13 (open the generated document, scroll to and flash the matching text, in a mind map the node matching the chunk's first line); how the passage is found was this directory's call
 **Revisit when:** a citation into a generated document carries a position in its Markdown, or a browser run shows the wrong block flashing
 
 For a citation into a generated document, "open document" opens its
