@@ -6,7 +6,7 @@
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinator's spec for the admin system page, 2026-10-13 (`APP_VERSION`, `APP_COMMIT`, "unknown" when unset); the account service had asked for "dev" as the version default
+**Source:** the specification of the admin system page, 2026-10-13 (`APP_VERSION`, `APP_COMMIT`, "unknown" when unset); the account service had proposed "dev" as the version default
 **Revisit when:** a deployment path appears that cannot set the two variables, or the services move to a shared health router
 
 `Health(status, version, commit)` with `Health.from_env()` is the
@@ -34,7 +34,7 @@ two fields.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinator's spec for the live architecture diagram, 2026-10-14 (status stays "ok" while the process is up; checks bounded and cached for 15 s)
+**Source:** the specification of the live architecture diagram, 2026-10-14 (status stays "ok" while the process is up; checks bounded and cached for 15 s)
 **Revisit when:** the chart gets a readiness probe that should take a service out of rotation on a dependency outage, or the diagram needs more than up/down
 
 `Health.dependencies` reports `"ok"` or `"down"` for each dependency
