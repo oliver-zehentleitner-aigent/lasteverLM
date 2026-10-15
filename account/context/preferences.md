@@ -12,7 +12,12 @@
 `users.preferences.verification_level` is `basic`, `standard`, `thorough` or
 `bulletproof`, default `basic`: how much checking matters to the user and how much
 it may cost. rag defines what each level does (whether a judge runs, at which
-strength); the web preselects the output form from it, rag's agent chat reads it.
+strength) and publishes the levels it offers in its options catalogue; the web
+shows the level in the settings and preselects it in the output form; rag reads
+the stored value for outputs and its agent chat, falling back to the mapped
+`judge_default` for a row that has only the old key. `judge_default` is kept only
+for compatibility: in rows until the user's next preferences write, and as a
+mapped input to `PUT` for one release; nothing current writes or shows it.
 It replaces `judge_default` (off|low|medium|high, added the same week without an
 entry of its own), which named the mechanism. Migration 0011 maps stored values
 (off to basic, low to standard, medium to thorough, high to bulletproof) and keeps
