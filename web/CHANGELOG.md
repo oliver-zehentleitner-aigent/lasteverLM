@@ -14,11 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings: "Judge by default" (off, low, medium, high; the account's `judge_default`), which the output options' judge select starts from; a change for one output leaves it as it is.
 - Audio: the transcript follows the player: the paragraph or turn being spoken is marked and kept in view, a click on one plays from its start (rag's per-entry `start`/`end`), and the player stays at the top while the transcript scrolls. Older audio without times marks nothing.
 
-## [0.20.1] - 2026-10-14
-
 ### Changed
 
 - Chat: the "Web pages: cached | fetch again" line above the question field is gone (it listed only pages and changed nothing for an answer already given); the plan's question and the answer's page note replace it.
+
+## [0.20.1] - 2026-10-14
 
 ### Fixed
 
