@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The word check's tooltip no longer says it sees no negation: "The word check compares words with the cited passage and flags a flipped negation as a possible contradiction. It sees no meaning; that is what the judge is for." (de as well). The voucher form no longer says new codes are never shown again; an admin can show one again from the list.
+
 ## [0.22.19] - 2026-10-15
 
 ### Changed

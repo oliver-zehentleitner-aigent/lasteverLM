@@ -100,7 +100,7 @@ export interface AdminApi {
    *  when a service failed, and then the user is still there. */
   deleteUser(userId: string): Promise<void>
   removeAllowed(kind: AllowKind, value: string): Promise<void>
-  /** Codes are shown once; the server stores only their hashes. */
+  /** The new codes come back once here; an admin can show one again later (`voucherCode`, kept encrypted). */
   /** with `send`, each created voucher is mailed right away */
   /** `paid`: sold for their face value (revenue) rather than given away */
   createVouchers(amountCents: number, count: number, send?: VoucherSend, paid?: boolean): Promise<string[]>

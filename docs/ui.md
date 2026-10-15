@@ -373,8 +373,9 @@ opens the notebook.
   paragraphs" sits under the answer (method and threshold as tooltip).
   "Supported" is the judge's word: the word check claims no meaning.
   Every word-check badge has the same tooltip: "The word check compares
-  words with the cited passage and flags a flipped negation as a possible
-  contradiction. It sees no meaning; that is what the judge is for." A paragraph with a judge's verdict shows only the judge's
+  words with the cited passage and flags a flipped negation as a
+  possible contradiction. It sees no meaning; that is what the judge is
+  for." A paragraph with a judge's verdict shows only the judge's
   badge; the word check's result is the last line of its tooltip. A
   judge without a usable answer ("no answer") leaves the word-check
   badge shown.
@@ -1066,7 +1067,7 @@ deleted from the library) stays readable with its quote and is marked
     sign in" (on by default), and mails each created voucher at once;
     Create at the bottom right. Every checkbox is one clickable unit
     with its text beside it. On a phone the row stacks and Create is
-    full width. The codes are shown once under the card as chips with
+    full width. The new codes are shown under the card as chips with
     a copy button each ("copy all" for several; without the clipboard
     API the text is selected instead). The list of issued vouchers
     below, the full width of the panel and never scrolling sideways:
