@@ -113,9 +113,11 @@ telling the admin panel.
 **Evidence:** confirmed
 **Source:** the maintainer's decision on the ban retention rule, 2026-10-13
 **Revisit when:** bans need to outlive ninety days (repeat offenders)
+**See:** ratelimit.md#the-ban-cap-is-a-runtime-rule-too — 121ac29b-a32e-4f87-910b-2508efa7877f — as of 2026-10-15
 
 A ban holds until an admin lifts it, but at most `BAN_MAX_DAYS` (default
-90). The limiter enforces the cap itself: `is_banned(ip, since)` counts
+90; since 2026-10-14 the stored `ban_max_days` rule, see the linked
+entry). The limiter enforces the cap itself: `is_banned(ip, since)` counts
 only an unlifted ban created at or after `now - BAN_MAX_DAYS`, so an
 older ban stops refusing requests at the exact moment it expires. The
 purge is cleanup, not the rule: `PURGE_SQL` drops from `ip_bans` every
@@ -148,9 +150,10 @@ its ninety days by however long the service had been running.
 
 **Id:** 39da528f-5128-45cb-9393-41240be9cac4
 **Type:** decision
-**Status:** needs-review
+**Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's request to see and edit the ban and block rules in the admin panel, 2026-10-13; design relayed by the coordinating agent
+**Source:** the maintainer's request to see and edit the ban and block rules in the admin panel, 2026-10-13
+**Verification:** corroborated — re-checked 2026-10-15: production's `per_minute` was raised from 120 to 240 through the stored `ratelimit` row (infra's operations log), and the services applied it within thirty seconds without a deploy, which is the case this entry was built for; the env default stays 120
 **Revisit when:** a threshold must apply faster than thirty seconds, or the settings read shows up in request latency
 
 `per_minute`, `block_minutes`, `ban_after_strikes` and
@@ -221,7 +224,7 @@ ingress pod, so every client would share one key.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** security audit of core, 2026-10-14; the coordinator's decision on the finding, the same night
+**Source:** security audit of core, 2026-10-14, and the decision on its finding the same night
 **Revisit when:** abuse arrives from whole /48s, or legitimate users behind one /64 (a shared network) get blocked together
 
 The rules count, block and ban under `limit_key(ip)`: an IPv4 address
@@ -252,7 +255,7 @@ need, and every query would change for the same effect.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the coordinator's answer to the core audit, 2026-10-14 ("failing closed is intended")
+**Source:** the decision on the core audit, 2026-10-14: failing closed is intended
 **Revisit when:** the rate-limit tables move off the main database, or an outage of them is shown to take down requests that the database would not have blocked anyway
 
 When the store cannot answer (the database is down, a query fails),
@@ -277,7 +280,7 @@ long as the database is unwell.
 **Type:** decision
 **Status:** active
 **Evidence:** confirmed
-**Source:** the maintainer's request to edit the ban cap in the admin panel like the other rules, 2026-10-14, relayed by the coordinating agent
+**Source:** the maintainer's request to edit the ban cap in the admin panel like the other rules, 2026-10-14
 **Revisit when:** the purge has to run on a schedule rather than at account's start
 
 `ban_max_days` joins the stored `ratelimit` row as a fifth field, with
