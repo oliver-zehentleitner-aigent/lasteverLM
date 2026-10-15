@@ -95,6 +95,7 @@ export function networkMessage(): string {
 /** What the user reads for a failed response. Pure, so the mapping is
  *  tested; the UI shows this string and nothing else. */
 export function failureMessage(status: number, bodyText: string): string {
+  if (serviceCode(bodyText) === 'model_no_answer') return modelNoAnswer(bodyText)
   const fromService = serviceError(bodyText)
   if (fromService) return fromService
   return STATUS_TEXT.has(status)
@@ -115,6 +116,16 @@ function serviceError(bodyText: string): string | null {
     // not JSON: an HTML error page from the ingress, or plain text
   }
   return null
+}
+
+/** Why the model gave no answer, twice: rag's `cause`, one of a fixed
+ *  set, in the user's language; an unknown one as "unknown". */
+const MODEL_CAUSES = new Set(['timeout', 'rate_limited', 'provider_error', 'empty_answer', 'truncated_answer', 'unparseable_answer', 'no_audio', 'unknown'])
+
+function modelNoAnswer(bodyText: string): string {
+  const data = jsonOrNull(bodyText) as { cause?: unknown } | null
+  const cause = typeof data?.cause === 'string' && MODEL_CAUSES.has(data.cause) ? data.cause : 'unknown'
+  return t('http.modelNoAnswer', { cause: t(`http.modelCause.${cause}` as MessageKey) })
 }
 
 /** The `code` next to `error`, e.g. "not_allowed" on a refused sign-in. */

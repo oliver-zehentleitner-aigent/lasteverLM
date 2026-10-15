@@ -55,7 +55,7 @@ export function JudgeRequest({
       <button type="button" className="icon" aria-label={t('common.close')} onClick={() => setOpen(false)}>
         ×
       </button>
-      <span className="muted small">{t(`judge.explain.${level}`)}</span>
+      <span className="muted small">{t(`judge.onRequest.${level}`)}</span>
       {error && <span className="error small">{error}</span>}
     </span>
   )

@@ -22,6 +22,14 @@ describe('failureMessage', () => {
     expect(failureMessage(418, '')).toBe('The server answered with HTTP 418.')
     expect(failureMessage(500, '{"error":"   "}')).toBe('The server hit an error (HTTP 500)')
   })
+  it("says why the model did not answer, in the user's language, from rag's cause", () => {
+    const body = (cause: unknown) => JSON.stringify({ error: 'the model did not answer', code: 'model_no_answer', cause })
+    expect(failureMessage(502, body('truncated_answer'))).toBe('The model did not answer, not on a second try either: the answer was cut off at its length limit. Try again in a moment.')
+    expect(failureMessage(502, body('rate_limited'))).toContain('the provider is limiting requests right now')
+    // a cause this build does not know, or none
+    expect(failureMessage(502, body('quota'))).toContain('the reason is not known')
+    expect(failureMessage(502, body(undefined))).toContain('the reason is not known')
+  })
 })
 
 describe('request', () => {

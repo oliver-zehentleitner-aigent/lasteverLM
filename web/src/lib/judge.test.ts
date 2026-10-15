@@ -33,4 +33,12 @@ describe('judge', () => {
     expect(judgeBadge({ support: 'supported', judge: note('not_in_source') })).toMatchObject({ verdict: 'not_in_source', label: 'not in source', disagree: true })
     expect(judgeBadge({})).toBeNull()
   })
+
+  it('shows a claim the judge gave no usable answer for as "no answer", never as a disagreement', () => {
+    const none = { ...note(null), reason: 'the judge gave no usable answer: timeout' }
+    expect(disagrees({ support: 'supported', judge: none })).toBe(false)
+    expect(disagrees({ support: 'unsupported', judge: none })).toBe(false)
+    expect(judgeBadge({ support: 'supported', judge: none })).toEqual({ verdict: 'no_usable_answer', label: 'no answer', title: 'the judge gave no usable answer: timeout', disagree: false })
+    expect(verdictCounts({ supported: 4, no_usable_answer: 1 })).toBe('supported 4 · no answer 1')
+  })
 })

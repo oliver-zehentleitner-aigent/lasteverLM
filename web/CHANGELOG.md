@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Check with a judge on an existing output or a chat answer: each level's line says what that judging does, read every paragraph against its passages and mark it, changing and removing nothing (it promised revising, which happens only while an output is made); the Check button's tooltip says the same, and "No judge" in the output options speaks of paragraphs, not claims.
+- A model call the user waits for that failed twice (rag's `model_no_answer`) reads "The model did not answer, not on a second try either: <cause>. Try again in a moment.", the cause (took too long, provider limiting requests, provider error, empty, cut off at its length limit, unreadable, no audio) in the user's language.
+
+### Fixed
+
+- A claim the judge gave no usable answer for (`judge.verdict: null`) shows "Judge: no answer" (dashed) with the reason in its tooltip, instead of an untranslated key, and is never marked as disagreeing with the word check; the counts list it as "no answer".
+
 ## [0.20.5] - 2026-10-15
 
 ### Changed

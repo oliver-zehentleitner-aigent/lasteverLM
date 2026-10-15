@@ -311,13 +311,17 @@ export interface Claim {
 
 export type JudgeLevel = 'off' | 'low' | 'medium' | 'high'
 export type JudgeVerdict = 'supported' | 'contradicted' | 'not_in_source'
+/** a round's or a judging's counts: the verdicts, and the claims the
+ *  judge gave no usable answer for */
+export type JudgeCounts = Partial<Record<JudgeVerdict | 'no_usable_answer', number>>
 
 /** One claim as a judge read it: the verdict, why, the passage text that
- *  decided it, and the round it was judged in (1–3). */
+ *  decided it, and the round it was judged in (1–3). No verdict (null)
+ *  when the judge gave no usable answer, twice; the reason says so. */
 export interface JudgeNote {
   level: Exclude<JudgeLevel, 'off'>
   model: string
-  verdict: JudgeVerdict
+  verdict: JudgeVerdict | null
   reason: string
   quote: string
   round: number
@@ -330,7 +334,7 @@ export interface JudgeRun {
   rounds: {
     round: number
     judged: number
-    verdicts: Partial<Record<JudgeVerdict, number>>
+    verdicts: JudgeCounts
     usage: { tokens_in: number; tokens_out: number }
     revision?: { revised: number; dropped: number; usage: { tokens_in: number; tokens_out: number } }
   }[]
@@ -341,7 +345,7 @@ export interface JudgeRun {
 export interface Judgement {
   level: Exclude<JudgeLevel, 'off'>
   model: string
-  verdicts: Partial<Record<JudgeVerdict, number>>
+  verdicts: JudgeCounts
   usage: { tokens_in: number; tokens_out: number }
   at: string
 }
