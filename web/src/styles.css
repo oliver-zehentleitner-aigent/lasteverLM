@@ -221,7 +221,9 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 /* The output formats are always three tiles to a row, of a fixed width: 3 * 8rem +
    2 * 0.5rem gap + 2 * 1rem padding = 27rem, the middle column's default
    and minimum width (LEFT_WIDTH in lib/layout.ts, kept equal by a test). */
-.tiles .tile-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); align-items: start; }
+/* every tile as tall as the tallest, in every row; title and note at the top */
+.tiles .tile-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); grid-auto-rows: 1fr; }
+.tiles .tile { justify-content: flex-start; }
 .tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left; white-space: normal; background: var(--panel); color: var(--fg); border: 1px solid var(--line); padding: 0.6rem; }
 .tile:not(:disabled):hover { border-color: var(--accent); background: var(--accent-soft); }
 
