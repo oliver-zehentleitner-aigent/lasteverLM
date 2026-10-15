@@ -466,6 +466,9 @@ met (fail loud). One retry fixes a model that miscounted.
 Further alternatives: unknown. The coordinator's brief named the option
 sets but none that were turned down.
 
+**Since 2026-10-15:** a report's length is an upper bound, no longer a
+word target, and the prompt version is `report-<style>-v4`; see 47ce2c17-0831-48ad-86c5-171b09cc9a74.
+
 ## A shared notebook shows its uploads by name and its ready outputs as their shared view
 
 **Id:** 85dbc62d-1ee0-46eb-b0e4-fe7a6226a836
@@ -659,3 +662,29 @@ seconds.
 - Keeping the joined stretches and splitting their time by characters:
   the boundaries inside a stretch would be guesses.
 - A decoding library: a dependency for what the frame headers already say.
+
+## A report's length is an upper bound, never a target, so short material is not filled with invention
+
+**Id:** 47ce2c17-0831-48ad-86c5-171b09cc9a74
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** maintainer order relayed by the coordinator, 2026-10-15 (from a live report that added roles, approvals and processes its sources did not contain; "at most N words; shorter when the material says less; never add facts, roles, steps or reasons the material does not state"; rejected: fixed targets)
+**Revisit when:** reports from rich material come out far shorter than their length asks, so that the bound is read as "write little"
+
+A report's `length` sets the most words: 500 for short, 1200 for medium,
+2500 for long. The prompt says "at most N words; shorter when the
+material says less" and forbids adding facts, roles, steps or reasons
+the material does not state, even to reach the length. The token budgets
+are unchanged. The prompt version is `report-<style>-v4`.
+
+**Reason:** a target such as "about 700 to 1200 words" asks the model to
+reach a size whatever the material holds. With a few short sources the
+only way to reach it is to invent: the model added roles, approvals and
+processes that no source contained, each a plausible claim the reader
+cannot tell from the cited ones. An upper bound keeps a long report
+possible when the material supports it and lets a thin notebook give a
+short one, which is the honest size.
+
+**Rejected alternatives:**
+- Fixed word targets per length: fill short material with invention.
