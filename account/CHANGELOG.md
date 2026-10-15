@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Added
+
+- The public price list (JSON and HTML) has rows for `table_propose` ("Find tables") and `infographic_propose` ("Find themes"), priced from rag's estimate, unit `table_proposal` / `infographic_proposal` ("per search"). Unlike a chart's proposal they are optional, so `output:table` and `output:infographic` keep their own price. Their margin and fee are set in the pricing rules like any action, once core lists them.
+
 ## [0.22.0] - 2026-10-15
 
 ### Changed

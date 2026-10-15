@@ -1533,6 +1533,13 @@ _SOURCE_ROWS = (  # (row key, unit key, history key, ingest's estimate kind)
 )
 
 
+# The optional "find candidates" steps that have a price row of their own: (action, unit).
+PROPOSE_ROWS: tuple[tuple[str, str], ...] = (
+    ("table_propose", "table_proposal"),
+    ("infographic_propose", "infographic_proposal"),
+)
+
+
 def _price_catalogue(
     judge_models: dict[str, str],
 ) -> list[tuple[str, str | None, str, str | None, tuple[str, Any]]]:
@@ -1551,6 +1558,9 @@ def _price_catalogue(
     for level in judge_models:
         body = {"action": "judge", "options": {"level": level, "kind": "report"}}
         rows.append((f"judge:{level}", level, "output", f"judge:{level}", ("rag", body)))
+    # proposing is optional for tables and infographics (unlike charts), so each has its own row
+    for action, unit in PROPOSE_ROWS:
+        rows.append((action, None, unit, action, ("rag", {"action": action})))
     rows.append(
         ("voice_sample", None, "voice_sample", "voice_sample", ("rag", {"action": "voice_sample"}))
     )

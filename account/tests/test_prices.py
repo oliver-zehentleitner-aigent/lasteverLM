@@ -105,6 +105,14 @@ def test_every_row_has_an_estimated_price_without_history(client: TestClient) ->
     assert chat["typical_cents"] is None and chat["count"] == 0
     assert got["output:report"]["unit"] == "output" and got["output:report"]["estimated"]
     assert got["output:chart"]["price_min_cents"] == 2.5  # chart_propose 2 + chart 0.5
+    # optional proposing for tables and infographics: rows of their own, the outputs unchanged
+    for action, unit in (
+        ("table_propose", "table_proposal"),
+        ("infographic_propose", "infographic_proposal"),
+    ):
+        row = got[action]
+        assert (row["unit"], row["estimated"], row["price_min_cents"]) == (unit, True, 2), action
+    assert got["output:table"]["price_min_cents"] == got["output:report"]["price_min_cents"]
     assert got["judge:high"]["price_per_unit_cents"] == 11 and got["judge:high"]["level"] == "high"
     assert got["source:pdf"]["unit"] == "page" and got["source:pdf"]["price_per_unit_cents"] == 0.5
     assert got["source:pdf:vision"]["price_per_unit_cents"] == 3
@@ -232,6 +240,8 @@ def test_html_page_matches_the_json(
     assert parser.rows["chat_answer"][1].startswith("€0.02–€0.04 per question")
     assert parser.rows["source:pdf"][1] == "€0.005 per page + €0.013 per source · estimated"
     assert parser.rows["judge:high"][0] == "Judge, high"
+    assert parser.rows["table_propose"][:2] == ["Find tables", "€0.02–€0.04 per search · estimated"]
+    assert parser.rows["infographic_propose"][0] == "Find themes"
     # escaped, not markup; and nothing internal leaks
     assert "&lt;b&gt;x&lt;/b&gt;" in r.text and "<b>x</b>" not in r.text
     visible = r.text.split("</head>", 1)[1]  # the stylesheet's CSS "margin" is not a leak
