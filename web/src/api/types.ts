@@ -602,6 +602,11 @@ export interface DecisionContent {
   gaps: string[]
   agreement: Agreement
   agreement_note?: string
+  /** how many items for and against the check backed */
+  supported_evidence?: number
+  /** how far the number carries: full, a tendency (one backed item, or
+   *  agreement unclear), null when undecided; absent on older outputs (full) */
+  weight?: 'full' | 'tendency' | null
 }
 
 /** `GET /shared/{token}`: the document without ids, read-only. The service

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Decision: a number rag weighs as only a tendency (one supported item, or agreement unclear) is drawn lighter, with "Tendency, based on N supported item(s)" under it; full weight, a conflict included, and older documents stay as before.
 - Output format no longer grows past 45 % of the window (found charts pushed Create far down): it scrolls inside, and Create with its price stays fixed at its bottom.
 
 ### Fixed

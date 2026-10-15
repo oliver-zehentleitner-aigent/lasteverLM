@@ -1,6 +1,6 @@
 import type { DecisionContent } from '../../api/types'
-import { modelVersusEvidence, orderedDistribution, percent, scalePercent, showQuestion, undecided, yesNo } from '../../lib/decision'
-import { t } from '../../i18n'
+import { isTendency, modelVersusEvidence, orderedDistribution, percent, scalePercent, showQuestion, undecided, yesNo } from '../../lib/decision'
+import { t, tn } from '../../i18n'
 import { ClaimMarks } from '../OutputProvenance'
 
 /** A question weighed against the sources: the question, the decision
@@ -15,11 +15,14 @@ import { ClaimMarks } from '../OutputProvenance'
 export function DecisionView({ content: c, title }: { content: DecisionContent; title?: string | null }) {
   const versus = modelVersusEvidence(c)
   const none = undecided(c)
+  // a tendency: the number drawn lighter, with what it rests on
+  const tendency = isTendency(c)
   return (
     <div className="decision">
       {showQuestion(c.question, title) && <h2 className="decision-question">{c.question}</h2>}
-      <section className={none ? 'verdict undecided' : 'verdict'} aria-label={t('kind.decision')}>
+      <section className={['verdict', none ? 'undecided' : '', tendency ? 'tendency' : ''].join(' ').trim()} aria-label={t('kind.decision')}>
         {none ? <p className="no-decision">{t('decision.none')}</p> : <Answer content={c} />}
+        {tendency && <p className="tendency-note small">{tn('decision.tendency', c.supported_evidence ?? 0)}</p>}
         {!none && <p className="verdict-text">{c.verdict_text}</p>}
         {/* "No decision" already says it; the agreement line would repeat it */}
         {!none && (

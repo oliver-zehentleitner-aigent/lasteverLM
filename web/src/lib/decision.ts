@@ -121,3 +121,10 @@ export function modelAnswerLabel(a: NonNullable<DecisionContent['model_answer']>
   if ('level' in a) return `${a.level} · ${t('decision.confidence', { p: percent(a.confidence) })}`
   return `${a.choice} ${percent(a.distribution[a.choice] ?? 0)} % · ${t('decision.confidence', { p: percent(a.confidence) })}`
 }
+
+/** Whether the number is only a tendency: rag's `weight`; older outputs
+ *  without it count as full. Never for an undecided decision, which has no
+ *  number. */
+export function isTendency(c: Pick<DecisionContent, 'agreement' | 'model_answer' | 'weight'>): boolean {
+  return !undecided(c) && c.weight === 'tendency'
+}

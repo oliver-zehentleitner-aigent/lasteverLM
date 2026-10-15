@@ -1213,6 +1213,8 @@ export const en = {
   'chat.checking': 'answering and checking ({level})…',
   'ws.resizeSources': 'Resize sources and output formats',
   'ws.resizeFormats': 'Resize output formats and documents',
+  'decision.tendency.one': 'Tendency, based on {n} supported item',
+  'decision.tendency.other': 'Tendency, based on {n} supported items',
 } as const
 
 export type MessageKey = keyof typeof en

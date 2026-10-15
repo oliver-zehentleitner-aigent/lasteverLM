@@ -539,7 +539,12 @@ opens the notebook.
   not decide it (agreement "undecided", rag's `model_answer` null) the
   panel, dashed, says only "No decision: the sources do not contain what
   is needed." with the reason: no number, no bar, no verdict line, for
-  older documents with numbers too. Then Evidence for and
+  older documents with numbers too. When rag weighs the number as only
+  a tendency (`weight` "tendency": one backed item, or agreement
+  unclear) the gauge, bars or scale are drawn lighter with "Tendency,
+  based on N supported item(s)" under them (`supported_evidence`); a
+  full weight, a conflict included, and older documents without the
+  field are drawn as before. Then Evidence for and
   Evidence against side by side (stacked on a phone) with their markers
   and badges, and "What the sources do not say". "How this was made"
   lists both calls (decision and evidence: model, prompt, duration, the
