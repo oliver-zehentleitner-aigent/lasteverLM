@@ -140,6 +140,21 @@ def test_an_output_outlives_its_notebook_and_can_sit_in_the_trash() -> None:
     }
 
 
+def test_phase_is_optional_and_passed_through() -> None:
+    row = {
+        "id": str(uuid4()),
+        "notebook_id": str(uuid4()),
+        "kind": "report",
+        "title": "t",
+        "status": "processing",
+        "created_at": "2026-10-15T00:00:00Z",
+    }
+    assert Output.model_validate(row).phase is None
+    phase = {"step": "writing", "since": "2026-10-15T00:00:05Z", "n": 2, "of": 5}
+    assert Output.model_validate({**row, "phase": phase}).model_dump(mode="json")["phase"] == phase
+    assert "phase" not in SharedOutput.model_fields  # a shared output is always ready
+
+
 def test_provenance_is_optional_and_passed_through() -> None:
     row = {
         "id": str(uuid4()),
