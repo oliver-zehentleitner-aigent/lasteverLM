@@ -11,7 +11,11 @@
 
 The user message and the assistant message are inserted only once the
 answer (or the refusal) is complete, user first, assistant second.
-Nothing is written before retrieval and generation.
+Nothing is written before retrieval and generation. This is about a
+question and its answer: the agent chat's own turns (the answer to a
+plan's question, the note that a plan runs, its summary) are single
+messages written when their event happens, after anything that could
+fail.
 
 **Reason:** the message history is what the frontend renders; if the
 provider call fails, a stored question without an answer would show up as
