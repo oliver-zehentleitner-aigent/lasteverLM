@@ -466,8 +466,13 @@ opens the notebook.
 - **Chart** ("number series from the sources, drawn and checked"). Under
   the tiles: the optional notes, how many charts at most (1–12, 6 by
   default) and **Find charts**, one billed model call (`POST
-  /api/rag/notebooks/{id}/charts/propose`; without credit the voucher
-  dialog). The candidates come back as small previews, each with its
+  /api/rag/notebooks/{id}/charts/propose` with the selected sources and
+  the pages to fetch again, as Create sends them; without credit the
+  voucher dialog). Candidates belong to the notebook, the selection,
+  those pages and the notes they were found for: when any of these
+  changes they are dropped, never sent, and the area says "The sources
+  or the notes changed: find charts again for the current selection"
+  (also what rag's `chart_out_of_scope` refusal on Create reads). The candidates come back as small previews, each with its
   title, type, number of values and how many the check backed, and a
   checkbox (all ticked to start); none at all says why ("the sources
   contain no number series"). Create sends the ticked ones as proposed.
@@ -478,7 +483,8 @@ opens the notebook.
   passage in the provenance panel, a computed one at the first value it
   was computed from. Each chart has PNG and CSV downloads and its values
   as a folded table with their markers ("computed from [3] [5]",
-  "unsupported"); the head says "N of M values supported". Recharts is
+  "unsupported"); the head says "N of M values supported" (and no word
+  check line: a chart has values, not paragraphs). Recharts is
   loaded only when a chart is proposed or opened. Read-only on the share
   page.
 - **Decision** ("a question weighed against the sources"). Its options

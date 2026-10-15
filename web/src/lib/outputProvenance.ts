@@ -53,8 +53,11 @@ function supportHtml(badge: Support, ask?: string): string {
 
 /** "7 of 9 claims supported", with the ones that could not be measured
  *  named after it; null without a check or without claims. */
-export function checkSummary(check: Check | null | undefined): string | null {
-  if (!check) return null
+export function checkSummary(check: Check | null | undefined, kind?: string): string | null {
+  // a chart's values have their own number check and its own line, not paragraphs
+  if (!check || kind === 'chart') return null
+  // a check of another shape (no paragraph counts) gets no line rather than "NaN"
+  if (![check.supported, check.unsupported, check.unverified].every((n) => Number.isFinite(n))) return null
   const total = check.supported + check.unsupported + check.unverified
   if (total === 0) return null
   const line = tn('outProv.supported', total, { supported: check.supported })

@@ -53,6 +53,11 @@ describe('checkSummary', () => {
     expect(checkSummary(check)).toBe('Word check: words match in 7 of 9 paragraphs')
     expect(checkSummary({ ...check, unverified: 1 })).toBe('Word check: words match in 7 of 10 paragraphs · 1 in another language')
   })
+  it("has no line for a chart, or for a check without paragraph counts (never NaN)", () => {
+    expect(checkSummary(check, 'chart')).toBeNull()
+    expect(checkSummary({ method: 'numbers', supported: 28 } as never)).toBeNull()
+    expect(checkSummary(check, 'report')).toBe('Word check: words match in 7 of 9 paragraphs')
+  })
   it('says nothing without claims or a check', () => {
     expect(checkSummary({ ...check, supported: 0, unsupported: 0 })).toBeNull()
     expect(checkSummary(undefined)).toBeNull()

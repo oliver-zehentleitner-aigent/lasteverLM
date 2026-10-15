@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Decision: when the sources do not decide the question (agreement "undecided", or no `model_answer`), the panel says "No decision: the sources do not contain what is needed." without a percentage, a bar or a verdict line, also for older documents that carry numbers; what the sources do not say stays listed under the evidence.
 - Decision: the question is no longer shown a second time under a title that is the question.
 - Decision: the yes/no bar names both ends with their shares ("Yes 77 %", "No 23 %") and the answer in words above it; before, "77 % No" sat over a bar filled toward a "No" end.
+- Chart: candidates found with an earlier selection were kept and sent with Create after the sources changed. Find charts now proposes from the selected sources (and the pages to fetch again), and the candidates are dropped whenever the notebook, the selection, those pages or the notes change, with "find charts again for the current selection"; rag's `chart_out_of_scope` refusal reads the same.
+- Chart: the head no longer reads "Word check: words match in 28 of NaN paragraphs"; a chart has its own "N of M values supported", and a check without paragraph counts gets no word-check line in any kind.
 
 ## [0.21.5] - 2026-10-15
 

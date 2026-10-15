@@ -31,6 +31,10 @@ describe('failureMessage', () => {
     // the other 402s keep the service's sentence
     expect(failureMessage(402, '{"error":"credit exhausted"}')).toBe('credit exhausted')
   })
+  it('asks to find charts again when rag refuses candidates from another selection', () => {
+    const body = JSON.stringify({ error: 'charts: a candidate cites a source outside the selected sources; find charts again', code: 'chart_out_of_scope' })
+    expect(failureMessage(409, body)).toBe('The sources or the notes changed: find charts again for the current selection.')
+  })
   it("says why the model did not answer, in the user's language, from rag's cause", () => {
     const body = (cause: unknown) => JSON.stringify({ error: 'the model did not answer', code: 'model_no_answer', cause })
     expect(failureMessage(502, body('truncated_answer'))).toBe('The model did not answer, not on a second try either: the answer was cut off at its length limit. Try again in a moment.')

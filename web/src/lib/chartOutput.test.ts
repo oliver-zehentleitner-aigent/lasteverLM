@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChartSpec } from '../api/types'
-import { chartCsv, chartFileName, chartRows, pointAt, pointPassage, supportCount, supportLine } from './chartOutput'
+import { chartCsv, chartFileName, chartRows, pointAt, pointPassage, proposalKey, supportCount, supportLine } from './chartOutput'
 
 const chart: ChartSpec = {
   title: 'Revenue by year',
@@ -45,5 +45,18 @@ describe('chart output', () => {
   it('exports CSV with quoting and a file name', () => {
     expect(chartCsv(chart)).toBe('Year,Revenue,"Share, ""core"""\n2023,10,\n2024,12,0.5\n')
     expect(chartFileName('Revenue by year!', 'png')).toBe('revenue-by-year.png')
+  })
+})
+
+describe('proposalKey', () => {
+  it('changes with the notebook, the selection, the pages fetched again and the notes, not with their order or spacing', () => {
+    const k = proposalKey('n1', ['b', 'a'], ' costs  by year ', ['p'])
+    expect(proposalKey('n1', ['a', 'b'], 'costs by year', ['p'])).toBe(k)
+    expect(proposalKey('n2', ['a', 'b'], 'costs by year', ['p'])).not.toBe(k)
+    expect(proposalKey('n1', ['a'], 'costs by year', ['p'])).not.toBe(k)
+    expect(proposalKey('n1', ['a', 'b'], 'costs by month', ['p'])).not.toBe(k)
+    expect(proposalKey('n1', ['a', 'b'], 'costs by year')).not.toBe(k)
+    // all sources is not the same as a list of them
+    expect(proposalKey('n1', undefined, '')).not.toBe(proposalKey('n1', [], ''))
   })
 })
