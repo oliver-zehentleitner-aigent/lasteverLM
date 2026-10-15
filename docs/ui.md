@@ -159,8 +159,8 @@ opens the notebook.
   order (Report, Quiz, Data table, Mindmap, Infographic, Audio,
   Decision, Chart), flowing with the column: as many to a row as fit at
   110 px at least, three at the column's default and narrowest width
-  (27rem), more when it is dragged wider, each row only as high as its
-  tiles. A click
+  (27rem), more when it is dragged wider; every tile is as tall as the
+  tallest one, in every row, with its title and note at the top. A click
   (or Enter on a focused tile) only selects one, highlighted, and the
   selection stays while the notebook is open; the **Create** button
   at the right edge below the tiles starts the job for the selected

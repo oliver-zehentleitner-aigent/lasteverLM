@@ -17,6 +17,8 @@ describe('the output-format grid', () => {
     expect(css).toContain('var(--left-w, 27rem)')
     expect(LEFT_WIDTH.min).toBe(27 * root)
     expect(3 * tile + (2 * gap + 2 * pad) * root).toBeLessThanOrEqual(LEFT_WIDTH.min)
+    // every tile as tall as the tallest, in every row
+    expect(css).toMatch(/\.tiles \.tile-grid \{[^}]*grid-auto-rows: 1fr;/)
   })
 })
 

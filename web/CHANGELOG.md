@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The output format tiles are all as tall as the tallest one again, in every row, with title and note at the top; the flowing layout and the 110 px minimum stay.
+
 ## [0.22.9] - 2026-10-15
 
 ### Changed
