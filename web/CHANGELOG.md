@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.13] - 2026-10-15
+
 ### Changed
 
 - Admin → Finance → Vouchers fits its panel without scrolling sideways: compact dates (full time as tooltip), "Redeemed" as one cell with address and date, long addresses cut with an ellipsis, status and paid as two badges in one column; show (an eye with a popover holding the code and copy), send (an envelope) and delete (a red bin) are icons at the row's end, and on a phone each voucher is a card.
