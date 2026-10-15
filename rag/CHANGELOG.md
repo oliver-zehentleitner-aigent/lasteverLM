@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.8] - 2026-10-15
+
 ### Added
 
 - Find tables / Find themes: `POST …/tables/propose` and `…/infographics/propose` propose up to 6 candidates (previews with their sources) from the selected sources; a table or infographic made from picked candidates (`options.tables` / `options.themes`) gets one table or part per candidate, each from its own sources only. A candidate outside the selection is 409 `candidate_out_of_scope`. New usage actions `table_propose` and `infographic_propose`.
