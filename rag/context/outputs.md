@@ -392,8 +392,8 @@ during the rolling deploy.
 **Type:** decision
 **Status:** active
 **Evidence:** inferred
-**Source:** maintainer wish relayed by the coordinator, 2026-10-14 (the three styles, two hosts, one voice per speaker); maintainer order relayed by the coordinator, 2026-10-14 (the fourth style, faq, with two voices); `GET /v1/models` on 2026-10-14 for the speech model's parameters
-**Revisit when:** the platform documents its `instructions` parameter for prosody, or listeners cannot tell the two voices apart
+**Source:** maintainer wish relayed by the coordinator, 2026-10-14 (the three styles, two hosts, one voice per speaker); maintainer order relayed by the coordinator, 2026-10-14 (the fourth style, faq, with two voices); `GET /v1/models` on 2026-10-14 for the speech model's parameters; the voices per output language from the maintainer's listening test, 2026-10-15
+**Revisit when:** the platform documents its `instructions` parameter for prosody, listeners cannot tell the two voices apart, or the platform's voices change (the listened-in defaults would no longer be what was heard)
 
 `audio_style` is `overview` (default, the earlier behaviour), `story`
 (the material as a narrative, one narrator, nothing invented),
@@ -411,6 +411,17 @@ first, so both read the material's language equally well (`ryan` →
 in the prompt and, since provenance (2026-10-14), passage numbers in a
 `refs` list beside each paragraph or turn, never `[n]` markers in the
 text, which a voice would read aloud.
+
+**Since 2026-10-15:** without a voice of the user's own, the output
+language picks both voices, as the maintainer chose them by listening:
+German Dylan and Ono Anna, English Ryan and Vivian. Other languages, and
+an output without a language, keep the deployment's default and the
+next-voice rule above. A voice the client sends, the user's own
+preference, always wins. The catalogue lists the defaults
+(`defaults_by_language`) and the recommended voices per language
+(`recommended`; German Dylan, Eric, Uncle Fu, Ono Anna, Sohee; English
+Ryan, Aiden, Vivian, Serena) for the form to show first. The choice is
+the maintainer's, by ear; no further reason was given.
 
 **Reason:** the maintainer asked for the set and for two voices; the
 reasons below for two voices are this service's. A change of voice is
