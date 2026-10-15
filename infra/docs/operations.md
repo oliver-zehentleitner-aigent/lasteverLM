@@ -82,7 +82,7 @@ reaches the deployment through the load balancer address:
 |---|---|
 | ConfigMap `lasteverlm-config` | non-secret settings from the values file |
 | Deployments `account`, `ingest`, `rag` | API services, port 8000, `/healthz` probes, `envFrom` the ConfigMap and their Secrets |
-| Deployments `ingest-worker`, `rag-worker` | same image, command `lasteverlm-<service>-worker`, no Service, no port |
+| Deployments `ingest-worker`, `rag-worker` | same image, command `lasteverlm-<service>-worker`, no Service, no port; `rag-worker` waits up to 2760 s on SIGTERM so a running job finishes (rag's `JOB_MAX_SECONDS` 2700 plus a minute; the same value reaches the worker as `WORKER_GRACE_SECONDS` for its handover) and rolls one new pod at a time before an old one stops (`maxSurge 1`, `maxUnavailable 0`): a deploy during a long job takes that long to remove the old pod, and `helm --wait` can time out if replacements stay Pending for memory |
 | Deployment `web` | static frontend, port 8080 |
 | HorizontalPodAutoscalers | one per Deployment above, CPU based (80 % of the request), minimum two replicas |
 | Services | one per API service and web, port 80 |
