@@ -13,11 +13,23 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
 
 ### Sources
 
-- **Five kinds:** PDF, text, web page, image, audio.
+- **Five kinds:** PDF, text, web page, image, audio. A URL may also
+  return structured data (JSON, NDJSON, XML with RSS and Atom, CSV, TSV,
+  YAML): every value is read on its own line with its key path or its
+  column names, so a cited number never stands without its context;
+  hostile input (entity expansion, alias bombs, deep nesting) fails
+  with its reason.
 - **PDF capture:** the text layer, the vision model for scanned pages,
   or `auto` (vision only for pages without a legible text layer; a
   layer of glyph codes counts as not legible).
-- **Images** are transcribed and described by the vision model.
+- **Images** are transcribed and described by the vision model. A
+  large image or a dense scanned page is read in overlapping tiles,
+  because the platform shrinks every image to a fixed budget and small
+  text would otherwise be invented rather than read (measured in the
+  [vision evaluation](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/ingest/docs/vision-eval.md)).
+  Every model-made text says which model made it and that it is a
+  description, not a verbatim transcript. A transcript that loops into
+  repetition is retried once and then fails loudly; it is never indexed.
 - **Audio** is transcribed by a speech-to-text model. MP3 and WAV go in
   as they are; M4A, AAC, OGG, Opus, FLAC, WebM, the audio track of MP4,
   and WAV over the platform's 25 MB cap are converted to MP3 first by a
@@ -45,7 +57,9 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   finished outputs of every kind, ready to ask and to check.
 - **First steps:** on the first sign-in a three-step introduction
   outlines where sources go, where the format is picked and where
-  Create is; it can be shown again from Settings.
+  Create is. The help page (the ? at the top right, next to the credit
+  chip and the profile menu) has a short guide, shows the introduction
+  again and recreates the starter notebook if it was deleted.
 
 ### Outputs
 
@@ -63,20 +77,46 @@ decision is in the [Keep the Why dashboard](https://oliver-zehentleitner.github.
   evidence for and against independently from the same passages; both
   go through the support check, and their agreement is shown
   (consistent, conflicting, unclear, or "the sources do not decide
-  this").
+  this"). Without supported evidence a decision carries no number; with
+  only one supported item the number is shown as a tendency.
 - **Chart:** "Find charts" proposes number series from the sources as
   small previews; the user picks which are drawn. Every value is
   checked exactly against its passage (in any notation: 1.906, 1906,
   1,9 Mio., percent); a computed value is marked as computed, never as
   supported.
-- **Judge (optional):** a model of another family than the author
-  checks each claim's meaning against its passages (supported,
-  contradicted, not in the source), in three levels whose models were
-  chosen by a published evaluation ([judge evaluation](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/judge-eval.md)).
-  At generation, failing claims are revised and judged again, at most
-  three rounds; a claim that still fails is removed and listed as
-  removed. On an existing output or chat answer the judge annotates
-  only.
+- **Verification levels:** every user sets how much checking matters
+  and what it may cost; each output and chat answer can change it, and
+  each level shows its price before Create.
+  - *Basic* (free): the word check plus a negation check that parses
+    each sentence (spaCy, English and German) and marks a paragraph
+    whose negation contradicts its passage as a possible contradiction
+    ([negation evaluation](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/negation-eval.md)).
+  - *Standard*: every paragraph the deterministic checks doubt
+    (unsupported, other language, possible contradiction) is judged
+    once by a model of another family than the author.
+  - *Thorough*: every paragraph is judged; failing ones are revised and
+    judged again, at most three rounds, and what still fails is removed
+    and listed as removed.
+  - *Bulletproof*: two judges of different model families judge every
+    paragraph in parallel; a paragraph counts as supported only if both
+    agree, and a disagreement that survives three rounds is kept and
+    marked disputed, with both verdicts shown.
+  The judge models were chosen by published evaluations
+  ([judge](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/judge-eval.md),
+  [second judge](https://github.com/oliver-zehentleitner/lasteverLM/blob/main/rag/docs/second-judge-eval.md)).
+  With a judge verdict only the judge's badge shows; the word check
+  never claims meaning. "Check with a judge" on an existing output or
+  chat answer annotates only, runs as a background job and shows its
+  progress.
+- **Coverage:** every output shows how many of the selected sources it
+  used and names the unused ones with the generator's reason, so no
+  source is left out silently.
+- **Data tables and infographics** first propose candidates from the
+  selected sources, like charts; the user ticks the tables or themes to
+  build, each from its own sources.
+- **Every output has an ID**, shown in its head and after every error,
+  copied with one click; every failed attempt is stored with it, so
+  support finds what happened after any deploy.
 - **Outputs belong to the user**, live in the library, survive the
   deletion of the notebook they were made in, and can be added to
   other notebooks as sources.
@@ -151,8 +191,11 @@ answer without usage is an error.
 
 **The cheaper path by default.** Whatever costs extra is an action
 the user takes, never a default: sources are read only when used, a
-web page is fetched again only on request, the judge is off unless
-chosen, and every paid action shows its price first.
+web page is fetched again only on request, the verification level
+starts at the free basic level, and every paid action shows its price
+first. An action starts only when the credit covers its estimated
+maximum, and then runs to its end, even below zero, so nothing stops
+half-paid.
 
 **Measure, do not assume.** Five billing facts were corrected by a
 measurement instead of the documentation: text-to-speech is charged
