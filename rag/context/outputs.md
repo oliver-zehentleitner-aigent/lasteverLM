@@ -603,6 +603,15 @@ worker claims the row (before output jobs, with attempts like them),
 copies the ready outputs and deletes the row. `outputs.copied_from` with
 a unique (notebook, copied_from) makes every copy happen once.
 
+**Since 2026-10-16:** "drop the unmappable" now applies to ids, not to
+cited passages. A copied chart cited a passage whose chunk belonged to a
+source no longer linked to the starter; the passage was dropped, its
+value still showed as supported and its citation opened nothing
+(maintainer's final test, relayed by the coordinator). A cited passage
+whose chunk cannot be mapped stays with its quote and no chunk, so every
+citation resolves; options, candidates and coverage get the copy's ids or
+lose the entry. `lasteverlm-rag-repair-copies` mends earlier copies.
+
 **Reason:** the row makes the handover atomic with ingest's copy, which
 either commits both or neither, without ingest running rag's SQL or
 importing rag's code. It also needs no new service-to-service auth,
