@@ -1039,15 +1039,22 @@ deleted from the library) stays readable with its quote and is marked
     full width. The codes are shown once under the card as chips with
     a copy button each ("copy all" for several; without the clipboard
     API the text is selected instead). The list of issued vouchers
-    below: the code masked, and for an admin "show" (fetched once, with
-    copy and hide; a voucher made before codes were kept says "code not
-    kept (before 0.18)", the full sentence as tooltip), "sent
-    to … , date" under the status once mailed; open ones can be sent
-    (a dialog with the same three fields; a refusal for the quota of 5
-    mails per address and hour, a missing mail server, the mail server's
-    error or an already redeemed voucher stays in the dialog) and
-    deleted. "Paid" on the create form and per voucher (in the list a
-    checkbox with "Paid" or "Free" beside it on one line): paid is sold
+    below, the full width of the panel and never scrolling sideways:
+    the code masked (a voucher made before codes were kept says "code not
+    kept (before 0.18)", the full sentence as tooltip), amount, creator,
+    created ("15.10., 20:53", the full time as tooltip), status and
+    paid/free as two small badges in one column (for an admin "paid" is
+    the checkbox, editable), "sent to …" under them once mailed, and
+    "Redeemed" as one cell, the address over the date. Long addresses
+    are cut with an ellipsis, the full one as tooltip. The actions are
+    icons at the row's end, each with a tooltip and a label: an eye (an
+    admin only) shows the code in a small popover with a copy button,
+    closed by a click elsewhere or Esc; an envelope (an admin, open
+    vouchers) opens the send dialog (the same three fields; a refusal for
+    the quota of 5 mails per address and hour, a missing mail server, the
+    mail server's error or an already redeemed voucher stays in it); a
+    red bin deletes an open voucher (disabled for viewers). On a phone
+    every voucher is a card with its labels and the icons. Paid is sold
     for its face value and counts as revenue, free is a gift and counts
     as a marketing cost.
   - **Security** (`/admin/security`): the rate-limit rule as a sentence

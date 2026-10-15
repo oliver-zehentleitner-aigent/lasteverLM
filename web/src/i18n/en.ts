@@ -712,9 +712,6 @@ export const en = {
   'vch.err.noSmtp': 'Not sent: no mail server is configured (see Admin > Mail).',
   'vch.err.mail': 'Not sent: the mail server refused it ({detail}).',
   'vch.code': 'Code',
-  'vch.show': 'show',
-  'vch.hide': 'hide',
-  'vch.send': 'send',
   'vch.sentTo': 'sent to {to}, {at}',
   'vch.sendTitle': 'Send voucher ({amount})',
   'vch.email': 'Recipient\'s e-mail',
@@ -1294,6 +1291,14 @@ export const en = {
   'judge.job.failed': 'The judge failed: {error}',
   'judge.job.noReason': 'no reason given',
   'judge.job.attempts': 'after {n} attempts',
+  'vch.actions': 'Actions',
+  'vch.showTitle': 'Show the code',
+  'vch.showLabel': 'Show the code of the {amount} voucher',
+  'vch.sendTitleShort': 'Send by mail',
+  'vch.sendLabel': 'Send the {amount} voucher by mail',
+  'vch.deleteTitle': 'Delete the voucher',
+  'vch.deleteLabel': 'Delete the {amount} voucher',
+  'vch.sentToShort': 'sent to {to}',
 } as const
 
 export type MessageKey = keyof typeof en

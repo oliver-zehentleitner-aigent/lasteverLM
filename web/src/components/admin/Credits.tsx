@@ -1,13 +1,14 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../../api/client'
 import { admin } from '../../api/admin'
 import type { Voucher, VoucherSend } from '../../api/types'
 import { CopyButton } from '../CopyButton'
 import { useAsync } from '../../hooks/useAsync'
-import { formatCents, formatTime } from '../../lib/format'
+import { formatCents, formatShortTime, formatTime } from '../../lib/format'
 import { t } from '../../i18n'
 import { useCanWrite } from './canWrite'
-import { Section, Table } from './shared'
+import { IconEye, IconMail, IconTrash } from '../Icons'
+import { Section } from './shared'
 import { useLoad } from '../../hooks/useLoad'
 import { MESSAGE_MAX, plausibleEmail, voucherError } from '../../lib/vouchers'
 
@@ -143,57 +144,103 @@ function VoucherList() {
     if (ok) setData((list) => list.filter((x) => x.id !== v.id))
   }
 
+  // a dated cell: compact, the full time in the tooltip
+  const when = (iso: string | null) => <span title={iso ? formatTime(iso) : undefined}>{iso ? formatShortTime(iso) : '—'}</span>
   return (
     <>
       {(error ?? actionError) && <p className="error">{error ?? actionError}</p>}
-      <Table
-        head={[
-          t('vch.code'),
-          t('adm.col.amount'),
-          t('adm.col.createdBy'),
-          t('adm.col.created'),
-          t('adm.col.status'),
-          t('vch.paidCol'),
-          t('adm.col.redeemedBy'),
-          t('adm.col.redeemed'),
-          '',
-        ]}
-        rows={data.map((v) => [
-          <CodeCell key="code" voucher={v} canShow={canWrite} />,
-          formatCents(v.amount_cents),
-          v.created_by,
-          formatTime(v.created_at),
-          <span key="status">
-            <span className={`badge ${v.status === 'open' ? 'ready' : ''}`}>{t(`status.${v.status}`)}</span>
-            {v.sent_to && (
-              <span className="muted small sent">
-                {' '}
-                {t('vch.sentTo', { to: v.sent_to, at: formatTime(v.sent_at ?? null) })}
-              </span>
-            )}
-          </span>,
-          <label key="paid" className="check small paid-toggle" title={t('vch.paidTitle')}>
-            <input type="checkbox" checked={v.paid ?? false} disabled={busy || !canWrite} onChange={(e) => void markPaid(v, e.target.checked)} />
-            {v.paid ? t('vch.paid') : t('vch.free')}
-          </label>,
-          v.redeemed_by ?? '—',
-          v.redeemed_at ? formatTime(v.redeemed_at) : '—',
-          v.status === 'open' ? (
-            <span key="actions" className="row-actions">
-              {canWrite && v.recoverable !== false && (
-                <button type="button" className="link" disabled={busy} onClick={() => setSending(v)}>
-                  {t('vch.send')}
-                </button>
-              )}
-              <button type="button" className="link danger" disabled={busy || !canWrite} title={canWrite ? undefined : t('adm.readOnlyTitle')} onClick={() => void remove(v)}>
-                {t('common.delete')}
-              </button>
-            </span>
-          ) : (
-            ''
-          ),
-        ])}
-      />
+      <table className="voucher-table">
+        <thead>
+          <tr>
+            <th>{t('vch.code')}</th>
+            <th>{t('adm.col.amount')}</th>
+            <th>{t('adm.col.createdBy')}</th>
+            <th>{t('adm.col.created')}</th>
+            <th>{t('adm.col.status')}</th>
+            <th>{t('adm.col.redeemed')}</th>
+            <th>
+              <span className="sr-only">{t('vch.actions')}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((v) => {
+            const gone = v.recoverable === false
+            return (
+              <tr key={v.id}>
+                <td data-label={t('vch.code')}>
+                  {gone ? (
+                    <span className="muted small" title={t('vch.notRecoverable')}>
+                      {t('vch.notRecoverableShort')}
+                    </span>
+                  ) : (
+                    <code>{v.code_masked ?? '—'}</code>
+                  )}
+                </td>
+                <td data-label={t('adm.col.amount')}>{formatCents(v.amount_cents)}</td>
+                <td data-label={t('adm.col.createdBy')}>
+                  <span className="clip" title={v.created_by}>
+                    {v.created_by}
+                  </span>
+                </td>
+                <td data-label={t('adm.col.created')}>{when(v.created_at)}</td>
+                <td data-label={t('adm.col.status')}>
+                  <span className="voucher-badges">
+                    <span className={`badge ${v.status === 'open' ? 'ready' : ''}`}>{t(`status.${v.status}`)}</span>
+                    {canWrite ? (
+                      <label className="check small paid-toggle" title={t('vch.paidTitle')}>
+                        <input type="checkbox" checked={v.paid ?? false} disabled={busy} onChange={(e) => void markPaid(v, e.target.checked)} />
+                        {v.paid ? t('vch.paid') : t('vch.free')}
+                      </label>
+                    ) : (
+                      <span className="badge" title={t('vch.paidTitle')}>
+                        {v.paid ? t('vch.paid') : t('vch.free')}
+                      </span>
+                    )}
+                  </span>
+                  {v.sent_to && (
+                    <span className="muted small clip sent" title={t('vch.sentTo', { to: v.sent_to, at: formatTime(v.sent_at ?? null) })}>
+                      {t('vch.sentToShort', { to: v.sent_to })}
+                    </span>
+                  )}
+                </td>
+                <td data-label={t('adm.col.redeemed')}>
+                  {v.redeemed_by ? (
+                    <span className="two-line">
+                      <span className="clip" title={v.redeemed_by}>
+                        {v.redeemed_by}
+                      </span>
+                      <span className="muted small">{when(v.redeemed_at)}</span>
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className="row-actions">
+                  {canWrite && !gone && <CodeReveal voucher={v} />}
+                  {canWrite && v.status === 'open' && !gone && (
+                    <button type="button" className="icon icon-action" disabled={busy} title={t('vch.sendTitleShort')} aria-label={t('vch.sendLabel', { amount: formatCents(v.amount_cents) })} onClick={() => setSending(v)}>
+                      <IconMail />
+                    </button>
+                  )}
+                  {v.status === 'open' && (
+                    <button
+                      type="button"
+                      className="icon icon-danger"
+                      disabled={busy || !canWrite}
+                      title={canWrite ? t('vch.deleteTitle') : t('adm.readOnlyTitle')}
+                      aria-label={t('vch.deleteLabel', { amount: formatCents(v.amount_cents) })}
+                      onClick={() => void remove(v)}
+                    >
+                      <IconTrash />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
       {sending && (
         <SendDialog
           voucher={sending}
@@ -273,16 +320,45 @@ function SendDialog({ voucher, onClose, onSent }: { voucher: Voucher; onClose: (
   )
 }
 
-/** The code as kept: masked, and for an admin "show" to fetch it once
- *  with a copy button next to it; a voucher from before codes were kept
- *  says so instead. */
-function CodeCell({ voucher: v, canShow }: { voucher: Voucher; canShow: boolean }) {
+/** The eye in a voucher's row: fetches the code once and shows it in a
+ *  small popover with a copy button; a click elsewhere or Esc closes it
+ *  (and the code is not kept). A voucher whose code was not kept says so. */
+function CodeReveal({ voucher: v }: { voucher: Voucher }) {
+  const [open, setOpen] = useState(false)
   const [code, setCode] = useState<string | null>(null)
-  const [gone, setGone] = useState(v.recoverable === false)
+  const [gone, setGone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const box = useRef<HTMLSpanElement>(null)
   const el = useRef<HTMLElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
 
-  async function show() {
+  useEffect(() => {
+    if (!open) return
+    const away = (e: Event) => {
+      if (!box.current?.contains(e.target as Node)) close()
+    }
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        close()
+        button.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', away)
+    document.addEventListener('keydown', key)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      document.removeEventListener('keydown', key)
+    }
+  }, [open])
+
+  function close() {
+    setOpen(false)
+    setCode(null)
+  }
+
+  async function reveal() {
+    if (open) return close()
+    setOpen(true)
     setError(null)
     try {
       setCode(await admin.voucherCode(v.id))
@@ -292,29 +368,27 @@ function CodeCell({ voucher: v, canShow }: { voucher: Voucher; canShow: boolean 
     }
   }
 
-  if (gone)
-    return (
-      <span className="muted small" title={t('vch.notRecoverable')}>
-        {t('vch.notRecoverableShort')}
-      </span>
-    )
   return (
-    <span className="code-cell">
-      <code ref={el}>{code ?? v.code_masked ?? '—'}</code>
-      {canShow &&
-        (code ? (
-          <>
-            <CopyButton text={code} target={el} />
-            <button type="button" className="link small" onClick={() => setCode(null)}>
-              {t('vch.hide')}
-            </button>
-          </>
-        ) : (
-          <button type="button" className="link small" onClick={() => void show()}>
-            {t('vch.show')}
-          </button>
-        ))}
-      {error && <span className="error small"> {error}</span>}
+    <span className="code-reveal" ref={box}>
+      <button ref={button} type="button" className="icon icon-action" aria-expanded={open} title={t('vch.showTitle')} aria-label={t('vch.showLabel', { amount: formatCents(v.amount_cents) })} onClick={() => void reveal()}>
+        <IconEye />
+      </button>
+      {open && (
+        <span className="code-popover" role="dialog" aria-label={t('vch.showTitle')}>
+          {gone ? (
+            <span className="muted small">{t('vch.notRecoverable')}</span>
+          ) : error ? (
+            <span className="error small">{error}</span>
+          ) : code ? (
+            <>
+              <code ref={el}>{code}</code>
+              <CopyButton text={code} target={el} />
+            </>
+          ) : (
+            <span className="muted small">{t('common.loading')}</span>
+          )}
+        </span>
+      )}
     </span>
   )
 }
