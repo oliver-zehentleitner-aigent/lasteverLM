@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.8] - 2026-10-15
+
 ### Changed
 
 - Library: Shift+click on a row or its checkbox adds every row from the one clicked last to this one, like a file manager; it never removes.
