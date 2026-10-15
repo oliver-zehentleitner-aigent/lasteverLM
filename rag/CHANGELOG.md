@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `lasteverlm-rag-repair-copies`: restores a cited passage that a starter copy lost and maps the starter's source ids left in a copy's table or infographic options and coverage; mapped by source name and chunk position, a dry run by default, idempotent.
+
+### Fixed
+
+- An output's judge count is per unit: `provenance.judge.final` (and `final` on a judgement on request and at standard) counts each judged unit once by its last verdict, `supported_elsewhere` as passed. Before, the head showed the last round's count, so eight paragraphs that all ended supported read "1 of 8 passed".
+- A starter copy keeps every cited passage: one whose chunk is not in the copy (its source was unlinked from the starter) stays with its quote and no chunk, where it was dropped and its citation opened nothing. A copied table's or infographic's picked candidates and the coverage get the copy's source ids instead of the starter's.
+
 ## [0.22.20] - 2026-10-16
 
 ### Fixed

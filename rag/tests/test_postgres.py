@@ -350,6 +350,22 @@ def test_the_journal_is_kept_while_claimed_and_cleared_when_done(store, pool, no
     assert store.get_checkpoint(row.id) == {}
 
 
+def test_chunks_by_position_and_options_written_for_a_copy(store, pool, notebook):
+    link = add_source(pool, notebook, "ready")
+    chunk = str(uuid4())
+    with pool.connection() as conn:
+        conn.execute(
+            "insert into chunks (id, library_source_id, idx, text, embedding) "
+            "values (%s, %s, 3, 't', '[0,1,0]')",
+            (chunk, library_id_of(pool, link)),
+        )
+    assert store.chunk_ids_at(link, [3, 4]) == {3: chunk}
+    row = store.create_output(notebook, "table", "ready")
+    store.update_output(row.id, options={"tables": [{"sources": []}]})
+    assert store.get_output(row.id).options == {"tables": [{"sources": []}]}
+    assert all(copy_id != row.id for copy_id, _ in store.starter_copies())
+
+
 def test_report_outputs_lists_ready_reports(store, notebook):
     ready = store.create_output(notebook, "report", "ready")
     store.create_output(notebook, "report", "processing")

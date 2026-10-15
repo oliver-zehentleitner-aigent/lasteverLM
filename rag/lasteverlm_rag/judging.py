@@ -67,6 +67,20 @@ def _counts(judgements: Iterable[Judgement]) -> dict[str, int]:
     return dict(Counter(j.verdict or NO_USABLE_ANSWER for j in judgements))
 
 
+PASSED = frozenset({"supported", "supported_elsewhere"})
+
+
+def _final(judgements: Iterable[Judgement]) -> dict[str, Any]:
+    """Each judged unit's last verdict, counted once: what an output's head
+    shows ("n of m passed"), whatever round the verdict came from."""
+    verdicts = _counts(judgements)
+    return {
+        "judged": sum(verdicts.values()),
+        "passed": sum(n for v, n in verdicts.items() if v in PASSED),
+        "verdicts": verdicts,
+    }
+
+
 REVISE_SYSTEM = """You correct parts of a document so that the passages they cite support them.
 
 Rules:
@@ -345,6 +359,8 @@ def judge_output(
     log_entry: dict[str, Any] = {
         "level": level,
         "model": model,
+        # per unit, its verdict at the end, removed units included: the head's count
+        "final": _final(v.judgement for v in last.values()),
         "rounds": rounds,
         "removed": removed,
     }
@@ -404,7 +420,12 @@ def annotate(
             **({"answer_shape": j.shape} if j.shape else {}),
             **_second_entry(second, own, other, model),
         }
-    summary: dict[str, Any] = {"level": level, "model": model, "verdicts": _counts(judged)}
+    summary: dict[str, Any] = {
+        "level": level,
+        "model": model,
+        "verdicts": _counts(judged),
+        "final": _final(judged),
+    }
     if research is not None:
         summary["searched_again"] = len(failing)
     if second is not None:

@@ -233,6 +233,14 @@ class Store(Protocol):
         newest first, at most ``limit``, each with its owner's email."""
         ...
 
+    def starter_copies(self) -> list[tuple[str, str]]:
+        """Every copied starter output as (the copy's id, the original's id)."""
+        ...
+
+    def chunk_ids_at(self, source_id: str, indexes: list[int]) -> dict[int, str]:
+        """The chunks of a notebook source (a link id) at these positions."""
+        ...
+
     def report_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
         """Ready reports, in the trash or not; only ``output_ids`` when given
         (the report units repair)."""
@@ -407,6 +415,7 @@ _OUTPUT_FIELDS = {
     "source_id",
     "provenance",
     "phase",
+    "options",
 }
 
 # One job per call, oldest first; rows other workers hold are skipped, a claim
@@ -1030,7 +1039,7 @@ class PostgresStore:
         unknown = set(fields) - _OUTPUT_FIELDS
         if unknown:
             raise ValueError(f"not an updatable outputs column: {sorted(unknown)}")
-        for name in ("content", "provenance", "phase"):
+        for name in ("content", "provenance", "phase", "options"):
             if name in fields:
                 fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
@@ -1046,7 +1055,7 @@ class PostgresStore:
         unknown = set(fields) - _OUTPUT_FIELDS
         if unknown:
             raise ValueError(f"not an updatable outputs column: {sorted(unknown)}")
-        for name in ("content", "provenance", "phase"):
+        for name in ("content", "provenance", "phase", "options"):
             if name in fields:
                 fields[name] = _jsonb(fields[name])
         assignments = ", ".join(f"{name} = %({name})s" for name in fields)
@@ -1179,6 +1188,24 @@ class PostgresStore:
                 {"prefix": id_prefix + "%", "limit": limit},
             ).fetchall()
         return [(_to_output(r), str(r["owner_email"])) for r in rows]
+
+    def starter_copies(self) -> list[tuple[str, str]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select id::text as id, copied_from::text as original from outputs "
+                "where copied_from is not null order by created_at"
+            ).fetchall()
+        return [(r["id"], r["original"]) for r in rows]
+
+    def chunk_ids_at(self, source_id: str, indexes: list[int]) -> dict[int, str]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "select c.idx, c.id::text as id from chunks c "
+                "join sources s on s.library_source_id = c.library_source_id "
+                "where s.id = %s and c.idx = any(%s)",
+                (source_id, indexes),
+            ).fetchall()
+        return {int(r["idx"]): r["id"] for r in rows}
 
     def report_outputs(self, output_ids: list[str] | None) -> list[OutputRow]:
         where = "o.kind = 'report' and o.status = 'ready'"

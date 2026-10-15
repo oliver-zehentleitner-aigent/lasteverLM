@@ -87,9 +87,12 @@ def test_ready_outputs_are_copied_with_their_ids_rewritten_and_nothing_charged(s
     assert report["title"] == original["title"] and report["kind"] == "report"
     assert report["content"] == original["content"]  # judge annotations kept
     assert report["content"]["units"][0]["judge"] == {"verdict": "supported"}
-    # passages and candidates point into the copy; the unmapped one is dropped
+    # passages point into the copy; an unmapped one keeps its quote, no chunk
     passages = report["provenance"]["passages"]
-    assert [(p["chunk_id"], p["source_id"]) for p in passages] == [(NEW_CHUNK, NEW_SOURCE)]
+    assert [(p["chunk_id"], p["source_id"]) for p in passages] == [
+        (NEW_CHUNK, NEW_SOURCE),
+        (None, None),
+    ]
     candidates = report["provenance"]["retrieval"]["candidates"]
     assert {c["chunk_id"] for c in candidates} == {NEW_CHUNK}
     assert SKY.chunk_id not in json.dumps(report) and GRASS.chunk_id not in json.dumps(report)
@@ -133,19 +136,45 @@ def test_a_failing_copy_is_retried_then_kept_with_its_error(settings):
 
 def test_options_drop_what_cannot_be_mapped():
     job = OutputCopy(TARGET, NOTEBOOK, NEW_USER, {"s1": "n1"}, {"c1": "m1"}, 1)
+    picked = {
+        "passages": [{"n": 1, "chunk_id": "c1"}, {"n": 2, "chunk_id": "c2"}],
+        "sources": [{"source_id": "s1", "name": "a.pdf"}, {"source_id": "s2", "name": "b"}],
+    }
     options = {
         "sources": ["s1", "s2"],
-        "charts": [{"passages": [{"n": 1, "chunk_id": "c1"}, {"n": 2, "chunk_id": "c2"}]}],
+        "charts": [{"passages": picked["passages"]}],
+        "tables": [json.loads(json.dumps(picked))],
+        "themes": [json.loads(json.dumps(picked))],
+    }
+    remapped = {
+        "passages": [{"n": 1, "chunk_id": "m1"}],
+        "sources": [{"source_id": "n1", "name": "a.pdf"}],
     }
     assert remap_options(options, job) == {
         "sources": ["n1"],
         "charts": [{"passages": [{"n": 1, "chunk_id": "m1"}]}],
+        "tables": [remapped],
+        "themes": [remapped],
     }
     assert remap_options({"sources": ["s2"]}, job) == {}
     assert remap_provenance(None, job) is None
-    log = {"passages": [{"n": 1, "chunk_id": "c1", "source_id": "s9"}], "judgements": [1]}
+    log = {
+        "passages": [
+            {"n": 1, "chunk_id": "c1", "source_id": "s9", "quote": "q1"},
+            # its source is not in the starter's copy: kept, with its quote and no chunk
+            {"n": 2, "chunk_id": "c9", "source_id": "s9", "quote": "q2"},
+        ],
+        "retrieval": {"candidates": [{"chunk_id": "c9", "source_id": "s1"}]},
+        "coverage": {"sources": [{"source_id": "s1", "cited": True}]},
+        "judgements": [1],
+    }
     assert remap_provenance(log, job) == {
-        "passages": [{"n": 1, "chunk_id": "m1", "source_id": None}],
+        "passages": [
+            {"n": 1, "chunk_id": "m1", "source_id": None, "quote": "q1"},
+            {"n": 2, "chunk_id": None, "source_id": None, "quote": "q2"},
+        ],
+        "retrieval": {"candidates": []},
+        "coverage": {"sources": [{"source_id": "n1", "cited": True}]},
         "judgements": [1],
     }
 
@@ -181,3 +210,59 @@ def test_a_starter_without_ready_outputs_is_a_warning(settings, caplog):
         f"{TARGET} (0 not ready)"
     )
     assert store.copies == {}
+
+
+def test_a_copied_chart_cites_only_passages_the_copy_has():
+    job = OutputCopy(TARGET, NOTEBOOK, NEW_USER, {"s1": "n1"}, {"c1": "m1"}, 1)
+    chart = {
+        "passages": [
+            {"n": 1, "chunk_id": "c1", "source_id": "s1", "quote": "Python 40 %"},
+            # a source unlinked from the starter after the chart was made
+            {"n": 2, "chunk_id": "gone", "source_id": "s7", "quote": "Go 12 %"},
+        ]
+    }
+    refs = {1, 2}  # the values cite both
+    copied = remap_provenance(chart, job)
+    assert copied is not None
+    assert {p["n"] for p in copied["passages"]} >= refs  # every citation resolves
+    assert [p["chunk_id"] for p in copied["passages"]] == ["m1", None]
+
+
+def test_the_repair_restores_a_lost_passage_and_maps_source_ids():
+    from lasteverlm_rag.repair_copies import repair_copies
+
+    store = FakeStore()
+    store.notebooks[TARGET] = {"id": TARGET, "owner": NEW_USER, "title": "Welcome"}
+    old_source = store.add_source(NOTEBOOK, "languages.pdf")
+    new_source = store.add_source(TARGET, "languages.pdf")
+    original = store.create_output(NOTEBOOK, "table", "ready")
+    passages = [
+        {"n": 1, "chunk_id": "c1", "source_id": old_source, "source_name": "languages.pdf",
+         "chunk_index": 0, "quote": "Python 40 %"},
+        {"n": 2, "chunk_id": "c2", "source_id": "gone", "source_name": "old.pdf",
+         "chunk_index": 3, "quote": "Go 12 %"},
+    ]  # fmt: skip
+    store.outputs[original.id]["provenance"] = {"passages": passages}
+    copied = store.create_output(TARGET, "table", "ready")
+    store.outputs[copied.id].update(
+        copied_from=original.id,
+        options={"tables": [{"sources": [{"source_id": old_source, "name": "languages.pdf"}]}]},
+        provenance={
+            "passages": [{**passages[0], "chunk_id": "m1", "source_id": new_source}],
+            "coverage": {"sources": [{"source_id": old_source, "cited": True}]},
+        },
+    )
+    lines: list[str] = []
+    found = repair_copies(store, apply=False, say=lines.append)
+    assert [(f.passages_restored, f.ids_remapped) for f in found] == [(1, 2)]
+    assert len(store.outputs[copied.id]["provenance"]["passages"]) == 1  # a dry run
+
+    repair_copies(store, apply=True, say=lines.append)
+    row = store.outputs[copied.id]
+    assert [(p["n"], p["chunk_id"]) for p in row["provenance"]["passages"]] == [
+        (1, "m1"),
+        (2, None),  # its source is not in the copy: the quote stays the citation
+    ]
+    assert row["provenance"]["coverage"]["sources"][0]["source_id"] == new_source
+    assert row["options"]["tables"][0]["sources"][0]["source_id"] == new_source
+    assert repair_copies(store, apply=True, say=lines.append) == []  # idempotent

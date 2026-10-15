@@ -400,6 +400,13 @@ call per unit (`lasteverlm_rag/judge.py`). Its verdict is `supported`,
   reviser dropped, is removed from the output. It is listed in
   `provenance.judge.removed` (`text`, `verdict`, `reason`, `round`) and
   never dropped silently.
+- **Count.** `provenance.judge.final` = `{"judged", "passed",
+  "verdicts"}` counts each judged unit once by its last verdict, whatever
+  round it came from, removed units included; `passed` counts `supported`
+  and `supported_elsewhere`. It is what an output's head shows. A round's
+  `verdicts` counts only the units judged in that round (the record of
+  how it was made). A judgement on request (`provenance.judgements[]`)
+  and the standard level's log carry the same `final`.
 - **Annotations.** Every judged unit carries `judge: {"level", "model",
   "verdict", "reason", "quote", "round"}`. The word check runs again on
   the final units.
@@ -751,10 +758,18 @@ starter's ready outputs outside the trash:
 - **Generated sources:** each output's generated library row, link and
   chunks, embeddings included.
 - **Audio:** the file is copied under a new key.
-- **Ids:** the source selection, a chart's cited chunks, and the
-  provenance's passages and candidates are rewritten through the maps.
-  An id that cannot be mapped is dropped, never left pointing at the
-  maintainer's rows.
+- **Ids:** the source selection, the cited chunks and sources of a
+  chart's, table's or infographic's picked candidates, and the
+  provenance's passages, candidates and coverage are rewritten through
+  the maps. An id that cannot be mapped is never left pointing at the
+  maintainer's rows: an option or a candidate goes, a cited passage stays
+  with its quote and `chunk_id: null` (its source is not in the copy), so
+  every citation still resolves to a passage. Copies made before this:
+  `lasteverlm-rag-repair-copies` (needs `DATABASE_URL`, a dry run unless
+  `--apply`) restores a lost cited passage from the original, mapped by
+  the source's name and the chunk's position where it can be, and maps
+  the option and coverage source ids the same way; no model call,
+  idempotent.
 - **Not copied or kept:** share tokens are not copied; judge annotations
   and the support check are kept.
 

@@ -138,6 +138,8 @@ def test_a_failing_paragraph_is_revised_and_judged_again(settings):
         },
     ]
     assert log["removed"] == []
+    # the head's count: each unit's last verdict, so the one revised in round 2 passes
+    assert log["final"] == {"judged": 2, "passed": 2, "verdicts": {"supported": 2}}
     assert out["provenance"]["usage"]["judge"] == {"tokens_in": 360, "tokens_out": 45}
     # every judge call is a usage row of the judge model
     models = [u.model for _, _, u in store.usage]
