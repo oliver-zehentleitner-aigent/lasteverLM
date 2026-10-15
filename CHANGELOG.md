@@ -6,6 +6,10 @@ reasoning behind changes is in [`context/`](context/index.md).
 
 ## [Unreleased]
 
+### Added
+
+- `docs/how-it-was-built.md`: the build as an experiment, with the roles, the timeline, the numbers, how the work was kept in check, and what went wrong.
+
 ### Changed
 
 - `README.md`: what the system does, the four published evaluations, how to try it and how it was built.

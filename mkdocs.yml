@@ -42,6 +42,7 @@ nav:
   - The RAG pipeline: rag-pipeline.md
   - User interface: ui.md
   - Walkthrough script: walkthrough.md
+  - How it was built: how-it-was-built.md
   - Repository standard: repository-standard.md
   - Why it is built this way: https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/
   - Services:

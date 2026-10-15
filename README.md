@@ -28,7 +28,7 @@ The [live system](https://lasteverlm.zehentleitner.co) signs in by magic link fo
 
 ## How it was built
 
-Seven coding-agent sessions in three and a half days, one per part of the system and one that reviewed and merged every pull request; a maintainer who set the rules, tested every release live and decided every open question. A pull request was merged only when every check passed, a release is a tag that builds, deploys and runs a smoke test over the public domain, and every decision is written down with the alternatives it rejected. Over 640 pull requests and 80 tags; the [Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/) shows the reasoning in the order it happened.
+Seven coding-agent sessions in three and a half days, one per part of the system and one that reviewed and merged every pull request; a maintainer who set the rules, tested every release live and decided every open question. A pull request was merged only when every check passed, a release is a tag that builds, deploys and runs a smoke test over the public domain, and every decision is written down with the alternatives it rejected. Over 640 pull requests and 80 tags; the [Keep the Why dashboard](https://oliver-zehentleitner.github.io/lasteverLM/keep-the-why-dashboard/) shows the reasoning in the order it happened. The full account, with the numbers and what went wrong, is in [How it was built](docs/how-it-was-built.md).
 
 ## Repository
 
