@@ -3,6 +3,7 @@ import { rag } from '../api/rag'
 import type { Citation, JudgeNote } from '../api/types'
 import { chunkPosition, claimFor, highlightPassage, similarityLabel, similarityPercent } from '../lib/provenance'
 import { t } from '../i18n'
+import { verdictKey } from '../lib/judge'
 import { useSourceLink } from './SourceLinks'
 
 interface Props {
@@ -68,9 +69,9 @@ export function ProvenancePanel({ citation, answer, claim, removed, onOpenSource
         </div>
       )}
       {judge && (
-        <div className={`judge-note judge-${judge.verdict}`}>
+        <div className={`judge-note judge-${verdictKey(judge)}`}>
           <strong>
-            {t('judge.panelTitle')}: {t(`judge.verdict.${judge.verdict}`)}
+            {t('judge.panelTitle')}: {t(`judge.verdict.${verdictKey(judge)}`)}
           </strong>{' '}
           <span className="muted small">
             ({t(`judge.level.${judge.level}`).toLowerCase()}, {judge.model}, {t('judge.removedRound', { n: judge.round })})

@@ -846,7 +846,7 @@ main.prices-page:not(.shared) { box-sizing: border-box; width: 100%; max-width: 
 .badge.judge:disabled { cursor: default; opacity: 1; }
 .badge.judge-supported { color: var(--ok); border-color: var(--ok); }
 .badge.judge-contradicted { color: var(--danger); border-color: var(--danger); }
-.badge.judge-not_in_source, .badge.judge-dropped { color: var(--muted); border-color: var(--muted); border-style: dashed; }
+.badge.judge-not_in_source, .badge.judge-dropped, .badge.judge-no_usable_answer { color: var(--muted); border-color: var(--muted); border-style: dashed; }
 .badge.judge.disagree { outline: 2px solid var(--warn); outline-offset: 1px; }
 .judge-note { border-left: 3px solid var(--line); padding: 0.3rem 0.6rem; background: var(--bg); border-radius: var(--radius); }
 .judge-note.judge-supported { border-left-color: var(--ok); }

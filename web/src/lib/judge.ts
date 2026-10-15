@@ -1,4 +1,4 @@
-import type { Claim, JudgeVerdict, Provenance } from '../api/types'
+import type { Claim, JudgeCounts, JudgeNote, Provenance } from '../api/types'
 import { t, tn } from '../i18n'
 
 /** The judge's verdicts as the views show them. Pure, so it is tested. */
@@ -7,7 +7,7 @@ import { t, tn } from '../i18n'
  *  backed it and the judge did not, or the other way round. A claim the
  *  check could not measure (another language) is no disagreement. */
 export function disagrees(c: Claim): boolean {
-  if (!c.judge || !c.support || c.support === 'unverified') return false
+  if (!c.judge?.verdict || !c.support || c.support === 'unverified') return false
   return (c.support === 'supported') !== (c.judge.verdict === 'supported')
 }
 
@@ -35,18 +35,25 @@ export function judgeHead(p: Pick<Provenance, 'judge' | 'judgements'> | null | u
   return null
 }
 
+/** A judged claim's verdict as a CSS and message suffix: no verdict is
+ *  "no_usable_answer", as the counts name it. */
+export function verdictKey(j: Pick<JudgeNote, 'verdict'>): keyof JudgeCounts {
+  return j.verdict ?? 'no_usable_answer'
+}
+
 /** The counts of a round or a judging, as "supported 5 · contradicted 1". */
-export function verdictCounts(v: Partial<Record<JudgeVerdict, number>>): string {
-  return (['supported', 'contradicted', 'not_in_source'] as const)
+export function verdictCounts(v: JudgeCounts): string {
+  return (['supported', 'contradicted', 'not_in_source', 'no_usable_answer'] as const)
     .filter((k) => (v[k] ?? 0) > 0)
     .map((k) => `${t(`judge.verdict.${k}`)} ${v[k]}`)
     .join(' · ')
 }
 
 /** The badge's text and its tooltip (the judge's reason). */
-export function judgeBadge(c: Claim): { verdict: JudgeVerdict; label: string; title: string; disagree: boolean } | null {
+export function judgeBadge(c: Claim): { verdict: keyof JudgeCounts; label: string; title: string; disagree: boolean } | null {
   if (!c.judge) return null
   const d = disagrees(c)
   const title = d ? `${c.judge.reason} — ${t('judge.disagreeTitle')}` : c.judge.reason
-  return { verdict: c.judge.verdict, label: t(`judge.verdict.${c.judge.verdict}`), title, disagree: d }
+  const verdict = verdictKey(c.judge)
+  return { verdict, label: t(`judge.verdict.${verdict}`), title, disagree: d }
 }

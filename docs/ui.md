@@ -427,9 +427,11 @@ opens the notebook.
   rag's catalogue), with a line on what the level does. A judge reads
   each claim against its passages while the output is made; claims it
   fails are revised or taken out. In the output each claim gets a second
-  badge next to the word check's: supported (green), contradicted (red)
-  or not in source (dashed), amber-outlined where the word check reads
-  it the other way. A click on it opens the provenance panel at the
+  badge next to the word check's: supported (green), contradicted (red),
+  not in source (dashed) or no answer (dashed; the judge gave no usable
+  answer twice, its reason in the tooltip, never counted as a
+  disagreement), amber-outlined where the word check reads it the other
+  way. A click on it opens the provenance panel at the
   claim's first passage with the judge's verdict, reason and decisive
   quote. Under the document a list **Removed after judging (N)** (text,
   verdict, reason, round) is always shown when there is one; the head
@@ -437,7 +439,9 @@ opens the notebook.
   this was made" lists the rounds (judged, verdicts, tokens, revisions)
   and any later judgings. **Check with a judge** on an existing output
   (in the viewer's head) and under a cited chat answer: a level and
-  Check, one billed call that annotates every claim and removes nothing.
+  Check, one billed call that annotates every claim and removes nothing;
+  the line under the level says so for every level, since revising
+  happens only while an output is made.
   The share page shows all of it. The estimated charge of the chosen
   level stands next to Check (see "Prices").
 - **Chart** ("number series from the sources, drawn and checked"). Under
