@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A mind map with long labels opened as a tiny, cut-off root label at the pane's edge: labels now wrap at 280 px, the map is fitted once it is drawn and whenever the pane changes size (never while the pane has no size), and it is no longer rebuilt when a poll hands over the same output again.
+
 ## [0.21.3] - 2026-10-15
 
 ### Added

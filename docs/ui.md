@@ -410,7 +410,10 @@ opens the notebook.
   the shared page has no panel.
 - **Viewer**: a clean document view with title, date, the sources it was
   made from. Report as Markdown, quiz interactive with reveal, table
-  sortable with CSV export, mind map with markmap, infographic as a
+  sortable with CSV export, mind map with markmap (labels wrap at
+  280 px; fitted once drawn and on every size change of the pane, never
+  while it has no size; built again only when its content changes),
+  infographic as a
   card grid, audio as a player with the transcript under it (a
   narrator's paragraphs as text; a conversation or an FAQ with each turn's speaker,
   named by its voice, in front; documents made before transcripts have
