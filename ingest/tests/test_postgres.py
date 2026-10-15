@@ -678,6 +678,30 @@ def test_the_backfill_flags_only_notebooks_made_with_the_seed(repo):
     assert not repo.get_notebook(owner, later).starter
 
 
+def test_a_generated_rows_origin_link_is_no_source_of_its_notebook(repo):
+    owner = _user(repo)
+    origin, other = repo.create_notebook(owner, "Thesis"), repo.create_notebook(owner, "Talk")
+    upload = _library(repo, owner)
+    repo.link_source(origin.id, upload.id)
+    report = _output(repo, origin.id, owner)  # the row, its origin link, the outputs row
+    orphan = uuid4()  # an abandoned attempt's row and link: no outputs row
+    _execute(
+        repo,
+        "insert into library_sources (id, owner, name, kind, status) "
+        "values (%s, %s, 'Is the web interface well-designed?', 'generated', 'ready')",
+        (orphan, owner),
+    )
+    _execute(
+        repo,
+        "insert into sources (id, notebook_id, library_source_id) values (%s, %s, %s)",
+        (orphan, origin.id, orphan),
+    )
+    assert [s.library_id for s in repo.list_sources(origin.id)] == [upload.id]
+    linked, _ = repo.link_source(other.id, report)
+    assert [s.id for s in repo.list_sources(other.id)] == [linked.id]
+    assert repo.get_source(report) is not None  # still reachable by its id
+
+
 def test_purge_expired_takes_only_entries_past_their_owners_retention(repo):
     now, later = _user(repo, '{"trash_days": 0}'), _user(repo)
     expired, kept, active = _library(repo, now), _library(repo, later), _library(repo, now)

@@ -96,6 +96,14 @@ delete and detach remove only links. The origin notebook is read from
 rag's `outputs` (`notebook_id`, `origin_title`), not from a link, because
 the user can unlink an output from the notebook it was made in.
 
+Since 2026-10-15 a generated row's origin link (rag writes it under the
+row's own id) is not listed among its notebook's sources: it is the output
+itself, shown under Outputs. Before, every origin link came back with the
+sources, and only the web hid it by matching the outputs list. A row no
+output pointed to, left by an abandoned generation attempt, then showed
+as a source. Links into other notebooks have ids of their own and are
+listed.
+
 **Alternatives:**
 - Ingest's purge sweeping trashed generated rows: two services deleting
   one kind of row, and the audio object (rag's) would have to be deleted

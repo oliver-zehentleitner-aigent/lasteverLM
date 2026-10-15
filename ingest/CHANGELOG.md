@@ -9,6 +9,10 @@ preserves why it changed, in `context/`.
 
 ## [Unreleased]
 
+### Fixed
+
+- A generated document could show in its own notebook's Sources list (badge "Generated", checkbox, bin) besides Outputs. `GET /notebooks/{id}/sources` returned every generated row's origin link, and only the web hid them by matching the outputs list. A row no output pointed to (left by an abandoned generation attempt) slipped through. The list now leaves out every generated row's origin link (link id = row id); a document linked into another notebook is still a source there.
+
 ## [0.22.9] - 2026-10-15
 
 ### Changed
