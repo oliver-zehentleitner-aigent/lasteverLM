@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ingest } from '../api/ingest'
 import { SOURCE_POLL_INTERVAL_MS } from '../config'
 import { rag } from '../api/rag'
@@ -6,7 +6,7 @@ import type { LibraryEntry, Notebook, Output, TrashEntry } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatTime } from '../lib/format'
 import { kindWithCapture } from '../lib/capture'
-import { addPlan, addedSummary, bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter } from '../lib/library'
+import { addPlan, addedSummary, bulkDeleteConfirmText, deleteConfirmText, filterLibrary, notebookTitleFrom, purgeIn, type LibraryFilter, rangeIds } from '../lib/library'
 import { audioFiles, openTarget } from '../lib/openEntry'
 import { OUTPUT_FORMS, SOURCE_FORMS, formFor, sourceKindLabel } from '../lib/outputs'
 import { StarterBadge } from './StarterBadge'
@@ -183,6 +183,18 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
       else next.add(id)
       return next
     })
+  // the row clicked last, where a Shift+click's range starts
+  const lastPicked = useRef<string | null>(null)
+  /** A click on a row or its checkbox: toggles it; with Shift, adds every
+   *  row from the one clicked last to this one (never removes), like a
+   *  file manager. */
+  function pickRow(id: string, shift: boolean) {
+    if (shift) {
+      const range = rangeIds(shown.map((x) => x.id), lastPicked.current, id)
+      setPicked((prev) => new Set([...prev, ...range]))
+    } else toggle(id)
+    lastPicked.current = id
+  }
 
   /** One delete per entry, in order; after a failure the rest stays ticked. */
   async function removeSelected() {
@@ -327,9 +339,10 @@ function LibraryList({ onOpenNotebook }: Pick<Props, 'onOpenNotebook'>) {
             return (
               <Fragment key={e.id}>
                 {/* a click on the row toggles it like its checkbox; links, buttons and the checkbox act on their own */}
-                <tr className={picked.has(e.id) ? 'selectable picked' : 'selectable'} onClick={(ev) => !(ev.target as HTMLElement).closest('a, button, input, label, select, textarea') && toggle(e.id)}>
+                <tr className={picked.has(e.id) ? 'selectable picked' : 'selectable'} onClick={(ev) => !(ev.target as HTMLElement).closest('a, button, input, label, select, textarea') && pickRow(e.id, ev.shiftKey)}>
                   <td className="pick-col">
-                    <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} aria-label={t('lib.selectRow', { name: e.name })} />
+                    {/* the click, not the change, so Shift reaches the range; Space on the box clicks it too */}
+                    <input type="checkbox" checked={picked.has(e.id)} onChange={() => {}} onClick={(ev) => pickRow(e.id, ev.shiftKey)} aria-label={t('lib.selectRow', { name: e.name })} />
                   </td>
                   <td className="name">
                     <span className="name-cell">
