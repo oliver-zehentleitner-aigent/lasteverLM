@@ -10,10 +10,15 @@
 **Revisit when:** a notebook's summaries alone no longer fit the model's context, or outputs should build on each other
 
 Every generator receives the summaries ingest wrote for the notebook's
-ready sources, plus the top-k chunks retrieved for the generator's own
+ready sources, plus the chunks retrieved for the generator's own
 focus query (a fixed phrase per kind, e.g. "figures, dates, comparisons"
 for the table; a decision's is the user's question, and a chart makes no
-retrieval, it is drawn from the candidates picked for it). Sources of
+retrieval, it is drawn from the candidates picked for it). The chunks are
+balanced across sources rather than a global top-k
+(cfe78834-7ea7-49b4-9491-9720f4703a40). A table or an infographic made
+from picked candidates searches with each candidate's own aim instead of
+the phrase, over that candidate's sources only
+(136a32e4-61ca-4a7e-977b-ca4c672b391a). Sources of
 kind `generated` are left out of both: their summaries are not fed back
 in, and the retrieval leaves their chunks out explicitly. That holds
 also for an output linked into another notebook from the library: it
@@ -177,17 +182,19 @@ dependency for no audible gain.
 
 **Re-checked 2026-10-15:** the earlier condition (rag needing a user
 preference it cannot get from the request) fired: rag reads two of
-account's per-user preferences from the shared database, `judge_default`
-for the agent's judge question and `trash_days` for the purge. Neither
+account's per-user preferences from the shared database:
+`verification_level` (falling back to the older `judge_default`) for the
+agent's question and a chat answer's checking, and `trash_days` for the
+purge. Neither
 is an output option; output options still come explicitly from the
 client and are stored on the output. The decision holds.
 
-`POST .../outputs` takes `options`: `language` for every kind but the
-chart, `voice`
-and `speed` for audio. They are checked against one catalogue
-(`lasteverlm_rag/options.py`, served at `GET /api/rag/outputs/options`
-with which options each kind takes), resolved with audio's defaults
-(`TTS_VOICE`, speed 1.0), stored in `outputs.options` and returned on
+`POST .../outputs` takes `options`, per kind as `KIND_OPTIONS` in
+`lasteverlm_rag/options.py` lists them (when written: `language` for
+every kind but the chart, `voice` and `speed` for audio). They are
+checked against that one catalogue (served at `GET /api/rag/outputs/options`
+with which options each kind takes), resolved with each kind's defaults
+(for audio `TTS_VOICE`, speed 1.0), stored in `outputs.options` and returned on
 the output and the shared view. A missing `language` keeps the old
 behaviour: the document follows the language of its sources. The user's
 preferred language lives in account; the web resolves it and sends it.
@@ -454,10 +461,13 @@ conflict visible.
 - A decision-model-only number.
 - The LLM seeing the model's number before writing the evidence.
 
-**Since 2026-10-15:** an undecided decision carries no number; see
-8471f5a5-786d-4079-b5b1-a29cf2ab172e.
 - Evidence for the model's selected option in a choice or scale: it
   breaks the independence.
+
+**Since 2026-10-15:** an undecided decision carries no number, and the
+balance counts an item by its judge's verdict when it was judged; see
+8471f5a5-786d-4079-b5b1-a29cf2ab172e. A number little evidence stands
+behind is shown as a tendency; see 33354271-3f3a-41ca-9352-b1c313a92dba.
 
 ## A report's style and length and a quiz's count, difficulty and audience are prompt variants with stored defaults
 
@@ -496,7 +506,8 @@ met (fail loud). One retry fixes a model that miscounted.
 Further alternatives: unknown; none turned down is recorded.
 
 **Since 2026-10-15:** a report's length is an upper bound, no longer a
-word target, and the prompt version is `report-<style>-v4`; see 47ce2c17-0831-48ad-86c5-171b09cc9a74.
+word target; see 47ce2c17-0831-48ad-86c5-171b09cc9a74. The prompt
+version has moved on since (`report-<style>-v5` when last checked).
 
 ## A shared notebook shows its uploads by name and its ready outputs as their shared view
 
@@ -544,7 +555,10 @@ belong to an uploaded source of the notebook and, with a selection, to a
 selected source (else 409 `chart_out_of_scope`); finding charts reads
 and searches only the selected sources (corrected 2026-10-15: before,
 it proposed from the whole notebook and a candidate from an earlier
-selection was drawn). The worker loads them again, numbers them once for
+selection was drawn). Proposing takes `url_refresh` too, reads unread
+selected sources first and waits for them like an answer
+(40278aa2-a4a6-4834-afb6-bbac557f4bdf in `retrieval.md`). Tables and
+themes reuse this scope check under their own 409 code (`candidate_out_of_scope`). The worker loads them again, numbers them once for
 all picked charts, and checks every value anew; any `support` the client
 sends is ignored.
 
@@ -709,7 +723,8 @@ A report's `length` sets the most words: 500 for short, 1200 for medium,
 2500 for long. The prompt says "at most N words; shorter when the
 material says less" and forbids adding facts, roles, steps or reasons
 the material does not state, even to reach the length. The token budgets
-are unchanged. The prompt version is `report-<style>-v4`.
+are unchanged. The prompt version was `report-<style>-v4` (`-v5` since
+every fitting source must be used, 60868238-7044-4145-8a8a-cf8ac1c806d5).
 
 **Reason:** a target such as "about 700 to 1200 words" asks the model to
 reach a size whatever the material holds. With a few short sources the
@@ -776,6 +791,12 @@ by the word check otherwise; a disputed item is not supported and is
 named in the agreement note (corrected 2026-10-15: the count had used
 the word check only, so a German decision over an English source showed
 "no decision" although both judges supported its evidence).
+
+**Re-checked 2026-10-15:** the revisit "decisions with a single
+supported item need the same treatment" was answered differently: such a
+number is shown as a tendency, not withheld
+(33354271-3f3a-41ca-9352-b1c313a92dba). This entry holds for no support
+at all.
 
 **Reason:** the decision model answers every question, also one the
 passages say nothing about; then its number is its prior, not a
@@ -861,8 +882,10 @@ rows; a theme's headline and a few facts) with the sources it comes
 from. Creating the output makes one full table, or one infographic
 part, per picked candidate, each from its own sources' passages only,
 in one document whose units the word check, the judge and coverage see
-in order. A candidate that cites a passage outside the selection is
-refused, as for charts. Without candidates the output is made in one
+in order (one `CompositeGenerator` over the parts). Each part searches
+with its candidate's own aim. A proposed idea without a cited passage is
+dropped. A candidate that cites a passage outside the selection is
+refused as for charts, with 409 `candidate_out_of_scope`. Without candidates the output is made in one
 generation, as before.
 
 **Reason:** a single "the one table" prompt over unrelated sources
