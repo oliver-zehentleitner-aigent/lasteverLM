@@ -255,6 +255,7 @@ class FakeStore:
                 "citations": row["citations"] or [],
                 "units": support.get("units"),
                 "check": support.get("check"),
+                "web_pages": support.get("web_pages") or [],
             }
         )
 
@@ -444,7 +445,15 @@ class FakeStore:
 
     def source_states(self, notebook_id: str) -> list[SourceState]:
         return [
-            SourceState(s["id"], s["kind"], s["status"], s["id"], s["name"], s.get("error"))
+            SourceState(
+                s["id"],
+                s["kind"],
+                s["status"],
+                s["id"],
+                s["name"],
+                s.get("error"),
+                s.get("read_at"),
+            )
             for s in self.sources.values()
             if s["notebook_id"] == notebook_id
         ]
@@ -571,6 +580,7 @@ class FakeStore:
         self.plans[plan["id"]] = {
             "question": None,
             "notes": [],
+            "sources": [],
             **copy.deepcopy(plan),
             "confirmed_at": None,
             "finished_at": None,

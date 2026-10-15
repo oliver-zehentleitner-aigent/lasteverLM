@@ -412,7 +412,8 @@ _PLAN_SQL = (
     "select id::text as id, conversation_id::text as conversation_id, "
     "notebook_id::text as notebook_id, owner::text as owner, status, steps, estimate, "
     "action_id::text as action_id, message_id::text as message_id, question, "
-    "coalesce(notes, '[]'::jsonb) as notes, created_at, confirmed_at, finished_at from plans"
+    "coalesce(notes, '[]'::jsonb) as notes, coalesce(sources, '[]'::jsonb) as sources, "
+    "created_at, confirmed_at, finished_at from plans"
 )
 
 # One copy job per call, oldest first, as the output queue claims: rows other
@@ -712,15 +713,17 @@ class PostgresStore:
         with self._pool.connection() as conn:
             conn.execute(
                 "insert into plans (id, conversation_id, notebook_id, owner, status, steps, "
-                "estimate, action_id, message_id, question, notes) values (%(id)s, "
+                "estimate, action_id, message_id, question, notes, sources) values (%(id)s, "
                 "%(conversation_id)s, %(notebook_id)s, %(owner)s, %(status)s, %(steps)s, "
-                "%(estimate)s, %(action_id)s, %(message_id)s, %(question)s, %(notes)s)",
+                "%(estimate)s, %(action_id)s, %(message_id)s, %(question)s, %(notes)s, "
+                "%(sources)s)",
                 {
                     **plan,
                     "steps": Jsonb(plan["steps"]),
                     "estimate": Jsonb(plan["estimate"]),
                     "question": _jsonb(plan.get("question")),
                     "notes": Jsonb(plan.get("notes") or []),
+                    "sources": Jsonb(plan.get("sources") or []),
                 },
             )
 
@@ -1033,7 +1036,7 @@ class PostgresStore:
         with self._pool.connection() as conn:
             rows = conn.execute(
                 "select s.id::text as id, l.kind, l.status, l.id::text as library_id, l.name, "
-                "l.error "
+                "l.error, coalesce(l.checked_at, l.fetched_at, l.created_at) as read_at "
                 "from sources s "
                 "join library_sources l on l.id = s.library_source_id where s.notebook_id = %s "
                 "order by s.created_at, s.id",
@@ -1041,7 +1044,13 @@ class PostgresStore:
             ).fetchall()
         return [
             SourceState(
-                r["id"], r["kind"], r["status"], r["library_id"], r["name"] or "", r["error"]
+                r["id"],
+                r["kind"],
+                r["status"],
+                r["library_id"],
+                r["name"] or "",
+                r["error"],
+                r["read_at"].isoformat() if r["read_at"] else None,
             )
             for r in rows
         ]
@@ -1285,6 +1294,7 @@ def _to_message(row: dict[str, Any]) -> Message:
             "citations": row.get("citations") or [],
             "units": support.get("units"),
             "check": support.get("check"),
+            "web_pages": support.get("web_pages") or [],
         }
     )
 

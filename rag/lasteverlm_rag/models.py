@@ -211,6 +211,8 @@ class SourceState:
     library_id: str = ""
     name: str = ""
     error: str | None = None  # why reading failed, for status 'failed'
+    # when the text was last read or confirmed current (a web page's cache age)
+    read_at: str | None = None
 
 
 @dataclass

@@ -27,6 +27,7 @@ from lasteverlm_core import (
     LLM,
     Answer,
     ChunkView,
+    Citation,
     CompletionResult,
     DecisionModel,
     DecisionResult,
@@ -413,6 +414,10 @@ class RagService:
                 raise ProviderError("the model returned no answer")
             answer, citations = map_citations(text, passages)
             support = check_answer(answer, citations)
+            # the web pages the answer cites, with when their cached version was read
+            pages = cited_pages(self._store, notebook_id, citations)
+            if pages and support is not None:
+                support["web_pages"] = pages
         else:
             # An empty notebook: say so without asking the model, so the answer
             # can never come from model knowledge alone.
@@ -441,6 +446,7 @@ class RagService:
             units=support["units"] if support else None,
             check=support["check"] if support else None,
             suggestions=suggestions,
+            web_pages=(support or {}).get("web_pages", []),
         )
 
     def notebook_suggestions(self, user_id: str, notebook_id: str) -> NotebookSuggestions:
@@ -1753,6 +1759,22 @@ def synthesize_billed(
         result = tts.synthesize(text, voice=voice, speed=speed)
     store.record_usage(booking, result.usage)
     return result
+
+
+def cited_pages(
+    store: Store, notebook_id: str, citations: Sequence[Citation]
+) -> list[dict[str, Any]]:
+    """The web pages among the cited sources, each once, with the time its
+    cached version was read (``fetched_at``), so the answer can say how old
+    it is and the user can have it fetched again."""
+    cited = {str(c.source_id) for c in citations if c.source_kind == "url"}
+    if not cited:
+        return []
+    return [
+        {"library_id": s.library_id, "name": s.name, "fetched_at": s.read_at}
+        for s in store.source_states(notebook_id)
+        if str(s.source_id) in cited
+    ]
 
 
 def require_notebook(store: Store, user_id: str, notebook_id: str) -> dict[str, Any]:
