@@ -154,10 +154,14 @@ package root.
 
 ## Accounting
 
-Before a model call: `has_credit(conn, user_id)`, otherwise 402
-`{"error": "credit exhausted"}`. It is true when `balance_cents > 0`,
+At the start of a user action (a chat answer, an output, a read of a
+source, a confirmed agent plan): `has_credit(conn, user_id)`, otherwise
+402 `{"error": "credit exhausted"}`. It is true when `balance_cents > 0`,
 for every user alike: admins top up with vouchers like everyone else, and
-the admin flag gates only the admin endpoints. After the call:
+the admin flag gates only the admin endpoints. The check gates the start
+of an action, not each call: an action that has started runs to the end,
+so a balance can end below zero, and the next action waits until it is
+positive again. After each call:
 `record_usage(conn, user_id, notebook_id, service, action, action_id,
 usage, prices=..., rules=...)` with the `Usage` the provider returned.
 

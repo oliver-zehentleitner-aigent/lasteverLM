@@ -114,12 +114,12 @@ ip_bans      (ip inet primary key, reason, created_at, lifted_at null)
 
 ## Credits and accounting
 
-- Prices per model live in config (`MODEL_PRICES`, JSON, cents per million tokens, in and out), with defaults in core. `MODEL_PRICES` are US cents, as the platform lists them. The writer of a usage row prices it: `cost_usd_cents = (tokens_in * price_in + tokens_out * price_out) / 1e6`, `cost_cents = cost_usd_cents / usd_per_eur` and `charge_cents = cost_cents * (1 + margin_pct / 100)`, all exact.
+- Prices per model live in config (`MODEL_PRICES`, JSON, cents per million tokens, in and out), set by the deployment; core ships no default prices (`core/context/pricing.md`). `MODEL_PRICES` are US cents, as the platform lists them. The writer of a usage row prices it: `cost_usd_cents = (tokens_in * price_in + tokens_out * price_out) / 1e6`, `cost_cents = cost_usd_cents / usd_per_eur` and `charge_cents = cost_cents * (1 + margin_pct / 100)`, all exact.
 - Pricing rules: account's `settings` row `pricing`, `{"usd_per_eur": <US dollars per euro>, "default_margin_pct": 0, "actions": {"<action>": {"margin_pct"?, "fixed_cents"?}}}`, edited in the admin panel, re-read by every booking process at most every 30 seconds. The rate is required and has no default: without it nothing is booked. An action's own margin wins over the default; a fixed fee (euro cents) is booked once per `action_id` as its own `fee` row. Margin 0 and no fees: the charge is the cost in euros.
 - Core provides `record_usage(conn, user_id, notebook_id, service, action, action_id, usage, prices=, rules=)`, `estimate_charge(prices, rules, action, model, tokens_in, tokens_out)`, `balance_cents(conn, user_id)`, `has_credit(conn, user_id)` and `is_admin(conn, user_id)` (async twins with an `a` prefix), plus `lasteverlm_core.web.admin_only`, the FastAPI dependency behind every admin endpoint of ingest and rag. Services call these, never write `usage` by hand.
 - Core provides the object-storage client (`lasteverlm_core.storage`: put, get, delete, presigned GET with an expiry). Ingest and rag use it; no service carries its own S3 code.
 - A voucher is a single-use code; redeeming it writes one positive ledger row. Default amount `VOUCHER_DEFAULT_CENTS` (1000 in code, 500 in production). The code is stored hashed and shown once; the admin list never shows it.
-- Before any model call a service checks `has_credit`, i.e. `balance_cents > 0` for every user, admins included; otherwise 402 `{"error": "credit exhausted"}` (`core/context/credit.md`). The maintainer tests with vouchers like everyone else.
+- At the start of a user action (a chat answer, an output, a read of a source, a confirmed agent plan) a service checks `has_credit`, i.e. `balance_cents > 0` for every user, admins included; otherwise 402 `{"error": "credit exhausted"}` (`core/context/credit.md`). An action that has started runs to the end, so a balance can end below zero; the next action then waits for a top-up. The maintainer tests with vouchers like everyone else.
 
 ## Authentication
 
@@ -388,10 +388,11 @@ every start with core's statements. The visitor log keeps hashes.
 ## Model prices
 
 `MODEL_PRICES` is JSON: `{"<model>": {"in": <cents per million tokens>, "out": <cents per million tokens>}}`;
-`cost_cents = (tokens_in * in + tokens_out * out) / 1e6`, exact. Core
-ships defaults for the models on the platform; a service refuses to
-start when its configured model has no price (fail loud). Until the
-defaults exist, every deployment sets `MODEL_PRICES`.
+`cost_usd_cents = (tokens_in * in + tokens_out * out) / 1e6`, exact, in US
+cents. Core ships no default prices: the deployment's `MODEL_PRICES` (the
+chart values, `compose.yaml` locally) is the one price table, and a
+service refuses to start when its configured model has no price (fail
+loud).
 
 ## Configuration
 
@@ -406,7 +407,7 @@ defaults exist, every deployment sets `MODEL_PRICES`.
 | `JUDGE_MODELS` (JSON level → model, levels `low`, `medium`, `high`; defaults in core; every model needs a price) | rag (answer judge) |
 | `SIMILARITY_FLOOR`, `TTS_MODEL`, `TTS_VOICE` (default `ryan`; the platform's voices are not the OpenAI names) | rag |
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION` | ingest, rag (identical on both) |
-| `MODEL_PRICES` | ingest, rag (JSON; defaults in core) |
+| `MODEL_PRICES` | ingest, rag (JSON; set by the deployment, no defaults in core) |
 | `AUTH_JWT_SECRET` | account (issues), ingest, rag (verify) |
 | `DEMO_TOKEN` | all services; unset in production |
 | `INGEST_URL`, `RAG_URL` (defaults `http://ingest`, `http://rag`) | account (System page probes, user deletion); `INGEST_URL` also rag (reading sources on use) |

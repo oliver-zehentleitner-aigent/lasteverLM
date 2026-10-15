@@ -47,10 +47,10 @@ class ModelPrice(BaseModel):
 
 ModelPrices = Mapping[str, ModelPrice]
 
-# The platform's model list and prices are only visible with an inference
-# key; until they have been read there, nothing is pretended here and every
-# deployment sets MODEL_PRICES for the models it uses (parent: docs/architecture.md,
-# "Model prices"). Keys are the model names the inference API accepts.
+# Empty by choice: the deployment's MODEL_PRICES is the one price table, so
+# a price change is a configuration change and no stale copy here can pass
+# the start-up check (context/pricing.md). Keys are the model names the
+# inference API accepts.
 DEFAULT_MODEL_PRICES: dict[str, ModelPrice] = {}
 
 _MILLION = Decimal(1_000_000)
