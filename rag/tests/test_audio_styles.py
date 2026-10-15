@@ -159,14 +159,17 @@ def faq(pairs: int, **swap) -> str:
 
 def test_an_faq_alternates_question_and_answer_with_two_voices(settings):
     store, client, llm, tts, output_id = run(
-        settings, faq(5), {"audio_style": "faq", "voice": "ryan", "language": "de"}
+        # French has no listened-in voices: the second is the next of the first's language
+        settings,
+        faq(5),
+        {"audio_style": "faq", "voice": "ryan", "language": "fr"},
     )
     out = client.get(f"/api/rag/outputs/{output_id}", headers=AUTH).json()
     assert out["status"] == "ready", out
     assert out["options"]["audio_style"] == "faq" and out["options"]["audio_voice_2"] == "aiden"
     prompt = llm.calls[0][1]
     assert "5 to 8 questions a listener would most likely ask" in prompt
-    assert "in German" in llm.calls[0][0]  # the language option
+    assert "in French" in llm.calls[0][0]  # the language option
     speakers = [t["speaker"] for t in out["content"]["transcript"]]
     assert speakers == ["interviewer", "expert"] * 5
     assert [s[0] for s in tts.settings] == ["ryan", "aiden"] * 5
