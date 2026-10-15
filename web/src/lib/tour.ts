@@ -1,13 +1,29 @@
 import type { User } from '../api/types'
 
-/** The introduction's steps: what each points at (a selector in the
- *  notebook view) and its text keys. The last one says "redeem a voucher
- *  first" without credit. */
+/** The introduction's steps: what each outlines (selectors in the
+ *  notebook view, every one found is outlined) and its text keys. The
+ *  credit step opens the profile menu and the voucher dialog for as long
+ *  as it is shown (`TOUR_CREDIT`), and outlines the menu's "Redeem a
+ *  voucher" and the dialog together. An area not on screen (a phone's
+ *  stacked layout hides some) leaves the card in the middle. */
 export const TOUR_STEPS = [
-  { target: '.pane.sources', key: 'sources' },
-  { target: '.tiles .tile-grid', key: 'format' },
-  { target: '.tiles .create-row', key: 'create' },
-] as const
+  { key: 'notebook', targets: ['.notebooks form'] },
+  { key: 'sources', targets: ['.pane.sources'] },
+  { key: 'format', targets: ['.tiles'] },
+  { key: 'outputs', targets: ['.pane.outputs'] },
+  { key: 'viewer', targets: ['.pane.viewer'] },
+  { key: 'chat', targets: ['.pane.chat'] },
+  { key: 'credit', targets: ['.profile-menu [data-item="redeem"]', '.voucher-dialog'], credit: true },
+] as const satisfies readonly { key: string; targets: readonly string[]; credit?: boolean }[]
+
+/** The credit step's signal: true while it is shown (the header opens its
+ *  menu, the app the voucher dialog), false when it is left. */
+export const tourEvents = new EventTarget()
+export const TOUR_CREDIT = 'tour-credit'
+
+export function signalCreditStep(on: boolean): void {
+  tourEvents.dispatchEvent(new CustomEvent<boolean>(TOUR_CREDIT, { detail: on }))
+}
 
 const localKey = (userId: string) => `lasteverlm.tourDone.${userId}`
 

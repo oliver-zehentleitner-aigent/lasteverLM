@@ -21,6 +21,7 @@ import { useRoute } from './hooks/useRoute'
 import { writeLastNotebook, writeOpenOutput } from './lib/lastNotebook'
 import { getSavedTheme, setTheme } from './lib/theme'
 import { routeTitle, useDocumentTitle } from './lib/docTitle'
+import { TOUR_CREDIT, tourEvents } from './lib/tour'
 import { setLanguage, t } from './i18n'
 import { pickLanguage } from './i18n/translate'
 
@@ -29,7 +30,8 @@ type Session = { state: 'checking' } | { state: 'anonymous' } | { state: 'in'; m
 export default function App() {
   const { route, navigate } = useRoute()
   const [session, setSession] = useState<Session>(() => (getToken() ? { state: 'checking' } : { state: 'anonymous' }))
-  const [voucher, setVoucher] = useState<{ open: boolean; reason: 'manual' | 'exhausted'; short?: string | null }>({ open: false, reason: 'manual' })
+  // `tour`: opened by the introduction's credit step, closed when it is left
+  const [voucher, setVoucher] = useState<{ open: boolean; reason: 'manual' | 'exhausted'; short?: string | null; tour?: boolean }>({ open: false, reason: 'manual' })
 
   // The UI language: the signed-in user's preference, else the browser's.
   // Set before the children render, so every t() in this render uses it.
@@ -78,7 +80,11 @@ export default function App() {
     apiEvents.addEventListener(UNAUTHORIZED, onUnauthorized)
     apiEvents.addEventListener(PAYMENT_REQUIRED, onPayment)
     apiEvents.addEventListener(OPEN_VOUCHER, onOpenVoucher)
+    const onTourCredit = (e: Event) =>
+      (e as CustomEvent<boolean>).detail ? setVoucher({ open: true, reason: 'manual', tour: true }) : setVoucher((v) => (v.tour ? { open: false, reason: 'manual' } : v))
+    tourEvents.addEventListener(TOUR_CREDIT, onTourCredit)
     return () => {
+      tourEvents.removeEventListener(TOUR_CREDIT, onTourCredit)
       apiEvents.removeEventListener(UNAUTHORIZED, onUnauthorized)
       apiEvents.removeEventListener(PAYMENT_REQUIRED, onPayment)
       apiEvents.removeEventListener(OPEN_VOUCHER, onOpenVoucher)
@@ -145,6 +151,7 @@ export default function App() {
         open={voucher.open}
         reason={voucher.reason}
         short={voucher.short ?? null}
+        forTour={voucher.tour ?? false}
         onClose={() => setVoucher((v) => ({ ...v, open: false }))}
         onRedeemed={(updated) => {
           setSession({ state: 'in', me: updated })
