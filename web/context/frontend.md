@@ -729,3 +729,25 @@ default").
 opens, as the request read literally. Rejected because every new chat in a
 notebook whose cache had been cleared by a changed source would charge
 without a click.
+
+## Admin > Finance opens on revenue and profit; all costs, the infrastructure included, are one page
+
+**Id:** f2f731ed-3888-436b-aedd-7f36cae4ebec
+**Type:** decision
+**Status:** active
+**Evidence:** inferred
+**Source:** maintainer decision, 2026-10-15
+
+Finance's pages are Revenue and profit (where it opens), Costs, Prices
+and Vouchers. Costs shows the range's total ("model costs + infrastructure"),
+the model usage, and the infrastructure with the Vultr connection, its
+sync and the manual lines; the Infrastructure page is gone, its address
+opens Costs.
+
+**Reason (inferred; the layout is the maintainer's decision, its reason was not given):** revenue and profit is what the page is opened for, and a
+cost split across two pages never showed what everything cost.
+
+**Rejected alternative:** keeping an Infrastructure page for the Vultr
+connection alone (or renaming it "Vultr connection"). Rejected because
+the connection, its sync and the manual lines belong with the costs they
+produce.
