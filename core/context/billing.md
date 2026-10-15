@@ -138,7 +138,8 @@ because of the table ownership and migration order above.
 
 **Id:** c6663f0d-f76d-42a1-9c1d-a72916980b57
 **Type:** decision
-**Status:** needs-review
+**Status:** superseded
+**Superseded by:** f584f5df-f447-457d-8dda-cb515bec8933
 **Evidence:** confirmed
 **Source:** the maintainer's go for a public price list, design agreed between the account service and core, 2026-10-14
 **Revisit when:** a PDF should be priced per page, or an action needs a unit other than one action or a minute of audio
@@ -174,3 +175,46 @@ estimate). Rejected: it is not a price a user can act on.
 **Rejected alternative, for now:** PDFs per page. The page count is
 not in the usage rows. It would need a unit count per booking, a schema
 change left for after the finance work.
+
+## Core gives the price list its actions and the typical range; the per-unit price comes from the services' estimates
+
+**Id:** f584f5df-f447-457d-8dda-cb515bec8933
+**Type:** decision
+**Status:** active
+**Evidence:** confirmed
+**Source:** the account service's price list as implemented, 2026-10-15, after the maintainer chose per-unit estimates and per-page source prices
+**Verification:** corroborated — re-checked 2026-10-15 against account's `service.py`: rows come from rag's and ingest's estimate endpoints, `USAGE_ACTION_UNITS` is used to decide which observed actions count, and `charge_for` turns their observed costs into the typical range
+**Revisit when:** the price list needs a unit core should own (a per-page count in the usage rows), or `USAGE_ACTION_UNITS` is dropped or aligned with the units the list shows
+**See:** https://github.com/oliver-zehentleitner/lasteverLM — 0253c931-53a0-4d42-a934-5503e9d37b62 — as of 2026-10-15
+
+The public price list combines three parts:
+
+- **Price per unit:** the services' own estimates. rag's estimate gives
+  outputs, chat and the judge, ingest's estimate of one nominal unit
+  gives sources. Sources are quoted per page, image, audio minute or web
+  page, under unit keys the account service sets itself.
+- **Typical range per whole action:** the observed euro costs of the
+  last thirty days, put through the current rules with core's
+  `charge_for`. So a changed margin shows at once, as before.
+- **Which actions count:** `USAGE_ACTIONS` and `USAGE_ACTION_UNITS`.
+
+What core keeps for this:
+
+- the action list with a unit per action (a test keeps the two
+  lists equal);
+- `charge_for`.
+
+The `unit` a source action has in core (`source`) is no longer what the
+list shows. A PDF is no longer quoted per source.
+
+**Reason:** the history-only price left most rows empty, because most
+past usage predates the action tags. It also could not price a page it
+never counted. The estimates are the numbers a user sees before
+starting an action, so the list and the action agree. That decision and
+its alternatives belong to the account service and are recorded there
+(the linked entry). Core's part shrank to the action list and the one
+formula.
+
+**Rejected alternative:** add a page count to the usage rows so core's
+units could price pages from history. Rejected for now: the estimates
+already give a per-page price without a schema change.
