@@ -36,7 +36,7 @@ rounded up to two.
 
 **Id:** 3b47f88d-81a2-4204-b99a-15c86df40205
 **Type:** constraint
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** family coordination, 2026-10-12 (agent A: no inference key yet, so no model list)
 **Revisit when:** an inference key exists and the platform's model names and prices have been read
