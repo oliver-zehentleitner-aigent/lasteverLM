@@ -50,7 +50,7 @@ impossible.
 
 **Id:** ff6a81c6-6ddb-4446-af8c-4e61efa61d8e
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** the coordinating agent's deploy review of the finance redesign, 2026-10-14
 **Revisit when:** the release after 0006 is deployed everywhere: then the contract migration sets the columns not null and drops the trigger
@@ -79,7 +79,7 @@ Rejected: no column default can give `action_id` the row's own id or
 
 **Id:** 05565ae9-d57c-4263-84d1-bf2162f8e3bb
 **Type:** decision
-**Status:** active
+**Status:** needs-review
 **Evidence:** confirmed
 **Source:** the account service's review of the finance redesign and the coordinating agent's decision, 2026-10-14
 **Revisit when:** the maintainer settles where the rate comes from (a manual value, or a daily ECB fetch with a manual override in account's sync)
