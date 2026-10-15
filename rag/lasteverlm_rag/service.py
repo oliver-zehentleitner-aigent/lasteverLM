@@ -1075,8 +1075,13 @@ class OutputService:
         Outputs copied before are skipped, so a retry adds nothing twice."""
         try:
             done = self._store.copied_outputs(job.target_notebook)
+            copied_n = not_ready = already = 0
             for row in self._store.list_outputs(job.source_notebook):
-                if row.status != "ready" or row.id in done:
+                if row.status != "ready":
+                    not_ready += 1
+                    continue
+                if row.id in done:
+                    already += 1
                     continue
                 output_id = str(uuid.uuid4())
                 content = copy.deepcopy(row.content)
@@ -1095,10 +1100,31 @@ class OutputService:
                     remap_options(row.options, job),
                     remap_provenance(row.provenance, job),
                 )
-                if not copied and content is not None and content.get("key") != key:
-                    self._delete_objects(content)  # another worker copied it first
+                if copied:
+                    copied_n += 1
+                else:
+                    already += 1  # another worker copied it first
+                    if content is not None and content.get("key") != key:
+                        self._delete_objects(content)
             self._store.end_output_copy(job.target_notebook, None, final=True)
-            log.info("starter outputs copied into notebook %s", job.target_notebook)
+            if copied_n + already == 0:
+                # a starter without ready outputs is almost certainly not what the admin meant
+                log.warning(
+                    "starter notebook %s has no ready outputs: none copied into notebook %s "
+                    "(%d not ready)",
+                    job.source_notebook,
+                    job.target_notebook,
+                    not_ready,
+                )
+            else:
+                log.info(
+                    "starter outputs into notebook %s: copied %d, skipped %d not ready, "
+                    "%d already copied",
+                    job.target_notebook,
+                    copied_n,
+                    not_ready,
+                    already,
+                )
             return True
         except Exception as exc:
             final = job.attempts >= MAX_COPY_ATTEMPTS
