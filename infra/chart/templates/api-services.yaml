@@ -100,13 +100,19 @@ spec:
         app.kubernetes.io/component: worker
     spec:
       automountServiceAccountToken: false
-      terminationGracePeriodSeconds: {{ $svc.worker.terminationGracePeriodSeconds | default 120 }}
+      {{- $grace := $svc.worker.terminationGracePeriodSeconds | default 120 }}
+      terminationGracePeriodSeconds: {{ $grace }}
       containers:
         - name: worker
           image: {{ include "lasteverlm.image" (dict "root" $ "name" $name) }}
           imagePullPolicy: {{ $.Values.imagePullPolicy }}
           command:
             {{- toYaml $svc.worker.command | nindent 12 }}
+          # the same value as terminationGracePeriodSeconds: the worker plans
+          # its handover on SIGTERM against the time the kubelet gives it
+          env:
+            - name: WORKER_GRACE_SECONDS
+              value: {{ $grace | quote }}
           envFrom:
             {{- include "lasteverlm.envFrom" $svc | nindent 12 }}
           resources:

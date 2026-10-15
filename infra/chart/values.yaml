@@ -114,7 +114,9 @@ services:
       # On SIGTERM a worker stops claiming and finishes the job it holds; a
       # job may run up to rag's JOB_MAX_SECONDS (2700), so a rollout or a
       # scale-down waits that long plus a minute instead of killing it.
-      # An idle worker exits within its poll interval.
+      # An idle worker exits within its poll interval. The chart also passes
+      # it as WORKER_GRACE_SECONDS, so the worker's handover plan and the
+      # kubelet's deadline are one value.
       terminationGracePeriodSeconds: 2760
       # A new worker is ready before an old one stops claiming, so new jobs
       # are never short of workers while old ones drain; one at a time
