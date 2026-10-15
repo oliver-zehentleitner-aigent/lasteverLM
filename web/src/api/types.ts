@@ -376,8 +376,8 @@ export interface JudgeNote {
   round: number
   /** bulletproof: the second judge, of another model family */
   second?: { model: string; verdict: JudgeVerdict | null; reason: string; quote: string }
-  /** bulletproof: the first judge's own reading, where the result replaced it (disputed) */
-  first?: { verdict: JudgeVerdict | null; reason: string }
+  /** bulletproof: the first judge's own reading (its model is `model`); absent on outputs from before rag #592 */
+  first?: { verdict: JudgeVerdict | null; reason: string; quote?: string }
 }
 
 /** A judging during generation: its rounds and the claims taken out.
