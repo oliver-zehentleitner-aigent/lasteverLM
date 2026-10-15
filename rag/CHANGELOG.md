@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.12] - 2026-10-15
+
 ### Fixed
 
 - The agent chat makes a document from the sources the user means. Sources named in the message ("erstelle aus Senior_Database_Engineer.pdf eine Mindmap") are matched against the notebook's (exact name, then without case and extension, then a unique part); the plan uses only those, its "Reads" lists only them, and a name that matches nothing or several sources is a struck step with its reason. `create_output` takes `sources`, and the step `args.source_ids`. Without named sources the step uses the request's selection; when more than one is selected and the last answer cited only some, the plan asks "All N selected sources" or "Only <those> (just discussed)", the latter preselected. Before, every plan read all of the notebook's sources.
