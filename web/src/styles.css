@@ -165,7 +165,7 @@ button.item { background: none; border: none; color: inherit; text-align: left; 
 .help-link { border: 1px solid var(--line); color: var(--fg); }
 .help-link.active { border-color: var(--accent); color: var(--accent); }
 .profile { position: relative; }
-.popup-menu { position: absolute; z-index: 30; min-width: 12rem; padding: 0.25rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); }
+.popup-menu { position: absolute; z-index: 55; min-width: 12rem; padding: 0.25rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 24px var(--overlay); }
 .profile-menu { right: 0; top: calc(100% + 0.35rem); }
 .popup-menu-header { padding: 0.35rem 0.6rem 0.4rem; border-bottom: 1px solid var(--line); margin-bottom: 0.25rem; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .popup-menu ul { margin: 0; padding: 0; list-style: none; }
@@ -1025,8 +1025,10 @@ table.pricing th, table.pricing td { text-align: left; padding: 0.25rem 0.4rem; 
 
 /* the first-login introduction: the area outlined over a dimmed page, a card with an arrow */
 .tour { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
-.tour-dim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); pointer-events: auto; }
-.tour-spot { position: fixed; border-radius: var(--radius); box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.45); outline: 2px solid var(--accent); pointer-events: none; transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s; }
+/* the page dimmed, with a hole per outlined area (an SVG mask, so a step can outline several) */
+.tour-dim { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: auto; }
+.tour-dim > rect { fill: rgb(0 0 0 / 0.45); }
+.tour-spot { position: fixed; border-radius: var(--radius); outline: 2px solid var(--accent); pointer-events: none; transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s; }
 .tour-card { position: fixed; width: min(20rem, calc(100vw - 32px)); box-sizing: border-box; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 0.9rem; box-shadow: 0 6px 24px rgb(0 0 0 / 0.25); pointer-events: auto; }
 .tour-card h2 { font-size: 1.05rem; margin: 0.1rem 0 0.3rem; }
 .tour-card p { margin: 0 0 0.4rem; }

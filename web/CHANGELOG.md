@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The introduction has seven steps: the new-notebook field, Sources, Output format, Outputs, the viewer, the chat, and Credit, which opens the profile menu and the voucher dialog and outlines both (leaving the step closes them, nothing is redeemed); an area not on screen leaves the card in the middle. The no-credit line under Create is gone.
+- The empty chat says "Ask about your sources, have an output explained, or ask me to make one, for example: 'Make flashcards from the PDF'.", and the question field "Ask, or tell me what to make…".
+
 ## [0.22.13] - 2026-10-15
 
 ### Changed

@@ -2,6 +2,8 @@ import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 
 export interface MenuItem {
   label: string
+  /** a stable name for the item (`data-item`), for the introduction to point at */
+  id?: string
   onSelect: () => void
   disabled?: boolean
 }
@@ -11,16 +13,31 @@ export interface MenuItem {
  *  keys, Home and End move between them, Escape and a click elsewhere
  *  close it, and a pick closes it too (Escape returns the focus to the
  *  button that opened it, through `onClose`). */
-export function PopupMenu({ label, header, items, onClose, className }: { label: string; header?: ReactNode; items: MenuItem[]; onClose: () => void; className?: string }) {
+export function PopupMenu({
+  label,
+  header,
+  items,
+  onClose,
+  className,
+  focusFirst = true,
+}: {
+  label: string
+  header?: ReactNode
+  items: MenuItem[]
+  onClose: () => void
+  className?: string
+  /** off when it is opened for the introduction, which keeps the focus on its card */
+  focusFirst?: boolean
+}) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    ref.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus()
+    if (focusFirst) ref.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus()
     const away = (e: Event) => {
       if (!ref.current?.contains(e.target as Node)) onClose()
     }
     document.addEventListener('pointerdown', away)
     return () => document.removeEventListener('pointerdown', away)
-  }, [onClose])
+  }, [onClose, focusFirst])
 
   function key(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Escape') {
@@ -51,6 +68,7 @@ export function PopupMenu({ label, header, items, onClose, className }: { label:
             <button
               type="button"
               role="menuitem"
+              data-item={it.id}
               disabled={it.disabled}
               onClick={() => {
                 onClose()

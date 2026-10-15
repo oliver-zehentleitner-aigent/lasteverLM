@@ -9,11 +9,13 @@ interface Props {
   reason: 'manual' | 'exhausted'
   /** a 402 with credit left, just not enough: what the action needs and what there is */
   short?: string | null
+  /** shown by the introduction: it keeps the focus on its card */
+  forTour?: boolean
   onClose: () => void
   onRedeemed: (me: User) => void
 }
 
-export function VoucherDialog({ open, reason, short, onClose, onRedeemed }: Props) {
+export function VoucherDialog({ open, reason, short, forTour = false, onClose, onRedeemed }: Props) {
   const [code, setCode] = useState('')
   const { busy, error, run } = useAsync()
 
@@ -30,12 +32,12 @@ export function VoucherDialog({ open, reason, short, onClose, onRedeemed }: Prop
 
   return (
     <div className="backdrop" onClick={onClose}>
-      <form className="dialog" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+      <form className="dialog voucher-dialog" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>{t('voucher.title')}</h2>
         {reason === 'exhausted' && <p className="error">{short ? `${short} ${t('voucher.topUp')}` : t('voucher.exhausted')}</p>}
         <label>
           {t('voucher.code')}
-          <input autoFocus value={code} onChange={(e) => setCode(e.target.value)} />
+          <input autoFocus={!forTour} value={code} onChange={(e) => setCode(e.target.value)} />
         </label>
         {error && <p className="error">{error}</p>}
         <div className="row">

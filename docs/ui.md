@@ -62,12 +62,17 @@ into the first list), or, without any notebook, a first one the
 workspace makes ("My first notebook", without the add-sources dialog
 over it, since the tour's first step points at "+ add"). A user who has
 done the tour lands where they always did (the notebook open last, else
-the first, else the empty state). The tour: three steps over a dimmed page, each outlining its area with a
-card and an arrow beside it: 1 "Add one or more sources" (the Sources
-panel and "+ add"), 2 "Pick an output format" (the format tiles; set
-options or keep the defaults), 3 "Create" (the Create row; without
-credit "Redeem a voucher first: the link is next to Create"). Next,
-Back, Skip; done in three clicks. Finishing or skipping sets the
+the first, else the empty state). The tour: seven steps over a dimmed page, each outlining its area with a
+card and an arrow beside it: 1 the "New notebook" field and Add, 2 the
+Sources (add them, tick the ones to use), 3 Output format (the price
+shows before Create), 4 Outputs, 5 the document viewer (tabs, passages,
+checks), 6 the chat (ask, explain, make; a plan and its price first),
+7 Credit: the profile menu opens with "Redeem a voucher" outlined and
+the voucher dialog opens in the middle, outlined too ("Credit comes
+from vouchers. Redeem one here, from the profile menu."); leaving the
+step closes both, nothing is redeemed. An area not on screen (the
+stacked phone layout) leaves the card in the middle over the dimmed
+page. Next, Back, Skip. Finishing or skipping sets the
 account's `tour_done` preference, and a note in this browser for an
 account that cannot keep it (the shared demo user, or an account
 service before the preference). Not shown over the add-sources dialog.
@@ -388,8 +393,10 @@ opens the notebook.
   loads the notebook's questions (`GET
   /api/rag/notebooks/{id}/suggestions`) as the same cards, or says
   there are none until a source is ready. It is a click, not automatic:
-  the first call is billed. The question field says "Ask, or tell me
-  what to add and create…": an answer can be a **plan** (rag's agent,
+  the first call is billed. An empty chat says "Ask about your sources,
+  have an output explained, or ask me to make one, for example: 'Make
+  flashcards from the PDF'." and the question field "Ask, or tell me
+  what to make…": an answer can be a **plan** (rag's agent,
   `plan` on the answer and on its message). It shows as a card under
   the answer: the steps numbered, each with its label and estimated
   price ("free" for a listing; an invalid step struck through with its

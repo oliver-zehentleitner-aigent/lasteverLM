@@ -8,6 +8,7 @@ import { formatCents } from '../lib/format'
 import { canSeeAdmin } from '../lib/roles'
 import { setSessionTheme, systemPrefersDark, toggledTheme, useTheme, useThemeVersion } from '../lib/theme'
 import { PopupMenu } from './PopupMenu'
+import { TOUR_CREDIT, tourEvents } from '../lib/tour'
 
 interface Props {
   me: User | null
@@ -140,10 +141,25 @@ export function Header({ me, route, onNavigate, onLogout }: Props) {
  *  once), Settings and Sign out. */
 function ProfileMenu({ email, onNavigate, onLogout }: { email: string | null; onNavigate: (path: string) => void; onLogout: () => void }) {
   const [open, setOpen] = useState(false)
+  // opened by the introduction's credit step: no focus taken, none given back
+  const [forTour, setForTour] = useState(false)
+  const tourOpen = useRef(false)
   const button = useRef<HTMLButtonElement>(null)
   const close = useCallback(() => {
     setOpen(false)
-    button.current?.focus()
+    if (!tourOpen.current) button.current?.focus()
+    tourOpen.current = false
+    setForTour(false)
+  }, [])
+  useEffect(() => {
+    const onStep = (e: Event) => {
+      const on = (e as CustomEvent<boolean>).detail
+      tourOpen.current = on
+      setForTour(on)
+      setOpen(on)
+    }
+    tourEvents.addEventListener(TOUR_CREDIT, onStep)
+    return () => tourEvents.removeEventListener(TOUR_CREDIT, onStep)
   }, [])
   const initial = (email?.trim()[0] ?? '?').toUpperCase()
   return (
@@ -166,9 +182,10 @@ function ProfileMenu({ email, onNavigate, onLogout }: { email: string | null; on
           label={t('header.account')}
           header={email && <span className="muted small" title={email}>{email}</span>}
           onClose={close}
+          focusFirst={!forTour}
           items={[
             { label: t('header.credits'), onSelect: () => onNavigate('/credits') },
-            { label: t('header.redeem'), onSelect: openVoucher },
+            { label: t('header.redeem'), id: 'redeem', onSelect: openVoucher },
             { label: t('header.settings'), onSelect: () => onNavigate('/settings') },
             { label: t('header.signOut'), onSelect: onLogout },
           ]}
