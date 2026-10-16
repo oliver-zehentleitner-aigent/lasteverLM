@@ -208,19 +208,35 @@ Rules:
 
 # How the document list names a kind: an upload by its format, a generated
 # document by the output it is.
-_DOCUMENT_KINDS = {
+# how the chat's document list names each kind; an unknown one is shown by
+# its raw name (and logged), never fails the question
+_SOURCE_KINDS = {
     "pdf": "PDF",
     "text": "text",
     "url": "web page",
     "image": "image",
+    "audio": "audio file",
+    "generated": "document",
+}
+_OUTPUT_KINDS = {
     "report": "report",
     "quiz": "quiz",
+    "flashcards": "flashcards",
     "table": "table",
     "mindmap": "mind map",
     "infographic": "infographic",
     "audio": "audio overview",
-    "generated": "document",
+    "decision": "decision",
+    "chart": "chart",
 }
+
+
+def _kind_label(labels: Mapping[str, str], kind: str | None) -> str:
+    if kind is not None and kind in labels:
+        return labels[kind]
+    log.warning("the chat's document list has no label for kind %r", kind)
+    return str(kind or "document")
+
 
 ANSWER_MAX_TOKENS = 1024
 # A scoped question is bounded by its one document already: no similarity floor
@@ -406,12 +422,16 @@ def answer_system_prompt(
 def _document_line(document: NotebookDocument, selected: list[str] | None) -> str:
     if document.kind == "generated":
         # an output's title is the user's own text too (they can rename it)
-        kind = _DOCUMENT_KINDS[document.output_kind or document.kind]
+        kind = (
+            _kind_label(_OUTPUT_KINDS, document.output_kind)
+            if document.output_kind
+            else _SOURCE_KINDS["generated"]
+        )
         return f"{kind} (generated): {inline(document.name)}"
     origin = "uploaded"
     if selected and document.source_id not in selected:
         origin = "uploaded, not in scope"
-    return f"{_DOCUMENT_KINDS[document.kind]} ({origin}): {inline(document.name)}"
+    return f"{_kind_label(_SOURCE_KINDS, document.kind)} ({origin}): {inline(document.name)}"
 
 
 def uploads_first(
