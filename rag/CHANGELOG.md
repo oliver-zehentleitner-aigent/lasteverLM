@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.22] - 2026-10-16
+
 ### Fixed
 
 - A chat question in a notebook that holds a chart (or a decision or flashcards) is answered again: the document list had no label for those kinds and every question failed with 500. Every output and source kind has a label now, an unknown kind is shown by its name with a warning instead of failing, and an uploaded audio file is listed as "audio file", no longer as "audio overview".
