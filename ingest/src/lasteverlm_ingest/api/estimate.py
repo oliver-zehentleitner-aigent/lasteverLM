@@ -17,7 +17,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from lasteverlm_core import ExchangeRateMissingError, PricingRules, cost_cents
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from lasteverlm_ingest.api.deps import worker_deps
 from lasteverlm_ingest.auth import CurrentUser
@@ -173,9 +173,16 @@ Calls = tuple[tuple[str, int, int], ...]
 
 
 class SourcesEstimateRequest(BaseModel):
-    library_ids: list[UUID] = Field(min_length=1, max_length=200)
+    # Sources to read; empty when the plan only fetches pages again.
+    library_ids: list[UUID] = Field(default_factory=list, max_length=200)
     # Web pages already read that the plan would fetch again.
     refetch: list[UUID] = Field(default_factory=list, max_length=200)
+
+    @model_validator(mode="after")
+    def _something_to_price(self) -> SourcesEstimateRequest:
+        if not self.library_ids and not self.refetch:
+            raise ValueError("library_ids or refetch must name at least one source")
+        return self
 
 
 class SourceEstimate(BaseModel):

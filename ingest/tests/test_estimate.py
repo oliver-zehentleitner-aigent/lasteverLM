@@ -138,6 +138,19 @@ def test_a_page_to_refetch_costs_nothing_if_unchanged(client, repo):
     )
 
 
+def test_refetch_alone_is_priced_and_nothing_at_all_is_refused(client, repo):
+    nb = repo.create_notebook(DEMO_USER_ID, "nb").id
+    url = _add(repo, nb, "https://x.test/", "url")
+    repo.set_library_status(url, "ready")
+    # rag sends an empty library_ids when every selected source is read already
+    r = client.post("/api/ingest/sources/estimate", json={"library_ids": [], "refetch": [str(url)]})
+    assert r.status_code == 200
+    [item] = r.json()["items"]
+    assert item["basis"] == "re-read if changed" and not item["unread"]
+    r = client.post("/api/ingest/sources/estimate", json={"library_ids": [], "refetch": []})
+    assert r.status_code == 422
+
+
 def test_unknown_measures_give_a_range_and_foreign_ids_a_404(client, repo):
     nb = repo.create_notebook(DEMO_USER_ID, "nb").id
     old_pdf = _add(repo, nb, "old.pdf", "pdf", capture="text")  # before page counts
